@@ -69,34 +69,73 @@ class TestCorrectToolsCalled:
         assert result["score"] == 1.0
         assert result["label"] == "correct"
 
-    def test_execute_browser_action_replacement_satisfies_legacy_required_tool(self) -> None:
+    def test_required_ui_operation_satisfied_by_script_invocation(self) -> None:
         result = evaluate_tools_called(
             output=_execute_browser_action_output(
                 "return await ui.spansFilter.set({condition: \"status_code == 'ERROR'\"});"
             ),
-            expected=_expected(required=["set_spans_filter"]),
+            expected={"ui_operations": {"required": ["spansFilter.set"]}},
         )
         assert result["score"] == 1.0
         assert result["label"] == "correct"
 
-    def test_execute_browser_action_replacement_triggers_legacy_forbidden_tool(self) -> None:
+    def test_missing_required_ui_operation(self) -> None:
         result = evaluate_tools_called(
             output=_execute_browser_action_output(
                 "return await ui.timeRange.set({timeRangeKey: '1h'});"
             ),
-            expected=_expected(forbidden=["set_time_range"]),
+            expected={"ui_operations": {"required": ["spansFilter.set"]}},
+        )
+        assert result["score"] == 0.0
+        assert result["label"] == "missing_required"
+        assert result["metadata"]["observed_ui_operations"] == ["timeRange.set"]
+
+    def test_required_ui_operation_not_satisfied_by_search_only_turn(self) -> None:
+        # A run that ends on the discovery step (search_browser_actions is an
+        # external tool, so the turn stops there) must not count as having
+        # invoked the operation.
+        result = evaluate_tools_called(
+            output=_output("search_browser_actions"),
+            expected={"ui_operations": {"required": ["spansFilter.set"]}},
+        )
+        assert result["label"] == "missing_required"
+
+    def test_forbidden_ui_operation_triggers_called_forbidden(self) -> None:
+        result = evaluate_tools_called(
+            output=_execute_browser_action_output(
+                "return await ui.timeRange.set({timeRangeKey: '1h'});"
+            ),
+            expected={"ui_operations": {"forbidden": ["timeRange.set"]}},
         )
         assert result["score"] == 0.0
         assert result["label"] == "called_forbidden"
 
-    def test_execute_browser_action_write_operation_satisfies_subsumed_tool(self) -> None:
+    def test_ui_operation_and_tool_expectations_combine(self) -> None:
         result = evaluate_tools_called(
             output=_execute_browser_action_output(
-                "return await ui.experiment.patch({experimentId: 'RXhwZXJpbWVudDox'});"
+                "const targets = await ui.playground.model.list({});\nreturn targets;"
             ),
-            expected=_expected(required=["patch_experiment"]),
+            expected={
+                "tools": {"forbidden": ["bash"]},
+                "ui_operations": {
+                    "required": ["playground.model.list"],
+                    "forbidden": ["playground.model.set"],
+                },
+            },
         )
         assert result["score"] == 1.0
+        assert result["label"] == "correct"
+
+    def test_multiple_operations_in_one_script_all_observed(self) -> None:
+        result = evaluate_tools_called(
+            output=_execute_browser_action_output(
+                "await ui.playground.repetitions.set({repetitions: 5});\n"
+                "return await ui.playground.run({});"
+            ),
+            expected={
+                "ui_operations": {"required": ["playground.repetitions.set", "playground.run"]}
+            },
+        )
         assert result["label"] == "correct"
 
     def test_correct_when_no_constraints_and_no_calls(self) -> None:
@@ -359,44 +398,92 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "pass"
 
-    def test_execute_browser_action_replacement_matches_legacy_literal_args(self) -> None:
+    def test_ui_operation_args_match_literal_values_in_script_source(self) -> None:
         result = evaluate_tool_call_args(
             output=_execute_browser_action_output(
                 "return await ui.timeRange.set({timeRangeKey: 'custom', "
                 "startTime: '2025-01-01T00:00:00Z'});"
             ),
-            expected=self._expected(
-                set_time_range={
-                    "timeRangeKey": "custom",
-                    "startTime": "2025-01-01T00:00:00Z",
-                    "endTime": {"absent": True},
+            expected={
+                "ui_operation_args": {
+                    "timeRange.set": {
+                        "timeRangeKey": "custom",
+                        "startTime": "2025-01-01T00:00:00Z",
+                        "endTime": {"absent": True},
+                    }
                 }
-            ),
+            },
         )
         assert result["label"] == "pass"
 
-    def test_execute_browser_action_replacement_matches_legacy_string_matchers(self) -> None:
+    def test_ui_operation_args_match_string_matchers_in_script_source(self) -> None:
         result = evaluate_tool_call_args(
             output=_execute_browser_action_output(
                 "return await ui.spansFilter.set({condition: "
                 "\"span_kind == 'LLM' and latency_ms >= 5000\"});"
             ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": {"contains_all": ["span_kind", "latency_ms", "5000"]}
+            expected={
+                "ui_operation_args": {
+                    "spansFilter.set": {
+                        "condition": {"contains_all": ["span_kind", "latency_ms", "5000"]}
+                    }
                 }
-            ),
+            },
         )
         assert result["label"] == "pass"
 
-    def test_execute_browser_action_replacement_rejects_wrong_legacy_args(self) -> None:
+    def test_ui_operation_args_reject_wrong_literal(self) -> None:
         result = evaluate_tool_call_args(
             output=_execute_browser_action_output(
                 "return await ui.timeRange.set({timeRangeKey: '7d'});"
             ),
-            expected=self._expected(set_time_range={"timeRangeKey": "1h"}),
+            expected={"ui_operation_args": {"timeRange.set": {"timeRangeKey": "1h"}}},
         )
         assert result["label"] == "fail"
+
+    def test_ui_operation_args_fail_when_operation_not_invoked(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output("search_browser_actions"),
+            expected={"ui_operation_args": {"timeRange.set": {"timeRangeKey": "1h"}}},
+        )
+        assert result["label"] == "fail"
+        assert "not invoked" in result["metadata"]["timeRange.set"]["reason"]
+
+    def test_ui_operation_args_variant_list_passes_on_any_variant(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_execute_browser_action_output(
+                "return await ui.timeRange.set({timeRangeKey: '1d'});"
+            ),
+            expected={
+                "ui_operation_args": {
+                    "timeRange.set": [
+                        {"timeRangeKey": "1h"},
+                        {"timeRangeKey": "1d"},
+                    ]
+                }
+            },
+        )
+        assert result["label"] == "pass"
+
+    def test_ui_operation_args_match_nested_literal_object(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_execute_browser_action_output(
+                "return await ui.playground.model.set({target: {type: 'builtin', "
+                "provider: 'ANTHROPIC', modelName: 'claude-sonnet-4-6'}});"
+            ),
+            expected={
+                "ui_operation_args": {
+                    "playground.model.set": {
+                        "target": {
+                            "type": "builtin",
+                            "provider": "ANTHROPIC",
+                            "modelName": "claude-sonnet-4-6",
+                        }
+                    }
+                }
+            },
+        )
+        assert result["label"] == "pass"
 
     def test_fails_when_value_differs(self) -> None:
         result = evaluate_tool_call_args(

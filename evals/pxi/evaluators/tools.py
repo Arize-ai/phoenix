@@ -50,64 +50,32 @@ def _tool_args(call: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-# The search_browser_actions/execute_browser_action migration replaced these client-action tools with
-# catalog operations. Keep the existing behavioral datasets useful by treating
-# an execute_browser_action script that invokes the replacement operation as the legacy
-# tool call the example describes.
-_LEGACY_UI_OPERATION_NAMES: dict[str, str] = {
-    "add_dataset_examples": "dataset.examples.add",
-    "add_prompt_instance": "playground.instance.add",
-    "add_spans_to_dataset": "dataset.addSpans",
-    "batch_span_annotate": "spans.annotate",
-    "cancel_playground_run": "playground.run.cancel",
-    "clone_prompt_instance": "playground.instance.clone",
-    "create_annotation_config": "annotationConfig.create",
-    "create_dataset": "dataset.create",
-    "create_dataset_label": "dataset.label.create",
-    "create_dataset_split": "dataset.split.create",
-    "delete_dataset": "dataset.delete",
-    "delete_dataset_examples": "dataset.examples.delete",
-    "delete_dataset_labels": "dataset.label.delete",
-    "delete_dataset_splits": "dataset.split.delete",
-    "edit_code_evaluator_draft": "evaluators.code.edit",
-    "edit_llm_evaluator_draft": "evaluators.llm.edit",
-    "edit_prompt_instance": "playground.prompt.edit",
-    "list_playground_model_targets": "playground.model.list",
-    "load_dataset": "playground.dataset.load",
-    "open_code_evaluator_form": "evaluators.code.openForm",
-    "open_dataset_evaluator_for_edit": "evaluators.openForEdit",
-    "open_llm_evaluator_form": "evaluators.llm.openForm",
-    "patch_dataset": "dataset.patch",
-    "patch_dataset_examples": "dataset.examples.patch",
-    "patch_dataset_split": "dataset.split.patch",
-    "patch_experiment": "experiment.patch",
-    "read_code_evaluator_draft": "evaluators.code.read",
-    "read_dataset_evaluator_definition": "evaluators.readDefinition",
-    "read_llm_evaluator_draft": "evaluators.llm.read",
-    "read_playground_output": "playground.run.readOutput",
-    "read_prompt_instance": "playground.prompt.read",
-    "read_prompt_tools": "playground.prompt.tools.read",
-    "remove_prompt_instance": "playground.instance.remove",
-    "run_playground": "playground.run",
-    "save_prompt": "playground.prompt.save",
-    "set_appended_messages_path": "playground.messages.setPath",
-    "set_dataset_evaluator_selection": "evaluators.select",
-    "set_dataset_example_splits": "dataset.split.setExampleSplits",
-    "set_dataset_labels": "dataset.label.set",
-    "set_playground_experiment_recording": "playground.experiment.setRecording",
-    "set_playground_model": "playground.model.set",
-    "set_playground_repetitions": "playground.repetitions.set",
-    "set_spans_filter": "spansFilter.set",
-    "set_template_variables_path": "playground.variables.setPath",
-    "set_time_range": "timeRange.set",
-    "set_variable_values": "playground.variables.set",
-    "submit_code_evaluator_draft": "evaluators.code.submit",
-    "submit_llm_evaluator_draft": "evaluators.llm.submit",
-    "test_code_evaluator_draft": "evaluators.code.test",
-    "test_llm_evaluator_draft": "evaluators.llm.test",
-    "update_annotation_config": "annotationConfig.update",
-    "write_prompt_tools": "playground.prompt.tools.write",
-}
+# execute_browser_action scripts invoke catalog operations as `ui.<name>(...)`.
+# Datasets assert on those invocations natively via `expected.ui_operations`
+# (required/forbidden operation names) and `expected.ui_operation_args`
+# (per-operation argument expectations matched against the script's argument
+# source). The helpers below extract the invocations from observed scripts.
+_UI_OPERATION_CALL_RE = re.compile(r"\bui\.((?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*)\s*\(")
+
+
+def _execute_browser_action_scripts(calls: list[dict[str, Any]]) -> list[str]:
+    """Return the script source of every observed execute_browser_action call."""
+    scripts: list[str] = []
+    for call in calls:
+        if _tool_name(call) != "execute_browser_action":
+            continue
+        script = _tool_args(call).get("script")
+        if isinstance(script, str):
+            scripts.append(script)
+    return scripts
+
+
+def _invoked_ui_operation_names(scripts: list[str]) -> list[str]:
+    """Return every `ui.<operation>(` invocation found across scripts, in order."""
+    names: list[str] = []
+    for script in scripts:
+        names.extend(match.group(1) for match in _UI_OPERATION_CALL_RE.finditer(script))
+    return names
 
 
 def _extract_ui_operation_arguments(script: str, operation_name: str) -> list[str]:
@@ -154,45 +122,24 @@ def _extract_ui_operation_arguments(script: str, operation_name: str) -> list[st
     return arguments
 
 
-def _legacy_ui_operation_arguments(calls: list[dict[str, Any]], legacy_tool_name: str) -> list[str]:
-    operation_name = _LEGACY_UI_OPERATION_NAMES.get(legacy_tool_name)
-    if operation_name is None:
-        return []
+def _ui_operation_arguments(scripts: list[str], operation_name: str) -> list[str]:
+    """Return argument source for every invocation of one operation across scripts."""
     arguments: list[str] = []
-    for call in calls:
-        if _tool_name(call) != "execute_browser_action":
-            continue
-        script = _tool_args(call).get("script")
-        if isinstance(script, str):
-            arguments.extend(_extract_ui_operation_arguments(script, operation_name))
+    for script in scripts:
+        arguments.extend(_extract_ui_operation_arguments(script, operation_name))
     return arguments
-
-
-def _logical_tool_names(calls: list[dict[str, Any]], expected_tool_names: list[str]) -> list[str]:
-    """Project execute_browser_action operations onto legacy names used by eval datasets."""
-    projects_legacy_names = any(name in _LEGACY_UI_OPERATION_NAMES for name in expected_tool_names)
-    observed: list[str] = []
-    for call in calls:
-        name = _tool_name(call)
-        if name is None:
-            continue
-        if name != "execute_browser_action":
-            observed.append(name)
-            continue
-        matched_legacy_names = [
-            legacy_name
-            for legacy_name in _LEGACY_UI_OPERATION_NAMES
-            if _legacy_ui_operation_arguments([call], legacy_name)
-        ]
-        if projects_legacy_names and matched_legacy_names:
-            observed.extend(matched_legacy_names)
-        else:
-            observed.append(name)
-    return observed
 
 
 def _expected_tools(expected: Any) -> dict[str, Any]:
     return _as_dict(_as_dict(expected).get("tools", {}))
+
+
+def _expected_ui_operations(expected: Any) -> dict[str, Any]:
+    return _as_dict(_as_dict(expected).get("ui_operations", {}))
+
+
+def _expected_ui_operation_args(expected: Any) -> dict[str, Any]:
+    return _as_dict(_as_dict(expected).get("ui_operation_args", {}))
 
 
 def _expected_tool_call_args(expected: Any) -> dict[str, Any]:
@@ -219,18 +166,28 @@ def _success() -> dict[str, Any]:
 
 
 def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
-    """Evaluate observed tool calls against required/forbidden/exact_match expectations.
+    """Evaluate observed tool calls and UI operation invocations.
 
-    Reads strictness from ``expected.tools.exact_match`` (defaulting to False).
+    Reads tool-level expectations from ``expected.tools``
+    (``required``/``forbidden``/``exact_match``) and UI-operation
+    expectations from ``expected.ui_operations``
+    (``required``/``forbidden``). Tool names match observed tool calls
+    verbatim; operation names match ``ui.<name>(...)`` invocations inside
+    observed ``execute_browser_action`` scripts.
+
     Returns a dict with one of the labels:
 
-    - ``correct``: all required tools were called, no forbidden tools, and (when
-      ``exact_match`` is true) the observed sequence equals the required sequence.
-    - ``called_forbidden``: at least one forbidden tool was called.
-    - ``missing_required``: at least one required tool was not called.
+    - ``correct``: all required tools/operations were called, no forbidden
+      ones, and (when ``exact_match`` is true) the observed tool sequence
+      equals the required sequence.
+    - ``called_forbidden``: at least one forbidden tool or operation was
+      called.
+    - ``missing_required``: at least one required tool or operation was not
+      called.
     - ``not_exact_match``: ``exact_match`` is true, all required tools were
-      called, and the observed sequence does not equal the required sequence
-      (extra calls, duplicates, or different ordering).
+      called, and the observed tool sequence does not equal the required
+      sequence (extra calls, duplicates, or different ordering).
+      ``exact_match`` applies to tool calls only.
 
     Precedence (most specific first): ``called_forbidden`` >
     ``missing_required`` > ``not_exact_match`` > ``correct``.
@@ -239,26 +196,43 @@ def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     required = list(tool_expectation.get("required") or [])
     forbidden = list(tool_expectation.get("forbidden") or [])
     exact_match = bool(tool_expectation.get("exact_match", False))
+    operation_expectation = _expected_ui_operations(expected)
+    required_operations = list(operation_expectation.get("required") or [])
+    forbidden_operations = list(operation_expectation.get("forbidden") or [])
 
     calls = tool_calls_from_output(output)
-    observed = _logical_tool_names(calls, [*required, *forbidden])
+    observed = [name for call in calls if (name := _tool_name(call)) is not None]
+    observed_operations = _invoked_ui_operation_names(_execute_browser_action_scripts(calls))
+    metadata = {
+        "observed_tools": observed,
+        "observed_ui_operations": observed_operations,
+    }
 
     forbidden_observed = [name for name in forbidden if name in observed]
-    if forbidden_observed:
+    forbidden_operations_observed = [
+        name for name in forbidden_operations if name in observed_operations
+    ]
+    if forbidden_observed or forbidden_operations_observed:
         return {
             "score": 0.0,
             "label": "called_forbidden",
-            "explanation": f"Forbidden tools were called: {forbidden_observed}",
-            "metadata": {"observed_tools": observed},
+            "explanation": (
+                "Forbidden tools or UI operations were called: "
+                f"{forbidden_observed + forbidden_operations_observed}"
+            ),
+            "metadata": metadata,
         }
 
     missing = [name for name in required if name not in observed]
-    if missing:
+    missing_operations = [name for name in required_operations if name not in observed_operations]
+    if missing or missing_operations:
         return {
             "score": 0.0,
             "label": "missing_required",
-            "explanation": f"Required tools were not called: {missing}",
-            "metadata": {"observed_tools": observed},
+            "explanation": (
+                f"Required tools or UI operations were not called: {missing + missing_operations}"
+            ),
+            "metadata": metadata,
         }
 
     if exact_match and observed != required:
@@ -266,7 +240,7 @@ def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
             "score": 0.0,
             "label": "not_exact_match",
             "explanation": f"Expected exact tool sequence {required}, observed {observed}",
-            "metadata": {"observed_tools": observed},
+            "metadata": metadata,
         }
 
     return {"score": 1.0, "label": "correct"}
@@ -300,10 +274,13 @@ def evaluate_tool_call_count(output: Any, expected: Any) -> dict[str, Any]:
 
 @create_evaluator(name="correct_tools_called", kind="code")
 def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
-    """Phoenix evaluator entrypoint for tool-selection correctness.
+    """Phoenix evaluator entrypoint for tool- and UI-operation-selection correctness.
 
     Delegates to :func:`evaluate_tools_called`; see that function for label
-    semantics and precedence. Strictness is read from
+    semantics and precedence. Tool expectations live in ``expected.tools``;
+    UI operation expectations (matched against ``ui.<name>(...)`` invocations
+    inside ``execute_browser_action`` scripts) live in
+    ``expected.ui_operations``. Strictness is read from
     ``expected.tools.exact_match`` so it can be controlled per-example via
     the dataset YAML.
     """
@@ -680,6 +657,16 @@ def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
     delegated to :func:`_pair_passes` so literal values use equality and
     matcher dicts (``contains_all``, ``any``, etc.) use matcher semantics.
 
+    Additionally iterates ``expected.ui_operation_args`` the same way, but
+    against UI operation invocations found inside observed
+    ``execute_browser_action`` scripts: for each ``(operation_name,
+    expected_args)`` pair, at least one ``ui.<operation>(...)`` invocation's
+    argument source must satisfy one variant. Because scripts pass arguments
+    as JavaScript source (not parsed JSON), matching is textual — literal
+    values assert the key and value appear in the argument source, and the
+    same matcher vocabulary applies with source-level semantics (see
+    :func:`_source_pair_passes`).
+
     Matching is permissive in three ways:
 
     1. **Subset match per call.** Extra observed arg keys are ignored.
@@ -711,27 +698,57 @@ def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
             }
             continue
         matching_calls = [call for call in observed_calls if _tool_name(call) == tool_name]
-        operation_arguments = _legacy_ui_operation_arguments(observed_calls, tool_name)
-        if not matching_calls and not operation_arguments:
-            failures[tool_name] = {"reason": "tool or replacement UI operation was not called"}
+        if not matching_calls:
+            failures[tool_name] = {"reason": "tool was not called"}
             continue
-        # Pass if ANY (variant, call) pair satisfies the subset check, or if an
-        # execute_browser_action script invokes the replacement operation with equivalent
-        # literal argument evidence.
+        # Pass if ANY (variant, call) pair satisfies the subset check.
         if any(
             all(_pair_passes(_tool_args(call), key, value) for key, value in variant.items())
             for variant in variants
             for call in matching_calls
-        ) or any(
-            _ui_operation_variant_passes(source, variant)
-            for variant in variants
-            for source in operation_arguments
         ):
             continue
         failures[tool_name] = {
             "expected": ([dict(v) for v in variants] if len(variants) > 1 else dict(variants[0])),
             "observed": [dict(_tool_args(call)) for call in matching_calls],
-            "observed_ui_operation_arguments": operation_arguments,
+        }
+
+    expected_args_by_operation = _expected_ui_operation_args(expected)
+    scripts = _execute_browser_action_scripts(observed_calls)
+    for operation_name, expected_for_operation in expected_args_by_operation.items():
+        if not isinstance(operation_name, str):
+            continue
+        invalid_reason = _invalid_arg_expectation_reason(expected_for_operation)
+        if invalid_reason:
+            failures[operation_name] = {
+                "reason": invalid_reason,
+                "expected": expected_for_operation,
+            }
+            continue
+        variants = _expected_arg_variants(expected_for_operation)
+        matcher_errors = _matcher_validation_failures(variants)
+        if matcher_errors:
+            failures[operation_name] = {
+                "reason": "expected arg matcher is malformed",
+                "matcher_errors": matcher_errors,
+            }
+            continue
+        argument_sources = _ui_operation_arguments(scripts, operation_name)
+        if not argument_sources:
+            failures[operation_name] = {
+                "reason": "UI operation was not invoked by any execute_browser_action script"
+            }
+            continue
+        # Pass if ANY (variant, invocation) pair matches the argument source.
+        if any(
+            _ui_operation_variant_passes(source, variant)
+            for variant in variants
+            for source in argument_sources
+        ):
+            continue
+        failures[operation_name] = {
+            "expected": ([dict(v) for v in variants] if len(variants) > 1 else dict(variants[0])),
+            "observed_argument_sources": argument_sources,
         }
 
     if failures:
@@ -812,12 +829,15 @@ def forbidden_tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]
 
 @create_evaluator(name="tool_call_args_match", kind="code")
 def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
-    """Generic tool-call arg matcher used by every PXI dataset.
+    """Generic tool-call and UI-operation arg matcher used by every PXI dataset.
 
     The expected shape is
     ``expected.tool_call_args[tool_name] -> {key: value}`` (a single
     acceptable arg dict) OR ``... -> [{key: value}, ...]`` (a list of
-    independently-acceptable variants). Three intentional permissive
+    independently-acceptable variants). The same shapes apply to
+    ``expected.ui_operation_args[operation_name]``, which matches against the
+    argument source of ``ui.<operation>(...)`` invocations inside observed
+    ``execute_browser_action`` scripts. Three intentional permissive
     properties:
 
     - **Subset match.** A call passes the per-tool check when *all* expected
