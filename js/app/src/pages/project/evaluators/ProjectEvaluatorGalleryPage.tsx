@@ -387,9 +387,6 @@ function EvaluatorTemplateDetails({
             {getProjectEvaluatorTemplateCategoryLabel(template.category)}
           </Badge>
         </Flex>
-        <Text size="S" color="text-700">
-          {template.description}
-        </Text>
         {template.details ? (
           <Text size="S" color="text-700">
             {template.details}
