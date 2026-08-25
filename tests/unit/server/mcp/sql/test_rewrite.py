@@ -2265,6 +2265,42 @@ def test_a_json_key_without_a_quote_keeps_its_path_form() -> None:
     assert "->" in rendered
 
 
+class TestScaledEpochComparisons:
+    """Addition and subtraction preserve the unit an epoch is expressed in.
+
+    Multiplication and division do not, and the column is converted to the
+    unscaled unit, so the comparison would be between two scales -- returning
+    the wrong rows rather than failing.
+    """
+
+    _CUT = "unixepoch('2026-07-30 12:00:00')"
+
+    @pytest.mark.parametrize("scale", ["* 1000", "/ 1000"])
+    def test_a_scaled_epoch_is_refused(self, scale: str) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            _rendered(f"SELECT span_id FROM spans WHERE start_time > {self._CUT} {scale}")
+        assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+
+    def test_a_scaled_bound_of_a_between_is_refused(self) -> None:
+        with pytest.raises(AnalyticsSqlError):
+            _rendered(
+                f"SELECT span_id FROM spans "
+                f"WHERE start_time BETWEEN {self._CUT} AND {self._CUT} * 1000"
+            )
+
+    @pytest.mark.parametrize("shift", ["+ 1", "- 3600", ""])
+    def test_a_shifted_epoch_still_converts(self, shift: str) -> None:
+        rendered = _rendered(f"SELECT span_id FROM spans WHERE start_time > {self._CUT} {shift}")
+        assert "UNIXEPOCH(start_time, 'subsec')" in rendered
+
+    def test_scaling_both_sides_is_the_caller_s_to_write(self) -> None:
+        """Written out, the comparison is in one unit and needs no conversion."""
+        rendered = _rendered(
+            f"SELECT span_id FROM spans WHERE unixepoch(start_time) * 1000 > {self._CUT} * 1000"
+        )
+        assert "UNIXEPOCH(start_time) * 1000" in rendered
+
+
 def test_subsecond_precision_survives_an_epoch_comparison() -> None:
     """Converting the column must not floor it to whole seconds.
 

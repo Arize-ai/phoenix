@@ -1662,15 +1662,18 @@ _SQLITE_SUBSEC_UNITS = frozenset({"unixepoch", "datetime", "time"})
 
 
 def _timestamp_unit_through_arithmetic(node: Optional[exp.Expression]) -> Optional[str]:
-    """The unit a side is expressed in, seen through arithmetic.
+    """The unit a side is expressed in, seen through unit-preserving arithmetic.
 
     `unixepoch('now') - 3600` is an epoch value exactly as `unixepoch('now')`
     is; shifting it by a constant does not change its unit. Without this, a
     bounded window -- the most common form of "recent" -- is left comparing
     text to an integer.
+
+    Addition and subtraction only. A product or a quotient is a number in some
+    other unit, so it is not one the column can be converted to match.
     """
     unwrapped = _strip_parens(node)
-    if isinstance(unwrapped, (exp.Add, exp.Sub, exp.Mul, exp.Div)):
+    if isinstance(unwrapped, (exp.Add, exp.Sub)):
         for operand in (unwrapped.this, unwrapped.expression):
             found = _timestamp_unit_through_arithmetic(operand)
             if found is not None:
@@ -1678,6 +1681,29 @@ def _timestamp_unit_through_arithmetic(node: Optional[exp.Expression]) -> Option
         return None
     unit = _timestamp_unit_function_call(unwrapped)
     return unit[0] if unit is not None else None
+
+
+def _rescaled_timestamp_unit(node: Optional[exp.Expression]) -> Optional[str]:
+    """The unit function a multiplication or division rescales on this side.
+
+    Which unit the result is in follows from the factor, and a factor is an
+    arbitrary expression rather than something to infer. Reading the side as
+    seconds anyway converts the column to seconds and compares two scales,
+    which returns the wrong rows rather than failing.
+    """
+    unwrapped = _strip_parens(node)
+    if isinstance(unwrapped, (exp.Mul, exp.Div)):
+        for operand in (unwrapped.this, unwrapped.expression):
+            found = _timestamp_unit_through_arithmetic(operand) or _rescaled_timestamp_unit(operand)
+            if found is not None:
+                return found
+        return None
+    if isinstance(unwrapped, (exp.Add, exp.Sub)):
+        for operand in (unwrapped.this, unwrapped.expression):
+            found = _rescaled_timestamp_unit(operand)
+            if found is not None:
+                return found
+    return None
 
 
 def _comparison_operands(node: exp.Condition) -> tuple[Optional[exp.Expression], ...]:
@@ -1716,6 +1742,7 @@ def _rewrite_sqlite_timestamp_vs_epoch_function(
         sides = _comparison_operands(node)
         column: Optional[exp.Column] = None
         unit_name: Optional[str] = None
+        rescaled: Optional[str] = None
         for side in sides:
             unwrapped = _strip_parens(side)
             if (
@@ -1730,6 +1757,17 @@ def _rewrite_sqlite_timestamp_vs_epoch_function(
             unit = _timestamp_unit_through_arithmetic(side)
             if unit is not None:
                 unit_name = unit
+            rescaled = rescaled or _rescaled_timestamp_unit(side)
+        if column is not None and rescaled is not None:
+            raise AnalyticsSqlError(
+                code=ErrorCode.UNSUPPORTED_SYNTAX,
+                message=(
+                    f"`{rescaled}(...)` multiplied or divided is no longer in the unit "
+                    f"`{column.name}` converts to, so the comparison would be between "
+                    f"two scales. Compare against `{rescaled}(...)` unscaled, or scale "
+                    f"both sides -- `{rescaled}({column.name})` is available."
+                ),
+            )
         if column is None or unit_name is None:
             continue
         if unit_name == "date":
