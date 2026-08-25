@@ -1,3 +1,4 @@
+import asyncio
 import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -1029,3 +1030,48 @@ async def test_admission_does_not_run_on_the_event_loop(
     # nothing to check.
     assert set(threads) == {"parse_sql", "rewrite"}
     assert loop_thread not in threads.values(), f"ran on the event loop thread: {threads}"
+
+
+async def test_a_cancelled_call_keeps_its_permit_until_the_parse_thread_exits(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Capacity follows the work, not the caller waiting on it.
+
+    Parsing and rewriting are uninterruptible, so the thread runs to completion
+    after the caller disconnects. Returning the permit on cancellation admits
+    the next statement beside work that is still running, and repeated
+    cancellations put more of it in flight than the width allows.
+    """
+    from phoenix.server.mcp.sql import execute as execute_module
+
+    db, db_path = analytics_sqlite_db
+    entered = threading.Event()
+    finish = threading.Event()
+    original = execute_module.parse_sql
+
+    def blocking(*args: Any, **kwargs: Any) -> Any:
+        entered.set()
+        finish.wait(10)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(execute_module, "parse_sql", blocking)
+    semaphore = execute_module.EXECUTION_SEMAPHORE
+
+    call = asyncio.create_task(
+        execute_analytics_sql(db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path)
+    )
+    await asyncio.to_thread(entered.wait, 10)
+    call.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await call
+
+    # SQLite runs one statement at a time, so a second acquire completing here
+    # would mean the permit came back while the thread still held it.
+    second = asyncio.create_task(semaphore.acquire("sqlite"))
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(asyncio.shield(second), 0.25)
+
+    finish.set()
+    await asyncio.wait_for(second, 10)
+    semaphore.release("sqlite")

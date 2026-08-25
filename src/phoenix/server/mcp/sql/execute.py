@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
-from typing import Any, Optional, cast
+from typing import Any, Optional, TypeVar, cast
 from urllib.parse import quote
 from weakref import WeakKeyDictionary
 
@@ -48,6 +48,8 @@ from phoenix.server.mcp.sql.rewrite import RewriteContext, rewrite
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
 
 _call_counter = itertools.count(1)
 
@@ -640,7 +642,7 @@ async def execute_analytics_sql(
             return admit(parsed, allowlist=allowlist, dialect=dialect)
 
         try:
-            root = await asyncio.to_thread(_admitted)
+            root = await _offloaded(_admitted)
         except AnalyticsSqlError as exc:
             # A refusal is ordinary traffic, not an incident -- callers are
             # expected to probe the boundary. Debug level records which rule
@@ -678,7 +680,7 @@ async def execute_analytics_sql(
             rewritten = rewrite(root, ctx)
             return rewritten, render(rewritten, dialect=dialect)
 
-        root, rendered = await asyncio.to_thread(_rendered)
+        root, rendered = await _offloaded(_rendered)
 
         # The executed statement is not the one the caller wrote: stars are
         # expanded, virtual columns substituted, timestamp literals re-emitted
@@ -725,7 +727,7 @@ async def execute_analytics_sql(
                 # cancellation for the caller.
                 release_semaphore = False
                 exc.worker.add_done_callback(
-                    lambda worker: _release_sqlite_after_worker(worker, semaphore)
+                    lambda worker: _release_after_worker(worker, semaphore, "sqlite")
                 )
                 raise
         if params.validate_only:
@@ -738,6 +740,15 @@ async def execute_analytics_sql(
             result.envelope.row_count_is_partial,
         )
         return result
+    except _OffloadedWorkerCancellation as exc:
+        # The thread finishes its parse or rewrite whatever the caller does.
+        # Holding the permit until it exits keeps concurrency bounded by the
+        # work actually running rather than by the callers still waiting.
+        release_semaphore = False
+        exc.worker.add_done_callback(
+            lambda worker: _release_after_worker(worker, semaphore, dialect)
+        )
+        raise
     finally:
         if release_semaphore:
             semaphore.release(dialect)
@@ -1065,11 +1076,12 @@ class _SQLiteWorkerCancellation(asyncio.CancelledError):
         self.worker = worker
 
 
-def _release_sqlite_after_worker(
-    worker: asyncio.Task[tuple[list[str], list[list[Any]], bool, list[str], bool]],
+def _release_after_worker(
+    worker: asyncio.Task[Any],
     semaphore: ExecutionSemaphore,
+    dialect: SupportedSQLDialectName,
 ) -> None:
-    """Consume an abandoned worker result, then return its SQLite capacity."""
+    """Consume an abandoned worker result, then return its capacity."""
     try:
         worker.result()
     except BaseException:
@@ -1077,7 +1089,33 @@ def _release_sqlite_after_worker(
         # delivered, but must be consumed so asyncio does not report it later.
         pass
     finally:
-        semaphore.release("sqlite")
+        semaphore.release(dialect)
+
+
+class _OffloadedWorkerCancellation(asyncio.CancelledError):
+    """A cancelled caller whose CPU-bound worker is still running.
+
+    Parsing and rewriting are uninterruptible, so the thread runs to completion
+    however the caller ends.
+    """
+
+    def __init__(self, worker: asyncio.Task[Any]) -> None:
+        self.worker = worker
+
+
+async def _offloaded(func: Callable[[], _T]) -> _T:
+    """Run a CPU-bound step off the event loop, naming a worker that outlives its caller.
+
+    Awaiting `to_thread` directly reports cancellation while leaving the thread
+    running, so the permit goes back before the work stops and the next
+    statement starts beside it. Shielding keeps the worker reachable, so the
+    permit can follow the thread rather than the await.
+    """
+    worker = asyncio.create_task(asyncio.to_thread(func))
+    try:
+        return await asyncio.shield(worker)
+    except asyncio.CancelledError:
+        raise _OffloadedWorkerCancellation(worker) from None
 
 
 async def _execute_sqlite_file(
