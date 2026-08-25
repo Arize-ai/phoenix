@@ -27,6 +27,7 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         ...ProjectEvaluatorRunDetails_projectEvaluator
         ...ProjectEvaluatorScopeDetails_projectEvaluator
         ...LLMProjectEvaluatorDetails_projectEvaluator
+        ...ProjectEvaluatorMetrics_projectEvaluator
       }
     }
   }
@@ -82,6 +83,6 @@ export async function projectEvaluatorDetailsLoader(
         )
       : null,
     evaluatorDisplayName: projectEvaluator?.name ?? null,
-    traceProjectId: projectEvaluator?.traceProject?.id ?? null,
+    traceProjectId: projectEvaluator?.traceProject.id ?? null,
   };
 }
