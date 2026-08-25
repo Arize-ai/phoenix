@@ -1,7 +1,15 @@
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Card, Flex, Text, View } from "@phoenix/components";
+import {
+  Card,
+  Flex,
+  Icon,
+  Icons,
+  LinkButton,
+  Text,
+  View,
+} from "@phoenix/components";
 import { EvaluatorInputMappingDetails } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
@@ -12,8 +20,8 @@ import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 /**
  * The prompt an LLM project evaluator runs and the span-to-prompt input mapping
- * it runs it with. The annotation it produces is a peer of Scope and renders
- * beside it -- see LLMProjectEvaluatorAnnotation.
+ * it runs it with. The annotation it produces renders in the overview's aside
+ * -- see AnnotationConfigurationCard.
  */
 export function LLMProjectEvaluatorDetails({
   projectEvaluatorRef,
@@ -65,9 +73,38 @@ export function LLMProjectEvaluatorDetails({
   const invocationParameterEntries = Object.entries(
     invocationParameters ?? {}
   ).filter(([, value]) => value != null);
+  const playgroundUrl = evaluator.prompt?.id
+    ? `/playground?promptId=${encodeURIComponent(evaluator.prompt.id)}${
+        evaluator.promptVersionTag?.name
+          ? `&promptTagName=${encodeURIComponent(evaluator.promptVersionTag.name)}`
+          : ""
+      }`
+    : null;
+  const modelExtra = evaluator.promptVersion?.modelName ? (
+    <Flex alignItems="center" gap="size-50">
+      <GenerativeProviderIcon
+        provider={evaluator.promptVersion.modelProvider}
+        height={14}
+      />
+      <Text size="S" color="text-700">
+        {evaluator.promptVersion.modelName}
+      </Text>
+    </Flex>
+  ) : null;
+  const playgroundExtra = playgroundUrl ? (
+    <LinkButton
+      to={playgroundUrl}
+      size="S"
+      leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+      aria-label="Open evaluator prompt in Playground"
+    >
+      Playground
+    </LinkButton>
+  ) : null;
 
+  // No wrapper: the page's overview column owns the stacking and gap.
   return (
-    <Flex direction="column" gap="size-300">
+    <>
       <Card
         title="Prompt"
         // A rubric runs long enough to dominate the page, so it folds away --
@@ -88,15 +125,10 @@ export function LLMProjectEvaluatorDetails({
           ) : undefined
         }
         extra={
-          evaluator.promptVersion?.modelName ? (
-            <Flex alignItems="center" gap="size-50">
-              <GenerativeProviderIcon
-                provider={evaluator.promptVersion.modelProvider}
-                height={14}
-              />
-              <Text size="S" color="text-700">
-                {evaluator.promptVersion.modelName}
-              </Text>
+          modelExtra || playgroundExtra ? (
+            <Flex alignItems="center" gap="size-100">
+              {modelExtra}
+              {playgroundExtra}
             </Flex>
           ) : undefined
         }
@@ -122,6 +154,6 @@ export function LLMProjectEvaluatorDetails({
         </View>
       </Card>
       <EvaluatorInputMappingDetails inputMapping={inputMapping} />
-    </Flex>
+    </>
   );
 }

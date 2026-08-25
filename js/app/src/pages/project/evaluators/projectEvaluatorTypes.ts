@@ -213,27 +213,6 @@ export function formatLastRun(lastRunAt: string | null): string {
     : formatDistanceToNow(new Date(lastRunAt), { addSuffix: true });
 }
 
-/**
- * The absolute time behind `formatLastRun`'s relative phrasing. "2 hours ago"
- * answers "is it running?"; this answers "which run was that?".
- */
-export function formatLastRunTimestamp(
-  lastRunAt: string | null
-): string | null {
-  if (lastRunAt == null) {
-    return null;
-  }
-  return lastRunTimestampFormatter.format(new Date(lastRunAt));
-}
-
-const lastRunTimestampFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZoneName: "short",
-});
-
 const countFormatter = new Intl.NumberFormat();
 
 /** "118 evaluated · 2 failed · 3 queued", dropping the parts that are zero. */
@@ -287,21 +266,4 @@ export function getProjectEvaluatorMappingDiagnostics({
           : "resolved",
     };
   });
-}
-
-const ERROR_CODE_PATTERN = /^([A-Z][A-Z0-9_]*):\s*(.*)$/s;
-
-/**
- * Errors arrive as `CODE: detail`. Splitting them lets the code read as a label
- * and keeps the detail from swallowing it; an error without a code is all
- * detail.
- */
-export function parseLastError(lastError: string): {
-  code: string | null;
-  detail: string;
-} {
-  const match = ERROR_CODE_PATTERN.exec(lastError);
-  return match == null
-    ? { code: null, detail: lastError }
-    : { code: match[1], detail: match[2] };
 }

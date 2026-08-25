@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
+import { Focusable } from "react-aria";
 import { Outlet, useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -16,6 +17,9 @@ import {
   TabList,
   Tabs,
   Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { Empty } from "@phoenix/components/core/empty";
@@ -25,57 +29,42 @@ import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
 } from "@phoenix/components/datetime";
+import {
+  evaluatorSplitContainerCSS,
+  evaluatorSplitLayoutCSS,
+} from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import { TopNavActions } from "@phoenix/components/nav";
 import type { OwnedPreloadedQueryRef } from "@phoenix/hooks";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorDetailsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsLoaderQuery.graphql";
-import { LLMProjectEvaluatorAnnotation } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorAnnotation";
+import { AnnotationConfigurationCard } from "@phoenix/pages/project/evaluators/AnnotationConfigurationCard";
+import { CodeProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorDetails";
 import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorMetrics } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMetrics";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
-import { ProjectEvaluatorRunDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRunDetails";
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
+import { ProjectEvaluatorStatsCard } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatsCard";
 import { ProjectEvaluatorTraces } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTraces";
 import { getProjectEvaluatorStatus } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
- * The overview column: a container so the panels inside can respond to the
- * column's width rather than the viewport's, and centered with the same max
- * width the metrics tab uses.
+ * Centers the overview and establishes the width queried by its responsive
+ * main-and-sidebar layout.
  */
-const overviewColumnCSS = css`
-  container-type: inline-size;
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-300);
+const overviewContainerCSS = css`
+  ${evaluatorSplitContainerCSS};
   max-width: 1600px;
   margin-inline: auto;
 `;
 
-/**
- * Scope and Annotation are peers -- the policy that selects work and the
- * annotation that work produces -- so they sit side by side, stacking when the
- * column is too narrow to read two cards across.
- */
-const configurationPairCSS = css`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+const overviewColumnCSS = css`
+  display: flex;
+  flex-direction: column;
   gap: var(--global-dimension-size-200);
-  /* Stretch so the pair reads as one band rather than two ragged columns. */
-  align-items: stretch;
-
-  /* A code evaluator has no annotation card, so let Scope take the whole row
-     rather than sit at half width beside an empty cell. */
-  > :only-child {
-    grid-column: 1 / -1;
-  }
-
-  @container (max-width: 800px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  min-width: 0;
 `;
 
 const mainCSS = css`
@@ -147,7 +136,19 @@ function ProjectEvaluatorDetailsPageLoaded({
                   title={`Evaluator: ${projectEvaluator.name}`}
                 >{`Evaluator: ${projectEvaluator.name}`}</Truncate>
               </Heading>
-              <Token color={status.color}>{status.label}</Token>
+              {/* The label alone says what; the explanation on hover says why,
+                  matching the status cell in the evaluators table. */}
+              <TooltipTrigger delay={0}>
+                <Focusable>
+                  <Token role="button" color={status.color}>
+                    {status.label}
+                  </Token>
+                </Focusable>
+                <Tooltip>
+                  <TooltipArrow />
+                  <Text size="XS">{status.explanation}</Text>
+                </Tooltip>
+              </TooltipTrigger>
             </Flex>
           }
           subTitle={evaluator.description}
@@ -186,25 +187,34 @@ function ProjectEvaluatorDetailsPageLoaded({
           <LazyTabPanel id="configuration">
             <View width="100%" overflow="auto" height="100%">
               <View padding="size-200">
-                <div css={overviewColumnCSS}>
-                  <ProjectEvaluatorRunDetails
-                    projectEvaluatorRef={projectEvaluator}
-                  />
-                  <div css={configurationPairCSS}>
-                    <ProjectEvaluatorScopeDetails
-                      projectEvaluatorRef={projectEvaluator}
-                    />
-                    {isLLMEvaluator && (
-                      <LLMProjectEvaluatorAnnotation
+                <div css={overviewContainerCSS}>
+                  <div css={evaluatorSplitLayoutCSS}>
+                    <div css={overviewColumnCSS}>
+                      {isLLMEvaluator && (
+                        <LLMProjectEvaluatorDetails
+                          projectEvaluatorRef={projectEvaluator}
+                        />
+                      )}
+                      {evaluator.kind === "CODE" && (
+                        <CodeProjectEvaluatorDetails
+                          projectEvaluatorRef={projectEvaluator}
+                        />
+                      )}
+                    </div>
+                    <aside css={overviewColumnCSS}>
+                      <ProjectEvaluatorStatsCard
                         projectEvaluatorRef={projectEvaluator}
                       />
-                    )}
+                      <ProjectEvaluatorScopeDetails
+                        projectEvaluatorRef={projectEvaluator}
+                      />
+                      {isLLMEvaluator && (
+                        <AnnotationConfigurationCard
+                          projectEvaluatorRef={projectEvaluator}
+                        />
+                      )}
+                    </aside>
                   </div>
-                  {isLLMEvaluator && (
-                    <LLMProjectEvaluatorDetails
-                      projectEvaluatorRef={projectEvaluator}
-                    />
-                  )}
                 </div>
               </View>
             </View>

@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 
-import { Flex, Heading, Text } from "@phoenix/components";
+import { Flex, Heading, List, ListItem, Text } from "@phoenix/components";
 
 /**
  * The bordered card wrapping each section of a read-only evaluator details
@@ -13,6 +13,28 @@ export const evaluatorDetailsCardCSS = css`
   margin-top: var(--global-dimension-size-50);
   border: 1px solid var(--global-border-color-default);
   overflow: hidden;
+`;
+
+/**
+ * The evaluator overview split: content on the left, configuration cards in
+ * the aside on the right, collapsing to one column when the container narrows.
+ * The grid queries its nearest size container, so wrap it in
+ * `evaluatorSplitContainerCSS` (or another `container-type: inline-size`
+ * ancestor).
+ */
+export const evaluatorSplitContainerCSS = css`
+  container-type: inline-size;
+`;
+
+export const evaluatorSplitLayoutCSS = css`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 24vw, 380px);
+  gap: var(--global-dimension-size-200);
+  align-items: start;
+
+  @container (max-width: 1000px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 `;
 
 /**
@@ -67,131 +89,52 @@ export function EvaluatorInputMappingDetails({
   );
 }
 
-const statTileCSS = css`
-  flex: 1 1 0;
-  min-width: 0;
-  border-radius: var(--global-rounding-medium);
-  border: 1px solid var(--global-border-color-default);
-  padding: var(--global-dimension-size-200);
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-50);
-
-  .evaluator-stat-tile__label {
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .evaluator-stat-tile__value {
-    font-size: var(--global-font-size-xl);
-    line-height: var(--global-line-height-xl);
-    font-weight: var(--font-weight-heavy);
-  }
-  .evaluator-stat-tile__value[data-tone="danger"] {
-    color: var(--global-color-danger);
-  }
-`;
-
-const statRowCSS = css`
-  /* The row is its own query container, so wrapping follows the space the row
-     actually has rather than requiring the caller to establish one. */
-  container-type: inline-size;
-
-  .evaluator-stat-row__track {
-    display: flex;
-    flex-direction: row;
-    gap: var(--global-dimension-size-200);
-  }
-
-  /* Two per line rather than four unreadable slivers. */
-  @container (max-width: 800px) {
-    .evaluator-stat-row__track {
-      flex-wrap: wrap;
-    }
-    .evaluator-stat-row__track > * {
-      flex-basis: calc(50% - var(--global-dimension-size-100));
-    }
-  }
-`;
-
-/** A row of headline numbers, sized so each tile shares the width evenly. */
-export function EvaluatorStatRow({ children }: PropsWithChildren) {
-  return (
-    <div css={statRowCSS}>
-      <div className="evaluator-stat-row__track">{children}</div>
-    </div>
-  );
+/** The label/value body of a configuration card. */
+export function EvaluatorDetailList({ children }: PropsWithChildren) {
+  return <List size="M">{children}</List>;
 }
 
 /**
- * One headline number: what it measures, the value, and the context needed to
- * read it. `tone="danger"` is for a count that is bad by definition, so a
- * nonzero failure count is legible without reading the label.
+ * One labelled value in a configuration card. A string label or value gets
+ * the standard text treatment; nodes pass through for richer content.
  */
-export function EvaluatorStatTile({
-  label,
-  value,
-  caption,
-  tone = "default",
-}: {
-  label: string;
-  value: ReactNode;
-  caption?: ReactNode;
-  tone?: "default" | "danger";
-}) {
-  return (
-    <div css={statTileCSS}>
-      <Text size="XS" color="text-700" className="evaluator-stat-tile__label">
-        {label}
-      </Text>
-      <div className="evaluator-stat-tile__value" data-tone={tone}>
-        {value}
-      </div>
-      {caption == null ? null : (
-        <Text size="XS" color="text-700">
-          {caption}
-        </Text>
-      )}
-    </div>
-  );
-}
-
-const detailListCSS = css`
-  display: grid;
-  /* The label column takes what it needs; the value column absorbs the rest so
-     values line up on their right edge and scan as a column. */
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--global-dimension-size-150) var(--global-dimension-size-200);
-  margin: 0;
-
-  dt {
-    margin: 0;
-  }
-  dd {
-    margin: 0;
-    justify-self: end;
-    text-align: end;
-    min-width: 0;
-  }
-`;
-
-/** The label/value body of a configuration card, as a definition list. */
-export function EvaluatorDetailList({ children }: PropsWithChildren) {
-  return <dl css={detailListCSS}>{children}</dl>;
-}
-
-/** One labelled value. Values are right-aligned so the column reads cleanly. */
 export function EvaluatorDetailRow({
   label,
+  labelExtra,
   children,
-}: PropsWithChildren<{ label: string }>) {
+}: PropsWithChildren<{ label: ReactNode; labelExtra?: ReactNode }>) {
   return (
-    <>
-      <dt>
-        <Text size="S" color="text-700">
-          {label}
-        </Text>
-      </dt>
-      <dd>{children}</dd>
-    </>
+    <ListItem>
+      <Flex
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="size-200"
+      >
+        <Flex direction="row" alignItems="center" gap="size-50" flexShrink={0}>
+          {typeof label === "string" ? (
+            <Text size="S" color="text-700">
+              {label}
+            </Text>
+          ) : (
+            label
+          )}
+          {labelExtra}
+        </Flex>
+        <Flex
+          direction="row"
+          alignItems="center"
+          justifyContent="end"
+          gap="size-100"
+          minWidth={0}
+        >
+          {typeof children === "string" ? (
+            <Text size="S">{children}</Text>
+          ) : (
+            children
+          )}
+        </Flex>
+      </Flex>
+    </ListItem>
   );
 }

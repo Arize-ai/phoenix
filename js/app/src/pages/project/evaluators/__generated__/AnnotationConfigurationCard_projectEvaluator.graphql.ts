@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c9af3e74827cf98985cfc37ca4ab8573>>
+ * @generated SignedSource<<7b373368b1c1ce13ee05515bf7ce89fb>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ReaderFragment } from 'relay-runtime';
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
-export type LLMProjectEvaluatorAnnotation_projectEvaluator$data = {
+export type AnnotationConfigurationCard_projectEvaluator$data = {
   readonly evaluator: {
     readonly outputConfigs?: ReadonlyArray<{
       readonly __typename: "CategoricalAnnotationConfig";
@@ -30,6 +30,7 @@ export type LLMProjectEvaluatorAnnotation_projectEvaluator$data = {
       readonly __typename: "FreeformAnnotationConfig";
       readonly name: string;
       readonly optimizationDirection: OptimizationDirection;
+      readonly threshold: number | null;
     } | {
       // This will never be '%other', but we need some
       // value in case none of the concrete values match.
@@ -50,11 +51,11 @@ export type LLMProjectEvaluatorAnnotation_projectEvaluator$data = {
       } | null;
     };
   };
-  readonly " $fragmentType": "LLMProjectEvaluatorAnnotation_projectEvaluator";
+  readonly " $fragmentType": "AnnotationConfigurationCard_projectEvaluator";
 };
-export type LLMProjectEvaluatorAnnotation_projectEvaluator$key = {
-  readonly " $data"?: LLMProjectEvaluatorAnnotation_projectEvaluator$data;
-  readonly " $fragmentSpreads": FragmentRefs<"LLMProjectEvaluatorAnnotation_projectEvaluator">;
+export type AnnotationConfigurationCard_projectEvaluator$key = {
+  readonly " $data"?: AnnotationConfigurationCard_projectEvaluator$data;
+  readonly " $fragmentSpreads": FragmentRefs<"AnnotationConfigurationCard_projectEvaluator">;
 };
 
 const node: ReaderFragment = (function(){
@@ -83,7 +84,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "LLMProjectEvaluatorAnnotation_projectEvaluator",
+  "name": "AnnotationConfigurationCard_projectEvaluator",
   "selections": [
     {
       "alias": null,
@@ -225,7 +226,14 @@ return {
                   "kind": "InlineFragment",
                   "selections": [
                     (v1/*:: as any*/),
-                    (v2/*:: as any*/)
+                    (v2/*:: as any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "threshold",
+                      "storageKey": null
+                    }
                   ],
                   "type": "FreeformAnnotationConfig",
                   "abstractKey": null
@@ -246,6 +254,6 @@ return {
 };
 })();
 
-(node as any).hash = "f22e43e1a6513209bcbebf9c044ada4e";
+(node as any).hash = "629659f781522006665d9408cc83e957";
 
 export default node;

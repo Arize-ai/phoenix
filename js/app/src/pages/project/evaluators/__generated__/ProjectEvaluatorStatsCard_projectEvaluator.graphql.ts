@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bbcc096c93f6903931550d1643e0dd21>>
+ * @generated SignedSource<<a03c61bab83388a7524dd139da70d52e>>
  * @lightSyntaxTransform
  */
 
@@ -8,10 +8,13 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
+export type Language = "PYTHON" | "TYPESCRIPT";
 import { FragmentRefs } from "relay-runtime";
-export type ProjectEvaluatorRunDetails_projectEvaluator$data = {
-  readonly evaluationTarget: EvaluationTarget;
+export type ProjectEvaluatorStatsCard_projectEvaluator$data = {
+  readonly createdAt: string;
+  readonly evaluator: {
+    readonly language?: Language;
+  };
   readonly runSummary: {
     readonly evaluatedCount: number;
     readonly failedCount: number;
@@ -19,24 +22,24 @@ export type ProjectEvaluatorRunDetails_projectEvaluator$data = {
     readonly lastRunAt: string | null;
     readonly queuedCount: number;
   };
-  readonly " $fragmentType": "ProjectEvaluatorRunDetails_projectEvaluator";
+  readonly " $fragmentType": "ProjectEvaluatorStatsCard_projectEvaluator";
 };
-export type ProjectEvaluatorRunDetails_projectEvaluator$key = {
-  readonly " $data"?: ProjectEvaluatorRunDetails_projectEvaluator$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorRunDetails_projectEvaluator">;
+export type ProjectEvaluatorStatsCard_projectEvaluator$key = {
+  readonly " $data"?: ProjectEvaluatorStatsCard_projectEvaluator$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorStatsCard_projectEvaluator">;
 };
 
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "ProjectEvaluatorRunDetails_projectEvaluator",
+  "name": "ProjectEvaluatorStatsCard_projectEvaluator",
   "selections": [
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "evaluationTarget",
+      "name": "createdAt",
       "storageKey": null
     },
     {
@@ -84,12 +87,37 @@ const node: ReaderFragment = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": null,
+      "kind": "LinkedField",
+      "name": "evaluator",
+      "plural": false,
+      "selections": [
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "language",
+              "storageKey": null
+            }
+          ],
+          "type": "CodeEvaluator",
+          "abstractKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "ProjectEvaluator",
   "abstractKey": null
 };
 
-(node as any).hash = "cb21c9f63570bed6ddaf669059ecce88";
+(node as any).hash = "6492a4dad38058b36ea7ac2dcad31c82";
 
 export default node;

@@ -1,8 +1,8 @@
+import { css } from "@emotion/react";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Alert, Card, Flex, Text, View } from "@phoenix/components";
-import { Token } from "@phoenix/components/core/token";
+import { Alert, Card, Text, View } from "@phoenix/components";
 import {
   EvaluatorDetailList,
   EvaluatorDetailRow,
@@ -17,6 +17,16 @@ import {
   formatEvaluationTargetPlural,
   formatSamplingRate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+
+/**
+ * A filter expression is one long unbreakable mono token more often than not
+ * (quoted IDs, bracketed attribute paths), and the Scope card lives in a
+ * ~300px aside — let it wrap anywhere rather than paint over the row label.
+ */
+const filterValueCSS = css`
+  min-width: 0;
+  overflow-wrap: anywhere;
+`;
 
 /**
  * Read-only view of the policy a project evaluator runs under: what it
@@ -45,49 +55,51 @@ export function ProjectEvaluatorScopeDetails({
 
   return (
     <Card title="Scope">
-      <View padding="size-200">
-        <Flex direction="column" gap="size-200">
-          <EvaluatorDetailList>
-            <EvaluatorDetailRow label="Target">
-              <Token>
-                {formatEvaluationTarget(projectEvaluator.evaluationTarget)}
-              </Token>
-            </EvaluatorDetailRow>
-            <EvaluatorDetailRow label="Filter">
-              {projectEvaluator.filterCondition ? (
-                <Text size="S" fontFamily="mono">
-                  {projectEvaluator.filterCondition}
-                </Text>
-              ) : (
-                <Text size="S">
-                  {`All ${formatEvaluationTargetPlural(projectEvaluator.evaluationTarget)}`}
-                </Text>
-              )}
-            </EvaluatorDetailRow>
-            <EvaluatorDetailRow label="Sampling rate">
-              <Text size="S">
-                {formatSamplingRate(projectEvaluator.samplingRate)}
+      <EvaluatorDetailList>
+        <EvaluatorDetailRow label="Target">
+          <Text size="S">
+            {formatEvaluationTarget(projectEvaluator.evaluationTarget)}
+          </Text>
+        </EvaluatorDetailRow>
+        <EvaluatorDetailRow label="Filter">
+          {projectEvaluator.filterCondition ? (
+            <div css={filterValueCSS}>
+              <Text size="S" fontFamily="mono">
+                {projectEvaluator.filterCondition}
               </Text>
-            </EvaluatorDetailRow>
-            {isSessionTarget ? (
-              <EvaluatorDetailRow label="Evaluation delay">
-                <Text size="S">
-                  {formatEvaluationDelay(
-                    projectEvaluator.evaluationDelaySeconds
-                  )}
-                </Text>
-              </EvaluatorDetailRow>
-            ) : null}
-          </EvaluatorDetailList>
-          {projectEvaluator.schedulabilityStatus === "NOT_SCHEDULABLE" ? (
-            <Alert variant="warning" title="This evaluator is not scheduled">
-              {getSchedulabilityExplanation(
-                projectEvaluator.schedulabilityReason
-              )}
-            </Alert>
-          ) : null}
-        </Flex>
-      </View>
+            </div>
+          ) : (
+            <Text size="S">
+              {`All ${formatEvaluationTargetPlural(projectEvaluator.evaluationTarget)}`}
+            </Text>
+          )}
+        </EvaluatorDetailRow>
+        <EvaluatorDetailRow label="Sampling rate">
+          <Text size="S">
+            {formatSamplingRate(projectEvaluator.samplingRate)}
+          </Text>
+        </EvaluatorDetailRow>
+        {isSessionTarget ? (
+          <EvaluatorDetailRow label="Evaluation delay">
+            <Text size="S">
+              {formatEvaluationDelay(projectEvaluator.evaluationDelaySeconds)}
+            </Text>
+          </EvaluatorDetailRow>
+        ) : null}
+      </EvaluatorDetailList>
+      {projectEvaluator.schedulabilityStatus === "NOT_SCHEDULABLE" ? (
+        <View
+          paddingX="size-200"
+          paddingBottom="size-200"
+          paddingTop="size-100"
+        >
+          <Alert variant="warning" title="This evaluator is not scheduled">
+            {getSchedulabilityExplanation(
+              projectEvaluator.schedulabilityReason
+            )}
+          </Alert>
+        </View>
+      ) : null}
     </Card>
   );
 }
