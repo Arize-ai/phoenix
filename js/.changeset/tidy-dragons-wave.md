@@ -2,4 +2,4 @@
 "@arizeai/phoenix-cli": patch
 ---
 
-Render interruption markers when restoring saved PXI sessions.
+Render PXI interruption markers from message metadata, so the marker shows when restoring a saved session and survives the transcript refresh after interrupting a live response.
