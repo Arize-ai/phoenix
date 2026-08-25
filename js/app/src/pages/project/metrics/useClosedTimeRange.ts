@@ -29,20 +29,25 @@ export function useClosedTimeRange({
 
   // Use a ref to freeze "now" until the context time range actually changes
   const lastTimestampsRef = useRef({ startMs, endMs, refreshKey });
-  // eslint-disable-next-line react-hooks/purity
+  // eslint-disable-next-line react/purity
   const frozenNowMsRef = useRef<number>(Date.now());
 
   // Only update frozen "now" when the timestamps or refresh key actually change
   if (
+    // eslint-disable-next-line react/refs
     lastTimestampsRef.current.startMs !== startMs ||
+    // eslint-disable-next-line react/refs
     lastTimestampsRef.current.endMs !== endMs ||
+    // eslint-disable-next-line react/refs
     lastTimestampsRef.current.refreshKey !== refreshKey
   ) {
+    // eslint-disable-next-line react/refs
     lastTimestampsRef.current = { startMs, endMs, refreshKey };
-    // eslint-disable-next-line react-hooks/purity
+    // eslint-disable-next-line react/purity, react/refs
     frozenNowMsRef.current = Date.now();
   }
 
+  // eslint-disable-next-line react/refs
   const frozenNowMs = frozenNowMsRef.current;
 
   return useMemo<TimeRange>(() => {
@@ -54,6 +59,7 @@ export function useClosedTimeRange({
     } else if (startMs !== null) {
       // If start is in the past, close at "now"; else, one month after start
       const closedEndMs =
+        // eslint-disable-next-line react/refs
         startMs < frozenNowMs ? frozenNowMs : startMs + ONE_MONTH_MS;
       return { start: new Date(startMs), end: new Date(closedEndMs) };
     } else {

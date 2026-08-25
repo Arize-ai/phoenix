@@ -25,8 +25,8 @@ import {
   Icon,
   Icons,
   LazyTabPanel,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Tab,
   TabList,
   Tabs,
@@ -132,11 +132,11 @@ export function GenerativeProvidersCard({
                   leadingVisual={<Icon svg={<Icons.Edit />} />}
                   isDisabled={row.original.credentialRequirements.length === 0}
                 />
-                <ModalOverlay>
-                  <Modal size="M">
+                <ViewportModalOverlay>
+                  <ViewportModal size="M">
                     <ProviderCredentialsDialog provider={row.original} />
-                  </Modal>
-                </ModalOverlay>
+                  </ViewportModal>
+                </ViewportModalOverlay>
               </DialogTrigger>
             </Flex>
           );
@@ -145,7 +145,7 @@ export function GenerativeProvidersCard({
     ] satisfies ColumnDef<DataRow>[];
   }, []);
 
-  // eslint-disable-next-line react-hooks-js/incompatible-library
+  // eslint-disable-next-line react/incompatible-library
   const table = useReactTable<(typeof tableData)[number]>({
     columns,
     data: tableData,

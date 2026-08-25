@@ -1,5 +1,4 @@
 import { Suspense, useMemo, useState } from "react";
-import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
@@ -7,9 +6,10 @@ import {
   Dialog,
   Flex,
   Loading,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
+import type { ViewportModalOverlayProps } from "@phoenix/components";
 import type { EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
 import type { EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditBuiltInDatasetEvaluatorSlideover_UpdateDatasetBuiltinEvaluatorMutation.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
@@ -34,7 +34,7 @@ type EditBuiltInDatasetEvaluatorSlideoverProps = {
   datasetId: string;
   updateConnectionIds?: string[];
   onUpdate?: () => void;
-} & ModalOverlayProps;
+} & Omit<ViewportModalOverlayProps, "children">;
 
 export function EditBuiltInDatasetEvaluatorSlideover({
   datasetEvaluatorId,
@@ -44,8 +44,8 @@ export function EditBuiltInDatasetEvaluatorSlideover({
   ...props
 }: EditBuiltInDatasetEvaluatorSlideoverProps) {
   return (
-    <ModalOverlay {...props}>
-      <Modal variant="slideover" size="fullscreen">
+    <ViewportModalOverlay {...props}>
+      <ViewportModal size="fullscreen">
         <Dialog aria-label="Edit built-in evaluator on dataset">
           {({ close }) => (
             <Suspense
@@ -70,8 +70,8 @@ export function EditBuiltInDatasetEvaluatorSlideover({
             </Suspense>
           )}
         </Dialog>
-      </Modal>
-    </ModalOverlay>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 }
 

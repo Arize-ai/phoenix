@@ -2,7 +2,6 @@ import { css } from "@emotion/react";
 import type { ReactNode, RefObject } from "react";
 import { useState } from "react";
 import { Pressable } from "react-aria";
-import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
 
 import {
@@ -20,7 +19,6 @@ import {
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import { useViewerCanModify } from "@phoenix/contexts/ViewerContext";
-import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import type {
   AgentFabPlacement,
   AgentPosition,
@@ -312,6 +310,14 @@ export function AgentChatHeader({
 }
 
 /**
+ * Panel id of the pinned assistant rail in the application frame's panel
+ * group. One name for one thing: the panel id, `data-testid`, and the
+ * blocking exemptions all use the "assistant rail" vocabulary. Also the key
+ * `react-resizable-panels` persists the rail's size under.
+ */
+export const ASSISTANT_RAIL_PANEL_ID = "assistant-rail";
+
+/**
  * Shared content frame for the docked and embedded assistant surfaces.
  */
 function AgentChatFrame({
@@ -325,10 +331,18 @@ function AgentChatFrame({
   children: ReactNode;
   contentCss: ReturnType<typeof css>;
 }) {
+  const isAssistantRail = panelId === ASSISTANT_RAIL_PANEL_ID;
   return (
     <>
       <Separator css={compactResizeHandleCSS} />
-      <Panel {...panelProps} id={panelId}>
+      <Panel
+        {...panelProps}
+        id={panelId}
+        aria-label={isAssistantRail ? "Assistant" : undefined}
+        data-agent-rail={isAssistantRail ? "" : undefined}
+        data-testid={isAssistantRail ? "assistant-rail" : undefined}
+        role={isAssistantRail ? "complementary" : undefined}
+      >
         <div css={contentCss}>{children}</div>
       </Panel>
     </>
@@ -341,7 +355,7 @@ function AgentChatFrame({
 export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
   return (
     <AgentChatFrame
-      panelId="agent-chat"
+      panelId={ASSISTANT_RAIL_PANEL_ID}
       panelProps={{
         minSize: "420px",
         maxSize: "50%",
@@ -361,43 +375,27 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
 export function FloatingAgentChatFrame({
   boundaryRef,
   children,
-  layer = "content",
   placement,
   size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   onSizeChange,
-  isForcedFloating = false,
 }: {
   boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
-  layer?: "content" | "modal";
   placement: AgentFabPlacement;
   size?: Size;
   onSizeChange?: (size: Size) => void;
-  isForcedFloating?: boolean;
 }) {
-  const activeModalPortalContainer = useActiveModalPortalContainerElement();
-  const panel = (
+  return (
     <ResizableFloatingPanel
       boundaryRef={boundaryRef}
-      layer={layer}
       minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
       placement={placement}
       size={size}
       onSizeChange={onSizeChange}
-      // Modal-layer surfaces share the modal-layer FAB's viewport positioning.
-      // Drawer-forced content-layer panels stay content-bound so they remain
-      // aligned with the content-layer FAB.
-      anchorToViewport={isForcedFloating && layer === "modal"}
     >
       {children}
     </ResizableFloatingPanel>
   );
-
-  if (layer !== "modal") {
-    return panel;
-  }
-
-  return createPortal(panel, activeModalPortalContainer ?? document.body);
 }
 
 const tracePanelContentCSS = css`

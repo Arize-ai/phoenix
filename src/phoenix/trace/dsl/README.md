@@ -85,6 +85,11 @@ Subscript(
 )
 ```
 
+Filter annotation accessors are entity-scoped. Trace filters use
+`trace_annotations["name"]`, session filters use `session_annotations["name"]`, and span filters
+retain `annotations["name"]`, `evals["name"]`, and `trace_annotations["name"]`. An accessor may be
+read through `.score`, `.label`, or `.explanation`; a bare subscript checks existence.
+
 # Translation of Attribute to Subscript
 https://docs.python.org/3/library/ast.html#ast.NodeTransformer
 

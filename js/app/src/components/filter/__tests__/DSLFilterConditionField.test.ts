@@ -9,6 +9,7 @@ import {
   type DSLFilterCompletionRequest,
   detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
+  detectDSLFilterEnclosingComprehensionScopeForClauseTarget,
   detectDSLFilterForClauseTarget,
   findDSLFilterComprehensionRange,
   getDSLFilterCompletionTokenBeforeCursor,
@@ -175,6 +176,16 @@ describe("DSL filter for-clause target detection", () => {
     expect(
       detectDSLFilterForClauseTarget({ textBeforeCursor: "num_traces in " })
     ).toBeNull();
+  });
+
+  it("finds the scope enclosing a nested iterable slot", () => {
+    expect(
+      detectDSLFilterEnclosingComprehensionScopeForClauseTarget({
+        textBeforeCursor: 'any(any(child.status_code == "ERROR" for child in ',
+        textAfterCursor: ") for span in spans)",
+        isIterableName: (name) => sessionIterableNames.has(name),
+      })
+    ).toEqual({ iterableName: "spans", loopVariable: "span" });
   });
 });
 

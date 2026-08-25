@@ -42,6 +42,24 @@ class PlaygroundClientRegistry(metaclass=SingletonMeta):
     ) -> list[GenerativeProviderKey]:
         return [provider_key for provider_key in self._registry]
 
+    def list_allowed_providers(
+        self,
+        allowed_provider_names: Optional[frozenset[str]],
+    ) -> list[GenerativeProviderKey]:
+        """The registered providers this deployment permits.
+
+        ``allowed_provider_names`` is the ``PHOENIX_ALLOWED_PROVIDERS`` allow-list;
+        ``None`` means unrestricted, while an empty set permits nothing.
+        """
+        provider_keys = self.list_all_providers()
+        if allowed_provider_names is None:
+            return provider_keys
+        return [
+            provider_key
+            for provider_key in provider_keys
+            if provider_key.name in allowed_provider_names
+        ]
+
     def list_models(self, provider_key: GenerativeProviderKey) -> list[str]:
         provider_registry = self._registry.get(provider_key, {})
         return [model_name for model_name in provider_registry.keys() if model_name is not None]

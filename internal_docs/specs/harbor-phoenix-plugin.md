@@ -39,7 +39,7 @@ The prototype requires **no Phoenix server changes**. It requires **one new publ
 
 ### Goals
 
-- One-command setup through `harbor run --plugin phoenix`.
+- One-command setup through `harbor run --plugin arize-phoenix`.
 - Support any Harbor dataset and agent that meets the selected trace mode's requirements.
 - Preserve Harbor's task, trial, attempt, agent, model, and reward identities.
 - Show comparable results across agents and models.
@@ -52,7 +52,9 @@ The prototype requires **no Phoenix server changes**. It requires **one new publ
 - Harbor is the execution harness. Phoenix does not rerun these experiments or select Harbor tasks.
 - Harbor's verifier remains the authority for rewards. The plugin does not calculate a second aggregate reward.
 - Dataset example `output` remains an empty object. A Harbor solution is an executable way to produce an end state, not a reference response.
-- The prototype accepts one Harbor dataset and no direct tasks. It rejects all other job shapes before trials begin.
+- The prototype accepts one Harbor dataset or a direct-task-only job. It rejects jobs that
+  combine both sources. A single direct task gets a namespaced synthetic dataset name;
+  several direct tasks require an explicit `dataset` plugin setting.
 - The prototype does not create wrapper spans for Harbor lifecycle phases or verifiers.
 - The prototype does not include a post-hoc ingestion command.
 
@@ -73,7 +75,10 @@ The prototype requires **no Phoenix server changes**. It requires **one new publ
 | Step reward                   | Sparse evaluation           | Named `<step_name>.<reward_key>`                                  |
 | ATIF trajectory or OTLP spans | Trace                       | Linked to the experiment run when available                       |
 
-Use one Phoenix dataset for one Harbor dataset. Require one configured dataset and no direct tasks. Harbor's resolved task plan loses the source information needed to support other job shapes safely.
+Use one Phoenix dataset for one Harbor task collection. A normal job maps its single configured
+Harbor dataset directly. A direct-task-only job maps the resolved task set to a synthetic Phoenix
+dataset. Do not combine configured datasets and direct tasks, and do not accept several configured
+datasets.
 
 Infer the dataset name from the resolved `DatasetConfig`:
 
@@ -83,10 +88,14 @@ Infer the dataset name from the resolved `DatasetConfig`:
 | registry bare name (`--dataset <name>`) | `is_registry()` | the selected bare name |
 | published package (`--dataset <org>/<name>`) | `is_package()` | the selected `<org>/<name>` |
 | repository source (`--repo` with `--dataset`) | `is_repo()` | resolved registry metadata name |
+| one direct task (`--path`, package, or Git task) | direct task | `harbor-task/<declared task name>` |
 
 A local dataset exposes only its directory name. After inferring a name, verify that every resolved task has the same source.
 
-The optional `dataset` setting overrides the inferred name, but not the one-dataset rule. If Harbor does not provide a clear name, stop the job before trials begin.
+The optional `dataset` setting overrides the inferred name, but not the one-collection rule. For
+several direct tasks it is required and declares that the complete resolved task set is one
+synthetic dataset snapshot. Full update semantics apply, so a later job using the same name and a
+different task set creates a new version whose examples exactly match the later job.
 
 Reject duplicate task IDs. Phoenix uses the task ID for example and run identity, so duplicates would merge separate tasks.
 
@@ -118,7 +127,7 @@ The job lock does not exist at `on_job_start`. The compatibility adapter builds 
 
 ## 4. Plugin design
 
-Phoenix owns and releases `arize-phoenix-harbor` from `packages/phoenix-harbor/`. The `phoenix_harbor` module registers `phoenix` in Harbor's `harbor.plugins` entry-point group.
+The plugin lives in `arize-phoenix-client` as `phoenix.client.harbor` and registers `arize-phoenix` in Harbor's `harbor.plugins` entry-point group. Harbor is imported only when the plugin is selected.
 
 The package has three main components:
 
@@ -126,7 +135,7 @@ The package has three main components:
 2. **Mapping core.** Converts the internal Harbor model into Phoenix datasets, experiments, runs, evaluations, and trace links.
 3. **Phoenix job plugin.** Connects Harbor lifecycle hooks to the mapping core and stops the job when required Phoenix recording fails.
 
-The package supports normal jobs on Harbor `>=0.18.0`. It checks required capabilities at runtime. Regrade and source-job plans are not supported.
+The package supports normal jobs on Harbor `>=0.21.0`. It checks required capabilities at runtime. Regrade and source-job plans are not supported.
 
 Phoenix version requirements depend on the feature:
 
@@ -410,10 +419,11 @@ Pass settings through Harbor's `--plugin-kwarg` option.
 | `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix endpoint |
 | `api_key` | `PHOENIX_API_KEY` | Phoenix authentication |
 | `trace_mode` | `atif` | `atif`, `otlp`, or `none` |
-| `experiment_name_template` | `{job_name} · {agent} · {model}` | Experiment naming |
+| `experiment_name` | unset | Exact name for a job with one agent configuration |
+| `experiment_name_template` | `{job.name} · {agent.name} · {agent.model}` | Experiment naming |
 | `project` | experiment's project | Optional trace-project override |
 
-Experiment names must distinguish agent/model configurations in Phoenix's compare view. `{job_name}` defaults to a Harbor timestamp. If two configurations still have the same name, append a short configuration digest. This can happen when they differ only in skills, environment, or keyword arguments.
+Experiment names must distinguish agent/model configurations in Phoenix's compare view. `{job.name}` defaults to a Harbor timestamp. If two configurations still have the same name, append a short configuration digest. This can happen when they differ only in skills, environment, or keyword arguments.
 
 In OTLP mode the plugin does not inject exporter configuration. The user supplies endpoint, credentials, and `openinference.project.name` through Harbor's per-agent environment, and the plugin validates them at job start (§5.1).
 
@@ -422,7 +432,7 @@ In OTLP mode the plugin does not inject exporter configuration. The user supplie
 ### Included
 
 - Harbor plugin entry point and compatibility adapter
-- Exactly one configured Harbor dataset and no direct tasks
+- One configured Harbor dataset, or a direct-task-only job with an unambiguous synthetic name
 - Dataset and example upsert with digest-based versioning
 - One experiment for each agent and model
 - Streaming experiment runs with deterministic repetitions

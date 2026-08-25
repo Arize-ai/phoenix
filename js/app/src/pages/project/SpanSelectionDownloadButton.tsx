@@ -3,8 +3,8 @@ import {
   DialogTrigger,
   Icon,
   Icons,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import {
   SpanDownloadDialog,
@@ -24,11 +24,11 @@ export function SpanSelectionDownloadButton(
         aria-label="Download selection"
         leadingVisual={<Icon svg={<Icons.Download />} />}
       />
-      <ModalOverlay>
-        <Modal size="S">
+      <ViewportModalOverlay>
+        <ViewportModal size="S">
           <SpanDownloadDialog {...props} />
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

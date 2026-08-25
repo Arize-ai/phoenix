@@ -104,6 +104,7 @@ export function LoginForm(props: LoginFormProps) {
                   name="email"
                   isRequired
                   type="email"
+                  autoFocus
                   onChange={onChange}
                   onBlur={onBlur}
                   value={value}
@@ -149,9 +150,11 @@ export function LoginForm(props: LoginFormProps) {
                   </TextField>
                 )}
               />
-              <Link id="forgot-password-link" to="/forgot-password">
-                Forgot your password?
-              </Link>
+              {window.Config.passwordResetEmailEnabled ? (
+                <Link id="forgot-password-link" to="/forgot-password">
+                  Forgot your password?
+                </Link>
+              ) : null}
             </div>
           </Flex>
           <Button

@@ -389,7 +389,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
     // Measure after the edit fields have laid out, but before paint, so the
     // popover mounts at the final trigger width instead of resizing from the
     // compact-label width.
-    // eslint-disable-next-line react-hooks-js/set-state-in-effect
+    // eslint-disable-next-line react/set-state-in-effect
     setPopoverWidth((currentWidth) =>
       currentWidth === nextWidth ? currentWidth : nextWidth
     );

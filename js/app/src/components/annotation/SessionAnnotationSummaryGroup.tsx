@@ -1,16 +1,23 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { graphql, useFragment } from "react-relay";
 
 import type { SessionAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/SessionAnnotationSummaryGroup.graphql";
 import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import {
+  AnnotationSummaryTokens,
+  AnnotationSummaryValueToken,
+} from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import { getSessionAnnotationTooltipFilters } from "@phoenix/pages/project/annotationFilterUtils";
 import {
   Summary,
   SummaryValue,
 } from "@phoenix/pages/project/AnnotationSummary";
 import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { useSessionFilters } from "@phoenix/pages/project/SessionFiltersContext";
-import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
+
+import { groupAnnotationsByName, hasAnnotationValue } from "./annotationUtils";
+import type { AnnotationOptimizationConfig } from "./optimizationUtils";
+import type { Annotation } from "./types";
 
 const useSessionAnnotationSummaryGroup = (
   session: SessionAnnotationSummaryGroup$key
@@ -18,39 +25,23 @@ const useSessionAnnotationSummaryGroup = (
   const data = useFragment<SessionAnnotationSummaryGroup$key>(
     graphql`
       fragment SessionAnnotationSummaryGroup on ProjectSession {
-        project {
-          id
-          annotationConfigs {
-            edges {
-              node {
-                ... on AnnotationConfigBase {
-                  annotationType
-                }
-                ... on CategoricalAnnotationConfig {
-                  id
-                  name
-                  optimizationDirection
-                  values {
-                    label
-                    score
-                  }
-                }
-              }
-            }
-          }
-        }
         sessionAnnotations {
           id
           name
           label
           score
+          explanation
           annotatorKind
+          createdAt
+          updatedAt
           user {
             username
             profilePictureUrl
           }
         }
-        sessionAnnotationSummaries {
+        summarySessionAnnotationSummaries: sessionAnnotationSummaries(
+          filter: { exclude: { names: ["note"] } }
+        ) {
           count
           scoreCount
           labelCount
@@ -65,58 +56,31 @@ const useSessionAnnotationSummaryGroup = (
     `,
     session
   );
-  const { sessionAnnotations, sessionAnnotationSummaries } = data;
-  const sortedSummariesByName = useMemo(
-    () =>
-      sessionAnnotationSummaries
-        // Note annotations are not displayed in summary groups
-        .filter((summary) => summary.name !== "note")
-        .sort((a, b) => {
-          return a.name.localeCompare(b.name);
-        }),
-    [sessionAnnotationSummaries]
+  const { sessionAnnotations, summarySessionAnnotationSummaries } = data;
+  const sortedSummariesByName = [...summarySessionAnnotationSummaries].sort(
+    (a, b) => {
+      return a.name.localeCompare(b.name);
+    }
   );
-  // newest first - sessions don't have createdAt on annotations
-  const annotationsByName = useMemo(
-    () =>
-      sessionAnnotations.reduce<Record<string, typeof sessionAnnotations>>(
-        (acc, annotation) => {
-          if (annotation.label == null && annotation.score == null) {
-            return acc;
-          }
-          if (!acc[annotation.name]) {
-            acc[annotation.name] = [annotation];
-          } else {
-            acc[annotation.name] = [annotation, ...acc[annotation.name]];
-          }
-          return acc;
-        },
-        {}
-      ),
-    [sessionAnnotations]
-  );
-  const categoricalAnnotationConfigsByName = useMemo(() => {
-    return data.project.annotationConfigs.edges.reduce<
-      Record<string, AnnotationConfigCategorical>
-    >((acc, edge) => {
-      const name = edge.node.name;
-      if (name && edge.node.annotationType === "CATEGORICAL") {
-        acc[name] = edge.node as AnnotationConfigCategorical;
-      }
-      return acc;
-    }, {});
-  }, [data.project.annotationConfigs]);
+  const annotationsByName = groupAnnotationsByName(sessionAnnotations);
   return {
     sortedSummariesByName,
     annotationsByName,
-    categoricalAnnotationConfigsByName,
   };
 };
 
 type SessionAnnotationSummaryGroupProps = {
   session: SessionAnnotationSummaryGroup$key;
+  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   showFilterActions?: boolean;
   renderEmptyState?: () => React.ReactNode;
+};
+
+type SessionAnnotationSummaryGroupTokenProps = Omit<
+  SessionAnnotationSummaryGroupProps,
+  "renderEmptyState"
+> & {
+  annotationName: string;
 };
 
 function SessionAnnotationTooltipFilterActions({
@@ -132,76 +96,107 @@ function SessionAnnotationTooltipFilterActions({
   return (
     <AnnotationTooltipFilterActions
       annotation={annotation}
+      getFilters={getSessionAnnotationTooltipFilters}
       onAppendFilterCondition={appendFilterCondition}
     />
   );
 }
 
+const defaultRenderFilterActions = (annotation: Annotation) => (
+  <SessionAnnotationTooltipFilterActions annotation={annotation} />
+);
+
 export const SessionAnnotationSummaryGroupTokens = ({
   session,
+  annotationConfigsByName,
   showFilterActions = false,
   renderEmptyState,
 }: SessionAnnotationSummaryGroupProps) => {
-  const {
-    sortedSummariesByName,
-    annotationsByName,
-    categoricalAnnotationConfigsByName,
-  } = useSessionAnnotationSummaryGroup(session);
+  const { sortedSummariesByName, annotationsByName } =
+    useSessionAnnotationSummaryGroup(session);
 
-  if (sortedSummariesByName.length === 0 && renderEmptyState) {
+  const summariesWithTokens = sortedSummariesByName.filter(
+    (summary) =>
+      annotationsByName[summary.name]?.some(hasAnnotationValue) === true
+  );
+
+  if (summariesWithTokens.length === 0 && renderEmptyState) {
     return renderEmptyState();
   }
 
   return (
     <AnnotationSummaryTokens
-      summaries={sortedSummariesByName}
+      summaries={summariesWithTokens}
+      annotationTargetType="session"
       annotationsByName={annotationsByName}
-      categoricalAnnotationConfigsByName={categoricalAnnotationConfigsByName}
+      annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}
-      renderFilterActions={(annotation) => (
-        <SessionAnnotationTooltipFilterActions annotation={annotation} />
-      )}
+      renderFilterActions={defaultRenderFilterActions}
+    />
+  );
+};
+
+export const SessionAnnotationSummaryGroupToken = ({
+  session,
+  annotationName,
+  annotationConfigsByName,
+  showFilterActions = false,
+}: SessionAnnotationSummaryGroupTokenProps) => {
+  const { sortedSummariesByName, annotationsByName } =
+    useSessionAnnotationSummaryGroup(session);
+  return (
+    <AnnotationSummaryValueToken
+      annotationName={annotationName}
+      annotationTargetType="session"
+      sortedSummariesByName={sortedSummariesByName}
+      annotationsByName={annotationsByName}
+      annotationConfigsByName={annotationConfigsByName}
+      showFilterActions={showFilterActions}
+      renderFilterActions={defaultRenderFilterActions}
     />
   );
 };
 
 export const SessionAnnotationSummaryGroupStacks = ({
   session,
+  annotationConfigsByName,
   renderEmptyState,
   leadingDivider = false,
 }: SessionAnnotationSummaryGroupProps & { leadingDivider?: boolean }) => {
-  const {
-    sortedSummariesByName,
-    annotationsByName,
-    categoricalAnnotationConfigsByName,
-  } = useSessionAnnotationSummaryGroup(session);
+  const { sortedSummariesByName, annotationsByName } =
+    useSessionAnnotationSummaryGroup(session);
 
-  if (sortedSummariesByName.length === 0 && renderEmptyState) {
-    return renderEmptyState();
+  const stacks = sortedSummariesByName
+    .map((summary) => {
+      const latestAnnotation =
+        annotationsByName[summary.name]?.find(hasAnnotationValue);
+      if (!latestAnnotation) {
+        return null;
+      }
+      return (
+        <Summary name={latestAnnotation.name} key={latestAnnotation.id}>
+          <SummaryValue
+            name={latestAnnotation.name}
+            meanScore={summary.meanScore}
+            labelFractions={summary.labelFractions}
+            count={summary.count}
+            scoreCount={summary.scoreCount}
+            labelCount={summary.labelCount}
+            annotationConfig={annotationConfigsByName.get(
+              latestAnnotation.name
+            )}
+          />
+        </Summary>
+      );
+    })
+    .filter(Boolean);
+
+  if (stacks.length === 0) {
+    return renderEmptyState ? renderEmptyState() : null;
   }
   return (
     <AnnotationSummaryGroupStacksRow leadingDivider={leadingDivider}>
-      {sortedSummariesByName.map((summary) => {
-        const latestAnnotation = annotationsByName[summary.name]?.[0];
-        if (!latestAnnotation) {
-          return null;
-        }
-        return (
-          <Summary name={latestAnnotation.name} key={latestAnnotation.id}>
-            <SummaryValue
-              name={latestAnnotation.name}
-              meanScore={summary.meanScore}
-              labelFractions={summary.labelFractions}
-              count={summary.count}
-              scoreCount={summary.scoreCount}
-              labelCount={summary.labelCount}
-              annotationConfig={
-                categoricalAnnotationConfigsByName[latestAnnotation.name]
-              }
-            />
-          </Summary>
-        );
-      })}
+      {stacks}
     </AnnotationSummaryGroupStacksRow>
   );
 };

@@ -2,14 +2,32 @@
 
 ## v19.x to v20.0.0
 
-No action is required to upgrade from v19.x to v20.0.0.
+The upgrade from v19.x to v20.0.0 needs no manual steps, but it introduces persisted agent sessions, which carry a
+few operational consequences.
 
 ### Agent session persistence
 
 Conversations with the Phoenix agent are now persisted server-side. Sessions survive page reloads and can be browsed,
-restored, and continued later — from the browser or from the `pxi` terminal client, interchangeably. The terminal
+restored, and continued later — from the browser or from the `phoenix-cli pxi` terminal client, interchangeably. The terminal
 client gains session management commands (`/new`, `/temporary`, `/sessions`, `/model`, and `/compact` for summarizing
 older context into a checkpoint on long-running sessions).
+
+### What changes for operators
+
+- **New database tables.** The startup migration creates `agent_sessions`, `agent_session_messages`, and
+  `agent_session_snapshots` (with their indexes) to hold conversations, their messages, and per-session bash state.
+- **Conversations are subject to retention.** Persisted agent sessions do not accumulate forever. By default Phoenix
+  deletes a user's chats after 30 idle days and keeps at most 30 chats per user, evicting the rest on an hourly sweep;
+  temporary chats are removed 24 hours after their last activity. Administrators can change the persisted-chat limits
+  under **Settings → Assistant** (set a limit to 0 to disable it); the 24-hour temporary window is fixed. See
+  [Data Retention](https://arize.com/docs/phoenix/settings/data-retention#agent-session-retention).
+- **`phoenix-cli pxi` requires a matching server.** The `phoenix-cli pxi` terminal client, and the `/v1/agent_sessions`
+  routes it depends on, require a Phoenix server on 20.0.0 or newer. `phoenix-cli pxi` 20+ checks the server version at
+  startup and exits with an upgrade message against an older server, so upgrade the server before or alongside the CLI.
+- **A legacy chat route is deprecated.** `POST /agents/server/sessions/{session_id}/chat` still works but is marked
+  deprecated in the OpenAPI spec; new integrations should use the `/v1/agent_sessions` routes instead.
+- **The OTel `session.id` format changed.** Recorded assistant sessions now use a new `session.id` shape, so saved
+  filters or dashboards built on the old shape in the `assistant_agent` project need to be rebuilt.
 
 ## v18.x to v19.0.0
 

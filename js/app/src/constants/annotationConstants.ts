@@ -9,6 +9,13 @@ export const ANNOTATOR_KINDS = [
   "CODE",
 ] as const satisfies readonly AnnotatorKind[];
 
+export function isAnnotatorKind(value: unknown): value is AnnotatorKind {
+  return (
+    typeof value === "string" &&
+    ANNOTATOR_KINDS.some((annotatorKind) => annotatorKind === value)
+  );
+}
+
 /**
  * Hotkey that focuses the annotation editor.
  */

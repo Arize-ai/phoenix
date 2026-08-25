@@ -37,7 +37,7 @@ max(span.latency_ms for span in spans) > 5_000
 ```
 
 ```python
-'refund' in any_input and annotations["Quality"].score < 0.5
+'refund' in any_input and session_annotations["Quality"].score < 0.5
 ```
 
 ```python
@@ -53,7 +53,7 @@ Enter to have the expression written and validated for you.
     Group traces into conversations Phoenix can filter
   </Card>
   <Card title="Extract Data from Spans" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans">
-    The span-grain filter language these expressions mirror
+    The span filter language these expressions mirror
   </Card>
 </CardGroup>
 
@@ -312,8 +312,8 @@ August 11, 2026
 **Available in arize-phoenix 20.0.0+**
 
 The span filter language gains a `trace_annotations` keyword, so you can pull spans out of traces
-that a trace-level evaluation flagged — the trace-grain sibling of `annotations`, with the same
-`score`, `label`, `explanation`, and existence syntax.
+that a trace-level evaluation flagged. It is the trace-level counterpart to `annotations` and
+supports the same `score`, `label`, `explanation`, and existence syntax.
 
 ```python
 from phoenix.client import Client

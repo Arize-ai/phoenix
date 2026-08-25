@@ -385,14 +385,14 @@ CASES: tuple[AdmissionCase, ...] = (
     ),
     AdmissionCase(
         sql="SELECT count(*) FROM spans WHERE (attributes #>> '{session,id}'::text[]) IS NOT NULL",
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note="a cast written bare after #>> parses as a cast of the whole extraction, which is also what a deliberate CAST(a #>> b AS text[]) produces; the two readings are indistinguishable after parsing so neither is chosen for the caller",
+        expect=AdmissionOutcome.ADMIT,
+        note="a cast written bare after #>> binds to the path, the way PostgreSQL reads it, and is the form pg_get_indexdef publishes",
         dialect="postgresql",
     ),
     AdmissionCase(
         sql="SELECT CAST(attributes #>> '{session,id}' AS text[]) AS v FROM spans",
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note="the deliberate spelling of the same ambiguous tree, refused for the same reason; (attributes #>> '{session,id}')::text[] says it unambiguously and is admitted",
+        expect=AdmissionOutcome.ADMIT,
+        note="casting the extraction parses the extracted string as an array literal, a distinct operation and a distinct tree from casting the path",
         dialect="postgresql",
     ),
     AdmissionCase(
@@ -666,7 +666,7 @@ CASES: tuple[AdmissionCase, ...] = (
     AdmissionCase(
         sql="SELECT attributes #> ARRAY['session', 'id'] FROM spans",
         expect=AdmissionOutcome.ADMIT,
-        note="#> ARRAY['a','b'] is equivalent to #> '{a,b}' and must not be refused as Bracket",
+        note="#> ARRAY['a','b'] is the array-constructor spelling of the #> '{a,b}' path and reaches the same value, so it is admitted on the same terms",
         dialect="postgresql",
     ),
     AdmissionCase(

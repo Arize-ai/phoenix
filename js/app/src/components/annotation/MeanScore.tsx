@@ -4,13 +4,17 @@ import type { TextProps } from "@phoenix/components";
 import { Text } from "@phoenix/components";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
+import { AnnotationScoreText } from "./AnnotationScoreText";
+
 export const MeanScore = ({
   value,
   fallback = "--",
+  positiveOptimization,
   ...props
 }: {
   value?: number | null;
   fallback?: React.ReactNode;
+  positiveOptimization?: boolean | null;
 } & Omit<TextProps, "children">) => {
   if (value == null || typeof value !== "number" || isNaN(value)) {
     return (
@@ -21,8 +25,15 @@ export const MeanScore = ({
   }
   return (
     <Text {...props}>
-      <span aria-label="mean score">μ&nbsp;</span>
-      <span className="font-mono">{`${formatFloat(value)}`}</span>
+      <AnnotationScoreText
+        elementType="span"
+        fontFamily="mono"
+        positiveOptimization={positiveOptimization}
+        size={props.size}
+      >
+        <span aria-label="mean score">μ</span>&nbsp;
+        {formatFloat(value)}
+      </AnnotationScoreText>
     </Text>
   );
 };

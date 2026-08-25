@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8df5de8b06b5431ef292a078eb5627b3>>
+ * @generated SignedSource<<cb6f6d8b05ef2483a8d5a94fc65ad8d2>>
  * @lightSyntaxTransform
  */
 
@@ -79,14 +79,6 @@ export type TracesTable_spans$data = {
           readonly value: string;
         } | null;
         readonly parentId: string | null;
-        readonly spanAnnotationSummaries: ReadonlyArray<{
-          readonly labelFractions: ReadonlyArray<{
-            readonly fraction: number;
-            readonly label: string;
-          }>;
-          readonly meanScore: number | null;
-          readonly name: string;
-        }>;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
           readonly createdAt: string;
@@ -108,14 +100,6 @@ export type TracesTable_spans$data = {
           };
           readonly id: string;
           readonly numSpans: number;
-          readonly traceAnnotationSummaries: ReadonlyArray<{
-            readonly labelFractions: ReadonlyArray<{
-              readonly fraction: number;
-              readonly label: string;
-            }>;
-            readonly meanScore: number | null;
-            readonly name: string;
-          }>;
           readonly traceId: string;
           readonly userId: string | null;
           readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
@@ -124,7 +108,7 @@ export type TracesTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
   readonly " $fragmentType": "TracesTable_spans";
 };
 export type TracesTable_spans$key = {
@@ -142,14 +126,14 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "name",
+  "name": "id",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "name",
   "storageKey": null
 },
 v3 = {
@@ -240,50 +224,20 @@ v13 = {
 v14 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "label",
-  "storageKey": null
-},
-v15 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "LabelFraction",
-    "kind": "LinkedField",
-    "name": "labelFractions",
-    "plural": true,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "fraction",
-        "storageKey": null
-      },
-      (v14/*:: as any*/)
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "meanScore",
-    "storageKey": null
-  },
-  (v1/*:: as any*/)
-],
-v16 = {
-  "alias": null,
-  "args": null,
   "concreteType": "SpanAnnotation",
   "kind": "LinkedField",
   "name": "spanAnnotations",
   "plural": true,
   "selections": [
-    (v2/*:: as any*/),
     (v1/*:: as any*/),
-    (v14/*:: as any*/),
+    (v2/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "label",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -308,12 +262,12 @@ v16 = {
   ],
   "storageKey": null
 },
-v17 = {
+v15 = {
   "args": null,
   "kind": "FragmentSpread",
   "name": "AnnotationSummaryGroup"
 },
-v18 = {
+v16 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -360,11 +314,6 @@ return {
       "name": "after"
     },
     {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "filterCondition"
-    },
-    {
       "defaultValue": 30,
       "kind": "LocalArgument",
       "name": "first"
@@ -385,6 +334,11 @@ return {
     {
       "kind": "RootArgument",
       "name": "timeRange"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "traceFilterCondition"
     }
   ],
   "kind": "Fragment",
@@ -419,6 +373,12 @@ return {
   "name": "TracesTable_spans",
   "selections": [
     (v1/*:: as any*/),
+    (v2/*:: as any*/),
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "ProjectAnnotationConfigsByNameFragment"
+    },
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -433,11 +393,6 @@ return {
       "alias": "rootSpans",
       "args": [
         {
-          "kind": "Variable",
-          "name": "filterCondition",
-          "variableName": "filterCondition"
-        },
-        {
           "kind": "Literal",
           "name": "rootSpansOnly",
           "value": true
@@ -451,6 +406,11 @@ return {
           "kind": "Variable",
           "name": "timeRange",
           "variableName": "timeRange"
+        },
+        {
+          "kind": "Variable",
+          "name": "traceFilterCondition",
+          "variableName": "traceFilterCondition"
         }
       ],
       "concreteType": "SpanConnection",
@@ -474,9 +434,9 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*:: as any*/),
-                (v3/*:: as any*/),
                 (v1/*:: as any*/),
+                (v3/*:: as any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -514,7 +474,7 @@ return {
                   "name": "trace",
                   "plural": false,
                   "selections": [
-                    (v2/*:: as any*/),
+                    (v1/*:: as any*/),
                     (v13/*:: as any*/),
                     {
                       "alias": null,
@@ -560,16 +520,6 @@ return {
                       "storageKey": null
                     },
                     {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "AnnotationSummary",
-                      "kind": "LinkedField",
-                      "name": "traceAnnotationSummaries",
-                      "plural": true,
-                      "selections": (v15/*:: as any*/),
-                      "storageKey": null
-                    },
-                    {
                       "args": null,
                       "kind": "FragmentSpread",
                       "name": "TraceAnnotationSummaryGroup"
@@ -577,19 +527,9 @@ return {
                   ],
                   "storageKey": null
                 },
+                (v14/*:: as any*/),
+                (v15/*:: as any*/),
                 (v16/*:: as any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": "AnnotationSummary",
-                  "kind": "LinkedField",
-                  "name": "spanAnnotationSummaries",
-                  "plural": true,
-                  "selections": (v15/*:: as any*/),
-                  "storageKey": null
-                },
-                (v17/*:: as any*/),
-                (v18/*:: as any*/),
                 {
                   "alias": null,
                   "args": [
@@ -620,9 +560,9 @@ return {
                           "name": "node",
                           "plural": false,
                           "selections": [
-                            (v2/*:: as any*/),
-                            (v3/*:: as any*/),
                             (v1/*:: as any*/),
+                            (v3/*:: as any*/),
+                            (v2/*:: as any*/),
                             {
                               "alias": "statusCode",
                               "args": null,
@@ -653,14 +593,14 @@ return {
                               "name": "trace",
                               "plural": false,
                               "selections": [
-                                (v2/*:: as any*/),
+                                (v1/*:: as any*/),
                                 (v13/*:: as any*/)
                               ],
                               "storageKey": null
                             },
-                            (v16/*:: as any*/),
-                            (v17/*:: as any*/),
-                            (v18/*:: as any*/)
+                            (v14/*:: as any*/),
+                            (v15/*:: as any*/),
+                            (v16/*:: as any*/)
                           ],
                           "storageKey": null
                         }
@@ -728,14 +668,13 @@ return {
         }
       ],
       "storageKey": null
-    },
-    (v2/*:: as any*/)
+    }
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "16a471d01a937ac52c8a5ddd2ccec751";
+(node as any).hash = "9a65fd03128e6daf24bf3b4887765164";
 
 export default node;

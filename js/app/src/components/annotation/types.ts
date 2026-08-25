@@ -16,11 +16,14 @@ export interface Annotation {
   metadata?: Record<string, unknown>;
   annotatorKind?: string;
   createdAt?: string;
+  updatedAt?: string;
   user?: {
     username: string;
     profilePictureUrl?: string | null;
   } | null;
 }
+
+export type AnnotationTargetType = "span" | "trace" | "session";
 
 export type AnnotationInputPropsBase<T extends AnnotationConfig> = {
   annotation?: Annotation;

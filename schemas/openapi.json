@@ -7072,6 +7072,114 @@
         }
       }
     },
+    "/v1/model_providers": {
+      "get": {
+        "tags": [
+          "model_providers"
+        ],
+        "summary": "List built-in model provider families",
+        "description": "Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.",
+        "operationId": "getModelProviders",
+        "responses": {
+          "200": {
+            "description": "A list of built-in model provider families",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetModelProvidersResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/custom_model_providers": {
+      "get": {
+        "tags": [
+          "model_providers"
+        ],
+        "summary": "List custom model providers",
+        "description": "Retrieve a paginated list of user-defined custom model providers. Encrypted provider credentials are never returned. Built-in provider families are listed separately by `GET /v1/model_providers`.",
+        "operationId": "getCustomModelProviders",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (custom provider ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (custom provider ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "The max number of custom providers to return at a time (at most 1000).",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of custom providers to return at a time (at most 1000)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of custom model providers with pagination information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCustomModelProvidersResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/sessions/{session_identifier}": {
       "get": {
         "tags": [
@@ -9525,6 +9633,119 @@
         }
       }
     },
+    "/v1/agent_sessions/{session_id}/tool_approvals": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Submit Agent Session Tool Approvals",
+        "description": "Persist answered tool approvals for the session's open turn.",
+        "operationId": "submitAgentSessionToolApprovals",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitAgentSessionToolApprovalsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitAgentSessionToolApprovalsResponseBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/agent_sessions/{session_id}/chat": {
       "post": {
         "tags": [
@@ -9724,6 +9945,7 @@
               "agent_session_model_stale",
               "agent_session_messages_stale",
               "agent_session_tool_outputs_conflict",
+              "agent_session_tool_approvals_conflict",
               "agent_session_already_compact",
               "agent_session_compaction_conflict"
             ],
@@ -9748,7 +9970,7 @@
           "code"
         ],
         "title": "AgentSessionConflictError",
-        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_already_compact``: there are no complete turns to\n  compact \u2014 either nothing new has finished since the transcript's latest\n  checkpoint, or a concurrent request's checkpoint already covers them.\n  Not retryable; the conversation is as compact as it can get.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
+        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_tool_approvals_conflict``: the submitted ``toolApprovals``\n  do not match the transcript's trailing assistant message (no trailing\n  assistant message to answer, an unknown ``toolCallId``, a call that is\n  not awaiting approval, or a reversal of an already-persisted answer).\n  Like the tool-output conflict this is an inconsistent request rather than\n  a concurrent-writer race; fix the client rather than retrying.\n- ``agent_session_already_compact``: there are no complete turns to\n  compact \u2014 either nothing new has finished since the transcript's latest\n  checkpoint, or a concurrent request's checkpoint already covers them.\n  Not retryable; the conversation is as compact as it can get.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
       },
       "AgentSessionData": {
         "properties": {
@@ -10314,6 +10536,25 @@
         ],
         "title": "AssistantMessageMetadataUsageTokens"
       },
+      "BuiltInModelProvider": {
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/ModelProvider",
+            "description": "The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI')."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The human-readable name of the provider family (e.g. 'OpenAI')."
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "name"
+        ],
+        "title": "BuiltInModelProvider"
+      },
       "BuiltInProviderModelSelection": {
         "properties": {
           "providerType": {
@@ -10662,6 +10903,16 @@
           "total_tokens": {
             "type": "integer",
             "title": "Total Tokens"
+          },
+          "prompt_tokens_details": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatCompletionUsagePromptTokensDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -10671,6 +10922,19 @@
           "total_tokens"
         ],
         "title": "ChatCompletionUsage"
+      },
+      "ChatCompletionUsagePromptTokensDetails": {
+        "properties": {
+          "cached_tokens": {
+            "type": "integer",
+            "title": "Cached Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cached_tokens"
+        ],
+        "title": "ChatCompletionUsagePromptTokensDetails"
       },
       "ChatContext": {
         "oneOf": [
@@ -10815,6 +11079,14 @@
             "type": "array",
             "title": "Tooloutputs",
             "description": "Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs."
+          },
+          "toolApprovals": {
+            "items": {
+              "$ref": "#/components/schemas/ToolApproval"
+            },
+            "type": "array",
+            "title": "Toolapprovals",
+            "description": "Responses to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Cannot be combined with ``message``."
           },
           "lastMessageId": {
             "anyOf": [
@@ -11925,6 +12197,71 @@
           "key"
         ],
         "title": "CreatedApiKey"
+      },
+      "CustomModelProvider": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the custom provider."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The unique name of the custom provider."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of the custom provider."
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "The free-form provider label recorded on the custom provider. Unlike the `provider` of a built-in family, this is not drawn from a fixed set."
+          },
+          "sdk": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "azure_openai",
+              "anthropic",
+              "google_genai",
+              "aws_bedrock"
+            ],
+            "title": "Sdk",
+            "description": "The SDK used to communicate with the custom provider."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The time the custom provider was created."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "The time the custom provider was last updated."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "provider",
+          "sdk",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CustomModelProvider"
       },
       "CustomProviderModelSelection": {
         "properties": {
@@ -13404,6 +13741,34 @@
         ],
         "title": "GetApiKeysResponseBody"
       },
+      "GetCustomModelProvidersResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CustomModelProvider"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetCustomModelProvidersResponseBody"
+      },
       "GetDatasetLabelResponseBody": {
         "properties": {
           "data": {
@@ -13523,6 +13888,22 @@
           "next_cursor"
         ],
         "title": "GetIncompleteExperimentRunsResponseBody"
+      },
+      "GetModelProvidersResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/BuiltInModelProvider"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetModelProvidersResponseBody"
       },
       "GetProjectAnnotationConfigsResponseBody": {
         "properties": {
@@ -13885,7 +14266,8 @@
           "mutationsEnabled"
         ],
         "title": "GraphQLContext",
-        "description": "GraphQL runtime state."
+        "description": "Deprecated GraphQL mutations opt-in.",
+        "deprecated": true
       },
       "HTTPValidationError": {
         "properties": {
@@ -19245,6 +19627,44 @@
         "title": "SubagentsContext",
         "description": "User's per-turn request to expose the subagent-spawning tool."
       },
+      "SubmitAgentSessionToolApprovalsRequestBody": {
+        "properties": {
+          "toolApprovals": {
+            "items": {
+              "$ref": "#/components/schemas/ToolApproval"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Toolapprovals",
+            "description": "Answers to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Resending a persisted answer is a no-op; an answer that reverses one, or that matches no call awaiting approval, is rejected with HTTP 409 and code ``agent_session_tool_approvals_conflict``."
+          },
+          "lastMessageId": {
+            "type": "string",
+            "title": "Lastmessageid",
+            "description": "The trailing assistant message's id. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``."
+          }
+        },
+        "type": "object",
+        "required": [
+          "toolApprovals",
+          "lastMessageId"
+        ],
+        "title": "SubmitAgentSessionToolApprovalsRequestBody",
+        "description": "Persist answered tool approvals without continuing the turn."
+      },
+      "SubmitAgentSessionToolApprovalsResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PhoenixUIMessage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SubmitAgentSessionToolApprovalsResponseBody",
+        "description": "The trailing assistant message with the submitted approvals applied."
+      },
       "SubmitAgentSessionToolOutputsRequestBody": {
         "properties": {
           "toolOutputs": {
@@ -19366,6 +19786,26 @@
         ],
         "title": "TextUIPart",
         "description": "A text part of a message."
+      },
+      "ToolApproval": {
+        "properties": {
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "description": "Whether the user approved the tool call."
+          }
+        },
+        "type": "object",
+        "required": [
+          "toolCallId",
+          "approved"
+        ],
+        "title": "ToolApproval",
+        "description": "A user's response to a tool call awaiting approval."
       },
       "ToolApprovalRequested": {
         "properties": {

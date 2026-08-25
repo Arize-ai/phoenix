@@ -9,6 +9,7 @@ export type AnnotationOptimizationConfig = {
   readonly upperBound?: number | null;
   readonly threshold?: number | null;
   readonly values?: ReadonlyArray<{
+    readonly label?: string;
     readonly score: number | null;
   }>;
 };

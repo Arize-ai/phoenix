@@ -8,7 +8,7 @@ import { useDefaultDrawerSize } from "../useDefaultDrawerSize";
 
 installTestStorage();
 
-const DRAWER_STORAGE_KEY = "arize-phoenix-drawer-trace-details-size";
+const DRAWER_STORAGE_KEY = "arize-phoenix-drawer-trace-details-size-v2";
 const PERSIST_DEBOUNCE_MS = 250;
 
 function TestComponent({

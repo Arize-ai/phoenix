@@ -5,6 +5,7 @@ import { redirect } from "react-router";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { traceRedirectLoaderQuery } from "./__generated__/traceRedirectLoaderQuery.graphql";
+import { notFound } from "./notFound";
 
 export async function traceRedirectLoader({ params }: LoaderFunctionArgs) {
   const { trace_otel_id } = params;
@@ -38,6 +39,10 @@ export async function traceRedirectLoader({ params }: LoaderFunctionArgs) {
       `/projects/${project.id}/traces/${encodeURIComponent(trace_otel_id)}`
     );
   } else {
-    throw new Error(`Trace with id "${trace_otel_id}" not found`);
+    throw notFound({
+      kind: "entity",
+      entityType: "trace",
+      identifier: trace_otel_id,
+    });
   }
 }

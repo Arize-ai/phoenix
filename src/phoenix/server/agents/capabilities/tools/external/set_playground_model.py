@@ -3,28 +3,24 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from jinja2 import Template
 from pydantic_ai import RunContext
-from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.capabilities.tools.base import AbstractGatedToolCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "set_playground_model"
 
 MODEL_PROVIDER_ENUM = [provider.value for provider in ModelProvider]
 
-DESCRIPTION = (
-    "Switch the selected model for one mounted playground instance. This tool "
-    "applies immediately, like the playground model menu. If there is exactly "
-    "one playground instance, `instanceId` may be omitted. If there are "
-    "multiple comparison instances, pass the numeric `instanceId` from the "
-    "playground context. Use `target.type = 'builtin'` for Phoenix built-in "
-    "providers, and `target.type = 'custom'` for a configured custom provider."
-)
+DESCRIPTION = """\
+Switch the selected model for one mounted playground instance. This tool applies immediately, like the playground model menu, and does not show an approval diff — ask the user first only when the requested target is ambiguous.
+Use the alphabetic instance labels (A, B, C, D) when discussing instances with the user, but pass the numeric `instanceId` when calling this tool. If there is exactly one playground instance, `instanceId` may be omitted; with multiple comparison instances, pass the specific `instanceId`.
+For Phoenix built-in providers, call with `target: {"type":"builtin","provider":"OPENAI","modelName":"gpt-5"}` using one of the available built-in provider keys. For custom providers, call with `target: {"type":"custom","customProviderId":"...","modelName":"..."}` using the custom provider ID returned by `list_playground_model_targets`.
+Call `list_playground_model_targets` first when you need to suggest model options, choose the latest available model for a provider, or resolve available provider/model/custom-provider targets."""
 
 BUILTIN_TARGET_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -97,19 +93,9 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class SetPlaygroundModelCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: Template
-
+class SetPlaygroundModelCapability(AbstractGatedToolCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
-
-    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
-        instructions = self.instructions
-
-        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
-
-        return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         return ctx.deps.contexts.playground is not None

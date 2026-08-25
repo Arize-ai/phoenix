@@ -18,6 +18,7 @@ import { JSONEditor } from "@phoenix/components/code";
 import {
   DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
@@ -145,28 +146,15 @@ export function SpanToDatasetExampleDialog({
           <DialogHeader>
             <DialogTitle>Add Example to Dataset</DialogTitle>
             <DialogTitleExtra>
-              <Button
-                variant="primary"
-                size="S"
-                isDisabled={!isValid || isCommitting || !datasetId}
-                onPress={() => {
-                  handleSubmit(onSubmit)();
-                  close();
-                }}
-                leadingVisual={
-                  <Icon
-                    svg={isCommitting ? <Icons.Loading /> : <Icons.Plus />}
-                  />
-                }
-              >
-                Add Example
-              </Button>
               <DialogCloseButton slot="close" />
             </DialogTitleExtra>
           </DialogHeader>
           <div
             css={css`
               overflow-y: auto;
+              // keep trackpad overscroll from chaining to the dialog and
+              // dragging the header/footer with it
+              overscroll-behavior: contain;
               padding: var(--global-dimension-size-400);
               /* Make widths configurable */
               .dataset-picker {
@@ -289,6 +277,22 @@ export function SpanToDatasetExampleDialog({
               </View>
             </Flex>
           </div>
+          <DialogFooter>
+            <Button
+              variant="primary"
+              size="S"
+              isDisabled={!isValid || isCommitting || !datasetId}
+              onPress={() => {
+                handleSubmit(onSubmit)();
+                close();
+              }}
+              leadingVisual={
+                <Icon svg={isCommitting ? <Icons.Loading /> : <Icons.Plus />} />
+              }
+            >
+              Add Example
+            </Button>
+          </DialogFooter>
         </DialogContent>
       )}
     </Dialog>

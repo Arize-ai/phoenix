@@ -328,6 +328,9 @@ describe("PXI model preflight", () => {
     const models = getRecommendedPxiModels({
       data: createPreflightData({
         playgroundModels: [
+          { providerKey: "GOOGLE", name: "gemini-3.7-flash" },
+          // Still offered by the server, but superseded: it must not come back
+          // as a recommendation just because it is installed.
           { providerKey: "GOOGLE", name: "gemini-3.5-flash" },
           { providerKey: "OPENAI", name: "unrecommended-model" },
           { providerKey: "OPENAI", name: "gpt-5.4" },
@@ -350,7 +353,7 @@ describe("PXI model preflight", () => {
       {
         providerType: "builtin",
         provider: "GOOGLE",
-        modelName: "gemini-3.5-flash",
+        modelName: "gemini-3.7-flash",
       },
     ]);
   });

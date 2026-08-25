@@ -58,6 +58,7 @@ export function PromptInput({
     onValueChange?.(next);
   };
   const valueRef = useRef(value);
+  // eslint-disable-next-line react/refs
   valueRef.current = value;
 
   const handleSubmit = () => {

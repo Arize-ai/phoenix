@@ -23,8 +23,8 @@ import {
   Icon,
   Icons,
   Loading,
-  Modal,
-  ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import type { Mutable } from "@phoenix/typeUtils";
@@ -204,8 +204,8 @@ export function CloneModelButton({
         onPress={handleOpen}
         size="S"
       />
-      <ModalOverlay>
-        <Modal>
+      <ViewportModalOverlay>
+        <ViewportModal>
           <Dialog>
             <DialogContent>
               <DialogHeader>
@@ -227,8 +227,8 @@ export function CloneModelButton({
               </Suspense>
             </DialogContent>
           </Dialog>
-        </Modal>
-      </ModalOverlay>
+        </ViewportModal>
+      </ViewportModalOverlay>
     </DialogTrigger>
   );
 }

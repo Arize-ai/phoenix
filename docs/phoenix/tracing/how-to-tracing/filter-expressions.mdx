@@ -1,13 +1,13 @@
 ---
 title: "Filter Expressions"
-description: Filter spans and sessions with Python-style filter expressions, in the UI and over the API.
+description: Filter spans, traces, and sessions with Python-style filter expressions, in the UI and over the API.
 ---
 
 A filter is a **Python boolean expression** that Phoenix compiles to a database query. Type
 one into a filter bar to narrow a table, or pass one to the API to scope a result set.
 
-Phoenix has two filter languages — one for **spans** and one for **sessions**. They share the same
-core syntax; session filters add aggregates and comprehensions.
+Phoenix has three filter languages — one each for **spans**, **traces**, and **sessions**. They
+share the same core syntax; trace and session filters add aggregates and comprehensions.
 
 <Note>
 Session filters require Phoenix **19.18.0+**.
@@ -15,12 +15,12 @@ Session filters require Phoenix **19.18.0+**.
 
 ## Where filters work
 
-| Surface | Span filters | Session filters |
-| :--- | :--- | :--- |
-| UI filter bar | Yes — spans / traces table (via GraphQL) | Yes — sessions table (via GraphQL) |
-| GraphQL | `filterCondition` argument | `sessionFilterCondition` argument |
-| Python client (dataframe export) | Yes — `SpanQuery().where(...)`, sent to `POST /v1/spans` | Not yet |
-| REST list / search endpoints | Discrete query params only — no filter expression | No filter surface |
+| Surface | Span filters | Trace filters | Session filters |
+| :--- | :--- | :--- | :--- |
+| UI filter bar | Yes — spans table (via GraphQL) | Yes — traces table (via GraphQL) | Yes — sessions table (via GraphQL) |
+| GraphQL | `filterCondition` argument | `traceFilterCondition` argument | `sessionFilterCondition` argument |
+| Python client (dataframe export) | Yes — `SpanQuery().where(...)`, sent to `POST /v1/spans` | No filter surface | Not yet |
+| REST list / search endpoints | Discrete query params only — no filter expression | No filter surface | No filter surface |
 
 Support for session filters in the REST API and Python client is tracked in
 [#15099](https://github.com/Arize-ai/phoenix/issues/15099) and
@@ -28,7 +28,7 @@ Support for session filters in the REST API and Python client is tracked in
 
 <Info>
 The **Experiment Compare** view has its own filter language for filtering experiment runs,
-separate from the span and session filter languages.
+separate from the span, trace, and session filter languages.
 </Info>
 
 ## Span filters
@@ -82,9 +82,72 @@ Span-specific notes:
 - **Unknown names:** a name that isn't a built-in field is read as an attribute path, so a typo
   filters on a nonexistent attribute and matches nothing rather than producing an error.
 
-The same expressions run in the spans/traces filter bar and in the Python client's
+The same expressions run in the spans filter bar and in the Python client's
 [`SpanQuery().where(...)`](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries)
 export path.
+
+## Trace filters
+
+A trace filter matches whole traces by fields like `latency_ms` and by values rolled up from their
+spans. Rollups with no matching data are `0`, never null:
+
+```python
+latency_ms > 1000
+num_spans > 10 and error_count > 0
+token_count_prompt + token_count_completion > 5000
+total_cost > 0.25
+```
+
+Token rollups include `token_count_prompt`, `token_count_completion`, and `token_count_total`. Cost
+rollups include `prompt_cost`, `completion_cost`, and `total_cost`. Use `tool_span_count` and
+`llm_span_count` to count spans by kind.
+
+Read `input`, `output`, attributes, `user.id`, and `metadata[...]` from the trace's root span:
+
+```python
+'refund' in input
+output is not None
+attributes['llm.model_name'] == 'gpt-4o'
+user.id == 'u1'
+metadata['topic'] == 'support'
+```
+
+Filter on a trace **annotation** by name with `trace_annotations["name"]`. It exposes `.score`,
+`.label`, and `.explanation`; a lookup without one of these fields checks whether the annotation
+exists:
+
+```python
+trace_annotations['quality'].score < 0.5
+```
+
+If you use another annotation lookup, the validation error points to `trace_annotations[...]` for
+trace annotations or the `span_annotations` collection for span annotations.
+
+**Comprehensions** quantify and aggregate over the trace's spans, trace annotations, span
+annotations, and span cost details:
+
+```python
+any(span.status_code == 'ERROR' for span in spans)
+any(annotation.label == 'incorrect' for annotation in trace_annotations)
+any(annotation.score < 0.5 for annotation in span_annotations)
+sum(detail.cost for detail in span_cost_details if detail.is_prompt) > 0.10
+```
+
+A span exposes its `children` and `parent_span`, so you can filter by parent-child relationships:
+
+```python
+any(any(child.status_code == 'ERROR' for child in span.children) for span in spans)
+any(span.parent_span.span_kind == 'LLM' and span.span_kind == 'TOOL' for span in spans)
+```
+
+Trace-specific notes:
+
+- **Strict names:** unknown names are rejected with a "did you mean" suggestion, unlike span
+  filters, which fall back to attribute paths.
+- **Loop variables only:** inside a comprehension, reference the loop variable's fields
+  (`span.latency_ms`), not bare trace-level names.
+- The available aggregate, collection, and element-field names are project-specific — see
+  [Finding field names](#finding-field-names).
 
 ## Session filters
 
@@ -112,8 +175,8 @@ and `last_output` are the session's opening input and final output as strings �
 outputs, and support only `in` / `not in`:
 
 ```python
-annotations['Quality'].score <= 0.5
-annotations['Quality'].score is None
+session_annotations['Quality'].score <= 0.5
+session_annotations['Quality'].score is None
 attributes['llm.model_name'] == 'gpt-4o'
 user.id == 'u1'
 'refund' in any_input
@@ -155,22 +218,24 @@ discover what's available:
 
 - In any **filter bar**, start typing to get a typeahead of the names available in your project,
   grouped by kind (fields, aggregates, collections, attributes, annotations).
-- For sessions, query the **`sessionFilterVocabulary`** GraphQL field to enumerate valid names
-  programmatically. Span filters have no equivalent endpoint; use the filter-bar typeahead.
+- For traces and sessions, query the **`traceFilterVocabulary`** and
+  **`sessionFilterVocabulary`** GraphQL fields to enumerate valid names programmatically. Span
+  filters have no equivalent endpoint; use the filter-bar typeahead.
 
 ## Syntax rules
 
-These rules apply to both span and session filters.
+These rules apply to span, trace, and session filters unless a note says otherwise.
 
 - **Operators.** Compare with `==` `!=` `<` `<=` `>` `>=` (chained comparisons like
   `0.5 < latency_ms < 1000` are supported); combine conditions with `and` / `or` / `not`; test membership
   with `in` / `not in`; check for missing values with `is None` / `is not None`; and do arithmetic
   on numeric fields with `+` `-` `*` `/` `%` (e.g. `num_traces_with_error / num_traces`,
   `total_cost - prompt_cost`). The whole expression must be a condition, not a bare value.
-- **Annotations.** `annotations["name"]` reads the annotations of whatever you're filtering — span
-  annotations in a span filter, session annotations in a session filter — exposing `.score`,
-  `.label`, and `.explanation`. A bare `annotations["name"]` is an existence check (true when that annotation
-  exists at all). `evals["name"]` is a legacy alias for `annotations["name"]`.
+- **Annotations.** Use `trace_annotations["name"]` in a trace filter and
+  `session_annotations["name"]` in a session filter. Span filters use `annotations["name"]` and
+  its legacy alias `evals["name"]`; they also accept `trace_annotations["name"]` for annotations
+  on the containing trace. Each lookup exposes `.score`, `.label`, and `.explanation`, and a lookup
+  without one of these fields is an existence check.
 - **`in` / `not in` ignore case.** Containment against text is case-insensitive:
   `'refund' in first_input` matches `REFUND please`. Equality (`==` / `!=`) and membership in a
   literal list (`span_kind in ['LLM']`) are exact.
@@ -179,10 +244,11 @@ These rules apply to both span and session filters.
 - **Datetime literals need a timezone offset.** Write `start_time > '2026-07-01T00:00:00+00:00'`
   or use a trailing `Z`; a literal without an offset is rejected as ambiguous.
 - **Function calls.** `float()` and `str()` convert an attribute of unknown type; span filters also
-  accept `int()`, which behaves like `float()` and does not truncate. Session comprehensions accept
-  the reducers `any` / `all` / `len` / `max` / `min` / `sum`. All other function and method calls
-  (e.g. `name.startswith(...)`, `len(span_id)`) are rejected, as are `**`, `//`, and the bitwise
-  operators `&` `|` `^`. Strings are not implicitly converted to numbers.
+  accept `int()`, which behaves like `float()` and does not truncate. Trace and session
+  comprehensions accept the reducers `any` / `all` / `len` / `max` / `min` / `sum`. All other
+  function and method calls (e.g. `name.startswith(...)`, `len(span_id)`) are rejected, as are
+  `**`, `//`, and the bitwise operators `&` `|` `^`. Strings are not implicitly converted to
+  numbers.
 
 For example:
 

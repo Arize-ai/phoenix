@@ -20,10 +20,12 @@ const routeNavigationMetadataSchema = z
     icon: z.enum([
       "Code",
       "Database",
+      "Eye",
       "GraphQL",
       "Grid",
       "Key",
       "Link2",
+      "MessageCircle",
       "MessageSquare",
       "Options",
       "Person",

@@ -48,7 +48,7 @@ dependencies = [
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
   "openinference-instrumentation-openai>=0.1.41",
-  "sqlglot==30.15.0",
+  "sqlglot==30.17.0",
   "sqlalchemy[asyncio]>=2.0.46, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite>=0.22.1",
@@ -56,18 +56,21 @@ dependencies = [
   "arize-phoenix-sqlean",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=3.4.0",
+  "arize-phoenix-evals>=3.5.0",
   "arize-phoenix-otel>=0.17.0",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "fastmcp-slim[client,server]>=3.4.2,<4",  # client powers pydantic-ai's MCPToolset used by the agent assistant; server powers the in-process MCP server mounted at /mcp. Cap below 4: FastMCP 4 is an SDK-v2 engine swap (mcp_types, httpx2, sampling removals) still in prerelease.
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose ==0.0.17 pin conflicts and would ship in wheel metadata.
   "pydantic-monty==0.0.19",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.26.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.33.0,<3",
+  # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
+  # here so the major version is chosen deliberately rather than by resolution.
+  "anthropic>=1,<2",
   "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
   "authlib>=1.7.0",
   "joserfc",
-  "arize-phoenix-client>=3.0.0",
+  "arize-phoenix-client>=3.2.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
@@ -88,7 +91,7 @@ dev = [
   "aiobotocore>=3.1.1",
   "aioboto3",
   "aiosqlite>=0.22.1",
-  "anthropic>=0.79.0",
+  "anthropic>=1,<2",
   "arize>=8.1.0",
   "asgi-lifespan",
   "asyncpg",
@@ -115,7 +118,7 @@ dev = [
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
-  "openai",
+  "openai>=3.1.0,<4",
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
   "opentelemetry-exporter-otlp",
@@ -171,7 +174,7 @@ dev = [
   "types-tqdm",
   "typing-extensions",
   "uvloop; platform_system != 'Windows'",
-  "vcrpy",
+  "vcrpy>=8.3",  # earlier releases do not patch httpx2, which the anthropic SDK uses
   "jupyter>=1.1.1",
   "ruff>=0.15.2",
   "libcst>=1.8.6",
@@ -212,11 +215,11 @@ azure = [
   "aiohttp",  # required async HTTP transport for azure.identity.aio
 ]
 container = [
-  "anthropic>=0.78.0",
+  "anthropic>=1,<2",
   "google-genai>=1.50.0 ; python_version >= '3.10'",
   "google-genai ; python_version < '3.10'",
   "prometheus-client",
-  "openai>=2.14.0",
+  "openai>=3.1.0,<4",
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
@@ -419,6 +422,10 @@ target-version = "py310"
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
+# Agent tool definitions are prose prompts, not code. Hard-wrapping their
+# descriptions to 100 columns splits sentences and JSON examples mid-token and
+# makes them unreadable, so let those lines run long.
+"src/phoenix/server/agents/capabilities/tools/**/*.py" = ["E501"]
 "examples/**/*.py" = ["E501"]
 "evals/**/*.py" = ["E501"]
 "tests/**/*.py" = ["E501"]
@@ -443,13 +450,13 @@ exclude-newer = "3 days"
 # member — it is a setup.py C extension — so it resolves from PyPI and needs
 # this to be installable at all on the day it publishes.
 exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z" }
-# litellm 1.83.x hard-pins `openai==2.24.0` and `python-dotenv==1.0.1`, which
-# conflict with pydantic-ai (needs openai>=2.29.0) and fastmcp (needs
-# python-dotenv>=1.1.0). Override the over-restrictive pins so resolution
-# succeeds; phoenix uses litellm purely as a client library and does not
-# exercise the pinned-version code paths.
+# litellm bounds shared dependencies below what the rest of the tree needs: it
+# caps `openai<3` while phoenix and pydantic-ai require openai 3, and it has
+# capped `python-dotenv` below the `>=1.1.0` fastmcp requires. Overriding is safe
+# because phoenix uses litellm purely as a client library and never reaches the
+# code paths those bounds guard.
 override-dependencies = [
-  "openai>=2.30.0",
+  "openai>=3.1.0,<4",
   "python-dotenv>=1.1.0",
 ]
 

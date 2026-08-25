@@ -15,6 +15,7 @@ class AgentSessionConflictError(TypedDict):
         "agent_session_model_stale",
         "agent_session_messages_stale",
         "agent_session_tool_outputs_conflict",
+        "agent_session_tool_approvals_conflict",
         "agent_session_already_compact",
         "agent_session_compaction_conflict",
     ]
@@ -110,10 +111,8 @@ class ChatCompletionTextPart(TypedDict):
     text: str
 
 
-class ChatCompletionUsage(TypedDict):
-    prompt_tokens: int
-    completion_tokens: int
-    total_tokens: int
+class ChatCompletionUsagePromptTokensDetails(TypedDict):
+    cached_tokens: int
 
 
 class CodeEvaluatorContext(TypedDict):
@@ -183,6 +182,16 @@ class CreatedApiKey(TypedDict):
     key: str
     description: NotRequired[str]
     expires_at: NotRequired[str]
+
+
+class CustomModelProvider(TypedDict):
+    id: str
+    name: str
+    provider: str
+    sdk: Literal["openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock"]
+    created_at: str
+    updated_at: str
+    description: NotRequired[str]
 
 
 class CustomProviderModelSelection(TypedDict):
@@ -308,6 +317,11 @@ class FileUIPart(TypedDict):
 
 class GetApiKeysResponseBody(TypedDict):
     data: Sequence[ApiKey]
+
+
+class GetCustomModelProvidersResponseBody(TypedDict):
+    data: Sequence[CustomModelProvider]
+    next_cursor: Optional[str]
 
 
 class GetDatasetLabelResponseBody(TypedDict):
@@ -905,6 +919,11 @@ class TextUIPart(TypedDict):
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
 
 
+class ToolApproval(TypedDict):
+    toolCallId: str
+    approved: bool
+
+
 class ToolApprovalRequested(TypedDict):
     id: str
 
@@ -1315,6 +1334,26 @@ class AssistantMessageMetadataUsage(TypedDict):
     promptDetails: NotRequired[AssistantMessageMetadataUsageCacheTokenDetails]
 
 
+class BuiltInModelProvider(TypedDict):
+    provider: Literal[
+        "OPENAI",
+        "AZURE_OPENAI",
+        "ANTHROPIC",
+        "GOOGLE",
+        "DEEPSEEK",
+        "XAI",
+        "OLLAMA",
+        "AWS",
+        "CEREBRAS",
+        "FIREWORKS",
+        "GROQ",
+        "MOONSHOT",
+        "PERPLEXITY",
+        "TOGETHER",
+    ]
+    name: str
+
+
 class BuiltInProviderModelSelection(TypedDict):
     providerType: Literal["builtin"]
     provider: Literal[
@@ -1357,6 +1396,13 @@ class ChatCompletionChoice(TypedDict):
 class ChatCompletionRequestMessage(TypedDict):
     role: Literal["system", "developer", "user", "assistant"]
     content: Union[str, Sequence[ChatCompletionTextPart]]
+
+
+class ChatCompletionUsage(TypedDict):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    prompt_tokens_details: NotRequired[ChatCompletionUsagePromptTokensDetails]
 
 
 class ContinuousAnnotationConfigData(TypedDict):
@@ -1550,6 +1596,10 @@ class GetAnnotationConfigsResponseBody(TypedDict):
         Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
     ]
     next_cursor: Optional[str]
+
+
+class GetModelProvidersResponseBody(TypedDict):
+    data: Sequence[BuiltInModelProvider]
 
 
 class GetProjectAnnotationConfigsResponseBody(TypedDict):
@@ -1793,6 +1843,11 @@ class Span(TypedDict):
 class SpansResponseBody(TypedDict):
     data: Sequence[Span]
     next_cursor: Optional[str]
+
+
+class SubmitAgentSessionToolApprovalsRequestBody(TypedDict):
+    toolApprovals: Sequence[ToolApproval]
+    lastMessageId: str
 
 
 class SubmitAgentSessionToolOutputsRequestBody(TypedDict):
@@ -2094,6 +2149,10 @@ class PromptMessage(TypedDict):
     ]
 
 
+class SubmitAgentSessionToolApprovalsResponseBody(TypedDict):
+    data: PhoenixUIMessage
+
+
 class SubmitAgentSessionToolOutputsResponseBody(TypedDict):
     data: PhoenixUIMessage
 
@@ -2136,6 +2195,7 @@ class ChatRequestBody(TypedDict):
             ]
         ]
     ]
+    toolApprovals: NotRequired[Sequence[ToolApproval]]
     lastMessageId: NotRequired[str]
     recordLocalTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]

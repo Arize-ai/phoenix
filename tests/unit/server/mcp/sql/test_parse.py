@@ -474,10 +474,9 @@ class TestCastTargetsAreRestrictedToDataTypes:
     published an index spelling under a heading telling the caller to reproduce
     it exactly, and admission then refused it.
 
-    The `#>>` case is written here with the cast parenthesised, which is the
-    spelling this surface asks for. The unparenthesised form is refused for
-    being ambiguous rather than for its cast target, and is pinned in
-    `TestPathCastAmbiguityIsRefused`.
+    The `#>>` case is written here with the cast parenthesised. The
+    unparenthesised form is admitted too, as a cast of the path rather than of
+    the extraction, and is pinned in `TestPathCastBindsToTheOperandItFollows`.
     """
 
     @pytest.mark.parametrize(
@@ -505,45 +504,33 @@ class TestCastTargetsAreRestrictedToDataTypes:
         assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
 
 
-class TestPathCastAmbiguityIsRefused:
-    """A cast straight after `#>`/`#>>` has two readings and the parse keeps neither.
+class TestPathCastBindsToTheOperandItFollows:
+    """A cast after `#>`/`#>>` casts the path; a cast around one casts the result.
 
-    SQLGlot binds the cast to the whole extraction, so `a #>> b::text[]` becomes
-    `CAST(a #>> b AS TEXT[])`. A caller who writes `CAST(a #>> b AS text[])`
-    deliberately gets that identical tree, and means something else by it: the
-    extracted string parsed as an array literal, which is a real operation.
+    `#>` and `#>>` take a `text[]` path, so `a #>> b::text[]` casts `b` -- which
+    is how PostgreSQL reads it and the form `pg_get_indexdef` emits for an
+    expression index over a JSON path. `CAST(a #>> b AS text[])` is a different
+    operation: it parses the extracted string as an array literal, so
+    `('{"tags":"{a,b}"}'::jsonb #>> '{tags}')::text[]` yields two elements.
 
-    Since the two are indistinguishable after parsing, choosing either one for
-    the caller answers a question somebody did not ask. Refusing costs a round
-    trip and names two spellings that cannot be misread.
-
-    WORKAROUND sqlglot<=30.15.0 -- delete or invert when pin > 30.16.0.
-    Upstream: tobymao/sqlglot#8063 (closes #8035). After that bump, `a #>>
-    b::text[]` binds the cast to the path and should admit; the deliberate
-    `CAST(a #>> b AS text[])` remains a real operation.
+    The two are distinct trees, so each is admitted as the operation it names.
     """
-
-    @pytest.mark.parametrize(
-        "sql",
-        [
-            "SELECT attributes #>> '{a,b}'::text[] AS v FROM spans",
-            "SELECT attributes #> '{a,b}'::text[] AS v FROM spans",
-            "SELECT count(*) FROM spans WHERE (attributes #>> '{s,id}'::text[]) IS NOT NULL",
-            # The same tree, reached by writing the cast out. Refused for the same
-            # reason: nothing here distinguishes it from the line above.
-            "SELECT CAST(attributes #>> '{a,b}' AS text[]) AS v FROM spans",
-        ],
-    )
-    def test_bare_cast_after_a_path_operator_is_refused(self, sql: str) -> None:
-        with pytest.raises(AnalyticsSqlError) as caught:
-            admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
-        assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
 
     @pytest.mark.parametrize(
         ("sql", "expected"),
         [
-            # Cast the path. Verified against PostgreSQL 17: returns the extracted
-            # value, and reaches an expression index built on the same path.
+            # Cast the path, written bare. Verified against PostgreSQL 17:
+            # returns the extracted value, and reaches an expression index built
+            # on the same path.
+            (
+                "SELECT attributes #>> '{a,b}'::text[] AS v FROM spans",
+                "SELECT attributes #>> CAST('{a,b}' AS TEXT[]) AS v FROM spans",
+            ),
+            (
+                "SELECT attributes #> '{a,b}'::text[] AS v FROM spans",
+                "SELECT attributes #> CAST('{a,b}' AS TEXT[]) AS v FROM spans",
+            ),
+            # The same, parenthesised. Both spellings survive as themselves.
             (
                 "SELECT attributes #>> ('{a,b}'::text[]) AS v FROM spans",
                 "SELECT attributes #>> (CAST('{a,b}' AS TEXT[])) AS v FROM spans",
@@ -554,6 +541,10 @@ class TestPathCastAmbiguityIsRefused:
                 "SELECT (attributes #>> '{a,b}')::text[] AS v FROM spans",
                 "SELECT CAST((attributes #>> '{a,b}') AS TEXT[]) AS v FROM spans",
             ),
+            (
+                "SELECT CAST(attributes #>> '{a,b}' AS text[]) AS v FROM spans",
+                "SELECT CAST(attributes #>> '{a,b}' AS TEXT[]) AS v FROM spans",
+            ),
             # No cast at all, which is what the path literal needs and what
             # describeSqlSchema publishes.
             (
@@ -562,9 +553,22 @@ class TestPathCastAmbiguityIsRefused:
             ),
         ],
     )
-    def test_both_unambiguous_spellings_are_admitted(self, sql: str, expected: str) -> None:
+    def test_every_spelling_is_admitted_as_written(self, sql: str, expected: str) -> None:
         _, rendered = admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
         assert rendered == expected
+
+    def test_the_two_readings_are_distinct_trees(self) -> None:
+        """The guard on the test above: identical trees would satisfy it by accident."""
+        path_cast = parse_sql(
+            "SELECT attributes #>> '{a,b}'::text[] AS v FROM spans", dialect="postgresql"
+        )
+        result_cast = parse_sql(
+            "SELECT CAST(attributes #>> '{a,b}' AS text[]) AS v FROM spans", dialect="postgresql"
+        )
+        assert path_cast != result_cast
+        # The cast hangs off the path in one and wraps the extraction in the other.
+        assert isinstance(next(path_cast.find_all(exp.JSONBExtractScalar)).expression, exp.Cast)
+        assert isinstance(next(result_cast.find_all(exp.Cast)).this, exp.JSONBExtractScalar)
 
     @pytest.mark.parametrize(
         "sql",
@@ -576,18 +580,8 @@ class TestPathCastAmbiguityIsRefused:
             "SELECT count(*) FROM spans WHERE id = ANY('{1,2}'::int[])",
         ],
     )
-    def test_the_refusal_does_not_reach_ordinary_casts(self, sql: str) -> None:
+    def test_ordinary_casts_are_unaffected(self, sql: str) -> None:
         admit_sql(sql, allowlist=load_allowlist("sqlite"), dialect="postgresql")
-
-    def test_the_message_names_both_spellings(self) -> None:
-        result = try_parse_and_admit(
-            "SELECT attributes #>> '{a,b}'::text[] AS v FROM spans", dialect="postgresql"
-        )
-        assert result.outcome is AdmissionOutcome.UNSUPPORTED_SYNTAX
-        # A refusal a caller cannot act on costs them a round trip and teaches
-        # nothing, so both working spellings have to appear in the text.
-        assert "#>> (b::text[])" in result.detail
-        assert "(a #>> b)::text[]" in result.detail
 
 
 class TestScopeInvariantIsPerScope:

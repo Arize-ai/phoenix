@@ -1,7 +1,12 @@
-import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { useLocation } from "react-router";
 
-import { Button, Icon, Icons, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Icon,
+  Icons,
+  Tooltip,
+  TooltipTrigger,
+} from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
@@ -40,16 +45,7 @@ export const ShareLinkButton = ({
       >
         {buttonText}
       </Button>
-      <Tooltip offset={10}>
-        <View
-          padding="size-100"
-          borderColor="default"
-          borderWidth="thin"
-          borderRadius="small"
-        >
-          <Text>{tooltipText}</Text>
-        </View>
-      </Tooltip>
+      <Tooltip offset={10}>{tooltipText}</Tooltip>
     </TooltipTrigger>
   );
 };

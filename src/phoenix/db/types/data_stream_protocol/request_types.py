@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 #
 # Kept byte-identical to upstream except for the `result_provider_metadata` field on the four
-# tool output parts, which AI SDK v7 defines but pydantic-ai v2.26.0 does not yet carry. The
+# tool output parts, which AI SDK v7 defines but pydantic-ai does not yet carry. The
 # divergence is allowlisted in
 # tests/unit/db/types/test_data_stream_protocol_compatibility.py; drop it there once upstream
 # catches up.

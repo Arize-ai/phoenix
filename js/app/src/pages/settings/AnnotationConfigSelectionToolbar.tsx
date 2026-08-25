@@ -16,6 +16,8 @@ import {
   Icons,
   Modal,
   ModalOverlay,
+  ViewportModal,
+  ViewportModalOverlay,
   Text,
   Toolbar,
   Tooltip,
@@ -101,14 +103,14 @@ export const AnnotationConfigSelectionToolbar = ({
             <Button size="M" leadingVisual={<Icon svg={<Icons.Edit />} />}>
               Edit
             </Button>
-            <ModalOverlay>
-              <Modal>
+            <ViewportModalOverlay>
+              <ViewportModal>
                 <AnnotationConfigDialog
                   initialAnnotationConfig={selectedConfig}
                   onAddAnnotationConfig={onEditAnnotationConfig}
                 />
-              </Modal>
-            </ModalOverlay>
+              </ViewportModal>
+            </ViewportModalOverlay>
           </DialogTrigger>
         ) : null}
         <Button
