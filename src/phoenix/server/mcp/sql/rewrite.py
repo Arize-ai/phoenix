@@ -710,6 +710,46 @@ def _source_exposes_column(
     )
 
 
+def _local_relation_projects(
+    source: exp.Expression,
+    root: exp.Expression,
+    name: str,
+    *,
+    dialect: SupportedSQLDialectName,
+) -> bool:
+    """Whether a query-local relation projects this column.
+
+    A CTE, subquery or VALUES list names its own columns, so the manifest
+    cannot answer for it. Its copy of a USING key is NULL on the same rows a
+    physical table's is.
+
+    Table-valued functions are excluded: their star expansion emits a physical
+    column under a different output name, which a two-sided merge of one name
+    cannot express.
+    """
+    if not isinstance(source, exp.Expression) or _tvf_output_names(source) is not None:
+        return False
+    names = _expression_output_names(
+        source, root, dialect=dialect, qualifier=_relation_qualifier(source)
+    )
+    if not names:
+        return False
+    want = _identifier_key(name, quoted=False, dialect=dialect)
+    return any(_identifier_key(offered, quoted=False, dialect=dialect) == want for offered in names)
+
+
+def _coalesced_using_column(name: str, *, quoted: bool, merge: list[exp.Identifier]) -> exp.Expr:
+    """A USING key as the merge of the relations that supply it."""
+    ident = exp.to_identifier(name, quoted=quoted)
+    return exp.alias_(
+        exp.Coalesce(
+            this=exp.Column(this=ident.copy(), table=merge[0].copy()),
+            expressions=[exp.Column(this=ident.copy(), table=other.copy()) for other in merge[1:]],
+        ),
+        ident.copy(),
+    )
+
+
 def _using_key_qualifier(
     left_sources: list[exp.Expression],
     ident: exp.Identifier,
@@ -1036,7 +1076,11 @@ def _select_from_is_values(select: exp.Select) -> bool:
 
 
 def _using_keys_needing_coalesce(
-    node: exp.Select, *, allowlist: Allowlist, dialect: SupportedSQLDialectName
+    node: exp.Select,
+    root: exp.Expression,
+    *,
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
 ) -> dict[str, list[exp.Identifier]]:
     """USING keys whose left copy can be NULL, with the relations to merge.
 
@@ -1064,7 +1108,8 @@ def _using_keys_needing_coalesce(
                 )
                 # Only the relations that actually offer the key. Merging
                 # across every relation to the left names columns they do not
-                # have, which the engine refuses.
+                # have, which the engine refuses. A query-local relation offers
+                # it on its own terms, and its copy goes NULL the same way.
                 providers = [
                     source
                     for source in left_sources
@@ -1073,6 +1118,12 @@ def _using_keys_needing_coalesce(
                         ident.name or ident.this or "",
                         quoted=bool(ident.args.get("quoted")),
                         allowlist=allowlist,
+                        dialect=dialect,
+                    )
+                    or _local_relation_projects(
+                        source,
+                        root,
+                        ident.name or ident.this or "",
                         dialect=dialect,
                     )
                 ]
@@ -1197,7 +1248,9 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             # copy of the key.
             using_keys = _using_join_keys(node, ctx.dialect) if not explicit else frozenset()
             coalesce_using = (
-                _using_keys_needing_coalesce(node, allowlist=ctx.allowlist, dialect=ctx.dialect)
+                _using_keys_needing_coalesce(
+                    node, root, allowlist=ctx.allowlist, dialect=ctx.dialect
+                )
                 if not explicit
                 else {}
             )
@@ -1242,6 +1295,12 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                                 if key in emitted_using:
                                     continue
                                 emitted_using.add(key)
+                                merge = coalesce_using.get(key)
+                                if merge:
+                                    new_exprs.append(
+                                        _coalesced_using_column(name, quoted=False, merge=merge)
+                                    )
+                                    continue
                             column = exp.Column(this=exp.to_identifier(name))
                             if qualifier.name:
                                 column.set("table", qualifier.copy())
@@ -1284,22 +1343,7 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                         merge = coalesce_using.get(key)
                         if merge:
                             new_exprs.append(
-                                exp.alias_(
-                                    exp.Coalesce(
-                                        this=exp.Column(
-                                            this=exp.to_identifier(name, quoted=quoted),
-                                            table=merge[0].copy(),
-                                        ),
-                                        expressions=[
-                                            exp.Column(
-                                                this=exp.to_identifier(name, quoted=quoted),
-                                                table=other.copy(),
-                                            )
-                                            for other in merge[1:]
-                                        ],
-                                    ),
-                                    exp.to_identifier(name, quoted=quoted),
-                                )
+                                _coalesced_using_column(name, quoted=quoted, merge=merge)
                             )
                             continue
                     # Qualify by the caller's alias, quoting included: after

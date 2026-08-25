@@ -170,6 +170,56 @@ def test_latency_ms_orders_by_duration_not_start_time() -> None:
     assert [row[0] for row in _run_on_sqlite(sql)] == ["span-long", "span-medium", "span-short"]
 
 
+def _run_star_join_sqlite(sql: str) -> list[tuple[Any, ...]]:
+    """Execute a star expansion, with every column the manifest names present.
+
+    The expansion emits the manifest's column list, so the table it runs
+    against is built from that same list.
+    """
+    spec = load_allowlist("sqlite").table_specs["spans"]
+    conn = sqlean.connect(":memory:")
+    try:
+        conn.execute("CREATE TABLE spans({})".format(", ".join(f'"{n}"' for n in spec.columns)))
+        for row_id in (1, 2, 3):
+            conn.execute("INSERT INTO spans(id) VALUES(?)", (row_id,))
+        return cast(list[tuple[Any, ...]], conn.execute(sql).fetchall())
+    finally:
+        conn.close()
+
+
+class TestUsingKeyOverARightJoin:
+    """USING exposes one key, defined as the merge of both sides.
+
+    A right or full join produces rows where the left side is absent, and there
+    the left copy is NULL while the key is not. Emitting the left copy returns a
+    column of NULLs for exactly the rows the join was widened to include.
+    """
+
+    def test_a_query_local_left_source_is_merged(self) -> None:
+        """A CTE names its own columns, so the manifest cannot answer for it.
+
+        Its copy of the key still goes NULL the way a physical table's does.
+        """
+        rendered = _rendered(
+            "WITH q AS (SELECT id FROM spans WHERE id < 3) "
+            "SELECT * FROM q RIGHT JOIN spans USING (id)"
+        )
+        assert "COALESCE(q.id, spans.id) AS id" in rendered
+        # The CTE holds two of the three rows; the third is right-join padding.
+        assert [row[0] for row in _run_star_join_sqlite(rendered)] == [1, 2, 3]
+
+    def test_a_physical_left_source_is_still_merged(self) -> None:
+        rendered = _rendered("SELECT * FROM traces RIGHT JOIN spans USING (id)")
+        assert "COALESCE(traces.id, spans.id) AS id" in rendered
+
+    def test_an_inner_join_keeps_the_left_copy(self) -> None:
+        """The left copy is the merged value unless the join can drop it."""
+        rendered = _rendered(
+            "WITH q AS (SELECT id FROM spans) SELECT * FROM q JOIN spans USING (id)"
+        )
+        assert "COALESCE" not in rendered.upper()
+
+
 def test_exempt_table_not_wrapped() -> None:
     root = parse_sql("SELECT name FROM projects", dialect="postgresql")
     root = admit(root, allowlist=load_allowlist("sqlite"), dialect="postgresql")
