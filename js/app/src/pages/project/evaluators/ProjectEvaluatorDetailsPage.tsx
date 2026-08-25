@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
+import { Focusable } from "react-aria";
 import { Outlet, useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -16,27 +17,55 @@ import {
   TabList,
   Tabs,
   Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { Empty } from "@phoenix/components/core/empty";
+import { Token } from "@phoenix/components/core/token";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
 } from "@phoenix/components/datetime";
+import {
+  evaluatorSplitContainerCSS,
+  evaluatorSplitLayoutCSS,
+} from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import { TopNavActions } from "@phoenix/components/nav";
 import type { OwnedPreloadedQueryRef } from "@phoenix/hooks";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorDetailsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsLoaderQuery.graphql";
+import { AnnotationConfigurationCard } from "@phoenix/pages/project/evaluators/AnnotationConfigurationCard";
+import { CodeProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorDetails";
 import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorMetrics } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMetrics";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
-import { ProjectEvaluatorRunDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRunDetails";
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
+import { ProjectEvaluatorStatsCard } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatsCard";
 import { ProjectEvaluatorTraces } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTraces";
+import { getProjectEvaluatorStatus } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+
+/**
+ * Centers the overview and establishes the width queried by its responsive
+ * main-and-sidebar layout.
+ */
+const overviewContainerCSS = css`
+  ${evaluatorSplitContainerCSS};
+  max-width: 1600px;
+  margin-inline: auto;
+`;
+
+const overviewColumnCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-200);
+  min-width: 0;
+`;
 
 const mainCSS = css`
   display: flex;
@@ -82,6 +111,11 @@ function ProjectEvaluatorDetailsPageLoaded({
     return <ProjectEvaluatorNotFound />;
   }
   const evaluator = projectEvaluator.evaluator;
+  const status = getProjectEvaluatorStatus({
+    schedulabilityStatus: projectEvaluator.schedulabilityStatus,
+    schedulabilityReason: projectEvaluator.schedulabilityReason,
+    runSummary: projectEvaluator.runSummary,
+  });
   const isLLMEvaluator = evaluator.kind === "LLM";
   const canEdit = evaluator.kind === "LLM" || evaluator.kind === "CODE";
 
@@ -95,12 +129,27 @@ function ProjectEvaluatorDetailsPageLoaded({
         </TopNavActions>
         <PageHeader
           title={
-            <Heading level={1}>
-              <Truncate
-                maxWidth="100%"
-                title={`Evaluator: ${projectEvaluator.name}`}
-              >{`Evaluator: ${projectEvaluator.name}`}</Truncate>
-            </Heading>
+            <Flex direction="row" gap="size-150" alignItems="center">
+              <Heading level={1}>
+                <Truncate
+                  maxWidth="100%"
+                  title={`Evaluator: ${projectEvaluator.name}`}
+                >{`Evaluator: ${projectEvaluator.name}`}</Truncate>
+              </Heading>
+              {/* The label alone says what; the explanation on hover says why,
+                  matching the status cell in the evaluators table. */}
+              <TooltipTrigger delay={0}>
+                <Focusable>
+                  <Token role="button" color={status.color}>
+                    {status.label}
+                  </Token>
+                </Focusable>
+                <Tooltip>
+                  <TooltipArrow />
+                  <Text size="XS">{status.explanation}</Text>
+                </Tooltip>
+              </TooltipTrigger>
+            </Flex>
           }
           subTitle={evaluator.description}
           extra={
@@ -138,25 +187,35 @@ function ProjectEvaluatorDetailsPageLoaded({
           <LazyTabPanel id="configuration">
             <View width="100%" overflow="auto" height="100%">
               <View padding="size-200">
-                <Flex
-                  direction="column"
-                  gap="size-300"
-                  maxWidth={1600}
-                  marginStart="auto"
-                  marginEnd="auto"
-                >
-                  <ProjectEvaluatorRunDetails
-                    projectEvaluatorRef={projectEvaluator}
-                  />
-                  <ProjectEvaluatorScopeDetails
-                    projectEvaluatorRef={projectEvaluator}
-                  />
-                  {isLLMEvaluator && (
-                    <LLMProjectEvaluatorDetails
-                      projectEvaluatorRef={projectEvaluator}
-                    />
-                  )}
-                </Flex>
+                <div css={overviewContainerCSS}>
+                  <div css={evaluatorSplitLayoutCSS}>
+                    <div css={overviewColumnCSS}>
+                      {isLLMEvaluator && (
+                        <LLMProjectEvaluatorDetails
+                          projectEvaluatorRef={projectEvaluator}
+                        />
+                      )}
+                      {evaluator.kind === "CODE" && (
+                        <CodeProjectEvaluatorDetails
+                          projectEvaluatorRef={projectEvaluator}
+                        />
+                      )}
+                    </div>
+                    <aside css={overviewColumnCSS}>
+                      <ProjectEvaluatorStatsCard
+                        projectEvaluatorRef={projectEvaluator}
+                      />
+                      <ProjectEvaluatorScopeDetails
+                        projectEvaluatorRef={projectEvaluator}
+                      />
+                      {isLLMEvaluator && (
+                        <AnnotationConfigurationCard
+                          projectEvaluatorRef={projectEvaluator}
+                        />
+                      )}
+                    </aside>
+                  </div>
+                </div>
               </View>
             </View>
           </LazyTabPanel>

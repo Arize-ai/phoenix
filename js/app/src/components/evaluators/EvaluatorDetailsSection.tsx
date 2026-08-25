@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
+import type { PropsWithChildren, ReactNode } from "react";
 
-import { Flex, Heading, Text } from "@phoenix/components";
+import { Flex, Heading, List, ListItem, Text } from "@phoenix/components";
 
 /**
  * The bordered card wrapping each section of a read-only evaluator details
@@ -12,6 +13,28 @@ export const evaluatorDetailsCardCSS = css`
   margin-top: var(--global-dimension-size-50);
   border: 1px solid var(--global-border-color-default);
   overflow: hidden;
+`;
+
+/**
+ * The evaluator overview split: content on the left, configuration cards in
+ * the aside on the right, collapsing to one column when the container narrows.
+ * The grid queries its nearest size container, so wrap it in
+ * `evaluatorSplitContainerCSS` (or another `container-type: inline-size`
+ * ancestor).
+ */
+export const evaluatorSplitContainerCSS = css`
+  container-type: inline-size;
+`;
+
+export const evaluatorSplitLayoutCSS = css`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 24vw, 380px);
+  gap: var(--global-dimension-size-200);
+  align-items: start;
+
+  @container (max-width: 1000px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 `;
 
 /**
@@ -63,5 +86,55 @@ export function EvaluatorInputMappingDetails({
         </Flex>
       </div>
     </Flex>
+  );
+}
+
+/** The label/value body of a configuration card. */
+export function EvaluatorDetailList({ children }: PropsWithChildren) {
+  return <List size="M">{children}</List>;
+}
+
+/**
+ * One labelled value in a configuration card. A string label or value gets
+ * the standard text treatment; nodes pass through for richer content.
+ */
+export function EvaluatorDetailRow({
+  label,
+  labelExtra,
+  children,
+}: PropsWithChildren<{ label: ReactNode; labelExtra?: ReactNode }>) {
+  return (
+    <ListItem>
+      <Flex
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="size-200"
+      >
+        <Flex direction="row" alignItems="center" gap="size-50" flexShrink={0}>
+          {typeof label === "string" ? (
+            <Text size="S" color="text-700">
+              {label}
+            </Text>
+          ) : (
+            label
+          )}
+          {labelExtra}
+        </Flex>
+        <Flex
+          direction="row"
+          alignItems="center"
+          justifyContent="end"
+          gap="size-100"
+          minWidth={0}
+        >
+          {typeof children === "string" ? (
+            <Text size="S">{children}</Text>
+          ) : (
+            children
+          )}
+        </Flex>
+      </Flex>
+    </ListItem>
   );
 }

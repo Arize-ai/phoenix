@@ -36,6 +36,7 @@ export const PromptLink = ({
   promptName,
   promptVersionTag,
   wrapWidth,
+  nameMaxWidth = "10rem",
 }: {
   promptId: string;
   promptName: string;
@@ -46,6 +47,12 @@ export const PromptLink = ({
    * displays inline without wrapping.
    */
   wrapWidth?: number;
+  /**
+   * How much width the prompt name may take before truncating, when `wrapWidth`
+   * is not set. The default suits a table cell; a caller with room to spare --
+   * a card header, say -- can raise it so the name reads in full.
+   */
+  nameMaxWidth?: string;
 }) => {
   let to: string;
   let specifier: ReactNode;
@@ -83,7 +90,7 @@ export const PromptLink = ({
         wrap={wrapWidth != null ? "wrap" : undefined}
         gap={wrapWidth != null ? "size-50" : undefined}
       >
-        <Truncate maxWidth={wrapWidth != null ? "100%" : "10rem"}>
+        <Truncate maxWidth={wrapWidth != null ? "100%" : nameMaxWidth}>
           {promptName}
         </Truncate>
         <Flex alignItems="center">
