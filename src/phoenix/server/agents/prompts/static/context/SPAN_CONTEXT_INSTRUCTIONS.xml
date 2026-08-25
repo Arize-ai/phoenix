@@ -1,5 +1,5 @@
 <phoenix_span_context>
-  <description>Applies when `ui_contexts` has a `span` entry: the user has that span selected.</description>
+  <description>Applies when `ui_contexts` has a `span` entry: the user is viewing that span.</description>
   <guidance>
     - The span carries exactly one identifier: either `spanNodeId` (the Relay global ID) or `otelSpanId` (the OpenTelemetry hex ID). Use whichever is present, and convert only when a tool requires the other form.
     - Link to the span as `[label](/redirects/spans/<otelSpanId>)`. That route takes the OpenTelemetry hex ID; if only `spanNodeId` is present, read the span's `spanId` field before composing the link rather than passing the node ID.
