@@ -662,7 +662,7 @@ main().catch((err) => {
 
 Individual bad traces can be anecdotal, edge cases. Clusters help you see what to prioritize. This clustering method comes from qualitative research:
 
-1. **Open coding.** In qualitative research, "coding" means annotating data with labels, not programing. Pull a sample of traces and write free-form notes on anything wrong with each one. Don't pre-define categories before looking at the traces, or you'll miss the failure modes unique to your application.
+1. **Open coding.** In qualitative research, "coding" means annotating data with labels, not programming. Pull a sample of traces and write free-form notes on anything wrong with each one. Don't pre-define categories before looking at the traces, or you'll miss the failure modes unique to your application.
 2. **Axial coding.** Group the notes around shared themes (the "axes" the method is named for) producing a failure taxonomy: distinct, named categories. You can do this yourself like grouping socks after doing the laundry, but an LLM is often faster and just as good.
 3. **Count.** Tally failures per category. This step creates a prioritized roadmap. In [one of Hamel Husain's client engagements](https://hamel.dev/blog/posts/field-guide/#bottom-up-vs.-top-down-analysis), three categories accounted for over 60% of all problems.
 4. **Iterate to saturation.** Keep sampling until new traces stop revealing new categories. Rule of thumb: review at least 100 traces to start; once ~20 consecutive traces turn up nothing new, you're saturated.

@@ -67,7 +67,7 @@ Below is an example of logging conversations:
       current_span.set_attribute(SpanAttributes.SESSION_ID, session_id)
       current_span.set_attribute(SpanAttributes.INPUT_VALUE, messages[-1].get('content'))
 
-      # Propagate the session_id down to spans crated by the OpenAI instrumentation
+      # Propagate the session_id down to spans created by the OpenAI instrumentation
       # This is not strictly necessary, but it helps to correlate the spans to the same session
       with using_session(session_id):
           response = client.chat.completions.create(
