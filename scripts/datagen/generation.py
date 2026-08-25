@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import random
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
@@ -18,11 +17,26 @@ if TYPE_CHECKING or __package__:
         ProfileSetV1,
         load_profile_snapshot,
     )
+    from scripts.datagen.serialization import (
+        append_json,
+        canonical_bytes,
+        read_jsonl,
+        write_immutable_bytes,
+        write_immutable_json,
+    )
 else:
     from profile import (  # type: ignore[import-not-found,no-redef]
         ApplicationProfileV1,
         ProfileSetV1,
         load_profile_snapshot,
+    )
+
+    from serialization import (  # type: ignore[import-not-found,no-redef]
+        append_json,
+        canonical_bytes,
+        read_jsonl,
+        write_immutable_bytes,
+        write_immutable_json,
     )
 
 Lane = Literal["self_play", "scripted"]
@@ -262,7 +276,7 @@ def expand_seed_matrix(
                 "ordinal": ordinal,
                 "profile": draw.to_dict(),
             }
-            cell_id = sha256(_canonical_bytes(identity)).hexdigest()
+            cell_id = sha256(canonical_bytes(identity)).hexdigest()
             use_frontier = lane == "self_play" and ordinal % int(1 / FRONTIER_FRACTION) == 0
             cells.append(
                 MatrixCell(
@@ -368,7 +382,7 @@ def _allocate_faults(
         allocated.append(
             replace(
                 cell,
-                cell_id=sha256(_canonical_bytes(identity)).hexdigest(),
+                cell_id=sha256(canonical_bytes(identity)).hexdigest(),
                 profile=draw,
             )
         )
@@ -444,7 +458,7 @@ def matrix_document(
 
 
 def matrix_sha256(cells: Sequence[MatrixCell], seed: int, profile_set_sha256: str) -> str:
-    return sha256(_canonical_bytes(matrix_document(cells, seed, profile_set_sha256))).hexdigest()
+    return sha256(canonical_bytes(matrix_document(cells, seed, profile_set_sha256))).hexdigest()
 
 
 def _profile_draw(
@@ -528,7 +542,7 @@ class GenerationRun:
         if profiles.profile_set_sha256 != config.profile_set_sha256:
             raise ConfigurationMismatch("profile snapshot differs from run config")
         document = matrix_document(cells, config.matrix_seed, config.profile_set_sha256)
-        digest = sha256(_canonical_bytes(document)).hexdigest()
+        digest = sha256(canonical_bytes(document)).hexdigest()
         if digest != config.matrix_sha256:
             raise ConfigurationMismatch(
                 f"matrix hash differs from run config: {digest} != {config.matrix_sha256}"
@@ -536,9 +550,11 @@ class GenerationRun:
         if len({cell.cell_id for cell in cells}) != len(cells):
             raise GenerationError("matrix contains duplicate cell IDs")
         directory.mkdir(parents=True, exist_ok=True)
-        _write_immutable_json(directory / "matrix.json", document)
-        _write_immutable_json(directory / "run.json", config.to_dict())
-        _write_immutable_bytes(directory / "profiles.json", profiles.canonical_bytes)
+        write_immutable_json(directory / "matrix.json", document, error=ConfigurationMismatch)
+        write_immutable_json(directory / "run.json", config.to_dict(), error=ConfigurationMismatch)
+        write_immutable_bytes(
+            directory / "profiles.json", profiles.canonical_bytes, error=ConfigurationMismatch
+        )
         (directory / "staging").mkdir(exist_ok=True)
         for journal in _JOURNALS:
             (directory / journal).touch(exist_ok=True)
@@ -565,7 +581,7 @@ class GenerationRun:
             ) from error
         if profiles.profile_set_sha256 != config.profile_set_sha256:
             raise ConfigurationMismatch("persisted profile snapshot does not match run.json")
-        if sha256(_canonical_bytes(document)).hexdigest() != config.matrix_sha256:
+        if sha256(canonical_bytes(document)).hexdigest() != config.matrix_sha256:
             raise ConfigurationMismatch("persisted matrix does not match run.json")
         raw_cells = document.get("cells")
         if not isinstance(raw_cells, list):
@@ -631,7 +647,7 @@ class GenerationRun:
             "max_input_tokens": max_input_tokens,
             "max_output_tokens": max_output_tokens,
         }
-        _append_json(self.directory / "attempts.jsonl", event)
+        append_json(self.directory / "attempts.jsonl", event)
         (self.directory / "staging" / cell_id / f"attempt-{attempt_number}").mkdir(
             parents=True, exist_ok=True
         )
@@ -639,7 +655,7 @@ class GenerationRun:
 
     def checkpoint(self, attempt_id: str, checkpoint: Mapping[str, Any]) -> None:
         self._require_open_attempt(attempt_id)
-        _append_json(
+        append_json(
             self.directory / "attempts.jsonl",
             {
                 "event": "checkpoint",
@@ -674,7 +690,7 @@ class GenerationRun:
                 "reasoning_output_tokens": reasoning_output_tokens or 0,
             }
         )
-        _append_json(
+        append_json(
             self.directory / "attempts.jsonl",
             {
                 "event": "completed",
@@ -712,7 +728,7 @@ class GenerationRun:
                 "reasoning_output_tokens": reasoning_output_tokens or 0,
             }
         )
-        _append_json(
+        append_json(
             self.directory / "attempts.jsonl",
             {
                 "event": "failed",
@@ -725,7 +741,7 @@ class GenerationRun:
             },
         )
         if attempt.purpose == "generation":
-            _append_json(
+            append_json(
                 self.directory / "rejects.jsonl",
                 {
                     "at": _now(),
@@ -748,7 +764,7 @@ class GenerationRun:
             raise GenerationError(f"attempt {attempt_id} is not completed")
         if states[attempt_id]["attempt"].cell_id != cell_id:
             raise GenerationError(f"attempt {attempt_id} belongs to another cell")
-        _append_json(
+        append_json(
             self.directory / "accepted.jsonl",
             {
                 "at": _now(),
@@ -762,7 +778,7 @@ class GenerationRun:
     @property
     def accepted_records(self) -> Mapping[str, Mapping[str, Any]]:
         records: dict[str, Mapping[str, Any]] = {}
-        for record in _read_jsonl(self.directory / "accepted.jsonl"):
+        for record in read_jsonl(self.directory / "accepted.jsonl", error=GenerationError):
             cell_id = record["cell_id"]
             if cell_id in records and records[cell_id] != record:
                 raise GenerationError(f"accepted journal contains duplicate cell {cell_id}")
@@ -805,7 +821,7 @@ class GenerationRun:
         from scripts.datagen.judgments import JudgingInputV1
 
         records: dict[str, JudgingInputV1] = {}
-        for value in _read_jsonl(self.directory / "judging-inputs.jsonl"):
+        for value in read_jsonl(self.directory / "judging-inputs.jsonl", error=GenerationError):
             item = JudgingInputV1.from_mapping(value)
             if item.cell_id in records:
                 raise GenerationError(
@@ -847,7 +863,7 @@ class GenerationRun:
     @property
     def judgment_records(self) -> Mapping[str, Mapping[str, Any]]:
         records: dict[str, Mapping[str, Any]] = {}
-        for value in _read_jsonl(self.directory / "judgments.jsonl"):
+        for value in read_jsonl(self.directory / "judgments.jsonl", error=GenerationError):
             cell_id = value.get("cell_id")
             if not isinstance(cell_id, str) or cell_id in records:
                 raise GenerationError(
@@ -869,7 +885,7 @@ class GenerationRun:
             for lane in LANES
         }
         attempts_by_lane = {lane: self._generation_attempts(lane) for lane in LANES}
-        rejects = _read_jsonl(self.directory / "rejects.jsonl")
+        rejects = read_jsonl(self.directory / "rejects.jsonl", error=GenerationError)
         rejections_by_gate: dict[str, int] = {}
         for reject in rejects:
             gate = reject.get("gate", "generation")
@@ -942,7 +958,7 @@ class GenerationRun:
     ) -> None:
         started = next(
             event
-            for event in _read_jsonl(self.directory / "attempts.jsonl")
+            for event in read_jsonl(self.directory / "attempts.jsonl", error=GenerationError)
             if event.get("event") == "started" and event.get("attempt_id") == attempt.attempt_id
         )
         requested = {
@@ -958,7 +974,7 @@ class GenerationRun:
 
     def _attempt_states(self) -> Mapping[str, Mapping[str, Any]]:
         states: dict[str, dict[str, Any]] = {}
-        for event in _read_jsonl(self.directory / "attempts.jsonl"):
+        for event in read_jsonl(self.directory / "attempts.jsonl", error=GenerationError):
             attempt_id = event["attempt_id"]
             if event["event"] == "started":
                 attempt = _attempt_from_event(event)
@@ -1008,54 +1024,6 @@ class GenerationRun:
         )
 
 
-def _write_immutable_json(path: Path, value: Mapping[str, Any]) -> None:
-    content = _canonical_bytes(value) + b"\n"
-    _write_immutable_bytes(path, content)
-
-
-def _write_immutable_bytes(path: Path, content: bytes) -> None:
-    if path.exists():
-        if path.read_bytes() != content:
-            raise ConfigurationMismatch(f"immutable run file differs: {path}")
-        return
-    try:
-        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-    except FileExistsError:
-        if path.read_bytes() != content:
-            raise ConfigurationMismatch(f"immutable run file differs: {path}")
-        return
-    with os.fdopen(descriptor, "wb") as output:
-        output.write(content)
-        output.flush()
-        os.fsync(output.fileno())
-
-
-def _append_json(path: Path, value: Mapping[str, Any]) -> None:
-    with path.open("a", encoding="utf-8") as output:
-        output.write(_canonical_bytes(value).decode() + "\n")
-        output.flush()
-        os.fsync(output.fileno())
-
-
-def _read_jsonl(path: Path) -> list[Mapping[str, Any]]:
-    if not path.exists():
-        return []
-    records: list[Mapping[str, Any]] = []
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        if not line:
-            continue
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError as error:
-            raise GenerationError(
-                f"Invalid JSON in {path} at line {line_number}: {error}"
-            ) from error
-        if not isinstance(value, dict):
-            raise GenerationError(f"Expected object in {path} at line {line_number}")
-        records.append(value)
-    return records
-
-
 def _load_json(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -1064,10 +1032,6 @@ def _load_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise GenerationError(f"Expected JSON object in {path}")
     return value
-
-
-def _canonical_bytes(value: Any) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
 def _now() -> str:

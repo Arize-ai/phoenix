@@ -57,6 +57,7 @@ if TYPE_CHECKING or __package__:
         TokenUsage,
         ToolInvoker,
     )
+    from scripts.datagen.serialization import canonical_bytes
 else:
     from fake_tools import (
         DEFAULT_REGISTRY,
@@ -68,6 +69,7 @@ else:
     )
     from generation import GenerationError
     from self_play import AssistantRequest, RecordedAssistantTurn, TokenUsage, ToolInvoker
+    from serialization import canonical_bytes
 
 SCENARIO_NAME = "tool_agent"
 
@@ -149,16 +151,16 @@ class ToolAgentRecorder:
                         result = tool.invoke(call["args"])
                     except InjectedToolFailure as error:
                         message = ToolMessage(
-                            content=_canonical_json(
+                            content=canonical_bytes(
                                 {"error": type(error).__name__, "message": str(error)}
-                            ),
+                            ).decode(),
                             tool_call_id=call["id"],
                             name=call["name"],
                             status="error",
                         )
                     else:
                         message = ToolMessage(
-                            content=_canonical_json(result),
+                            content=canonical_bytes(result).decode(),
                             tool_call_id=call["id"],
                             name=call["name"],
                         )
@@ -251,7 +253,7 @@ def _message_dict(message: BaseMessage) -> Mapping[str, Any]:
                     "type": "function",
                     "function": {
                         "name": call["name"],
-                        "arguments": _canonical_json(call["args"]),
+                        "arguments": canonical_bytes(call["args"]).decode(),
                     },
                 }
                 for call in message.tool_calls
@@ -279,10 +281,6 @@ def _append_spans(path: Path, spans: Sequence[ReadableSpan]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as output:
         output.write(json.dumps(payload, separators=(",", ":")) + "\n")
-
-
-def _canonical_json(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def main() -> None:

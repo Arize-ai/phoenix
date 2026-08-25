@@ -17,6 +17,7 @@ if TYPE_CHECKING or __package__:
         ToolPatchOperation,
         ToolResultOverlay,
     )
+    from scripts.datagen.serialization import canonical_bytes, plain_json
 else:
     from profile import (
         ApplicationProfileV1,
@@ -27,6 +28,7 @@ else:
     )
 
     from generation import MatrixCell
+    from serialization import canonical_bytes, plain_json
 
 _SELECTION_NAMESPACE = "phoenix-datagen-seed-mechanics-v1"
 
@@ -99,14 +101,20 @@ def materialize_seed_environment(
         "simulator_traits": traits,
         "route_context": route_context,
     }
-    digest = sha256(_canonical_bytes(visible)).hexdigest()
+    try:
+        visible_bytes = canonical_bytes(plain_json(visible))
+        fixture_bytes = canonical_bytes(plain_json(fixture_data))
+    except (TypeError, ValueError) as error:
+        raise SeedMechanicsError(
+            f"materialized application state must be JSON-compatible: {error}"
+        ) from error
     return MaterializedSeedEnvironment(
         documents=dict(sorted(materialized_documents.items())),
-        tool_fixture_data=json.loads(_canonical_bytes(fixture_data)),
+        tool_fixture_data=json.loads(fixture_bytes),
         tool_result_overlays=tuple(overlays),
         simulator_traits=tuple(traits),
         route_context=route_context,
-        digest=digest,
+        digest=sha256(visible_bytes).hexdigest(),
         document_seed_ids={
             document_id: tuple(sorted(seed_ids))
             for document_id, seed_ids in sorted(document_seed_ids.items())
@@ -237,20 +245,3 @@ def _operation_dict(operation: ToolPatchOperation) -> dict[str, Any]:
     if operation.operation != "remove":
         result["value"] = operation.value
     return result
-
-
-def _canonical_bytes(value: Any) -> bytes:
-    try:
-        return json.dumps(_plain_json(value), sort_keys=True, separators=(",", ":")).encode()
-    except (TypeError, ValueError) as error:
-        raise SeedMechanicsError(
-            f"materialized application state must be JSON-compatible: {error}"
-        ) from error
-
-
-def _plain_json(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {str(key): _plain_json(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_plain_json(item) for item in value]
-    return value

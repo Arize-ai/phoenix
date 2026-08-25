@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from base64 import b64decode
 from binascii import Error as Base64Error
 from collections.abc import Callable, Mapping, Sequence
@@ -28,6 +27,11 @@ if TYPE_CHECKING or __package__:
     )
     from scripts.datagen.model_backend import ModelBackend, ModelRequest
     from scripts.datagen.seed_mechanics import MaterializedSeedEnvironment
+    from scripts.datagen.serialization import (
+        canonical_bytes,
+        json_copy,
+        write_immutable_json,
+    )
 else:
     from fake_tools import DEFAULT_REGISTRY, InvocationLedger, ToolContext, ToolRegistry
     from generation import (
@@ -38,6 +42,7 @@ else:
     )
     from model_backend import ModelBackend, ModelRequest
     from seed_mechanics import MaterializedSeedEnvironment
+    from serialization import canonical_bytes, json_copy, write_immutable_json
 
 AssistantMessage = Mapping[str, Any]
 ToolInvoker = Callable[[str, Mapping[str, Any]], Mapping[str, Any]]
@@ -438,9 +443,10 @@ def _record_attempt(
         plan.environment,
         cell_id=cell.cell_id,
     )
-    _write_immutable_json(
+    write_immutable_json(
         attempt_dir / "engagement-base.json",
         {"schema_version": 1, "cell_id": cell.cell_id, "events": base_engagement_events},
+        error=SelfPlayError,
     )
     ledger = InvocationLedger(attempt_dir / "tool-invocations.jsonl")
     tool_call_count = max(tool_call_count, len(ledger.records))
@@ -487,7 +493,7 @@ def _record_attempt(
                 attempt_id=attempts.assistant.attempt_id,
                 turn_index=turn_index,
                 model=cell.assistant_model,
-                messages=tuple(_json_copy(message) for message in pending_messages),
+                messages=tuple(json_copy(message) for message in pending_messages),
                 tools=tuple(cast(Mapping[str, Any], schema) for schema in registry.model_schemas()),
                 traces_path=attempt_dir / "traces.jsonl",
             ),
@@ -523,7 +529,7 @@ def _record_attempt(
                 f"{turn_error}; "
                 "the cell will restart under a new attempt"
             )
-        messages = pending_messages + [_json_copy(message) for message in recorded.messages]
+        messages = pending_messages + [json_copy(message) for message in recorded.messages]
         trace_ids.extend(recorded.trace_ids)
         if tool_call_count < before_calls:
             raise SelfPlayError("tool call count moved backwards")
@@ -653,7 +659,7 @@ def _checkpoint(
         "simulator_attempt_id": attempts.simulator.attempt_id,
         "plan": plan.checkpoint_identity(),
         "completed_turns": completed_turns,
-        "messages": [_json_copy(message) for message in messages],
+        "messages": [json_copy(message) for message in messages],
         "trace_ids": list(trace_ids),
         "tool_call_count": tool_call_count,
         "assistant_usage": assistant_usage.to_dict(),
@@ -714,7 +720,7 @@ def _load_checkpoint(
     _validate_trace_ids(trace_ids)
     return {
         "completed_turns": completed_turns,
-        "messages": [_json_copy(message) for message in messages],
+        "messages": [json_copy(message) for message in messages],
         "trace_ids": list(trace_ids),
         "tool_call_count": tool_call_count,
         "assistant_usage": TokenUsage.from_dict(_require_mapping(latest, "assistant_usage")),
@@ -740,7 +746,7 @@ def _fixture_set_for_environment(
     *,
     cell_id: str,
 ) -> tuple[Mapping[str, Any], tuple[Mapping[str, str], ...]]:
-    fixture_set = _json_copy(dict(environment.tool_fixture_data))
+    fixture_set = json_copy(dict(environment.tool_fixture_data))
     if not isinstance(fixture_set, dict) or not isinstance(fixture_set.get("name"), str):
         raise SelfPlayError("materialized tool fixture data must contain a string name")
     documents = fixture_set.get("documents")
@@ -825,7 +831,7 @@ def _stage_candidate(
         plan.simulator.to_dict(),
         ModelRole("assistant", plan.assistant_provider, cell.assistant_model).to_dict(),
     ]
-    conversation_messages = [_json_copy(message) for message in messages]
+    conversation_messages = [json_copy(message) for message in messages]
     conversation = {
         "messages": conversation_messages,
         "tool_call_count": tool_call_count,
@@ -852,7 +858,7 @@ def _stage_candidate(
         "models_used": models_used,
         "turn_count": plan.turn_count,
         "trace_ids": list(trace_ids),
-        "content_sha256": sha256(_canonical_bytes(visible_messages)).hexdigest(),
+        "content_sha256": sha256(canonical_bytes(visible_messages)).hexdigest(),
         "quality_results": {},
     }
     candidate = {
@@ -868,7 +874,7 @@ def _stage_candidate(
         },
     }
     path = attempt_dir / "fragment-candidate.json"
-    _write_immutable_json(path, candidate)
+    write_immutable_json(path, candidate, error=SelfPlayError)
     return StagedSelfPlayFragment(
         path=path,
         fragment=fragment,
@@ -876,20 +882,6 @@ def _stage_candidate(
         assistant_attempt_id=attempts.assistant.attempt_id,
         simulator_attempt_id=attempts.simulator.attempt_id,
     )
-
-
-def _write_immutable_json(path: Path, value: Mapping[str, Any]) -> None:
-    content = _canonical_bytes(value) + b"\n"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        if path.read_bytes() != content:
-            raise SelfPlayError(f"staged self-play candidate changed: {path}")
-        return
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-    with os.fdopen(descriptor, "wb") as output:
-        output.write(content)
-        output.flush()
-        os.fsync(output.fileno())
 
 
 def _capture_contains(path: Path, trace_ids: Sequence[str]) -> bool:
@@ -947,11 +939,3 @@ def _require_mapping(value: Mapping[str, Any], field: str) -> Mapping[str, Any]:
     if not isinstance(item, Mapping):
         raise SelfPlayError(f"checkpoint {field} must be an object")
     return item
-
-
-def _canonical_bytes(value: Any) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
-
-
-def _json_copy(value: Any) -> Any:
-    return json.loads(_canonical_bytes(value))

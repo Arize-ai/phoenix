@@ -16,8 +16,16 @@ from typing import TYPE_CHECKING, Any, Final, cast
 
 if TYPE_CHECKING or __package__:
     from scripts.datagen.profile import ToolPatchOperation, ToolResultOverlay
+    from scripts.datagen.serialization import (
+        canonical_bytes,
+        json_copy,
+        plain_json,
+        read_jsonl,
+    )
 else:
     from profile import ToolPatchOperation, ToolResultOverlay
+
+    from serialization import canonical_bytes, json_copy, plain_json, read_jsonl
 
 MAX_TOOL_LOOP_STEPS: Final = 6
 FAILURE_NONE: Final = "none"
@@ -80,7 +88,7 @@ class ToolContext:
             "pass_seed": self.pass_seed,
             "tool_name": tool_name,
         }
-        return sha256(_canonical_json(payload).encode()).hexdigest()
+        return sha256(canonical_bytes(plain_json(payload))).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -96,7 +104,7 @@ class ToolSpec:
             "function": {
                 "name": self.name,
                 "description": self.description,
-                "parameters": _json_copy(self.parameters),
+                "parameters": json_copy(self.parameters),
             },
         }
 
@@ -138,10 +146,10 @@ class InvocationRecord:
             "cell_id": self.cell_id,
             "fixture_set": self.fixture_set,
             "call_ordinal": self.call_ordinal,
-            "arguments": _json_copy(self.arguments),
+            "arguments": json_copy(self.arguments),
             "outcome": self.outcome,
             "declared_delay_ms": self.declared_delay_ms,
-            "result": _json_copy(self.result) if self.result is not None else None,
+            "result": json_copy(self.result) if self.result is not None else None,
             "error": self.error,
             "engaged_seed_ids": list(self.engaged_seed_ids),
         }
@@ -153,33 +161,22 @@ class InvocationLedger:
         self._records: list[InvocationRecord] = []
         if path is not None:
             path.parent.mkdir(parents=True, exist_ok=True)
-            if path.exists():
-                for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-                    try:
-                        value = json.loads(line)
-                    except json.JSONDecodeError as error:
-                        raise ToolError(
-                            f"invalid invocation ledger JSON at line {line_number}"
-                        ) from error
-                    if not isinstance(value, Mapping):
-                        raise ToolError(
-                            f"invocation ledger line {line_number} must be an object"
-                        )
-                    self._records.append(
-                        InvocationRecord(
-                            invocation_id=str(value["invocation_id"]),
-                            tool_name=str(value["tool_name"]),
-                            cell_id=str(value["cell_id"]),
-                            fixture_set=str(value["fixture_set"]),
-                            call_ordinal=int(value["call_ordinal"]),
-                            arguments=cast(Mapping[str, Any], value["arguments"]),
-                            outcome=str(value["outcome"]),
-                            declared_delay_ms=int(value["declared_delay_ms"]),
-                            result=cast(Mapping[str, Any] | None, value.get("result")),
-                            error=cast(str | None, value.get("error")),
-                            engaged_seed_ids=tuple(value.get("engaged_seed_ids", ())),
-                        )
+            for value in read_jsonl(path, error=ToolError):
+                self._records.append(
+                    InvocationRecord(
+                        invocation_id=str(value["invocation_id"]),
+                        tool_name=str(value["tool_name"]),
+                        cell_id=str(value["cell_id"]),
+                        fixture_set=str(value["fixture_set"]),
+                        call_ordinal=int(value["call_ordinal"]),
+                        arguments=cast(Mapping[str, Any], value["arguments"]),
+                        outcome=str(value["outcome"]),
+                        declared_delay_ms=int(value["declared_delay_ms"]),
+                        result=cast(Mapping[str, Any] | None, value.get("result")),
+                        error=cast(str | None, value.get("error")),
+                        engaged_seed_ids=tuple(value.get("engaged_seed_ids", ())),
                     )
+                )
 
     @property
     def records(self) -> tuple[InvocationRecord, ...]:
@@ -189,7 +186,7 @@ class InvocationLedger:
         self._records.append(record)
         if self._path is not None:
             with self._path.open("a", encoding="utf-8") as output:
-                output.write(_canonical_json(record.to_dict()) + "\n")
+                output.write(canonical_bytes(plain_json(record.to_dict())).decode() + "\n")
 
 
 class ToolRegistry:
@@ -394,7 +391,7 @@ def _document_search(
     limit = int(arguments.get("limit", 3))
     return {
         "invocation_id": invocation_id,
-        "documents": [_json_copy(document) for document in ranked[:limit]],
+        "documents": [json_copy(document) for document in ranked[:limit]],
     }
 
 
@@ -408,7 +405,7 @@ def _record_lookup(
     return {
         "invocation_id": invocation_id,
         "found": record is not None,
-        "record": _json_copy(record) if record is not None else None,
+        "record": json_copy(record) if record is not None else None,
     }
 
 
@@ -436,7 +433,7 @@ def _status_lookup(
     return {
         "invocation_id": invocation_id,
         "found": status is not None,
-        "status": _json_copy(status) if status is not None else None,
+        "status": json_copy(status) if status is not None else None,
     }
 
 
@@ -496,7 +493,7 @@ def _apply_result_overlays(
     overlays: Sequence[ToolResultOverlay],
     invocation_id: str,
 ) -> tuple[ToolResult, tuple[str, ...]]:
-    patched = cast(ToolResult, _json_copy(result))
+    patched = cast(ToolResult, json_copy(result))
     engaged_seed_ids: set[str] = set()
     for overlay in overlays:
         if overlay.tool_name != tool_name or not all(
@@ -533,30 +530,30 @@ def _apply_json_pointer_operation(result: ToolResult, operation: ToolPatchOperat
 
 def _patch_mapping(parent: dict[str, JSON], token: str, operation: ToolPatchOperation) -> None:
     if operation.operation == "add":
-        parent[token] = _json_copy(operation.value)
+        parent[token] = json_copy(operation.value)
         return
     if token not in parent:
         raise ToolError(f"tool overlay path component {token!r} does not exist")
     if operation.operation == "remove":
         del parent[token]
     else:
-        parent[token] = _json_copy(operation.value)
+        parent[token] = json_copy(operation.value)
 
 
 def _patch_sequence(parent: list[JSON], token: str, operation: ToolPatchOperation) -> None:
     if operation.operation == "add":
         if token == "-":
-            parent.append(_json_copy(operation.value))
+            parent.append(json_copy(operation.value))
         else:
             parent.insert(
-                _list_index(token, len(parent), allow_end=True), _json_copy(operation.value)
+                _list_index(token, len(parent), allow_end=True), json_copy(operation.value)
             )
         return
     index = _list_index(token, len(parent), allow_end=False)
     if operation.operation == "remove":
         del parent[index]
     else:
-        parent[index] = _json_copy(operation.value)
+        parent[index] = json_copy(operation.value)
 
 
 def _json_pointer_tokens(path: str) -> list[str]:
@@ -580,22 +577,6 @@ def _list_index(token: str, length: int, *, allow_end: bool) -> int:
     if index > limit:
         raise ToolError(f"tool overlay list index {index} is out of range")
     return index
-
-
-def _canonical_json(value: Any) -> str:
-    return json.dumps(_plain_json(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-
-def _json_copy(value: Any) -> Any:
-    return json.loads(_canonical_json(value))
-
-
-def _plain_json(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {str(key): _plain_json(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_plain_json(item) for item in value]
-    return value
 
 
 DEFAULT_REGISTRY = build_registry()

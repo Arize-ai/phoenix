@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import os
 from dataclasses import dataclass
 from hashlib import sha256
 from math import isfinite
@@ -17,6 +15,7 @@ from scripts.datagen.model_backend import (
     ModelResult,
 )
 from scripts.datagen.quality import select_judge_routes
+from scripts.datagen.serialization import append_json, canonical_bytes, read_jsonl
 
 if TYPE_CHECKING:
     from scripts.datagen.generation import GenerationRun
@@ -282,7 +281,7 @@ class JudgmentContractV1:
             "seed_proximity": route.seed_proximity,
             "proximity_source": route.proximity_source,
         }
-        payload = json.dumps(context, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        payload = canonical_bytes(context).decode()
         return (
             "Classify the observed conversation outcome. Judge the result, not whether a trap "
             "was present.\n\n"
@@ -375,7 +374,7 @@ def judgment_record(
         rationale=parsed.rationale if parsed else None,
         contract_version=JudgmentContractV1.version,
         prompt_sha256=(sha256(request.prompt.encode()).hexdigest() if request else None),
-        output_schema_sha256=sha256(_canonical_bytes(_OUTPUT_SCHEMA)).hexdigest(),
+        output_schema_sha256=sha256(canonical_bytes(_OUTPUT_SCHEMA)).hexdigest(),
         content_sha256=route.input.content_sha256,
         attempt_id=attempt_id,
         provider=result.provider if result else None,
@@ -529,7 +528,7 @@ def _validate_resumed_record(
         "failure_mode": item.failure_mode,
         "route_reason": route.route_reason,
         "content_sha256": item.content_sha256,
-        "output_schema_sha256": sha256(_canonical_bytes(_OUTPUT_SCHEMA)).hexdigest(),
+        "output_schema_sha256": sha256(canonical_bytes(_OUTPUT_SCHEMA)).hexdigest(),
     }
     actual = {field: getattr(record, field) for field in expected}
     if actual != expected:
@@ -559,7 +558,7 @@ def _validate_resumed_record(
 
 
 def append_immutable_record(path: Path, record: Mapping[str, Any], *, keys: Sequence[str]) -> None:
-    existing = _read_jsonl(path)
+    existing = read_jsonl(path, error=JudgmentError)
     identity = tuple(record.get(key) for key in keys)
     for item in existing:
         if tuple(item.get(key) for key in keys) != identity:
@@ -567,39 +566,16 @@ def append_immutable_record(path: Path, record: Mapping[str, Any], *, keys: Sequ
         if item == record:
             return
         raise JudgmentError(f"immutable judgment record changed for identity {identity!r}")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as output:
-        output.write(_canonical_bytes(record).decode() + "\n")
-        output.flush()
-        os.fsync(output.fileno())
-
-
-def _read_jsonl(path: Path) -> tuple[Mapping[str, Any], ...]:
-    if not path.exists():
-        return ()
-    records = []
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        try:
-            value = json.loads(line)
-        except json.JSONDecodeError as error:
-            raise JudgmentError(f"invalid JSON in {path} at line {line_number}") from error
-        if not isinstance(value, Mapping):
-            raise JudgmentError(f"expected object in {path} at line {line_number}")
-        records.append(value)
-    return tuple(records)
+    append_json(path, record)
 
 
 def _digest(conversation: Sequence[Mapping[str, Any]]) -> str:
-    return sha256(_canonical_bytes(conversation)).hexdigest()
+    return sha256(canonical_bytes(conversation)).hexdigest()
 
 
 def conversation_sha256(conversation: Sequence[Mapping[str, Any]]) -> str:
     """Return the canonical digest required by ``JudgingInputV1``."""
     return _digest(conversation)
-
-
-def _canonical_bytes(value: Any) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
 def _string(value: Mapping[str, Any], field: str) -> str:
