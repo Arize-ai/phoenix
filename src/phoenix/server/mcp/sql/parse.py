@@ -2703,14 +2703,57 @@ def _check_base_tables(
 
 #: Names an engine binds implicitly, so a foreign source in the FROM clause is
 #: not evidence that a relation in the statement projects them. PostgreSQL
-#: system columns and the niladic keywords that parse as a bare column rather
-#: than as a function; SQLite's rowid aliases.
+#: system columns; SQLite's rowid aliases. Each binds to a base table, so it
+#: resolves only where one is in scope, which is why membership here is read
+#: against the relations a statement reads.
 _RESERVED_IMPLICIT_NAMES: dict[SupportedSQLDialectName, frozenset[str]] = {
-    "postgresql": frozenset(
-        {"ctid", "xmin", "xmax", "cmin", "cmax", "tableoid", "user", "current_role"}
-    ),
+    "postgresql": frozenset({"ctid", "xmin", "xmax", "cmin", "cmax", "tableoid"}),
     "sqlite": frozenset({"rowid", "oid", "_rowid_"}),
 }
+
+#: Names that return who the connection is. PostgreSQL spells these as niladic
+#: keywords, which SQLGlot parses as a bare column rather than as a function, so
+#: the function allowlist never sees them. They are reserved words: unquoted is
+#: always the keyword, and quoted is an ordinary column reference. They bind to
+#: the session, so no relation has to be in scope for one to resolve.
+_SESSION_IDENTITY_NAMES: dict[SupportedSQLDialectName, frozenset[str]] = {
+    "postgresql": frozenset({"user", "current_role", "system_user"}),
+    "sqlite": frozenset(),
+}
+
+
+def _check_session_identity(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> Optional[AdmissionResult]:
+    """Refuse the session identity wherever it appears.
+
+    This is the whole tree rather than a walk over the relations in scope: the
+    keyword needs no FROM clause, so a statement that reads nothing allowlisted
+    still evaluates it, and neither the plan gate nor the SQLite authorizer
+    inspects column expressions.
+    """
+    names = _SESSION_IDENTITY_NAMES[dialect]
+    if not names:
+        return None
+    for column in root.find_all(exp.Column):
+        if column.table:
+            continue
+        identifier = column.this
+        if isinstance(identifier, exp.Identifier) and identifier.args.get("quoted"):
+            continue
+        name = column.name or ""
+        if name.casefold() in names:
+            subject = f"{name} is reserved."
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                subject,
+                message=(
+                    f"{subject} Unquoted, it returns the identity the connection "
+                    "authenticated as rather than a column of any relation. Quote it "
+                    "to name a column spelled that way."
+                ),
+            )
+    return None
 
 
 def _check_column_references(
@@ -2975,10 +3018,10 @@ def _check_column_references(
             # projecting `key` is a shape the schema teaches.
             #
             # Reserved names are excepted. The engine binds them to the base
-            # table or to the session rather than to the foreign source, so
-            # admitting them on the chance the source projects them hands over
-            # a system column or the session identity. A caller who does mean a
-            # projected column of that name can qualify it.
+            # table rather than to the foreign source, so admitting them on the
+            # chance the source projects them hands over a system column. A
+            # caller who does mean a projected column of that name can qualify
+            # it.
             if not qualifier and foreign_source:
                 if name.casefold() in _RESERVED_IMPLICIT_NAMES[dialect]:
                     subject = f"{name} is reserved."
@@ -3133,6 +3176,9 @@ def admit(
         or _check_collate(root, dialect=dialect)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist, dialect=dialect)
+        # Before the column check, whose generic "no such column" wording would
+        # describe a keyword that resolves as neither a column nor a misspelling.
+        or _check_session_identity(root, dialect=dialect)
         or _check_column_references(root, allowlist=allowlist, dialect=dialect)
         or _check_timestamp_literals(root, allowlist=allowlist, dialect=dialect)
     )

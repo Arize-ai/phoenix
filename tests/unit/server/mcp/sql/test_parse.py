@@ -1259,7 +1259,6 @@ class TestStructuralPolicyIsDefaultDeny:
             "SELECT ctid FROM spans",
             "SELECT xmin FROM spans",
             "SELECT ctid::text FROM spans",
-            "SELECT system_user FROM spans",
         ],
     )
     def test_what_the_plan_gate_cannot_see_is_refused_before_it(self, sql: str) -> None:
@@ -1884,22 +1883,68 @@ def test_sqlite_bare_interval_is_refused() -> None:
     assert "INTERVAL" in result.detail
 
 
+class TestSessionIdentityIsRefusedWhateverTheStatementReads:
+    """The niladic keywords resolve against the session, not against a relation.
+
+    A control that reasons about the relations in scope never reaches a
+    statement that reads none, and nothing downstream closes the gap: the plan
+    gate inspects relations and set-returning nodes, and the SQLite authorizer
+    never sees a column expression.
+    """
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            # No FROM clause at all, so no scope holds a relation to reason about.
+            "SELECT user",
+            "SELECT user FROM (SELECT 1) q",
+            "SELECT current_role FROM (SELECT 1) q",
+            "SELECT system_user FROM (SELECT 1) q",
+            "WITH x AS (SELECT 1 AS v) SELECT user FROM x",
+            "SELECT user FROM spans",
+            "SELECT system_user FROM spans",
+            # A reference anywhere, not only a projection.
+            "SELECT id FROM spans WHERE user = 'phoenix'",
+            "SELECT count(*) FROM spans GROUP BY user",
+        ],
+    )
+    def test_session_identity_is_refused(self, sql: str) -> None:
+        with pytest.raises(AnalyticsSqlError) as caught:
+            admit_sql(sql, allowlist=load_allowlist("postgresql"), dialect="postgresql")
+        assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+
+    @pytest.mark.parametrize(
+        "sql",
+        [
+            # PostgreSQL reserves the bare spelling, so a column of that name
+            # can only be written quoted and the two never collide.
+            'WITH x AS (SELECT 1 AS "user") SELECT "user" FROM x',
+            'SELECT q."user" FROM (SELECT 1 AS "user") q',
+            # An output alias is an identifier, not a column reference.
+            "SELECT 'anonymous' AS user FROM spans",
+        ],
+    )
+    def test_an_ordinary_column_of_that_name_is_admitted(self, sql: str) -> None:
+        admit_sql(sql, allowlist=load_allowlist("postgresql"), dialect="postgresql")
+
+
 class TestReservedNamesAreNotReachedThroughTheForeignSourceHatch:
     """An unqualified name is admitted when a foreign source could project it.
 
     A subquery, CTE or table-valued function in the FROM clause names columns
     the manifest does not know, so an unqualified reference no allowlisted table
     offers is admitted rather than refused. The engine does not resolve every
-    such name that way: a system column binds to the base table and a niladic
-    keyword binds to the session, and neither the plan gate nor the SQLite
-    authorizer inspects column expressions.
+    such name that way: a system column binds to the base table, and neither the
+    plan gate nor the SQLite authorizer inspects column expressions.
+
+    Scoped to the names that need a base table in scope to resolve. The session
+    identities resolve without one, so they are refused before this hatch is
+    reached.
     """
 
     @pytest.mark.parametrize(
         ("sql", "dialect"),
         [
-            ("SELECT user FROM spans, (SELECT 1) q", "postgresql"),
-            ("SELECT current_role FROM spans, (SELECT 1) q", "postgresql"),
             ("SELECT ctid FROM spans, (SELECT 1) q", "postgresql"),
             ("SELECT xmin, xmax, tableoid FROM spans, (SELECT 1) q", "postgresql"),
             # Any foreign source opens the hatch, not just a subquery.
@@ -1907,7 +1952,7 @@ class TestReservedNamesAreNotReachedThroughTheForeignSourceHatch:
             ("WITH t AS (SELECT 1 AS n) SELECT ctid FROM spans, t", "postgresql"),
             # A reference anywhere reaches it, not only a projection.
             ("SELECT id FROM spans, (SELECT 1) q WHERE ctid IS NOT NULL", "postgresql"),
-            ("SELECT count(*) FROM spans, (SELECT 1) q GROUP BY user", "postgresql"),
+            ("SELECT count(*) FROM spans, (SELECT 1) q GROUP BY ctid", "postgresql"),
             ("SELECT rowid FROM spans, (SELECT 1) q", "sqlite"),
             ("SELECT _rowid_ FROM spans, (SELECT 1) q", "sqlite"),
             ("SELECT oid FROM spans, (SELECT 1) q", "sqlite"),
