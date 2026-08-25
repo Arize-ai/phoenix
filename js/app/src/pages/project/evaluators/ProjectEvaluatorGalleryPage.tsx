@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
+import { Header, ListBoxSection } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
 import { Outlet, useNavigate } from "react-router";
 
@@ -28,6 +29,7 @@ import {
   projectEvaluatorTemplatesQuery,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
+const ALL_EVALUATORS_CATEGORY = "All evaluators";
 const RECOMMENDED_CATEGORY = "Recommended";
 const GALLERY_SKELETON_HEIGHT = 440;
 
@@ -77,33 +79,59 @@ function EvaluatorGallery() {
   const recommendedTemplateCount = templates.filter(
     ({ recommended }) => recommended
   ).length;
-  const categoryItems = [
+  const quickStartItems = [
+    {
+      name: ALL_EVALUATORS_CATEGORY,
+      count: templates.length,
+    },
     {
       name: RECOMMENDED_CATEGORY,
       count: recommendedTemplateCount,
     },
-    ...categories.map((category) => ({
-      name: category,
-      count: templates.filter(
-        ({ category: templateCategory }) =>
-          getProjectEvaluatorTemplateCategoryLabel(templateCategory) ===
-          category
-      ).length,
-    })),
   ];
+  const useCaseItems = categories.map((category) => ({
+    name: category,
+    count: templates.filter(
+      ({ category: templateCategory }) =>
+        getProjectEvaluatorTemplateCategoryLabel(templateCategory) === category
+    ).length,
+  }));
+  const categoryItems = [...quickStartItems, ...useCaseItems];
   const activeCategory = categoryItems.some(
     ({ name }) => name === selectedCategory
   )
     ? selectedCategory
-    : (categoryItems[0]?.name ?? RECOMMENDED_CATEGORY);
-  const visibleTemplates = templates.filter(({ recommended, category }) =>
-    activeCategory === RECOMMENDED_CATEGORY
-      ? recommended
-      : getProjectEvaluatorTemplateCategoryLabel(category) === activeCategory
-  );
+    : ALL_EVALUATORS_CATEGORY;
+  const visibleTemplates = templates.filter(({ recommended, category }) => {
+    if (activeCategory === ALL_EVALUATORS_CATEGORY) {
+      return true;
+    }
+    if (activeCategory === RECOMMENDED_CATEGORY) {
+      return recommended;
+    }
+    return (
+      getProjectEvaluatorTemplateCategoryLabel(category) === activeCategory
+    );
+  });
   const selectedTemplate =
     visibleTemplates.find(({ name }) => name === selectedTemplateName) ??
     visibleTemplates[0];
+  const renderCategoryItem = ({
+    name,
+    count,
+  }: {
+    name: string;
+    count: number;
+  }) => (
+    <ListBoxItem key={name} id={name} textValue={name}>
+      {({ isSelected }) => (
+        <>
+          <Text size="S">{name}</Text>
+          <Counter variant={isSelected ? "quiet" : "default"}>{count}</Counter>
+        </>
+      )}
+    </ListBoxItem>
+  );
 
   return (
     <div css={galleryCSS} className="project-evaluator-gallery">
@@ -111,18 +139,9 @@ function EvaluatorGallery() {
         className="project-evaluator-gallery__categories"
         aria-label="Evaluator template categories"
       >
-        <Text
-          id="evaluator-template-category-list-title"
-          elementType="h2"
-          size="S"
-          weight="heavy"
-        >
-          Category
-        </Text>
         <ListBox
-          aria-labelledby="evaluator-template-category-list-title"
+          aria-label="Evaluator template categories"
           className="project-evaluator-gallery__category-list"
-          items={categoryItems}
           selectionMode="single"
           selectionBehavior="replace"
           disallowEmptySelection
@@ -135,18 +154,22 @@ function EvaluatorGallery() {
             }
           }}
         >
-          {({ name, count }) => (
-            <ListBoxItem key={name} id={name} textValue={name}>
-              {({ isSelected }) => (
-                <>
-                  <Text size="S">{name}</Text>
-                  <Counter variant={isSelected ? "quiet" : "default"}>
-                    {count}
-                  </Counter>
-                </>
-              )}
-            </ListBoxItem>
-          )}
+          <ListBoxSection id="quick-start">
+            <Header className="project-evaluator-gallery__category-section-heading">
+              <Text elementType="h2" size="XS" weight="heavy" color="text-500">
+                Quick start
+              </Text>
+            </Header>
+            {quickStartItems.map(renderCategoryItem)}
+          </ListBoxSection>
+          <ListBoxSection id="use-cases">
+            <Header className="project-evaluator-gallery__category-section-heading">
+              <Text elementType="h2" size="XS" weight="heavy" color="text-500">
+                Use cases
+              </Text>
+            </Header>
+            {useCaseItems.map(renderCategoryItem)}
+          </ListBoxSection>
         </ListBox>
         <Flex
           direction="column"
@@ -348,10 +371,10 @@ function EvaluatorGalleryError() {
 const galleryCSS = css`
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(160px, 0.65fr) minmax(320px, 1.5fr) minmax(
-      260px,
-      1fr
-    );
+  grid-template-columns:
+    minmax(var(--global-dimension-size-3000), 0.65fr)
+    minmax(320px, 1.5fr)
+    minmax(var(--global-dimension-size-5000), 1fr);
   height: 100%;
   min-height: ${GALLERY_SKELETON_HEIGHT}px;
   overflow: hidden;
@@ -389,7 +412,12 @@ const galleryCSS = css`
   .project-evaluator-gallery__category-list {
     flex: 1 1 auto;
     min-height: 0;
-    margin-top: var(--global-dimension-size-100);
+    gap: var(--global-dimension-size-100);
+
+    .react-aria-ListBoxSection {
+      display: flex;
+      flex-direction: column;
+    }
 
     .react-aria-ListBoxItem {
       flex-direction: row;
@@ -397,6 +425,12 @@ const galleryCSS = css`
       justify-content: space-between;
       gap: var(--global-dimension-size-100);
     }
+  }
+
+  .project-evaluator-gallery__category-section-heading {
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .project-evaluator-gallery__scratch-actions {
@@ -410,7 +444,10 @@ const galleryCSS = css`
     flex: 1 1 auto;
     min-height: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(var(--global-dimension-size-3000), 1fr)
+    );
     align-content: start;
     gap: var(--global-dimension-size-100);
     margin-top: var(--global-dimension-size-100);
@@ -445,7 +482,9 @@ const galleryCSS = css`
   @media (max-width: 900px) {
     overflow-x: hidden;
     overflow-y: auto;
-    grid-template-columns: minmax(160px, 0.65fr) minmax(320px, 1.5fr);
+    grid-template-columns:
+      minmax(var(--global-dimension-size-3000), 0.65fr)
+      minmax(320px, 1.5fr);
 
     .project-evaluator-gallery__categories,
     .project-evaluator-gallery__templates,
