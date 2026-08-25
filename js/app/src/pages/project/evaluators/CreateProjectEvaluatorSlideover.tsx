@@ -35,6 +35,7 @@ import {
   toEvaluationDelayInput,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
+  type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import {
@@ -49,19 +50,29 @@ import {
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
 
+type SeededLlmEvaluatorInitialState = {
+  name: string;
+  description: string;
+  outputConfigs: AnnotationConfig[];
+  defaultMessages: PlaygroundChatTemplate["messages"];
+  templateFormat: TemplateFormat;
+  includeExplanation: boolean;
+};
+
+type TemplateLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
+  targetType: ProjectEvaluatorTarget;
+};
+
 export type ProjectEvaluatorCreationMode =
   | { kind: "scratch" }
   | { kind: "newCode" }
   | {
       kind: "copy";
-      initialState: {
-        name: string;
-        description: string;
-        outputConfigs: AnnotationConfig[];
-        defaultMessages: PlaygroundChatTemplate["messages"];
-        templateFormat: TemplateFormat;
-        includeExplanation: boolean;
-      };
+      initialState: SeededLlmEvaluatorInitialState;
+    }
+  | {
+      kind: "template";
+      initialState: TemplateLlmEvaluatorInitialState;
     }
   | {
       kind: "code";
@@ -85,6 +96,9 @@ function getProjectEvaluatorCreationTitle(
   }
   if (creationMode.kind === "copy") {
     return `Copy LLM evaluator “${creationMode.initialState.name}”`;
+  }
+  if (creationMode.kind === "template") {
+    return `Create “${creationMode.initialState.name}” evaluator`;
   }
   return `Attach code evaluator “${creationMode.name}”`;
 }
@@ -116,15 +130,19 @@ function CreateProjectEvaluatorDialogForMode(
   props: Parameters<typeof CreateProjectEvaluatorDialog>[0]
 ) {
   const { creationMode } = props;
-  if (creationMode.kind === "scratch" || creationMode.kind === "copy") {
+  if (
+    creationMode.kind === "scratch" ||
+    creationMode.kind === "copy" ||
+    creationMode.kind === "template"
+  ) {
     const defaultMessages =
-      creationMode.kind === "copy"
-        ? creationMode.initialState.defaultMessages
-        : getSpanEvaluatorDefaultMessages();
+      creationMode.kind === "scratch"
+        ? getSpanEvaluatorDefaultMessages()
+        : creationMode.initialState.defaultMessages;
     const templateFormat =
-      creationMode.kind === "copy"
-        ? creationMode.initialState.templateFormat
-        : undefined;
+      creationMode.kind === "scratch"
+        ? undefined
+        : creationMode.initialState.templateFormat;
     return (
       <EvaluatorPlaygroundProvider
         defaultMessages={defaultMessages}
@@ -149,8 +167,12 @@ const CreateProjectEvaluatorDialog = ({
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) => {
   const notifySuccess = useNotifySuccess();
+  const initialTargetType =
+    creationMode.kind === "template"
+      ? creationMode.initialState.targetType
+      : "SPAN";
   const [scope, setScope] = useState<ProjectEvaluatorScope>({
-    targetType: "SPAN",
+    targetType: initialTargetType,
     filterCondition: "",
     samplingRate: 1,
     evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
@@ -173,17 +195,24 @@ const CreateProjectEvaluatorDialog = ({
         ),
       } satisfies EvaluatorStoreProps;
     }
-    const copiedState =
-      creationMode.kind === "copy" ? creationMode.initialState : undefined;
-    const defaultEvaluatorName = copiedState?.name
-      ? `${copiedState.name} copy`
-      : creationMode.kind === "code"
-        ? creationMode.name
-        : DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName;
+    const seededState =
+      creationMode.kind === "copy" || creationMode.kind === "template"
+        ? creationMode.initialState
+        : undefined;
+    const defaultEvaluatorName =
+      creationMode.kind === "copy"
+        ? creationMode.initialState.name
+          ? `${creationMode.initialState.name} copy`
+          : DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName
+        : creationMode.kind === "template"
+          ? creationMode.initialState.name
+          : creationMode.kind === "code"
+            ? creationMode.name
+            : DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName;
     const outputConfigs =
       creationMode.kind === "code"
         ? creationMode.outputConfigs
-        : (copiedState?.outputConfigs ??
+        : (seededState?.outputConfigs ??
           DEFAULT_LLM_EVALUATOR_STORE_VALUES.outputConfigs);
     return {
       ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
@@ -193,15 +222,15 @@ const CreateProjectEvaluatorDialog = ({
         description:
           creationMode.kind === "code"
             ? creationMode.description
-            : (copiedState?.description ?? ""),
+            : (seededState?.description ?? ""),
         inputMapping: { pathMapping: {}, literalMapping: {} },
         kind: creationMode.kind === "code" ? "CODE" : "LLM",
         includeExplanation:
-          copiedState?.includeExplanation ??
+          seededState?.includeExplanation ??
           DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.includeExplanation,
       },
       outputConfigs:
-        copiedState || creationMode.kind === "code"
+        seededState || creationMode.kind === "code"
           ? outputConfigs
           : outputConfigs[0]
             ? [{ ...outputConfigs[0], name: defaultEvaluatorName }]
