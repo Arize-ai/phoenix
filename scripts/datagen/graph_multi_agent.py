@@ -89,7 +89,7 @@ class GraphMultiAgentRecorder:
         writer = RunnableLambda(write).with_config({"run_name": "writer_agent"})
 
         def supervise(state: Mapping[str, Any]) -> dict[str, Any]:
-            return writer.invoke(researcher.invoke(state))
+            return cast(dict[str, Any], writer.invoke(researcher.invoke(state)))
 
         graph = RunnableLambda(supervise).with_config({"run_name": "supervisor_agent"})
         try:
