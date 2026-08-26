@@ -3269,7 +3269,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 else str(uuid4())
             )
             model_transcript_messages = transcript_messages
-            compaction_history: list[ModelMessage] = []
 
             async def _publish_subagent_message_chunk(
                 subagent_message_chunk: ToolOutputAvailableChunk,
@@ -3574,11 +3573,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         using_session(session_id=otel_session_id),
                         _maybe_using_user(instrument_user_id, phoenix_user_email),
                     ):
-                        raw_stream = adapter.run_stream(
-                            deps=deps,
-                            message_history=compaction_history,
-                            on_complete=_on_complete,
-                        )
+                        raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
                         assert _is_async_generator(raw_stream)
 
                         async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
