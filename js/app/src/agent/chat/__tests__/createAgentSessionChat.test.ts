@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import {
+  INTERRUPTED_TURN_POLL_INTERVAL_MS,
   applyClientToolTimingMetadata,
   createAgentSessionChat,
   getTurnClientState,
@@ -125,6 +126,146 @@ describe("applyClientToolTimingMetadata", () => {
         toolTimings,
       })
     ).toBe(messages);
+  });
+});
+
+type UIMessageStreamChunk = Record<string, unknown>;
+
+/**
+ * A UI message stream response that emits `chunks` and then stays open until
+ * the request is aborted (mirroring a real fetch, whose body read rejects on
+ * abort) or `shouldClose` is set.
+ */
+function createUIMessageStreamResponse({
+  chunks,
+  signal,
+  shouldClose = false,
+}: {
+  chunks: UIMessageStreamChunk[];
+  signal: AbortSignal | null | undefined;
+  shouldClose?: boolean;
+}) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
+        );
+      }
+      if (shouldClose) {
+        controller.close();
+        return;
+      }
+      signal?.addEventListener(
+        "abort",
+        () => controller.error(new DOMException("Aborted", "AbortError")),
+        { once: true }
+      );
+    },
+  });
+  return new Response(stream, {
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+
+function createRelayEnvironmentWithSyncState(
+  getSyncState: () => { isActive: boolean; lastMessageId: string | null }
+) {
+  return new Environment({
+    network: Network.create((operation) => {
+      if (operation.name !== "agentSessionRelaySessionSyncStateQuery") {
+        return Promise.resolve({ data: {} });
+      }
+      const syncState = getSyncState();
+      return Promise.resolve({
+        data: {
+          agentSession: {
+            __typename: "AgentSession",
+            id: "session-1",
+            isActive: syncState.isActive,
+            updatedAt: "2026-08-25T00:00:00Z",
+            lastMessageId: syncState.lastMessageId,
+          },
+        },
+      });
+    }),
+    store: new Store(new RecordSource()),
+  });
+}
+
+describe("createAgentSessionChat stop", () => {
+  it("holds the next send after a stop until the server releases the turn lock", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      let isTurnLockHeld = true;
+      const getSyncState = vi.fn(() => ({
+        isActive: isTurnLockHeld,
+        lastMessageId: isTurnLockHeld ? "user-1" : "assistant-1",
+      }));
+      const fetchMock = vi.fn(
+        async (_input: RequestInfo | URL, init?: RequestInit) =>
+          fetchMock.mock.calls.length === 1
+            ? createUIMessageStreamResponse({
+                chunks: [
+                  { type: "start", messageId: "assistant-1" },
+                  { type: "text-start", id: "text-1" },
+                  { type: "text-delta", id: "text-1", delta: "Partial" },
+                ],
+                signal: init?.signal,
+              })
+            : createUIMessageStreamResponse({
+                chunks: [
+                  { type: "start", messageId: "assistant-2" },
+                  { type: "finish" },
+                ],
+                signal: init?.signal,
+                shouldClose: true,
+              })
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const chat = createAgentSessionChat({
+        sessionId: "session-1",
+        seedMessages: [],
+        store: createAgentStore(),
+        relayEnvironment: createRelayEnvironmentWithSyncState(getSyncState),
+        onTranscriptSynced: () => undefined,
+      });
+
+      void chat.sendMessage({ text: "hello" });
+      await vi.waitFor(() => {
+        expect(chat.messages.at(-1)).toMatchObject({
+          id: "assistant-1",
+          role: "assistant",
+        });
+      });
+      await chat.stop();
+      // The stop starts probing for the lock release right away.
+      await vi.waitFor(() => {
+        expect(getSyncState).toHaveBeenCalledTimes(1);
+      });
+
+      // The follow-up is held while the server still holds the lock (it
+      // persists the interrupted turn before releasing it).
+      void chat.sendMessage({ text: "again" });
+      await vi.advanceTimersByTimeAsync(INTERRUPTED_TURN_POLL_INTERVAL_MS);
+      await flushMicrotasks();
+      expect(getSyncState).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      isTurnLockHeld = false;
+      await vi.advanceTimersByTimeAsync(INTERRUPTED_TURN_POLL_INTERVAL_MS);
+      await vi.waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      });
+      expect(getSyncState).toHaveBeenCalledTimes(3);
+      const secondRequestBody = JSON.parse(
+        String(fetchMock.mock.calls[1]?.[1]?.body)
+      ) as { lastMessageId: string | null };
+      expect(secondRequestBody.lastMessageId).toBe("assistant-1");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

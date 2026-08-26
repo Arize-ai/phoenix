@@ -39,6 +39,7 @@ import {
   toAgentModelSelection,
 } from "@phoenix/components/agent/agentSessionModel";
 import {
+  fetchAgentSessionSyncState,
   refetchAgentSession,
   type AgentSessionSyncState,
   type RelayEnvironment,
@@ -55,6 +56,14 @@ import {
   parseAgentSessionConflictCode,
 } from "./agentChatApi";
 import { getRemovedUserMessageText } from "./removedUserMessageText";
+
+/**
+ * Cadence and cap for confirming the server released the turn lock after a
+ * stop. The server persists the interrupted turn before releasing the lock,
+ * so a released lock means the next send's `lastMessageId` check sees it.
+ */
+export const INTERRUPTED_TURN_POLL_INTERVAL_MS = 500;
+const INTERRUPTED_TURN_POLL_MAX_ATTEMPTS = 10;
 
 export type TurnClientState = {
   toolTimings: ReturnType<typeof createClientToolTimingRecorder>;
@@ -118,6 +127,36 @@ export function createAgentSessionChat({
   // racing its own in-flight change.
   let lastAssertedModelSelection: AgentModelSelection | null = null;
   const transcriptPersistence = createTranscriptPersistenceCoordinator();
+  /**
+   * Confirmation that the server finished persisting the turn this client
+   * stopped. The next send awaits it so its `lastMessageId` check cannot race
+   * the server's write of the interrupted message.
+   */
+  let interruptedTurnSettled: Promise<void> | null = null;
+  const waitForInterruptedTurnSettled = async () => {
+    for (
+      let attempt = 0;
+      attempt < INTERRUPTED_TURN_POLL_MAX_ATTEMPTS;
+      attempt += 1
+    ) {
+      if (attempt > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, INTERRUPTED_TURN_POLL_INTERVAL_MS)
+        );
+      }
+      try {
+        const syncState = await fetchAgentSessionSyncState({
+          environment: relayEnvironment,
+          sessionId,
+        });
+        if (syncState === null || !syncState.isActive) {
+          return;
+        }
+      } catch {
+        // Transient failure: try again on the next tick.
+      }
+    }
+  };
   const turnCompletionGate = createTurnCompletionGate({
     getShouldSendAutomatically: (messages) =>
       shouldSendAutomaticallyAfterToolOutput({
@@ -205,7 +244,8 @@ export function createAgentSessionChat({
     transport: new DefaultChatTransport({
       api: chatApiUrl,
       fetch: authFetch,
-      prepareSendMessagesRequest: ({ body, id, messages }) => {
+      prepareSendMessagesRequest: async ({ body, id, messages }) => {
+        await interruptedTurnSettled;
         turnCompletionGate.beginTurn();
         store.getState().setSessionResponsePending(sessionId, true);
         store.getState().setSessionNotice(sessionId, null);
@@ -354,7 +394,15 @@ export function createAgentSessionChat({
       }
       store.getState().setSessionBusyElsewhere(sessionId, true);
     },
-    onFinish: ({ messages: finalMessages, message }) => {
+    onFinish: ({ messages: finalMessages, message, isAbort }) => {
+      if (isAbort) {
+        const settled = waitForInterruptedTurnSettled().finally(() => {
+          if (interruptedTurnSettled === settled) {
+            interruptedTurnSettled = null;
+          }
+        });
+        interruptedTurnSettled = settled;
+      }
       turnCompletionGate.handleFinish({ finalMessages, message });
     },
   });
