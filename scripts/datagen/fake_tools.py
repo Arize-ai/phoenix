@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, TypeAlias
+from typing import Any, TypeAlias, cast
 
 JSON: TypeAlias = None | bool | int | float | str | list["JSON"] | dict[str, "JSON"]
 ToolResult: TypeAlias = dict[str, JSON]
@@ -23,6 +23,46 @@ _WORD = re.compile(r"[a-z0-9]+")
 
 class ToolError(ValueError):
     """Raised when local tool data or arguments are invalid."""
+
+
+_MISSING = object()
+
+
+@dataclass(frozen=True)
+class ToolPatchOperation:
+    operation: str
+    path: str
+    value: Any = _MISSING
+
+    def __post_init__(self) -> None:
+        if self.operation not in {"add", "replace", "remove"}:
+            raise ToolError(f"unknown tool overlay operation {self.operation!r}")
+        _json_pointer_tokens(self.path)
+        if self.operation == "remove":
+            if self.value is not _MISSING:
+                raise ToolError("remove tool overlay operations may not define a value")
+        elif self.value is _MISSING:
+            raise ToolError(f"{self.operation} tool overlay operations require a value")
+        else:
+            object.__setattr__(self, "value", _freeze_json(self.value))
+
+
+@dataclass(frozen=True)
+class ToolResultOverlay:
+    tool_name: str
+    match_arguments: Mapping[str, Any]
+    operations: tuple[ToolPatchOperation, ...]
+
+    def __post_init__(self) -> None:
+        if not self.tool_name:
+            raise ToolError("tool overlay names must be non-empty")
+        if not isinstance(self.match_arguments, Mapping):
+            raise ToolError("tool overlay match_arguments must be an object")
+        if not self.operations:
+            raise ToolError("tool overlays must define at least one operation")
+        frozen_arguments = _freeze_json(self.match_arguments)
+        object.__setattr__(self, "match_arguments", cast(Mapping[str, Any], frozen_arguments))
+        object.__setattr__(self, "operations", tuple(self.operations))
 
 
 @dataclass(frozen=True)
@@ -58,26 +98,29 @@ class ToolRegistry:
         name: str,
         arguments: Mapping[str, Any],
         fixture_set: Mapping[str, Any],
+        result_overlays: Sequence[ToolResultOverlay] = (),
     ) -> ToolResult:
         try:
             spec = self._specs[name]
         except KeyError as error:
             raise ToolError(f"unknown tool {name!r}") from error
         validated = _validate_arguments(spec, arguments)
-        return spec.handler(validated, fixture_set)
+        result = spec.handler(validated, fixture_set)
+        return _apply_result_overlays(name, validated, result, result_overlays)
 
 
 @dataclass(frozen=True)
 class LocalTools:
     fixture_set: Mapping[str, Any]
     registry: ToolRegistry
+    result_overlays: tuple[ToolResultOverlay, ...] = ()
 
     @property
     def schemas(self) -> tuple[dict[str, JSON], ...]:
         return self.registry.model_schemas()
 
     def invoke(self, name: str, arguments: Mapping[str, Any]) -> ToolResult:
-        return self.registry.invoke(name, arguments, self.fixture_set)
+        return self.registry.invoke(name, arguments, self.fixture_set, self.result_overlays)
 
 
 def load_fixture_sets(path: Path | None = None) -> Mapping[str, Mapping[str, Any]]:
@@ -101,12 +144,50 @@ def load_fixture_sets(path: Path | None = None) -> Mapping[str, Mapping[str, Any
     return MappingProxyType(fixture_sets)
 
 
-def local_tools(name: str) -> LocalTools:
-    try:
-        fixture_set = load_fixture_sets()[name]
-    except KeyError as error:
-        raise ToolError(f"unknown tool fixture set {name!r}") from error
-    return LocalTools(fixture_set, DEFAULT_REGISTRY)
+def local_tools(
+    name: str,
+    *,
+    fixture_set: Mapping[str, Any] | None = None,
+    result_overlays: Sequence[ToolResultOverlay] = (),
+) -> LocalTools:
+    if fixture_set is None:
+        try:
+            fixture_set = load_fixture_sets()[name]
+        except KeyError as error:
+            raise ToolError(f"unknown tool fixture set {name!r}") from error
+    if fixture_set.get("name") != name:
+        raise ToolError(f"tool fixture set must be named {name!r}")
+    overlays = tuple(result_overlays)
+    validate_result_overlays(fixture_set, overlays)
+    return LocalTools(fixture_set, DEFAULT_REGISTRY, overlays)
+
+
+def validate_result_overlays(
+    fixture_set: Mapping[str, Any],
+    overlays: Sequence[ToolResultOverlay],
+) -> None:
+    occupied_paths: list[tuple[str, Mapping[str, Any], str]] = []
+    for overlay in overlays:
+        try:
+            spec = DEFAULT_REGISTRY._specs[overlay.tool_name]
+        except KeyError as error:
+            raise ToolError(f"unknown tool {overlay.tool_name!r} in result overlay") from error
+        matching_arguments = _validation_arguments(spec, overlay.match_arguments, fixture_set)
+        for operation in overlay.operations:
+            for tool_name, match_arguments, path in occupied_paths:
+                if (
+                    tool_name == overlay.tool_name
+                    and path == operation.path
+                    and _argument_matches_overlap(match_arguments, overlay.match_arguments)
+                ):
+                    raise ToolError(
+                        f"tool overlays collide at {overlay.tool_name!r} {operation.path!r}"
+                    )
+            occupied_paths.append((overlay.tool_name, overlay.match_arguments, operation.path))
+        for arguments in matching_arguments:
+            result = spec.handler(arguments, fixture_set)
+            for operation in overlay.operations:
+                _apply_json_pointer_operation(result, operation)
 
 
 def build_registry() -> ToolRegistry:
@@ -169,20 +250,62 @@ def build_registry() -> ToolRegistry:
 
 
 def _validate_arguments(spec: ToolSpec, arguments: Mapping[str, Any]) -> dict[str, Any]:
+    result = _validate_argument_subset(spec, arguments)
+    required = set(spec.parameters["required"])
+    missing = required - set(arguments)
+    if missing:
+        raise ToolError(f"{spec.name} is missing arguments: {sorted(missing)}")
+    return result
+
+
+def _validate_argument_subset(spec: ToolSpec, arguments: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(arguments, Mapping):
         raise ToolError(f"{spec.name} arguments must be an object")
     properties = spec.parameters["properties"]
-    required = set(spec.parameters["required"])
     unknown = set(arguments) - set(properties)
-    missing = required - set(arguments)
     if unknown:
         raise ToolError(f"{spec.name} has unknown arguments: {sorted(unknown)}")
-    if missing:
-        raise ToolError(f"{spec.name} is missing arguments: {sorted(missing)}")
     result = dict(arguments)
     for name, value in result.items():
         _validate_value(spec.name, name, value, properties[name])
     return result
+
+
+def _validation_arguments(
+    spec: ToolSpec,
+    selector: Mapping[str, Any],
+    fixture_set: Mapping[str, Any],
+) -> tuple[dict[str, Any], ...]:
+    validated_selector = _validate_argument_subset(spec, selector)
+    if spec.name == "document_search":
+        candidates = [{"query": "local guidance"}]
+    elif spec.name == "record_lookup":
+        candidates = [{"record_id": str(item["id"])} for item in fixture_set["records"]] + [
+            {"record_id": "__missing_record__"}
+        ]
+    elif spec.name == "status_lookup":
+        candidates = [{"status_id": str(item["id"])} for item in fixture_set["statuses"]] + [
+            {"status_id": "__missing_status__"}
+        ]
+    elif spec.name == "safe_arithmetic":
+        candidates = [{"expression": "0"}]
+    else:
+        candidates = [
+            {
+                "title": "Local request",
+                "description": "Validate the authored result shape.",
+                "priority": "low",
+            }
+        ]
+    results: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        arguments = _validate_arguments(spec, {**candidate, **validated_selector})
+        key = json.dumps(arguments, sort_keys=True, separators=(",", ":"))
+        if key not in seen:
+            results.append(arguments)
+            seen.add(key)
+    return tuple(results)
 
 
 def _object_schema(properties: Mapping[str, Any], *, required: Sequence[str]) -> Mapping[str, Any]:
@@ -319,8 +442,129 @@ def _evaluate_arithmetic(node: ast.expr) -> int | float:
     raise ValueError("only numeric literals and +, -, *, /, //, % are allowed")
 
 
+def _argument_matches_overlap(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:
+    return all(left[key] == right[key] for key in left.keys() & right.keys())
+
+
+def _apply_result_overlays(
+    tool_name: str,
+    arguments: Mapping[str, Any],
+    result: ToolResult,
+    overlays: Sequence[ToolResultOverlay],
+) -> ToolResult:
+    patched = cast(ToolResult, _json_copy(result))
+    for overlay in overlays:
+        if overlay.tool_name != tool_name or not all(
+            arguments.get(name) == value for name, value in overlay.match_arguments.items()
+        ):
+            continue
+        for operation in overlay.operations:
+            _apply_json_pointer_operation(patched, operation)
+    return patched
+
+
+def _apply_json_pointer_operation(
+    result: ToolResult,
+    operation: ToolPatchOperation,
+) -> None:
+    tokens = _json_pointer_tokens(operation.path)
+    parent: Any = result
+    for token in tokens[:-1]:
+        if isinstance(parent, dict) and token in parent:
+            parent = parent[token]
+        elif isinstance(parent, list):
+            parent = parent[_list_index(token, len(parent), allow_end=False)]
+        else:
+            raise ToolError(f"tool overlay path {operation.path!r} does not exist")
+    token = tokens[-1]
+    if isinstance(parent, dict):
+        _patch_mapping(parent, token, operation)
+    elif isinstance(parent, list):
+        _patch_sequence(parent, token, operation)
+    else:
+        raise ToolError(f"tool overlay path {operation.path!r} has a scalar parent")
+
+
+def _patch_mapping(
+    parent: dict[str, JSON],
+    token: str,
+    operation: ToolPatchOperation,
+) -> None:
+    if operation.operation == "add":
+        parent[token] = _json_copy(operation.value)
+        return
+    if token not in parent:
+        raise ToolError(f"tool overlay path component {token!r} does not exist")
+    if operation.operation == "remove":
+        del parent[token]
+    else:
+        parent[token] = _json_copy(operation.value)
+
+
+def _patch_sequence(
+    parent: list[JSON],
+    token: str,
+    operation: ToolPatchOperation,
+) -> None:
+    if operation.operation == "add":
+        if token == "-":
+            parent.append(_json_copy(operation.value))
+        else:
+            parent.insert(
+                _list_index(token, len(parent), allow_end=True),
+                _json_copy(operation.value),
+            )
+        return
+    index = _list_index(token, len(parent), allow_end=False)
+    if operation.operation == "remove":
+        del parent[index]
+    else:
+        parent[index] = _json_copy(operation.value)
+
+
+def _json_pointer_tokens(path: str) -> list[str]:
+    if not isinstance(path, str) or not path.startswith("/") or path == "/":
+        raise ToolError("tool overlay paths must be non-root JSON Pointers")
+    tokens = []
+    for raw in path[1:].split("/"):
+        if re.search(r"~(?![01])", raw):
+            raise ToolError(f"tool overlay path {path!r} has an invalid escape")
+        tokens.append(raw.replace("~1", "/").replace("~0", "~"))
+    return tokens
+
+
+def _list_index(token: str, length: int, *, allow_end: bool) -> int:
+    if not token.isdigit() or (len(token) > 1 and token.startswith("0")):
+        raise ToolError(f"tool overlay list index {token!r} is invalid")
+    index = int(token)
+    limit = length if allow_end else length - 1
+    if index > limit:
+        raise ToolError(f"tool overlay list index {index} is out of range")
+    return index
+
+
 def _json_copy(value: Any) -> Any:
-    return json.loads(json.dumps(value))
+    return json.loads(json.dumps(_plain_json(value)))
+
+
+def _freeze_json(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType({str(key): _freeze_json(item) for key, item in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_json(item) for item in value)
+    try:
+        json.dumps(value)
+    except (TypeError, ValueError) as error:
+        raise ToolError(f"tool overlay values must be JSON-compatible: {error}") from error
+    return value
+
+
+def _plain_json(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _plain_json(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain_json(item) for item in value]
+    return value
 
 
 DEFAULT_REGISTRY = build_registry()

@@ -1,4 +1,6 @@
-from scripts.datagen.fake_tools import local_tools
+from typing import Any, cast
+
+from scripts.datagen.fake_tools import ToolPatchOperation, ToolResultOverlay, local_tools
 
 
 def test_local_tools_use_domain_fixture_data() -> None:
@@ -30,3 +32,29 @@ def test_local_tools_use_domain_fixture_data() -> None:
         "status_lookup",
         "ticket_creation",
     }
+
+
+def test_local_tools_apply_argument_matched_json_pointer_operations() -> None:
+    overlay = ToolResultOverlay(
+        "document_search",
+        {"query": "standard delivery"},
+        (
+            ToolPatchOperation("replace", "/documents/0/title", "Provisional guidance"),
+            ToolPatchOperation("add", "/documents/0/note", "Verify with support."),
+            ToolPatchOperation("remove", "/documents/0/text"),
+        ),
+    )
+    tools = local_tools("customer_support", result_overlays=(overlay,))
+
+    matched = tools.invoke("document_search", {"query": "standard delivery", "limit": 1})
+    matched_documents = cast(list[dict[str, Any]], matched["documents"])
+    assert matched_documents == [
+        {
+            "id": "delivery-guide",
+            "title": "Provisional guidance",
+            "note": "Verify with support.",
+        }
+    ]
+    unmatched = tools.invoke("document_search", {"query": "returns", "limit": 1})
+    unmatched_documents = cast(list[dict[str, Any]], unmatched["documents"])
+    assert "text" in unmatched_documents[0]
