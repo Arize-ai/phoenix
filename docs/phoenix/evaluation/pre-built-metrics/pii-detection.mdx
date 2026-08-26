@@ -5,7 +5,7 @@ description: "Detect personally identifiable information in a conversation recor
 
 ## Overview
 
-The **PII Detection** evaluator screens a conversation record for personally identifiable information (PII). It looks at the entire record — system instructions, every user and assistant turn, tool calls and their results, and retrieved content the end user may never have seen — and classifies whether any identifying personal data is present.
+The **PII Detection** evaluator screens a conversation string for personally identifiable information (PII). Pass whatever slice of the interaction you want judged — user and assistant turns only, or a fuller record that also includes system instructions, tool calls, tool results, or retrieved documents. The judge classifies whether any identifying personal data is present in **that** string.
 
 Use it to audit agent traces, experiment runs, and logged conversations for privacy exposure. When `include_explanation` is `True` (the default on `ClassificationEvaluator`), the judge lists each instance in a `FINDINGS` block on the score's `explanation` so downstream filters can act on specific categories (email, national ID, API token, and so on). Set `include_explanation=False` to skip that reasoning and return only the label and score.
 
@@ -19,11 +19,11 @@ The level of an evaluator determines the scope of the evaluation in OpenTelemetr
 
 | Level | Supported | Notes |
 |-------|-----------|-------|
-| **Span** | Yes | Apply when a span already contains the full conversation record to screen. |
-| **Trace** | Yes | Concatenate span input/output (and tool results) into one conversation string. |
-| **Session** | Yes | Best fit: screen the whole session, including hidden tool output and retrieved documents. |
+| **Span** | Yes | Apply when a span already contains the conversation text you want to screen. |
+| **Trace** | Yes | Concatenate the span inputs and outputs you care about into one conversation string. Include tool results only if tool payloads are in scope for the audit. |
+| **Session** | Yes | Screen the session transcript you assemble. Include hidden tool output or retrieved documents when those surfaces matter for privacy; omit them when you only want user-visible turns. |
 
-**Relevant span kinds:** AGENT, CHAIN, LLM, and TOOL spans that preserve conversation or tool payloads.
+**Relevant span kinds:** AGENT, CHAIN, and LLM spans that preserve conversation text. Include TOOL spans when you are evaluating tool payloads.
 
 ## Input Requirements
 
@@ -31,14 +31,15 @@ The PII Detection evaluator requires one input:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `conversation` | `string` | The full conversation record to screen, including system instructions, turns, tool calls, and retrieved content. |
+| `conversation` | `string` | The text to screen. Typically user and assistant turns; optionally include system instructions, tool calls, tool results, or retrieved content when those are part of what you want evaluated. |
 
 ### Formatting Tips
 
 For best results:
 
-- **Screen the whole record**, not just the final assistant message.
-- **Use human-readable strings** rather than raw JSON when you can. 
+- **Include every turn that is in scope**, not just the final assistant message.
+- **Add tool calls, tool results, or retrieved documents** when you care about PII in those payloads. Leave them out when you only want to score the visible dialogue.
+- **Use human-readable strings** rather than raw JSON when you can.
 - **For multi-turn conversations**, format turns as:
   ```
   User: Reset my account.
@@ -54,13 +55,32 @@ The evaluator returns a `Score` object with the following properties:
 |----------|-------|-------------|
 | `label` | `"pii_detected"` or `"no_pii_detected"` | Classification result |
 | `score` | `1.0` or `0.0` | Numeric score (`1.0` = PII found) |
-| `explanation` | `string` or omitted | Present when `include_explanation` is `True` (default). Contains the judge's reasoning and a `FINDINGS` list of each instance. |
+| `explanation` | `string` or omitted | Present when `include_explanation` is `True` (default). Contains the judge's reasoning and a `FINDINGS` list of each instance (see below). |
 | `direction` | `"minimize"` | Lower aggregate scores are better |
 | `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
 
 **Interpretation:**
 - **PII detected (1.0)**: The record contains at least one instance of identifying personal data
 - **No PII detected (0.0)**: The record contains none of the rubric categories
+
+### Findings
+
+When explanations are enabled, each detected instance appears as one line in a `FINDINGS` block:
+
+```
+FINDINGS:
+- type: email_address | source: user_message | value: "jane.doe@acme.com"
+```
+
+If nothing is found, the judge writes `FINDINGS: none`.
+
+| Field | Meaning |
+|-------|---------|
+| `type` | Rubric category for that instance, such as `person_name`, `email_address`, `phone_number`, `national_id_number`, `physical_address`, `credit_or_debit_card_number`, or `api_key_or_token`. |
+| `source` | Where in the conversation string the instance appeared: `user_message`, `assistant_response`, `tool_call_or_result`, `system_instructions`, or `retrieved_document`. |
+| `value` | Exact quoted text from the record. |
+
+`type` and `source` are meant for downstream filters (for example, alert only on `national_id_number` in `tool_call_or_result`). They are not separate score fields; parse them from `explanation`.
 
 ## Usage Examples
 
@@ -112,7 +132,7 @@ The evaluator returns a `Score` object with the following properties:
 
 ## Using Input Mapping
 
-Map a trace, session, or dataset row into the single `conversation` field. Concatenate messages, tool calls, and retrieved documents when they live in separate columns.
+Map a trace, session, or dataset row into the single `conversation` field. Concatenate whichever columns are in scope — messages only, or messages plus tool calls and retrieved documents.
 
 ```python
 input_mapping = {
