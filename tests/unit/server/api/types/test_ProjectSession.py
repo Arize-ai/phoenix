@@ -294,44 +294,31 @@ class TestProjectSession:
     ) -> None:
         project_session = _data.project_sessions[0]
         context = await self._node("sessionEvaluationContext", project_session, httpx_client)
-        assert set(context) == {"input", "output", "session"}
+        assert set(context) == {"input", "output", "metadata"}
+        assert context["input"] == _LONG_FIRST_INPUT
         assert context["output"] == _LONG_LAST_OUTPUT
-        assert [(turn["input"], turn["output"]) for turn in context["session"]["turns"]] == [
+        metadata = context["metadata"]
+        assert set(metadata) == set(SESSION_BOUND_VARIABLE_NAMES) | {"session"}
+        assert [(turn["input"], turn["output"]) for turn in metadata["session"]["turns"]] == [
             (_LONG_FIRST_INPUT, "321"),
             ("1234", _LONG_LAST_OUTPUT),
         ]
-        assert context["session"] == {
+        assert metadata["session"] == {
             "session_id": project_session.session_id,
             "start_time": project_session.start_time.isoformat(),
             "end_time": project_session.end_time.isoformat(),
             "duration_ms": 0.0,
-            "turns": context["session"]["turns"],
+            "turns": metadata["session"]["turns"],
         }
-        assert context["input"] == context["session"]
-
-    async def test_session_evaluation_bound_variables(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project_session = _data.project_sessions[0]
-        bound_variables = await self._node(
-            "sessionEvaluationBoundVariables", project_session, httpx_client
-        )
-        assert set(bound_variables) == set(SESSION_BOUND_VARIABLE_NAMES)
-        assert bound_variables["session_id"] == project_session.session_id
-        assert bound_variables["duration_ms"] == 0.0
-        assert bound_variables["first_input"] == _LONG_FIRST_INPUT
-        assert bound_variables["last_output"] == _LONG_LAST_OUTPUT
-        assert bound_variables["num_traces"] == 2
-        assert bound_variables["num_traces_with_error"] == 1
-        assert bound_variables["token_count_prompt"] == 4
-        assert bound_variables["token_count_completion"] == 6
-        assert bound_variables["token_count_total"] == 10
-        assert bound_variables["llm_span_count"] == 2
-        assert bound_variables["tool_span_count"] == 0
-        assert bound_variables["total_cost"] == 0
-        assert bound_variables["user_id"] is None
+        assert metadata["num_traces"] == 2
+        assert metadata["num_traces_with_error"] == 1
+        assert metadata["token_count_prompt"] == 4
+        assert metadata["token_count_completion"] == 6
+        assert metadata["token_count_total"] == 10
+        assert metadata["llm_span_count"] == 2
+        assert metadata["tool_span_count"] == 0
+        assert metadata["total_cost"] == 0
+        assert metadata["user_id"] is None
 
     async def test_session_evaluation_context_is_null_when_content_is_incomplete(
         self,

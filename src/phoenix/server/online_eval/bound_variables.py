@@ -1,10 +1,10 @@
-"""Values an online evaluator binds by name without an input mapping.
+"""The scalar values an evaluation context carries under ``metadata``.
 
 The vocabulary is the filter language's own scalar names for each grain, so a
-name that works in a project's filter condition also works as a template
-variable or a code-evaluator parameter. Values come from the same builders the
-filter language compiles against, which is what keeps a preview, a filter, and
-an evaluation agreeing on what ``first_input`` or ``num_traces`` means.
+name that works in a project's filter condition also names a value the
+evaluator receives. Values come from the same builders the filter language
+compiles against, which is what keeps a preview, a filter, and an evaluation
+agreeing on what ``first_input`` or ``num_traces`` means.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain
-from typing import Any, Collection, Iterable, Mapping
+from typing import Any, Collection, Iterable
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,12 +25,8 @@ from phoenix.db.session_aggregates import (
     earliest_root_span_by_session,
     root_span_io_value_by_session,
 )
-from phoenix.db.types.evaluators import InputMapping
 from phoenix.trace.dsl.filter import SPAN_BINDINGS
 from phoenix.trace.dsl.session_filter import _AGGREGATE_SPECS, SESSION_BINDINGS
-
-INTERFACE_SLOT_NAMES = frozenset({"input", "output"})
-"""The context's own slots, which an evaluator already binds from the context."""
 
 _ROOT_SPAN_IO_NAMES: tuple[RootSpanIOKind, ...] = ("first_input", "last_output")
 _USER_ID = "user_id"
@@ -55,71 +51,6 @@ SESSION_BOUND_VARIABLE_NAMES = _bindable(
     )
 )
 BOUND_VARIABLE_NAMES = SPAN_BOUND_VARIABLE_NAMES | SESSION_BOUND_VARIABLE_NAMES
-
-
-def unmapped_bound_variable_names(
-    *,
-    input_schema: Mapping[str, Any],
-    input_mapping: InputMapping,
-    evaluation_target: str,
-) -> frozenset[str]:
-    """Variables an evaluator declares that this grain can supply and nothing else binds.
-
-    An explicit mapping entry wins, then the context slot of the same name, and
-    only what neither of those covers is bound from the grain vocabulary.
-    """
-    if evaluation_target == "SPAN":
-        vocabulary = SPAN_BOUND_VARIABLE_NAMES
-    elif evaluation_target == "SESSION":
-        vocabulary = SESSION_BOUND_VARIABLE_NAMES
-    else:
-        return frozenset()
-    mapped = set(input_mapping.path_mapping or {}) | set(input_mapping.literal_mapping or {})
-    return frozenset(
-        name
-        for name in input_schema.get("properties", {})
-        if name in vocabulary and name not in mapped and name not in INTERFACE_SLOT_NAMES
-    )
-
-
-def span_bound_variables(entity: Mapping[str, Any]) -> dict[str, Any]:
-    """The span vocabulary, read from the ``span`` entity document of a span context."""
-    return {name: entity[name] for name in sorted(SPAN_BOUND_VARIABLE_NAMES)}
-
-
-def bind_context_bound_variables(
-    *,
-    context: Mapping[str, Any],
-    input_schema: Mapping[str, Any],
-    input_mapping: InputMapping,
-) -> InputMapping:
-    """Bind declared-but-unmapped vocabulary names from the entity document itself.
-
-    The preview path's counterpart of the executor's hydration-time binding: the
-    entity documents a preview receives already carry the vocabulary values the
-    online path computes (the span document holds its scalars; the session
-    document is materialized with its aggregates), so unmapped names are read
-    from the document rather than recomputed. A name the document does not hold
-    stays unbound and fails the same way it would online.
-    """
-    if isinstance(context.get("span"), Mapping):
-        evaluation_target, entity = "SPAN", context["span"]
-    elif isinstance(context.get("session"), Mapping):
-        evaluation_target, entity = "SESSION", context["session"]
-    else:
-        return input_mapping
-    names = unmapped_bound_variable_names(
-        input_schema=input_schema,
-        input_mapping=input_mapping,
-        evaluation_target=evaluation_target,
-    )
-    available = {name: entity[name] for name in sorted(names) if name in entity}
-    if not available:
-        return input_mapping
-    return InputMapping(
-        path_mapping=dict(input_mapping.path_mapping or {}),
-        literal_mapping={**available, **(input_mapping.literal_mapping or {})},
-    )
 
 
 def session_duration_ms(start_time: datetime, end_time: datetime) -> float:

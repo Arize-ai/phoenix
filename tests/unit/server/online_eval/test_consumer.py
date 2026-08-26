@@ -1,10 +1,9 @@
 import asyncio
-import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
 from secrets import token_hex
-from typing import Any, AsyncIterator, Optional, Sequence, cast
+from typing import Any, AsyncIterator, Mapping, Optional, Sequence, cast
 from unittest.mock import Mock
 
 import httpx
@@ -56,7 +55,6 @@ from phoenix.server.online_eval.bound_variables import (
     SESSION_BOUND_VARIABLE_NAMES,
     SPAN_BOUND_VARIABLE_NAMES,
     load_session_bound_variables,
-    span_bound_variables,
 )
 from phoenix.server.online_eval.consumer import (
     OnlineEvalConsumer,
@@ -615,7 +613,7 @@ async def _annotations(db: DbSessionFactory) -> list[models.SpanAnnotation]:
         return list(await session.scalars(select(models.SpanAnnotation)))
 
 
-async def test_span_eval_context_binds_one_span_document_to_input_and_span(
+async def test_span_eval_context_roots_the_span_document_under_metadata(
     db: DbSessionFactory,
 ) -> None:
     attributes = {
@@ -631,10 +629,13 @@ async def test_span_eval_context_binds_one_span_document_to_input_and_span(
 
         context = span_eval_context(span, trace_id=trace.trace_id)
 
-    assert set(context) == {"input", "output", "span"}
-    assert context["input"] is context["span"]
+    assert set(context) == {"input", "output", "metadata"}
+    assert context["input"] == "span input"
     assert context["output"] == "span output"
-    assert context["span"] == {
+    metadata = context["metadata"]
+    assert set(metadata) == SPAN_BOUND_VARIABLE_NAMES | {"span"}
+    assert metadata["latency_ms"] == span.latency_ms
+    assert metadata["span"] == {
         "span_id": span.span_id,
         "trace_id": trace.trace_id,
         "parent_id": None,
@@ -653,7 +654,6 @@ async def test_span_eval_context_binds_one_span_document_to_input_and_span(
         "attributes": attributes,
         "events": [],
     }
-    assert set(span_bound_variables(context["span"])) == SPAN_BOUND_VARIABLE_NAMES
 
 
 async def _session_annotations(
@@ -805,7 +805,12 @@ def _unsaved_project_session(
     )
 
 
-def test_session_eval_context_binds_one_session_document_to_input_and_session() -> None:
+def _session_vocabulary(**overrides: Any) -> dict[str, Any]:
+    """A full session vocabulary, the shape `load_session_bound_variables` returns."""
+    return {name: None for name in SESSION_BOUND_VARIABLE_NAMES} | overrides
+
+
+def test_session_eval_context_roots_the_session_document_under_metadata() -> None:
     project_session = _unsaved_project_session()
     turns = [
         {
@@ -821,13 +826,16 @@ def test_session_eval_context_binds_one_session_document_to_input_and_session() 
         project_session=project_session,
         turns=turns,
         policy=SessionEvalPolicy(),
+        vocabulary=_session_vocabulary(first_input="question-0", last_output="answer-2"),
         total_eligible_root_count=5,
     )
 
-    assert set(loaded.context) == {"input", "output", "session"}
-    assert loaded.context["input"] is loaded.context["session"]
+    assert set(loaded.context) == {"input", "output", "metadata"}
+    assert loaded.context["input"] == "question-0"
     assert loaded.context["output"] == "answer-2"
-    assert loaded.context["session"] == {
+    metadata = loaded.context["metadata"]
+    assert set(metadata) == SESSION_BOUND_VARIABLE_NAMES | {"session"}
+    assert metadata["session"] == {
         "session_id": project_session.session_id,
         "start_time": project_session.start_time.isoformat(),
         "end_time": project_session.end_time.isoformat(),
@@ -845,20 +853,15 @@ def test_session_eval_context_binds_one_session_document_to_input_and_session() 
         "last_loaded_event_time": "2026-01-03T00:00:00+00:00",
     }
 
-    no_output = session_eval_context(
-        project_session=project_session,
-        turns=[{"input": "question", "output": None, "metadata": {}}],
-        policy=SessionEvalPolicy(),
-    )
-    assert no_output.context["output"] is None
-
     empty = session_eval_context(
         project_session=project_session,
         turns=[],
         policy=SessionEvalPolicy(),
+        vocabulary=_session_vocabulary(),
     )
+    assert empty.context["input"] is None
     assert empty.context["output"] is None
-    assert empty.context["session"]["turns"] == []
+    assert empty.context["metadata"]["session"]["turns"] == []
     assert empty.applied_policy["total_eligible_root_count"] == 0
 
 
@@ -931,7 +934,7 @@ async def test_load_session_bound_variables_reads_filter_language_values(
     assert resolved[empty_session.id]["first_input"] is None
 
 
-async def test_span_entity_root_path_mapping_binds_attribute(
+async def test_span_entity_path_mapping_binds_attribute(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with db() as session:
@@ -947,7 +950,7 @@ async def test_span_entity_root_path_mapping_binds_attribute(
         project.id,
         template_content="Model: {{input}}",
         criteria_input_mapping=InputMapping(
-            path_mapping={"input": "span.attributes.llm.model_name"},
+            path_mapping={"input": "metadata.span.attributes.llm.model_name"},
             literal_mapping={},
         ),
     )
@@ -963,7 +966,7 @@ async def test_span_entity_root_path_mapping_binds_attribute(
     assert len(await _annotations(db)) == 1
 
 
-async def test_unmapped_input_binds_the_whole_span_document_as_json(
+async def test_unmapped_input_binds_the_span_input_value(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     attributes = {"input": {"value": "hi"}, "llm": {"model_name": "gpt-4o-mini"}}
@@ -984,14 +987,11 @@ async def test_unmapped_input_binds_the_whole_span_document_as_json(
     await consumer._cycle()
 
     assert len(client.requests) == 1
-    rendered = json.loads(client.requests[0]["messages"][0]["content"])
-    assert rendered["span_id"] == span.span_id
-    assert rendered["attributes"] == attributes
-    assert rendered["events"] == []
+    assert client.requests[0]["messages"][0]["content"] == "hi"
     assert len(await _annotations(db)) == 1
 
 
-async def test_span_bound_variable_binds_without_input_mapping(
+async def test_span_bound_variable_binds_through_metadata(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     start_time = datetime.now(timezone.utc)
@@ -1008,6 +1008,10 @@ async def test_span_bound_variable_binds_without_input_mapping(
         db,
         project.id,
         template_content="Latency: {{latency_ms}}",
+        criteria_input_mapping=InputMapping(
+            path_mapping={"latency_ms": "metadata.latency_ms"},
+            literal_mapping={},
+        ),
     )
     await _materialize_unit(db, span.id, evaluator_id, criteria_id)
     client = _StubLLMClient()
@@ -1019,40 +1023,6 @@ async def test_span_bound_variable_binds_without_input_mapping(
     assert len(client.requests) == 1
     assert client.requests[0]["messages"][0]["content"] == "Latency: 2000.0"
     assert len(await _annotations(db)) == 1
-
-
-async def test_session_bound_variable_binds_without_input_mapping(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project)
-        trace = await _add_trace(session, project, project_session)
-        await _add_span(
-            session,
-            trace,
-            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
-        )
-    evaluator_id, criteria_id = await _seed_llm_criteria(
-        db,
-        project.id,
-        evaluation_target="SESSION",
-        template_content="Traces: {{num_traces}}",
-    )
-    await _materialize_session_unit(db, project_session.id, evaluator_id, criteria_id)
-    client = _StubLLMClient()
-    _patch_playground_client(monkeypatch, client)
-
-    consumer = OnlineEvalConsumer(
-        db,
-        decrypt=lambda value: value,
-        evaluation_target="SESSION",
-    )
-    await consumer._cycle()
-
-    assert len(client.requests) == 1
-    assert client.requests[0]["messages"][0]["content"] == "Traces: 1"
-    assert len(await _session_annotations(db)) == 1
 
 
 async def test_session_entity_turns_path_mapping_binds_a_turn(
@@ -1073,7 +1043,7 @@ async def test_session_entity_turns_path_mapping_binds_a_turn(
         evaluation_target="SESSION",
         template_content="First turn: {{question}}",
         criteria_input_mapping=InputMapping(
-            path_mapping={"question": "session.turns[0].input"},
+            path_mapping={"question": "metadata.session.turns[0].input"},
             literal_mapping={},
         ),
     )
@@ -1093,7 +1063,7 @@ async def test_session_entity_turns_path_mapping_binds_a_turn(
     assert len(await _session_annotations(db)) == 1
 
 
-async def test_unmapped_metadata_fails_by_name_and_a_mapped_one_succeeds(
+async def test_a_vocabulary_name_binds_only_through_a_metadata_path(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with db() as session:
@@ -1109,15 +1079,15 @@ async def test_unmapped_metadata_fails_by_name_and_a_mapped_one_succeeds(
         db,
         project.id,
         evaluation_target="SESSION",
-        template_content="Metadata: {{metadata}}",
+        template_content="Traces: {{num_traces}}",
     )
     mapped_evaluator_id, mapped_criteria_id = await _seed_llm_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
-        template_content="Metadata: {{metadata}}",
+        template_content="Traces: {{num_traces}}",
         criteria_input_mapping=InputMapping(
-            path_mapping={"metadata": "$.session.turns"},
+            path_mapping={"num_traces": "$.metadata.num_traces"},
             literal_mapping={},
         ),
     )
@@ -1133,7 +1103,8 @@ async def test_unmapped_metadata_fails_by_name_and_a_mapped_one_succeeds(
         mapped_evaluator_id,
         mapped_criteria_id,
     )
-    _patch_playground_client(monkeypatch, _StubLLMClient())
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
 
     consumer = OnlineEvalConsumer(
         db,
@@ -1145,8 +1116,10 @@ async def test_unmapped_metadata_fails_by_name_and_a_mapped_one_succeeds(
     unmapped_unit = await _get_session_unit(db, unmapped_unit_id)
     assert unmapped_unit.status == "ERROR"
     assert unmapped_unit.error is not None
-    assert "metadata" in unmapped_unit.error
+    assert "num_traces" in unmapped_unit.error
     assert (await _get_session_unit(db, mapped_unit_id)).status == "DONE"
+    assert len(client.requests) == 1
+    assert client.requests[0]["messages"][0]["content"] == "Traces: 1"
     assert len(await _session_annotations(db)) == 1
 
 
@@ -1275,10 +1248,17 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
+        session_vocabularies: Mapping[int, Mapping[str, Any]],
     ) -> Any:
         if unit.target_rowid == bad_span.id:
             await session.execute(text("SELECT 1 / 0"))
-        return await original(executor, session, unit, project_id=project_id)
+        return await original(
+            executor,
+            session,
+            unit,
+            project_id=project_id,
+            session_vocabularies=session_vocabularies,
+        )
 
     monkeypatch.setattr(OnlineEvalExecutor, "_hydrate_target_context", _fail_one_target)
     consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
@@ -1464,8 +1444,8 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
         evaluation_target="SESSION",
         template_content=(
             "OUTPUT={{output}}\n"
-            "TURNS={{#session.turns}}{{input}}/{{output}}/{{metadata.turn}};"
-            "{{/session.turns}}"
+            "TURNS={{#metadata.session.turns}}{{input}}/{{output}}/{{metadata.turn}};"
+            "{{/metadata.session.turns}}"
         ),
     )
     unit_id, fingerprint = await _materialize_session_unit(
@@ -1488,8 +1468,11 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
 
     assert (await _get_session_unit(db, unit_id)).status == "DONE"
     assert len(client.requests) == 1
+    # `output` is the session's last root-span output, which the turn list does not
+    # repeat: a trace with two root spans contributes only its earliest as a turn.
     assert client.requests[0]["messages"][0]["content"] == (
-        "OUTPUT=second answer\nTURNS=first question/first answer/1;second question/second answer/2;"
+        "OUTPUT=duplicate root answer\n"
+        "TURNS=first question/first answer/1;second question/second answer/2;"
     )
     (annotation,) = await _session_annotations(db)
     assert annotation.project_session_id == project_session.id
@@ -1940,7 +1923,7 @@ async def test_llm_criteria_input_mapping_override_is_used_during_execution(
         project.id,
         template_content="Question: {{question}}\nAnswer: {{answer}}",
         criteria_input_mapping=InputMapping(
-            path_mapping={"question": "span.attributes.remapped.question"},
+            path_mapping={"question": "metadata.span.attributes.remapped.question"},
             literal_mapping={"answer": "literal answer"},
         ),
     )
@@ -1982,7 +1965,7 @@ async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
             sampling_rate=1.0,
             evaluation_target="SPAN",
             input_mapping=InputMapping(
-                path_mapping={"text": "span.attributes.remapped.text"},
+                path_mapping={"text": "metadata.span.attributes.remapped.text"},
                 literal_mapping={"words": "mapped value"},
             ),
         )
@@ -2052,7 +2035,7 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
         db,
         project.id,
         criteria_input_mapping=InputMapping(
-            path_mapping={"output": "span.attributes.remapped.value"},
+            path_mapping={"output": "metadata.span.attributes.remapped.value"},
             literal_mapping={"metadata": "project_evaluator literal"},
         ),
     )

@@ -48,10 +48,10 @@ from phoenix.server.dml_event import (
     SpanAnnotationInsertEvent,
 )
 from phoenix.server.online_eval.bound_variables import (
+    SESSION_BOUND_VARIABLE_NAMES,
+    SPAN_BOUND_VARIABLE_NAMES,
     load_session_bound_variables,
     session_duration_ms,
-    span_bound_variables,
-    unmapped_bound_variable_names,
 )
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit, EvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
@@ -188,8 +188,8 @@ class SessionEvalContext:
 
 
 def span_eval_context(span: models.Span, *, trace_id: str) -> dict[str, Any]:
-    """Span context. ``input`` and ``span`` hold the same document, not two copies:
-    the whole context is serialized into the evaluator's input-mapping trace span."""
+    """Span context: the span's own input and output, and everything else under
+    ``metadata`` — the filter language's scalar names beside the span record."""
     entity = {
         "span_id": span.span_id,
         "trace_id": trace_id,
@@ -210,9 +210,12 @@ def span_eval_context(span: models.Span, *, trace_id: str) -> dict[str, Any]:
         "events": span.events,
     }
     return {
-        "input": entity,
+        "input": span.input_value,
         "output": span.output_value,
-        "span": entity,
+        "metadata": {
+            **{name: entity[name] for name in sorted(SPAN_BOUND_VARIABLE_NAMES)},
+            "span": entity,
+        },
     }
 
 
@@ -221,11 +224,17 @@ def session_eval_context(
     project_session: models.ProjectSession,
     turns: Sequence[dict[str, Any]],
     policy: SessionEvalPolicy,
+    vocabulary: Mapping[str, Any],
     total_eligible_root_count: Optional[int] = None,
 ) -> SessionEvalContext:
-    """Session context. ``input`` and ``session`` hold the same document, not two
-    copies. The applied policy is returned beside the context rather than inside it:
-    it is pipeline bookkeeping, and every top-level context key is bindable."""
+    """Session context. ``input`` and ``output`` bind the values the session filter
+    language spells ``first_input`` and ``last_output``, so one concept keeps one
+    spelling across a filter, a preview, and an evaluation. ``vocabulary`` must
+    carry every name in ``SESSION_BOUND_VARIABLE_NAMES``.
+
+    The applied policy is returned beside the context rather than inside it: it is
+    pipeline bookkeeping, and every top-level context key is bindable.
+    """
     total_root_count = (
         len(turns) if total_eligible_root_count is None else total_eligible_root_count
     )
@@ -251,9 +260,9 @@ def session_eval_context(
     }
     return SessionEvalContext(
         context={
-            "input": entity,
-            "output": turns[-1]["output"] if turns else None,
-            "session": entity,
+            "input": vocabulary["first_input"],
+            "output": vocabulary["last_output"],
+            "metadata": {**vocabulary, "session": entity},
         },
         applied_policy=applied_policy,
     )
@@ -265,12 +274,14 @@ async def load_session_eval_context(
     project_session_rowid: int,
     project_id: int,
     policy: SessionEvalPolicy,
+    vocabulary: Mapping[str, Any],
 ) -> SessionEvalContext:
     """The session's evaluation context, exactly as an online evaluation reads it.
 
     The executor and the GraphQL preview field both call this, so what an author
     previews is the same session document, turn ordering, and turn cap the runtime
-    binds against.
+    binds against. ``vocabulary`` is supplied by the caller because the executor
+    reads it for a whole batch of sessions at once.
     """
     project_session = await session.get(models.ProjectSession, project_session_rowid)
     if project_session is None:
@@ -340,6 +351,7 @@ async def load_session_eval_context(
         project_session=project_session,
         turns=turns,
         policy=policy,
+        vocabulary=vocabulary,
         total_eligible_root_count=total_eligible_root_count,
     )
 
@@ -537,6 +549,28 @@ class OnlineEvalExecutor:
                 continue
             outcomes.append(None)
 
+        session_vocabularies: dict[int, dict[str, Any]] = {}
+        session_indices = [
+            index
+            for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True))
+            if outcome is None and unit.evaluation_target == "SESSION"
+        ]
+        if session_indices:
+            try:
+                # One savepointed batch read: a failure here is infrastructure,
+                # not a property of any one session's data.
+                async with session.begin_nested():
+                    session_vocabularies = await load_session_bound_variables(
+                        session,
+                        project_session_rowids={
+                            units[index].target_rowid for index in session_indices
+                        },
+                        names=SESSION_BOUND_VARIABLE_NAMES,
+                    )
+            except Exception as error:
+                for index in session_indices:
+                    outcomes[index] = SharedHydrationFailure(error)
+
         contexts: list[Optional[dict[str, Any]]] = [None for _ in units]
         applied_policies: list[Optional[dict[str, Any]]] = [None for _ in units]
         input_mappings: list[Optional[InputMapping]] = [None for _ in units]
@@ -550,6 +584,7 @@ class OnlineEvalExecutor:
                         session,
                         unit,
                         project_id=project_evaluator.project_id,
+                        session_vocabularies=session_vocabularies,
                     )
             except Exception as error:
                 outcomes[index] = error
@@ -599,49 +634,6 @@ class OnlineEvalExecutor:
                     else HydrationFailure(HydrationFailureReason.EVALUATOR_VERSION_MISSING)
                 )
 
-        bound_variable_names: list[frozenset[str]] = [frozenset() for _ in units]
-        for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
-            if outcome is not None:
-                continue
-            _, evaluator = project_evaluator_pairs[unit.project_evaluator_id]
-            evaluator_snapshot_outcome = evaluator_snapshots[evaluator.id]
-            snapshot_input_mapping = input_mappings[index]
-            if (
-                isinstance(evaluator_snapshot_outcome, (HydrationFailure, Exception))
-                or snapshot_input_mapping is None
-            ):
-                continue
-            bound_variable_names[index] = unmapped_bound_variable_names(
-                input_schema=getattr(evaluator_snapshot_outcome.evaluator, "input_schema", {})
-                or {},
-                input_mapping=snapshot_input_mapping,
-                evaluation_target=unit.evaluation_target,
-            )
-
-        session_bound_variables: dict[int, dict[str, Any]] = {}
-        session_indices = [
-            index
-            for index, unit in enumerate(units)
-            if unit.evaluation_target == "SESSION" and bound_variable_names[index]
-        ]
-        if session_indices:
-            try:
-                # One savepointed batch read: a failure here is infrastructure,
-                # not a property of any one session's data.
-                async with session.begin_nested():
-                    session_bound_variables = await load_session_bound_variables(
-                        session,
-                        project_session_rowids={
-                            units[index].target_rowid for index in session_indices
-                        },
-                        names=frozenset().union(
-                            *(bound_variable_names[index] for index in session_indices)
-                        ),
-                    )
-            except Exception as error:
-                for index in session_indices:
-                    outcomes[index] = SharedHydrationFailure(error)
-
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
@@ -660,19 +652,6 @@ class OnlineEvalExecutor:
             if snapshot_input_mapping is None:
                 outcomes[index] = RuntimeError("Input mapping hydration did not produce a result")
                 continue
-            if requested_names := bound_variable_names[index]:
-                available = (
-                    span_bound_variables(snapshot_context["span"])
-                    if unit.evaluation_target == "SPAN"
-                    else session_bound_variables.get(unit.target_rowid, {})
-                )
-                snapshot_input_mapping = InputMapping(
-                    path_mapping=dict(snapshot_input_mapping.path_mapping or {}),
-                    literal_mapping={
-                        **{name: available[name] for name in requested_names if name in available},
-                        **(snapshot_input_mapping.literal_mapping or {}),
-                    },
-                )
             snapshot_applied_policy = applied_policies[index]
             annotation_metadata: dict[str, Any] = (
                 {_SESSION_POLICY_METADATA_KEY: snapshot_applied_policy}
@@ -718,6 +697,7 @@ class OnlineEvalExecutor:
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
+        session_vocabularies: Mapping[int, Mapping[str, Any]],
     ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
         """The bindable context, plus the applied session policy for a SESSION unit."""
         if unit.evaluation_target == "SPAN":
@@ -741,6 +721,7 @@ class OnlineEvalExecutor:
             project_session_rowid=project_session.id,
             project_id=project_id,
             policy=self._session_policy,
+            vocabulary=session_vocabularies[unit.target_rowid],
         )
         if not has_eligible_root_turns(loaded.applied_policy):
             return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)

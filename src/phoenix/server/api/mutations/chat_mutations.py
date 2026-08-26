@@ -57,7 +57,6 @@ from phoenix.server.monty_runtime import (
     MontyWorkerCrashed,
     MontyWorkerTurnTimedOut,
 )
-from phoenix.server.online_eval.bound_variables import bind_context_bound_variables
 from phoenix.server.online_eval.session_policy import ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION
 from phoenix.server.sandbox import (
     MissingSecretError,
@@ -273,11 +272,7 @@ class ChatCompletionMutationMixin:
 
                 eval_results = await builtin_evaluator.evaluate(
                     context=context,
-                    input_mapping=bind_context_bound_variables(
-                        context=context,
-                        input_schema=builtin_evaluator.input_schema,
-                        input_mapping=input_mapping.to_orm(),
-                    ),
+                    input_mapping=input_mapping.to_orm(),
                     name=builtin_evaluator.name,
                     output_configs=builtin_evaluator.output_configs,
                 )
@@ -334,11 +329,7 @@ class ChatCompletionMutationMixin:
 
                 eval_results = await evaluator.evaluate(
                     context=context,
-                    input_mapping=bind_context_bound_variables(
-                        context=context,
-                        input_schema=evaluator.input_schema,
-                        input_mapping=input_mapping.to_orm(),
-                    ),
+                    input_mapping=input_mapping.to_orm(),
                     name=evaluator.name,
                     output_configs=categorical_configs,
                 )
@@ -454,11 +445,7 @@ class ChatCompletionMutationMixin:
                 eval_results = await _evaluate_code_preview(
                     runner,
                     context=context,
-                    input_mapping=bind_context_bound_variables(
-                        context=context,
-                        input_schema=runner.input_schema,
-                        input_mapping=input_mapping.to_orm(),
-                    ),
+                    input_mapping=input_mapping.to_orm(),
                     evaluator_name=evaluator_name,
                     output_configs=output_configs,
                 )
@@ -516,11 +503,7 @@ class ChatCompletionMutationMixin:
                 eval_results = await _evaluate_code_preview(
                     runner,
                     context=context,
-                    input_mapping=bind_context_bound_variables(
-                        context=context,
-                        input_schema=runner.input_schema,
-                        input_mapping=input_mapping.to_orm(),
-                    ),
+                    input_mapping=input_mapping.to_orm(),
                     evaluator_name=evaluator_name,
                     output_configs=output_configs,
                 )

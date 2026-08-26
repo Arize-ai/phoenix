@@ -17,7 +17,6 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
-from phoenix.server.online_eval.bound_variables import span_bound_variables
 from phoenix.server.online_eval.executor import span_eval_context
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
@@ -173,7 +172,6 @@ async def test_span_fields(
           traceId
         }
         evaluationContext
-        evaluationBoundVariables
         trace {
           id
           numSpans
@@ -265,9 +263,8 @@ async def test_span_fields(
             db_span,
             trace_id=db_traces[db_span.trace_rowid].trace_id,
         )
-        assert set(span["evaluationContext"]) == {"input", "output", "span"}
+        assert set(span["evaluationContext"]) == {"input", "output", "metadata"}
         assert span["evaluationContext"] == _as_stored(expected_context)
-        assert span["evaluationBoundVariables"] == span_bound_variables(expected_context["span"])
         assert isinstance(span["attributes"], str) and span["attributes"]
         assert json.loads(span["attributes"]) == db_span.attributes
         assert span["tokenCountPrompt"] == db_span.llm_token_count_prompt

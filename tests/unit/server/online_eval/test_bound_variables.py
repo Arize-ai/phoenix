@@ -1,24 +1,27 @@
-"""The authoring surface mirrors this module's vocabulary, and the two must agree.
+"""The grain vocabularies and everything that has to agree with them.
 
 ``js/app/src/pages/project/evaluators/evaluatorBoundVariables.ts`` repeats the
 names in :mod:`phoenix.server.online_eval.bound_variables` so the evaluator
-editor can order and describe them without asking the server. Nothing generates
-one list from the other, so these tests are the seam that holds them together:
-a name the filter language gains or loses changes the derived vocabulary here
-and fails until the frontend list is edited to match.
+editor can order and describe them without asking the server, and an evaluation
+context reads the span names straight off the span document. Nothing generates
+any of those lists from another, so these tests are the seam that holds them
+together: a name the filter language gains or loses fails here until the
+frontend list and the span document are edited to match.
 """
 
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any, Mapping
 
-from phoenix.db.types.evaluators import InputMapping
+from phoenix.db import models
 from phoenix.server.online_eval.bound_variables import (
     SESSION_BOUND_VARIABLE_NAMES,
     SPAN_BOUND_VARIABLE_NAMES,
-    bind_context_bound_variables,
 )
+from phoenix.server.online_eval.executor import span_eval_context
 
 _MIRROR = (
     Path(__file__).parents[4]
@@ -61,55 +64,42 @@ def test_session_vocabulary_matches_the_authoring_surface() -> None:
     )
 
 
-def _schema(*names: str) -> dict[str, object]:
-    return {"properties": {name: {} for name in names}}
+def _span_entity() -> Mapping[str, Any]:
+    """The ``metadata.span`` document, built off an unsaved span."""
+    start_time = datetime.now(timezone.utc)
+    span = models.Span(
+        span_id="span-under-test",
+        parent_id=None,
+        name="span",
+        span_kind="LLM",
+        start_time=start_time,
+        end_time=start_time + timedelta(seconds=1),
+        attributes={},
+        events=[],
+        status_code="OK",
+        status_message="",
+        cumulative_error_count=0,
+        cumulative_llm_token_count_prompt=0,
+        cumulative_llm_token_count_completion=0,
+    )
+    entity: Mapping[str, Any] = span_eval_context(span, trace_id="trace-under-test")["metadata"][
+        "span"
+    ]
+    return entity
 
 
-class TestBindContextBoundVariables:
-    """The preview path binds unmapped vocabulary names from the entity document."""
+def test_every_span_name_is_readable_from_the_span_document() -> None:
+    missing = set(SPAN_BOUND_VARIABLE_NAMES) - set(_span_entity())
+    assert not missing, (
+        f"The span document has no field for {sorted(missing)}. A span context reads "
+        "each vocabulary name straight off that document, so a name the filter "
+        "language gains needs the matching field added beside it."
+    )
 
-    def test_span_names_bind_from_the_span_document(self) -> None:
-        bound = bind_context_bound_variables(
-            context={"span": {"latency_ms": 12.5, "span_kind": "LLM", "output_value": "x"}},
-            input_schema=_schema("output", "latency_ms", "span_kind"),
-            input_mapping=InputMapping(path_mapping={}, literal_mapping={}),
-        )
-        assert bound.literal_mapping == {"latency_ms": 12.5, "span_kind": "LLM"}
 
-    def test_session_names_bind_from_the_session_document(self) -> None:
-        bound = bind_context_bound_variables(
-            context={"session": {"num_traces": 3, "first_input": "hi", "turns": []}},
-            input_schema=_schema("output", "num_traces", "first_input"),
-            input_mapping=InputMapping(path_mapping={}, literal_mapping={}),
-        )
-        assert bound.literal_mapping == {"first_input": "hi", "num_traces": 3}
-
-    def test_an_explicit_mapping_wins_over_the_document(self) -> None:
-        original = InputMapping(
-            path_mapping={"latency_ms": "span.attributes.custom"},
-            literal_mapping={"span_kind": "CHAIN"},
-        )
-        bound = bind_context_bound_variables(
-            context={"span": {"latency_ms": 12.5, "span_kind": "LLM"}},
-            input_schema=_schema("latency_ms", "span_kind"),
-            input_mapping=original,
-        )
-        assert bound is original
-
-    def test_a_name_the_document_lacks_stays_unbound(self) -> None:
-        original = InputMapping(path_mapping={}, literal_mapping={})
-        bound = bind_context_bound_variables(
-            context={"span": {"span_kind": "LLM"}},
-            input_schema=_schema("latency_ms"),
-            input_mapping=original,
-        )
-        assert bound is original
-
-    def test_a_context_without_an_entity_document_is_untouched(self) -> None:
-        original = InputMapping(path_mapping={}, literal_mapping={})
-        bound = bind_context_bound_variables(
-            context={"input": "question", "output": "answer"},
-            input_schema=_schema("latency_ms"),
-            input_mapping=original,
-        )
-        assert bound is original
+def test_neither_grain_root_name_collides_with_its_vocabulary() -> None:
+    assert "span" not in SPAN_BOUND_VARIABLE_NAMES
+    assert "session" not in SESSION_BOUND_VARIABLE_NAMES, (
+        "A grain root shares `metadata` with the grain vocabulary, so a vocabulary "
+        "name spelled like the root would shadow the record. Rename the new name."
+    )
