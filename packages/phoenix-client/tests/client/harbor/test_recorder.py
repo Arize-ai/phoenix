@@ -643,6 +643,7 @@ class TestRecordExperimentRun:
         async def no_sleep(delay: float) -> None:
             delays.append(delay)
 
+        # Freezing wall time would not bypass asyncio.sleep or expose the requested delay.
         monkeypatch.setattr("phoenix.client.harbor._recorder.asyncio.sleep", no_sleep)
         recorded = await recorder(client).record_experiment_run(
             plan=job,

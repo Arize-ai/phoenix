@@ -491,6 +491,7 @@ async def _retry_transient_write(
     *,
     description: str,
 ) -> _T:
+    """Retry transient writes that HTTPX's connection-only transport retries do not cover."""
     delay = _INITIAL_RETRY_DELAY_SECONDS
     attempt = 1
     while True:

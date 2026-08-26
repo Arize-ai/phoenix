@@ -355,6 +355,42 @@ class TestJobStart:
             "infra_ok"
         ]
 
+    async def test_multi_step_strategy_reaches_trial_reward_metadata(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        wired: FakeClient,
+    ) -> None:
+        multi_step_plan = replace(
+            PLAN,
+            tasks=(
+                replace(
+                    PLAN.tasks[0],
+                    steps=(StepRecord("grade", "check"),),
+                    multi_step_reward_strategy="final",
+                ),
+            ),
+        )
+
+        def _build(job: object, *, dataset_override: str | None = None) -> JobPlan:
+            del job, dataset_override
+            return multi_step_plan
+
+        monkeypatch.setattr("phoenix.client.harbor._plugin.build_job_plan", _build)
+        plugin = PhoenixJobPlugin()
+        job = FakeJob()
+        await plugin.on_job_start(job)
+        await require_hook(job.ended_hook)(hook_event(trial_result(rewards={"accuracy": 0.8})))
+
+        accuracy = next(
+            evaluation
+            for evaluation in wired.experiments.logged_evaluations
+            if evaluation["name"] == "accuracy"
+        )
+        assert accuracy["metadata"] == {
+            "harbor_trial_id": "trial-id",
+            "multi_step_reward_strategy": "final",
+        }
+
     async def test_retryable_attempt_is_not_recorded(self, wired: FakeClient) -> None:
         plugin = PhoenixJobPlugin()
         job = FakeJob(max_retries=1)
