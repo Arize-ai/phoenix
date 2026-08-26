@@ -1,19 +1,76 @@
-# pyright: reportMissingImports=false, reportMissingTypeStubs=false
-# pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
-# pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Extract Phoenix evaluation records from terminal Harbor trial results."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Literal
-
-from harbor.models.trial.result import ExceptionInfo, TimingInfo, TrialResult
+from typing import Any, Literal, Protocol
 
 from phoenix.client.harbor._errors import HarborPluginError
 
 __all__ = ["ExtractedEvaluation", "extract_evaluations"]
+
+
+class _ExceptionInfo(Protocol):
+    @property
+    def exception_type(self) -> str: ...
+
+    @property
+    def exception_message(self) -> str: ...
+
+
+class _TimingInfo(Protocol):
+    @property
+    def started_at(self) -> datetime | None: ...
+
+    @property
+    def finished_at(self) -> datetime | None: ...
+
+
+class _VerifierResult(Protocol):
+    @property
+    def rewards(self) -> Mapping[str, float | int] | None: ...
+
+
+class _StepResult(Protocol):
+    @property
+    def step_name(self) -> str: ...
+
+    @property
+    def verifier_result(self) -> _VerifierResult | None: ...
+
+    @property
+    def exception_info(self) -> _ExceptionInfo | None: ...
+
+    @property
+    def verifier(self) -> _TimingInfo | None: ...
+
+
+class _TrialResult(Protocol):
+    @property
+    def id(self) -> object: ...
+
+    @property
+    def trial_name(self) -> object: ...
+
+    @property
+    def started_at(self) -> datetime | None: ...
+
+    @property
+    def finished_at(self) -> datetime | None: ...
+
+    @property
+    def verifier_result(self) -> _VerifierResult | None: ...
+
+    @property
+    def exception_info(self) -> _ExceptionInfo | None: ...
+
+    @property
+    def step_results(self) -> Sequence[_StepResult] | None: ...
+
+    @property
+    def verifier(self) -> _TimingInfo | None: ...
 
 
 @dataclass(frozen=True)
@@ -30,7 +87,7 @@ class ExtractedEvaluation:
 
 
 def extract_evaluations(
-    trial_result: TrialResult,
+    trial_result: _TrialResult,
     *,
     multi_step_reward_strategy: Literal["mean", "final"] | None = None,
 ) -> tuple[ExtractedEvaluation, ...]:
@@ -99,7 +156,7 @@ def extract_evaluations(
     return tuple(records)
 
 
-def _fallback_time(trial_result: TrialResult) -> datetime:
+def _fallback_time(trial_result: _TrialResult) -> datetime:
     fallback: datetime | None = trial_result.finished_at or trial_result.started_at
     if fallback is None:
         raise HarborPluginError(
@@ -108,13 +165,16 @@ def _fallback_time(trial_result: TrialResult) -> datetime:
     return fallback
 
 
-def _evaluation_times(timing: TimingInfo | None, fallback: datetime) -> tuple[datetime, datetime]:
+def _evaluation_times(
+    timing: _TimingInfo | None,
+    fallback: datetime,
+) -> tuple[datetime, datetime]:
     if timing is None:
         return fallback, fallback
     return timing.started_at or timing.finished_at or fallback, timing.finished_at or fallback
 
 
-def _infrastructure_failures(trial_result: TrialResult) -> list[str]:
+def _infrastructure_failures(trial_result: _TrialResult) -> list[str]:
     failures: list[str] = []
     if trial_result.exception_info is not None:
         failures.append(_format_exception("trial", trial_result.exception_info))
@@ -126,7 +186,7 @@ def _infrastructure_failures(trial_result: TrialResult) -> list[str]:
     return failures
 
 
-def _format_exception(where: str, exception: ExceptionInfo) -> str:
+def _format_exception(where: str, exception: _ExceptionInfo) -> str:
     return f"{where}: {exception.exception_type}: {exception.exception_message}"
 
 

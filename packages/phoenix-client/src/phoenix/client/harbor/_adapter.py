@@ -1,4 +1,5 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# Harbor cannot be installed on the client's Python 3.10 and 3.11 CI jobs.
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 # pyright: reportAttributeAccessIssue=false
@@ -216,7 +217,7 @@ def _read_task_content(task_dir: Path) -> _TaskContent:
     configured_strategy = task.config.multi_step_reward_strategy
     multi_step_reward_strategy: Literal["mean", "final"] | None
     if configured_strategy is not None:
-        multi_step_reward_strategy = cast(Literal["mean", "final"], configured_strategy.value)
+        multi_step_reward_strategy = configured_strategy.value
     elif steps:
         multi_step_reward_strategy = "mean"
     else:

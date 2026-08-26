@@ -1,4 +1,5 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# Harbor cannot be installed on the client's Python 3.10 and 3.11 CI jobs.
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Harbor job records used by the Phoenix plugin."""
