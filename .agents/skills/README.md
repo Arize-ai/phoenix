@@ -18,5 +18,3 @@ Every other skill in this directory is for people working on Phoenix itself and 
 metadata:
   internal: true
 ```
-
-The [`skills` CLI](https://github.com/vercel-labs/skills) hides flagged skills from `npx skills add Arize-ai/phoenix`, so end users see only the public skills above. Set the flag on any new skill that is not meant for Phoenix users; keys like `hidden` or `user-invocable` only affect Claude Code locally and do not hide a skill from `skills add`. To install an internal skill anyway, run `skills add` with `INSTALL_INTERNAL_SKILLS=1`.
