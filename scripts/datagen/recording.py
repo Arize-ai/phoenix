@@ -1,11 +1,101 @@
-"""Shared inspection for recorder-produced OTLP protobuf JSON lines."""
+"""Shared fixture and output helpers for trace corpus recorders."""
 
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping
+import re
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, TypeAlias, cast
+
+Archetype = Literal[
+    "plain_chat",
+    "rag",
+    "tool_agent",
+    "graph_multi_agent",
+    "guardrailed",
+    "structured_extraction",
+]
+JSON: TypeAlias = None | bool | int | float | str | list["JSON"] | dict[str, "JSON"]
+RecorderAdapter: TypeAlias = Callable[["RecorderFixture", Path], Iterable[str]]
+
+_ARCHETYPES = frozenset(
+    {
+        "plain_chat",
+        "rag",
+        "tool_agent",
+        "graph_multi_agent",
+        "guardrailed",
+        "structured_extraction",
+    }
+)
+_TRACE_ID_PATTERN = re.compile(r"[0-9a-fA-F]{32}")
+
+
+class RecordingError(ValueError):
+    """Raised when a recorder fixture or its output is malformed."""
+
+
+@dataclass(frozen=True)
+class RecorderFixture:
+    """Deterministic inputs for recording one corpus fragment."""
+
+    fragment_id: str
+    archetype: Archetype
+    domain: str
+    inputs: Mapping[str, JSON]
+
+    def fragment_record(self, trace_ids: Iterable[str]) -> dict[str, JSON]:
+        normalized = tuple(dict.fromkeys(_trace_id(value) for value in trace_ids))
+        if not normalized:
+            raise RecordingError(f"fixture {self.fragment_id!r} produced no trace IDs")
+        return {
+            "fragment_id": self.fragment_id,
+            "archetype": self.archetype,
+            "domain": self.domain,
+            "trace_ids": list(normalized),
+        }
+
+
+def load_fixtures(path: Path | None = None) -> tuple[RecorderFixture, ...]:
+    """Load the fixed recorder inputs."""
+    source = path or Path(__file__).with_name("recorder_fixtures.json")
+    try:
+        value = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise RecordingError(f"unable to load recorder fixtures from {source}: {error}") from error
+    if not isinstance(value, list) or not value:
+        raise RecordingError(f"recorder fixtures in {source} must be a non-empty array")
+
+    fixtures = tuple(_fixture(item, source) for item in value)
+    fragment_ids = [fixture.fragment_id for fixture in fixtures]
+    if len(set(fragment_ids)) != len(fragment_ids):
+        raise RecordingError(f"recorder fixture IDs in {source} must be unique")
+    return fixtures
+
+
+def fixtures_for(
+    archetype: Archetype,
+    *,
+    fixtures: Sequence[RecorderFixture] | None = None,
+) -> tuple[RecorderFixture, ...]:
+    """Return the fixed inputs for one recorder archetype."""
+    available = fixtures if fixtures is not None else load_fixtures()
+    return tuple(fixture for fixture in available if fixture.archetype == archetype)
+
+
+def record_fixture(
+    fixture: RecorderFixture,
+    output_dir: Path,
+    adapter: RecorderAdapter,
+) -> dict[str, JSON]:
+    """Run a recorder adapter and append its fragment row."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    trace_ids = tuple(adapter(fixture, output_dir / "traces.jsonl"))
+    fragment = fixture.fragment_record(trace_ids)
+    _append_json(output_dir / "fragments.jsonl", fragment)
+    return fragment
 
 
 def validate_recording(
@@ -14,6 +104,7 @@ def validate_recording(
     required_span_kinds: Iterable[str],
     recorder_name: str,
 ) -> tuple[list[dict[str, Any]], set[str]]:
+    """Inspect recorder output for expected span kinds and session attributes."""
     spans = [
         span
         for line in path.read_text(encoding="utf-8").splitlines()
@@ -23,14 +114,14 @@ def validate_recording(
     missing_kinds = set(required_span_kinds) - kinds
     if missing_kinds:
         missing = ", ".join(sorted(missing_kinds))
-        raise RuntimeError(f"{recorder_name} did not emit required span kinds: {missing}")
+        raise RecordingError(f"{recorder_name} did not emit required span kinds: {missing}")
     missing_sessions = [
         str(span.get("spanId", "unknown"))
         for span in spans
         if not span_attribute(span, "session.id")
     ]
     if missing_sessions:
-        raise RuntimeError(
+        raise RecordingError(
             f"{recorder_name} emitted spans without session.id: " + ", ".join(missing_sessions)
         )
     return spans, kinds
@@ -41,6 +132,40 @@ def span_attribute(span: Mapping[str, Any], key: str) -> Any:
         if attribute.get("key") == key:
             return next(iter(attribute.get("value", {}).values()), None)
     return None
+
+
+def _fixture(value: Any, source: Path) -> RecorderFixture:
+    if not isinstance(value, dict) or set(value) != {
+        "fragment_id",
+        "archetype",
+        "domain",
+        "inputs",
+    }:
+        raise RecordingError(f"each recorder fixture in {source} must have four named fields")
+    fragment_id = value["fragment_id"]
+    archetype = value["archetype"]
+    domain = value["domain"]
+    inputs = value["inputs"]
+    if not isinstance(fragment_id, str) or not fragment_id:
+        raise RecordingError(f"recorder fixture IDs in {source} must be non-empty strings")
+    if archetype not in _ARCHETYPES:
+        raise RecordingError(f"fixture {fragment_id!r} has unknown archetype {archetype!r}")
+    if not isinstance(domain, str) or not domain:
+        raise RecordingError(f"fixture {fragment_id!r} must have a non-empty domain")
+    if not isinstance(inputs, dict) or not inputs:
+        raise RecordingError(f"fixture {fragment_id!r} must have deterministic app inputs")
+    return RecorderFixture(fragment_id, cast(Archetype, archetype), domain, inputs)
+
+
+def _trace_id(value: str) -> str:
+    if not isinstance(value, str) or _TRACE_ID_PATTERN.fullmatch(value) is None:
+        raise RecordingError("recorder adapters must return 32-character hexadecimal trace IDs")
+    return value.lower()
+
+
+def _append_json(path: Path, value: Mapping[str, JSON]) -> None:
+    with path.open("a", encoding="utf-8") as output:
+        output.write(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
 
 
 def _iter_spans(payload: Mapping[str, Any]) -> list[dict[str, Any]]:

@@ -1,97 +1,121 @@
 {
-  "schema_version": 1,
-  "fixture_sets": {
-    "retail": {
-      "name": "retail",
-      "documents": [
-        {
-          "id": "doc-shipping",
-          "title": "Shipping windows",
-          "text": "Standard delivery takes four to six business days. Express delivery takes one to two business days."
-        },
-        {
-          "id": "doc-returns",
-          "title": "Return policy",
-          "text": "Unused items may be returned within thirty days. Final-sale items are not eligible for return."
-        },
-        {
-          "id": "doc-security",
-          "title": "Account security",
-          "text": "Reset the password and revoke active sessions after an unfamiliar account login."
-        }
-      ],
-      "records": [
-        {
-          "id": "order-1001",
-          "customer": "Avery Chen",
-          "total": 84.5,
-          "currency": "USD"
-        },
-        {
-          "id": "order-1002",
-          "customer": "Sam Rivera",
-          "total": 129.0,
-          "currency": "USD"
-        }
-      ],
-      "statuses": [
-        {
-          "id": "order-1001",
-          "state": "in_transit",
-          "detail": "Carrier scan received"
-        },
-        {
-          "id": "order-1002",
-          "state": "processing",
-          "detail": "Preparing for shipment"
-        }
-      ]
-    },
-    "travel": {
-      "name": "travel",
-      "documents": [
-        {
-          "id": "doc-baggage",
-          "title": "Baggage allowance",
-          "text": "Economy fares include one carry-on bag. Checked baggage depends on route and fare class."
-        },
-        {
-          "id": "doc-changes",
-          "title": "Flight changes",
-          "text": "Flexible fares permit itinerary changes before departure without a change fee."
-        },
-        {
-          "id": "doc-delays",
-          "title": "Delay support",
-          "text": "Travelers delayed overnight may request hotel and meal assistance at the service desk."
-        }
-      ],
-      "records": [
-        {
-          "id": "trip-2001",
-          "traveler": "Morgan Lee",
-          "origin": "JFK",
-          "destination": "SFO"
-        },
-        {
-          "id": "trip-2002",
-          "traveler": "Jordan Patel",
-          "origin": "BOS",
-          "destination": "LHR"
-        }
-      ],
-      "statuses": [
-        {
-          "id": "trip-2001",
-          "state": "confirmed",
-          "detail": "On time"
-        },
-        {
-          "id": "trip-2002",
-          "state": "delayed",
-          "detail": "Departure moved by 45 minutes"
-        }
-      ]
-    }
+  "customer_support": {
+    "name": "customer_support",
+    "documents": [
+      {
+        "id": "returns-policy",
+        "title": "Returns and refunds",
+        "text": "Unused merchandise may be returned within 30 calendar days after delivery. Warehouse inspection normally takes three business days, followed by three to seven business days for bank posting."
+      },
+      {
+        "id": "delivery-guide",
+        "title": "Delivery status",
+        "text": "Standard delivery takes four to six business days. Express delivery takes one to two business days. A carrier trace is available after two business days without movement."
+      }
+    ],
+    "records": [
+      {
+        "id": "order-1001",
+        "customer": "Avery Chen",
+        "total": 84.5,
+        "currency": "USD"
+      },
+      {
+        "id": "order-1002",
+        "customer": "Sam Rivera",
+        "total": 129.0,
+        "currency": "USD"
+      }
+    ],
+    "statuses": [
+      {
+        "id": "order-1001",
+        "state": "in_transit",
+        "detail": "Carrier scan unchanged for two business days"
+      },
+      {
+        "id": "order-1002",
+        "state": "processing",
+        "detail": "Preparing for shipment"
+      }
+    ]
+  },
+  "data_analyst": {
+    "name": "data_analyst",
+    "documents": [
+      {
+        "id": "metric-definitions",
+        "title": "Governed analytics metrics",
+        "text": "Net revenue is captured item revenue after discounts, less refunds recognized on the refund date, excluding tax and shipping. Sales bookings are not recognized revenue."
+      },
+      {
+        "id": "timezone-and-units",
+        "title": "Timezones and units",
+        "text": "Daily warehouse metrics use each facility's local date. Monetary records use major currency units unless the source adapter is explicitly marked otherwise."
+      }
+    ],
+    "records": [
+      {
+        "id": "warehouse-east",
+        "timezone": "America/New_York",
+        "currency": "USD"
+      },
+      {
+        "id": "warehouse-west",
+        "timezone": "America/Los_Angeles",
+        "currency": "USD"
+      }
+    ],
+    "statuses": [
+      {
+        "id": "warehouse-east",
+        "state": "ready",
+        "detail": "Previous local business day is complete"
+      },
+      {
+        "id": "warehouse-west",
+        "state": "delayed",
+        "detail": "Inventory snapshot is awaiting reconciliation"
+      }
+    ]
+  },
+  "coding_agent": {
+    "name": "coding_agent",
+    "documents": [
+      {
+        "id": "router-api",
+        "title": "RelayCache routing API",
+        "text": "Router.route is the current public coroutine. Router.dispatch is a deprecated compatibility alias retained through the next minor release."
+      },
+      {
+        "id": "retry-ownership",
+        "title": "Retry ownership",
+        "text": "The scheduler owns attempt timing and retry.py owns pure retry-budget and delay calculations. Broker adapters own transport and acknowledgement translation."
+      }
+    ],
+    "records": [
+      {
+        "id": "issue-204",
+        "title": "README uses deprecated Router.dispatch",
+        "state": "open"
+      },
+      {
+        "id": "issue-219",
+        "title": "Retry backoff starts one attempt early",
+        "state": "reproduced"
+      }
+    ],
+    "statuses": [
+      {
+        "id": "issue-204",
+        "state": "ready",
+        "detail": "Documentation-only correction"
+      },
+      {
+        "id": "issue-219",
+        "state": "investigating",
+        "detail": "Focused scheduler test is failing"
+      }
+    ]
   }
 }

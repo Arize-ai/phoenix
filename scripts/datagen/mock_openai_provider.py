@@ -5,65 +5,64 @@
 #   "httpx==0.28.1",
 # ]
 # ///
-"""Serve deterministic, realistic OpenAI chat-completion responses."""
+"""Deterministic OpenAI-compatible responses for offline trace recording."""
 
 from __future__ import annotations
 
-import argparse
 import json
-import re
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
 from hashlib import sha256
 from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any
 
-SCRIPTED_TOOL_NAME = "raise_scripted_tool_error"
-
-
-class ScriptedToolError(RuntimeError):
-    """Raised when playback reaches a declared tool failure."""
+if TYPE_CHECKING or __package__:
+    from scripts.datagen.recording import RecorderFixture
+else:
+    from recording import RecorderFixture  # type: ignore[import-not-found,no-redef]
 
 
-@dataclass(frozen=True)
-class PlaybackFailureEvent:
-    mode: str
-    turn_index: int
+class ScriptedProviderError(ValueError):
+    """Raised when a response script cannot serve an OpenAI request."""
 
 
-class PlaybackProvider:
-    """Serve a conversation script through an in-process OpenAI-compatible transport."""
+class ScriptedOpenAIProvider:
+    """Serve a fixed response sequence through an in-process HTTP transport."""
 
-    def __init__(self, script: Mapping[str, Any]) -> None:
-        self._script = script
-        self._turn_index = 0
-        self._request_count = 0
-        self._failure_events: list[PlaybackFailureEvent] = []
-        turns = script.get("turns")
+    def __init__(self, responses: Sequence[Mapping[str, Any]]) -> None:
+        if not responses:
+            raise ScriptedProviderError("a provider script must contain at least one response")
+        self._responses = tuple(dict(response) for response in responses)
+        self._response_index = 0
+        self.requests: list[dict[str, Any]] = []
+
+    @classmethod
+    def for_fixture(cls, fixture: RecorderFixture) -> ScriptedOpenAIProvider:
+        turns = fixture.inputs.get("turns")
         if not isinstance(turns, list) or not turns:
-            raise ValueError("playback script must contain a non-empty turns array")
+            raise ScriptedProviderError(
+                f"fixture {fixture.fragment_id!r} does not contain scripted turns"
+            )
+        responses = []
+        for turn in turns:
+            if not isinstance(turn, dict) or not isinstance(turn.get("assistant"), str):
+                raise ScriptedProviderError(
+                    f"fixture {fixture.fragment_id!r} has an invalid scripted turn"
+                )
+            responses.append({"content": turn["assistant"]})
+        return cls(responses)
 
     @property
-    def turn_index(self) -> int:
-        return self._turn_index
-
-    @property
-    def request_count(self) -> int:
-        return self._request_count
-
-    @property
-    def failure_events(self) -> tuple[PlaybackFailureEvent, ...]:
-        return tuple(self._failure_events)
+    def response_index(self) -> int:
+        return self._response_index
 
     def http_client(self) -> Any:
         import httpx
 
-        return httpx.Client(transport=httpx.MockTransport(self._handle_http_request))
+        return httpx.Client(transport=httpx.MockTransport(self._handle))
 
-    def _handle_http_request(self, request: Any) -> Any:
+    def _handle(self, request: Any) -> Any:
         import httpx
 
-        self._request_count += 1
         if request.url.path != "/v1/chat/completions":
             return httpx.Response(
                 HTTPStatus.NOT_FOUND,
@@ -78,384 +77,86 @@ class PlaybackProvider:
                 json={"error": {"message": "invalid JSON", "type": "invalid_request_error"}},
                 request=request,
             )
-        turn = self._current_turn()
-        expected_user = turn.get("user")
-        actual_user = (_latest_message(body.get("messages", []), "user") or {}).get("content")
-        if actual_user != expected_user:
+        if not isinstance(body, dict):
             return httpx.Response(
                 HTTPStatus.BAD_REQUEST,
-                json={
-                    "error": {
-                        "message": f"expected scripted user message {expected_user!r}",
-                        "type": "invalid_request_error",
-                    }
-                },
+                json={"error": {"message": "request must be an object"}},
                 request=request,
             )
+        self.requests.append(body)
+        if self._response_index >= len(self._responses):
+            raise ScriptedProviderError("provider received more requests than scripted responses")
+        response = self._responses[self._response_index]
+        self._response_index += 1
 
-        failure_mode = self._script.get("failure_mode", "none")
-        failure_turn = self._script.get("failure_turn")
-        if failure_turn == self._turn_index and not self._failure_events:
-            self._failure_events.append(PlaybackFailureEvent(failure_mode, self._turn_index))
-            if failure_mode == "provider_429":
-                return httpx.Response(
-                    HTTPStatus.TOO_MANY_REQUESTS,
-                    headers={"retry-after": "1", "x-request-id": self._request_id()},
-                    json={
-                        "error": {
-                            "message": "scripted rate limit",
-                            "type": "rate_limit_error",
-                            "code": "rate_limit_exceeded",
-                        }
-                    },
-                    request=request,
-                )
-            if failure_mode == "provider_timeout":
-                raise httpx.ReadTimeout("scripted provider timeout", request=request)
-            if failure_mode == "malformed_response":
-                return httpx.Response(
-                    HTTPStatus.OK,
-                    content=b'{"choices":[',
-                    headers={"content-type": "application/json"},
-                    request=request,
-                )
-            if failure_mode == "tool_exception":
-                response = self._tool_exception_completion(body)
-                self._turn_index += 1
-                return self._completion_response(request, body, response)
-            if failure_mode != "none":
-                raise ValueError(f"unsupported playback failure mode {failure_mode!r}")
+        status = response.get("status", HTTPStatus.OK)
+        if not isinstance(status, int):
+            raise ScriptedProviderError("scripted response status must be an integer")
+        if status != HTTPStatus.OK:
+            error = response.get("error")
+            payload = (
+                {"error": dict(error)}
+                if isinstance(error, Mapping)
+                else {"error": {"message": f"scripted HTTP {status}"}}
+            )
+            return httpx.Response(status, json=payload, request=request)
 
-        response = self._success_completion(body, str(turn.get("assistant", "")))
-        self._turn_index += 1
-        return self._completion_response(request, body, response)
-
-    def _completion_response(
-        self,
-        request: Any,
-        body: Mapping[str, Any],
-        response: Mapping[str, Any],
-    ) -> Any:
-        import httpx
-
+        completion = _completion(body, response, self._response_index)
         if body.get("stream"):
             return httpx.Response(
                 HTTPStatus.OK,
                 headers={"content-type": "text/event-stream"},
-                content=stream_chat_completion(response),
+                content=stream_chat_completion(completion),
                 request=request,
             )
-        return httpx.Response(HTTPStatus.OK, json=response, request=request)
-
-    def _current_turn(self) -> Mapping[str, Any]:
-        turns = self._script["turns"]
-        if self._turn_index >= len(turns):
-            raise ValueError("playback received more turns than the script declares")
-        turn = turns[self._turn_index]
-        if not isinstance(turn, Mapping):
-            raise ValueError(f"playback turn {self._turn_index} must be an object")
-        return turn
-
-    def _success_completion(self, request: dict[str, Any], content: str) -> dict[str, Any]:
-        return self._completion(
-            request,
-            message={"role": "assistant", "content": content},
-            finish_reason="stop",
-        )
-
-    def _tool_exception_completion(self, request: dict[str, Any]) -> dict[str, Any]:
-        tool_call = {
-            "id": f"call_{self._request_id()[-18:]}",
-            "type": "function",
-            "function": {
-                "name": SCRIPTED_TOOL_NAME,
-                "arguments": json.dumps(
-                    {"message": "scripted tool exception"}, separators=(",", ":")
-                ),
-            },
-        }
-        return self._completion(
-            request,
-            message={"role": "assistant", "content": None, "tool_calls": [tool_call]},
-            finish_reason="tool_calls",
-        )
-
-    def _completion(
-        self,
-        request: dict[str, Any],
-        *,
-        message: dict[str, Any],
-        finish_reason: str,
-    ) -> dict[str, Any]:
-        prompt_tokens = _token_count(request.get("messages", []))
-        completion_tokens = _token_count(message)
-        return {
-            "id": f"chatcmpl-{self._request_id()}",
-            "object": "chat.completion",
-            "created": 0,
-            "model": request.get("model", self._script.get("model", "datagen-playback")),
-            "choices": [{"index": 0, "message": message, "finish_reason": finish_reason}],
-            "usage": {
-                "prompt_tokens": prompt_tokens,
-                "completion_tokens": completion_tokens,
-                "total_tokens": prompt_tokens + completion_tokens,
-                "prompt_tokens_details": {"cached_tokens": 0},
-                "completion_tokens_details": {"reasoning_tokens": 0},
-            },
-        }
-
-    def _request_id(self) -> str:
-        cell_id = str(self._script.get("cell_id", "script"))
-        return sha256(f"{cell_id}:{self._turn_index}".encode()).hexdigest()[:24]
+        return httpx.Response(HTTPStatus.OK, json=completion, request=request)
 
 
-def execute_scripted_tool_call(tool_call: Mapping[str, Any]) -> None:
-    function = tool_call.get("function")
-    if not isinstance(function, Mapping) or function.get("name") != SCRIPTED_TOOL_NAME:
-        raise ValueError("tool call is not the scripted failure tool")
-    raw_arguments = function.get("arguments")
-    try:
-        arguments = json.loads(raw_arguments) if isinstance(raw_arguments, str) else {}
-    except json.JSONDecodeError as error:
-        raise ValueError("scripted failure tool arguments are invalid JSON") from error
-    message = arguments.get("message", "scripted tool exception")
-    raise ScriptedToolError(str(message))
-
-
-def _token_count(value: Any) -> int:
-    text = json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value
-    return max(1, round(len(text.split()) * 1.35))
-
-
-def _latest_message(messages: list[dict[str, Any]], role: str) -> dict[str, Any] | None:
-    return next((message for message in reversed(messages) if message.get("role") == role), None)
-
-
-def _tool_response(messages: list[dict[str, Any]]) -> str | None:
-    tool_message = _latest_message(messages, "tool")
-    if tool_message is None:
-        return None
-    return (
-        "The retrieved policy and delivery estimate indicate that the order "
-        "should arrive "
-        f"{tool_message.get('content', 'within the quoted window')}. I would "
-        "share that window with the customer and note that carrier scans can "
-        "take several hours to appear."
-    )
-
-
-def _chat_response(messages: list[dict[str, Any]]) -> str:
-    tool_answer = _tool_response(messages)
-    if tool_answer:
-        return tool_answer
-
-    user = str((_latest_message(messages, "user") or {}).get("content", "")).lower()
-    responses = (
-        (
-            ("activation", "onboarding"),
-            "Start with the moment a new workspace reaches its first useful "
-            "result. Measure the share of invited teams that connect a data "
-            "source, run one analysis, and return within seven days; segment "
-            "the funnel by team size and acquisition channel.",
-        ),
-        (
-            ("assumption", "riskiest"),
-            "The riskiest assumption is that setup effort, rather than unclear "
-            "value, causes the drop-off. Validate it by interviewing recent "
-            "abandoners and comparing a concierge setup cohort with the existing "
-            "flow.",
-        ),
-        (
-            ("experiment", "test"),
-            "Run a two-week concierge onboarding test with 20 eligible teams. "
-            "Pre-register activation and day-seven return rates, track support "
-            "minutes per team, and stop if the treatment creates more than 30 "
-            "minutes of manual work per workspace.",
-        ),
-        (
-            ("summarize", "brief"),
-            "Recommendation: test whether guided setup improves first-week "
-            "activation. Owner: growth engineering. Success bar: a meaningful "
-            "lift in activated teams without exceeding the support-time "
-            "guardrail. Review the result after two weeks.",
-        ),
-        (
-            ("latency", "p95"),
-            "Compare p50, p95, and p99 latency by endpoint and region, then "
-            "align the change with deployments, dependency timing, queue depth, "
-            "and database wait time. A flat median with a rising tail usually "
-            "points to saturation or a slow downstream dependency.",
-        ),
-        (
-            ("metric", "dashboard"),
-            "Add request volume, error rate, in-flight work, connection-pool "
-            "utilization, and the slow dependency's duration on the same "
-            "dashboard. Break each metric down by region and release version so "
-            "the affected slice is visible.",
-        ),
-        (
-            ("cause", "hypothesis"),
-            "The strongest hypothesis is connection-pool contention during "
-            "traffic bursts: it explains the tail-only slowdown and would appear "
-            "as rising acquisition wait time before database duration increases. "
-            "Confirm it with pool wait histograms and sampled slow traces.",
-        ),
-        (
-            ("update", "stakeholder"),
-            "Customer impact is limited to intermittent slow responses in one "
-            "region; success rates remain normal. The team is testing database "
-            "connection contention, has added capacity as a mitigation, and will "
-            "post the next update in 30 minutes.",
-        ),
-        (
-            ("garden", "volunteer"),
-            "Plan the day around three clear jobs: bed preparation, planting, "
-            "and cleanup. Assign a lead to each station, stage tools before "
-            "volunteers arrive, and reserve the first ten minutes for safety "
-            "guidance and the final fifteen for inventory.",
-        ),
-        (
-            ("rain", "weather"),
-            "Keep planting as the dry-weather priority and prepare an indoor "
-            "fallback for seed sorting, tool maintenance, and signage. Decide by "
-            "the prior evening using a published rainfall threshold so "
-            "volunteers receive one clear message.",
-        ),
-        (
-            ("materials", "bring"),
-            "Ask volunteers to bring gloves, a refillable water bottle, and "
-            "weather-appropriate layers. The organizers should provide labeled "
-            "tools, first-aid supplies, sunscreen, drinking water, and a few "
-            "spare pairs of gloves.",
-        ),
-        (
-            ("reminder", "email"),
-            "Subject: Saturday garden workday details\n\nWe will meet at 9:00 "
-            "a.m. by the tool shed. Please bring gloves, water, and layers. We "
-            "will confirm the outdoor or rain plan by 6:00 p.m. Friday. New "
-            "volunteers are welcome; no gardening experience is required.",
-        ),
-        (
-            ("return", "refund"),
-            "The policy excerpt allows returns of unused items within 30 days. "
-            "Ask the customer to use the prepaid label from the order page; the "
-            "refund is issued to the original payment method after the warehouse "
-            "scans the parcel.",
-        ),
-        (
-            ("password", "account", "security"),
-            "The account guidance recommends resetting the password, signing out "
-            "other sessions, and enabling multi-factor authentication. If "
-            "unfamiliar activity remains, escalate the case to the security "
-            "queue with the relevant timestamps.",
-        ),
-    )
-    for keywords, response in responses:
-        if any(keyword in user for keyword in keywords):
-            return response
-    return (
-        "Based on the supplied context, I would state the applicable policy "
-        "first, give the customer a concrete next step, and call out any timing "
-        "or eligibility condition that could change the outcome."
-    )
-
-
-def _tool_call(
-    messages: list[dict[str, Any]], tools: list[dict[str, Any]]
-) -> dict[str, Any] | None:
-    if not tools or _latest_message(messages, "tool") is not None:
-        return None
-    user = str((_latest_message(messages, "user") or {}).get("content", ""))
-    if not re.search(r"\b(arrive|delivery|deliver|shipping|shipment|order)\b", user, re.I):
-        return None
-    function = tools[0].get("function", {}) if tools else {}
-    identifier = _stable_id({"messages": messages, "tools": tools})
-    return {
-        "id": f"call_{identifier[:18]}",
-        "type": "function",
-        "function": {
-            "name": function.get("name", "estimate_delivery_days"),
-            "arguments": json.dumps(
-                _tool_arguments(function.get("parameters"), user),
-                sort_keys=True,
-                separators=(",", ":"),
-            ),
-        },
-    }
-
-
-def _tool_arguments(parameters: Any, user: str) -> dict[str, Any]:
-    """Fill the tool's own declared required properties, so any caller schema validates."""
-    if not isinstance(parameters, Mapping):
-        return {"postal_code": _postal_code(user), "service_level": _service_level(user)}
-    properties = parameters.get("properties")
-    properties = properties if isinstance(properties, Mapping) else {}
-    required = parameters.get("required")
-    names = required if isinstance(required, list) and required else list(properties)
-    return {name: _property_value(name, properties.get(name, {}), user) for name in names}
-
-
-def _property_value(name: str, schema: Any, user: str) -> Any:
-    schema = schema if isinstance(schema, Mapping) else {}
-    if enum := schema.get("enum"):
-        return enum[0]
-    kind = schema.get("type")
-    if kind in ("integer", "number"):
-        return schema.get("minimum", 1)
-    if kind == "boolean":
-        return True
-    if kind == "array":
-        return []
-    if name == "postal_code":
-        return _postal_code(user)
-    if name == "service_level":
-        return _service_level(user)
-    if name.endswith("_id"):
-        match = re.search(r"\b[A-Za-z]{1,6}-?\d{2,8}\b", user)
-        value = match.group(0) if match else f"record-{_stable_id(user)[:8]}"
-    elif "expression" in name:
-        value = "2 + 2"
+def _completion(
+    request: Mapping[str, Any],
+    response: Mapping[str, Any],
+    response_index: int,
+) -> dict[str, Any]:
+    message: dict[str, Any] = {"role": "assistant", "content": None}
+    tool_call = response.get("tool_call")
+    if tool_call is not None:
+        if not isinstance(tool_call, Mapping):
+            raise ScriptedProviderError("tool_call must be an object")
+        name = tool_call.get("name")
+        arguments = tool_call.get("arguments")
+        if not isinstance(name, str) or not isinstance(arguments, Mapping):
+            raise ScriptedProviderError("tool_call requires a name and object arguments")
+        message["tool_calls"] = [
+            {
+                "id": f"call-{response_index}",
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "arguments": json.dumps(arguments, sort_keys=True, separators=(",", ":")),
+                },
+            }
+        ]
+        finish_reason = "tool_calls"
     else:
-        value = user.strip() or "customer request"
-    maximum = schema.get("maxLength")
-    return value[:maximum] if isinstance(maximum, int) else value
+        content = response.get("content")
+        if not isinstance(content, str):
+            raise ScriptedProviderError("scripted response requires content or tool_call")
+        message["content"] = content
+        finish_reason = "stop"
 
-
-def _postal_code(user: str) -> str:
-    match = re.search(r"\b\d{5}\b", user)
-    return match.group(0) if match else "10001"
-
-
-def _service_level(user: str) -> str:
-    return "express" if re.search(r"\b(express|expedited)\b", user, re.I) else "standard"
-
-
-def create_chat_completion(request: dict[str, Any]) -> dict[str, Any]:
-    messages = request.get("messages", [])
-    tools = request.get("tools", [])
-    call = _tool_call(messages, tools)
-    content = None if call else _chat_response(messages)
-    completion_payload = call or content or ""
-    prompt_tokens = (
-        _token_count(messages) + _token_count(tools) if tools else _token_count(messages)
-    )
-    completion_tokens = _token_count(completion_payload)
-    identifier = _stable_id(request)
+    prompt_tokens = _token_count(request.get("messages", []))
+    completion_tokens = _token_count(message)
+    identifier = _stable_id({"request": request, "response_index": response_index})
     return {
         "id": f"chatcmpl-{identifier[:24]}",
         "object": "chat.completion",
         "created": 0,
-        "model": request.get("model", "gpt-4.1-mini"),
-        "system_fingerprint": "fp_datagen_scenario",
+        "model": request.get("model", "datagen-scripted"),
         "choices": [
             {
                 "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": content,
-                    **({"tool_calls": [call]} if call else {}),
-                },
-                "finish_reason": "tool_calls" if call else "stop",
+                "message": message,
+                "finish_reason": finish_reason,
             }
         ],
         "usage": {
@@ -469,38 +170,24 @@ def create_chat_completion(request: dict[str, Any]) -> dict[str, Any]:
 
 
 def stream_chat_completion(completion: Mapping[str, Any]) -> bytes:
-    """Encode a completion as the server-sent-event stream the OpenAI client expects."""
+    """Encode a text completion as an OpenAI server-sent-event stream."""
     choice = completion["choices"][0]
     content = choice["message"].get("content") or ""
-    midpoint = max(1, len(content) // 2)
-    chunks = []
-    for part in (content[:midpoint], content[midpoint:]):
-        if part:
-            chunks.append(
-                {
-                    "id": completion["id"],
-                    "object": "chat.completion.chunk",
-                    "created": completion["created"],
-                    "model": completion["model"],
-                    "choices": [
-                        {
-                            "index": 0,
-                            "delta": {"content": part},
-                            "finish_reason": None,
-                        }
-                    ],
-                }
-            )
-    chunks.append(
+    chunks = [
+        {
+            "id": completion["id"],
+            "object": "chat.completion.chunk",
+            "created": completion["created"],
+            "model": completion["model"],
+            "choices": [{"index": 0, "delta": {"content": content}, "finish_reason": None}],
+        },
         {
             "id": completion["id"],
             "object": "chat.completion.chunk",
             "created": completion["created"],
             "model": completion["model"],
             "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-        }
-    )
-    chunks.append(
+        },
         {
             "id": completion["id"],
             "object": "chat.completion.chunk",
@@ -508,74 +195,17 @@ def stream_chat_completion(completion: Mapping[str, Any]) -> bytes:
             "model": completion["model"],
             "choices": [],
             "usage": completion["usage"],
-        }
-    )
+        },
+    ]
     events = [f"data: {json.dumps(chunk, separators=(',', ':'))}\n\n" for chunk in chunks]
     return ("".join(events) + "data: [DONE]\n\n").encode()
+
+
+def _token_count(value: Any) -> int:
+    text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    return max(1, round(len(text.split()) * 1.35))
 
 
 def _stable_id(value: Any) -> str:
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     return sha256(encoded).hexdigest()
-
-
-class ChatCompletionsHandler(BaseHTTPRequestHandler):
-    server_version = "DatagenMockOpenAI/1.0"
-
-    def do_GET(self) -> None:
-        if self.path == "/health":
-            self._send_json(HTTPStatus.OK, {"status": "ok"})
-        else:
-            self._send_json(HTTPStatus.NOT_FOUND, {"error": {"message": "not found"}})
-
-    def do_POST(self) -> None:
-        if self.path != "/v1/chat/completions":
-            self._send_json(HTTPStatus.NOT_FOUND, {"error": {"message": "not found"}})
-            return
-        try:
-            length = int(self.headers.get("content-length", "0"))
-            request = json.loads(self.rfile.read(length))
-            completion = create_chat_completion(request)
-            if request.get("stream"):
-                self._send_stream(stream_chat_completion(completion))
-            else:
-                self._send_json(HTTPStatus.OK, completion)
-        except (json.JSONDecodeError, TypeError, ValueError) as exc:
-            self._send_json(HTTPStatus.BAD_REQUEST, {"error": {"message": str(exc)}})
-
-    def log_message(self, format: str, *args: Any) -> None:
-        print(f"{self.address_string()} - {format % args}")
-
-    def _send_stream(self, events: bytes) -> None:
-        self.send_response(HTTPStatus.OK)
-        self.send_header("content-type", "text/event-stream")
-        self.send_header("content-length", str(len(events)))
-        self.end_headers()
-        self.wfile.write(events)
-
-    def _send_json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
-        encoded = json.dumps(payload).encode()
-        self.send_response(status)
-        self.send_header("content-type", "application/json")
-        self.send_header("content-length", str(len(encoded)))
-        self.end_headers()
-        self.wfile.write(encoded)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8765)
-    args = parser.parse_args()
-    server = ThreadingHTTPServer((args.host, args.port), ChatCompletionsHandler)
-    print(f"Mock OpenAI provider listening on http://{args.host}:{args.port}/v1")
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        server.server_close()
-
-
-if __name__ == "__main__":
-    main()
