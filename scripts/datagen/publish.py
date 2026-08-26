@@ -15,12 +15,6 @@ from typing import Any, Mapping, Sequence, TextIO
 
 from phoenix.datagen.fetcher import CorpusFetchError, fetch_corpus
 from phoenix.datagen.loader import CorpusError, load_corpus
-from scripts.datagen.scenario import (
-    CorpusArchiveError,
-    _parse_instrumenter_versions,
-    package_generation_run,
-    read_corpus_archive,
-)
 
 _ARCHIVE_NAME = "corpus.tar.gz"
 _BUCKET = "arize-phoenix-assets"
@@ -50,20 +44,6 @@ def build_parser() -> argparse.ArgumentParser:
     _add_archive_argument(prepare_archive)
     _add_output_argument(prepare_archive)
 
-    prepare_run = subparsers.add_parser(
-        "prepare-run", help="package a generation run and stage it for publication"
-    )
-    prepare_run.add_argument("run_dir", type=Path)
-    prepare_run.add_argument("--generated-at", required=True)
-    prepare_run.add_argument("--generation-revision", required=True)
-    prepare_run.add_argument(
-        "--instrumenter-package",
-        action="append",
-        required=True,
-        metavar="NAME=VERSION",
-        help="record an instrumenter distribution version; repeat for every recorder dependency",
-    )
-    _add_output_argument(prepare_run)
     return parser
 
 
@@ -84,7 +64,7 @@ def command(
     args = build_parser().parse_args(argv)
     try:
         result = _dispatch(args)
-    except (CorpusFetchError, CorpusArchiveError, OSError, CorpusError, ValueError) as error:
+    except (CorpusFetchError, OSError, CorpusError, ValueError) as error:
         print(
             json.dumps({"error": type(error).__name__, "message": str(error)}),
             file=stderr,
@@ -99,16 +79,6 @@ def _dispatch(args: argparse.Namespace) -> Mapping[str, Any]:
         return _validated_corpus_document(validate_archive(args.archive))
     if args.command == "prepare-archive":
         return prepare_publication(validate_archive(args.archive), output_dir=args.output_dir)
-    if args.command == "prepare-run":
-        archive = args.output_dir / _ARCHIVE_NAME
-        package_generation_run(
-            args.run_dir,
-            archive,
-            generated_at=args.generated_at,
-            generation_revision=args.generation_revision,
-            instrumenter_package_versions=_parse_instrumenter_versions(args.instrumenter_package),
-        )
-        return prepare_publication(validate_archive(archive), output_dir=args.output_dir)
     raise AssertionError(args.command)
 
 
@@ -116,14 +86,11 @@ def validate_archive(archive: Path) -> ValidatedCorpus:
     archive = archive.resolve()
     if not archive.is_file():
         raise ValueError(f"corpus archive does not exist: {archive}")
-    if archive.name != _ARCHIVE_NAME:
-        raise ValueError(f"corpus archive must be named {_ARCHIVE_NAME}")
     archive_bytes = archive.read_bytes()
     archive_digest = sha256(archive_bytes).hexdigest()
 
-    corpus_archive = read_corpus_archive(archive)
-    fragment_count = corpus_archive.manifest["fragment_count"]
-    archetypes = tuple(sorted({fragment.archetype for fragment in corpus_archive.fragments}))
+    def copy_archive(_url: str, destination: Path) -> None:
+        shutil.copyfile(archive, destination)
 
     with tempfile.TemporaryDirectory(prefix="phoenix-datagen-validation-") as directory:
         validation_root = Path(directory)
@@ -138,19 +105,19 @@ def validate_archive(archive: Path) -> ValidatedCorpus:
             ),
             encoding="utf-8",
         )
-        extracted = fetch_corpus(
+        cached_archive = fetch_corpus(
             cache_dir=validation_root / "cache",
             pointer_path=validation_pointer,
-            downloader=lambda _url, destination: shutil.copyfile(archive, destination),
+            downloader=copy_archive,
         )
-        load_corpus(extracted)
+        corpus = load_corpus(cached_archive)
 
     return ValidatedCorpus(
         archive=archive,
         sha256=archive_digest,
         size_bytes=len(archive_bytes),
-        fragment_count=fragment_count,
-        archetypes=archetypes,
+        fragment_count=len(corpus.fragments),
+        archetypes=tuple(sorted({fragment.archetype for fragment in corpus.fragments})),
     )
 
 

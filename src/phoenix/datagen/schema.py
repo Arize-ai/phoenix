@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Literal, Mapping, Sequence, cast
 
 Archetype = Literal[
@@ -32,7 +32,6 @@ class Fragment:
     archetype: Archetype
     domain: str
     trace_ids: tuple[str, ...]
-    extra: Mapping[str, Any] = field(default_factory=dict)
 
 
 class SchemaValidationError(ValueError):
@@ -41,12 +40,7 @@ class SchemaValidationError(ValueError):
         super().__init__(message)
 
 
-def validate_corpus_manifest_v2(value: Mapping[str, Any]) -> Mapping[str, Any]:
-    _require_literal(value, "schema_version", 2)
-    return value
-
-
-def validate_fragment_v2(value: Mapping[str, Any]) -> Fragment:
+def validate_fragment(value: Mapping[str, Any]) -> Fragment:
     fragment_id = _require_string(value, "fragment_id")
     archetype = _require_choice(value, "archetype", ARCHETYPES)
     domain = _require_string(value, "domain")
@@ -66,11 +60,6 @@ def validate_fragment_v2(value: Mapping[str, Any]) -> Fragment:
         archetype=cast(Archetype, archetype),
         domain=domain,
         trace_ids=tuple(trace_ids),
-        extra={
-            key: item
-            for key, item in value.items()
-            if key not in {"fragment_id", "archetype", "domain", "trace_ids"}
-        },
     )
 
 
@@ -86,11 +75,6 @@ def _require_string(value: Mapping[str, Any], field: str) -> str:
     if not isinstance(item, str) or not item:
         raise SchemaValidationError(field, "must be a non-empty string")
     return item
-
-
-def _require_literal(value: Mapping[str, Any], field: str, expected: Any) -> None:
-    if value.get(field) != expected or type(value.get(field)) is not type(expected):
-        raise SchemaValidationError(field, f"must be {expected!r}")
 
 
 def _require_choice(value: Mapping[str, Any], field: str, choices: frozenset[str]) -> str:

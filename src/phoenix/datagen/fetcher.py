@@ -3,17 +3,15 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import tarfile
 import tempfile
 from dataclasses import dataclass
 from hashlib import sha256
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
 _CORPUS_BASE_URL = "https://storage.googleapis.com/arize-phoenix-assets/datagen"
-_CACHE_CHECKSUMS_FILENAME = ".checksums.json"
 
 
 class CorpusFetchError(ValueError):
@@ -35,11 +33,11 @@ def fetch_corpus(
     pointer_path: Path | None = None,
     downloader: Downloader | None = None,
 ) -> Path:
-    """Fetch the published corpus and return its content-addressed cache directory."""
+    """Fetch the published corpus and return its content-addressed archive path."""
     cache_root = cache_dir or default_cache_dir()
     pointer = load_corpus_pointer(pointer_path, cache_dir=cache_root)
     destination = cache_root / pointer.sha256
-    if _is_cached_corpus(destination):
+    if destination.is_file():
         return destination
 
     _ensure_cache_dir(cache_root)
@@ -101,7 +99,7 @@ def _acquire_pointer(cache_root: Path, url: str, downloader: Downloader) -> Path
             raise CorpusFetchError(
                 f"Unable to download the datagen corpus pointer from {url}: {error}. "
                 "Run 'phoenix datagen pull' while online to prime the cache, "
-                "or pass a local corpus directory."
+                "or pass a local corpus archive."
             ) from error
         os.replace(temporary_path, destination)
         return destination
@@ -154,8 +152,6 @@ def _download_and_publish(
     archive_fd, archive_name = tempfile.mkstemp(prefix=".corpus-", suffix=".tar.gz", dir=cache_root)
     os.close(archive_fd)
     archive_path = Path(archive_name)
-    staging_path = Path(tempfile.mkdtemp(prefix=".corpus-", dir=cache_root))
-    stale_root: Path | None = None
     try:
         try:
             downloader(pointer.url, archive_path)
@@ -167,26 +163,12 @@ def _download_and_publish(
                 f"Datagen corpus checksum mismatch: expected {pointer.sha256}, "
                 f"downloaded {actual_digest}"
             )
-        extracted = _extract_corpus_archive(archive_path, staging_path)
-        _write_cache_sentinel(extracted)
-        if _is_cached_corpus(destination):
+        if destination.is_file():
             return destination
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        if destination.exists():
-            stale_root = Path(tempfile.mkdtemp(prefix=".corpus-stale-", dir=cache_root))
-            os.replace(destination, stale_root / destination.name)
-        try:
-            os.replace(extracted, destination)
-        except OSError:
-            if _is_cached_corpus(destination):
-                return destination
-            raise
+        os.replace(archive_path, destination)
         return destination
     finally:
         archive_path.unlink(missing_ok=True)
-        shutil.rmtree(staging_path, ignore_errors=True)
-        if stale_root is not None:
-            shutil.rmtree(stale_root, ignore_errors=True)
 
 
 def _download_file(url: str, destination: Path) -> None:
@@ -203,56 +185,3 @@ def _file_sha256(path: Path) -> str:
         for chunk in iter(lambda: file.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def _extract_corpus_archive(archive_path: Path, staging_path: Path) -> Path:
-    roots: set[str] = set()
-    try:
-        with tarfile.open(archive_path, mode="r:gz") as archive:
-            members = archive.getmembers()
-            paths = [_safe_member_path(member) for member in members]
-            roots.update(path.parts[0] for path in paths)
-            if len(roots) != 1 or any(
-                len(path.parts) == 1 and not member.isdir() for member, path in zip(members, paths)
-            ):
-                raise CorpusFetchError(
-                    "Datagen corpus archive must contain one top-level directory"
-                )
-            for member, relative_path in zip(members, paths):
-                output_path = staging_path.joinpath(*relative_path.parts)
-                if member.isdir():
-                    output_path.mkdir(parents=True, exist_ok=True)
-                    continue
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                source = archive.extractfile(member)
-                if source is None:
-                    raise CorpusFetchError(
-                        f"Datagen corpus archive member {member.name!r} could not be read"
-                    )
-                with source, output_path.open("wb") as output:
-                    shutil.copyfileobj(source, output)
-    except (OSError, tarfile.TarError) as error:
-        raise CorpusFetchError(
-            f"Datagen corpus is not a readable gzip tar archive: {error}"
-        ) from error
-
-    return staging_path / roots.pop()
-
-
-def _write_cache_sentinel(path: Path) -> None:
-    (path / _CACHE_CHECKSUMS_FILENAME).touch()
-
-
-def _is_cached_corpus(path: Path) -> bool:
-    return (path / _CACHE_CHECKSUMS_FILENAME).is_file()
-
-
-def _safe_member_path(member: tarfile.TarInfo) -> PurePosixPath:
-    path = PurePosixPath(member.name)
-    if not member.name or "\\" in member.name or path.is_absolute() or ".." in path.parts:
-        raise CorpusFetchError(f"Datagen corpus archive has unsafe member {member.name!r}")
-    if not (member.isdir() or member.isfile()):
-        raise CorpusFetchError(
-            f"Datagen corpus archive member {member.name!r} must be a regular file or directory"
-        )
-    return path
