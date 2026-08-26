@@ -120,10 +120,9 @@ function ProjectEvaluatorDetailsPageContent({
     query: projectEvaluatorDetailsLoaderGQL,
     queryRef,
   });
-  // One closed time range shared by the overview strip and the metrics tab:
-  // each tab remounts on selection, and independently-frozen ranges would
-  // close a live range at different instants, turning identical chart queries
-  // into cache misses on every tab switch.
+  // One closed time range shared by the overview strip and the metrics tab;
+  // independently frozen ranges would close a live range at different instants
+  // and turn identical chart queries into cache misses on tab switches.
   const timeRange = useClosedTimeRange();
   const { setCustomTimeRange } = useTimeRange();
   const projectEvaluator = data.projectEvaluator;

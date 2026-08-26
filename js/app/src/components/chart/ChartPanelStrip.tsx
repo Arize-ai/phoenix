@@ -122,11 +122,7 @@ const chartPanelStripCSS = (chartCount: number) => css`
   }
 `;
 
-/**
- * The height a chart panel strip reads well at. Strips above tables open
- * their resizable panel at this size; fixed-height placements (e.g. the
- * evaluator overview stats) size their container with it directly.
- */
+/** The height a chart panel strip reads well at, shared by every placement. */
 export const CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS = 230;
 
 /**
@@ -134,10 +130,8 @@ export const CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS = 230;
  * traces and sessions, or dataset experiments). Panels share the available
  * width evenly down to {@link CHART_MIN_WIDTH}, after which the strip scrolls
  * horizontally so every chart stays readable, fading its edges to mark the
- * panels scrolled out of view.
- *
- * The strip owns only its internal geometry and fills its container; page
- * gutters belong to the caller's layout.
+ * panels scrolled out of view. Fills its container; page gutters belong to
+ * the caller's layout.
  */
 export function ChartPanelStrip({
   chartCount,

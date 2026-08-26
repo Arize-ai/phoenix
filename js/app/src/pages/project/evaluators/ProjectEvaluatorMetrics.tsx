@@ -22,9 +22,7 @@ import { useProjectEvaluatorResultAnnotations } from "./useProjectEvaluatorResul
 /**
  * The metrics tab of the project evaluator details page: how the evaluator's
  * results are trending on the evaluated project, and what its own runs cost
- * and how long they take, read from its own trace project. The time range is
- * the page's, shared with the overview strip so the two surfaces' queries hit
- * the same Relay store entries.
+ * and how long they take, read from its own trace project.
  */
 export function ProjectEvaluatorMetrics({
   projectEvaluator,

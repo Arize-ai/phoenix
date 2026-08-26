@@ -36,22 +36,15 @@ import { useProjectEvaluatorResultAnnotations } from "@phoenix/pages/project/eva
 import { languageLabel } from "@phoenix/pages/settings/sandboxes/utils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
-/**
- * The strip fills the height the metric chart strips above the tables open
- * at, so the panels read at the same size here; past the width where its
- * panels no longer fit side by side it scrolls horizontally instead of
- * wrapping.
- */
+/** Matches the height of the metric chart strips above the tables. */
 const stripCSS = css`
   height: ${CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}px;
 `;
 
 /**
- * The stats strip at the top of the evaluator overview: the same metric panels
- * the Metrics tab renders — how the evaluator's results are trending, its run
- * volume by status, and what its runs cost — over the page's selected time
- * range, plus its lifetime activity, with the last run error surfaced as a
- * banner above the panels.
+ * The stats strip at the top of the evaluator overview: the evaluator's metric
+ * panels over the page's selected time range, its lifetime activity, and the
+ * last run error as a banner above.
  */
 export function ProjectEvaluatorStats({
   projectEvaluatorRef,
@@ -101,12 +94,9 @@ export function ProjectEvaluatorStats({
   const annotationLevel = getAnnotationLevel(projectEvaluator.evaluationTarget);
   const { runSummary } = projectEvaluator;
   const panelProps = { timeRange, onTimeRangeSelected, fillHeight: true };
-  // Built as an array so the strip's chartCount — the width at which it must
-  // scroll rather than squeeze the panels — cannot drift from the content.
+  // An array so the strip's chartCount cannot drift from the rendered panels.
   const panels = [
-    // The annotations the evaluator produces lead the strip — they are the
-    // metric the evaluator exists to compute; run volume and cost are its
-    // operational readings.
+    // The evaluator's own results lead the strip.
     ...resultAnnotations.map((annotation) => (
       <EvaluatorResultAnnotationMetricPanel
         key={annotation.name}
@@ -123,8 +113,7 @@ export function ProjectEvaluatorStats({
       traceProjectId={projectEvaluator.traceProject.id}
       {...panelProps}
     />,
-    // Code evaluators make no LLM calls, so a cost panel would only ever
-    // read $0.
+    // Code evaluators make no LLM calls; a cost panel would always read $0.
     ...(projectEvaluator.evaluator.kind === "LLM"
       ? [
           <EvaluatorCostMetricPanel
@@ -141,8 +130,6 @@ export function ProjectEvaluatorStats({
     />,
   ];
 
-  // The parent layout spaces the banner and the strip; the overview container
-  // supplies the gutters, so the strip adds none of its own.
   return (
     <>
       {runSummary.lastError ? (
@@ -175,7 +162,7 @@ const activityFieldsCSS = css`
     text-overflow: ellipsis;
   }
 
-  /* Numeric values line up with the tabular figures of the chart panels */
+  /* Tabular figures so the numbers align */
   dd {
     font-variant-numeric: tabular-nums;
   }
@@ -207,10 +194,7 @@ function ActivityField({
   );
 }
 
-/**
- * The evaluator's lifetime run bookkeeping — the former Stats card, rendered
- * in a ChartPanel so it sits flush with the metric panels beside it.
- */
+/** The evaluator's status and lifetime run totals, tiled like the metric panels. */
 function ProjectEvaluatorActivityPanel({
   projectEvaluator,
 }: {
@@ -231,8 +215,6 @@ function ProjectEvaluatorActivityPanel({
     >
       <dl css={activityFieldsCSS}>
         <ActivityField label="status">
-          {/* The label alone says what; the explanation on hover says why,
-              matching the status cell in the evaluators table. */}
           <TooltipTrigger delay={0}>
             <Focusable>
               <Token role="button" color={status.color}>
@@ -249,8 +231,7 @@ function ProjectEvaluatorActivityPanel({
           {runSummary.lastRunAt == null ? (
             <Text size="S">{formatLastRun(runSummary.lastRunAt)}</Text>
           ) : (
-            // The absolute time behind the relative phrasing. "2 hours ago"
-            // answers "is it running?"; the tooltip answers "which run?".
+            // Relative time, with the absolute timestamp on hover.
             <TooltipTrigger delay={64}>
               <TriggerWrap>
                 <Text size="S">{formatLastRun(runSummary.lastRunAt)}</Text>

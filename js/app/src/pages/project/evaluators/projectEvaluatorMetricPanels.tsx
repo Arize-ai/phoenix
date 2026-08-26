@@ -7,11 +7,9 @@ import {
 import { DeferredProjectAnnotationMetricPanel } from "@phoenix/pages/project/metrics/ProjectAnnotationMetrics";
 
 /**
- * The one home for the panels that chart a project evaluator, consumed by both
- * the overview stats strip and the Metrics tab so the two surfaces cannot
- * drift in which charts they show or how they describe them. Each surface
- * supplies only its layout concerns (`fillHeight`) and, where its context
- * warrants a different name, a title.
+ * The panels that chart a project evaluator, shared by the overview stats
+ * strip and the Metrics tab so the two surfaces cannot drift. Callers supply
+ * layout (`fillHeight`) and, where warranted, a title.
  */
 
 type EvaluatorTraceMetricPanelProps = {
@@ -73,8 +71,8 @@ export function EvaluatorCostMetricPanel({
 
 /**
  * How one of the evaluator's result annotations is trending on the evaluated
- * project. The evaluated project has no annotation configs for the evaluator's
- * results, so the chart takes its optimization metadata from the evaluator.
+ * project, with optimization metadata read from the evaluator (the project
+ * has no annotation config for it).
  */
 export function EvaluatorResultAnnotationMetricPanel({
   evaluatedProjectId,
