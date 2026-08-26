@@ -16,9 +16,10 @@ assistant to reset a password **and** update a billing address, and the
 assistant handles only the reset, the conversation is incomplete.
 
 <Info>
-Completeness is independent of correctness and quality. A fully responsive
-answer counts as addressing an intention even if it is wrong, verbose, or
-poorly written.
+Completeness is independent of correctness, quality, and task success. A
+response that engages an intention counts even if it is wrong, a refusal, a
+report that the evidence is missing, or a request for information the
+assistant needs from the user.
 </Info>
 
 ## Supported Levels
@@ -141,9 +142,9 @@ For model and provider options, see
 
 ## Benchmarks
 
-On a 38-example categorized synthetic benchmark using `gpt-4o-mini`, the default
-prompt achieves 0.84 accuracy, 0.84 macro precision, 0.85 macro recall, and
-0.84 macro F1. See
+On a 20-example categorized synthetic benchmark using `gpt-4o-mini`, the default
+prompt achieves 0.85 accuracy, 0.88 macro precision, 0.86 macro recall, and
+0.85 macro F1. See
 [completeness.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/completeness.eval.ts)
 for the example set.
 

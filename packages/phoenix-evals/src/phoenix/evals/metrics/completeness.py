@@ -19,8 +19,10 @@ class CompletenessEvaluator(ClassificationEvaluator):
         llm (LLM): The LLM instance to use for the evaluation.
 
     Notes:
-        - Completeness measures breadth of coverage, not whether a single
-          overarching goal was reached.
+        - Completeness measures whether each distinct user ask was addressed,
+          not whether the requested outcome actually happened. A refusal, a
+          missing-evidence answer, or a blocking question to the user still
+          addresses the intention.
         - Returns one `Score` with `label` (complete or incomplete), `score`
           (1.0 if complete, 0.0 if incomplete), and an `explanation` from the
           LLM judge that lists each intention.
