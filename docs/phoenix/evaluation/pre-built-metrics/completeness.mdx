@@ -1,0 +1,159 @@
+---
+title: "Completeness"
+description: "Assess whether the assistant addressed every distinct user intention in a conversation."
+---
+
+## Overview
+
+The **Completeness** evaluator classifies whether an assistant addressed every
+distinct intention the user raised over the course of a conversation. It
+measures **breadth of coverage** — whether each separate request, question, or
+task was addressed — not whether a single overarching goal was reached.
+
+A conversation can succeed at its main objective and still be incomplete when a
+secondary request is silently dropped. For example, if the user asks the
+assistant to reset a password **and** update a billing address, and the
+assistant handles only the reset, the conversation is incomplete.
+
+<Info>
+Completeness is independent of correctness and quality. A fully responsive
+answer counts as addressing an intention even if it is wrong, verbose, or
+poorly written.
+</Info>
+
+## Supported Levels
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply when a span contains the full conversation, including tool calls and results. |
+| **Trace** | Yes | Useful when each trace is one conversation or agent run. |
+| **Session** | Yes | Evaluate the whole session when intentions span multiple traces. |
+
+**Relevant span kinds:** AGENT, CHAIN, and LLM spans that preserve multi-turn
+conversation history and tool activity.
+
+## Input Requirements
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `conversation` | `string` | Full conversation record to judge, including turns, tool calls, and tool results. |
+
+Include early-turn requests. Render tool calls and tool results so the judge can
+tell whether a claimed action actually happened.
+
+## Output Interpretation
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"complete"` or `"incomplete"` | Classification result |
+| `score` | `1.0` or `0.0` | `1.0` means every active intention was addressed |
+| `explanation` | `string` | Judge reasoning, including an `INTENTIONS:` list |
+| `direction` | `"maximize"` | Higher aggregate scores are better |
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import CompletenessEvaluator
+
+    evaluator = CompletenessEvaluator(
+        llm=LLM(provider="openai", model="gpt-4o-mini"),
+        temperature=0.0,
+    )
+
+    scores = evaluator.evaluate({
+        "conversation": (
+            "User: Reset my password and update the billing address.\n"
+            "Assistant: Your password has been reset."
+        ),
+    })
+
+    print(scores[0])
+    # Score(name='completeness', score=0.0, label='incomplete', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createCompletenessEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const evaluator = createCompletenessEvaluator({
+      model: openai("gpt-4o-mini"),
+    });
+
+    const result = await evaluator.evaluate({
+      conversation:
+        "User: Reset my password and update the billing address.\nAssistant: Your password has been reset.",
+    });
+
+    console.log(result);
+    // { score: 0, label: "incomplete", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+## Using Input Mapping
+
+Map your trace or dataset fields into the evaluator's `conversation` field.
+
+```python
+input_mapping = {
+    "conversation": lambda row: render_messages(row["messages"]),
+}
+
+scores = evaluator.evaluate(dataset_row, input_mapping)
+```
+
+See [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping) for
+additional mapping options.
+
+## Viewing and Modifying the Prompt
+
+The default prompt is maintained in the
+[classification evaluator config](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/COMPLETENESS_CLASSIFICATION_EVALUATOR_CONFIG.yaml).
+Adapt it when your application has domain-specific notions of what counts as an
+intention.
+
+```typescript
+import { createCompletenessEvaluator } from "@arizeai/phoenix-evals";
+
+const evaluator = createCompletenessEvaluator({
+  model,
+  promptTemplate: `Conversation: {{conversation}}
+Did the assistant address every user intention?`,
+  choices: { complete: 1, incomplete: 0 },
+});
+```
+
+## Configuration
+
+For model and provider options, see
+[Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+## Using with Phoenix
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## Benchmarks
+
+On a 38-example categorized synthetic benchmark using `gpt-4o-mini`, the default
+prompt achieves 0.84 accuracy, 0.84 macro precision, 0.85 macro recall, and
+0.84 macro F1. See
+[completeness.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/completeness.eval.ts)
+for the example set.
+
+## API Reference
+
+- **Python:** [CompletenessEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript:** [createCompletenessEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness)
+- [User Friction Evaluator](/docs/phoenix/evaluation/pre-built-metrics/user-friction)
+- [Hallucination Evaluator](/docs/phoenix/evaluation/pre-built-metrics/hallucination)
