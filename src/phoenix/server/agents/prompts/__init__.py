@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from jinja2 import Template
-
 from phoenix.server.agents.prompts.static_prompts import read_static_prompt
 from phoenix.server.agents.prompts.templating import get_template
 
@@ -29,9 +27,6 @@ _UI_CONTEXT_PROMPT_NAMES = (
 
 _UI_CONTEXT_INSTRUCTIONS = "\n".join(read_static_prompt(name) for name in _UI_CONTEXT_PROMPT_NAMES)
 
-_SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
-_LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
-
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
 )
@@ -50,9 +45,6 @@ class AgentPrompts:
     docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
     phoenix_mcp_tools: str = _PHOENIX_MCP_TOOL_INSTRUCTIONS
     ui_contexts: str = _UI_CONTEXT_INSTRUCTIONS
-    skills: Template = _SKILLS_TEMPLATE
-    load_skill: Template = _LOAD_SKILL_TEMPLATE
-
 
 __all__ = [
     "AgentPrompts",

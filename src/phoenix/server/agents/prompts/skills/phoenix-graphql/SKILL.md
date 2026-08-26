@@ -29,12 +29,12 @@ Top-level `Query` entrypoints get you to a starting entity; per-entity schema de
 
 Per-entity field references and examples are split into resources. Read **only** the one(s) you need with `read_skill_resource`, after loading this skill:
 
-- `project-spans-traces` — Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
-- `sessions` — ProjectSession: multi-turn session metrics, token/cost, session traces.
-- `datasets` — Dataset and DatasetExample: examples, versions, splits, labels.
-- `experiments` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
-- `prompts` — Prompt and PromptVersion: versions, templates, tags.
-- `annotations` — Span/Trace/ExperimentRun annotation fields and how to read them.
+- `project-spans-traces.md` — Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
+- `sessions.md` — ProjectSession: multi-turn session metrics, token/cost, session traces.
+- `datasets.md` — Dataset and DatasetExample: examples, versions, splits, labels.
+- `experiments.md` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
+- `prompts.md` — Prompt and PromptVersion: versions, templates, tags.
+- `annotations.md` — Span/Trace/ExperimentRun annotation fields and how to read them.
 
 ### Conventions
 

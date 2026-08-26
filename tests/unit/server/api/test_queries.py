@@ -2815,18 +2815,19 @@ async def test_available_agent_skills_returns_the_whole_catalog(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    # Every skill, in catalog order. The field takes no arguments: there is no
-    # UI state that can narrow this list, because `load_skill` will load any of
-    # them from any page.
+    # Every skill, in catalog order: the general root first, then PXI's own,
+    # each by name. The field takes no arguments: there is no UI state that can
+    # narrow this list, because `load_skill` will load any of them from any page.
     assert names == [
-        "debug-trace",
+        "project-overview",
         "annotate-spans",
-        "span-coding",
+        "datasets",
+        "debug-trace",
+        "evaluators",
+        "experiments",
         "phoenix-graphql",
         "playground",
-        "datasets",
-        "experiments",
-        "evaluators",
+        "span-coding",
     ]
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])
@@ -2837,13 +2838,13 @@ async def test_available_agent_skills_matches_what_the_agent_is_advertised(
     gql_client: AsyncGraphQLClient,
 ) -> None:
     """The picker and the agent read the same catalog, so neither can drift."""
-    from phoenix.server.agents.skills import get_skills
+    from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
 
     response = await gql_client.execute(query=_AVAILABLE_AGENT_SKILLS_QUERY)
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    assert names == [skill.name for skill in get_skills()]
+    assert names == [skill.name for skill in load_skills(PXI_SKILLS_ROOTS)]
 
 
 async def test_node_with_noninteger_payload_returns_bad_request(

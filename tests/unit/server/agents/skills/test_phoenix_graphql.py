@@ -6,13 +6,14 @@ from typing import TypeAlias
 import pytest
 from graphql import parse, validate
 
-from phoenix.server.agents.capabilities.skills import ContentSkillResource
-from phoenix.server.agents.skills.phoenix_graphql import PHOENIX_GRAPHQL_SKILL
 from phoenix.server.api.schema import build_graphql_schema
+from phoenix.server.mcp.skills import PXI_SKILLS_ROOT, Skill
 
 _GRAPHQL_BLOCK = re.compile(r"```graphql\n(.*?)```", re.DOTALL)
 GraphQLExample: TypeAlias = tuple[str, str]
 SkillContentSource: TypeAlias = tuple[str, str]
+
+PHOENIX_GRAPHQL_SKILL = Skill.from_directory(PXI_SKILLS_ROOT / "phoenix-graphql")
 
 
 def _iter_graphql_examples() -> list[GraphQLExample]:
@@ -21,10 +22,9 @@ def _iter_graphql_examples() -> list[GraphQLExample]:
     Covers the skill body and every resource so a renamed schema field fails the
     suite instead of silently rotting the documented examples.
     """
-    sources: list[SkillContentSource] = [("SKILL.md body", PHOENIX_GRAPHQL_SKILL.content)]
+    sources: list[SkillContentSource] = [("SKILL.md body", PHOENIX_GRAPHQL_SKILL.body)]
     for resource in PHOENIX_GRAPHQL_SKILL.resources:
-        assert isinstance(resource, ContentSkillResource)
-        sources.append((f"resource:{resource.name}", resource.content))
+        sources.append((f"resource:{resource.name}", resource.read()))
 
     examples: list[GraphQLExample] = []
     for label, text in sources:

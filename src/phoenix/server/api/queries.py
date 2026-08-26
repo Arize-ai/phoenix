@@ -1713,9 +1713,9 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[AgentSkill]:
-        from phoenix.server.agents.skills import get_skills
+        from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
 
-        skills = get_skills()
+        skills = load_skills(PXI_SKILLS_ROOTS)
         return [
             AgentSkill(
                 name=skill.name,

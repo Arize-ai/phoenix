@@ -11,24 +11,23 @@ from phoenix.db.types.data_stream_protocol import (
     ToolOutputAvailablePart,
     UIMessage,
 )
-from phoenix.server.agents.capabilities.skills import Skill
-from phoenix.server.agents.prompts.templating import get_template
 from phoenix.server.agents.skill_requests import (
     LOAD_SKILL_TOOL_NAME,
     inject_requested_skills,
     iter_requested_skill_response_chunks,
     resolve_requested_skills,
 )
-
-_LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
+from phoenix.server.mcp.skills import Skill
 
 
 def _make_skill(name: str) -> Skill:
+    body = f"# {name}\n\nbody for {name}"
     return Skill(
         name=name,
         description=f"{name} description",
         summary=f"{name} summary",
-        content=f"# {name}\n\nbody for {name}",
+        text=f"---\nname: {name}\n---\n\n{body}\n",
+        body=body,
         path=Path("/tmp/unused"),
     )
 
@@ -53,7 +52,6 @@ def _inject(
         messages=messages,
         requested_skill_names=requested,
         available_skills=available,
-        load_skill_template=_LOAD_SKILL_TEMPLATE,
         message_factory=UIMessage,
     )
 
@@ -164,12 +162,7 @@ class TestResolveRequestedSkills:
 class TestIterRequestedSkillResponseChunks:
     def test_emits_step_framed_tool_chunks_per_skill(self) -> None:
         skills = [_make_skill("debug-trace"), _make_skill("annotate-spans")]
-        chunks = list(
-            iter_requested_skill_response_chunks(
-                skills=skills,
-                load_skill_template=_LOAD_SKILL_TEMPLATE,
-            )
-        )
+        chunks = list(iter_requested_skill_response_chunks(skills=skills))
         types = [chunk.model_dump(by_alias=True)["type"] for chunk in chunks]
         # one start-step / tool-input / tool-output / finish-step per skill
         assert types == [
@@ -188,7 +181,6 @@ class TestIterRequestedSkillResponseChunks:
             chunk.model_dump(by_alias=True)
             for chunk in iter_requested_skill_response_chunks(
                 skills=[_make_skill("debug-trace")],
-                load_skill_template=_LOAD_SKILL_TEMPLATE,
             )
         ]
         input_chunk = next(c for c in chunks if c["type"] == "tool-input-available")
@@ -200,10 +192,5 @@ class TestIterRequestedSkillResponseChunks:
         assert "body for debug-trace" in output_chunk["output"]
 
     def test_no_skills_emits_nothing(self) -> None:
-        chunks = list(
-            iter_requested_skill_response_chunks(
-                skills=[],
-                load_skill_template=_LOAD_SKILL_TEMPLATE,
-            )
-        )
+        chunks = list(iter_requested_skill_response_chunks(skills=[]))
         assert chunks == []

@@ -84,13 +84,21 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
 
 @dataclass
 class PhoenixMCPCapability(AbstractCapability[AgentDepsT]):
-    """Pairs the Phoenix MCP toolset with its guidance text."""
+    """Pairs the Phoenix MCP toolset with its guidance text.
+
+    ``server_instructions`` is what the server sends in its ``initialize``
+    handshake — the skills catalog. It follows the static guidance so the agent
+    reads the same catalog a coding-agent client does.
+    """
 
     mcp_server: MCPToolset[AgentDepsT]
     instructions: str
+    server_instructions: Optional[str] = None
 
     def get_toolset(self) -> AgentToolset[AgentDepsT] | None:
         return self.mcp_server
 
     def get_instructions(self) -> str:
-        return self.instructions
+        if not self.server_instructions:
+            return self.instructions
+        return f"{self.instructions}\n{self.server_instructions}"

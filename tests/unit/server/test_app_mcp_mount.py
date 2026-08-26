@@ -108,6 +108,59 @@ async def test_mcp_server_advertises_the_phoenix_version(
         assert client.initialize_result.serverInfo.version == phoenix_version
 
 
+async def test_the_mount_advertises_only_the_general_skills(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A coding agent at ``/mcp`` gets the skills that assume nothing beyond the
+    MCP surface; PXI's own skills lean on affordances it does not have."""
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
+    from fastmcp import Client
+    from fastmcp.client.transports import StreamableHttpTransport
+
+    mcp_app, _ = create_phoenix_mcp_app(FastAPI(), db=_unused_db())
+
+    def _factory(
+        headers: dict[str, str] | None = None,
+        timeout: httpx.Timeout | None = None,
+        auth: httpx.Auth | None = None,
+        follow_redirects: bool = True,
+    ) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=mcp_app),
+            base_url="http://testserver",
+            headers=headers,
+            follow_redirects=follow_redirects,
+        )
+
+    transport = StreamableHttpTransport(url="http://testserver/", httpx_client_factory=_factory)
+    async with LifespanManager(mcp_app), Client(transport) as client:
+        assert client.initialize_result is not None
+        instructions = client.initialize_result.instructions or ""
+        tool_names = {tool.name for tool in await client.list_tools()}
+
+    assert "- project-overview: " in instructions
+    assert "phoenix-graphql" not in instructions
+    assert {"load_skill", "read_skill_resource"} <= tool_names
+
+
+async def test_the_agents_own_server_adds_the_pxi_skills(
+    db: DbSessionFactory,
+) -> None:
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=db,
+            authentication_enabled=False,
+            serve_ui=False,
+            bulk_inserter_factory=TestBulkInserter,
+        )
+
+    instructions = app.state.pxi_mcp_server.instructions
+    assert "- project-overview: " in instructions
+    assert "- phoenix-graphql: " in instructions
+
+
 def test_code_mode_requires_a_monty_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
 
@@ -360,7 +413,17 @@ async def test_mcp_code_mode_replaces_tool_surface(
         )
         async with Client(transport) as client:
             tools = {t.name: t for t in await client.list_tools()}
-            assert set(tools) == {"search", "get_schema", "tags", "list_tools", "execute"}
+            # The skill tools are the one exception to the fold: a skill is
+            # loaded once and read, not composed inside ``execute``.
+            assert set(tools) == {
+                "search",
+                "get_schema",
+                "tags",
+                "list_tools",
+                "execute",
+                "load_skill",
+                "read_skill_resource",
+            }
 
             # Discovery tools are reads and say so; execute can invoke mutating
             # tools, so it stays unannotated (treated as possibly destructive).

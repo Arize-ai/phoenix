@@ -252,6 +252,15 @@ Use code mode at your own risk. It relies on [Monty's](https://github.com/pydant
 Prefer not to run agent-written MCP code on your server? Set `PHOENIX_ENABLE_MCP_CODE_MODE=false` to remove the `execute` tool. The server then exposes the API operations as plain MCP tools, grouped by category, which clients reveal on demand via `list_tool_groups` and `enable_tool_group`. This setting does not disable Monty code evaluators; use `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` to control evaluator sandbox providers.
 </Note>
 
+### Skills
+
+Alongside the operation catalog, the server ships **skills**: instructions for working in a Phoenix domain, each a `SKILL.md` with optional supporting files. The `initialize` handshake lists every skill's name and description, so a client that folds server instructions into its system prompt knows what is available before the first tool call. Two tools serve the rest on demand, on both the code-mode and the plain-tools surface:
+
+| Tool                  | Purpose                                                                          |
+| --------------------- | -------------------------------------------------------------------------------- |
+| `load_skill`          | Return a skill's full instructions; call it before working in the skill's domain |
+| `read_skill_resource` | Return one of a loaded skill's supporting files, by the name the skill lists     |
+
 ## Things to try
 
 ```text
