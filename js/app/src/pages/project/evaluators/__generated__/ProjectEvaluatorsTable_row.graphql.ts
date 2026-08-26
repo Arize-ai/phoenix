@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c7b4acab3bef7ad3f152675ddf8337c3>>
+ * @generated SignedSource<<3e1c5d7d5c42626ee80bb934191add13>>
  * @lightSyntaxTransform
  */
 
@@ -68,6 +68,7 @@ export type ProjectEvaluatorsTable_row$data = {
       };
     };
     readonly id: string;
+    readonly traceCount: number;
   };
   readonly updatedAt: string;
   readonly " $fragmentType": "ProjectEvaluatorsTable_row";
@@ -82,6 +83,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "9af26050b80d896886c85ab68514b22b";
+(node as any).hash = "3ff73da20af07772af89a8a41f2ab853";
 
 export default node;

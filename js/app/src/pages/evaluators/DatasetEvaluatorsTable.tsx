@@ -30,7 +30,10 @@ import {
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { EvaluatorCost } from "@phoenix/components/evaluators/EvaluatorCost";
+import {
+  EvaluatorAverageCost,
+  EvaluatorCost,
+} from "@phoenix/components/evaluators/EvaluatorCost";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
@@ -219,6 +222,7 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
         }
         project {
           id
+          traceCount(timeRange: $costTimeRange)
           costSummary(timeRange: $costTimeRange) {
             total {
               cost
@@ -451,14 +455,28 @@ export const DatasetEvaluatorsTable = ({
       },
       {
         id: "cost",
-        header: "cost (7d)",
-        size: 100,
+        header: "total cost (7d)",
+        size: 110,
         enableSorting: false,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
           <EvaluatorCost
             evaluatorKind={row.original.evaluator.kind}
             costSummary={row.original.project.costSummary}
+          />
+        ),
+      },
+      {
+        id: "averageCost",
+        header: "avg cost / run (7d)",
+        size: 130,
+        enableSorting: false,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => (
+          <EvaluatorAverageCost
+            evaluatorKind={row.original.evaluator.kind}
+            costSummary={row.original.project.costSummary}
+            runCount={row.original.project.traceCount}
           />
         ),
       },

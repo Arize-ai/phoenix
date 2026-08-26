@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7c165010a19d2a9e5d3f6ff62c7677ad>>
+ * @generated SignedSource<<3fee94507d2220087e7aacbfa3c51d97>>
  * @lightSyntaxTransform
  */
 
@@ -91,6 +91,13 @@ v8 = {
 },
 v9 = [
   {
+    "kind": "Variable",
+    "name": "timeRange",
+    "variableName": "costTimeRange"
+  }
+],
+v10 = [
+  {
     "alias": null,
     "args": null,
     "kind": "ScalarField",
@@ -98,7 +105,7 @@ v9 = [
     "storageKey": null
   }
 ],
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -246,13 +253,14 @@ return {
                               (v3/*:: as any*/),
                               {
                                 "alias": null,
-                                "args": [
-                                  {
-                                    "kind": "Variable",
-                                    "name": "timeRange",
-                                    "variableName": "costTimeRange"
-                                  }
-                                ],
+                                "args": (v9/*:: as any*/),
+                                "kind": "ScalarField",
+                                "name": "traceCount",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": (v9/*:: as any*/),
                                 "concreteType": "SpanCostSummary",
                                 "kind": "LinkedField",
                                 "name": "costSummary",
@@ -265,7 +273,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "total",
                                     "plural": false,
-                                    "selections": (v9/*:: as any*/),
+                                    "selections": (v10/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -275,7 +283,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "prompt",
                                     "plural": false,
-                                    "selections": (v9/*:: as any*/),
+                                    "selections": (v10/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -285,7 +293,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "completion",
                                     "plural": false,
-                                    "selections": (v9/*:: as any*/),
+                                    "selections": (v10/*:: as any*/),
                                     "storageKey": null
                                   }
                                 ],
@@ -305,7 +313,7 @@ return {
                               (v4/*:: as any*/),
                               (v3/*:: as any*/),
                               (v6/*:: as any*/),
-                              (v10/*:: as any*/),
+                              (v11/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -506,7 +514,7 @@ return {
           (v3/*:: as any*/),
           (v6/*:: as any*/),
           (v7/*:: as any*/),
-          (v10/*:: as any*/)
+          (v11/*:: as any*/)
         ],
         "storageKey": null
       },
@@ -603,12 +611,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b7098650c5dc66ffe32ad2d837ec0eba",
+    "cacheID": "c57260348dc1a145360c0e3450e336aa",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n  $costTimeRange: TimeRange\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetEvaluatorsTable_evaluators_2WJEbX\n    }\n  }\n  ...AddEvaluatorMenu_query\n  ...DatasetEvaluatorsPage_builtInEvaluators\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment DatasetEvaluatorsPage_builtInEvaluators on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n  }\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_2WJEbX on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row_2WJEbX\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row_2WJEbX on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  project {\n    id\n    costSummary(timeRange: $costTimeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n  $costTimeRange: TimeRange\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetEvaluatorsTable_evaluators_2WJEbX\n    }\n  }\n  ...AddEvaluatorMenu_query\n  ...DatasetEvaluatorsPage_builtInEvaluators\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment DatasetEvaluatorsPage_builtInEvaluators on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n  }\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_2WJEbX on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row_2WJEbX\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row_2WJEbX on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  project {\n    id\n    traceCount(timeRange: $costTimeRange)\n    costSummary(timeRange: $costTimeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();

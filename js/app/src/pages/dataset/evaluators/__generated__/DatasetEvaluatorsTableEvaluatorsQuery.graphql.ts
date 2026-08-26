@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b02fb586373bafd76849418d9539ce2>>
+ * @generated SignedSource<<d4666ad594433acc810623cd5da9c025>>
  * @lightSyntaxTransform
  */
 
@@ -135,6 +135,13 @@ v15 = {
   "storageKey": null
 },
 v16 = [
+  {
+    "kind": "Variable",
+    "name": "timeRange",
+    "variableName": "costTimeRange"
+  }
+],
+v17 = [
   {
     "alias": null,
     "args": null,
@@ -284,13 +291,14 @@ return {
                               (v12/*:: as any*/),
                               {
                                 "alias": null,
-                                "args": [
-                                  {
-                                    "kind": "Variable",
-                                    "name": "timeRange",
-                                    "variableName": "costTimeRange"
-                                  }
-                                ],
+                                "args": (v16/*:: as any*/),
+                                "kind": "ScalarField",
+                                "name": "traceCount",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": (v16/*:: as any*/),
                                 "concreteType": "SpanCostSummary",
                                 "kind": "LinkedField",
                                 "name": "costSummary",
@@ -303,7 +311,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "total",
                                     "plural": false,
-                                    "selections": (v16/*:: as any*/),
+                                    "selections": (v17/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -313,7 +321,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "prompt",
                                     "plural": false,
-                                    "selections": (v16/*:: as any*/),
+                                    "selections": (v17/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -323,7 +331,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "completion",
                                     "plural": false,
-                                    "selections": (v16/*:: as any*/),
+                                    "selections": (v17/*:: as any*/),
                                     "storageKey": null
                                   }
                                 ],
@@ -542,12 +550,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "eaf948086cf9be3bf3859e130083864a",
+    "cacheID": "20be5193e22ca918fe8dd10c4ce23f30",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $costTimeRange: TimeRange\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_Nw8hk\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_Nw8hk on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row_2WJEbX\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row_2WJEbX on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  project {\n    id\n    costSummary(timeRange: $costTimeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $costTimeRange: TimeRange\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_Nw8hk\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_Nw8hk on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row_2WJEbX\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row_2WJEbX on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  project {\n    id\n    traceCount(timeRange: $costTimeRange)\n    costSummary(timeRange: $costTimeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

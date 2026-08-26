@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<06f3ad275443846c0823fda9c1da7113>>
+ * @generated SignedSource<<26e7fe3f1072426a2142f14a05dc15e6>>
  * @lightSyntaxTransform
  */
 
@@ -51,6 +51,13 @@ v3 = {
   "storageKey": null
 },
 v4 = [
+  {
+    "kind": "Variable",
+    "name": "timeRange",
+    "variableName": "costTimeRange"
+  }
+],
+v5 = [
   {
     "alias": null,
     "args": null,
@@ -251,13 +258,14 @@ return {
                         (v2/*:: as any*/),
                         {
                           "alias": null,
-                          "args": [
-                            {
-                              "kind": "Variable",
-                              "name": "timeRange",
-                              "variableName": "costTimeRange"
-                            }
-                          ],
+                          "args": (v4/*:: as any*/),
+                          "kind": "ScalarField",
+                          "name": "traceCount",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": (v4/*:: as any*/),
                           "concreteType": "SpanCostSummary",
                           "kind": "LinkedField",
                           "name": "costSummary",
@@ -270,7 +278,7 @@ return {
                               "kind": "LinkedField",
                               "name": "total",
                               "plural": false,
-                              "selections": (v4/*:: as any*/),
+                              "selections": (v5/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -280,7 +288,7 @@ return {
                               "kind": "LinkedField",
                               "name": "prompt",
                               "plural": false,
-                              "selections": (v4/*:: as any*/),
+                              "selections": (v5/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -290,7 +298,7 @@ return {
                               "kind": "LinkedField",
                               "name": "completion",
                               "plural": false,
-                              "selections": (v4/*:: as any*/),
+                              "selections": (v5/*:: as any*/),
                               "storageKey": null
                             }
                           ],

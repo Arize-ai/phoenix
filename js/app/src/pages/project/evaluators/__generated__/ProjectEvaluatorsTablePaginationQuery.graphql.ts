@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<732529e0ecc7d584362063e26a09f2ab>>
+ * @generated SignedSource<<60e4a55db013bc8e2809518ccc4c6967>>
  * @lightSyntaxTransform
  */
 
@@ -112,6 +112,13 @@ v8 = {
   "storageKey": null
 },
 v9 = [
+  {
+    "kind": "Variable",
+    "name": "timeRange",
+    "variableName": "costTimeRange"
+  }
+],
+v10 = [
   {
     "alias": null,
     "args": null,
@@ -307,13 +314,14 @@ return {
                               (v6/*:: as any*/),
                               {
                                 "alias": null,
-                                "args": [
-                                  {
-                                    "kind": "Variable",
-                                    "name": "timeRange",
-                                    "variableName": "costTimeRange"
-                                  }
-                                ],
+                                "args": (v9/*:: as any*/),
+                                "kind": "ScalarField",
+                                "name": "traceCount",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": (v9/*:: as any*/),
                                 "concreteType": "SpanCostSummary",
                                 "kind": "LinkedField",
                                 "name": "costSummary",
@@ -326,7 +334,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "total",
                                     "plural": false,
-                                    "selections": (v9/*:: as any*/),
+                                    "selections": (v10/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -336,7 +344,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "prompt",
                                     "plural": false,
-                                    "selections": (v9/*:: as any*/),
+                                    "selections": (v10/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -346,7 +354,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "completion",
                                     "plural": false,
-                                    "selections": (v9/*:: as any*/),
+                                    "selections": (v10/*:: as any*/),
                                     "storageKey": null
                                   }
                                 ],
@@ -543,12 +551,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d73c82aeda12c803d44fe2e557b44aa5",
+    "cacheID": "5f748d39040ee2030d3e888af3230743",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsTablePaginationQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $costTimeRange: TimeRange\n  $filter: ProjectEvaluatorFilter = null\n  $first: Int = 30\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_1m3gzM\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_1m3gzM on Project {\n  evaluators(first: $first, after: $after, filter: $filter) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row_2WJEbX\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row_2WJEbX on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  schedulabilityStatus\n  enabled\n  updatedAt\n  schedulabilityReason\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n  }\n  traceProject {\n    id\n    costSummary(timeRange: $costTimeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $costTimeRange: TimeRange\n  $filter: ProjectEvaluatorFilter = null\n  $first: Int = 30\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_1m3gzM\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_1m3gzM on Project {\n  evaluators(first: $first, after: $after, filter: $filter) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row_2WJEbX\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row_2WJEbX on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  schedulabilityStatus\n  enabled\n  updatedAt\n  schedulabilityReason\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n  }\n  traceProject {\n    id\n    traceCount(timeRange: $costTimeRange)\n    costSummary(timeRange: $costTimeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
