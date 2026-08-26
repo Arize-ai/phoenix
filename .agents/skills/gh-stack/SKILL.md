@@ -7,6 +7,7 @@ metadata:
     github-ref: refs/tags/v0.0.8
     github-repo: https://github.com/github/gh-stack
     github-tree-sha: 26320e8be554b0cc1d122c353e8897f0c69739cd
+    internal: true
     version: 0.0.8
 name: gh-stack
 ---
