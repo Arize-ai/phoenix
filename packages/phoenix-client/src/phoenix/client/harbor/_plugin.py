@@ -244,6 +244,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
             base_url=self.endpoint,
             headers=_update_headers(None, self._api_key),
             timeout=_DEFAULT_CLIENT_TIMEOUT,
+            transport=httpx.AsyncHTTPTransport(retries=2),
         ) as http_client:
             yield AsyncClient(http_client=http_client)
 

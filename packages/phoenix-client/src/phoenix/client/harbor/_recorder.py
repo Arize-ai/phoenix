@@ -6,12 +6,10 @@
 
 from __future__ import annotations
 
-import asyncio
-import functools
 import logging
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 
 import httpx
 from harbor.models.trial.result import TrialResult
@@ -32,10 +30,6 @@ __all__ = [
 ]
 
 _INTEGRATION = "harbor"
-_MAX_WRITE_ATTEMPTS = 3
-_INITIAL_RETRY_DELAY_SECONDS = 0.25
-
-_T = TypeVar("_T")
 
 RunKey = tuple[str, str, int]
 
@@ -250,7 +244,7 @@ class PhoenixRecorder:
                 f"Harbor trial {trial_name!r} has no complete start and end timestamps."
             )
 
-        async def write_run() -> v1.ExperimentRun:
+        try:
             return await self._client.experiments.log_run(
                 experiment_id=experiment.experiment_id,
                 dataset_example_id=example_id,
@@ -259,12 +253,6 @@ class PhoenixRecorder:
                 end_time=end_time,
                 repetition_number=slot.repetition,
                 error=_trial_error(trial_result),
-            )
-
-        try:
-            return await _retry_transient_write(
-                write_run,
-                description=f"Harbor trial {trial_name!r}",
             )
         except httpx.HTTPStatusError as error:
             if error.response.status_code == 409:
@@ -292,28 +280,22 @@ class PhoenixRecorder:
         """Upsert the complete evaluation set for an experiment run."""
         for record in records:
             try:
-                await _retry_transient_write(
-                    functools.partial(self._log_evaluation, run_id, record),
-                    description=f"evaluation {record.name!r} for Phoenix run {run_id}",
+                await self._client.experiments.log_evaluation(
+                    experiment_run_id=run_id,
+                    name=record.name,
+                    annotator_kind="CODE",
+                    start_time=record.start_time,
+                    end_time=record.end_time,
+                    score=record.score,
+                    label=record.label,
+                    explanation=record.explanation,
+                    metadata=record.metadata,
                 )
             except Exception as error:
                 raise HarborPluginError(
                     f"Could not record Harbor evaluation {record.name!r} for Phoenix run "
                     f"{run_id}: {error}"
                 ) from error
-
-    async def _log_evaluation(self, run_id: str, record: ExtractedEvaluation) -> None:
-        await self._client.experiments.log_evaluation(
-            experiment_run_id=run_id,
-            name=record.name,
-            annotator_kind="CODE",
-            start_time=record.start_time,
-            end_time=record.end_time,
-            score=record.score,
-            label=record.label,
-            explanation=record.explanation,
-            metadata=record.metadata,
-        )
 
     async def _resolve_experiment(
         self,
@@ -484,45 +466,3 @@ def _trial_error(trial_result: TrialResult) -> str | None:
                 f"step {step_result.step_name}: {error.exception_type}: {error.exception_message}"
             )
     return "; ".join(errors) or None
-
-
-async def _retry_transient_write(
-    operation: Callable[[], Awaitable[_T]],
-    *,
-    description: str,
-) -> _T:
-    """Retry transient writes that HTTPX's connection-only transport retries do not cover."""
-    delay = _INITIAL_RETRY_DELAY_SECONDS
-    attempt = 1
-    while True:
-        try:
-            return await operation()
-        except Exception as error:
-            if not _is_transient_write_error(error) or attempt == _MAX_WRITE_ATTEMPTS:
-                raise
-            logger.warning(
-                "Transient Phoenix write failure for %s (attempt %d/%d): %s. Retrying in "
-                "%.2f seconds.",
-                description,
-                attempt,
-                _MAX_WRITE_ATTEMPTS,
-                error,
-                delay,
-            )
-            await asyncio.sleep(delay)
-            delay *= 2
-            attempt += 1
-
-
-def _is_transient_write_error(error: Exception) -> bool:
-    if isinstance(error, httpx.HTTPStatusError):
-        return error.response.status_code >= 500
-    return isinstance(
-        error,
-        (
-            httpx.NetworkError,
-            httpx.TimeoutException,
-            httpx.RemoteProtocolError,
-            httpx.ProxyError,
-        ),
-    )

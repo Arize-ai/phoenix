@@ -35,8 +35,6 @@ from phoenix.client.harbor._model import (
 from phoenix.client.harbor._recorder import (
     DatasetSnapshot,
     PhoenixRecorder,
-    _is_transient_write_error,
-    _retry_transient_write,
     experiment_identity,
 )
 from phoenix.client.harbor._scores import ExtractedEvaluation
@@ -593,13 +591,8 @@ class TestRecordExperimentRun:
 
         assert experiments.logged_runs[0]["error"] == expected_error
 
-    async def test_transient_response_loss_recovers_conflicting_run(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_duplicate_conflict_reuses_matching_successful_run(self) -> None:
         request = httpx.Request("POST", "https://phoenix.example/v1/experiments/1/runs")
-        unavailable = httpx.HTTPStatusError(
-            "unavailable", request=request, response=httpx.Response(503, request=request)
-        )
         conflict = httpx.HTTPStatusError(
             "duplicate",
             request=request,
@@ -621,7 +614,7 @@ class TestRecordExperimentRun:
         }
         experiments = FakeExperiments(
             runs=[existing_run],
-            log_errors=[unavailable, conflict],
+            log_error=conflict,
         )
         job = plan(
             trials=(
@@ -638,13 +631,6 @@ class TestRecordExperimentRun:
         )
         client = FakeClient(experiments=experiments)
         handles = await recorder(client).resolve_experiments(job, SNAPSHOT)
-        delays: list[float] = []
-
-        async def no_sleep(delay: float) -> None:
-            delays.append(delay)
-
-        # Freezing wall time would not bypass asyncio.sleep or expose the requested delay.
-        monkeypatch.setattr("phoenix.client.harbor._recorder.asyncio.sleep", no_sleep)
         recorded = await recorder(client).record_experiment_run(
             plan=job,
             snapshot=SNAPSHOT,
@@ -653,8 +639,7 @@ class TestRecordExperimentRun:
         )
 
         assert recorded == existing_run
-        assert len(experiments.logged_runs) == 2
-        assert delays == [0.25]
+        assert len(experiments.logged_runs) == 1
 
 
 class TestRecordEvaluations:
@@ -693,93 +678,3 @@ class TestRecordEvaluations:
         assert all(call["experiment_run_id"] == "run-1" for call in experiments.logged_evaluations)
         assert all(call["annotator_kind"] == "CODE" for call in experiments.logged_evaluations)
         assert "error" not in experiments.logged_evaluations[0]
-
-
-class TestRetryTransientWrite:
-    @pytest.mark.parametrize(
-        "error_type",
-        [
-            httpx.ConnectError,
-            httpx.ReadError,
-            httpx.WriteError,
-            httpx.RemoteProtocolError,
-            httpx.ProxyError,
-            httpx.ReadTimeout,
-        ],
-    )
-    def test_classifies_transient_transport_errors(
-        self, error_type: type[httpx.RequestError]
-    ) -> None:
-        request = httpx.Request("POST", "https://phoenix.example")
-
-        assert _is_transient_write_error(error_type("transient", request=request))
-
-    @pytest.mark.parametrize(("status_code", "expected"), [(503, True), (422, False)])
-    def test_classifies_http_statuses(self, status_code: int, expected: bool) -> None:
-        request = httpx.Request("POST", "https://phoenix.example")
-        error = httpx.HTTPStatusError(
-            "response",
-            request=request,
-            response=httpx.Response(status_code, request=request),
-        )
-
-        assert _is_transient_write_error(error) is expected
-
-    async def test_retries_with_bounded_backoff(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        request = httpx.Request("POST", "https://phoenix.example")
-        outcomes: list[Exception | str] = [
-            httpx.ReadError("lost", request=request),
-            httpx.ReadError("lost", request=request),
-            "recorded",
-        ]
-        delays: list[float] = []
-
-        async def operation() -> str:
-            outcome = outcomes.pop(0)
-            if isinstance(outcome, Exception):
-                raise outcome
-            return outcome
-
-        async def no_sleep(delay: float) -> None:
-            delays.append(delay)
-
-        monkeypatch.setattr("phoenix.client.harbor._recorder.asyncio.sleep", no_sleep)
-
-        assert await _retry_transient_write(operation, description="test write") == "recorded"
-        assert delays == [0.25, 0.5]
-
-    async def test_stops_after_the_retry_budget(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        request = httpx.Request("POST", "https://phoenix.example")
-        attempts = 0
-
-        async def operation() -> None:
-            nonlocal attempts
-            attempts += 1
-            raise httpx.WriteError("lost", request=request)
-
-        async def no_sleep(delay: float) -> None:
-            del delay
-
-        monkeypatch.setattr("phoenix.client.harbor._recorder.asyncio.sleep", no_sleep)
-
-        with pytest.raises(httpx.WriteError, match="lost"):
-            await _retry_transient_write(operation, description="test write")
-        assert attempts == 3
-
-    async def test_does_not_retry_a_non_transient_error(self) -> None:
-        request = httpx.Request("POST", "https://phoenix.example")
-        invalid = httpx.HTTPStatusError(
-            "invalid",
-            request=request,
-            response=httpx.Response(422, request=request),
-        )
-        attempts = 0
-
-        async def operation() -> None:
-            nonlocal attempts
-            attempts += 1
-            raise invalid
-
-        with pytest.raises(httpx.HTTPStatusError, match="invalid"):
-            await _retry_transient_write(operation, description="test write")
-        assert attempts == 1
