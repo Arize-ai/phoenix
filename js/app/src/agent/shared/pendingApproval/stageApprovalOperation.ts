@@ -1,3 +1,4 @@
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import type { ApprovalApplyResult, PendingApproval } from "./types";
@@ -34,7 +35,12 @@ export function stageApprovalOperation<TPreview>({
     toolCallId: string,
     pending: PendingApproval<TPreview> | null
   ) => void;
-  /** Bypass edit mode auto-accepts without staging a card. */
+  /**
+   * Bypass edit mode auto-accepts without staging a card. A script-level
+   * approval grant (the user accepted the enclosing script's
+   * `write_description`) auto-accepts too — checked here centrally, via the
+   * pending entry's operation call id.
+   */
   shouldAutoAccept: () => boolean;
   /** Message resolved to the model when the user rejects. */
   rejectedMessage: string;
@@ -67,7 +73,7 @@ export function stageApprovalOperation<TPreview>({
         });
       },
     };
-    if (shouldAutoAccept()) {
+    if (shouldAutoAccept() || isOperationCallApprovalGranted(toolCallId)) {
       void bound.accept?.({ approvalSource: "auto" });
       return;
     }

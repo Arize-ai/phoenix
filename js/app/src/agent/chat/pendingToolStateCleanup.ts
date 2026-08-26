@@ -75,7 +75,8 @@ const EXECUTE_BROWSER_ACTION_PENDING_MAP_CLEANERS: ReadonlyArray<{
 
 /**
  * Cleans up everything an interrupted or dropped `execute_browser_action` call owns:
- * aborts the script run (terminating its worker) and clears any pending
+ * aborts the script run (terminating its worker) or its parked whole-script
+ * approval, clears the staged script-approval entry, and clears any pending
  * approval entries its inner operation calls staged.
  */
 function cleanupExecuteBrowserActionToolState(
@@ -86,6 +87,12 @@ function cleanupExecuteBrowserActionToolState(
     toolCallId,
     reason: "The script run was interrupted.",
   });
+  // The whole-script approval is keyed by the host tool-call id itself (no
+  // `:<sequence>` suffix), so it is cleared directly rather than by prefix.
+  // Usually a no-op: a locally-parked approval is already cleared by the
+  // abort above; this covers entries whose abort callback is gone (e.g.
+  // resolved on another client).
+  state.setPendingScriptApproval(toolCallId, null);
   const childKeyPrefix = `${toolCallId}:`;
   for (const cleaner of EXECUTE_BROWSER_ACTION_PENDING_MAP_CLEANERS) {
     for (const key of cleaner.getKeys(state)) {

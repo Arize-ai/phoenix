@@ -1,5 +1,6 @@
 import type { SetURLSearchParams } from "react-router";
 
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
 import { parseUIOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
@@ -113,7 +114,10 @@ export function createLoadDatasetClientAction({
         setPendingLoadDataset,
       });
 
-      if (shouldAutoAccept()) {
+      if (
+        shouldAutoAccept() ||
+        isOperationCallApprovalGranted(callContext.callId)
+      ) {
         void pendingLoad.accept?.({ approvalSource: "auto" });
         return;
       }

@@ -1,5 +1,6 @@
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
 import { parseUIOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
@@ -98,7 +99,10 @@ export function createEditCodeEvaluatorDraftClientAction({
         setPendingCodeEvaluatorEdit,
       });
 
-      if (shouldAutoAccept()) {
+      if (
+        shouldAutoAccept() ||
+        isOperationCallApprovalGranted(callContext.callId)
+      ) {
         void pendingEdit.accept?.({ approvalSource: "auto" });
         return;
       }

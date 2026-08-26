@@ -9,9 +9,11 @@ import type { AgentClientActionResult } from "@phoenix/store/agentStore";
  * runtime treats it:
  * - `read` — returns data, no state change; scripts may call freely.
  * - `write` — mutates client state synchronously (e.g. set the time range).
- * - `approval` — stages a pending change whose promise resolves only after
- *   the user accepts or rejects it. The script runtime keeps awaiting (and
- *   pauses the script's wall-clock budget) until the user decides.
+ * - `approval` — a state-changing operation whose handler stages its write
+ *   through the pending-approval machinery. Consent is script-level: the
+ *   user approves the entire script (its `write_description`) before it
+ *   runs, so once dispatched the staged write applies immediately instead of
+ *   raising a second, per-call Accept/Reject card.
  */
 export type UIOperationKind = "read" | "write" | "approval";
 
@@ -44,6 +46,11 @@ export type UIOperationErrorCode =
   // -- stamped by dispatch --
   /** The operation name is not in the catalog. */
   | "UNKNOWN_OPERATION"
+  /**
+   * A state-changing operation was called from a script the user has not
+   * approved (manual edit mode, no accepted `write_description`).
+   */
+  | "APPROVAL_REQUIRED"
   /** A capability required by the operation is disabled. */
   | "CAPABILITY_DISABLED"
   /** The operation requires an active agent session. */
@@ -112,13 +119,6 @@ export type UIOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
    * flight.
    */
   longRunning?: boolean;
-  /**
-   * Marks an `approval`-kind operation that stages a user-facing approval
-   * card even in bypass edit mode (e.g. navigation, which always asks).
-   * Dispatch uses this to know a card is about to appear regardless of the
-   * edit permission, so it can open the host tool part.
-   */
-  alwaysRequiresApproval?: boolean;
   /** Capability keys that must be enabled for this operation to dispatch. */
   requiredCapabilities?: AgentCapabilityKey[];
   /** Whether an active agent session is required to dispatch. */

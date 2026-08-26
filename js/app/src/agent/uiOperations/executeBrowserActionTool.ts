@@ -1,22 +1,29 @@
 import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
+import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { listUIOperationNames } from "./catalog";
 import { dispatchUIOperationCall } from "./dispatch";
 import { runJSSandboxScript } from "./runtime/jsSandboxBridge";
+import {
+  grantScriptApproval,
+  revokeScriptApproval,
+} from "./scriptApprovalGrant";
 
 export const EXECUTE_BROWSER_ACTION_TOOL_NAME = "execute_browser_action";
 
 /**
- * Abort callbacks for in-flight script runs, keyed by the `execute_browser_action`
+ * Abort callbacks for in-flight script runs — and for whole-script approvals
+ * still awaiting the user's decision — keyed by the `execute_browser_action`
  * tool-call id. Chat interrupt / session teardown uses this to hard-stop a
- * running script (terminating its worker) before clearing pending state.
+ * running script (terminating its worker) or settle a parked approval before
+ * clearing pending state.
  */
 const activeRunAborts = new Map<string, (reason: string) => void>();
 
 /**
- * Force-fail the script run belonging to an `execute_browser_action` tool call, if one
- * is still active. Safe to call for unknown ids. Returns whether a run was
- * aborted.
+ * Force-fail the script run (or parked whole-script approval) belonging to an
+ * `execute_browser_action` tool call, if one is still active. Safe to call
+ * for unknown ids. Returns whether a run was aborted.
  */
 export function abortActiveJSSandboxRun({
   toolCallId,
@@ -41,6 +48,14 @@ type ExecuteBrowserActionInput = {
    */
   summary?: string;
   script: string;
+  /**
+   * User-facing description of the state changes the script will make — the
+   * entire approval prompt, mirroring the bash tool's `mutation_description`.
+   * The model provides it iff the script calls state-changing (`write` or
+   * `approval` kind) operations; in manual edit mode the user must accept it
+   * before the script runs.
+   */
+  writeDescription?: string;
 };
 
 function parseExecuteBrowserActionInput(
@@ -49,7 +64,11 @@ function parseExecuteBrowserActionInput(
   if (typeof input !== "object" || input === null) {
     return null;
   }
-  const candidate = input as { summary?: unknown; script?: unknown };
+  const candidate = input as {
+    summary?: unknown;
+    script?: unknown;
+    write_description?: unknown;
+  };
   if (typeof candidate.script !== "string" || candidate.script.trim() === "") {
     return null;
   }
@@ -59,7 +78,72 @@ function parseExecuteBrowserActionInput(
         ? candidate.summary
         : undefined,
     script: candidate.script,
+    writeDescription:
+      typeof candidate.write_description === "string" &&
+      candidate.write_description.trim() !== ""
+        ? candidate.write_description
+        : undefined,
   };
+}
+
+/**
+ * Model-facing output when the user rejects the proposed script. Mirrors the
+ * per-operation rejection contract: a rejection is an answer, not an error.
+ */
+export const SCRIPT_REJECTED_OUTPUT =
+  "The user rejected the proposed script, so it was not run. Treat the " +
+  "rejection as an answer — do not re-run the same script. Ask the user " +
+  "what they would like to change instead.";
+
+/** How the user (or an interrupt) resolved a staged script approval. */
+type ScriptApprovalDecision =
+  | { status: "accepted" }
+  | { status: "rejected" }
+  | { status: "aborted"; reason: string };
+
+/**
+ * Stage the whole-script approval and park until the user decides. The
+ * staged entry renders inside the `execute_browser_action` tool part as an
+ * Accept/Reject card whose body is the model-authored `write_description` —
+ * the browser-tool counterpart of the bash tool's GraphQL mutation approval
+ * prompt. The host card is requested open for the duration so the decision
+ * is never hidden behind a collapsed disclosure.
+ *
+ * `registerAbort` receives a callback that force-settles the wait (chat
+ * interrupt / session teardown); the caller wires it into the same abort
+ * registry that hard-stops running scripts.
+ */
+export function stageScriptApproval({
+  toolCallId,
+  description,
+  agentStore,
+  registerAbort,
+}: {
+  toolCallId: string;
+  description: string;
+  agentStore: AgentStore;
+  registerAbort?: (abort: (reason: string) => void) => void;
+}): Promise<ScriptApprovalDecision> {
+  agentStore.getState().requestToolPartOpen(toolCallId);
+  return new Promise((resolve) => {
+    let isSettled = false;
+    const settle = (decision: ScriptApprovalDecision) => {
+      if (isSettled) {
+        return;
+      }
+      isSettled = true;
+      agentStore.getState().setPendingScriptApproval(toolCallId, null);
+      agentStore.getState().releaseToolPartOpen(toolCallId);
+      resolve(decision);
+    };
+    registerAbort?.((reason) => settle({ status: "aborted", reason }));
+    agentStore.getState().setPendingScriptApproval(toolCallId, {
+      toolCallId,
+      description,
+      accept: async () => settle({ status: "accepted" }),
+      reject: async () => settle({ status: "rejected" }),
+    });
+  });
 }
 
 /**
@@ -409,6 +493,15 @@ export function parseExecuteBrowserActionRunOutput(
  * - `log(message)` — progress lines surfaced in the tool output.
  * Its `return` value (JSON-serialized) becomes the tool output.
  *
+ * Approval is script-level, following the bash tool's GraphQL mutation
+ * methodology: in manual edit mode a script that changes state must carry a
+ * `write_description`, which the user accepts or rejects *before* the worker
+ * spawns. Acceptance grants the whole run — every state-changing `ui.*` call
+ * applies immediately, with no per-call Accept/Reject cards. A
+ * state-changing call from a script that did not carry `write_description`
+ * is refused by dispatch with `APPROVAL_REQUIRED`, telling the model to
+ * re-issue the call with one. Bypass edit mode skips the gate entirely.
+ *
  * RFC note: not yet listed in `toolRegistry.ts` — inert until the rollout
  * capability lands.
  */
@@ -418,10 +511,10 @@ export const executeBrowserActionTool = defineTool<ExecuteBrowserActionInput>({
   invalidInputErrorText:
     "Invalid execute_browser_action input. Expected { script: string } with a non-empty script body.",
   // The card stays collapsed by default — most scripts run and finish
-  // without needing the user's attention. When an inner operation stages an
-  // Accept/Reject approval, dispatch requests the card open through the
-  // store (see `dispatchUIOperationCall`); `scrollIntoViewOnMount` makes
-  // that store-driven open also scroll the card into view.
+  // without needing the user's attention. When a script stages its
+  // whole-script Accept/Reject approval, `stageScriptApproval` requests the
+  // card open through the store; `scrollIntoViewOnMount` makes that
+  // store-driven open also scroll the card into view.
   UIBehavior: { scrollIntoViewOnMount: true },
   execute: async ({
     toolCall,
@@ -431,45 +524,94 @@ export const executeBrowserActionTool = defineTool<ExecuteBrowserActionInput>({
     agentStore,
     capabilities,
   }) => {
+    // Whole-script approval gate, applied only when manual approvals are
+    // enabled. The bash-tool parallel: a `write_description` is the approval
+    // prompt; providing it stages the Accept/Reject card before anything
+    // runs, and omitting it does not skip approval — dispatch refuses
+    // state-changing calls from unapproved scripts with `APPROVAL_REQUIRED`.
+    const requiresManualApproval =
+      agentStore.getState().permissions.edits === "manual";
+    let isScriptApproved = !requiresManualApproval;
+    if (requiresManualApproval && input.writeDescription != null) {
+      const decision = await stageScriptApproval({
+        toolCallId: toolCall.toolCallId,
+        description: input.writeDescription,
+        agentStore,
+        // Registered in the same slot a running script's abort uses, so
+        // interrupt/teardown settles a parked approval the same way it
+        // hard-stops a running worker.
+        registerAbort: (abort) => {
+          activeRunAborts.set(toolCall.toolCallId, abort);
+        },
+      });
+      if (decision.status !== "accepted") {
+        activeRunAborts.delete(toolCall.toolCallId);
+        if (decision.status === "rejected") {
+          await addToolOutput({
+            state: "output-available",
+            tool: EXECUTE_BROWSER_ACTION_TOOL_NAME,
+            toolCallId: toolCall.toolCallId,
+            output: SCRIPT_REJECTED_OUTPUT,
+          });
+        } else {
+          await addToolOutput({
+            state: "output-error",
+            tool: EXECUTE_BROWSER_ACTION_TOOL_NAME,
+            toolCallId: toolCall.toolCallId,
+            errorText: decision.reason,
+          });
+        }
+        return;
+      }
+      isScriptApproved = true;
+    }
+    if (isScriptApproved) {
+      grantScriptApproval(toolCall.toolCallId);
+    }
+
     // Telemetry is recorded here (main-thread side, around dispatch) so the
-    // worker protocol stays untouched. Approval calls include the user's
-    // decision time in durationMs — informative, not noise.
+    // worker protocol stays untouched.
     const callRecords: UICallRecord[] = [];
-    const run = await runJSSandboxScript({
-      script: input.script,
-      operationNames: listUIOperationNames(),
-      dispatchCall: async ({
-        operationName,
-        input: operationInput,
-        callSequence,
-      }) => {
-        const startedAt = performance.now();
-        const result = await dispatchUIOperationCall({
+    let run: Awaited<ReturnType<typeof runJSSandboxScript>>;
+    try {
+      run = await runJSSandboxScript({
+        script: input.script,
+        operationNames: listUIOperationNames(),
+        dispatchCall: async ({
           operationName,
           input: operationInput,
-          // Approval handlers key pending entries by this id; interrupt
-          // cleanup finds them again by the toolCallId prefix.
-          callId: `${toolCall.toolCallId}:${callSequence}`,
-          hostToolCallId: toolCall.toolCallId,
-          agentStore,
-          sessionId,
-          capabilities,
-        });
-        callRecords.push({
-          operation: operationName,
-          ok: result.ok,
-          durationMs: Math.round(performance.now() - startedAt),
-          outputChars: result.ok
-            ? serializedSize(result.output ?? null)
-            : result.error.length,
-        });
-        return result;
-      },
-      registerAbort: (abort) => {
-        activeRunAborts.set(toolCall.toolCallId, abort);
-      },
-    });
-    activeRunAborts.delete(toolCall.toolCallId);
+          callSequence,
+        }) => {
+          const startedAt = performance.now();
+          const result = await dispatchUIOperationCall({
+            operationName,
+            input: operationInput,
+            // Approval handlers key pending entries by this id; interrupt
+            // cleanup finds them again by the toolCallId prefix, and the
+            // script-approval grant is resolved from its host prefix.
+            callId: `${toolCall.toolCallId}:${callSequence}`,
+            agentStore,
+            sessionId,
+            capabilities,
+          });
+          callRecords.push({
+            operation: operationName,
+            ok: result.ok,
+            durationMs: Math.round(performance.now() - startedAt),
+            outputChars: result.ok
+              ? serializedSize(result.output ?? null)
+              : result.error.length,
+          });
+          return result;
+        },
+        registerAbort: (abort) => {
+          activeRunAborts.set(toolCall.toolCallId, abort);
+        },
+      });
+    } finally {
+      revokeScriptApproval(toolCall.toolCallId);
+      activeRunAborts.delete(toolCall.toolCallId);
+    }
     if (!run.ok) {
       const logSuffix =
         run.logs.length > 0

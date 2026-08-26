@@ -474,6 +474,13 @@ export function ExecuteBrowserActionToolDetails({
 }) {
   const script = parseExecuteBrowserActionScript(part.input);
   const childApprovals = useScriptChildApprovals(part.toolCallId);
+  // The whole-script approval staged before a state-changing script runs —
+  // keyed by the host tool-call id itself, unlike the `:<sequence>`-suffixed
+  // child approvals. Its body is the model-authored `write_description`, the
+  // entire prompt the user reads before the script executes.
+  const pendingScriptApproval = useAgentContext(
+    (state) => state.pendingScriptApprovalsByToolCallId[part.toolCallId]
+  );
 
   return (
     <div className="tool-part__body">
@@ -490,6 +497,20 @@ export function ExecuteBrowserActionToolDetails({
             )}
           </ToolPartExpandableSection>
         </>
+      ) : null}
+      {pendingScriptApproval ? (
+        <ApprovalCard
+          preview={{
+            title: "Approval required to run this script",
+            body: { kind: "text", text: pendingScriptApproval.description },
+          }}
+          onAccept={() => void pendingScriptApproval.accept?.()}
+          onReject={() => void pendingScriptApproval.reject?.()}
+          isDisabled={
+            !pendingScriptApproval.accept || !pendingScriptApproval.reject
+          }
+          staleMessage="This script was proposed in an earlier session and can't be run from here. Re-run your request to have PXI propose it again."
+        />
       ) : null}
       {childApprovals.map((approval) => (
         <ApprovalCard

@@ -57,6 +57,7 @@ describe("approval marker coverage", () => {
           "tools/approval.ts",
           "tools/batchSpanAnnotate/pendingBatchSpanAnnotate.ts",
           "tools/patchExperiment/pendingPatchExperiment.ts",
+          "uiOperations/executeBrowserActionTool.ts",
         ]
       `);
   });
