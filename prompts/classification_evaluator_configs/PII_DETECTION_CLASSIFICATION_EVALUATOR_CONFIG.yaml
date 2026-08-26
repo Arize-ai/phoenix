@@ -6,7 +6,7 @@ description: >-
   (person_name, email_address, national_id_number, etc.) and source so specific
   PII types and locations can be filtered downstream. Flags whether any PII was
   found and lists each instance, quoted and categorized.
-labels: []
+labels: [promoted_dataset_evaluator]
 optimization_direction: minimize
 messages:
   - role: user
