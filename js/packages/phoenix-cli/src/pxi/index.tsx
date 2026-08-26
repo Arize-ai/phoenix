@@ -7,16 +7,19 @@ import { getExitCodeForError } from "../exitCodes";
 import { writeError } from "../io";
 import { PxiApp } from "./App";
 import { parsePxiRuntimeOptions } from "./options";
-import { runPxiModelPreflight } from "./preflight";
+import {
+  runPxiModelPreflight,
+  runPxiServerVersionPreflight,
+} from "./preflight";
 
 /**
  * Entry point for the `pxi` command.
  *
- * Parses CLI flags into runtime options, runs the model preflight (verifying
- * the chosen provider/model is available and credentialed on the Phoenix
- * server) before anything is drawn, then mounts the Ink chat UI and blocks
- * until the user exits. Preflight runs first so configuration problems surface
- * as a clean error instead of a half-rendered terminal.
+ * Parses CLI flags into runtime options, runs the preflights (model
+ * availability and server version) before anything is drawn, then mounts the
+ * Ink chat UI and blocks until the user exits. Preflights run first so
+ * configuration problems surface as a clean error instead of a half-rendered
+ * terminal.
  */
 export async function main({
   argv = process.argv,
@@ -25,6 +28,7 @@ export async function main({
 } = {}): Promise<void> {
   const options = await parsePxiRuntimeOptions({ argv });
   await runPxiModelPreflight({ options });
+  await runPxiServerVersionPreflight({ options });
   // Ink's kitty-keyboard "auto" detection writes a `CSI ? u` capability query to
   // stdout from its constructor, before it switches the terminal into raw mode.
   // On a TTY still in canonical mode the terminal echoes its reply (`ESC[?0u`)

@@ -8,9 +8,11 @@ export * from "./createFaithfulnessEvaluator";
 export * from "./createHallucinationEvaluator"; // Deprecated: use createFaithfulnessEvaluator
 export * from "./createPiiDetectionEvaluator";
 export * from "./createRefusalEvaluator";
+export * from "./createRetrievalRelevanceEvaluator";
 export * from "./createToolInvocationEvaluator";
 export * from "./createToolResponseHandlingEvaluator";
 export * from "./createToolSelectionEvaluator";
+export * from "./createToxicityEvaluator";
 export * from "./createUserFrictionEvaluator";
 export * from "./generateClassification";
 export * from "./LLMEvaluator";

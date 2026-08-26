@@ -1658,6 +1658,29 @@ What is NLP?,Natural Language Processing,
         null_spans = [s for s in span_ids_in_examples if s is None]
         assert len(null_spans) == 2
 
+        # Verify REST exposes the same source lineage without requiring GraphQL.
+        retrieved = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=unique_name
+            )
+        )
+        sources_by_question = {
+            example["input"]["q"]: example.get("source") for example in retrieved
+        }
+
+        first_source = sources_by_question["What is span linking?"]
+        assert first_source is not None
+        assert first_source["span_id"] == span_id_1
+        assert first_source["span_node_id"] == str(_existing_spans[0].id)
+
+        second_source = sources_by_question["How does it work?"]
+        assert second_source is not None
+        assert second_source["span_id"] == span_id_2
+        assert second_source["span_node_id"] == str(_existing_spans[1].id)
+
+        assert sources_by_question["What about missing spans?"] is None
+        assert sources_by_question["What about None?"] is None
+
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_add_examples_with_span_id(
         self,

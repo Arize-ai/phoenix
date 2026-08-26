@@ -1,4 +1,6 @@
 import ast
+import logging
+import math
 import operator
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -24,6 +26,9 @@ from sqlalchemy.sql import operators as sqlalchemy_operators
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.db import models
+from phoenix.db.models import SafeJsonBoolean, SafeJsonFloat
+
+logger = logging.getLogger(__name__)
 
 SupportedComparisonOperator: TypeAlias = Union[
     ast.Is,
@@ -87,10 +92,90 @@ def update_examples_query_with_filter_condition(
 def compile_sqlalchemy_filter_condition(
     filter_condition: str, experiment_ids: list[int]
 ) -> tuple[Any, "SQLAlchemyTransformer"]:
+    """Compile a filter condition, reporting every rejection as a filter error.
+
+    Validation here happens during construction rather than as a pass over the
+    whole tree, so an expression can reach a branch no node anticipated and fail
+    with whatever Python raises there -- `AssertionError` from `assert_never`,
+    `TypeError` from an operation applied to the wrong shape. Those are not
+    caught by callers, which look only for
+    `ExperimentRunFilterConditionSyntaxError`, so an ordinary typo in a filter
+    box surfaced as a server error.
+
+    A condition is user input: every way it can fail is a filter error, not a
+    fault. The original is logged with its traceback, because an unexpected
+    exception type here still indicates a gap in validation worth closing.
+    """
+    # Checked before the boundary below, deliberately. An empty list is a caller
+    # contract violation, not something a user typed, and reporting it as an
+    # invalid filter would blame them for our bug.
+    if not experiment_ids:
+        raise ValueError("Must provide one or more experiments")
+    try:
+        return _compile_sqlalchemy_filter_condition(
+            filter_condition=filter_condition, experiment_ids=experiment_ids
+        )
+    except ExperimentRunFilterConditionSyntaxError as error:
+        # Messages name the offending fragment, which can be a 320-digit
+        # literal or a multi-kilobyte expression reflected into the UI, logs,
+        # and GraphQL responses. This is the backstop: fragment-first messages
+        # bound their echo at the format site (see `_ellipsize`), and this
+        # bounds the whole message for any site that forgets.
+        raise ExperimentRunFilterConditionSyntaxError(_ellipsize(str(error))) from error
+    except RecursionError:
+        # Parsing, transformation, and compilation all recurse, so deeply
+        # nested input can exhaust the stack at any of them.
+        raise ExperimentRunFilterConditionSyntaxError(
+            "Filter condition is nested too deeply"
+        ) from None
+    except Exception as error:
+        # The condition echo is bounded here too: this is the one place the
+        # *source* text reaches a log, and log entries are as much a
+        # reflection surface as GraphQL responses.
+        logger.exception(
+            "Unexpected error compiling filter condition: %r", _ellipsize(filter_condition)
+        )
+        # Deliberately generic: the internal message ("Expected code to be
+        # unreachable!") describes our code, not the user's condition.
+        raise ExperimentRunFilterConditionSyntaxError("Invalid filter condition") from error
+
+
+def _compile_sqlalchemy_filter_condition(
+    filter_condition: str, experiment_ids: list[int]
+) -> tuple[Any, "SQLAlchemyTransformer"]:
     try:
         original_tree = ast.parse(filter_condition, mode="eval")
     except SyntaxError as error:
-        raise ExperimentRunFilterConditionSyntaxError(str(error))
+        if "null bytes" in str(error):
+            # A NUL in the source, which CPython reports as `ValueError` on
+            # 3.10 (the branch below) and as `SyntaxError` from 3.11 on. One
+            # canonical message, whatever the interpreter.
+            raise ExperimentRunFilterConditionSyntaxError(
+                "Filter condition cannot contain a NUL character"
+            ) from error
+        if "integer string conversion" in str(error):
+            # CPython's 4300-digit guard, whose message advises
+            # `sys.set_int_max_str_digits()` -- Python's remedy, not the
+            # condition's. Every such literal is invalid here anyway.
+            raise ExperimentRunFilterConditionSyntaxError(
+                "Invalid numeric literal: too many digits"
+            ) from error
+        # `str()` on a parser error appends `(<unknown>, line 1)` -- a file
+        # the user never wrote in -- and these messages surface verbatim in
+        # the filter field and through the GraphQL masker. `msg` carries the
+        # useful part; the column is the one locator a one-line condition has.
+        message = error.msg or "invalid syntax"
+        message = message.replace(" (detected at line 1)", "")
+        if (offset := error.offset) is not None and offset > 0:
+            message = f"{message} at character {offset}"
+        raise ExperimentRunFilterConditionSyntaxError(message) from error
+    except ValueError as error:
+        # A NUL anywhere in the source, which `ast.parse` reports as a
+        # `ValueError` rather than a `SyntaxError`.
+        raise ExperimentRunFilterConditionSyntaxError(
+            "Filter condition cannot contain a NUL character"
+        ) from error
+    _validate_python_surface(original_tree.body, filter_condition)
 
     trees_with_bound_attribute_names = _bind_free_attribute_names(original_tree, experiment_ids)
     has_free_attribute_names = bool(trees_with_bound_attribute_names)
@@ -163,6 +248,28 @@ class ExperimentRunFilterConditionSyntaxError(Exception):
     pass
 
 
+def _ellipsize(message: str, limit: int = 300) -> str:
+    """Bound text that echoes user-controlled input.
+
+    As in the span DSL, two layers: format sites whose fragment precedes the
+    advice bound the fragment itself (limit 80) so truncation cannot eat the
+    guidance, and the compile boundary bounds the whole message as the
+    backstop for any site that forgets.
+    """
+    return message if len(message) <= limit else message[: limit - 1] + "…"
+
+
+def _is_finite_number(value: Union[int, float]) -> bool:
+    """Whether the value converts to a finite float -- the portability bound
+    every numeric literal must satisfy. As in the span DSL, one predicate so
+    the int and float rules cannot drift."""
+    try:
+        return math.isfinite(float(value))
+    except OverflowError:
+        # An int too large for a float.
+        return False
+
+
 @dataclass(frozen=True)
 class ExperimentRunFilterConditionNode(ABC):
     """
@@ -225,7 +332,8 @@ class ExperimentRun(ExperimentRunFilterConditionNode):
 
     def __post_init__(self) -> None:
         experiment_index = self.slice.value
-        if not isinstance(experiment_index, int):
+        # As above: `experiments[True]` must not silently mean `experiments[1]`.
+        if isinstance(experiment_index, bool) or not isinstance(experiment_index, int):
             raise ExperimentRunFilterConditionSyntaxError("Index to experiments must be an integer")
         if not (0 <= experiment_index < len(self.experiment_ids)):
             raise ExperimentRunFilterConditionSyntaxError("Select an experiment with [<index>]")
@@ -335,7 +443,9 @@ class JSONAttribute(Attribute):
 
     def __post_init__(self) -> None:
         index_value = self.index_constant.value
-        if not isinstance(index_value, (int, str)):
+        # `bool` is a subclass of `int`, so `input[True]` would otherwise be
+        # accepted as `input[1]` -- a position the user did not write.
+        if isinstance(index_value, bool) or not isinstance(index_value, (int, str)):
             raise ExperimentRunFilterConditionSyntaxError("Index must be an integer or string")
         object.__setattr__(self, "_index_value", index_value)
 
@@ -400,6 +510,29 @@ class UnaryTermOperation(Term):
     operand: Term
     operator: SupportedUnaryTermOperator
 
+    def __post_init__(self) -> None:
+        # As in `ComparisonOperation`: a whole JSON document has no scalar to
+        # negate, so require a keyed extract before the numeric conversion.
+        if isinstance(self.operand, DatasetExampleAttribute):
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Select a key from `{self.operand.attribute_name}` with [<key>]"
+            )
+        # Negating text is not something either backend agrees on: PostgreSQL
+        # rejects `-'hello'` as an ambiguous operator, SQLite coerces it to 0.
+        data_type = self.operand.data_type
+        if data_type is not None and _get_data_type_family(data_type) != "number":
+            raise ExperimentRunFilterConditionSyntaxError("Unary minus requires a numeric operand")
+
+    @property
+    def data_type(self) -> Optional[SQLAlchemyDataType]:
+        # Negating a number yields a number. Reporting "unknown" here made the
+        # comparison treat an already-numeric operand as a JSON value and wrap
+        # it in `SafeJsonFloat`, which PostgreSQL rejects outright --
+        # `jsonb_path_query_first(numeric, ...) does not exist`. An unknown
+        # operand is converted to a number by `compile` below, so the result is
+        # numeric either way and the comparison must not wrap it again.
+        return self.operand.data_type or Float()
+
     def compile(self) -> Any:
         operator = self.operator
         operand = self.operand
@@ -409,6 +542,11 @@ class UnaryTermOperation(Term):
         else:
             assert_never(operator)
         compiled_operand = operand.compile()
+        if operand.data_type is None:
+            # Convert before negating, not after. `-` has no meaning for a JSON
+            # value -- PostgreSQL rejects `- jsonb` outright, and SQLite quietly
+            # coerces -- so the safe numeric conversion has to happen first.
+            compiled_operand = SafeJsonFloat(compiled_operand)
         return sqlalchemy_operator(compiled_operand)
 
 
@@ -428,6 +566,50 @@ class ComparisonOperation(BooleanExpression):
         operator = self.operator
         if not _is_supported_comparison_operator(operator):
             raise ExperimentRunFilterConditionSyntaxError("Unsupported comparison operator")
+        if isinstance(operator, (ast.Is, ast.IsNot)) and not (
+            _is_singleton(self.left_operand) or _is_singleton(self.right_operand)
+        ):
+            # SQL has no identity comparison. `score is 1` compiled to
+            # `score IS %(param)s`, which PostgreSQL rejects; only the
+            # singletons have a SQL spelling (`IS NULL` / `IS TRUE` /
+            # `IS FALSE`).
+            raise ExperimentRunFilterConditionSyntaxError(
+                "`is` is only supported with None, True, or False"
+            )
+        for operand in (self.left_operand, self.right_operand):
+            # A whole JSON document has no scalar to compare or search: every
+            # accessor downstream (`as_string`, the safe casts) assumes a keyed
+            # extract, so a bare column failed inside compilation with an
+            # implementation error (`JSON.as_string() only works with a JSON
+            # index expression`) instead of a message about the filter.
+            if isinstance(operand, DatasetExampleAttribute):
+                raise ExperimentRunFilterConditionSyntaxError(
+                    f"Select a key from `{operand.attribute_name}` with [<key>]"
+                )
+        if isinstance(operator, (ast.In, ast.NotIn)):
+            # Membership compiles to string containment (`strpos` / `instr`),
+            # so a non-text operand hands the database SQL it cannot run --
+            # `strpos(numeric, integer) does not exist` on PostgreSQL -- after
+            # the condition has been reported valid. The span DSL rejects the
+            # same shapes with the same message.
+            left_family = _get_operand_family(self.left_operand)
+            right_family = _get_operand_family(self.right_operand)
+            if left_family not in (None, "string") or right_family not in (None, "string"):
+                raise ExperimentRunFilterConditionSyntaxError(
+                    f"cannot compare {left_family or 'value'} and {right_family or 'string'}"
+                )
+        if isinstance(operator, (ast.Lt, ast.LtE, ast.Gt, ast.GtE)) and "boolean" in (
+            _get_operand_family(self.left_operand),
+            _get_operand_family(self.right_operand),
+        ):
+            # Ordered comparison casts the JSON side to a number, so
+            # `input['x'] > True` compiled to `numeric > boolean` -- an
+            # operator PostgreSQL does not have -- after the condition
+            # validated. As in the span DSL, the rule is by type.
+            raise ExperimentRunFilterConditionSyntaxError(
+                "cannot order a boolean, use `==`, `!=`, or `is` instead of `<` / `>`"
+            )
+        _validate_comparable_data_types(self.left_operand, self.right_operand)
         object.__setattr__(self, "_operator", operator)
 
     def compile(self) -> Any:
@@ -443,9 +625,17 @@ class ComparisonOperation(BooleanExpression):
         )
         if cast_type is not None:
             if left_operand.data_type is None:
-                compiled_left_operand = cast(compiled_left_operand, cast_type)
+                compiled_left_operand = _cast_json_value(compiled_left_operand, cast_type)
             if right_operand.data_type is None:
-                compiled_right_operand = cast(compiled_right_operand, cast_type)
+                compiled_right_operand = _cast_json_value(compiled_right_operand, cast_type)
+        else:
+            # Comparison against None, the only case with no cast type. The
+            # accessor still has to be unwrapped, or `IS NULL` tests the JSON
+            # rendering instead of the value.
+            if left_operand.data_type is None:
+                compiled_left_operand = _as_json_scalar(compiled_left_operand)
+            if right_operand.data_type is None:
+                compiled_right_operand = _as_json_scalar(compiled_right_operand)
         sqlalchemy_operator = _get_sqlalchemy_comparison_operator(operator)
         return sqlalchemy_operator(compiled_left_operand, compiled_right_operand)
 
@@ -480,6 +670,15 @@ class BooleanOperation(BooleanExpression):
             raise ExperimentRunFilterConditionSyntaxError(
                 "Boolean operators require at least two operands"
             )
+        # `not` already required this of its operand; `and` / `or` did not, so
+        # `input and error` compiled to `dataset_example_revisions.input AND
+        # experiment_runs_0.error` -- a JSON column in boolean position, which
+        # PostgreSQL rejects and SQLite silently coerces.
+        for operand in self.operands:
+            if not isinstance(operand, BooleanExpression):
+                raise ExperimentRunFilterConditionSyntaxError(
+                    "Operands of `and` / `or` must be boolean expressions"
+                )
 
     def compile(self) -> Any:
         ast_operator = self.operator
@@ -500,7 +699,28 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
         self._aliased_experiment_run_annotations: dict[ExperimentID, dict[EvalName, Any]] = {}
 
     def visit_Constant(self, node: ast.Constant) -> Constant:
-        return Constant(value=node.value, ast_node=node)  # type: ignore[arg-type]
+        value = node.value
+        if not (value is None or isinstance(value, (bool, int, float, str))):
+            # `_validate_python_surface` already rejected these, so reaching
+            # here means it and `Constant` disagree about the value types.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Unsupported literal: `{ast.unparse(node)}`"
+            )
+        return Constant(value=value, ast_node=node)
+
+    def visit_List(self, node: ast.List) -> Any:
+        # There is no node type for a collection, so an untransformed `ast.List`
+        # used to reach compilation and fail with `'Constant' object is not
+        # iterable`. Saying so plainly is the point: the construct is
+        # unimplemented, and reporting it as an invalid condition tells the user
+        # their perfectly reasonable filter is wrong.
+        raise ExperimentRunFilterConditionSyntaxError(
+            "Membership against a list is not supported here; "
+            "compare against a single value, or combine comparisons with `or`"
+        )
+
+    def visit_Tuple(self, node: ast.Tuple) -> Any:
+        return self.visit_List(ast.List(elts=node.elts, ctx=node.ctx))
 
     def visit_Name(self, node: ast.Name) -> ExperimentRunFilterConditionNode:
         name = node.id
@@ -544,9 +764,16 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
     def visit_Subscript(self, node: ast.Subscript) -> ExperimentRunFilterConditionNode:
         container = self.visit(node.value)
         key = self.visit(node.slice)
+        if not isinstance(key, Constant):
+            # Anything the visitors do not turn into a `Constant` -- a slice, an
+            # f-string, a negative number (which parses as unary minus over a
+            # literal, not as a literal) -- used to arrive here untransformed and
+            # fail on attribute access further down, reported as a server-side
+            # fault rather than as the unsupported key it is.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Subscript key must be a literal: `{ast.unparse(node.slice)}`"
+            )
         if isinstance(container, ExperimentsName):
-            if not isinstance(key, Constant):
-                raise ExperimentRunFilterConditionSyntaxError("Index must be a constant")
             return ExperimentRun(
                 slice=key,
                 experiment_ids=self._experiment_ids,
@@ -554,6 +781,11 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
             )
         if isinstance(container, ExperimentRunAttribute):
             if container.is_eval_attribute:
+                if not isinstance(key.value, str):
+                    # `ExperimentRunEval` checks this too; narrowing here keeps
+                    # the call below typed without an ignore. Same message, so
+                    # which one fires is not observable.
+                    raise ExperimentRunFilterConditionSyntaxError("Eval must be indexed by string")
                 return ExperimentRunEval(
                     experiment_run_attribute=container,
                     eval_name=key.value,
@@ -671,6 +903,307 @@ def _get_sqlalchemy_comparison_operator(
     elif isinstance(ast_operator, ast.NotIn):
         return lambda left, right: ~models.TextContains(right, left)
     assert_never(ast_operator)
+
+
+def _cast_json_value(compiled_operand: Any, cast_type: SQLAlchemyDataType) -> Any:
+    """Convert a JSON value to the compared type without risking the statement.
+
+    Only operands of *unknown* type reach here, which means a JSON column. A
+    plain `CAST(jsonb AS FLOAT)` succeeds while every row happens to hold a
+    number and aborts the whole query the moment one does not -- `cannot cast
+    jsonb string to type double precision`. Whether a filter works then depends
+    on the data rather than on the expression, and no amount of validation can
+    see it coming.
+
+    `SafeJsonFloat` / `SafeJsonBoolean` are total: a value of the wrong shape
+    becomes NULL and its row drops out.
+
+    Text is a different failure. Casting a JSON value to text renders it *as
+    JSON*, so a stored string keeps its quotes and `input['x'] == 'yes'`
+    compares `"yes"` against `yes` -- false on both backends, for every row.
+    Extracting as text instead (`->>` on PostgreSQL, a plain `json_extract` on
+    SQLite) yields the string itself.
+    """
+    if isinstance(cast_type, Boolean):
+        return SafeJsonBoolean(compiled_operand)
+    if isinstance(cast_type, (Integer, Float)):
+        return SafeJsonFloat(compiled_operand)
+    if isinstance(cast_type, String):
+        return _as_json_scalar(compiled_operand)
+    return cast(compiled_operand, cast_type)
+
+
+# The node types a valid condition can contain: the expression forms the
+# transformer implements, their operator nodes, and the contexts `ast.walk`
+# yields alongside them. `List` / `Tuple` are included so they reach the
+# transformer's own named rejection rather than dying here with a worse
+# message; unsupported *operators* under an allowed parent (`~x`, `x ** y`)
+# are rejected at the parent before the walk descends to the operator node.
+_ALLOWED_PYTHON_SURFACE: tuple[type, ...] = (
+    ast.BoolOp,
+    ast.UnaryOp,
+    ast.Compare,
+    ast.Constant,
+    ast.Name,
+    ast.Attribute,
+    ast.Subscript,
+    ast.List,
+    ast.Tuple,
+    # Operators and contexts enumerated concretely rather than by abstract
+    # base, so a node type a future CPython adds under `cmpop`/`boolop`/
+    # `unaryop` cannot pass the floor: every operator is opt-in, exactly like
+    # every expression form. Unsupported operators under an *allowed* parent
+    # (`~x`, `+x`) never reach here -- the parent's named rejection fires
+    # before the walk descends to the operator node.
+    ast.And,
+    ast.Or,
+    ast.Not,
+    ast.USub,
+    ast.Eq,
+    ast.NotEq,
+    ast.Lt,
+    ast.LtE,
+    ast.Gt,
+    ast.GtE,
+    ast.Is,
+    ast.IsNot,
+    ast.In,
+    ast.NotIn,
+    ast.Load,
+)
+
+
+def _validate_python_surface(body: ast.expr, source: str) -> None:
+    """Reject Python constructs this language never implemented.
+
+    The grammar is a subset of Python's, taken by parsing with `ast`, so every
+    literal and operator Python has arrives here whether or not anything handles
+    it. Unhandled ones used to reach the transformer and fail with whatever
+    Python raised at the point of contact -- an `AttributeError` on an
+    untransformed node, an `AssertionError` from `assert_never` -- which the
+    compile boundary reports as "Invalid filter condition" and logs at error
+    level. A typo then reads as a fault in the server and costs a stack trace.
+
+    Rejecting the surface up front makes each of these a named message about
+    what the user typed, and keeps the boundary for what it is meant to catch:
+    gaps we do not know about.
+    """
+    for node in ast.walk(body):
+        if isinstance(node, ast.Constant):
+            _validate_literal(node)
+        elif isinstance(node, ast.BinOp):
+            # No binary arithmetic is implemented -- there is no `visit_BinOp`,
+            # so every one of these reached compilation as a raw `ast.BinOp`.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Arithmetic is not supported here: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, ast.UnaryOp) and not isinstance(node.op, (ast.Not, ast.USub)):
+            # `+x` and `~x` are the two Python leaves beside the supported
+            # `not` and unary minus. `~` reaches SQLAlchemy as `NOT x`, which is
+            # unrelated to what was written.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Unsupported operator: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, (ast.Dict, ast.Set)):
+            # The collection literals with no visitor. `ast.List` and
+            # `ast.Tuple` have one and say so themselves; these reached
+            # compilation untransformed.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Unsupported collection: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, ast.Slice):
+            # `input[1:2]`. A subscript selects one key or index.
+            raise ExperimentRunFilterConditionSyntaxError(
+                "Slicing is not supported; select a single key or index"
+            )
+        elif isinstance(node, (ast.JoinedStr, ast.FormattedValue)):
+            # An f-string builds its value at evaluation time, which is exactly
+            # what this language does not do -- there is nothing to interpolate
+            # against. These break inside the transformer rather than at a
+            # visitor, because the pieces are nested below the node.
+            raise ExperimentRunFilterConditionSyntaxError(
+                "Formatted strings are not supported; use a plain string literal"
+            )
+        elif isinstance(node, (ast.Call, ast.Lambda)):
+            # This language has no functions -- there is no `visit_Call` -- so a
+            # call is never valid. Most spellings already fail on the callee as
+            # an unknown name, but one that never resolves a name (`(lambda:
+            # 1)()`) reached the transformer and failed there instead.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Function calls are not supported: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Comprehensions are not supported: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, (ast.Await, ast.Yield, ast.YieldFrom, ast.IfExp)):
+            # Reachable only because `ast.parse` accepts them in an expression.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Unsupported expression: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, ast.NamedExpr):
+            # A walrus (`error == (error := 'x')`) parses in an expression and
+            # used to reach compilation as an untransformed node -- reported as
+            # a server fault with the full condition logged at error level.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Assignment is not supported: `{ast.unparse(node)}`"
+            )
+        elif not isinstance(node, _ALLOWED_PYTHON_SURFACE):
+            # The rejections above exist to *name* constructs for better
+            # messages; this is the default-deny floor beneath them. A denylist
+            # is a permanent backlog of node types nobody has thought of yet --
+            # the walrus operator escaped this walk for exactly that reason --
+            # and CPython adds node types over releases, so exhaustiveness has
+            # to come from an allowlist, not from enumeration of the bad.
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Unsupported construct: `{ast.unparse(node)}`"
+            )
+        elif isinstance(node, (ast.Name, ast.Attribute)):
+            # Python NFKC-normalizes identifiers while parsing, so a full-width
+            # `ｉｎｐｕｔ` silently becomes `input` and resolves to a real column
+            # the user never spelled. Attribute segments normalize too, which is
+            # how `experiments[0].ｌａｔｅｎｃｙ_ｍｓ` reaches a real field.
+            #
+            # Compared against the node's own source span, not against the
+            # whole condition: searching the text would pass whenever the
+            # normalized spelling appears anywhere else -- inside a string
+            # literal or in another operand.
+            written = ast.get_source_segment(source, node)
+            normalized = node.id if isinstance(node, ast.Name) else node.attr
+            # An attribute's span covers its whole chain, so compare only the
+            # trailing segment the parser normalized.
+            if written is not None and isinstance(node, ast.Attribute):
+                written = written.rpartition(".")[2].strip()
+            if written and written != normalized:
+                raise ExperimentRunFilterConditionSyntaxError(
+                    f"`{_ellipsize(written, 80)}` is interpreted as `{_ellipsize(normalized, 80)}`"
+                    ", use unaccented ASCII for field names"
+                )
+
+
+def _validate_literal(node: ast.Constant) -> None:
+    """Literals are limited to the value types this language compares against.
+
+    `b'x'`, `1j`, and `...` have no column type to compare against; the driver
+    either refuses them or binds something meaningless. Non-finite floats and
+    embedded NULs are accepted by SQLite and rejected by PostgreSQL, so admitting
+    them would make a condition's validity depend on the backend it runs on.
+    """
+    value = node.value
+    if value is None or isinstance(value, bool):
+        return
+    if isinstance(value, int):
+        # Python ints are unbounded; both backends evaluate numeric fields in
+        # float, so an int too large for a finite float has no faithful value
+        # to bind -- asyncpg refuses it while SQLite quietly stores infinity.
+        if not _is_finite_number(value):
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Invalid numeric literal: `{ast.unparse(node)}`"
+            )
+        return
+    if isinstance(value, str):
+        if "\x00" in value:
+            raise ExperimentRunFilterConditionSyntaxError(
+                "String literals cannot contain a NUL character"
+            )
+        return
+    if isinstance(value, float):
+        if not _is_finite_number(value):
+            raise ExperimentRunFilterConditionSyntaxError(
+                f"Invalid numeric literal: `{ast.unparse(node)}`"
+            )
+        return
+    raise ExperimentRunFilterConditionSyntaxError(f"Unsupported literal: `{ast.unparse(node)}`")
+
+
+def _as_json_scalar(compiled_operand: Any) -> Any:
+    """Extract a JSON value rather than re-render it as JSON.
+
+    A JSON accessor keeps its operand encoded: the string `yes` comes back as
+    `"yes"`, and a missing key comes back as SQLite's text `'null'` instead of
+    SQL NULL. Both make a comparison silently false for every row. `as_string()`
+    picks the extracting accessor on each backend -- `->>` on PostgreSQL, a bare
+    `json_extract` on SQLite.
+
+    Neither backend can then tell a stored JSON null from an absent key, since
+    `json_extract` returns SQL NULL for both. Conflating them is the only
+    behavior both dialects can express, and it is the one `is None` reads as.
+    """
+    as_string = getattr(compiled_operand, "as_string", None)
+    # Present on JSON accessors, which is what an unknown-typed operand is;
+    # anything else is already a scalar.
+    return as_string() if callable(as_string) else compiled_operand
+
+
+def _is_singleton(operand: Any) -> bool:
+    """`None`, `True`, `False` -- the only values SQL can compare identity
+    against (`IS NULL` / `IS TRUE` / `IS FALSE`)."""
+    return isinstance(operand, Constant) and (
+        operand.value is None or isinstance(operand.value, bool)
+    )
+
+
+def _get_data_type_family(data_type: SQLAlchemyDataType) -> str:
+    """Group data types by what they can be compared against.
+
+    `Boolean` is checked first because it is emulated over an integer on some
+    backends, and a boolean compared to a number is a mistake rather than a
+    widening.
+    """
+    if isinstance(data_type, Boolean):
+        return "boolean"
+    if isinstance(data_type, (Integer, Float)):
+        return "number"
+    return "string"
+
+
+def _get_operand_family(operand: Any) -> Optional[str]:
+    """The type family of a comparison operand, or None when it is unknown.
+
+    A None literal is reported as its own family rather than as unknown:
+    binding NULL into string containment yields NULL, so `None in output`
+    silently matches nothing instead of failing.
+    """
+    if isinstance(operand, Constant) and operand.value is None:
+        return "null"
+    if isinstance(operand, Term) and (data_type := operand.data_type) is not None:
+        return _get_data_type_family(data_type)
+    return None
+
+
+def _validate_comparable_data_types(left_operand: Term, right_operand: Term) -> None:
+    """Reject a comparison between two known types that SQL cannot evaluate.
+
+    `_get_cast_type_for_comparison` casts an operand whose type is unknown -- a
+    JSON attribute -- to match the one that is known. When *both* types are
+    known it correctly emits no cast, but nothing then checks that the two are
+    actually comparable, so a mismatch is handed to the database as written:
+    `evals['x'].score == ''` becomes `double precision = varchar` and
+    `evals['x'].label == 100` becomes `varchar = integer`. PostgreSQL rejects
+    both, after the condition has already been reported valid.
+
+    Unknown types are deliberately untouched. A JSON attribute has no type until
+    the rows are read, so the cast heuristics remain the right answer there;
+    this only covers the case where guessing was never necessary.
+    """
+    # The operands are typed as `Term`, but a malformed condition can put a
+    # non-`Term` node here -- `experiments < 0` compares against the bare
+    # `experiments` name. Those have their own diagnostics further along, so
+    # this check must not pre-empt them with an `AttributeError`.
+    if not isinstance(left_operand, Term) or not isinstance(right_operand, Term):
+        return
+    left_data_type = left_operand.data_type
+    right_data_type = right_operand.data_type
+    if left_data_type is None or right_data_type is None:
+        # At least one side is a JSON attribute or NULL; the cast heuristics
+        # handle those, and NULL is comparable to anything.
+        return
+    left_family = _get_data_type_family(left_data_type)
+    right_family = _get_data_type_family(right_data_type)
+    if left_family != right_family:
+        raise ExperimentRunFilterConditionSyntaxError(
+            f"cannot compare {left_family} and {right_family}"
+        )
 
 
 def _get_cast_type_for_comparison(

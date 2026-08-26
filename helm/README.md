@@ -1,6 +1,6 @@
 # phoenix-helm
 
-![Version: 11.0.1](https://img.shields.io/badge/Version-11.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 19.2.0](https://img.shields.io/badge/AppVersion-19.2.0-informational?style=flat-square)
+![Version: 12.0.5](https://img.shields.io/badge/Version-12.0.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 20.4.0](https://img.shields.io/badge/AppVersion-20.4.0-informational?style=flat-square)
 
 <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=helm/README.md" />
 
@@ -70,7 +70,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.ldap.userSearchFilter | string | `"(&(objectClass=user)(sAMAccountName=%s))"` | LDAP filter for finding users. Use %s as placeholder for username. Default for Active Directory: "(&(objectClass=user)(sAMAccountName=%s))" OpenLDAP example: "(&(objectClass=inetOrgPerson)(uid=%s))" |
 | auth.name | string | `"phoenix-secret"` | Name of the Kubernetes secret containing authentication credentials |
 | auth.oauth2.enabled | bool | `false` | Enable OAuth2/OIDC authentication |
-| auth.oauth2.providers | string | `nil` | List of OAuth2 identity providers to configure Each provider requires client_id, client_secret (unless token_endpoint_auth_method="none"), and oidc_config_url You can also define corresponding ENVs via auth.secrets[].valueFrom to use existing secrets ENVs: PHOENIX_OAUTH2_{{ $provider_upper }}_{{ setting }}, e.g. PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET |
+| auth.oauth2.providers | string | `nil` | List of OAuth2 identity providers to configure Each provider requires client_id, client_secret (unless token_endpoint_auth_method="none" or "client_assertion_jwt"), and oidc_config_url You can also define corresponding ENVs via auth.secrets[].valueFrom to use existing secrets ENVs: PHOENIX_OAUTH2_{{ $provider_upper }}_{{ setting }}, e.g. PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET |
 | auth.oauth2AuthorizationServer.allowedRedirectHosts | list | `[]` | List of HTTPS redirect hosts allowed for dynamically registered OAuth2 clients (PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS) When empty, all HTTPS redirect hosts are accepted while dynamicClientRegistration is "enabled"; set this to restrict HTTPS deliveries to specific hosts. Loopback redirect URIs are always allowed. Example: ["app.example.com"] |
 | auth.oauth2AuthorizationServer.consentOriginCheck | string | `"strict"` | Origin-header enforcement mode for the OAuth2 consent endpoint (PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK) Valid values: "strict" (reject consent decisions from untrusted origins) or "off" |
 | auth.oauth2AuthorizationServer.dcrRateLimitPerHour | int | `10` | Per-IP hourly rate limit for dynamic OAuth2 client registration (PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR) |
@@ -105,7 +105,9 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | database.url | string | `""` | Full database connection URL (overrides postgres settings if provided) IMPORTANT: Only set this for external databases (Strategy 3) - When using SQLite (Strategy 1): MUST be empty - SQLite auto-uses persistent volume - When using built-in PostgreSQL (Strategy 2): MUST be empty - auto-configured - When using external database (Strategy 3): MUST be configured with full connection string  Examples for external databases: PostgreSQL: "postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix" SQLite: "sqlite:///path/to/database.db" (only for external SQLite files, not recommended)  WARNING: Setting this will override all database.postgres.* settings and disable built-in PostgreSQL validation |
 | deployment.affinity | object | `{}` |  |
 | deployment.nodeSelector | object | `{}` |  |
+| deployment.podLabels | object | `{}` | Extra labels for the Phoenix pods Required by admission webhooks that select on pod labels, e.g. `azure.workload.identity/use: "true"` for OAuth2 workload identity. |
 | deployment.strategy | object | `{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"}` | Deployment strategy |
+| deployment.terminationGracePeriodSeconds | int | `90` | Seconds Kubernetes allows Phoenix to drain in-flight work during shutdown |
 | deployment.tolerations | list | `[]` | Tolerations, nodeSelector and affinity For Pod scheduling strategy on the nodes |
 | extraVolumeMounts | list | `[]` | Extra Volume Mounts |
 | extraVolumes | list | `[]` | Extra Volumes configuration |
@@ -132,7 +134,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy for Phoenix container (Always, IfNotPresent, or Never) |
 | image.registry | string | `"docker.io"` | Docker image registry for Phoenix |
 | image.repository | string | `"arizephoenix/phoenix"` | Docker image repository for Phoenix |
-| image.tag | string | `"version-19.2.0-nonroot"` | Docker image tag/version to deploy |
+| image.tag | string | `"version-20.4.0-nonroot"` | Docker image tag/version to deploy |
 | ingress.annotations | object | `{}` | Annotations to add to the ingress resource |
 | ingress.apiPath | string | `"/"` | Path prefix for the Phoenix API |
 | ingress.enabled | bool | `true` | Enable ingress controller for external access |
@@ -172,7 +174,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | postgresql.userDatabase | object | `{"name":{"value":"phoenix"},"password":{"value":"phoenix"},"user":{"value":"phoenix"}}` | User database configuration |
 | replicaCount | int | `1` | Number of Phoenix pod replicas |
 | resources | object | `{"limits":{"cpu":"1000m","memory":"2Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}` | Resource configuration |
-| sandbox.allowedProviders | string | `""` | Comma-separated allowlist of sandbox providers (PHOENIX_ALLOWED_SANDBOX_PROVIDERS) Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL (case-insensitive) When empty, the chart omits the env var and all providers are allowed. Set to "NONE" to disable all sandbox providers. Example: "WASM,DENO" |
+| sandbox.allowedProviders | string | `""` | Comma-separated allowlist of sandbox providers (PHOENIX_ALLOWED_SANDBOX_PROVIDERS) Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY (case-insensitive) When empty, the chart omits the env var and all providers are allowed. Set to "NONE" to disable all sandbox providers. Example: "WASM,DENO" |
 | securityContext | object | `{"container":{"allowPrivilegeEscalation":false,"capabilities":{"add":[],"drop":["ALL"]},"enabled":false,"privileged":false,"procMount":"Default","readOnlyRootFilesystem":true,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seLinuxOptions":{},"seccompProfile":{"type":"RuntimeDefault"},"windowsOptions":{}},"pod":{"enabled":false,"fsGroup":65532,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seLinuxOptions":{},"seccompProfile":{"type":"RuntimeDefault"},"supplementalGroups":[],"sysctls":[],"windowsOptions":{}}}` | Security context configuration |
 | securityContext.container | object | `{"allowPrivilegeEscalation":false,"capabilities":{"add":[],"drop":["ALL"]},"enabled":false,"privileged":false,"procMount":"Default","readOnlyRootFilesystem":true,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seLinuxOptions":{},"seccompProfile":{"type":"RuntimeDefault"},"windowsOptions":{}}` | Container-level security context settings |
 | securityContext.pod | object | `{"enabled":false,"fsGroup":65532,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seLinuxOptions":{},"seccompProfile":{"type":"RuntimeDefault"},"supplementalGroups":[],"sysctls":[],"windowsOptions":{}}` | Pod-level security context settings |

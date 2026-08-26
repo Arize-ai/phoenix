@@ -31,7 +31,11 @@ import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
 import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
 import { logEvalResumeSummary, PROGRESS_PREFIX } from "./logging";
-import { cleanupOwnedTracerProvider } from "./tracing";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+  MISSING_BASE_URL_MESSAGE,
+} from "./tracing";
 
 /**
  * Error thrown when evaluation is aborted due to a failure in stopOnFirstError mode.
@@ -199,14 +203,15 @@ async function handleEvaluationFetchError(
  */
 function setupEvaluationTracer({
   projectName,
-  baseUrl,
+  traceExportUrl,
   headers,
   useBatchSpanProcessor,
   diagLogLevel,
   setGlobalTracerProvider,
 }: {
   projectName: string | null;
-  baseUrl: string;
+  /** Where spans are exported; omit to let `register()` read the environment. */
+  traceExportUrl?: string;
   headers?: Record<string, string>;
   useBatchSpanProcessor: boolean;
   diagLogLevel?: DiagLogLevel;
@@ -222,7 +227,7 @@ function setupEvaluationTracer({
 
   const provider = register({
     projectName,
-    url: baseUrl,
+    url: traceExportUrl,
     headers,
     batch: useBatchSpanProcessor,
     diagLogLevel,
@@ -323,14 +328,11 @@ export async function resumeEvaluation({
 
   // Initialize tracer (only if experiment has a project_name)
   const baseUrl = client.config.baseUrl;
-  invariant(
-    baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
-  );
+  invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
 
   const tracerSetup = setupEvaluationTracer({
     projectName: experiment.projectName,
-    baseUrl,
+    traceExportUrl: getTraceExportUrl(client.config),
     headers: client.config.headers
       ? toObjectHeaders(client.config.headers)
       : undefined,
@@ -522,7 +524,7 @@ export async function resumeEvaluation({
     }
 
     // Start concurrent execution
-    // Wrap in try-finally to ensure channel is always closed, even if Promise.all throws
+    // Wrap in try-finally to ensure channel is always closed, even if a task throws
     let executionError: Error | null = null;
     try {
       const producerTask = fetchIncompleteEvaluations();
@@ -530,31 +532,61 @@ export async function resumeEvaluation({
         processEvaluationsFromChannel()
       );
 
-      // Wait for producer and all workers to finish
-      await Promise.all([producerTask, ...workerTasks]);
-    } catch (error) {
-      // Classify and handle errors based on their nature
-      const err = error instanceof Error ? error : new Error(String(error));
+      // Wait for the producer AND every worker to settle before continuing.
+      // Using allSettled (rather than Promise.all) is important: on the first
+      // worker error, Promise.all rejects immediately while the remaining
+      // workers keep running detached, logging and hitting the API after this
+      // function has already returned/thrown. Draining all tasks guarantees no
+      // background work outlives the call (and avoids teardown races in tests
+      // where late console output is flushed after the test completes).
+      const settled = await Promise.allSettled([producerTask, ...workerTasks]);
+      const rejections = settled
+        .filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === "rejected"
+        )
+        .map((result) => result.reason);
 
-      // Always surface producer/infrastructure errors
-      if (error instanceof EvaluationFetchError) {
-        // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
-        logger.error(`Critical: Failed to fetch evaluations from server`);
-        executionError = err;
-      } else if (error instanceof ChannelError && signal.aborted) {
-        // Channel closed due to intentional abort - wrap in semantic error
-        executionError = new EvaluationAbortedError(
-          "Evaluation stopped due to error in concurrent evaluator",
-          err
+      if (rejections.length > 0) {
+        // Classify and handle errors based on their nature. When multiple tasks
+        // reject, prefer the most meaningful error over incidental fallout
+        // (e.g. a ChannelError raised in a blocked worker when the channel
+        // closes on abort).
+        const fetchError = rejections.find(
+          (reason) => reason instanceof EvaluationFetchError
         );
-      } else if (stopOnFirstError) {
-        // Worker error in stopOnFirstError mode - already logged by worker
-        executionError = err;
-      } else {
-        // Unexpected error (not from worker, not from producer fetch)
-        // This could be a bug in our code or infrastructure failure
-        logger.error(`Unexpected error during evaluation: ${err.message}`);
-        executionError = err;
+        const workerError = rejections.find(
+          (reason) =>
+            reason instanceof Error &&
+            !(reason instanceof EvaluationFetchError) &&
+            !(reason instanceof ChannelError)
+        );
+        const channelError = rejections.find(
+          (reason) => reason instanceof ChannelError
+        );
+
+        if (fetchError) {
+          // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
+          logger.error(`Critical: Failed to fetch evaluations from server`);
+          executionError = fetchError;
+        } else if (workerError) {
+          // Worker error in stopOnFirstError mode - already logged by worker
+          executionError = workerError;
+        } else if (channelError && signal.aborted) {
+          // Channel closed due to intentional abort - wrap in semantic error
+          executionError = new EvaluationAbortedError(
+            "Evaluation stopped due to error in concurrent evaluator",
+            channelError
+          );
+        } else {
+          // Unexpected error (not from worker, not from producer fetch)
+          // This could be a bug in our code or infrastructure failure
+          const reason = rejections[0];
+          const err =
+            reason instanceof Error ? reason : new Error(String(reason));
+          logger.error(`Unexpected error during evaluation: ${err.message}`);
+          executionError = err;
+        }
       }
     } finally {
       // Ensure channel is closed even if there are unexpected errors

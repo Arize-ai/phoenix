@@ -35,7 +35,7 @@ Using `yield` with boto3 streaming does not make it async. The `yield` keyword c
 ```python
 # boto3 (BLOCKING)
 response = boto3_client.converse_stream(...)  # ← Blocks until server responds
-for event in response['stream']:  # ← Each iteration blocks waiting for next chunk
+for event in response["stream"]:  # ← Each iteration blocks waiting for next chunk
     yield event  # ← yield returns control, but NEXT iteration blocks again
 ```
 
@@ -97,7 +97,7 @@ All providers use a factory callable that returns an async context manager. The 
 ```python
 ClientT = TypeVar("ClientT")
 
-class PlaygroundStreamingClient(ABC, Generic[ClientT]):
+class PlaygroundClient(ABC, Generic[ClientT]):
     _client_factory: Callable[[], AsyncContextManager[ClientT]]
     
     async def chat_completion_create(self, ...):
@@ -106,10 +106,10 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             ...
 
 # Subclasses specify their client type
-class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]): ...
-class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]): ...
-class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]): ...
-class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]): ...
+class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]): ...
+class AnthropicClient(PlaygroundClient["AsyncAnthropic"]): ...
+class GoogleClient(PlaygroundClient["GoogleAsyncClient"]): ...
+class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]): ...
 ```
 
 ### Factory Implementations by Provider
@@ -133,12 +133,12 @@ async def chat_completion_create(self, messages, tools, **params):
     async with self._client_factory() as client:
         # For OpenAI/Azure/Anthropic: Wrap httpx client for instrumentation
         client._client = _HttpxClient(client._client, self._attributes)
-        
+
         # Provider-specific API calls
         response = await client.chat.completions.create(...)  # OpenAI / Azure OpenAI
-        response = await client.messages.stream(...)          # Anthropic
+        response = await client.messages.stream(...)  # Anthropic
         response = await client.models.generate_content_stream(...)  # Google
-        response = await client.converse_stream(...)          # Bedrock
+        response = await client.converse_stream(...)  # Bedrock
 ```
 
 ### Benefits
@@ -189,6 +189,7 @@ The OpenAI Python SDK wraps httpx and implements async context manager protocol.
 async def __aenter__(self: _T) -> _T:
     return self
 
+
 async def __aexit__(
     self,
     exc_type: type[BaseException] | None,
@@ -221,6 +222,7 @@ The Anthropic SDK shares the same base client architecture as OpenAI (both use h
 async def __aenter__(self: _T) -> _T:
     return self
 
+
 async def __aexit__(
     self,
     exc_type: type[BaseException] | None,
@@ -250,8 +252,9 @@ The Google GenAI SDK provides separate sync and async clients with explicit life
 [python-genai/google/genai/client.py#L248-L257](https://github.com/googleapis/python-genai/blob/48f8256202a9ea3abfb7790fa80fcbf68e541131/google/genai/client.py#L248-L257)
 
 ```python
-async def __aenter__(self) -> 'AsyncClient':
-  return self
+async def __aenter__(self) -> "AsyncClient":
+    return self
+
 
 async def __aexit__(
     self,
@@ -259,7 +262,7 @@ async def __aexit__(
     exc_value: Optional[Exception],
     traceback: Optional[TracebackType],
 ) -> None:
-  await self.aclose()
+    await self.aclose()
 ```
 
 **Async Close Method:**
@@ -267,16 +270,16 @@ async def __aexit__(
 
 ```python
 async def aclose(self) -> None:
-  """Closes the async client explicitly.
+    """Closes the async client explicitly.
 
-  However, it doesn't close the sync client, which can be closed using the
-  Client.close() method or using the context manager.
-  ...
-  """
-  await self._api_client.aclose()
+    However, it doesn't close the sync client, which can be closed using the
+    Client.close() method or using the context manager.
+    ...
+    """
+    await self._api_client.aclose()
 
-  if self._has_nextgen_client:
-    await self._nextgen_client.close()
+    if self._has_nextgen_client:
+        await self._nextgen_client.close()
 ```
 
 ### aioboto3/aiobotocore (AWS Bedrock)
@@ -325,6 +328,7 @@ async def __aenter__(self):
     await self._endpoint.http_session.__aenter__()
     return self
 
+
 async def __aexit__(self, exc_type, exc_val, exc_tb):
     await self._endpoint.http_session.__aexit__(exc_type, exc_val, exc_tb)
 ```
@@ -338,8 +342,9 @@ async def __aenter__(self):
     self._sessions = {}
     return self
 
+
 async def __aexit__(self, exc_type, exc_val, exc_tb):
-    assert self._sessions is not None, 'Session was never entered'
+    assert self._sessions is not None, "Session was never entered"
     self._sessions.clear()
     await self._exit_stack.aclose()
     # Make _sessions unusable once context is exited
@@ -385,9 +390,7 @@ The `self._raw_stream.read()` call blocks the entire Python thread (and thus the
 [boto3/session.py#L337-L339](https://github.com/boto/boto3/blob/43f6f80eb6c93d085b98a6d2eba74fe498e460f5/boto3/session.py#L337-L339)
 
 ```python
-return self._session.create_client(
-    service_name, **create_client_kwargs
-)
+return self._session.create_client(service_name, **create_client_kwargs)
 ```
 
 boto3's `Session.client()` returns the client immediately (synchronously). The underlying `botocore.session.create_client()` creates a sync client with blocking urllib3 connections.

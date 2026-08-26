@@ -21,13 +21,8 @@ describe("Configuration", () => {
   let tmpDir: string;
 
   beforeEach(() => {
+    // Connection env vars are cleared globally in test/setup.ts.
     originalEnv = { ...process.env };
-
-    delete process.env.PHOENIX_HOST;
-    delete process.env.PHOENIX_PROJECT;
-    delete process.env.PHOENIX_PROJECT_NAME;
-    delete process.env.PHOENIX_API_KEY;
-    delete process.env.PHOENIX_CLIENT_HEADERS;
 
     // Redirect XDG_CONFIG_HOME so profile resolution stays isolated from
     // the developer's real ~/.px/settings.json.
@@ -80,6 +75,20 @@ describe("Configuration", () => {
       process.env.PHOENIX_CLIENT_HEADERS = '{"X-Custom": "value"}';
       const config = loadConfigFromEnvironment();
       expect(config.headers).toEqual({ "X-Custom": "value" });
+    });
+
+    it("should load the endpoint from PHOENIX_ENDPOINT", () => {
+      process.env.PHOENIX_ENDPOINT = "http://api-host:6006";
+      const config = loadConfigFromEnvironment();
+      expect(config.endpoint).toBe("http://api-host:6006");
+    });
+
+    it("should infer the endpoint from PHOENIX_COLLECTOR_ENDPOINT", () => {
+      // The full precedence matrix is covered in @arizeai/phoenix-config;
+      // this and the test above only prove the CLI is wired to the resolver.
+      process.env.PHOENIX_COLLECTOR_ENDPOINT = "http://collector-host:6006";
+      const config = loadConfigFromEnvironment();
+      expect(config.endpoint).toBe("http://collector-host:6006");
     });
   });
 
@@ -214,6 +223,81 @@ describe("Configuration", () => {
       expect(matchingConfig.oauthTokens?.accessToken).toBe("oauth-access");
     });
 
+    it("keeps the profile endpoint and OAuth tokens when only the trace-export variable is exported", () => {
+      const settings: SettingsFile = {
+        activeProfile: "prod",
+        profiles: {
+          prod: {
+            endpoint: "https://prod.example.com",
+            oauthTokens: {
+              accessToken: "oauth-access",
+              refreshToken: "oauth-refresh",
+              expiresAt: "2026-01-01T00:00:00.000Z",
+              scope: "",
+            },
+          },
+        },
+      };
+      const settingsPath = path.join(tmpDir, "px", "settings.json");
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      saveSettings(settings, { settingsPath });
+
+      // A shell-exported PHOENIX_COLLECTOR_ENDPOINT (for app tracing) is only
+      // *inferred* as an API endpoint and must not redirect authenticated
+      // commands away from the profile.
+      process.env.PHOENIX_COLLECTOR_ENDPOINT = "https://ingest.example.com";
+      const config = resolveConfig({ cliOptions: {} });
+      expect(config.endpoint).toBe("https://prod.example.com");
+      expect(config.credentialSource).toBe("oauth");
+      expect(config.oauthTokens?.accessToken).toBe("oauth-access");
+      delete process.env.PHOENIX_COLLECTOR_ENDPOINT;
+    });
+
+    it("keeps the profile endpoint when only OTEL_EXPORTER_OTLP_ENDPOINT is exported", () => {
+      const settings: SettingsFile = {
+        activeProfile: "prod",
+        profiles: {
+          prod: {
+            endpoint: "https://prod.example.com",
+            apiKey: "profile-key",
+          },
+        },
+      };
+      const settingsPath = path.join(tmpDir, "px", "settings.json");
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      saveSettings(settings, { settingsPath });
+
+      // The OTel-standard variable is another trace-export setting, so it is
+      // inferred rather than canonical and ranks below the profile too.
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "https://ingest.example.com";
+      const config = resolveConfig({ cliOptions: {} });
+      expect(config.endpoint).toBe("https://prod.example.com");
+      delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    });
+
+    // The env-beats-profile rank is what makes PHOENIX_ENDPOINT usable for
+    // one-off redirection; a regression demoting it to `inferred` would
+    // otherwise pass unnoticed, since the other env tests use PHOENIX_HOST.
+    it("lets the canonical PHOENIX_ENDPOINT override the profile endpoint", () => {
+      const settings: SettingsFile = {
+        activeProfile: "prod",
+        profiles: {
+          prod: {
+            endpoint: "https://prod.example.com",
+            apiKey: "profile-key",
+          },
+        },
+      };
+      const settingsPath = path.join(tmpDir, "px", "settings.json");
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      saveSettings(settings, { settingsPath });
+
+      process.env.PHOENIX_ENDPOINT = "https://staging.example.com";
+      const config = resolveConfig({ cliOptions: {} });
+      expect(config.endpoint).toBe("https://staging.example.com");
+      delete process.env.PHOENIX_ENDPOINT;
+    });
+
     it("prefers a profile API key over profile OAuth tokens", () => {
       const settings: SettingsFile = {
         activeProfile: "prod",
@@ -287,6 +371,18 @@ describe("Configuration", () => {
       expect(config.endpoint).toBe("http://file-host:6006");
     });
 
+    it("resolves the endpoint a `px setup` hand-off file records", () => {
+      // px setup writes PHOENIX_ENDPOINT and PHOENIX_COLLECTOR_ENDPOINT (not
+      // PHOENIX_HOST) into .env.phoenix — later px commands in that directory
+      // must honor it.
+      writeEnvFile(
+        "PHOENIX_COLLECTOR_ENDPOINT=https://phoenix.example.com\n" +
+          "PHOENIX_ENDPOINT=https://phoenix.example.com\n"
+      );
+      const config = resolveConfig({ cliOptions: {} });
+      expect(config.endpoint).toBe("https://phoenix.example.com");
+    });
+
     it("never lets file values override an explicitly selected profile", () => {
       writeEnvFile("PHOENIX_API_KEY=file-key\n");
       saveProfile();
@@ -333,6 +429,20 @@ describe("Configuration", () => {
       );
       expect(warnSpy.mock.calls[0]?.[0]).not.toContain("secret-process-key");
     });
+
+    it("names PHOENIX_COLLECTOR_ENDPOINT in the warning when the file sets it", () => {
+      const filePath = path.join(envFileDir, ".env.phoenix");
+      writeEnvFile("PHOENIX_COLLECTOR_ENDPOINT=http://file-host:6006\n");
+      fs.chmodSync(filePath, 0o600);
+      process.env.PHOENIX_API_KEY = "secret-process-key";
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      resolveConfig({ cliOptions: {} });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        `Credentials from the process environment will be sent to PHOENIX_COLLECTOR_ENDPOINT set by ${filePath}.`
+      );
+    });
   });
 
   describe("validateConfig", () => {
@@ -351,7 +461,7 @@ describe("Configuration", () => {
       const validation = validateConfig({ config });
       expect(validation.valid).toBe(false);
       expect(validation.errors).toContain(
-        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag."
+        "Phoenix endpoint not configured. Set PHOENIX_ENDPOINT environment variable or use --endpoint flag."
       );
     });
 
@@ -378,7 +488,7 @@ describe("Configuration", () => {
       expect(message).toContain("Phoenix endpoint not configured.");
       expect(message).toContain("Project not configured.");
       expect(message).toContain("Quick Start:");
-      expect(message).toContain("export PHOENIX_HOST=");
+      expect(message).toContain("export PHOENIX_ENDPOINT=");
       expect(message).toContain("export PHOENIX_PROJECT=");
     });
   });

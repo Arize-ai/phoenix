@@ -195,6 +195,14 @@ interface TraceListOptions
    */
   since?: string;
   /**
+   * `--until <timestamp>`: Only fetch traces whose spans started before this
+   * ISO 8601 timestamp (exclusive). Combine with `since` to select a time
+   * range.
+   *
+   * @example "2026-07-14T00:00:00Z"
+   */
+  until?: string;
+  /**
    * `--max-concurrent <number>`: Maximum concurrent requests when fetching
    * annotations/notes or writing trace files to a directory. Defaults to 10.
    *
@@ -317,6 +325,7 @@ async function getLastNTraces(
   options: {
     lastNMinutes?: number;
     since?: string;
+    until?: string;
   } = {}
 ): Promise<Trace[]> {
   let startTime: string | undefined;
@@ -331,6 +340,7 @@ async function getLastNTraces(
 
   const spans = await fetchProjectSpans(client, projectIdentifier, {
     startTime,
+    endTime: options.until,
     limit,
   });
 
@@ -625,6 +635,7 @@ async function traceListHandler(
     const traces = await getLastNTraces(client, projectId, limit, {
       lastNMinutes: options.lastNMinutes,
       since: options.since,
+      until: options.until,
     });
 
     if (traces.length === 0) {
@@ -786,6 +797,10 @@ export function createTraceListCommand(): Command {
       parseInt
     )
     .option("--since <timestamp>", "Fetch traces since this ISO timestamp")
+    .option(
+      "--until <timestamp>",
+      "Fetch traces whose spans started before this ISO timestamp (exclusive)"
+    )
     .option(
       "--max-concurrent <number>",
       "Maximum concurrent fetches for bulk operations",

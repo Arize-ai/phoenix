@@ -14,7 +14,7 @@ description: Command-line interface for retrieving trace data from Arize Phoenix
   GitHub
 </Card>
 
-Phoenix CLI is a command-line interface for your Phoenix projects. Fetch traces, list datasets, export experiment results, and access prompts directly from your terminal—or pipe them into AI coding agents like Claude Code, Cursor, Codex, and Gemini CLI.
+Phoenix CLI is a command-line interface for your Phoenix projects. Fetch traces, list datasets, export experiment results, and access prompts directly from your terminal—or pipe them into AI coding agents like Claude Code, Codex, Cursor, and OpenCode.
 
 You can use Phoenix CLI for:
 
@@ -43,7 +43,7 @@ npx @arizeai/phoenix-cli
 
 ```bash
 # Configure your Phoenix instance
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
@@ -64,7 +64,7 @@ px trace list ./my-traces --limit 50
 
 | Variable | Description |
 |----------|-------------|
-| `PHOENIX_HOST` | Phoenix API endpoint (e.g., `http://localhost:6006`) |
+| `PHOENIX_ENDPOINT` | Phoenix API endpoint (e.g., `http://localhost:6006`) |
 | `PHOENIX_PROJECT` | Project name or ID |
 | `PHOENIX_API_KEY` | API key for authentication (if required) |
 | `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
@@ -192,6 +192,22 @@ px setup --no-input --endpoint http://localhost:6006 --project my-app
 px setup --no-input --instrument --agent claude --yolo --language python --format raw
 ```
 
+Setup's definition of done is a trace the API confirmed arriving, not a completed
+hand-off, and the exit code says which happened:
+
+| Exit | Meaning |
+|------|---------|
+| `0` | Verified, registered only, or you chose "verify later" at the prompt |
+| `6` | The wait ran out with no trace — tracing is not confirmed working |
+
+Other codes follow the CLI-wide contract: `2` cancelled, `3` invalid flags, `4`
+auth, `5` unreachable endpoint. In `--format json|raw`, `verification` is
+`verified`, `notVerified`, or `deferred` and is absent when there was nothing to
+verify; `tracesVerified` is the boolean shorthand for `verification ==
+"verified"`. Don't score a run on the hand-off agent's own exit code — it may
+edit the app correctly and then exit badly, or exit cleanly having delivered
+nothing.
+
 Re-run individual steps later with the subcommands:
 
 ```bash
@@ -215,7 +231,7 @@ px setup mcp --agent claude         # Register the Phoenix MCP server with an ag
 
 ### `px setup mcp`
 
-Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_HOST` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for what the server exposes.
+Register the Phoenix **remote MCP server** (`<endpoint>/mcp`) with a coding agent, so it can search, query, and operate on your Phoenix data. The endpoint is inferred from `--endpoint`, the active profile, or `PHOENIX_ENDPOINT` — you never re-type it. See [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) for what the server exposes.
 
 ```bash
 px setup mcp                        # Pick scope + agent interactively
@@ -241,6 +257,35 @@ px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
 | `--header <header>` | `Name: value` header for the API-key fallback (repeatable) | OAuth (none) |
 | `--no-input` | Headless mode; requires `--agent` and defaults scope to global | — |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
+### `pxi`
+
+Launch **PXI** (Phoenix Intelligence), the AI engineering agent, as an interactive terminal chat against a running Phoenix server. It is the same server-side agent that powers the in-browser assistant, so models, skills, and permissions are configured on the server. Inside the chat, tool calls render with a per-tool icon, a status glyph, and a short command excerpt, and slash commands (`/help`, `/new`, `/temporary`, `/sessions`, `/model`, `/compact`, `/exit`) are handled locally. See [PXI](/docs/phoenix/pxi) for the full guide.
+
+```bash
+pxi                                                # uses PHOENIX_ENDPOINT / PHOENIX_API_KEY
+pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
+npx -y @arizeai/phoenix-cli pxi                    # run without installing
+```
+
+`pxi` requires a Phoenix server on **20.0.0 or newer** and runs a preflight check against the server's model catalog and credentials before the chat opens.
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix base URL | `PHOENIX_ENDPOINT` |
+| `--api-key <key>` | Phoenix API key | `PHOENIX_API_KEY` |
+| `--profile <name>` | Saved Phoenix CLI profile to read connection settings from | Active profile |
+| `--provider <provider>` | Built-in model provider (e.g. `ANTHROPIC`, `OPENAI`, `GOOGLE`) | `ANTHROPIC` |
+| `--model <model>` | Model name | `claude-opus-5` |
+| `--custom-provider-id <id>` | Custom provider from **Settings → Models** (requires `--model`) | — |
+| `--bypass-edits` | Apply edits without manual approval | Manual approval |
+| `--enable-web-access` | Allow PXI to consult the web for grounding | Off |
+| `--enable-subagents` | Allow the server to attach subagents (including server-side bash) | Off |
+| `--enable-graphql-mutations` | Allow PXI to run state-changing GraphQL mutations | Off |
+| `--ingest-traces` | Persist this session's PXI traces locally in Phoenix | Off |
+| `--export-remote-traces` | Export this session's PXI traces to a configured remote collector | Off |
+| `--attach-user-id` | Attach the authenticated Phoenix user to PXI traces | Off |
+| `--skip-model-preflight` | Skip the model catalog and credential checks before launch | — |
 
 ### `px project list`
 
@@ -838,6 +883,59 @@ px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes    # Skip the pro
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px auth login`
+
+Log in with the browser-based OAuth flow and store tokens on the selected profile. The login URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions act with the permissions of the user who logged in, and the CLI refreshes expiring access tokens automatically for REST, GraphQL, and PXI requests.
+
+```bash
+px auth login                          # browser-based OAuth login into the active profile
+px auth login --no-browser             # print the URL instead of opening a browser
+px auth login --profile staging        # log in to a named profile
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env/profile |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--profile <name>` | Profile to store OAuth tokens in | Active profile |
+| `--no-browser` | Print the login URL without opening a browser | — |
+| `--no-input` | Do not prompt for a pasted redirect URL | — |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
+The command pre-flights the server's OAuth authorization server before opening a browser, so it fails cleanly when the server is unreachable or does not run the OAuth authorization server. If the target profile also has an API key, the key takes precedence over the OAuth session until it is removed.
+
+### `px auth logout`
+
+Clear OAuth tokens from the selected profile. Logout best-effort revokes the refresh token on the server (against the endpoint that issued the tokens) and leaves any configured API key untouched.
+
+```bash
+px auth logout                         # clear the stored session
+px auth logout --profile staging       # clear a named profile's session
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--profile <name>` | Profile to clear OAuth tokens from | Active profile |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
+### `px auth status`
+
+Show the current Phoenix authentication status, including the configured endpoint, credential source, identity, and OAuth access level/expiry when applicable.
+
+```bash
+px auth status                         # show the current session/identity
+px auth status --profile staging       # inspect a named profile
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--profile <name>` | Profile to use | Active profile |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
 ### `px api graphql <query>`
 
 Make authenticated GraphQL queries against the Phoenix API. Output is `{"data": {...}}` JSON — pipe with `jq '.data.<field>'` to extract values. Only queries are permitted; mutations and subscriptions are rejected before hitting the server.
@@ -849,7 +947,7 @@ px api graphql '<query>' [--endpoint <url>] [--api-key <key>]
 | Argument/Option | Description | Default |
 |-----------------|-------------|---------|
 | `<query>` | GraphQL query string | — |
-| `--endpoint <url>` | Phoenix API endpoint | `$PHOENIX_HOST` |
+| `--endpoint <url>` | Phoenix API endpoint | `$PHOENIX_ENDPOINT` |
 | `--api-key <key>` | Phoenix API key | `$PHOENIX_API_KEY` |
 
 #### Discover the schema with introspection
@@ -1162,7 +1260,7 @@ $ px api graphql '{ viewer { username email } }'
 
 ## Use with AI Coding Assistants
 
-Phoenix CLI is designed to work seamlessly with AI coding assistants like Claude Code, Cursor, and Windsurf.
+The Phoenix CLI pairs well with AI coding assistants like Claude Code, Cursor, and Windsurf. For hands-off access, connect an agent to Phoenix once with [`px setup mcp`](#px-setup-mcp) or install [Phoenix skills](/docs/phoenix/integrations/developer-tools/coding-agents); the examples below drive the CLI directly instead.
 
 ### Claude Code
 

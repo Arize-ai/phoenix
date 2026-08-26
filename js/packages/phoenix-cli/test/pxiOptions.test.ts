@@ -49,7 +49,7 @@ describe("PXI options", () => {
     expect(selection).toEqual({
       providerType: "builtin",
       provider: "ANTHROPIC",
-      modelName: "claude-opus-4-8",
+      modelName: "claude-opus-5",
     });
   });
 
@@ -102,6 +102,19 @@ describe("PXI options", () => {
     });
 
     expect(options.skipModelPreflight).toBe(false);
+    expect(options.hasExplicitModelSelection).toBe(false);
+  });
+
+  it("records whether model flags were explicitly provided", () => {
+    const options = resolvePxiRuntimeOptions({
+      cliOptions: {
+        endpoint: "http://localhost:6006",
+        model: "claude-opus-4-6",
+      },
+      sessionId: "session-1",
+    });
+
+    expect(options.hasExplicitModelSelection).toBe(true);
   });
 
   it("supports skipping model preflight", () => {

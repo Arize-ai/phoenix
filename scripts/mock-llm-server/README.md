@@ -61,21 +61,18 @@ from openai import OpenAI
 
 client = OpenAI(
     base_url="http://localhost:57593/v1",
-    api_key="fake-key"  # Any string works
+    api_key="fake-key",  # Any string works
 )
 
 # Non-streaming
 response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": "Hello!"}]
+    model="gpt-4o", messages=[{"role": "user", "content": "Hello!"}]
 )
 print(response.choices[0].message.content)
 
 # Streaming
 stream = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": "Hello!"}],
-    stream=True
+    model="gpt-4o", messages=[{"role": "user", "content": "Hello!"}], stream=True
 )
 for chunk in stream:
     if chunk.choices[0].delta.content:
@@ -88,26 +85,28 @@ for chunk in stream:
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "What's the weather?"}],
-    tools=[{
-        "type": "function",
-        "function": {
-            "name": "get_weather",
-            "description": "Get the weather for a location",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {"type": "string", "description": "City name"},
-                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+    tools=[
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get the weather for a location",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string", "description": "City name"},
+                        "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                    },
+                    "required": ["location"],
                 },
-                "required": ["location"]
-            }
+            },
         }
-    }]
+    ],
 )
 
 # The mock server will generate fake arguments matching the schema
 tool_call = response.choices[0].message.tool_calls[0]
-print(tool_call.function.name)       # "get_weather"
+print(tool_call.function.name)  # "get_weather"
 print(tool_call.function.arguments)  # '{"location": "San Francisco", "unit": "celsius"}'
 ```
 
@@ -120,14 +119,14 @@ from anthropic import Anthropic
 
 client = Anthropic(
     base_url="http://localhost:57593",  # SDK adds /v1 automatically
-    api_key="fake-key"  # Any string works
+    api_key="fake-key",  # Any string works
 )
 
 # Non-streaming
 response = client.messages.create(
     model="claude-3-5-sonnet-20241022",
     max_tokens=1024,
-    messages=[{"role": "user", "content": "Hello!"}]
+    messages=[{"role": "user", "content": "Hello!"}],
 )
 print(response.content[0].text)
 
@@ -135,7 +134,7 @@ print(response.content[0].text)
 with client.messages.stream(
     model="claude-3-5-sonnet-20241022",
     max_tokens=1024,
-    messages=[{"role": "user", "content": "Hello!"}]
+    messages=[{"role": "user", "content": "Hello!"}],
 ) as stream:
     for text in stream.text_stream:
         print(text, end="")
@@ -148,24 +147,26 @@ response = client.messages.create(
     model="claude-3-5-sonnet-20241022",
     max_tokens=1024,
     messages=[{"role": "user", "content": "What's the weather?"}],
-    tools=[{
-        "name": "get_weather",
-        "description": "Get the weather for a location",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "location": {"type": "string", "description": "City name"},
-                "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
+    tools=[
+        {
+            "name": "get_weather",
+            "description": "Get the weather for a location",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string", "description": "City name"},
+                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                },
+                "required": ["location"],
             },
-            "required": ["location"]
         }
-    }]
+    ],
 )
 
 # The mock server will generate fake input matching the schema
 for block in response.content:
     if block.type == "tool_use":
-        print(block.name)   # "get_weather"
+        print(block.name)  # "get_weather"
         print(block.input)  # {"location": "San Francisco", "unit": "celsius"}
 ```
 
@@ -352,7 +353,7 @@ response = httpx.post(
         "input": "What is 2+2?",
         # Or use structured input:
         # "input": [{"type": "message", "role": "user", "content": "Hello"}]
-    }
+    },
 )
 print(response.json())
 ```
@@ -368,7 +369,7 @@ with httpx.stream(
     "POST",
     "http://localhost:57593/v1/responses",
     headers={"Authorization": "Bearer fake-key"},
-    json={"model": "gpt-4o", "input": "Hello", "stream": True}
+    json={"model": "gpt-4o", "input": "Hello", "stream": True},
 ) as response:
     for line in response.iter_lines():
         print(line)
@@ -384,13 +385,13 @@ from anthropic import Anthropic
 
 client = Anthropic(
     base_url="http://localhost:57593",  # SDK adds /v1 automatically
-    api_key="fake-key"
+    api_key="fake-key",
 )
 
 with client.messages.stream(
     model="claude-3-5-sonnet-20241022",
     max_tokens=1024,
-    messages=[{"role": "user", "content": "Hello!"}]
+    messages=[{"role": "user", "content": "Hello!"}],
 ) as stream:
     for event in stream:
         if event.type == "content_block_delta":

@@ -2,14 +2,17 @@
  * Input resolution for setup.
  *
  * Follows px's `resolveConfig()` precedence — flags, then env, then
- * defaults — additionally accepting `PHOENIX_COLLECTOR_ENDPOINT` and
- * `PHOENIX_PROJECT_NAME` as endpoint/project aliases (#14131). There are no
- * setup-specific env vars. Reads env only through `RunContext.env`.
+ * defaults — using phoenix-config's shared base-URL precedence for the
+ * endpoint and `PHOENIX_PROJECT`/`PHOENIX_PROJECT_NAME` for the project
+ * (#14131). There are no setup-specific env vars. Reads env only through
+ * `RunContext.env`.
  *
  * Note the `--no-input` flag (or a non-TTY stdin) — not the presence of env
  * vars — is what opts into headless behavior: an ambient `PHOENIX_API_KEY`
  * in a dev shell never silently short-circuits the interactive flow.
  */
+
+import { getBaseUrlFromValues } from "@arizeai/phoenix-config";
 
 import { CODING_AGENT_IDS, type CodingAgentId } from "./agents/registry";
 import * as COPY from "./copy";
@@ -139,11 +142,9 @@ export function resolveSetupInputs({
   context: Pick<RunContext, "env" | "stdinIsTTY">;
 }): SetupInputs {
   const { env } = context;
-  const endpoint =
-    options.endpoint ??
-    env.PHOENIX_HOST ??
-    env.PHOENIX_COLLECTOR_ENDPOINT ??
-    undefined;
+  // Same variable precedence as resolveConfig and the SDKs, applied to the
+  // injected env copy (so no `.env.phoenix` discovery here).
+  const endpoint = options.endpoint ?? getBaseUrlFromValues(env);
   const project =
     options.project ??
     env.PHOENIX_PROJECT ??

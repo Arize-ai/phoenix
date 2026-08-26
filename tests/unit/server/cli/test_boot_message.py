@@ -1,8 +1,9 @@
+import sys
 from dataclasses import replace
 
 import pytest
 
-from phoenix.server.cli.boot_message import BootMessage
+from phoenix.server.cli.boot_message import AssistantConfig, BootMessage
 
 
 def _boot_message() -> BootMessage:
@@ -46,6 +47,47 @@ def test_render_displays_configured_urls() -> None:
     assert "http://localhost:6006/phoenix/v1/traces" in rendered
 
 
+def test_render_omits_assistant_section_before_system_settings_are_known() -> None:
+    rendered = _boot_message().render(unicode_ok=False)
+
+    assert "Assistant" not in rendered
+    assert "Agent assistant" not in rendered
+
+
+def test_render_displays_effective_assistant_configuration() -> None:
+    message = replace(
+        _boot_message(),
+        agent_assistant_enabled=False,
+        assistant_config=AssistantConfig(
+            project_name="custom_assistant",
+            allow_local_traces=True,
+            allow_remote_export=False,
+            collector_endpoint="http://collector.example:4318",
+            api_key_configured=True,
+            force_tracing=False,
+            web_access_enabled=True,
+            server_bash_enabled=False,
+        ),
+    )
+
+    rendered = message.render(unicode_ok=False)
+
+    assert "-- Assistant " in rendered
+    assert "Agent assistant     Disabled" in rendered
+    assert "Trace project       custom_assistant" in rendered
+    assert "Local traces        Enabled" in rendered
+    assert "Remote export       Disabled" in rendered
+    assert "Remote collector    http://collector.example:4318" in rendered
+    assert "Collector API key   Configured" in rendered
+    assert "Force tracing       Disabled" in rendered
+    assert "Web access          Enabled" in rendered
+    assert "Server-side bash    Disabled" in rendered
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows output is ASCII-sanitized, which removes the Unicode dividers",
+)
 def test_render_uses_uniform_dividers_and_places_tracing_section_last() -> None:
     rendered = _boot_message().render(unicode_ok=True)
 
@@ -79,6 +121,10 @@ def test_render_shows_development_section_when_dev_tooling_configured() -> None:
     assert "localhost:5678" in rendered
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows output is ASCII-sanitized, which removes the Unicode dividers",
+)
 def test_render_keeps_uniform_dividers_with_development_section() -> None:
     message = replace(_boot_message(), dev_vite_url="http://localhost:5173")
 

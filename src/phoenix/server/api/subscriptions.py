@@ -36,7 +36,7 @@ from phoenix.server.api.helpers.message_helpers import (
     prompt_chat_template_to_playground_messages,
 )
 from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundStreamingClient,
+    PlaygroundClient,
     get_playground_client,
     initialize_playground_clients,
 )
@@ -76,7 +76,7 @@ ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
 async def _stream_single_chat_completion(
     *,
     input: ChatCompletionInput,
-    llm_client: "PlaygroundStreamingClient[Any]",
+    llm_client: "PlaygroundClient[Any]",
     repetition_number: RepetitionNumber,
     db: DbSessionFactory,
     project_id: int,

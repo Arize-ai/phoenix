@@ -143,7 +143,7 @@ export function LoginPage() {
 ## Update UsersTable.tsx
 
 ```typescript
-// app/src/pages/settings/UsersTable.tsx
+// js/app/src/pages/settings/UsersTable.tsx
 
 {
   header: "method",
@@ -169,7 +169,7 @@ export function LoginPage() {
 ## Update Window Config
 
 ```typescript
-// app/src/globals.d.ts
+// js/app/src/globals.d.ts
 
 interface WindowConfig {
   // Existing
@@ -185,18 +185,19 @@ interface WindowConfig {
 ```python
 # src/phoenix/server/main.py
 
+
 @app.get("/config")
 async def get_config():
     auth_settings = get_env_auth_settings()
     return {
         "basicAuthDisabled": auth_settings.disable_basic_auth,
         "oAuth2Idps": [
-            {"name": c.name, "displayName": c.display_name}
-            for c in auth_settings.oauth2_clients
+            {"name": c.name, "displayName": c.display_name} for c in auth_settings.oauth2_clients
         ],
         "ldapEnabled": auth_settings.ldap_config is not None,
-        "ldapDisplayName": auth_settings.ldap_config.display_name 
-            if auth_settings.ldap_config else None,
+        "ldapDisplayName": auth_settings.ldap_config.display_name
+        if auth_settings.ldap_config
+        else None,
     }
 ```
 

@@ -40,7 +40,6 @@ from fastmcp.experimental.transforms.code_mode import (
     GetTags,
     GetToolCatalog,
     ListTools,
-    MontySandboxProvider,
     Search,
 )
 from fastmcp.server.dependencies import get_http_request
@@ -55,15 +54,21 @@ from phoenix.server.bearer_auth import (
     INTERNAL_PRINCIPAL_SCOPE_KEY,
     PhoenixUser,
     authenticated_claims,
+    get_bound_principal,
     token_audience_permits,
 )
+from phoenix.server.mcp_code_mode import MontyPoolSandboxProvider
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.utils import prepend_root_path
+from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
     from fastmcp.server.http import StarletteWithLifespan
     from starlette.types import ASGIApp, Receive, Scope, Send
+
+    from phoenix.server.monty_runtime import MontyConsumer, MontyRuntime
+    from phoenix.server.types import DbSessionFactory
 
 #: Path the MCP ASGI app is mounted at on the Phoenix FastAPI app.
 MCP_MOUNT_PATH = "/mcp"
@@ -193,15 +198,23 @@ def _current_mcp_principal() -> Optional[PhoenixUser]:
 
     ``scope["user"]`` is populated by the outer ``AuthenticationMiddleware`` and
     verified by ``BearerAuthGuard`` before any tool runs; ``get_http_request``
-    resolves that request from ambient context at dispatch time. Returns None when
-    authentication is disabled (no middleware, so no user in the scope) or when
-    there is no live HTTP request to inherit from — e.g. a background task, whose
-    synthetic request snapshots only headers, never the authenticated principal.
+    resolves that request from ambient context at dispatch time. A request
+    carrying a ``PhoenixUser`` yields that user, so a live authenticated request
+    always takes precedence over any binding.
+
+    In-process callers have no request at all — ``get_http_request`` raises — and
+    state their principal through ``bind_principal``, which is consulted only on
+    that path.
+
+    Every other case returns None. Authentication being disabled lands here,
+    because no middleware runs to populate the scope. So does a background task:
+    ``get_http_request`` does not raise there, it returns a synthetic request
+    built from snapshotted headers, and that request carries no principal.
     """
     try:
         request = get_http_request()
     except RuntimeError:
-        return None
+        return get_bound_principal()
     user = request.scope.get("user")
     return user if isinstance(user, PhoenixUser) else None
 
@@ -233,23 +246,31 @@ class _InternalIdentityDispatch:
         await self._app(scope, receive, send)
 
 
-def _v1_group_sizes(openapi_spec: dict[str, Any]) -> dict[str, int]:
-    """Map each ``/v1`` router tag to the number of operations it contains."""
+def _v1_group_sizes(openapi_spec: dict[str, Any], *, read_only: bool = False) -> dict[str, int]:
+    """Map each ``/v1`` router tag to the number of operations it contains.
+
+    Counts only operations the route maps turn into tools, so a reported size
+    matches what ``enable_tool_group`` can reveal.
+    """
     sizes: dict[str, int] = {}
     for path, operations in openapi_spec.get("paths", {}).items():
         if not path.startswith("/v1"):
             continue
-        for operation in operations.values():
+        for method, operation in operations.items():
             if not isinstance(operation, dict):
+                continue
+            if read_only and method.upper() != "GET":
                 continue
             for tag in operation.get("tags", []):
                 sizes[tag] = sizes.get(tag, 0) + 1
     return sizes
 
 
-def _install_progressive_disclosure(mcp: FastMCP, openapi_spec: dict[str, Any]) -> None:
+def _install_progressive_disclosure(
+    mcp: FastMCP, openapi_spec: dict[str, Any], *, read_only: bool = False
+) -> None:
     """Hide non-default tool groups and add meta tools to reveal them on demand."""
-    group_sizes = _v1_group_sizes(openapi_spec)
+    group_sizes = _v1_group_sizes(openapi_spec, read_only=read_only)
     gated = {tag for tag in group_sizes if tag not in _DEFAULT_VISIBLE_GROUPS}
     if not gated:
         return
@@ -307,7 +328,9 @@ def _read_only(
     return build
 
 
-def _build_code_mode() -> CodeMode:
+def _build_code_mode(
+    runtime: "MontyRuntime", consumer: "MontyConsumer"
+) -> tuple[CodeMode, MontyPoolSandboxProvider]:
     """Code-mode tool surface: discovery meta-tools plus a sandboxed ``execute``.
 
     Clients see ``search``/``get_schema``/``tags``/``list_tools`` for discovery and
@@ -318,28 +341,27 @@ def _build_code_mode() -> CodeMode:
     it can invoke mutating tools, and an unannotated tool is treated as
     possibly-destructive by clients, which is the correct default.
 
-    Sandbox bounds are the fastmcp defaults (30s wall clock, 100 MB memory, and
-    at most 50 ``call_tool`` invocations per ``execute`` block) plus an explicit
-    ``max_recursion_depth`` cap. The recursion cap is defense in depth against
-    Monty's *counted* recursion path; it does not bound native re-entry stack
-    growth (map/filter/sorted key callbacks re-entering the interpreter loop),
-    which overflows the native stack before any counted limit trips — that class
-    of crash is contained only by an out-of-process execution boundary.
+    Guest code runs in sandbox worker subprocesses rather than in this process,
+    because a guest program can fault the native interpreter in ways no
+    ``try``/``except`` can catch — an in-process sandbox turns that into the death
+    of the whole server. The provider adapts the application-owned shared Monty
+    runtime to FastMCP's sandbox interface.
+
+    Returns:
+        The transform to install and its FastMCP sandbox adapter.
     """
-    return CodeMode(
-        discovery_tools=[
-            _read_only(Search()),
-            _read_only(GetSchemas()),
-            _read_only(GetTags()),
-            _read_only(ListTools()),
-        ],
-        sandbox_provider=MontySandboxProvider(
-            limits={
-                "max_duration_secs": 30.0,
-                "max_memory": 100_000_000,
-                "max_recursion_depth": 200,
-            },
+    sandbox_provider = MontyPoolSandboxProvider(runtime=runtime, consumer=consumer)
+    return (
+        CodeMode(
+            discovery_tools=[
+                _read_only(Search()),
+                _read_only(GetSchemas()),
+                _read_only(GetTags()),
+                _read_only(ListTools()),
+            ],
+            sandbox_provider=sandbox_provider,
         ),
+        sandbox_provider,
     )
 
 
@@ -431,12 +453,39 @@ class BearerAuthGuard:
         await self._app(scope, receive, send)
 
 
-def create_phoenix_mcp_app(app: "FastAPI") -> "StarletteWithLifespan":
-    """Build the MCP server from ``app``'s REST API and return its ASGI app.
+def build_phoenix_mcp_server(
+    app: "FastAPI",
+    *,
+    monty_runtime: Optional["MontyRuntime"] = None,
+    code_mode: bool,
+    monty_consumer: "MontyConsumer" = "mcp",
+    read_only: bool = False,
+    db: "DbSessionFactory",
+) -> tuple[FastMCP, Optional[MontyPoolSandboxProvider]]:
+    """Derive an MCP server from ``app``'s REST API.
 
-    The returned app's lifespan (its streamable-HTTP session manager) must be
-    entered by the caller; mounting alone will not start it.
+    The arguments below shape one consumer's tool surface, so each consumer
+    builds its own server. The derivation is shared, so a new ``/v1`` endpoint
+    reaches every consumer.
+
+    Args:
+        app: Phoenix application whose REST API becomes the MCP tool surface.
+        monty_runtime: Shared runtime required only when code mode is enabled.
+        code_mode: Present the surface as a sandboxed ``execute`` plus discovery
+            tools instead of one tool per endpoint. Mutually exclusive with group
+            gating, which is installed in its place.
+        monty_consumer: Admission class the sandbox spends against under code
+            mode. Ignored when code mode is off.
+        read_only: Derive tools from GET routes only.
+        db: Session factory for the analytics SQL tools.
+
+    Returns:
+        The server, and — when code mode is enabled — the sandbox adapter backed
+        by the application-owned Monty runtime. ``None`` when code mode is off.
     """
+    if code_mode and monty_runtime is None:
+        raise ValueError("Monty runtime is required when MCP code mode is enabled")
+
     # Tool dispatch authenticates by principal passing, not token replay — see
     # ``_InternalIdentityDispatch``.
     client = httpx.AsyncClient(
@@ -448,11 +497,18 @@ def create_phoenix_mcp_app(app: "FastAPI") -> "StarletteWithLifespan":
         openapi_spec=openapi_spec,
         client=client,
         name="Arize Phoenix",
+        # Without this the handshake advertises the FastMCP library version, which
+        # tells a client nothing about the Phoenix it is talking to.
+        version=phoenix_version,
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not
             # useful to MCP clients).
-            RouteMap(pattern=r"^/v1/", mcp_type=MCPType.TOOL),
+            RouteMap(
+                pattern=r"^/v1/",
+                methods=["GET"] if read_only else "*",
+                mcp_type=MCPType.TOOL,
+            ),
             RouteMap(mcp_type=MCPType.EXCLUDE),
         ],
         # Make each tool's read/write nature legible to the client (see
@@ -460,15 +516,44 @@ def create_phoenix_mcp_app(app: "FastAPI") -> "StarletteWithLifespan":
         # a mutation.
         mcp_component_fn=_annotate_from_rest_method,
     )
-    if get_env_mcp_code_mode():
+    sandbox_provider: Optional[MontyPoolSandboxProvider] = None
+    if code_mode:
         # Code mode replaces the tool surface wholesale: clients see only the
         # discovery meta-tools and ``execute``. Group gating must NOT be installed
         # with it — the code-mode catalog respects tool visibility, so gating would
         # hide every non-default group from ``search``/``list_tools`` with no way
         # to reveal them.
-        mcp.add_transform(_build_code_mode())
+        assert monty_runtime is not None
+        transform, sandbox_provider = _build_code_mode(monty_runtime, monty_consumer)
+        mcp.add_transform(transform)
     else:
-        _install_progressive_disclosure(mcp, openapi_spec)
+        _install_progressive_disclosure(mcp, openapi_spec, read_only=read_only)
+    # Registered for every consumer, and after the code-mode transform: the
+    # catalog resolves lazily, so these reach `call_tool` there and `tools/list`
+    # otherwise.
+    from phoenix.server.mcp.sql.tools import register_analytics_sql_tools
+
+    register_analytics_sql_tools(mcp, db=db)
+    return mcp, sandbox_provider
+
+
+def create_phoenix_mcp_app(
+    app: "FastAPI",
+    *,
+    monty_runtime: Optional["MontyRuntime"] = None,
+    db: "DbSessionFactory",
+) -> tuple["StarletteWithLifespan", Optional[MontyPoolSandboxProvider]]:
+    """Build the MCP server mounted at :data:`MCP_MOUNT_PATH` and return its ASGI app.
+
+    The returned app's lifespan (its streamable-HTTP session manager) must be
+    entered by the caller; mounting alone will not start it.
+    """
+    mcp, sandbox_provider = build_phoenix_mcp_server(
+        app,
+        monty_runtime=monty_runtime,
+        code_mode=get_env_mcp_code_mode(),
+        db=db,
+    )
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
     # resolves to MCP_MOUNT_PATH itself rather than MCP_MOUNT_PATH + "/mcp".
-    return mcp.http_app(path="/")
+    return mcp.http_app(path="/"), sandbox_provider

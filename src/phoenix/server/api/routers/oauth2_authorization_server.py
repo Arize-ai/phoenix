@@ -405,12 +405,16 @@ def _authorization_server_metadata(request: Request) -> dict[str, Any]:
     return metadata
 
 
-@router.get("/.well-known/oauth-authorization-server")
+# HEAD is listed explicitly on these routes: FastAPI, unlike Starlette's own
+# Route, does not add HEAD to a GET route implicitly, and an unmatched HEAD
+# falls through to the SPA mount at / and 404s. uvicorn omits the body for
+# HEAD at the protocol layer, so handlers need no special casing.
+@router.api_route("/.well-known/oauth-authorization-server", methods=["GET", "HEAD"])
 async def authorization_server_metadata(request: Request) -> JSONResponse:
     return JSONResponse(_authorization_server_metadata(request))
 
 
-@router.get("/.well-known/openid-configuration")
+@router.api_route("/.well-known/openid-configuration", methods=["GET", "HEAD"])
 async def openid_configuration(request: Request) -> JSONResponse:
     """Serve the authorization-server metadata at the OIDC discovery location.
 

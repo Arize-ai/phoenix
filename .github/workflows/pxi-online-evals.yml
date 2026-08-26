@@ -1,0 +1,91 @@
+name: PXI Online Evals
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "17 0,12 * * *"
+  workflow_dispatch:
+    inputs:
+      project:
+        description: Phoenix project containing PXI traces
+        required: true
+        default: pxi_dev
+        type: choice
+        options:
+          - pxi_dev
+      dry_run:
+        description: Evaluate without writing annotations
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: pxi-online-evals
+  cancel-in-progress: false
+
+env:
+  PHOENIX_PROJECT: ${{ inputs.project || 'pxi_dev' }}
+
+jobs:
+  evaluate:
+    name: Evaluate recent PXI traces
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.12.1"
+          enable-cache: true
+      - name: Sync dependencies
+        run: uv sync --frozen
+      - name: Evaluate and annotate recent turns
+        env:
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          PHOENIX_AGENTS_EVALS_PROVIDER: ${{ vars.PHOENIX_AGENTS_EVALS_PROVIDER || 'openai' }}
+          PHOENIX_AGENTS_EVALS_MODEL: ${{ vars.PHOENIX_AGENTS_EVALS_MODEL || 'gpt-5.5' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PXI_DRY_RUN: ${{ inputs.dry_run || false }}
+        run: |
+          args=(--project "${PHOENIX_PROJECT}")
+          if [[ "${PXI_DRY_RUN}" == "true" ]]; then
+            args+=(--dry-run)
+          fi
+          args+=(--summary-json "${RUNNER_TEMP}/pxi-online-evals-summary.json")
+          uv run python -m evals.pxi.online_evals.run "${args[@]}"
+      - name: Upload evaluation summary
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: pxi-online-evals-summary
+          path: ${{ runner.temp }}/pxi-online-evals-summary.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  slack-notification:
+    name: Slack notification
+    needs: [evaluate]
+    if: ${{ always() && needs.evaluate.result == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify failure
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":x: PXI Online Evals failed for `${{ env.PHOENIX_PROJECT }}`\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }

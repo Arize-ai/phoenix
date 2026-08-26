@@ -41,32 +41,36 @@ dependencies = [
   "grpcio",
   "grpc-interceptor",
   "tqdm",
-  "httpx",
+  "httpx[http2]",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
   "openinference-instrumentation-openai>=0.1.41",
+  "sqlglot==30.17.0",
   "sqlalchemy[asyncio]>=2.0.46, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite>=0.22.1",
   "aioitertools",
-  "sqlean.py>=3.45.1; platform_system != 'Windows' and python_version < '3.14'",
-  "sqlean.py>=3.50; platform_system != 'Windows' and python_version >= '3.14'",  # 3.49.1 has no cp314 wheels
-  "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # no Windows wheels for >=3.50; Windows + 3.14 will fail at install (no cp314 wheels exist)
+  "arize-phoenix-sqlean",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=3.1.1",
-  "arize-phoenix-otel>=0.16.1",
+  "arize-phoenix-evals>=3.5.1",
+  "arize-phoenix-otel>=0.17.0",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
-  "fastmcp-slim[server,code-mode]>=3.4.2",  # server extra powers the in-process MCP server mounted at /mcp (generated from the v1 OpenAPI routes); code-mode extra provides the pydantic-monty sandbox for the PHOENIX_ENABLE_MCP_CODE_MODE tool surface; client extra is already pulled transitively by pydantic-ai-slim[mcp]
+  "fastmcp-slim[client,server]>=3.4.2,<4",  # client powers pydantic-ai's MCPToolset used by the agent assistant; server powers the in-process MCP server mounted at /mcp. Cap below 4: FastMCP 4 is an SDK-v2 engine swap (mcp_types, httpx2, sampling removals) still in prerelease.
+  # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose ==0.0.17 pin conflicts and would ship in wheel metadata.
+  "pydantic-monty==0.0.19",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.0.0,<3",
-  "bashkit>=0.10.0",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.33.0,<3",
+  # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
+  # here so the major version is chosen deliberately rather than by resolution.
+  "anthropic>=1,<2",
+  "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
   "authlib>=1.7.0",
   "joserfc",
-  "arize-phoenix-client>=2.11.0",
+  "arize-phoenix-client>=3.2.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
@@ -87,7 +91,7 @@ dev = [
   "aiobotocore>=3.1.1",
   "aioboto3",
   "aiosqlite>=0.22.1",
-  "anthropic>=0.79.0",
+  "anthropic>=1,<2",
   "arize>=8.1.0",
   "asgi-lifespan",
   "asyncpg",
@@ -108,13 +112,13 @@ dev = [
   "ldap3",
   "litellm>=1.83.14; python_version < '3.14'",  # >=1.83.14 fixes CVE-2026-42208; excluded because upstream metadata does not support Python 3.14 (https://github.com/BerriAI/litellm/issues/26343)
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
-  "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
+  "vercel>=0.5.8,<0.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
   "wasmtime>=15.0",  # bundled in dev so the local WASM sandbox runs without an extra opt-in; the [wasm] extra still gates production installs
   "mypy==2.3.0",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
-  "openai",
+  "openai>=3.1.0,<4",
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
   "opentelemetry-exporter-otlp",
@@ -170,11 +174,11 @@ dev = [
   "types-tqdm",
   "typing-extensions",
   "uvloop; platform_system != 'Windows'",
-  "vcrpy",
+  "vcrpy>=8.3",  # earlier releases do not patch httpx2, which the anthropic SDK uses
   "jupyter>=1.1.1",
   "ruff>=0.15.2",
   "libcst>=1.8.6",
-  "datamodel-code-generator==0.32.0",
+  "datamodel-code-generator==0.72.2",
   "grpcio-tools>=1.78.0",
   "mypy-protobuf>=5.0.0",
   "jinja2>=3.1.6",
@@ -193,7 +197,7 @@ daytona = [
   "daytona-sdk>=0.140.0",
 ]
 vercel = [
-  "vercel>=0.5.8",  # 0.5.8 exposes `network_policy` on AsyncSandbox.create
+  "vercel>=0.5.8,<0.8",  # 0.5.8 exposes `network_policy` on AsyncSandbox.create; 0.8 requires a sandbox API migration.
   "websockets>=14.0",
 ]
 modal = [
@@ -211,11 +215,11 @@ azure = [
   "aiohttp",  # required async HTTP transport for azure.identity.aio
 ]
 container = [
-  "anthropic>=0.78.0",
+  "anthropic>=1,<2",
   "google-genai>=1.50.0 ; python_version >= '3.10'",
   "google-genai ; python_version < '3.10'",
   "prometheus-client",
-  "openai>=2.14.0",
+  "openai>=3.1.0,<4",
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
@@ -238,7 +242,7 @@ container = [
   "wasmtime>=15.0",
   "e2b-code-interpreter>=0.0.12",
   "daytona-sdk>=0.140.0",
-  "vercel>=0.5.8",
+  "vercel>=0.5.8,<0.8",
   "websockets>=14.0",
   "modal>=1.2.0",
 ]
@@ -267,6 +271,7 @@ artifacts = [
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
   "src/phoenix/db/migrations",
+  "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
@@ -290,6 +295,7 @@ artifacts = [
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
   "src/phoenix/db/migrations",
+  "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
@@ -352,11 +358,18 @@ module = [
   "pystache",
   "authlib.*",
   "google.*",
+  "harbor.*",
   "mistralai.*",
   "jsonpath_ng",
   "wasmtime",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# The Harbor CLI loads this adapter in its own environment; Harbor is not a
+# dependency of the Phoenix development environment used by the root mypy run.
+module = "evals.harbor.agents.*"
+disallow_subclassing_any = false
 
 [[tool.mypy.overrides]]
 # e2b_code_interpreter and its e2b base ship without a top-level py.typed marker,
@@ -374,8 +387,16 @@ venvPath = "."
 venv = ".venv"
 extraPaths = ["src"]
 pythonVersion = "3.10"
+# Restating all three defaults is required because setting exclude replaces
+# them; omitting "**/.*" makes pyright walk .venv and every other
+# dot-directory. packages/phoenix-sqlean is a vendored fork of
+# nalgeon/sqlean.py and is not held to this repo's typing standards.
+exclude = ["**/node_modules", "**/__pycache__", "**/.*", "packages/phoenix-sqlean"]
 
 [tool.ruff]
+# Apply excludes even to files passed explicitly on the command line
+# (editor/hook integrations do this), so vendored code stays untouched.
+force-exclude = true
 exclude = [
   "api_reference",
   "dist/",
@@ -386,12 +407,25 @@ exclude = [
   "docs/",
   "src/phoenix/trace/v1/evaluation_pb2.py*",
   "src/phoenix/vendor/json_canonicalization_scheme",
+  ".agents/**/*.md",
+  ".claude/**/*.md",
+  ".cursor/**/*.md",
+  ".github/**/*.md",
+  "AGENTS.md",
+  "CLAUDE.md",
+  # Vendored fork of nalgeon/sqlean.py — keep formatting identical to upstream
+  # so diffs against the imported source stay reviewable.
+  "packages/phoenix-sqlean",
 ]
 line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
+# Agent tool definitions are prose prompts, not code. Hard-wrapping their
+# descriptions to 100 columns splits sentences and JSON examples mid-token and
+# makes them unreadable, so let those lines run long.
+"src/phoenix/server/agents/capabilities/tools/**/*.py" = ["E501"]
 "examples/**/*.py" = ["E501"]
 "evals/**/*.py" = ["E501"]
 "tests/**/*.py" = ["E501"]
@@ -409,30 +443,28 @@ line-ending = "native"
 script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
-required-version = "==0.11.8"  # When updating this version, also update the `backend-builder` image in the Dockerfile
+required-version = "==0.12.1"  # When updating this version, also update ARG UV_IMAGE in the Dockerfile
 exclude-newer = "3 days"
-# Exempt our own workspace packages from the `exclude-newer` window so freshly
-# published versions are immediately resolvable.
-exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z" }
-# litellm 1.83.x hard-pins `openai==2.24.0` and `python-dotenv==1.0.1`, which
-# conflict with pydantic-ai (needs openai>=2.29.0) and fastmcp (needs
-# python-dotenv>=1.1.0). Override the over-restrictive pins so resolution
-# succeeds; phoenix uses litellm purely as a client library and does not
-# exercise the pinned-version code paths.
+# Exempt our own packages from the `exclude-newer` window so freshly published
+# versions are immediately resolvable. arize-phoenix-sqlean is not a workspace
+# member — it is a setup.py C extension — so it resolves from PyPI and needs
+# this to be installable at all on the day it publishes.
+exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z" }
+# litellm bounds shared dependencies below what the rest of the tree needs: it
+# caps `openai<3` while phoenix and pydantic-ai require openai 3, and it has
+# capped `python-dotenv` below the `>=1.1.0` fastmcp requires. Overriding is safe
+# because phoenix uses litellm purely as a client library and never reaches the
+# code paths those bounds guard.
 override-dependencies = [
-  "openai>=2.30.0",
+  "openai>=3.1.0,<4",
   "python-dotenv>=1.1.0",
-  # Security stopgap: fastmcp-slim[code-mode] hard-pins pydantic-monty==0.0.17, which has
-  # an uncatchable in-process stack-overflow DoS in the code-mode sandbox — a
-  # few-thousand-term bool-op/ternary chain segfaults the interpreter at compile time and
-  # crashes the whole Phoenix process (verified end-to-end). 0.0.18 fixes it (monty
-  # #437/#449) with no filesystem-isolation regression. Override fastmcp's exact pin until
-  # a fastmcp-slim release adopts 0.0.18.
-  "pydantic-monty==0.0.18",
 ]
 
 [tool.uv.workspace]
 members = ["packages/*"]
+# phoenix-sqlean is a vendored setup.py-based C extension (fork of
+# nalgeon/sqlean.py), not a uv-managed project.
+exclude = ["packages/phoenix-sqlean"]
 
 [tool.uv.sources]
 arize-phoenix-client = { workspace = true }

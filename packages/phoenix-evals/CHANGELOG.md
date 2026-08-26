@@ -1,5 +1,58 @@
 # Changelog
 
+## [3.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.5.0...arize-phoenix-evals-v3.5.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* upgrade to anthropic SDK v1 ([#15588](https://github.com/Arize-ai/phoenix/issues/15588)) ([b28cf94](https://github.com/Arize-ai/phoenix/commit/b28cf94fcd37afeacfd059b4a01e7ad38327e483))
+
+## [3.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.4.0...arize-phoenix-evals-v3.5.0) (2026-08-21)
+
+
+### Features
+
+* **evals:** add retrieval relevance evaluator ([#14766](https://github.com/Arize-ai/phoenix/issues/14766)) ([7efa7b2](https://github.com/Arize-ai/phoenix/commit/7efa7b21fc3284f0af928ddedda15927974ee94d))
+
+## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.3.0...arize-phoenix-evals-v3.4.0) (2026-08-15)
+
+
+### Features
+
+* **evals:** add hallucination evaluator ([#14708](https://github.com/Arize-ai/phoenix/issues/14708)) ([1aa1a84](https://github.com/Arize-ai/phoenix/commit/1aa1a8454b6524a9e7618f3c9970ae9466df67d2))
+
+## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.3.0...arize-phoenix-evals-v3.4.0) (2026-08-08)
+
+
+### Features
+
+* **evals:** add hallucination evaluator ([#14708](https://github.com/Arize-ai/phoenix/issues/14708)) ([1aa1a84](https://github.com/Arize-ai/phoenix/commit/1aa1a8454b6524a9e7618f3c9970ae9466df67d2))
+
+## [3.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.2.0...arize-phoenix-evals-v3.3.0) (2026-07-23)
+
+
+### Features
+
+* **evals:** add toxicity gallery template with input/output-agnostic benchmark ([#14636](https://github.com/Arize-ai/phoenix/issues/14636)) ([1082155](https://github.com/Arize-ai/phoenix/commit/1082155e6e27e06d98a97af776c8d8b6892d4b2f))
+
+## [3.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.1.1...arize-phoenix-evals-v3.2.0) (2026-07-21)
+
+
+### Features
+
+* **evals:** add user friction evaluator ([#14193](https://github.com/Arize-ai/phoenix/issues/14193)) ([1ae1a39](https://github.com/Arize-ai/phoenix/commit/1ae1a3933d4c0aa1dcf43660287da024dd8dbc6f))
+
+
+### Bug Fixes
+
+* **evals:** improve user friction prompt ([#14561](https://github.com/Arize-ai/phoenix/issues/14561)) ([115d3f2](https://github.com/Arize-ai/phoenix/commit/115d3f24c1f5244abc49d2d1a25ef27d40469fae))
+* **evals:** skip LiteLLM on Python 3.14 ([#14407](https://github.com/Arize-ai/phoenix/issues/14407)) ([bc9b533](https://github.com/Arize-ai/phoenix/commit/bc9b533e5b4526478a8d3ca59dce284e8a0acef3))
+
+
+### Documentation
+
+* fill small feature-gap docs across evals, tracing, playground, and packages ([e5764b3](https://github.com/Arize-ai/phoenix/commit/e5764b348eeaca2d824638264b9d929c5a730c5a))
+
 ## [3.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.1.0...arize-phoenix-evals-v3.1.1) (2026-07-14)
 
 
@@ -279,7 +332,7 @@ scores[0].pretty_print()
 # With input mapping for nested data
 scores = evaluator.evaluate(
     {"data": {"query": "How do I reset?", "response": "Go to settings > reset."}},
-    input_mapping={"input": "data.query", "output": "data.response"}
+    input_mapping={"input": "data.query", "output": "data.response"},
 )
 scores[0].pretty_print()
 ```

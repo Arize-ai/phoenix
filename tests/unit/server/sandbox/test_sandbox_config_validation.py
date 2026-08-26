@@ -13,6 +13,7 @@ from phoenix.server.sandbox.types import (
     NoDeployment,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     validate_npm_package_spec,
     validate_python_package_spec,
 )
@@ -35,6 +36,7 @@ def _make_adapter(
             credentials: NoCredentials,
             deployment: NoDeployment,
             user_env: Optional[Mapping[str, str]] = None,
+            runtime: Optional[SandboxRuntimeContext] = None,
         ) -> SandboxBackend:
             raise NotImplementedError
 

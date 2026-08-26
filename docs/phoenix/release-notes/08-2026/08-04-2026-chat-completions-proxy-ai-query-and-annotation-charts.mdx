@@ -1,0 +1,263 @@
+---
+title: "08.04.2026: Chat Completions Proxy, AI Query, and Annotation Charts"
+description: "An OpenAI-compatible chat completions endpoint backed by server-held credentials, plain-English filter composition, per-annotation metric charts with no selection cap, a conversation-grounded Hallucination evaluator, annotations in span downloads, and a pinned note bar in span details."
+---
+
+# OpenAI-Compatible Chat Completions Endpoint
+
+August 4, 2026
+
+**Available in arize-phoenix 19.16.0+**
+
+Phoenix now exposes `POST /v1/chat/completions` in the OpenAI wire format. Point any OpenAI-compatible
+client at your Phoenix server and Phoenix proxies the call to the provider you name, resolving the
+provider credentials on the server — the secret store first, the process environment second. Callers
+authenticate to Phoenix and never handle provider API keys.
+
+- **Model IDs name the provider** — `{provider}:{model_name}` for a built-in provider
+  (`openai:gpt-4o`, `anthropic:claude-sonnet-4-5`), or `custom:{provider_id}:{model_name}` for a
+  [custom provider](/docs/phoenix/settings/custom-ai-providers) record stored in Phoenix. Only the
+  first colons are split, so model names that contain colons survive intact.
+- **Streaming** — set `stream: true` for server-sent `chat.completion.chunk` events terminated by
+  `data: [DONE]`. `stream_options: {include_usage: true}` appends a final usage chunk.
+- **Familiar parameters** — `temperature`, `top_p`, `max_tokens` / `max_completion_tokens`, `stop`,
+  `seed`, `frequency_penalty`, and `presence_penalty` all pass through.
+- **OpenAI-shaped errors** — every failure, including validation errors, comes back as
+  `{"error": {"message", "type", "code"}}`. Provider HTTP errors forward their status; an
+  unreachable provider becomes a `502`.
+- **Available to every authenticated role** — the endpoint writes nothing, so viewers can call it.
+
+```bash
+curl -X POST "$PHOENIX_HOST/v1/chat/completions" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai:gpt-4o",
+    "messages": [
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "Say hello."}
+    ]
+  }'
+```
+
+Because the wire format is OpenAI's, the OpenAI SDKs work unchanged:
+
+```python
+import os
+
+from openai import OpenAI
+
+client = OpenAI(
+    base_url=f"{os.environ['PHOENIX_HOST']}/v1",
+    api_key=os.environ["PHOENIX_API_KEY"],
+)
+
+completion = client.chat.completions.create(
+    model="anthropic:claude-sonnet-4-5",
+    messages=[{"role": "user", "content": "Summarize what a span is in one sentence."}],
+)
+print(completion.choices[0].message.content)
+```
+
+Tool calling, `n > 1`, and non-text `response_format` are rejected with a `400`.
+
+<CardGroup cols={2}>
+  <Card title="Custom AI Providers" icon="plug" href="/docs/phoenix/settings/custom-ai-providers">
+    Store provider connection details and credentials on the server
+  </Card>
+  <Card title="Secrets" icon="key" href="/docs/phoenix/settings/secrets">
+    Manage the credentials the proxy resolves
+  </Card>
+</CardGroup>
+
+# AI Query for Filter Fields
+
+August 4, 2026
+
+**Available in arize-phoenix 19.17.0+**
+
+Describe what you want in plain English and let Phoenix write the filter expression. The filter field
+above the spans and traces tables — and above the experiment runs table — gains a sparkle toggle that
+switches it into plain-English mode.
+
+- **Enter converts** — in plain-English mode, Enter translates your prose into a filter expression,
+  streaming it in as it forms. From expression mode, `⌘`/`Ctrl`+Enter hands the current draft to AI
+  query directly.
+- **Validated, with one correction round** — the generated expression goes through the same validator
+  the field itself uses, and the model gets one chance to fix a rejected expression before you see it.
+- **Escape undoes** — Escape walks back whatever AI query last did, restoring your original phrasing.
+- **The model's vocabulary is the field's vocabulary** — the field names and examples handed to the
+  model are derived from the same completions and snippets that power the typeahead, so the two can't
+  drift apart.
+
+Pick the model on the new **Profile → Generative AI** page, or from the gear popover on the filter
+field itself:
+
+- **Browser AI** — the browser's built-in on-device model (Chrome and Edge's Prompt API). No
+  credentials, no network round trip, and the default wherever a built-in model is available. A
+  companion card shows download status and can fetch the model ahead of first use.
+- **Any provider Phoenix knows** — built-in providers, Azure, Bedrock, and stored custom providers,
+  all called through the new `/v1/chat/completions` proxy so no API key ever reaches the browser.
+
+Only your query and the filter field's vocabulary are sent to the model.
+
+<CardGroup cols={2}>
+  <Card title="Extract Data from Spans" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans">
+    The span filter expression language AI query writes
+  </Card>
+</CardGroup>
+
+# Annotation Metric Charts and Uncapped Chart Selection
+
+July 30 – August 3, 2026
+
+**Available in arize-phoenix 19.11.0+ (project charts), 19.13.0+ (experiments), 19.15.0+ (deferred annotation charts)**
+
+Evaluation results now get first-class charts, and the three-chart limit on the chart strip is gone.
+
+- **A chart per annotation name** — the project **Metrics** page adds span, trace, and session
+  annotation sections, each followed by a grid with one chart per annotation name on that level.
+  Every chart plots mean score over time, with a score/label toggle for annotations that carry both.
+- **Per-annotation charts in the chart strip** — the same charts are selectable in the **Charts** menu
+  above the spans, traces, and sessions tables, alongside the overall annotation charts.
+- **No selection cap** — the chart strip above the project tables and above the experiments table no
+  longer limits you to three charts. Pick as many as you want to read.
+- **Charts load when you reach them** — chart panels render a skeleton until they scroll into view,
+  and a chart whose panel is hidden freezes its query inputs instead of refetching. A page full of
+  annotation charts no longer fires every query at once.
+
+<CardGroup cols={2}>
+  <Card title="Metrics Dashboard" icon="chart-line" href="/docs/phoenix/tracing/llm-traces/metrics">
+    The per-project metrics dashboard
+  </Card>
+  <Card title="Annotating in the UI" icon="pen" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui">
+    Produce the annotations these charts summarize
+  </Card>
+</CardGroup>
+
+# Conversation-Grounded Hallucination Evaluator
+
+August 3, 2026
+
+**Available in arize-phoenix 19.14.0+ (built-in evaluator) and @arizeai/phoenix-evals 2.2.0+ (TypeScript)**
+
+The Hallucination evaluator now judges an assistant response against **the conversation it came from**
+— earlier turns, tool calls, and the results those tools returned — rather than against a separately
+supplied context block. Use it for multi-turn agents where the source of truth is the transcript;
+reach for Faithfulness when you have one retrieved context block.
+
+- **`input` and `output` only** — `input` is the full record the assistant had available (its last
+  message is the turn being answered) and `output` is the response being judged. There is no longer a
+  separate `context` field.
+- **Catches fabricated work** — invented specifics, tool results a tool never returned, findings from
+  material that was never read, and actions reported as already done.
+- **Absence of evidence counts** — a confident, fluent response that asserts situation-specific facts
+  absent from the input is hallucinated. Ordinary general knowledge is exempt.
+- **As a built-in Phoenix evaluator** it is promoted in the dataset evaluator gallery, and the
+  `output` it judges includes the span's tool calls.
+
+```typescript
+import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const hallucinationEvaluator = createHallucinationEvaluator({
+  model: openai("gpt-4o"),
+});
+
+const result = await hallucinationEvaluator.evaluate({
+  input: [
+    "User: What's our refund window?",
+    "Tool (lookup_policy): Refunds: 30 days from delivery.",
+    "Assistant: 30 days from delivery.",
+    "User: And for electronics?",
+  ].join("\n"),
+  output: "Electronics can be returned within 90 days.",
+});
+console.log(result.label); // "hallucinated"
+```
+
+<Warning>
+**Labels changed.** The evaluator now returns `grounded` / `hallucinated` instead of
+`factual` / `hallucinated`, and scores are minimized (`hallucinated` = 1, `grounded` = 0). Stored
+evaluations, dashboards, thresholds, and label filters built on the previous evaluator may need
+migrating and should not be compared directly with new results.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Hallucination" icon="ghost" href="/docs/phoenix/evaluation/pre-built-metrics/hallucination">
+    Full input formatting guidance and usage examples
+  </Card>
+  <Card title="Faithfulness" icon="book-open" href="/docs/phoenix/evaluation/pre-built-metrics/faithfulness">
+    Ground a response in a single retrieved context
+  </Card>
+</CardGroup>
+
+# Annotations in Span Downloads
+
+August 1, 2026
+
+**Available in arize-phoenix 19.13.0+ (annotations) and 19.16.0+ (streamed downloads)**
+
+Exported spans can now carry their evaluations with them. The **Download selection** dialog adds
+**Include span annotations** and **Include trace annotations** checkboxes, both on by default.
+
+- **OpenInference semantic attributes** — span annotations are attached to their own span and trace
+  annotations once per trace (on the root span where there is one), as indexed `annotations.*` and
+  `trace.annotations.*` attributes carrying name, annotator kind, score, label, explanation,
+  identifier, and JSON-encoded metadata.
+- **Streamed straight to disk** — where the browser supports it, a download writes through a save
+  file picker as pages arrive instead of buffering the whole export in memory.
+- **Parallel fetches** — independent ID batches are fetched with bounded concurrency while cursor
+  pagination within a batch stays ordered, so large selections finish substantially faster.
+
+# Pinned Note Bar in Span Details
+
+July 30, 2026
+
+**Available in arize-phoenix 19.11.0+**
+
+Reviewing a trace and want to write down what you found? Press `n` in span details — or use the
+toggle on the **Notes** card — and a note bar rises from the bottom of the pane and stays there as
+you move between spans.
+
+- **Enter adds the note**, Shift+Enter starts a new line, and the field grows to six lines before it
+  scrolls.
+- **Escape closes** an empty bar; with a draft in it, Escape just blurs so nothing is lost.
+- **Stays open across spans** — the bar is remembered as a preference, so a review session keeps its
+  note field until you close it. A failed submission puts your draft back.
+
+# Also in This Release
+
+July 30 – August 4, 2026
+
+**Available in arize-phoenix 19.11.0–19.17.0 and @arizeai/phoenix-cli 1.13.1–1.14.0**
+
+- **The time range follows you into a project** — opening a project from the projects list carries the
+  list's time range along, instead of resetting to the default window (arize-phoenix 19.16.0+).
+- **Collapsed cards say what they hold** — LLM messages, invocation parameters, LLM input, and
+  playground and prompt chat templates show a one-line excerpt of their body in the header while
+  collapsed (arize-phoenix 19.16.0+).
+- **Exception stack traces are readable** — an `exception` span event renders its
+  `exception.stacktrace` as a dedicated, expandable **Stack trace** card with a copy button, with the
+  remaining attributes below it (arize-phoenix 19.16.0+).
+- **Tool counts in LLM span card headers** — the input card subtitle shows how many tools the model
+  had available, and the output card shows how many tool calls it made. Every span card also gets a
+  copy button in its top-right corner (arize-phoenix 19.11.0+).
+- **Reasoning survives OTel conversion** — reasoning parts in OTel GenAI `gen_ai` messages are now
+  flattened to OpenInference message contents with type `reasoning` instead of being dropped
+  (arize-phoenix 19.14.0+).
+- **Stricter span filter validation** — malformed filter conditions, unsupported syntax, and
+  excessively nested expressions are rejected with a clear syntax error rather than failing
+  unpredictably (arize-phoenix 19.11.1+).
+- **Provider-agnostic model cost entries** — creating a model in **Settings → Models** accepts an
+  empty provider, and a name collision now reports the actual conflict (arize-phoenix 19.11.0+).
+- **Refreshed built-in token prices** so cost tracking stays accurate for the current model lineup
+  (arize-phoenix 19.11.1+).
+- **`px setup` fails when verification fails** — a run that tried to confirm traces and never saw one
+  exits `6` (`NOT_VERIFIED`) instead of `0`, so `px setup && npm run dev` and `set -e` bootstrap
+  scripts stop on a broken instrumentation. Choosing to verify later still exits `0`.
+- **`px` suggests upgrading** — an unknown command now compares your installed version against the
+  latest published one and points at `px self update` when you're behind, or `px --help` when you're
+  current (@arizeai/phoenix-cli 1.14.0+).
+- **`px auth status`** no longer errors when a profile holds stale OAuth credentials but the server
+  has since allowed anonymous access (@arizeai/phoenix-cli 1.13.1+).

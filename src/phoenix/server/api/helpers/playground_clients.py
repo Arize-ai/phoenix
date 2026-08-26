@@ -102,13 +102,18 @@ from phoenix.server.api.types.GenerativeProvider import (
 from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
+    import httpx2
     from anthropic import AsyncAnthropic
     from anthropic.lib.streaming import AsyncMessageStreamManager
     from anthropic.types import MessageParam, TextBlockParam, ToolUseBlockParam
     from anthropic.types.message_create_params import MessageCreateParamsBase
     from anthropic.types.usage import Usage
     from google.genai.client import AsyncClient as GoogleAsyncClient
-    from google.genai.types import ContentDict, GenerateContentConfig, GenerateContentResponse
+    from google.genai.types import (
+        ContentUnionDict,
+        GenerateContentConfig,
+        GenerateContentResponse,
+    )
     from openai import AsyncOpenAI
     from openai._streaming import AsyncStream
     from openai.lib.streaming.responses import AsyncResponseStreamManager
@@ -158,7 +163,7 @@ class Dependency:
         return self.module_name or self.name
 
 
-class PlaygroundStreamingClient(ABC, Generic[ClientT]):
+class PlaygroundClient(ABC, Generic[ClientT]):
     _client_factory: ClientFactory[ClientT]
 
     def __init__(
@@ -322,7 +327,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         return None
 
 
-class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
+class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.OPENAI.value
@@ -609,7 +614,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     assert_never(tc.type)
             if tools.disable_parallel_tool_calls:
                 params["parallel_tool_calls"] = False
-            elif tools.tools:
+            if tools.tools:
                 resp_tool_list: list[ToolParam] = []
                 for tool in tools.tools:
                     if tool.type == "raw":
@@ -1138,6 +1143,16 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     pass
                 elif event.type == "response.custom_tool_call_input.delta":
                     pass
+                elif event.type == "response.shell_call_command.added":
+                    pass
+                elif event.type == "response.shell_call_command.delta":
+                    pass
+                elif event.type == "response.shell_call_command.done":
+                    pass
+                elif event.type == "response.shell_call_output_content.delta":
+                    pass
+                elif event.type == "response.shell_call_output_content.done":
+                    pass
                 elif TYPE_CHECKING:
                     assert_never(event.type)
 
@@ -1254,7 +1269,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         "deepseek-reasoner",
     ],
 )
-class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
+class DeepSeekClient(OpenAICompatibleClient):
     pass
 
 
@@ -1270,7 +1285,7 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
         "grok-2-vision-1212",
     ],
 )
-class XAIStreamingClient(OpenAIBaseStreamingClient):
+class XAIClient(OpenAICompatibleClient):
     pass
 
 
@@ -1291,7 +1306,7 @@ class XAIStreamingClient(OpenAIBaseStreamingClient):
         "gemma2",
     ],
 )
-class OllamaStreamingClient(OpenAIBaseStreamingClient):
+class OllamaClient(OpenAICompatibleClient):
     pass
 
 
@@ -1303,7 +1318,7 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
         "gpt-oss-120b",
     ],
 )
-class CerebrasStreamingClient(OpenAIBaseStreamingClient):
+class CerebrasClient(OpenAICompatibleClient):
     pass
 
 
@@ -1313,7 +1328,7 @@ class CerebrasStreamingClient(OpenAIBaseStreamingClient):
         PROVIDER_DEFAULT,
     ],
 )
-class FireworksStreamingClient(OpenAIBaseStreamingClient):
+class FireworksClient(OpenAICompatibleClient):
     pass
 
 
@@ -1331,7 +1346,7 @@ class FireworksStreamingClient(OpenAIBaseStreamingClient):
         "groq/compound-mini",
     ],
 )
-class GroqStreamingClient(OpenAIBaseStreamingClient):
+class GroqClient(OpenAICompatibleClient):
     pass
 
 
@@ -1349,7 +1364,7 @@ class GroqStreamingClient(OpenAIBaseStreamingClient):
         "moonshot-v1-auto",
     ],
 )
-class MoonshotStreamingClient(OpenAIBaseStreamingClient):
+class MoonshotClient(OpenAICompatibleClient):
     pass
 
 
@@ -1363,7 +1378,7 @@ class MoonshotStreamingClient(OpenAIBaseStreamingClient):
         "sonar-deep-research",
     ],
 )
-class PerplexityStreamingClient(OpenAIBaseStreamingClient):
+class PerplexityClient(OpenAICompatibleClient):
     pass
 
 
@@ -1381,7 +1396,7 @@ class PerplexityStreamingClient(OpenAIBaseStreamingClient):
         "deepseek-ai/DeepSeek-R1",
     ],
 )
-class TogetherStreamingClient(OpenAIBaseStreamingClient):
+class TogetherClient(OpenAICompatibleClient):
     pass
 
 
@@ -1390,6 +1405,7 @@ class TogetherStreamingClient(OpenAIBaseStreamingClient):
     model_names=[
         PROVIDER_DEFAULT,
         "anthropic.claude-fable-5",
+        "anthropic.claude-opus-5",
         "anthropic.claude-opus-4-8",
         "anthropic.claude-opus-4-7",
         "anthropic.claude-sonnet-5",
@@ -1431,7 +1447,7 @@ class TogetherStreamingClient(OpenAIBaseStreamingClient):
         "meta.llama4-maverick-17b-instruct-v1:0",
     ],
 )
-class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
+class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
     @property
     def llm_system(self) -> str:
         return "aws"
@@ -1882,23 +1898,30 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         return converse_messages
 
 
+OPENAI_CHAT_COMPLETIONS_MODELS = [
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "gpt-4o",
+    "chatgpt-4o-latest",
+    "gpt-4o-mini",
+    "gpt-4-turbo",
+    "gpt-4-turbo-preview",
+    "gpt-4",
+    "gpt-3.5-turbo",
+]
+"""OpenAI models that default to /v1/chat/completions. Any other name, known or
+not, defaults to the Responses API. See ``get_openai_client_class``."""
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
-        "gpt-4.1",
-        "gpt-4.1-mini",
-        "gpt-4.1-nano",
-        "gpt-4o",
-        "chatgpt-4o-latest",
-        "gpt-4o-mini",
-        "gpt-4-turbo",
-        "gpt-4-turbo-preview",
-        "gpt-4",
-        "gpt-3.5-turbo",
+        *OPENAI_CHAT_COMPLETIONS_MODELS,
     ],
 )
-class OpenAIStreamingClient(OpenAIBaseStreamingClient):
+class OpenAIChatCompletionsClient(OpenAICompatibleClient):
     @override
     def get_rate_limit_key(self) -> Hashable:
         """OpenAI has per-model rate limits within an organization."""
@@ -1935,21 +1958,19 @@ OPENAI_REASONING_MODELS = [
 ]
 
 
-class OpenAIReasoningReasoningModelsMixin:
-    """Mixin class for OpenAI-style reasoning model clients (o1, o3 series)."""
-
-
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
+        *OPENAI_REASONING_MODELS,
     ],
 )
-class OpenAIResponsesAPIStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    OpenAIStreamingClient,
-):
-    """OpenAI Responses API (responses.create) for gpt-5.2, gpt-5.1, etc."""
+class OpenAIResponsesClient(OpenAIChatCompletionsClient):
+    """OpenAI Responses API (responses.create) client.
+
+    Encodes reasoning effort as ``reasoning: {"effort": ...}``, which is the only
+    form OpenAI accepts alongside function tools.
+    """
 
     @override
     async def _chat_completion_create(
@@ -1978,81 +1999,12 @@ class OpenAIResponsesAPIStreamingClient(
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.OPENAI,
-    model_names=OPENAI_REASONING_MODELS,
-)
-class OpenAIReasoningNonStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    OpenAIStreamingClient,
-):
-    def _to_openai_chat_completion_param(
-        self,
-        message: PlaygroundMessage,
-    ) -> Optional["ChatCompletionMessageParam"]:
-        from openai.types.chat import (
-            ChatCompletionAssistantMessageParam,
-            ChatCompletionDeveloperMessageParam,
-            ChatCompletionMessageToolCallParam,
-            ChatCompletionToolMessageParam,
-            ChatCompletionUserMessageParam,
-        )
-        from openai.types.chat.chat_completion_message_function_tool_call_param import Function
-
-        role = message["role"]
-        content = message["content"]
-        tool_call_id = message.get("tool_call_id")
-        tool_calls = message.get("tool_calls")
-
-        if role is ChatCompletionMessageRole.USER:
-            return ChatCompletionUserMessageParam(
-                content=content,
-                role="user",
-            )
-        if role is ChatCompletionMessageRole.SYSTEM:
-            return ChatCompletionDeveloperMessageParam(
-                content=content,
-                role="developer",
-            )
-        if role is ChatCompletionMessageRole.AI:
-            if tool_calls is None:
-                return ChatCompletionAssistantMessageParam(
-                    content=content,
-                    role="assistant",
-                )
-            else:
-                return ChatCompletionAssistantMessageParam(
-                    content=content,
-                    role="assistant",
-                    tool_calls=[
-                        ChatCompletionMessageToolCallParam(
-                            type="function",
-                            id=tool_call["id"],
-                            function=Function(
-                                name=tool_call["function"]["name"],
-                                arguments=safe_json_dumps(tool_call["function"]["arguments"]),
-                            ),
-                        )
-                        for tool_call in tool_calls
-                    ],
-                )
-        if role is ChatCompletionMessageRole.TOOL:
-            if tool_call_id is None:
-                raise ValueError("tool_call_id is required for tool messages")
-            return ChatCompletionToolMessageParam(
-                content=content,
-                role="tool",
-                tool_call_id=tool_call_id,
-            )
-        assert_never(role)
-
-
-@register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
     ],
 )
-class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
+class AzureOpenAIChatCompletionsClient(OpenAICompatibleClient):
     def __init__(
         self,
         *,
@@ -2068,10 +2020,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
     model_names=OPENAI_REASONING_MODELS,
 )
-class AzureOpenAIResponsesAPIStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    AzureOpenAIStreamingClient,
-):
+class AzureOpenAIResponsesClient(AzureOpenAIChatCompletionsClient):
     """Azure OpenAI Responses API (responses.create) for gpt-5.2, gpt-5.1, etc."""
 
     @override
@@ -2105,76 +2054,6 @@ class AzureOpenAIResponsesAPIStreamingClient(
         return (self._client_factory.rate_limit_key, self.model_name)
 
 
-@register_llm_client(
-    provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=OPENAI_REASONING_MODELS,
-)
-class AzureOpenAIReasoningNonStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    AzureOpenAIStreamingClient,
-):
-    @override
-    def _to_openai_chat_completion_message_param(
-        self,
-        message: PlaygroundMessage,
-    ) -> ChatCompletionMessageParam | None:
-        from openai.types.chat import (
-            ChatCompletionAssistantMessageParam,
-            ChatCompletionDeveloperMessageParam,
-            ChatCompletionMessageToolCallParam,
-            ChatCompletionToolMessageParam,
-            ChatCompletionUserMessageParam,
-        )
-        from openai.types.chat.chat_completion_message_function_tool_call_param import Function
-
-        role = message["role"]
-        content = message["content"]
-        tool_call_id = message.get("tool_call_id")
-        tool_calls = message.get("tool_calls")
-
-        if role is ChatCompletionMessageRole.USER:
-            return ChatCompletionUserMessageParam(
-                content=content,
-                role="user",
-            )
-        if role is ChatCompletionMessageRole.SYSTEM:
-            return ChatCompletionDeveloperMessageParam(
-                content=content,
-                role="developer",
-            )
-        if role is ChatCompletionMessageRole.AI:
-            if tool_calls is None:
-                return ChatCompletionAssistantMessageParam(
-                    content=content,
-                    role="assistant",
-                )
-            else:
-                return ChatCompletionAssistantMessageParam(
-                    content=content,
-                    role="assistant",
-                    tool_calls=[
-                        ChatCompletionMessageToolCallParam(
-                            type="function",
-                            id=tool_call["id"],
-                            function=Function(
-                                name=tool_call["function"]["name"],
-                                arguments=safe_json_dumps(tool_call["function"]["arguments"]),
-                            ),
-                        )
-                        for tool_call in tool_calls
-                    ],
-                )
-        if role is ChatCompletionMessageRole.TOOL:
-            if tool_call_id is None:
-                raise ValueError("tool_call_id is required for tool messages")
-            return ChatCompletionToolMessageParam(
-                content=content,
-                role="tool",
-                tool_call_id=tool_call_id,
-            )
-        assert_never(role)
-
-
 def _anthropic_beta_headers_for_tools(
     tools: Iterable[Mapping[str, Any]],
 ) -> dict[str, str] | None:
@@ -2202,17 +2081,49 @@ def _anthropic_beta_headers_for_tools(
     return {"anthropic-beta": ",".join(betas)}
 
 
+# `messages.create()` accepts no sampling parameters. `extra_body` merges them into
+# the request JSON, which is how the models that support them receive them.
+_ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
+
+
+# Anthropic models that use adaptive thinking (`thinking: {"type": "adaptive"}`).
+# These models removed `temperature`, `top_p`, `top_k`, and extended thinking
+# (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
+# surface; sending any of them returns a 400.
+ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
+    "claude-fable-5",
+    "claude-opus-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-sonnet-5",
+]
+
+# Older Anthropic models that still accept extended thinking
+# (`thinking: {"type": "enabled", "budget_tokens": N}`) alongside the sampling
+# parameters. Kept as a distinct group because the request surface differs, not
+# because they use a different client.
+ANTHROPIC_EXTENDED_THINKING_MODELS = [
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-opus-4-1",
+    "claude-sonnet-4-0",
+    "claude-opus-4-0",
+    "claude-3-7-sonnet-latest",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-fable-5",
-        "claude-opus-4-8",
-        "claude-opus-4-7",
-        "claude-sonnet-5",
+        *ANTHROPIC_ADAPTIVE_THINKING_MODELS,
+        *ANTHROPIC_EXTENDED_THINKING_MODELS,
     ],
 )
-class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
+class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.ANTHROPIC.value
@@ -2339,12 +2250,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         extra_body: dict[str, Any] | None = None
         if invocation_parameters:
             anthropic_params = invocation_parameters.anthropic
+            # Sampling parameters reach the request JSON through `extra_body`.
+            sampling_params: dict[str, Any] = {}
             if isinstance(anthropic_params.temperature, float):
-                params["temperature"] = anthropic_params.temperature
+                sampling_params["temperature"] = anthropic_params.temperature
             if isinstance(anthropic_params.stop_sequences, list):
                 params["stop_sequences"] = anthropic_params.stop_sequences
             if isinstance(anthropic_params.top_p, float):
-                params["top_p"] = anthropic_params.top_p
+                sampling_params["top_p"] = anthropic_params.top_p
             output_config_in = anthropic_params.output_config
             if isinstance(output_config_in, PromptAnthropicOutputConfig):
                 if output_config is None:
@@ -2367,8 +2280,11 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 if thinking.display:
                     adaptive_param["display"] = thinking.display
                 params["thinking"] = adaptive_param
+            # A configured `extra_body` overrides the sampling parameters above.
             if isinstance(anthropic_params.extra_body, dict):
-                extra_body = anthropic_params.extra_body
+                extra_body = {**sampling_params, **anthropic_params.extra_body}
+            elif sampling_params:
+                extra_body = sampling_params
 
         if output_config is not None:
             params["output_config"] = output_config
@@ -2386,7 +2302,15 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
         input_value: dict[str, Any] = dict(params)
         if extra_body:
-            input_value["extra_body"] = extra_body
+            # Sampling parameters are top-level fields on the wire, so record them as
+            # such; the nested entry is for keys the caller asked to pass through.
+            input_value.update(
+                {k: v for k, v in extra_body.items() if k in _ANTHROPIC_SAMPLING_PARAM_KEYS}
+            )
+            if passthrough := {
+                k: v for k, v in extra_body.items() if k not in _ANTHROPIC_SAMPLING_PARAM_KEYS
+            }:
+                input_value["extra_body"] = passthrough
         span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
         span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
         input_value.pop("messages", None)
@@ -2640,34 +2564,21 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         return content
 
 
-ANTHROPIC_REASONING_MODELS = [
-    "claude-opus-4-6",
-    "claude-sonnet-4-6",
-    "claude-opus-4-5",
-    "claude-sonnet-4-5",
-    "claude-haiku-4-5",
-    "claude-opus-4-1",
-    "claude-sonnet-4-0",
-    "claude-opus-4-0",
-    "claude-3-7-sonnet-latest",
+GEMINI_2_5_MODELS = [
+    "gemini-2.5-pro",  # Will be deprecated and will be shut down on June 17, 2026.
+    "gemini-2.5-flash",  # Will be deprecated and will be shut down on June 17, 2026.
+    "gemini-2.5-flash-lite",  # Will be deprecated and will be shut down on July 22, 2026.
 ]
-
-
-@register_llm_client(
-    provider_key=GenerativeProviderKey.ANTHROPIC,
-    model_names=ANTHROPIC_REASONING_MODELS,
-)
-class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
-    pass
 
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
+        *GEMINI_2_5_MODELS,
     ],
 )
-class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
+class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.VERTEXAI.value
@@ -2688,25 +2599,17 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
 
     @override
     def is_rate_limit_error(self, e: Exception) -> bool:
-        # Google GenAI uses Stainless SDK with RateLimitError (429)
-        from google.genai._interactions._exceptions import RateLimitError
+        from google.genai.errors import APIError
 
-        return isinstance(e, RateLimitError)
+        return isinstance(e, APIError) and e.code == 429
 
     @override
     def is_transient_error(self, e: Exception) -> bool:
-        from google.genai._interactions._exceptions import (
-            APIConnectionError,
-            APITimeoutError,
-            InternalServerError,
-        )
+        from google.genai.errors import APIError
 
-        if isinstance(e, (APIConnectionError, APITimeoutError, InternalServerError)):
-            return True
-        status_code = getattr(e, "status_code", None)
-        if status_code and 500 <= status_code < 600:
-            return True
-        return False
+        if isinstance(e, APIError):
+            return 500 <= e.code < 600
+        return super().is_transient_error(e)
 
     @override
     def get_rate_limit_key(self) -> Hashable:
@@ -2721,7 +2624,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: PromptGoogleInvocationParameters | None = None,
         span: OTelSpan,
-    ) -> tuple[list[ContentDict], GenerateContentConfig]:
+    ) -> tuple[list[ContentUnionDict], GenerateContentConfig]:
         from google.genai import types
 
         contents, system_prompt = self._build_google_messages(messages)
@@ -3004,9 +2907,9 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     def _build_google_messages(
         self,
         messages: Sequence[PlaygroundMessage],
-    ) -> tuple[list["ContentDict"], str]:
+    ) -> tuple[list["ContentUnionDict"], str]:
         """Build Google messages following the standard pattern - process ALL messages."""
-        google_messages: list["ContentDict"] = []
+        google_messages: list["ContentUnionDict"] = []
         system_prompts = []
         for msg in messages:
             role = msg["role"]
@@ -3025,24 +2928,11 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         return google_messages, "\n".join(system_prompts)
 
 
-GEMINI_2_5_MODELS = [
-    PROVIDER_DEFAULT,
-    "gemini-2.5-pro",  # Will be deprecated and will be shut down on June 17, 2026.
-    "gemini-2.5-flash",  # Will be deprecated and will be shut down on June 17, 2026.
-    "gemini-2.5-flash-lite",  # Will be deprecated and will be shut down on July 22, 2026.
-]
-
-
-@register_llm_client(
-    provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=GEMINI_2_5_MODELS,
-)
-class Gemini25GoogleStreamingClient(GoogleStreamingClient):
-    pass
-
-
 GEMINI_3_MODELS = [
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
     "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
     "gemini-3.1-pro-preview",
     "gemini-3-pro-preview",
     "gemini-3-flash-preview",
@@ -3053,7 +2943,7 @@ GEMINI_3_MODELS = [
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=GEMINI_3_MODELS,
 )
-class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
+class GoogleGemini3Client(GoogleClient):
     async def chat_completion_create(
         self,
         *,
@@ -3103,19 +2993,27 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLE
 
 
 class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
+    """Records the outgoing request URL on the span without altering the request.
+
+    Provider SDKs disagree on their HTTP library: the openai SDK is built on httpx2, the
+    others on httpx. Both are accepted because only ``request.url`` is read.
+    """
+
     def __init__(
         self,
-        wrapped: httpx.AsyncClient,
+        wrapped: httpx.AsyncClient | httpx2.AsyncClient,
         span: OTelSpan,
     ):
         super().__init__(wrapped)
         self._self_span = span
 
-    async def send(self, request: httpx.Request, **kwargs: Any) -> httpx.Response:
+    async def send(
+        self, request: httpx.Request | httpx2.Request, **kwargs: Any
+    ) -> httpx.Response | httpx2.Response:
         self._self_span.set_attribute(URL_FULL, str(request.url))
         self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self.base_url.path))
         response = await self.__wrapped__.send(request, **kwargs)
-        return cast(httpx.Response, response)
+        return cast("httpx.Response | httpx2.Response", response)
 
 
 CustomProviderId: TypeAlias = int
@@ -3130,9 +3028,9 @@ async def get_playground_client(
     credentials: Sequence[GenerativeCredentialInput] | None = None,
     connection: CustomProviderId | ConnectionConfig | None = None,
     headers: dict[str, str] | None = None,
-) -> "PlaygroundStreamingClient[Any]":
+) -> "PlaygroundClient[Any]":
     """
-    Create a playground streaming client for the given model configuration.
+    Create a playground client for the given model configuration.
 
     Resolves credentials and configuration, then returns a client ready for
     chat completions.  This is the single public entry point; callers should
@@ -3267,47 +3165,51 @@ def get_openai_client_class(
     provider_key: "GenerativeProviderKey",
     model_name: str,
     openai_api_type: Optional["OpenAIApiType"] = None,
-) -> Optional[type["PlaygroundStreamingClient[Any]"]]:
+) -> Optional[type["PlaygroundClient[Any]"]]:
     """
-    Get the appropriate OpenAI/Azure client class based on provider, model, and API type.
+    Select the OpenAI/Azure client class for a provider, model, and API type.
 
-    This function centralizes the logic for selecting the correct client class for
-    OpenAI and Azure OpenAI providers, ensuring consistency between parameter fetching
-    and client instantiation.
+    The source of truth for the builtin-provider path, including the default when no
+    API type is configured. The playground registry is not consulted: it carries the
+    model catalog, not routing.
 
-    For non-OpenAI providers, returns None (callers should fall back to the registry).
+    Custom providers do not resolve through here -- their SDK type does not identify
+    the model family, so model-name-based specialization is not sound for them.
 
     Args:
         provider_key: The generative provider (OPENAI, AZURE_OPENAI, etc.)
         model_name: The name of the model
         openai_api_type: The API type (CHAT_COMPLETIONS or RESPONSES). If None,
-            falls back to registry behavior.
+            the provider's default for that model applies.
 
     Returns:
-        The appropriate client class, or None if the provider is not OpenAI/Azure.
+        The client class, or None for non-OpenAI providers, whose callers fall
+        back to the registry.
     """
-    from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
     from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
     if provider_key == GenerativeProviderKey.OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
-            if model_name in OPENAI_REASONING_MODELS:
-                return OpenAIReasoningNonStreamingClient
-            return OpenAIStreamingClient
+            return OpenAIChatCompletionsClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
-            return OpenAIResponsesAPIStreamingClient
-        # If openai_api_type is None, fall back to registry
-        return PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+            return OpenAIResponsesClient
+        # Unconfigured default: Responses, except the models predating it. Reasoning
+        # models cannot use /v1/chat/completions when function tools are present.
+        if model_name in OPENAI_CHAT_COMPLETIONS_MODELS:
+            return OpenAIChatCompletionsClient
+        return OpenAIResponsesClient
 
     elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
         if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
-            if model_name in OPENAI_REASONING_MODELS:
-                return AzureOpenAIReasoningNonStreamingClient
-            return AzureOpenAIStreamingClient
+            return AzureOpenAIChatCompletionsClient
         elif openai_api_type == OpenAIApiType.RESPONSES:
-            return AzureOpenAIResponsesAPIStreamingClient
-        # If openai_api_type is None, fall back to registry
-        return PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
+            return AzureOpenAIResponsesClient
+        # Unconfigured default: Chat Completions, since an Azure deployment may not
+        # expose /v1/responses. Reasoning models go to Responses regardless -- they
+        # cannot use /v1/chat/completions when function tools are present.
+        if model_name in OPENAI_REASONING_MODELS:
+            return AzureOpenAIResponsesClient
+        return AzureOpenAIChatCompletionsClient
 
     # For non-OpenAI providers, return None to signal caller should use registry
     return None
@@ -3355,7 +3257,7 @@ async def _get_builtin_provider_client(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Sequence[GenerativeCredentialInput] | None = None,
-) -> "PlaygroundStreamingClient[Any]":
+) -> "PlaygroundClient[Any]":
     """
     Create a playground client from a builtin provider configuration.
 
@@ -3520,13 +3422,7 @@ async def _get_builtin_provider_client(
         anthropic_client_factory: ClientFactory["AsyncAnthropic"] = LLMClientFactory(
             create_anthropic_client, anthropic_rate_limit_key(api_key, None)
         )
-        if model_name in ANTHROPIC_REASONING_MODELS:
-            return AnthropicReasoningStreamingClient(
-                client_factory=anthropic_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
-        return AnthropicStreamingClient(
+        return AnthropicClient(
             client_factory=anthropic_client_factory,
             model_name=model_name,
             provider=provider,
@@ -3571,12 +3467,12 @@ async def _get_builtin_provider_client(
             LLMClientFactory(create_google_client, google_rate_limit_key(api_key, None)),
         )
         if model_name in GEMINI_2_5_MODELS:
-            return Gemini25GoogleStreamingClient(
+            return GoogleClient(
                 client_factory=google_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
-        return Gemini3GoogleStreamingClient(
+        return GoogleGemini3Client(
             client_factory=google_client_factory,
             model_name=model_name,
             provider=provider,
@@ -3624,7 +3520,7 @@ async def _get_builtin_provider_client(
             create_bedrock_client, bedrock_rate_limit_key(region, aws_access_key_id)
         )
 
-        return BedrockStreamingClient(
+        return BedrockClient(
             client_factory=bedrock_client_factory,
             model_name=model_name,
             provider=provider,
@@ -3665,7 +3561,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_deepseek_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3706,7 +3602,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_xai_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3737,7 +3633,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_ollama_client, openai_rate_limit_key(None, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3777,7 +3673,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_cerebras_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3819,7 +3715,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_fireworks_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3859,7 +3755,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_groq_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3899,7 +3795,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_moonshot_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3939,7 +3835,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_perplexity_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3979,7 +3875,7 @@ async def _get_builtin_provider_client(
         client_factory = LLMClientFactory(
             create_together_client, openai_rate_limit_key(api_key, base_url)
         )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=client_factory,
             model_name=model_name,
             provider=provider,
@@ -3994,7 +3890,7 @@ async def _get_custom_provider_client(
     model_name: str,
     extra_headers: dict[str, str] | None,
     decrypt: Callable[[bytes], bytes],
-) -> "PlaygroundStreamingClient[Any]":
+) -> "PlaygroundClient[Any]":
     """
     Create a playground client from a custom provider stored in the database.
 
@@ -4007,7 +3903,7 @@ async def _get_custom_provider_client(
         decrypt: Decryption function for the stored config.
 
     Returns:
-        A configured PlaygroundStreamingClient.
+        A configured PlaygroundClient.
 
     Raises:
         BadRequest: If decryption or parsing fails, or client creation fails.
@@ -4027,18 +3923,23 @@ async def _get_custom_provider_client(
     headers = dict(extra_headers) if extra_headers else None
     cfg = config.root
 
+    # The openai/azure_openai SDK configs serve any OpenAI-compatible endpoint --
+    # DeepSeek, xAI, Ollama, Groq, Together and others (see
+    # is_sdk_compatible_with_model_provider). A model name matching an OpenAI model
+    # does not mean OpenAI is behind it, so the reasoning-model specializations,
+    # which rewrite `system` to `developer`, are deliberately not applied here.
     if cfg.type == "openai":
         try:
             openai_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         if cfg.openai_api_type == "responses":
-            return OpenAIResponsesAPIStreamingClient(
+            return OpenAIResponsesClient(
                 client_factory=openai_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
-        return OpenAIStreamingClient(
+        return OpenAIChatCompletionsClient(
             client_factory=openai_client_factory,
             model_name=model_name,
             provider=provider,
@@ -4049,12 +3950,12 @@ async def _get_custom_provider_client(
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         if cfg.openai_api_type == "responses":
-            return AzureOpenAIResponsesAPIStreamingClient(
+            return AzureOpenAIResponsesClient(
                 client_factory=azure_openai_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
-        return AzureOpenAIStreamingClient(
+        return AzureOpenAIChatCompletionsClient(
             client_factory=azure_openai_client_factory,
             model_name=model_name,
             provider=provider,
@@ -4064,13 +3965,7 @@ async def _get_custom_provider_client(
             anthropic_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        if model_name in ANTHROPIC_REASONING_MODELS:
-            return AnthropicReasoningStreamingClient(
-                client_factory=anthropic_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
-        return AnthropicStreamingClient(
+        return AnthropicClient(
             client_factory=anthropic_client_factory,
             model_name=model_name,
             provider=provider,
@@ -4080,7 +3975,7 @@ async def _get_custom_provider_client(
             aws_bedrock_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        return BedrockStreamingClient(
+        return BedrockClient(
             client_factory=aws_bedrock_client_factory,
             model_name=model_name,
             provider=provider,
@@ -4091,12 +3986,12 @@ async def _get_custom_provider_client(
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
         if model_name in GEMINI_2_5_MODELS:
-            return Gemini25GoogleStreamingClient(
+            return GoogleClient(
                 client_factory=google_genai_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
-        return Gemini3GoogleStreamingClient(
+        return GoogleGemini3Client(
             client_factory=google_genai_client_factory,
             model_name=model_name,
             provider=provider,

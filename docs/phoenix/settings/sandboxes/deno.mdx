@@ -14,6 +14,19 @@ The **Deno** sandbox is a **local sandbox** for **simple TypeScript evaluators**
 
 Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes).
 
+## Setup
+
+The `deno` binary ships **inside the `arizephoenix/phoenix` container**, so there's nothing to install there. If you run Phoenix another way — for example `pip install arize-phoenix` — install Deno yourself so the `deno` binary is on the `PATH` of the process running Phoenix:
+
+```bash
+# macOS
+brew install deno
+# or, any platform:
+curl -fsSL https://deno.land/install.sh | sh
+```
+
+Restart Phoenix, then open [**Settings → Sandboxes**](/docs/phoenix/settings/sandboxes). The **Deno** row should read **Available**. If it shows *"Unavailable — Deno binary isn't installed,"* the Phoenix process can't find `deno` on its `PATH`. For the full platform details, see [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes#deno).
+
 ## What it supports
 
 The Deno sandbox runs your TypeScript in a locked-down local process. It is intentionally limited to **self-contained code**:

@@ -1,5 +1,6 @@
 import base64
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -39,9 +40,8 @@ class TestBuildModel:
             model_name="gpt-4o-mini",
         )
 
-        async with db() as session:
-            with pytest.raises(ProviderNotFoundError) as exc_info:
-                await build_model(params, session=session, decrypt=lambda value: value)
+        with pytest.raises(ProviderNotFoundError) as exc_info:
+            await build_model(params, db=db, decrypt=lambda value: value)
 
         assert exc_info.value.status_code == 404
         assert str(exc_info.value) == "Custom provider not found."
@@ -59,9 +59,8 @@ class TestBuildModel:
             model_name="gpt-4o-mini",
         )
 
-        async with db() as session:
-            with pytest.raises(ProviderCredentialsError) as exc_info:
-                await build_model(params, session=session, decrypt=lambda value: value)
+        with pytest.raises(ProviderCredentialsError) as exc_info:
+            await build_model(params, db=db, decrypt=lambda value: value)
 
         assert exc_info.value.status_code == 400
         assert "OPENAI_API_KEY" in str(exc_info.value)
@@ -110,6 +109,11 @@ class TestCustomProviderModels:
             def __init__(self, **kwargs: Any) -> None:
                 self.kwargs = kwargs
                 self.base_url = kwargs.get("base_url", "https://example.test/v1")
+                # pydantic-ai reads the resource attribute matching the model class
+                # while constructing the model, so a stand-in client must expose the
+                # attribute for every ``openai_api_type`` under test.
+                self.chat = SimpleNamespace(completions=object())
+                self.responses = object()
 
         monkeypatch.setattr(openai, "AsyncOpenAI", DummyAsyncOpenAI)
 
@@ -194,9 +198,8 @@ class TestSecretResolutionErrorTranslation:
         def _decrypt_fails(_: bytes) -> bytes:
             raise ValueError("decrypt failed")
 
-        async with db() as session:
-            with pytest.raises(ProviderConfigError) as exc_info:
-                await build_model(params, session=session, decrypt=_decrypt_fails)
+        with pytest.raises(ProviderConfigError) as exc_info:
+            await build_model(params, db=db, decrypt=_decrypt_fails)
 
         assert exc_info.value.status_code == 400
         assert "OPENAI_API_KEY" in str(exc_info.value)

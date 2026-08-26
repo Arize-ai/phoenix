@@ -1,7 +1,10 @@
 ---
 title: "Export Data & Query Spans"
-description: Various options for to help you get data out of Phoenix
+description: Various options to help you get data out of Phoenix
 ---
+
+import ConnectToPhoenixPython from "../../../../snippets/connect-to-phoenix-python.mdx";
+
 
 ## Options for Exporting Data from Phoenix
 
@@ -12,16 +15,7 @@ description: Various options for to help you get data out of Phoenix
 
 ## Connect to Phoenix
 
-Before using any of the methods below, instantiate a `Client`. You'll need to set the following environment variables:
-
-```python
-import os
-
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-```
-
-If you're self-hosting Phoenix, ignore the client headers and change the collector endpoint to your endpoint.
+<ConnectToPhoenixPython />
 
 ```python
 from phoenix.client import Client
@@ -50,7 +44,7 @@ client.spans.get_spans_dataframe(project_name='your project name')
 You can query for data using our **query DSL** (domain specific language).
 
 <Check>
-This **Query DSL** is the same as what is used by the filter bar in the dashboard. It can be helpful to form your query string in the Phoenix dashboard for more immediate feedback, before moving it to code.
+The `.where()` filter expression is the same language used by the filter bar in the dashboard — see the [Filter Expressions](/docs/phoenix/tracing/how-to-tracing/filter-expressions) reference for the full language. It can be helpful to form your filter in the Phoenix dashboard for more immediate feedback, before moving it to code.
 
 </Check>
 
@@ -121,11 +115,11 @@ client.spans.get_spans_dataframe(query=query, project_name="<my-project>")
 
 ### Querying for Retrieved Documents
 
-Let's say we want to extract the retrieved documents into a DataFrame that looks something like the table below, where `input` denotes the query for the retriever, `reference` denotes the content of each document, and `document_position` denotes the (zero-based) index in each span's list of retrieved documents.
+Let's say we want to extract the retrieved documents into a DataFrame that looks something like the table below, where `input` denotes the query for the retriever, `context` denotes the content of each document, and `document_position` denotes the (zero-based) index in each span's list of retrieved documents.
 
-Note that this DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance#how-to-run-the-rag-relevance-eval).
+Note that this DataFrame can be used directly as input for [pre-built evaluations](/docs/phoenix/evaluation/pre-built-metrics).
 
-| context.span\_id | document\_position | input                                            | reference                                                |
+| context.span\_id | document\_position | input                                            | context                                                |
 | :---------------- | :------------------ | :------------------------------------------------ | :-------------------------------------------------------- |
 | 5B8EF798A381     | 0                  | What was the author's motivation for writing ... | In fact, I decided to write a book about ...             |
 | 5B8EF798A381     | 1                  | What was the author's motivation for writing ... | I started writing essays again, and wrote a bunch of ... |
@@ -151,9 +145,9 @@ query = SpanQuery().where(
 ).explode(
     # Specify the span attribute `retrieval.documents` which contains a list of
     # objects and explode the list. Extract the `document.content` attribute from
-    # each object and rename it as the `reference` column in the output dataframe.
+    # each object and rename it as the `context` column in the output dataframe.
     "retrieval.documents",
-    reference="document.content",
+    context="document.content",
 )
 
 # The Phoenix Client can take this query and return the dataframe.
@@ -162,19 +156,19 @@ client.spans.get_spans_dataframe(query=query)
 
 ### How to Explode Attributes
 
-In addition to the document content, if we also want to explode the document score, we can simply add the `document.score` attribute to the `.explode()` method alongside `document.content` as follows. Keyword arguments are necessary to name the output columns, and in this example we name the output columns as `reference` and `score`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#arbitrary-output-column-names) for an example.)
+In addition to the document content, if we also want to explode the document score, we can simply add the `document.score` attribute to the `.explode()` method alongside `document.content` as follows. Keyword arguments are necessary to name the output columns, and in this example we name the output columns as `context` and `score`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#arbitrary-output-column-names) for an example.)
 
 ```python
 query = SpanQuery().explode(
     "retrieval.documents",
-    reference="document.content",
+    context="document.content",
     score="document.score",
 )
 ```
 
 ### How to Apply Filters
 
-The `.where()` method accepts a string of valid Python boolean expression. The expression can be arbitrarily complex, but restrictions apply, e.g. making function calls are generally disallowed. Below is a conjunction filtering also on whether the input value contains the string `'programming'`.
+The `.where()` method accepts a **filter expression** — a string of valid Python boolean expression — and returns only the spans it matches. The same expressions work in the spans/traces filter bar in the Phoenix UI.
 
 ```python
 query = SpanQuery().where(
@@ -182,50 +176,11 @@ query = SpanQuery().where(
 )
 ```
 
-#### Filtering Spans by Evaluation Results
+The filter expression language — attribute and annotation access, substring search, `is None`, and the full operator set — is documented in one place, for both spans and sessions:
 
-Filtering spans by evaluation results, e.g. `score` or `label`, can be done via a special syntax. The name of the evaluation is specified as an indexer on the special keyword `evals`. The example below filters for spans with the `incorrect` label on their `correctness` evaluations. (See [here](/docs/phoenix/evaluation/running-pre-tested-evals) for how to compute evaluations for traces, and [here](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations) for how to ingest those results back to Phoenix.)
-
-```python
-query = SpanQuery().where(
-    "evals['correctness'].label == 'incorrect'"
-)
-```
-
-#### Filtering on Metadata
-
-`metadata` is an attribute that is a dictionary and it can be filtered like a dictionary.
-
-```python
-query = SpanQuery().where(
-    'metadata["topic"] == \'programming\''
-)
-```
-
-#### Filtering for Substring
-
-Note that Python strings do not have a `contain` method, and substring search is done with the `in` operator.
-
-```python
-query = SpanQuery().where(
-    "'programming' in metadata['topic']"
-)
-```
-
-#### **Filtering for No Evaluations**
-
-Get spans that do not have an evaluation attached yet
-
-```python
-query = SpanQuery().where(
-    "evals['correctness'].label is None"
-)
-# correctness is whatever you named your evaluation metric
-```
-
-### How to Apply Filters (UI)
-
-You can also use Python boolean expressions to filter spans in the Phoenix UI. These expressions can be entered directly into the search bar above your experiment runs, allowing you to apply complex conditions involving span attributes. Any expressions that work with the `.where()` method [above](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#how-to-apply-filters) can also be used in the UI.
+<Card title="Filter Expressions" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions" icon="filter" horizontal>
+  The span and session filter language: fields, attributes, annotations/evals, substring search, `is None`, and more.
+</Card>
 
 ### How to Extract Attributes
 
@@ -264,12 +219,12 @@ query = SpanQuery().select(**{
 
 #### Concatenating
 
-The document contents can also be concatenated together. The query below concatenates the list of `document.content` with (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#arbitrary-output-column-names) for an example.)
+The document contents can also be concatenated together. The query below concatenates the list of `document.content` with (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `context`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#arbitrary-output-column-names) for an example.)
 
 ```python
 query = SpanQuery().concat(
     "retrieval.documents",
-    reference="document.content",
+    context="document.content",
 )
 ```
 
@@ -280,7 +235,7 @@ If a different separator is desired, say `\n************`, it can be specified a
 ```python
 query = SpanQuery().concat(
     "retrieval.documents",
-    reference="document.content",
+    context="document.content",
 ).with_concat_separator(
     separator="\n************\n",
 )
@@ -341,13 +296,9 @@ query = SpanQuery().where(
 client.spans.get_spans_dataframe(query=query)
 ```
 
-### Retrieval (RAG) Relevance Evaluations
+### Correctness Evaluations
 
-To extract the dataframe input for [Retrieval (RAG) Relevance evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/retrieval-rag-relevance#how-to-run-the-rag-relevance-eval), apply the query described in [Querying for Retrieved Documents](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#querying-for-retrieved-documents).
-
-### Q\&A on Retrieved Data Evaluations
-
-To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data#how-to-run-the-qa-eval), use the following query which applies techniques described in the [Advanced Usage](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#advanced-usage) section.
+To extract the dataframe input for [Correctness evaluations](/docs/phoenix/evaluation/pre-built-metrics/correctness), use the following query which applies techniques described in the [Advanced Usage](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#advanced-usage) section.
 
 ```python expandable
 import pandas as pd
@@ -371,7 +322,7 @@ query_for_retrieved_documents = SpanQuery().where(
     span_id="parent_id",
 ).concat(
     "retrieval.documents",
-    reference="document.content",
+    context="document.content",
 )
 
 root_df = client.spans.get_spans_dataframe(query=query_for_root_span)
@@ -385,9 +336,9 @@ pd.concat(
 )
 ```
 
-The output DataFrame would look something like the one below. The `input` contains the question, the `output` column contains the answer, and the `reference` column contains a concatenation of all the retrieved documents.
+The output DataFrame would look something like the one below. The `input` contains the question, the `output` column contains the answer, and the `context` column contains a concatenation of all the retrieved documents.
 
-| context.span\_id | input                               | output                     | reference                                            |
+| context.span\_id | input                               | output                     | context                                            |
 | :---------------- | :----------------------------------- | :-------------------------- | :---------------------------------------------------- |
 | CDBC4CE34        | What was the author's trick for ... | The author's trick for ... | Even then it took me several years to understand ... |
 | ...              | ...                                 | ...                        | ...                                                  |

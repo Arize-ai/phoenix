@@ -23,8 +23,8 @@ def normalize_datetime(
     tz: Optional[tzinfo] = None,
 ) -> Optional[datetime]:
     """
-    If the input datetime is timezone-naive, it is localized as local timezone
-    unless tzinfo is specified.
+    If the input datetime is timezone-naive, it is localized to the local
+    timezone unless tzinfo is specified.
     """
     if not isinstance(dt, datetime):
         return None
@@ -177,7 +177,7 @@ def get_timestamp_range(
     offset_delta = timedelta(minutes=utc_offset_minutes)
     local_start_time = start_time + offset_delta
 
-    # round down start_time to the nearest stride in local timezone
+    # Round down start_time to the nearest stride boundary in local timezone
     if stride == "minute":
         t = local_start_time.replace(second=0, microsecond=0)
     elif stride == "hour":

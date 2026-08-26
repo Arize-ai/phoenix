@@ -1,6 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "module": "nodenext" /* nodenext (vs node16) permits require() of ESM-only dependencies like ai v7; this package requires Node >=22.12. */,
+    "moduleResolution": "nodenext",
     "outDir": "dist",
     "rootDir": ".",
     "types": ["node"],

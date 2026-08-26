@@ -1,0 +1,88 @@
+import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
+
+import { EDIT_PROMPT_NAVIGATION_CANCEL_ERROR } from "./constants";
+import { computePromptEditSummary } from "./diffSummary";
+import { applyPromptOperations, getPromptSnapshot } from "./promptStore";
+import type { BindPendingPromptEditOptions, PendingPromptEdit } from "./types";
+
+/**
+ * Attaches accept/reject callbacks to a pending prompt edit. Each callback
+ * resolves the awaiting `execute_browser_action` script call via `emitResult` — the
+ * script sees `{ ok: true, output: { status: "accepted" | "rejected", ... } }`
+ * for a decision and `{ ok: false }` for staleness or navigation cancel.
+ */
+export function bindPendingPromptEditActions({
+  pendingEdit,
+  playgroundStore,
+  emitResult,
+  setPendingPromptEdit,
+}: BindPendingPromptEditOptions): PendingPromptEdit {
+  return {
+    ...pendingEdit,
+    accept: async ({ approvalSource = "user" } = {}) => {
+      setPendingPromptEdit(pendingEdit.toolCallId, null);
+      const current = getPromptSnapshot({
+        playgroundStore,
+        instanceId: pendingEdit.instanceId,
+      });
+      if (!current.ok) {
+        emitResult({ ok: false, error: current.error });
+        return;
+      }
+      if (current.output.revision !== pendingEdit.expectedRevision) {
+        emitResult({
+          ok: false,
+          error:
+            "The prompt was changed after this edit was proposed, so it can no longer be applied.",
+        });
+        return;
+      }
+      applyPromptOperations({
+        playgroundStore,
+        instanceId: pendingEdit.instanceId,
+        operations: pendingEdit.operations,
+      });
+      const afterApply = getPromptSnapshot({
+        playgroundStore,
+        instanceId: pendingEdit.instanceId,
+      });
+      const summary = computePromptEditSummary(
+        pendingEdit.before,
+        afterApply.ok ? afterApply.output : pendingEdit.after
+      );
+      emitResult({
+        ok: true,
+        output: {
+          status: "accepted",
+          acceptedBy: approvalSource,
+          instanceId: pendingEdit.instanceId,
+          revision: afterApply.ok
+            ? afterApply.output.revision
+            : pendingEdit.after.revision,
+          summary,
+          message:
+            approvalSource === "auto"
+              ? "Prompt edit auto-approved."
+              : "Prompt edit applied.",
+          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
+        },
+      });
+    },
+    reject: async () => {
+      setPendingPromptEdit(pendingEdit.toolCallId, null);
+      emitResult({
+        ok: true,
+        output: {
+          status: "rejected",
+          instanceId: pendingEdit.instanceId,
+          message: "User rejected the proposed prompt edit.",
+          ...approvalOutcome({ decision: "rejected", source: "user" }),
+        },
+      });
+    },
+    cancel: async () => {
+      setPendingPromptEdit(pendingEdit.toolCallId, null);
+      emitResult({ ok: false, error: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR });
+    },
+  };
+}

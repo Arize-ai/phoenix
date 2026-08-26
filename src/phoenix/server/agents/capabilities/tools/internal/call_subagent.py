@@ -7,28 +7,33 @@ from typing import Generic
 from pydantic import BaseModel
 from pydantic_ai import AgentRunResult, RunContext, Tool
 from pydantic_ai.agent.abstract import AbstractAgent
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from pydantic_ai.ui.vercel_ai import VercelAIEventStream
 from pydantic_ai.ui.vercel_ai.request_types import (
+    SubmitMessage as PydanticAISubmitMessage,
+)
+from pydantic_ai.ui.vercel_ai.request_types import (
+    TextUIPart as PydanticAITextUIPart,
+)
+from pydantic_ai.ui.vercel_ai.request_types import UIMessage as PydanticAIUIMessage
+from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
+
+from phoenix.db.types.data_stream_protocol import (
     DataUIPart,
     ReasoningUIPart,
     StepStartUIPart,
-    SubmitMessage,
     TextUIPart,
     UIMessage,
 )
-from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
-
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
-from phoenix.server.agents.data_stream_protocol import (
-    accumulate_ui_message_chunks_to_ui_messages,
-)
+from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
+from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
-Delegate a natural-language task to the Phoenix GraphQL server agent, which queries \
-the Phoenix backend and returns a concise answer. Use for any task that requires \
-data about projects, traces, spans, datasets, experiments, or evaluations.
+Delegate a natural-language task to the Phoenix GraphQL server agent, which queries the Phoenix backend and returns a concise answer. Use for any task that requires data about projects, traces, spans, datasets, experiments, or evaluations.
+The sub-agent does that work in its own context and returns only the answer you need. It has its own `bash` tool, running in a server-side virtual shell, that queries the Phoenix GraphQL API via the `phoenix-gql` command (read-only by default) and can write scratch files under its own workspace. Besides bash, it can also search the Phoenix documentation and the web when those tools are enabled. Its bash and file system are isolated from yours, and it returns only its final text answer, so any data it gathers must come back in that answer rather than as files you can read.
+Pass `task`, a single self-contained natural-language description of exactly what you need, along with `name`, a short human-readable name for the sub-agent. The sub-agent has no access to your context, so the task must be entirely self-contained and fully specified: explicitly pass along IDs, time ranges, and any other details rather than assuming they will be visible to the sub-agent.
 """
 
 
@@ -71,7 +76,8 @@ class CallSubAgentToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
                 final_summary = result.output
 
             event_stream = VercelAIEventStream(
-                run_input=_get_dummy_request_data(tool_call_id=tool_call_id, task=task)
+                run_input=_get_dummy_request_data(tool_call_id=tool_call_id, task=task),
+                sdk_version=7,
             )
             async with server_agent.run_stream_events(
                 task,
@@ -79,7 +85,9 @@ class CallSubAgentToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
                 usage=ctx.usage,
             ) as stream:
                 chunks = event_stream.transform_stream(stream, on_complete=_on_complete)
-                async for message in accumulate_ui_message_chunks_to_ui_messages(chunks):
+                async for message in read_ui_message_stream(
+                    stream=iter_chunks_with_error_parts(chunks)
+                ):
                     latest_message = message
                     if not _has_renderable_ui_message_parts(message):
                         continue
@@ -119,11 +127,10 @@ class CallSubAgentToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
 
 
 @dataclass
-class CallSubAgentCapability(AbstractStaticCapability[AgentDepsT], Generic[AgentDepsT]):
+class CallSubAgentCapability(AbstractCapability[AgentDepsT], Generic[AgentDepsT]):
     """Capability that adds the `call_subagent` tool to an agent."""
 
     server_agent: AbstractAgent[None, str]
-    instructions: str
     publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
     set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None]
 
@@ -133,9 +140,6 @@ class CallSubAgentCapability(AbstractStaticCapability[AgentDepsT], Generic[Agent
             publish_subagent_message_chunk=self.publish_subagent_message_chunk,
             set_subagent_final_tool_output=self.set_subagent_final_tool_output,
         )
-
-    def get_static_instructions(self) -> str:
-        return self.instructions
 
 
 def _has_renderable_ui_message_parts(message: UIMessage) -> bool:
@@ -151,15 +155,15 @@ def _has_renderable_ui_message_parts(message: UIMessage) -> bool:
     return False
 
 
-def _get_dummy_request_data(*, tool_call_id: str, task: str) -> SubmitMessage:
+def _get_dummy_request_data(*, tool_call_id: str, task: str) -> PydanticAISubmitMessage:
     """Build placeholder request data required by the Vercel event stream."""
-    return SubmitMessage(
+    return PydanticAISubmitMessage(
         id=f"subagent-{tool_call_id}",
         messages=[
-            UIMessage(
+            PydanticAIUIMessage(
                 id=f"subagent-task-{tool_call_id}",
                 role="user",
-                parts=[TextUIPart(text=task)],
+                parts=[PydanticAITextUIPart(text=task)],
             )
         ],
     )
