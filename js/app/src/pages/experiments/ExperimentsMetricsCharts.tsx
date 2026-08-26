@@ -7,7 +7,11 @@ import {
   useDefaultLayout,
 } from "react-resizable-panels";
 
-import { ChartPanelStrip } from "@phoenix/components/chart";
+import { View } from "@phoenix/components";
+import {
+  CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS,
+  ChartPanelStrip,
+} from "@phoenix/components/chart";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import {
@@ -15,7 +19,6 @@ import {
   getExperimentMetricCharts,
 } from "@phoenix/pages/dataset/metrics/chartCatalog";
 
-const CHARTS_PANEL_DEFAULT_SIZE_PIXELS = 230;
 const CHARTS_PANEL_MIN_SIZE_PIXELS = 160;
 const CHARTS_PANEL_MAX_SIZE = "60%";
 
@@ -46,16 +49,25 @@ export function ExperimentsMetricsCharts() {
   );
   const charts = getExperimentMetricCharts(selectedChartKeys);
   return (
-    <ChartPanelStrip chartCount={charts.length}>
-      {charts.map((chart) => (
-        <DeferredExperimentMetricPanel
-          key={chart.key}
-          chart={chart}
-          datasetId={datasetId}
-          fillHeight
-        />
-      ))}
-    </ChartPanelStrip>
+    // The strip owns no outer spacing, so this edge-to-edge placement above
+    // the table supplies its own gutters.
+    <View
+      paddingStart="size-200"
+      paddingEnd="size-200"
+      paddingTop="size-100"
+      height="100%"
+    >
+      <ChartPanelStrip chartCount={charts.length}>
+        {charts.map((chart) => (
+          <DeferredExperimentMetricPanel
+            key={chart.key}
+            chart={chart}
+            datasetId={datasetId}
+            fillHeight
+          />
+        ))}
+      </ChartPanelStrip>
+    </View>
   );
 }
 
@@ -95,7 +107,7 @@ export function ExperimentsMetricsChartsPanelGroup({
         <>
           <Panel
             id="metrics-charts"
-            defaultSize={CHARTS_PANEL_DEFAULT_SIZE_PIXELS}
+            defaultSize={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
             minSize={CHARTS_PANEL_MIN_SIZE_PIXELS}
             maxSize={CHARTS_PANEL_MAX_SIZE}
             groupResizeBehavior="preserve-pixel-size"

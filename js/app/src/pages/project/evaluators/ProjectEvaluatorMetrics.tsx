@@ -1,56 +1,39 @@
 import { memo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, useTimeRange } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import {
-  DeferredProjectMetricPanel,
-  getProjectMetricChart,
-} from "@phoenix/pages/project/metrics/chartCatalog";
+  EvaluatorCostMetricPanel,
+  EvaluatorLatencyMetricPanel,
+  EvaluatorResultAnnotationMetricPanel,
+  EvaluatorRunsMetricPanel,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorMetricPanels";
+import { getAnnotationLevel } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
   metricsPanelsColumnCSS,
   metricsScrollContainerCSS,
 } from "@phoenix/pages/project/metrics/metricsLayout";
-import { DeferredProjectAnnotationMetricPanel } from "@phoenix/pages/project/metrics/ProjectAnnotationMetrics";
-import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
-import { assertUnreachable } from "@phoenix/typeUtils";
 
-import type {
-  EvaluationTarget,
-  ProjectEvaluatorMetrics_projectEvaluator$key,
-} from "./__generated__/ProjectEvaluatorMetrics_projectEvaluator.graphql";
+import type { ProjectEvaluatorMetrics_projectEvaluator$key } from "./__generated__/ProjectEvaluatorMetrics_projectEvaluator.graphql";
 import type { ProjectEvaluatorResultAnnotation } from "./useProjectEvaluatorResultAnnotations";
 import { useProjectEvaluatorResultAnnotations } from "./useProjectEvaluatorResultAnnotations";
 
 /**
- * The evaluator's result annotations live at the level its target selects on
- * the evaluated project. TRACE evaluators are stored but never scheduled, so
- * an empty trace-level chart is the honest reading for them.
- */
-function getAnnotationLevel(
-  evaluationTarget: EvaluationTarget
-): MetricChartTableView {
-  switch (evaluationTarget) {
-    case "SPAN":
-      return "spans";
-    case "SESSION":
-      return "sessions";
-    case "TRACE":
-      return "traces";
-    default:
-      return assertUnreachable(evaluationTarget);
-  }
-}
-
-/**
  * The metrics tab of the project evaluator details page: how the evaluator's
  * results are trending on the evaluated project, and what its own runs cost
- * and how long they take, read from its own trace project.
+ * and how long they take, read from its own trace project. The time range is
+ * the page's, shared with the overview strip so the two surfaces' queries hit
+ * the same Relay store entries.
  */
 export function ProjectEvaluatorMetrics({
   projectEvaluator,
+  timeRange,
+  onTimeRangeSelected,
 }: {
   projectEvaluator: ProjectEvaluatorMetrics_projectEvaluator$key;
+  timeRange: TimeRange;
+  onTimeRangeSelected: (timeRange: TimeRange) => void;
 }) {
   const data = useFragment(
     graphql`
@@ -67,8 +50,6 @@ export function ProjectEvaluatorMetrics({
     `,
     projectEvaluator
   );
-  const timeRange = useClosedTimeRange();
-  const { setCustomTimeRange } = useTimeRange();
   // The evaluated project has no annotation configs for this evaluator's
   // results, so the results charts take their names and optimization metadata
   // from the evaluator.
@@ -81,7 +62,7 @@ export function ProjectEvaluatorMetrics({
         annotationLevel={getAnnotationLevel(data.evaluationTarget)}
         resultAnnotations={resultAnnotations}
         timeRange={timeRange}
-        onTimeRangeSelected={setCustomTimeRange}
+        onTimeRangeSelected={onTimeRangeSelected}
       />
     </div>
   );
@@ -107,7 +88,7 @@ const ProjectEvaluatorMetricPanels = memo(
     onTimeRangeSelected: (timeRange: TimeRange) => void;
   }) {
     const evaluatorTraceChartProps = {
-      projectId: traceProjectId,
+      traceProjectId,
       timeRange,
       onTimeRangeSelected,
     };
@@ -115,45 +96,28 @@ const ProjectEvaluatorMetricPanels = memo(
       <div css={metricsPanelsColumnCSS}>
         <Flex direction="row" gap="size-200">
           {resultAnnotations.map((annotation) => (
-            <DeferredProjectAnnotationMetricPanel
+            <EvaluatorResultAnnotationMetricPanel
               key={annotation.name}
-              projectId={evaluatedProjectId}
+              evaluatedProjectId={evaluatedProjectId}
               annotationLevel={annotationLevel}
-              annotationName={annotation.name}
-              annotationConfig={annotation.config}
+              annotation={annotation}
               // A lone result annotation needs no name to tell it apart.
               title={
                 resultAnnotations.length > 1
                   ? annotation.name
                   : "Evaluation Results"
               }
-              subtitle="Scores and labels produced over time"
               timeRange={timeRange}
               onTimeRangeSelected={onTimeRangeSelected}
             />
           ))}
         </Flex>
         <Flex direction="row" gap="size-200">
-          <DeferredProjectMetricPanel
-            chart={getProjectMetricChart("traces")}
-            title="Evaluations"
-            subtitle="Evaluation runs over time by status"
-            {...evaluatorTraceChartProps}
-          />
-          <DeferredProjectMetricPanel
-            chart={getProjectMetricChart("latency")}
-            title="Evaluation latency"
-            subtitle="Latency percentiles of evaluation runs"
-            {...evaluatorTraceChartProps}
-          />
+          <EvaluatorRunsMetricPanel {...evaluatorTraceChartProps} />
+          <EvaluatorLatencyMetricPanel {...evaluatorTraceChartProps} />
         </Flex>
         <Flex direction="row" gap="size-200">
-          <DeferredProjectMetricPanel
-            chart={getProjectMetricChart("cost")}
-            title="Evaluation cost"
-            subtitle="Estimated LLM cost of evaluation runs in USD"
-            {...evaluatorTraceChartProps}
-          />
+          <EvaluatorCostMetricPanel {...evaluatorTraceChartProps} />
         </Flex>
       </div>
     );

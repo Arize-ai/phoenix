@@ -123,11 +123,21 @@ const chartPanelStripCSS = (chartCount: number) => css`
 `;
 
 /**
+ * The height a chart panel strip reads well at. Strips above tables open
+ * their resizable panel at this size; fixed-height placements (e.g. the
+ * evaluator overview stats) size their container with it directly.
+ */
+export const CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS = 230;
+
+/**
  * The horizontal strip of chart panels shown above a table (project spans,
  * traces and sessions, or dataset experiments). Panels share the available
  * width evenly down to {@link CHART_MIN_WIDTH}, after which the strip scrolls
  * horizontally so every chart stays readable, fading its edges to mark the
  * panels scrolled out of view.
+ *
+ * The strip owns only its internal geometry and fills its container; page
+ * gutters belong to the caller's layout.
  */
 export function ChartPanelStrip({
   chartCount,
@@ -138,15 +148,7 @@ export function ChartPanelStrip({
   children: ReactNode;
 }) {
   return (
-    <View
-      paddingStart="size-200"
-      paddingEnd="size-200"
-      paddingTop="size-100"
-      height="100%"
-      overflow="visible"
-      position="relative"
-      zIndex={2}
-    >
+    <View height="100%" overflow="visible" position="relative" zIndex={2}>
       <div css={chartPanelStripCSS(chartCount)}>
         <div className="chart-panel-strip__scroller">
           <div

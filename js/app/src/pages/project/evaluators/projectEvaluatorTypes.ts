@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 
+import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import type {
   EvaluatorInputMapping,
@@ -33,6 +34,26 @@ export const PROJECT_EVALUATOR_TARGETS = [
 ] as const satisfies readonly EvaluationTarget[];
 
 export type ProjectEvaluatorTarget = (typeof PROJECT_EVALUATOR_TARGETS)[number];
+
+/**
+ * The evaluator's result annotations live at the level its target selects on
+ * the evaluated project. TRACE evaluators are stored but never scheduled, so
+ * an empty trace-level chart is the honest reading for them.
+ */
+export function getAnnotationLevel(
+  evaluationTarget: EvaluationTarget
+): MetricChartTableView {
+  switch (evaluationTarget) {
+    case "SPAN":
+      return "spans";
+    case "SESSION":
+      return "sessions";
+    case "TRACE":
+      return "traces";
+    default:
+      return assertUnreachable(evaluationTarget);
+  }
+}
 
 /** The server rejects anything shorter. */
 export const MIN_EVALUATION_DELAY_SECONDS = 10;
