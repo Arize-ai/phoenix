@@ -76,6 +76,18 @@ export const setSpansFilterOperation = defineUIOperation({
     "`annotations['Name'].score`.\n" +
     "  - Substring search: `'needle' in input.value` (any string field, " +
     "ignores case).\n" +
+    "  - Cost and tokens: `total_cost`, `prompt_cost`, `completion_cost`, " +
+    "`total_tokens`, `prompt_tokens`, `completion_tokens`. These are bare " +
+    "names and read this span's own cost row. There is no cost-per-token " +
+    "name -- divide, e.g. `total_cost / total_tokens > 0.0001`, which " +
+    "yields null rather than an error when tokens are zero. " +
+    "`attributes['total_cost']` is the separate, unrelated spelling for a " +
+    "span attribute of that name.\n" +
+    "  - Per-token-type cost rows: `cost_details`, iterated with " +
+    "`any`/`all`/`len`/`sum`/`max`/`min`, e.g. " +
+    "`any(cost_detail.token_type == 'cache_read' for cost_detail in " +
+    "cost_details)`. Element fields: `token_type`, `is_prompt`, `cost`, " +
+    "`tokens`, `cost_per_token`.\n" +
     "  - Combine clauses with `and`, `or`, `not`." +
     "\n\n" +
     "VALUE CONVENTIONS:\n" +
@@ -96,6 +108,12 @@ export const setSpansFilterOperation = defineUIOperation({
     "  - 'Include orphaned spans as roots' → `parent_span is None`\n" +
     "  - 'Hallucinations' → " +
     "`annotations['Hallucination'].label == 'hallucinated'`\n" +
+    "  - 'Expensive spans' → `total_cost > 0.1`\n" +
+    "  - 'Expensive LLM calls' → " +
+    "`span_kind == 'LLM' and total_cost > 0.1`\n" +
+    "  - 'Spans that hit the prompt cache' → " +
+    "`any(cost_detail.token_type == 'cache_read' for cost_detail in " +
+    "cost_details)`\n" +
     "  - 'Spans mentioning agent in input' → `'agent' in input.value`\n" +
     "  - 'Show everything' → `''`\n" +
     "  - 'Reset to default view' → `parent_id is None`.",
