@@ -27,6 +27,7 @@ import {
   getPositiveOptimization,
 } from "@phoenix/components/annotation/optimizationUtils";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
+import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import {
   PROJECT_EVALUATOR_CATEGORY_PARAM,
@@ -43,6 +44,10 @@ import {
   type ProjectEvaluatorTemplate,
   projectEvaluatorTemplatesQuery,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
+import {
+  formatEvaluationTargetPlural,
+  type ProjectEvaluatorTarget,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 const ALL_EVALUATORS_CATEGORY = "all" as const;
 const RECOMMENDED_CATEGORY = "recommended" as const;
@@ -304,17 +309,18 @@ function EvaluatorGallery() {
               id={template.name}
               textValue={template.name}
             >
-              <Flex direction="row" justifyContent="space-between">
-                <Text size="S" weight="heavy">
-                  {template.name}
-                </Text>
-                <Badge size="S">LLM</Badge>
-              </Flex>
+              <Text size="S" weight="heavy">
+                {template.name}
+              </Text>
               <LineClamp lines={3}>
                 <Text size="XS" color="text-700">
                   {template.description}
                 </Text>
               </LineClamp>
+              <EvaluatorTemplateCardFooter
+                evaluatorKind="LLM"
+                evaluationTargets={[template.scope ?? "SPAN"]}
+              />
             </ListBoxItem>
           )}
         </ListBox>
@@ -340,6 +346,43 @@ function EvaluatorGallery() {
         )}
       </aside>
     </div>
+  );
+}
+
+function EvaluatorTemplateCardFooter({
+  evaluatorKind,
+  evaluationTargets,
+}: {
+  evaluatorKind: "CODE" | "LLM";
+  evaluationTargets: readonly [
+    ProjectEvaluatorTarget,
+    ...ProjectEvaluatorTarget[],
+  ];
+}) {
+  return (
+    <Flex
+      className="project-evaluator-gallery__template-card-footer"
+      direction="row"
+      alignItems="center"
+      gap="size-100"
+      wrap
+    >
+      <Flex className="project-evaluator-gallery__template-kind">
+        <EvaluatorKindToken kind={evaluatorKind} size="S" />
+      </Flex>
+      <Flex
+        className="project-evaluator-gallery__template-targets"
+        direction="row"
+        gap="size-50"
+        wrap
+      >
+        {evaluationTargets.map((target) => (
+          <Badge key={target} size="S">
+            {capitalize(formatEvaluationTargetPlural(target))}
+          </Badge>
+        ))}
+      </Flex>
+    </Flex>
   );
 }
 
@@ -619,6 +662,19 @@ const galleryCSS = css`
       padding: var(--global-dimension-size-150);
       border: var(--global-border-size-thin) solid
         var(--global-border-color-default);
+    }
+
+    .project-evaluator-gallery__template-card-footer {
+      width: 100%;
+      margin-top: auto;
+    }
+
+    .project-evaluator-gallery__template-kind {
+      flex: none;
+    }
+
+    .project-evaluator-gallery__template-targets {
+      min-width: 0;
     }
   }
 
