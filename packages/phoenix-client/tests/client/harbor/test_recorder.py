@@ -1,12 +1,13 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
+# pyright: reportPrivateUsage=false
 """Tests for Harbor dataset and experiment recording."""
 
 from __future__ import annotations
 
 import builtins
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -19,7 +20,7 @@ pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
 from harbor.models.job.config import JobConfig
 from harbor.models.job.lock import TaskLock
 from harbor.models.trial.config import AgentConfig, TaskConfig, TrialConfig
-from harbor.models.trial.result import TrialResult
+from harbor.models.trial.result import TimingInfo, TrialResult
 
 from phoenix.client.harbor import EXPERIMENT_NAME_TEMPLATE_FIELDS
 from phoenix.client.harbor._errors import HarborPluginError
@@ -36,6 +37,7 @@ from phoenix.client.harbor._recorder import (
     PhoenixRecorder,
     experiment_identity,
 )
+from phoenix.client.harbor._scores import ExtractedEvaluation
 
 
 def task(task_id: str, digest: str = "sha256:" + "a" * 64, **overrides: Any) -> TaskRecord:
@@ -110,12 +112,17 @@ class FakeExperiments:
         existing: list[dict[str, Any]] | None = None,
         runs: list[dict[str, Any]] | None = None,
         log_error: Exception | None = None,
+        log_errors: list[Exception | None] | None = None,
+        evaluation_errors: list[Exception | None] | None = None,
     ) -> None:
         self.existing = existing or []
         self.runs = runs or []
         self.log_error = log_error
+        self.log_errors = list(log_errors or [])
+        self.evaluation_errors = list(evaluation_errors or [])
         self.created: list[dict[str, Any]] = []
         self.logged_runs: list[dict[str, Any]] = []
+        self.logged_evaluations: list[dict[str, Any]] = []
 
     async def list(self, *, dataset_id: str) -> list[dict[str, Any]]:
         del dataset_id
@@ -138,9 +145,21 @@ class FakeExperiments:
 
     async def log_run(self, **kwargs: Any) -> dict[str, Any]:
         self.logged_runs.append(kwargs)
+        if self.log_errors:
+            error = self.log_errors.pop(0)
+            if error is not None:
+                raise error
         if self.log_error is not None:
             raise self.log_error
         return {"id": f"run-{len(self.logged_runs)}", **kwargs}
+
+    async def log_evaluation(self, **kwargs: Any) -> dict[str, Any]:
+        self.logged_evaluations.append(kwargs)
+        if self.evaluation_errors:
+            error = self.evaluation_errors.pop(0)
+            if error is not None:
+                raise error
+        return {"id": f"evaluation-{len(self.logged_evaluations)}"}
 
 
 class FakeClient:
@@ -163,7 +182,12 @@ def example_row(task_id: str, node_id: str) -> dict[str, Any]:
     }
 
 
-def trial_result(*, trial_name: str = "task-a__1", error: Any = None) -> TrialResult:
+def trial_result(
+    *,
+    trial_name: str = "task-a__1",
+    error: Any = None,
+    steps: list[Any] | None = None,
+) -> TrialResult:
     now = datetime.now(timezone.utc)
     return cast(
         TrialResult,
@@ -174,6 +198,12 @@ def trial_result(*, trial_name: str = "task-a__1", error: Any = None) -> TrialRe
             task_name="task-a",
             started_at=now,
             finished_at=now,
+            environment_setup=None,
+            agent_setup=None,
+            agent_execution=None,
+            verifier=None,
+            verifier_result=None,
+            step_results=steps,
             exception_info=error,
             compute_token_cost_totals=lambda: (10, 2, 4, 0.01),
         ),
@@ -448,7 +478,30 @@ class TestExperimentNames:
         assert experiments.created[0]["experiment_name"].endswith("· default")
 
 
-class TestRecordTrial:
+class TestRecordExperimentRun:
+    def test_phase_timings_do_not_change_run_reuse_identity(self) -> None:
+        result = trial_result()
+        started_at = cast(datetime, result.started_at)
+        result.environment_setup = TimingInfo(
+            started_at=started_at,
+            finished_at=started_at + timedelta(seconds=1.5),
+        )
+        # Phase timings are intentionally excluded from immutable run output so a
+        # resumed job can reuse a run written before those timings were available.
+        existing_run = {
+            "id": "run-existing",
+            "output": {
+                "harbor_trial_id": "trial-id",
+                "harbor_trial_name": "task-a__1",
+                "harbor_trial_uri": "file:///trial",
+                "task_name": "task-a",
+                "token_usage": {"input": 10, "cache": 2, "output": 4},
+                "cost_usd": 0.01,
+            },
+        }
+
+        assert PhoenixRecorder.can_reuse_run(cast(Any, existing_run), trial_result=result)
+
     async def test_records_the_planned_repetition_without_rewards(self) -> None:
         experiments = FakeExperiments()
         job = plan(
@@ -474,7 +527,7 @@ class TestRecordTrial:
         }
         result = trial_result(trial_name="task-a__2")
 
-        await recorder(FakeClient(experiments=experiments)).record_trial(
+        await recorder(FakeClient(experiments=experiments)).record_experiment_run(
             plan=job,
             snapshot=SNAPSHOT,
             experiments=handle,
@@ -488,14 +541,63 @@ class TestRecordTrial:
         assert logged["output"]["harbor_trial_id"] == "trial-id"
         assert "reward" not in logged["output"]
 
-    async def test_duplicate_conflict_reuses_the_matching_successful_run(self) -> None:
+    @pytest.mark.parametrize(
+        ("has_verifier_result", "expected_error"),
+        [
+            (False, "step build: StepError: failed"),
+            (True, None),
+        ],
+        ids=["fatal-step-error", "non-fatal-step-error"],
+    )
+    async def test_only_fatal_step_errors_mark_the_experiment_run_failed(
+        self,
+        has_verifier_result: bool,
+        expected_error: str | None,
+    ) -> None:
+        experiments = FakeExperiments()
+        job = plan(
+            trials=(
+                TrialSlot(
+                    config=TrialConfig(
+                        task=TaskConfig(path=Path("task-a")),
+                        agent=slice_().agent,
+                        trial_name="task-a__1",
+                    ),
+                    identity_digest=slice_().identity_digest,
+                    repetition=1,
+                ),
+            )
+        )
+        handles = await recorder(FakeClient(experiments=experiments)).resolve_experiments(
+            job, SNAPSHOT
+        )
+        step_result = SimpleNamespace(
+            step_name="build",
+            exception_info=SimpleNamespace(
+                exception_type="StepError",
+                exception_message="failed",
+            ),
+            verifier_result=SimpleNamespace(rewards={"accuracy": 0.5})
+            if has_verifier_result
+            else None,
+        )
+
+        await recorder(FakeClient(experiments=experiments)).record_experiment_run(
+            plan=job,
+            snapshot=SNAPSHOT,
+            experiments=handles,
+            trial_result=trial_result(steps=[step_result]),
+        )
+
+        assert experiments.logged_runs[0]["error"] == expected_error
+
+    async def test_duplicate_conflict_reuses_matching_successful_run(self) -> None:
         request = httpx.Request("POST", "https://phoenix.example/v1/experiments/1/runs")
         conflict = httpx.HTTPStatusError(
             "duplicate",
             request=request,
             response=httpx.Response(409, request=request),
         )
-        result = trial_result()
         existing_run = {
             "id": "run-existing",
             "experiment_id": "experiment-1",
@@ -510,7 +612,10 @@ class TestRecordTrial:
                 "cost_usd": 0.01,
             },
         }
-        experiments = FakeExperiments(runs=[existing_run], log_error=conflict)
+        experiments = FakeExperiments(
+            runs=[existing_run],
+            log_error=conflict,
+        )
         job = plan(
             trials=(
                 TrialSlot(
@@ -526,12 +631,50 @@ class TestRecordTrial:
         )
         client = FakeClient(experiments=experiments)
         handles = await recorder(client).resolve_experiments(job, SNAPSHOT)
-
-        recorded = await recorder(client).record_trial(
+        recorded = await recorder(client).record_experiment_run(
             plan=job,
             snapshot=SNAPSHOT,
             experiments=handles,
-            trial_result=result,
+            trial_result=trial_result(),
         )
 
         assert recorded == existing_run
+        assert len(experiments.logged_runs) == 1
+
+
+class TestRecordEvaluations:
+    @staticmethod
+    def records() -> tuple[ExtractedEvaluation, ...]:
+        now = datetime.now(timezone.utc)
+        return (
+            ExtractedEvaluation(
+                name="reward",
+                score=1.0,
+                start_time=now,
+                end_time=now,
+                metadata={"harbor_trial_id": "trial-id"},
+            ),
+            ExtractedEvaluation(
+                name="infra_ok",
+                score=1.0,
+                label="ok",
+                start_time=now,
+                end_time=now,
+                metadata={"harbor_trial_id": "trial-id"},
+            ),
+        )
+
+    async def test_logs_each_record_as_a_code_evaluation(self) -> None:
+        experiments = FakeExperiments()
+
+        await recorder(FakeClient(experiments=experiments)).record_evaluations(
+            "run-1", self.records()
+        )
+
+        assert [call["name"] for call in experiments.logged_evaluations] == [
+            "reward",
+            "infra_ok",
+        ]
+        assert all(call["experiment_run_id"] == "run-1" for call in experiments.logged_evaluations)
+        assert all(call["annotator_kind"] == "CODE" for call in experiments.logged_evaluations)
+        assert "error" not in experiments.logged_evaluations[0]
