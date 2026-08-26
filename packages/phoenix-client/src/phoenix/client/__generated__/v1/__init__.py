@@ -2297,6 +2297,15 @@ class CreatePromptResponseBody(TypedDict):
     data: PromptVersion
 
 
+class CreatePromptVersionRequestBody(TypedDict):
+    version: PromptVersionData
+    tags: NotRequired[Sequence[PromptVersionTagData]]
+
+
+class CreatePromptVersionResponseBody(TypedDict):
+    data: PromptVersion
+
+
 class GetPromptResponseBody(TypedDict):
     data: PromptVersion
 
