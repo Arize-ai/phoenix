@@ -143,6 +143,9 @@ const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
 /** Normal and busy cadences for synchronizing the active session. */
 const SESSION_POLL_INTERVAL_MS = 10_000;
 const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
+/** Cadence and cap for confirming the server persisted an interrupted turn. */
+const INTERRUPT_RECONCILE_INTERVAL_MS = 500;
+const INTERRUPT_RECONCILE_MAX_ATTEMPTS = 10;
 const SESSION_BUSY_STATUS_TEXT =
   "Session is being used elsewhere, the chat will refresh when complete";
 const SESSION_STALE_STATUS_TEXT =
@@ -1079,6 +1082,13 @@ export function PxiApp({
   );
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
+  /**
+   * Confirmation that the server persisted the turn this client interrupted.
+   * The next send awaits it so its `lastMessageId` check cannot race the
+   * server's write of the interrupted message.
+   */
+  const interruptReconcileRef = useRef<Promise<void> | null>(null);
+  const sendCountRef = useRef(0);
   const modelRequestIdRef = useRef(0);
   const sessionRequestIdRef = useRef(0);
   /**
@@ -1237,12 +1247,91 @@ export function PxiApp({
     exit();
   };
 
+  /** Poll until the persisted transcript's tail is the interrupted message. */
+  const waitForInterruptedTurnPersisted = async ({
+    sessionId,
+    messageId,
+  }: {
+    sessionId: string;
+    messageId: string;
+  }): Promise<boolean> => {
+    for (
+      let attempt = 0;
+      attempt < INTERRUPT_RECONCILE_MAX_ATTEMPTS;
+      attempt += 1
+    ) {
+      if (attempt > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, INTERRUPT_RECONCILE_INTERVAL_MS)
+        );
+      }
+      try {
+        const syncState = await serverSessionClient.getSessionSyncState({
+          sessionId,
+        });
+        if (!syncState.isActive && syncState.lastMessageId === messageId) {
+          return true;
+        }
+      } catch {
+        // Transient failure: try again on the next tick.
+      }
+    }
+    return false;
+  };
+
+  /**
+   * After an interrupt, swap in the server's copy of the turn as soon as it
+   * is persisted instead of waiting for the idle poll. Skipped once a new
+   * send starts: the send only needs the persistence confirmation.
+   */
+  const reconcileInterruptedTurn = ({
+    sessionId,
+    messageId,
+  }: {
+    sessionId: string;
+    messageId: string;
+  }) => {
+    const requestId = sessionRequestIdRef.current;
+    const sendCount = sendCountRef.current;
+    const isSuperseded = () =>
+      sessionRequestIdRef.current !== requestId ||
+      sendCountRef.current !== sendCount;
+    const reconcile = waitForInterruptedTurnPersisted({ sessionId, messageId })
+      .then(async (isPersisted) => {
+        if (!isPersisted || isSuperseded()) {
+          return;
+        }
+        const session = await serverSessionClient.getSession({ sessionId });
+        if (isSuperseded()) {
+          return;
+        }
+        recordSyncedSessionState(session);
+        setActiveSession(session);
+        setMessages(session.messages);
+      })
+      .catch(() => {
+        // The idle poll reconciles on its next tick.
+      })
+      .finally(() => {
+        if (interruptReconcileRef.current === reconcile) {
+          interruptReconcileRef.current = null;
+        }
+      });
+    interruptReconcileRef.current = reconcile;
+  };
+
   const interruptStream = () => {
     if (status !== "streaming") {
       return;
     }
     abortControllerRef.current?.abort();
     const assistantMessage = streamingAssistantMessageRef.current;
+    if (assistantMessage && activeSession) {
+      reconcileInterruptedTurn({
+        sessionId: activeSession.id,
+        messageId: assistantMessage.id,
+      });
+    }
     if (assistantMessage) {
       const interruptedMessage = markMessageInterrupted({
         message: assistantMessage,
@@ -1265,6 +1354,7 @@ export function PxiApp({
   const startNewSession = ({ temporary }: { temporary: boolean }) => {
     modelRequestIdRef.current += 1;
     sessionRequestIdRef.current += 1;
+    interruptReconcileRef.current = null;
     setActiveSession(null);
     lastSyncedSessionStateRef.current = null;
     setActiveModelSelection(options.modelSelection);
@@ -1283,6 +1373,7 @@ export function PxiApp({
 
   const closeSessionPicker = () => {
     sessionRequestIdRef.current += 1;
+    interruptReconcileRef.current = null;
     setSessionPicker(null);
   };
 
@@ -1365,6 +1456,7 @@ export function PxiApp({
 
   const openModelPicker = () => {
     sessionRequestIdRef.current += 1;
+    interruptReconcileRef.current = null;
     setSessionPicker(null);
     const requestId = modelRequestIdRef.current + 1;
     modelRequestIdRef.current = requestId;
@@ -1688,6 +1780,7 @@ export function PxiApp({
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     streamingAssistantMessageRef.current = null;
+    sendCountRef.current += 1;
     setError(null);
     setShowStaleRefreshNotice(false);
     setShowModelStaleNotice(false);
@@ -1723,6 +1816,7 @@ export function PxiApp({
       if (!resolvedClient) {
         throw new Error("Could not initialize the PXI chat client.");
       }
+      await interruptReconcileRef.current;
       return resolvedClient.sendMessage({
         messages: nextMessages,
         abortSignal: abortController.signal,

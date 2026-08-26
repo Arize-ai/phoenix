@@ -822,7 +822,7 @@ describe("PXI app", () => {
     unmount();
   });
 
-  it("keeps the interruption marker after the poll swaps in the persisted turn", async () => {
+  it("keeps the interruption marker when the persisted turn is swapped in", async () => {
     // Fake only intervals: the poll runs on setInterval while Ink resolves a
     // bare Esc keypress on a real setTimeout.
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
@@ -914,11 +914,15 @@ describe("PXI app", () => {
       expect(stripAnsi(lastFrame() ?? "")).toContain(
         "── Response interrupted ──"
       );
+      // The server had already persisted the turn, so the interrupt reconcile
+      // swaps in the persisted copy right away...
+      await act(async () => Promise.resolve());
+      expect(getSession).toHaveBeenCalledTimes(1);
 
+      // ...and the idle poll sees an unchanged tail and skips the refetch.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(10_000);
       });
-
       expect(getSession).toHaveBeenCalledTimes(1);
       const frame = stripAnsi(lastFrame() ?? "");
       expect(frame).toContain("Partial answer");
@@ -973,6 +977,107 @@ describe("PXI app", () => {
     expect(markerLineIndex).toBe(toolLineIndex + 2);
     expect(lines[toolLineIndex + 1]).toBe("");
     unmount();
+  });
+
+  it("waits for the server to persist an interrupted turn before the next send", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+    });
+    const partialAssistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [{ type: "text", text: "Partial answer", state: "streaming" }],
+    };
+    let isInterruptedTurnPersisted = false;
+    const getSessionSyncState = vi.fn(async () => ({
+      isActive: false,
+      updatedAt: "2026-07-24T12:00:00Z",
+      lastMessageId: isInterruptedTurnPersisted ? "assistant-1" : null,
+    }));
+    const getSession = vi.fn(async () => {
+      throw new Error("not used");
+    });
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => ({
+        id: "session-1",
+        title: "",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+        messages: [],
+      }),
+      listSessions: async () => [],
+      getSession,
+      getSessionSyncState,
+      patchSessionModel: async ({ model }) => model,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const sentTexts: string[] = [];
+    const client: PxiChatClient = {
+      sendMessage: async ({ messages, abortSignal, onAssistantMessage }) => {
+        const lastMessage = messages.at(-1);
+        sentTexts.push(
+          lastMessage?.parts[0]?.type === "text"
+            ? lastMessage.parts[0].text
+            : ""
+        );
+        if (sentTexts.length === 1) {
+          onAssistantMessage(partialAssistantMessage);
+          return new Promise((resolve) => {
+            abortSignal?.addEventListener("abort", () => resolve(null), {
+              once: true,
+            });
+          });
+        }
+        return null;
+      },
+    };
+    const { stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+        sessionModelResolver={async (model: ModelSelection) => model}
+      />
+    );
+
+    try {
+      await writeInput({ stdin, input: "hello" });
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => Promise.resolve());
+      expect(sentTexts).toEqual(["hello"]);
+
+      await act(async () => {
+        stdin.write(ESCAPE_CHARACTER);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30);
+      });
+      expect(getSessionSyncState).toHaveBeenCalledTimes(1);
+
+      // The follow-up is held while the server has not yet written the
+      // interrupted turn.
+      await writeInput({ stdin, input: "again" });
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(getSessionSyncState).toHaveBeenCalledTimes(2);
+      expect(sentTexts).toEqual(["hello"]);
+
+      isInterruptedTurnPersisted = true;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(getSessionSyncState).toHaveBeenCalledTimes(3);
+      expect(sentTexts).toEqual(["hello", "again"]);
+      // The pending send supersedes the transcript swap.
+      expect(getSession).not.toHaveBeenCalled();
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
   });
 
   it("renders tool progress without hiding transcript text", () => {
