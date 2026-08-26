@@ -96,6 +96,16 @@ export interface SwitchableEvaluatorInputProps<
    */
   isRequired?: boolean;
   /**
+   * Whether this surface offers a typed-in literal beside a path.
+   *
+   * A project evaluator's mapping travels with the evaluator rather than with
+   * the record, so its inputs are authored as paths only; a dataset evaluator
+   * still pins constants such as a rubric name.
+   *
+   * @default true
+   */
+  allowsLiteral?: boolean;
+  /**
    * Renders the path control in place of the flat list of options.
    *
    * A record's fields nest, so the project grains choose a path from a tree of
@@ -169,10 +179,13 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   onPathInputChange,
   hideLabel,
   isRequired,
+  allowsLiteral = true,
   renderPathInput,
   size = "M",
 }: SwitchableEvaluatorInputProps<TFieldValues>) {
-  const [mode, setMode] = useState<MappingMode>(defaultMode);
+  const [mode, setMode] = useState<MappingMode>(
+    allowsLiteral ? defaultMode : "path"
+  );
 
   const pathFieldName = `pathMapping.${fieldName}` as Path<TFieldValues>;
   const literalFieldName = `literalMapping.${fieldName}` as Path<TFieldValues>;
@@ -208,6 +221,96 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
     ? { required: `${label} is required` }
     : undefined;
 
+  const pathControl = (
+    <Controller
+      name={pathFieldName}
+      control={control}
+      rules={requiredRules}
+      render={({ field, fieldState: { error } }) => {
+        const pathValue =
+          pathInputValue ?? (field.value as string | undefined) ?? "";
+        if (renderPathInput) {
+          return renderPathInput({
+            value: pathValue,
+            onChange: (value) => {
+              field.onChange(value === "" ? undefined : value);
+              onPathInputChange?.(value);
+            },
+            isInvalid: !!error,
+            errorMessage: error?.message,
+            id: `${fieldName}-${mode}`,
+            ariaLabel: `${label} path mapping`,
+          });
+        }
+        // Custom typed paths are valid input values, but only real
+        // options should become selected keys for React Aria ComboBox.
+        const selectedKey = pathOptionsWithUnset.some(
+          (item) => item.id === pathValue
+        )
+          ? pathValue
+          : null;
+        return (
+          <ComboBox
+            isInvalid={!!error}
+            errorMessage={error?.message}
+            aria-label={`${label} path mapping`}
+            placeholder={pathPlaceholder}
+            defaultItems={pathOptionsWithUnset}
+            selectedKey={selectedKey}
+            // for some reason combobox sizing is out of sync with everything else
+            size={size === "M" ? "L" : size === "S" ? "M" : size}
+            id={`${fieldName}-${mode}`}
+            allowsCustomValue
+            onSelectionChange={(key) => {
+              if (!key) {
+                return;
+              }
+              // Toggle: if selecting the same value, clear it
+              if (key === "__unset__") {
+                onPathInputChange?.("");
+                field.onChange(undefined);
+              } else {
+                onPathInputChange?.(key as string);
+                field.onChange(key as string);
+              }
+            }}
+            onInputChange={(value) => {
+              field.onChange(value);
+              onPathInputChange?.(value);
+            }}
+            inputValue={pathValue}
+          >
+            {(item) =>
+              item.id !== "__unset__" ? (
+                <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
+                  {item.label}
+                </ComboBoxItem>
+              ) : (
+                <ComboBoxItem key={item.id} id={item.id} textValue={item.id}>
+                  <Text fontStyle="italic">{item.label}</Text>
+                </ComboBoxItem>
+              )
+            }
+          </ComboBox>
+        );
+      }}
+    />
+  );
+
+  if (!allowsLiteral) {
+    return (
+      <div css={fieldBaseCSS} data-required={isRequired || undefined}>
+        {!hideLabel && <Label htmlFor={`${fieldName}-path`}>{label}</Label>}
+        {pathControl}
+        {description && (
+          <Text color="text-500" size="S">
+            {description}
+          </Text>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div css={fieldBaseCSS} data-required={isRequired || undefined}>
       {!hideLabel && <Label htmlFor={`${fieldName}-${mode}`}>{label}</Label>}
@@ -236,87 +339,7 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
 
         <div css={inputContainerCSS}>
           {mode === "path" ? (
-            <Controller
-              name={pathFieldName}
-              control={control}
-              rules={requiredRules}
-              render={({ field, fieldState: { error } }) => {
-                const pathValue =
-                  pathInputValue ?? (field.value as string | undefined) ?? "";
-                if (renderPathInput) {
-                  return renderPathInput({
-                    value: pathValue,
-                    onChange: (value) => {
-                      field.onChange(value === "" ? undefined : value);
-                      onPathInputChange?.(value);
-                    },
-                    isInvalid: !!error,
-                    errorMessage: error?.message,
-                    id: `${fieldName}-${mode}`,
-                    ariaLabel: `${label} path mapping`,
-                  });
-                }
-                // Custom typed paths are valid input values, but only real
-                // options should become selected keys for React Aria ComboBox.
-                const selectedKey = pathOptionsWithUnset.some(
-                  (item) => item.id === pathValue
-                )
-                  ? pathValue
-                  : null;
-                return (
-                  <ComboBox
-                    isInvalid={!!error}
-                    errorMessage={error?.message}
-                    aria-label={`${label} path mapping`}
-                    placeholder={pathPlaceholder}
-                    defaultItems={pathOptionsWithUnset}
-                    selectedKey={selectedKey}
-                    // for some reason combobox sizing is out of sync with everything else
-                    size={size === "M" ? "L" : size === "S" ? "M" : size}
-                    id={`${fieldName}-${mode}`}
-                    allowsCustomValue
-                    onSelectionChange={(key) => {
-                      if (!key) {
-                        return;
-                      }
-                      // Toggle: if selecting the same value, clear it
-                      if (key === "__unset__") {
-                        onPathInputChange?.("");
-                        field.onChange(undefined);
-                      } else {
-                        onPathInputChange?.(key as string);
-                        field.onChange(key as string);
-                      }
-                    }}
-                    onInputChange={(value) => {
-                      field.onChange(value);
-                      onPathInputChange?.(value);
-                    }}
-                    inputValue={pathValue}
-                  >
-                    {(item) =>
-                      item.id !== "__unset__" ? (
-                        <ComboBoxItem
-                          key={item.id}
-                          id={item.id}
-                          textValue={item.id}
-                        >
-                          {item.label}
-                        </ComboBoxItem>
-                      ) : (
-                        <ComboBoxItem
-                          key={item.id}
-                          id={item.id}
-                          textValue={item.id}
-                        >
-                          <Text fontStyle="italic">{item.label}</Text>
-                        </ComboBoxItem>
-                      )
-                    }
-                  </ComboBox>
-                );
-              }}
-            />
+            pathControl
           ) : (
             <Controller
               name={literalFieldName}
