@@ -998,7 +998,11 @@ export interface paths {
          */
         get: operations["listPromptVersions"];
         put?: never;
-        post?: never;
+        /**
+         * Create prompt version
+         * @description Create a new version for an existing prompt by identifier.
+         */
+        post: operations["createPromptVersion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2764,6 +2768,16 @@ export interface components {
         };
         /** CreatePromptResponseBody */
         CreatePromptResponseBody: {
+            data: components["schemas"]["PromptVersion"];
+        };
+        /** CreatePromptVersionRequestBody */
+        CreatePromptVersionRequestBody: {
+            version: components["schemas"]["PromptVersionData"];
+            /** Tags */
+            tags?: components["schemas"]["PromptVersionTagData"][] | null;
+        };
+        /** CreatePromptVersionResponseBody */
+        CreatePromptVersionResponseBody: {
             data: components["schemas"]["PromptVersion"];
         };
         /** CreateSessionNoteRequestBody */
@@ -10698,6 +10712,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetPromptVersionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createPromptVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePromptVersionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The created prompt version */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatePromptVersionResponseBody"];
                 };
             };
             /** @description Forbidden */

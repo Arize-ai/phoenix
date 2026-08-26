@@ -17,9 +17,9 @@ from phoenix.db.types.prompts import (
     PromptAwsInvocationParameters,
     PromptChatTemplate,
     PromptGoogleInvocationParameters,
+    PromptInvocationParameters,
     PromptMessage,
     PromptMessageRole,
-    PromptOpenAIInvocationParameters,
     PromptResponseFormatJSONSchema,
     PromptResponseFormatJSONSchemaDefinition,
     PromptTemplateFormat,
@@ -74,29 +74,19 @@ def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
     assert_never(provider)
 
 
-def _orm_invocation_family(
-    invocation_parameters: PromptOpenAIInvocationParameters
-    | PromptAnthropicInvocationParameters
-    | PromptGoogleInvocationParameters
-    | PromptAwsInvocationParameters,
-) -> InvocationFamily:
+def _orm_invocation_family(invocation_parameters: PromptInvocationParameters) -> InvocationFamily:
     if isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
         return "anthropic"
     if isinstance(invocation_parameters, PromptGoogleInvocationParameters):
         return "google"
     if isinstance(invocation_parameters, PromptAwsInvocationParameters):
         return "aws"
-    if isinstance(invocation_parameters, PromptOpenAIInvocationParameters):
-        return "openai"
-    assert_never(invocation_parameters)
+    return "openai"
 
 
 def validate_invocation_parameters_match_provider(
     model_provider: ModelProvider,
-    invocation_parameters: PromptOpenAIInvocationParameters
-    | PromptAnthropicInvocationParameters
-    | PromptGoogleInvocationParameters
-    | PromptAwsInvocationParameters,
+    invocation_parameters: PromptInvocationParameters,
 ) -> None:
     """Reject prompt versions whose invocation-parameters family doesn't match the provider."""
     expected = _expected_invocation_family(model_provider)
