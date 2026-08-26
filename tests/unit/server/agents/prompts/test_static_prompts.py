@@ -8,7 +8,6 @@ import pytest
 from phoenix.server.agents.prompts import (
     SUMMARIZATION_INSTRUCTIONS_TEMPLATE,
     AgentPrompts,
-    ServerAgentPrompts,
 )
 from phoenix.server.agents.prompts.static_prompts import (
     STATIC_PROMPTS_DIR,
@@ -65,10 +64,10 @@ def test_prefix_prompts_are_plain_strings() -> None:
     ``skills`` is the deliberate exception: its only variable is the fixed skill
     catalog, which no longer varies per run.
     """
-    for prompts in (AgentPrompts(), ServerAgentPrompts()):
-        assert isinstance(prompts.base, str)
-        assert isinstance(prompts.docs_tool, str)
-        assert isinstance(prompts.phoenix_mcp_tools, str)
+    prompts = AgentPrompts()
+    assert isinstance(prompts.base, str)
+    assert isinstance(prompts.docs_tool, str)
+    assert isinstance(prompts.phoenix_mcp_tools, str)
     assert isinstance(AgentPrompts().ui_contexts, str)
 
 

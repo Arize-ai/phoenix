@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from pydantic_ai import Agent, RunContext, RunUsage
+from pydantic_ai import Agent, DeferredToolRequests, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
@@ -11,7 +11,7 @@ from phoenix.server.agents.capabilities.tools.internal.call_subagent import (
     CallSubAgentToolset,
 )
 from phoenix.server.agents.context import ResolvedContexts
-from phoenix.server.agents.types import AgentDependencies
+from phoenix.server.agents.types import AgentDependencies, AgentOutput
 
 
 def _run_context(tool_call_id: str | None) -> RunContext[AgentDependencies]:
@@ -25,7 +25,7 @@ def _run_context(tool_call_id: str | None) -> RunContext[AgentDependencies]:
 
 async def _call_subagent_tool(
     *,
-    toolset: CallSubAgentToolset[AgentDependencies],
+    toolset: CallSubAgentToolset,
     ctx: RunContext[AgentDependencies],
 ) -> str:
     tools = await toolset.get_tools(ctx)
@@ -39,6 +39,14 @@ async def _call_subagent_tool(
     return result
 
 
+def _subagent(*, output: str = "subagent summary") -> Agent[AgentDependencies, AgentOutput]:
+    return Agent(
+        TestModel(custom_output_text=output),
+        deps_type=AgentDependencies,
+        output_type=[str, DeferredToolRequests],
+    )
+
+
 class TestCallSubAgentToolset:
     async def test_publishes_progress_sets_final_output_and_returns_summary(self) -> None:
         published_chunks: list[ToolOutputAvailableChunk] = []
@@ -50,8 +58,8 @@ class TestCallSubAgentToolset:
         def set_subagent_final_tool_output(chunk: ToolOutputAvailableChunk) -> None:
             final_chunks.append(chunk)
 
-        toolset = CallSubAgentToolset[AgentDependencies](
-            server_agent=Agent(TestModel(custom_output_text="subagent summary")),
+        toolset = CallSubAgentToolset(
+            server_agent=_subagent(),
             publish_subagent_message_chunk=publish_subagent_message_chunk,
             set_subagent_final_tool_output=set_subagent_final_tool_output,
         )
@@ -91,8 +99,8 @@ class TestCallSubAgentToolset:
         def set_subagent_final_tool_output(chunk: ToolOutputAvailableChunk) -> None:
             final_chunks.append(chunk)
 
-        toolset = CallSubAgentToolset[AgentDependencies](
-            server_agent=Agent(TestModel(custom_output_text="subagent summary")),
+        toolset = CallSubAgentToolset(
+            server_agent=_subagent(),
             publish_subagent_message_chunk=publish_subagent_message_chunk,
             set_subagent_final_tool_output=set_subagent_final_tool_output,
         )
@@ -104,3 +112,23 @@ class TestCallSubAgentToolset:
             )
         assert published_chunks == []
         assert final_chunks == []
+
+    async def test_passes_parent_dependencies_to_the_subagent(self) -> None:
+        seen_dependencies: list[AgentDependencies] = []
+
+        def capture_dependencies(ctx: RunContext[AgentDependencies]) -> str:
+            seen_dependencies.append(ctx.deps)
+            return ""
+
+        server_agent: Agent[AgentDependencies, AgentOutput] = Agent(
+            TestModel(custom_output_text="subagent summary"),
+            deps_type=AgentDependencies,
+            output_type=[str, DeferredToolRequests],
+            instructions=capture_dependencies,
+        )
+        toolset = CallSubAgentToolset(server_agent=server_agent)
+        ctx = _run_context(tool_call_id="parent-tool-call-1")
+
+        await _call_subagent_tool(toolset=toolset, ctx=ctx)
+
+        assert seen_dependencies == [ctx.deps]

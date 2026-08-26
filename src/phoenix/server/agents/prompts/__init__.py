@@ -8,7 +8,6 @@ from phoenix.server.agents.prompts.static_prompts import read_static_prompt
 from phoenix.server.agents.prompts.templating import get_template
 
 _BASE_INSTRUCTIONS = read_static_prompt("base/BASE_INSTRUCTIONS.xml")
-_BASE_SUBAGENT_INSTRUCTIONS = read_static_prompt("base/BASE_SUBAGENT_INSTRUCTIONS.xml")
 _VIEWER_ACCESS_INSTRUCTIONS = read_static_prompt("base/VIEWER_ACCESS_INSTRUCTIONS.xml")
 _DOCS_TOOL_INSTRUCTIONS = read_static_prompt("tools/DOCS_TOOL_INSTRUCTIONS.xml")
 _PHOENIX_MCP_TOOL_INSTRUCTIONS = read_static_prompt("tools/PHOENIX_MCP_TOOL_INSTRUCTIONS.xml")
@@ -53,23 +52,10 @@ class AgentPrompts:
     load_skill: Template = _LOAD_SKILL_TEMPLATE
 
 
-@dataclass(frozen=True)
-class ServerAgentPrompts:
-    """Every prompt the server agent uses."""
-
-    base: str = _BASE_SUBAGENT_INSTRUCTIONS
-    viewer_access: str = _VIEWER_ACCESS_INSTRUCTIONS
-    docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
-    phoenix_mcp_tools: str = _PHOENIX_MCP_TOOL_INSTRUCTIONS
-    skills: Template = _SKILLS_TEMPLATE
-    load_skill: Template = _LOAD_SKILL_TEMPLATE
-
-
 __all__ = [
     "AgentPrompts",
     "COMPACTION_INSTRUCTIONS_TEMPLATE",
     "COMPACTION_MESSAGE_TEMPLATE",
-    "ServerAgentPrompts",
     "SUMMARIZATION_INSTRUCTIONS_TEMPLATE",
     "UI_STATE_TEMPLATE",
 ]

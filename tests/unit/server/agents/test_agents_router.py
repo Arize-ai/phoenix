@@ -3417,7 +3417,7 @@ async def test_server_agent_bash_shell_state_persists_across_chat_turns(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Mirror of ``test_bash_shell_state_persists_across_chat_turns`` for
-    ``headless=True``: pins the snapshot wiring ``build_server_agent``
+    ``headless=True``: pins the snapshot wiring for a headless agent
     gained for the session route."""
     session_id = "57575757-5757-4757-8757-575757575757"
     agent_session_id = await _create_agent_session_row(db)

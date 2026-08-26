@@ -17,6 +17,7 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
+from phoenix.db.types.data_stream_protocol import EditPermission
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
     NativeToolRetryCapability,
@@ -38,7 +39,10 @@ from phoenix.server.agents.capabilities.tools.internal import (
 from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
 from phoenix.server.agents.capabilities.viewer_access import ViewerAccessCapability
 from phoenix.server.agents.prompts import AgentPrompts
-from phoenix.server.agents.pydantic_ai import OpenInferenceCapabilityWrapper
+from phoenix.server.agents.pydantic_ai import (
+    OpenInferenceAgentWrapper,
+    OpenInferenceCapabilityWrapper,
+)
 from phoenix.server.agents.skills import get_skills
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.agents.web_access import (
@@ -67,6 +71,7 @@ def build_skills_capability(*, prompts: AgentPrompts) -> SkillsCapability[AgentD
 
 def build_agent(
     *,
+    headless: bool,
     model: Model,
     prompts: AgentPrompts | None = None,
     docs_mcp_server: MCPToolset[AgentDependencies] | None = None,
@@ -74,7 +79,7 @@ def build_agent(
     principal: "PhoenixUser | None" = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
-    server_agent: AbstractAgent[None, str] | None = None,
+    enable_subagents: bool = False,
     publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
     | None = None,
     set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None,
@@ -82,29 +87,21 @@ def build_agent(
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
     auth_enabled: bool = False,
-    user_id: int | None = None,
-    is_viewer: bool = False,
+    edit_permission: EditPermission = "manual",
+    graphql_mutations_enabled: bool = False,
     schema: strawberry.Schema | None = None,
     build_graphql_context: Callable[[], Context] | None = None,
-    allow_mutations: bool = False,
-    require_mutation_approval: bool = True,
     initial_bash_snapshot: bytes | None = None,
     on_bash_snapshot: Callable[[bytes], None] | None = None,
 ) -> AbstractAgent[AgentDependencies, AgentOutput]:
-    server_agent_args = (
-        server_agent,
-        publish_subagent_message_chunk,
-        set_subagent_final_tool_output,
-    )
-    if any(arg is not None for arg in server_agent_args) and not all(
-        arg is not None for arg in server_agent_args
-    ):
-        raise ValueError(
-            "server_agent, publish_subagent_message_chunk, and "
-            "set_subagent_final_tool_output must be provided together."
-        )
-
     resolved_prompts = prompts or AgentPrompts()
+    user_id = int(principal.identity) if principal is not None else None
+    is_viewer = principal.is_viewer if principal is not None else False
+    can_approve_mutations = not headless
+    allow_mutations = graphql_mutations_enabled and (
+        edit_permission == "bypass" or can_approve_mutations
+    )
+    require_mutation_approval = can_approve_mutations and edit_permission == "manual"
     provider = tracer_provider or NoOpTracerProvider()
     tracer: Tracer = OITracer(
         provider.get_tracer("phoenix.server.agents"),
@@ -120,12 +117,17 @@ def build_agent(
             is_viewer=is_viewer,
         ),
         GetCurrentDatetimeCapability(),
-        DynamicCapability(
-            capability_func=get_external_tool_capability_function(),
-        ),
-        UIContextsCapability(instructions=resolved_prompts.ui_contexts),
-        build_skills_capability(prompts=resolved_prompts),
     ]
+    if not headless:
+        capabilities.extend(
+            [
+                DynamicCapability(
+                    capability_func=get_external_tool_capability_function(),
+                ),
+                UIContextsCapability(instructions=resolved_prompts.ui_contexts),
+            ]
+        )
+    capabilities.append(build_skills_capability(prompts=resolved_prompts))
     if schema is not None and build_graphql_context is not None:
         capabilities.append(
             BashCapability[AgentDependencies](
@@ -164,12 +166,29 @@ def build_agent(
             capabilities.append(web_search)
         if (web_fetch := build_web_fetch_capability(model)) is not None:
             capabilities.append(web_fetch)
-    if server_agent is not None:
-        assert publish_subagent_message_chunk is not None
-        assert set_subagent_final_tool_output is not None
+    if enable_subagents:
+        subagent = build_agent(
+            headless=True,
+            model=model,
+            db=db,
+            event_queue=event_queue,
+            prompts=resolved_prompts,
+            principal=principal,
+            schema=schema,
+            build_graphql_context=build_graphql_context,
+            docs_mcp_server=docs_mcp_server,
+            phoenix_mcp_server=phoenix_mcp_server,
+            tracer_provider=tracer_provider,
+            read_only=read_only,
+            auth_enabled=auth_enabled,
+            edit_permission=edit_permission,
+            graphql_mutations_enabled=graphql_mutations_enabled,
+            enable_web_access=enable_web_access,
+            enable_subagents=False,
+        )
         capabilities.append(
-            CallSubAgentCapability[AgentDependencies](
-                server_agent=server_agent,
+            CallSubAgentCapability(
+                server_agent=subagent,
                 publish_subagent_message_chunk=publish_subagent_message_chunk,
                 set_subagent_final_tool_output=set_subagent_final_tool_output,
             )
@@ -181,17 +200,16 @@ def build_agent(
         tracer=tracer,
     )
 
-    # The top-level agent is deliberately not wrapped in an
-    # OpenInferenceAgentWrapper: per-request AGENT spans grouped each run into
-    # an iteration, but the PXI turn reads better as a flat list of model and
-    # tool spans parented directly under the browser's `pxi.turn` root (via
-    # the propagated trace context).
     agent: Agent[AgentDependencies, AgentOutput] = Agent(
         model,
-        name="PXIAgent",
+        name="PXISubagent" if headless else "PXIAgent",
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
         instructions=resolved_prompts.base,
         capabilities=[traced_capability, NativeToolRetryCapability()],
     )
+    if headless:
+        return OpenInferenceAgentWrapper(agent, tracer=tracer)
+    # The browser already creates the turn-level root span. Leaving the main
+    # agent unwrapped keeps its model and tool spans flat beneath that root.
     return agent
