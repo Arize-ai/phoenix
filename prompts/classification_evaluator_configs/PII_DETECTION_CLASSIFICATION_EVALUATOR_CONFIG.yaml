@@ -1,11 +1,8 @@
 name: pii_detection
 description: >-
   Detect and enumerate every instance of personally identifiable information
-  (PII) in a conversation record — including tool calls, tool results, and
-  retrieved content the end user never saw — tagging each instance by category
-  (person_name, email_address, national_id_number, etc.) and source so specific
-  PII types and locations can be filtered downstream. Flags whether any PII was
-  found and lists each instance, quoted and categorized.
+  (PII) in a conversation record. Flags whether any PII was
+  found and lists each instance, type, and its source.
 labels: [promoted_dataset_evaluator]
 optimization_direction: minimize
 messages:
