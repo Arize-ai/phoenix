@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bcafb24b96b20e1f363590034c2bd9b5>>
+ * @generated SignedSource<<2b9ab5d32fb128a91bd9921d16212c40>>
  * @lightSyntaxTransform
  */
 
@@ -466,39 +466,80 @@ v18 = {
   "name": "profilePictureUrl",
   "storageKey": null
 },
-v19 = {
+v19 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
+],
+v20 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "CostBreakdown",
+    "kind": "LinkedField",
+    "name": "total",
+    "plural": false,
+    "selections": (v19/*:: as any*/),
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "CostBreakdown",
+    "kind": "LinkedField",
+    "name": "prompt",
+    "plural": false,
+    "selections": (v19/*:: as any*/),
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "CostBreakdown",
+    "kind": "LinkedField",
+    "name": "completion",
+    "plural": false,
+    "selections": (v19/*:: as any*/),
+    "storageKey": null
+  }
+],
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v20 = [
+v22 = [
   (v3/*:: as any*/),
   (v4/*:: as any*/)
 ],
-v21 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v22 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelProvider",
   "storageKey": null
 },
-v23 = {
+v25 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "language",
   "storageKey": null
 },
-v24 = {
+v26 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -631,6 +672,34 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "concreteType": "Project",
+                    "kind": "LinkedField",
+                    "name": "project",
+                    "plural": false,
+                    "selections": [
+                      (v3/*:: as any*/),
+                      {
+                        "alias": null,
+                        "args": [
+                          {
+                            "kind": "Variable",
+                            "name": "timeRange",
+                            "variableName": "costTimeRange"
+                          }
+                        ],
+                        "concreteType": "SpanCostSummary",
+                        "kind": "LinkedField",
+                        "name": "costSummary",
+                        "plural": false,
+                        "selections": (v20/*:: as any*/),
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": null,
                     "kind": "LinkedField",
                     "name": "evaluator",
@@ -639,7 +708,7 @@ return {
                       (v3/*:: as any*/),
                       (v4/*:: as any*/),
                       (v6/*:: as any*/),
-                      (v19/*:: as any*/),
+                      (v21/*:: as any*/),
                       (v16/*:: as any*/),
                       {
                         "kind": "InlineFragment",
@@ -651,7 +720,7 @@ return {
                             "kind": "LinkedField",
                             "name": "prompt",
                             "plural": false,
-                            "selections": (v20/*:: as any*/),
+                            "selections": (v22/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -674,8 +743,8 @@ return {
                             "name": "promptVersion",
                             "plural": false,
                             "selections": [
-                              (v21/*:: as any*/),
-                              (v22/*:: as any*/)
+                              (v23/*:: as any*/),
+                              (v24/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -686,7 +755,7 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v23/*:: as any*/),
+                          (v25/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -705,7 +774,7 @@ return {
                                 "name": "provider",
                                 "plural": false,
                                 "selections": [
-                                  (v24/*:: as any*/)
+                                  (v26/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -721,7 +790,13 @@ return {
                   }
                 ],
                 "args": null,
-                "argumentDefinitions": []
+                "argumentDefinitions": [
+                  {
+                    "defaultValue": null,
+                    "kind": "LocalArgument",
+                    "name": "costTimeRange"
+                  }
+                ]
               }
             ],
             "storageKey": null
@@ -817,7 +892,7 @@ return {
                                         "name": "sequenceNumber",
                                         "storageKey": null
                                       },
-                                      (v19/*:: as any*/),
+                                      (v21/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -839,7 +914,7 @@ return {
                                         "kind": "LinkedField",
                                         "name": "tags",
                                         "plural": true,
-                                        "selections": (v20/*:: as any*/),
+                                        "selections": (v22/*:: as any*/),
                                         "storageKey": null
                                       }
                                     ],
@@ -877,8 +952,8 @@ return {
                         "name": "promptVersion",
                         "plural": false,
                         "selections": [
-                          (v21/*:: as any*/),
-                          (v22/*:: as any*/),
+                          (v23/*:: as any*/),
+                          (v24/*:: as any*/),
                           (v3/*:: as any*/)
                         ],
                         "storageKey": null
@@ -888,12 +963,12 @@ return {
                     "abstractKey": null
                   },
                   (v4/*:: as any*/),
-                  (v19/*:: as any*/),
+                  (v21/*:: as any*/),
                   (v16/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v23/*:: as any*/),
+                      (v25/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -912,7 +987,7 @@ return {
                             "name": "provider",
                             "plural": false,
                             "selections": [
-                              (v24/*:: as any*/),
+                              (v26/*:: as any*/),
                               (v3/*:: as any*/)
                             ],
                             "storageKey": null
@@ -965,6 +1040,28 @@ return {
                   (v3/*:: as any*/)
                 ],
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Project",
+                "kind": "LinkedField",
+                "name": "project",
+                "plural": false,
+                "selections": [
+                  (v3/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "SpanCostSummary",
+                    "kind": "LinkedField",
+                    "name": "costSummary",
+                    "plural": false,
+                    "selections": (v20/*:: as any*/),
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
               }
             ],
             "storageKey": null
@@ -996,12 +1093,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "859a799f23c5e3f94b471245396853f8",
+    "cacheID": "6db7070116d2b6466e58f2375cf9d9b8",
     "id": null,
     "metadata": {},
     "name": "CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...PlaygroundDatasetSection_evaluator\n      evaluator {\n        __typename\n        ... on LLMEvaluator {\n          prompt {\n            ...PromptVersionsList__main\n            id\n          }\n        }\n        id\n      }\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...PlaygroundDatasetSection_evaluator\n      evaluator {\n        __typename\n        ... on LLMEvaluator {\n          prompt {\n            ...PromptVersionsList__main\n            id\n          }\n        }\n        id\n      }\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  project {\n    id\n    costSummary {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n"
   }
 };
 })();

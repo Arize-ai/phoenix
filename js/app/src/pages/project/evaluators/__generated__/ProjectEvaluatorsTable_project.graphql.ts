@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aa7f2fbef88835a4e8e8228111d87eaa>>
+ * @generated SignedSource<<06f3ad275443846c0823fda9c1da7113>>
  * @lightSyntaxTransform
  */
 
@@ -28,23 +28,37 @@ export type ProjectEvaluatorsTable_project$key = {
 import ProjectEvaluatorsTablePaginationQuery_graphql from './ProjectEvaluatorsTablePaginationQuery.graphql';
 
 const node: ReaderFragment = (function(){
-var v0 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "costTimeRange"
+},
+v1 = [
   "evaluators"
 ],
-v1 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-};
+},
+v4 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -52,6 +66,7 @@ return {
       "kind": "LocalArgument",
       "name": "after"
     },
+    (v0/*:: as any*/),
     {
       "defaultValue": null,
       "kind": "LocalArgument",
@@ -70,7 +85,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v0/*:: as any*/)
+        "path": (v1/*:: as any*/)
       }
     ],
     "refetch": {
@@ -80,7 +95,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v0/*:: as any*/)
+        "path": (v1/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -128,8 +143,8 @@ return {
                   "kind": "InlineDataFragmentSpread",
                   "name": "ProjectEvaluatorsTable_row",
                   "selections": [
-                    (v1/*:: as any*/),
                     (v2/*:: as any*/),
+                    (v3/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -228,6 +243,65 @@ return {
                     {
                       "alias": null,
                       "args": null,
+                      "concreteType": "Project",
+                      "kind": "LinkedField",
+                      "name": "traceProject",
+                      "plural": false,
+                      "selections": [
+                        (v2/*:: as any*/),
+                        {
+                          "alias": null,
+                          "args": [
+                            {
+                              "kind": "Variable",
+                              "name": "timeRange",
+                              "variableName": "costTimeRange"
+                            }
+                          ],
+                          "concreteType": "SpanCostSummary",
+                          "kind": "LinkedField",
+                          "name": "costSummary",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "CostBreakdown",
+                              "kind": "LinkedField",
+                              "name": "total",
+                              "plural": false,
+                              "selections": (v4/*:: as any*/),
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "CostBreakdown",
+                              "kind": "LinkedField",
+                              "name": "prompt",
+                              "plural": false,
+                              "selections": (v4/*:: as any*/),
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "CostBreakdown",
+                              "kind": "LinkedField",
+                              "name": "completion",
+                              "plural": false,
+                              "selections": (v4/*:: as any*/),
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
                       "concreteType": null,
                       "kind": "LinkedField",
                       "name": "evaluator",
@@ -251,8 +325,8 @@ return {
                               "name": "prompt",
                               "plural": false,
                               "selections": [
-                                (v1/*:: as any*/),
-                                (v2/*:: as any*/)
+                                (v2/*:: as any*/),
+                                (v3/*:: as any*/)
                               ],
                               "storageKey": null
                             },
@@ -264,7 +338,7 @@ return {
                               "name": "promptVersionTag",
                               "plural": false,
                               "selections": [
-                                (v2/*:: as any*/)
+                                (v3/*:: as any*/)
                               ],
                               "storageKey": null
                             },
@@ -315,8 +389,8 @@ return {
                               "name": "sandboxConfig",
                               "plural": false,
                               "selections": [
-                                (v1/*:: as any*/),
                                 (v2/*:: as any*/),
+                                (v3/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -346,8 +420,16 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "args": null,
-                  "argumentDefinitions": []
+                  "args": [
+                    {
+                      "kind": "Variable",
+                      "name": "costTimeRange",
+                      "variableName": "costTimeRange"
+                    }
+                  ],
+                  "argumentDefinitions": [
+                    (v0/*:: as any*/)
+                  ]
                 },
                 {
                   "alias": null,
@@ -397,13 +479,13 @@ return {
       ],
       "storageKey": null
     },
-    (v1/*:: as any*/)
+    (v2/*:: as any*/)
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "e32f1d4594df375d4292c05d795eecba";
+(node as any).hash = "8afb834b12cf21404644b16e800bc56f";
 
 export default node;

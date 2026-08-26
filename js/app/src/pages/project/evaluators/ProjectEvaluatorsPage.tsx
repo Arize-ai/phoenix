@@ -5,6 +5,7 @@ import { Outlet, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Skeleton, View } from "@phoenix/components";
+import { getEvaluatorCostTimeRange } from "@phoenix/pages/evaluators/evaluatorCostUtils";
 import type { ProjectEvaluatorsPageQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsPageQuery.graphql";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
@@ -43,17 +44,22 @@ function ProjectEvaluatorsPageContent({
   projectId: string;
   filter: string;
 }) {
+  const [costTimeRange] = useState(() => getEvaluatorCostTimeRange());
   const data = useLazyLoadQuery<ProjectEvaluatorsPageQuery>(
     graphql`
-      query ProjectEvaluatorsPageQuery($projectId: ID!) {
+      query ProjectEvaluatorsPageQuery(
+        $projectId: ID!
+        $costTimeRange: TimeRange
+      ) {
         project: node(id: $projectId) {
           ... on Project {
             ...ProjectEvaluatorsTable_project
+              @arguments(costTimeRange: $costTimeRange)
           }
         }
       }
     `,
-    { projectId },
+    { projectId, costTimeRange },
     { fetchPolicy: "store-and-network" }
   );
   invariant(data.project, "project is required");

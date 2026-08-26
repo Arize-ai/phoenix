@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<34920f9efbbbbd35341ccad9390bb6e4>>
+ * @generated SignedSource<<e110d17264f0cff4ac6aa9f67da449d0>>
  * @lightSyntaxTransform
  */
 
@@ -43,6 +43,20 @@ export type DatasetEvaluatorsTable_row$data = {
   };
   readonly id: string;
   readonly name: string;
+  readonly project: {
+    readonly costSummary: {
+      readonly completion: {
+        readonly cost: number | null;
+      };
+      readonly prompt: {
+        readonly cost: number | null;
+      };
+      readonly total: {
+        readonly cost: number | null;
+      };
+    };
+    readonly id: string;
+  };
   readonly updatedAt: string;
   readonly user: {
     readonly profilePictureUrl: string | null;
@@ -60,6 +74,6 @@ const node: ReaderInlineDataFragment = {
   "name": "DatasetEvaluatorsTable_row"
 };
 
-(node as any).hash = "9293ad736f30aa525b9fc37dc9a49802";
+(node as any).hash = "0d03de86cbf0dea3215b7a20ffdc3d77";
 
 export default node;

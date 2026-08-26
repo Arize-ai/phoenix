@@ -30,6 +30,7 @@ import {
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { EvaluatorCost } from "@phoenix/components/evaluators/EvaluatorCost";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
@@ -205,7 +206,9 @@ const DatasetEvaluatorsEmpty = ({
 const readRow = (row: DatasetEvaluatorsTable_row$key) => {
   return readInlineData(
     graphql`
-      fragment DatasetEvaluatorsTable_row on DatasetEvaluator @inline {
+      fragment DatasetEvaluatorsTable_row on DatasetEvaluator
+      @inline
+      @argumentDefinitions(costTimeRange: { type: "TimeRange" }) {
         id
         name
         description
@@ -213,6 +216,20 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
         user {
           username
           profilePictureUrl
+        }
+        project {
+          id
+          costSummary(timeRange: $costTimeRange) {
+            total {
+              cost
+            }
+            prompt {
+              cost
+            }
+            completion {
+              cost
+            }
+          }
         }
         evaluator {
           id
@@ -431,6 +448,19 @@ export const DatasetEvaluatorsTable = ({
             </Flex>
           );
         },
+      },
+      {
+        id: "cost",
+        header: "cost (7d)",
+        size: 100,
+        enableSorting: false,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => (
+          <EvaluatorCost
+            evaluatorKind={row.original.evaluator.kind}
+            costSummary={row.original.project.costSummary}
+          />
+        ),
       },
       {
         header: "last modified by",
@@ -656,6 +686,7 @@ export const DatasetEvaluatorsTable = ({
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
+                          textAlign: cell.column.columnDef.meta?.textAlign,
                         }}
                       >
                         {flexRender(

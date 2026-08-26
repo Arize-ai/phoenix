@@ -27,6 +27,7 @@ import {
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { EvaluatorCost } from "@phoenix/components/evaluators/EvaluatorCost";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
@@ -63,7 +64,9 @@ const scrollableAreaCSS = css`
 const readRow = (row: ProjectEvaluatorsTable_row$key) => {
   return readInlineData(
     graphql`
-      fragment ProjectEvaluatorsTable_row on ProjectEvaluator @inline {
+      fragment ProjectEvaluatorsTable_row on ProjectEvaluator
+      @inline
+      @argumentDefinitions(costTimeRange: { type: "TimeRange" }) {
         id
         name
         evaluationTarget
@@ -80,6 +83,20 @@ const readRow = (row: ProjectEvaluatorsTable_row$key) => {
           queuedCount
           evaluatedCount
           failedCount
+        }
+        traceProject {
+          id
+          costSummary(timeRange: $costTimeRange) {
+            total {
+              cost
+            }
+            prompt {
+              cost
+            }
+            completion {
+              cost
+            }
+          }
         }
         evaluator {
           kind
@@ -140,12 +157,14 @@ export function ProjectEvaluatorsTable({
         first: { type: "Int", defaultValue: 30 }
         after: { type: "String", defaultValue: null }
         filter: { type: "ProjectEvaluatorFilter", defaultValue: null }
+        costTimeRange: { type: "TimeRange" }
       ) {
         evaluators(first: $first, after: $after, filter: $filter)
           @connection(key: "ProjectEvaluatorsTable_evaluators") {
           edges {
             node {
               ...ProjectEvaluatorsTable_row
+                @arguments(costTimeRange: $costTimeRange)
             }
           }
         }
@@ -253,6 +272,18 @@ export function ProjectEvaluatorsTable({
             </Flex>
           );
         },
+      },
+      {
+        id: "cost",
+        header: "cost (7d)",
+        size: 100,
+        meta: { textAlign: "right" },
+        cell: ({ row }) => (
+          <EvaluatorCost
+            evaluatorKind={row.original.evaluator.kind}
+            costSummary={row.original.traceProject.costSummary}
+          />
+        ),
       },
       {
         id: "language",
@@ -439,7 +470,11 @@ export function ProjectEvaluatorsTable({
                 >
                   {header.isPlaceholder ? null : (
                     <>
-                      <div>
+                      <div
+                        style={{
+                          textAlign: header.column.columnDef.meta?.textAlign,
+                        }}
+                      >
                         {flexRender(
                           header.column.columnDef.header,
                           header.getContext()
@@ -487,6 +522,7 @@ export function ProjectEvaluatorsTable({
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        textAlign: cell.column.columnDef.meta?.textAlign,
                         ...(cell.column.getIsPinned()
                           ? getCommonPinningStyles(cell.column)
                           : {}),

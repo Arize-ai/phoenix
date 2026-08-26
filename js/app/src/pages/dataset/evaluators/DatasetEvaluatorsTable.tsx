@@ -30,6 +30,7 @@ export const useDatasetEvaluatorsTable = (
         first: { type: "Int", defaultValue: 100 }
         sort: { type: "DatasetEvaluatorSort", defaultValue: null }
         filter: { type: "DatasetEvaluatorFilter", defaultValue: null }
+        costTimeRange: { type: "TimeRange" }
       ) {
         datasetEvaluators(
           first: $first
@@ -41,6 +42,7 @@ export const useDatasetEvaluatorsTable = (
           edges {
             node {
               ...DatasetEvaluatorsTable_row
+                @arguments(costTimeRange: $costTimeRange)
             }
           }
         }
