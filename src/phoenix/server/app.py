@@ -1242,6 +1242,7 @@ def create_app(
     pxi_mcp_server = None
     pxi_mcp_sandbox = None
     if not get_env_disable_agent_assistant():
+        from phoenix.server.mcp.skills import GENERAL_SKILLS_ROOT, PXI_SKILLS_ROOT
         from phoenix.server.mcp_server import build_phoenix_mcp_server
 
         pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
@@ -1251,6 +1252,7 @@ def create_app(
             monty_consumer="agent",
             read_only=True,
             db=db,
+            skills_roots=(GENERAL_SKILLS_ROOT, PXI_SKILLS_ROOT),
         )
     app.state.pxi_mcp_server = pxi_mcp_server
     app.state.pxi_mcp_sandbox = pxi_mcp_sandbox

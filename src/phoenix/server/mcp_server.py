@@ -28,6 +28,8 @@ notification is emitted to that session automatically.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import httpx
@@ -57,6 +59,7 @@ from phoenix.server.bearer_auth import (
     get_bound_principal,
     token_audience_permits,
 )
+from phoenix.server.mcp.skills import GENERAL_SKILLS_ROOT, build_skills_provider
 from phoenix.server.mcp_code_mode import MontyPoolSandboxProvider
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.utils import prepend_root_path
@@ -81,6 +84,14 @@ _DEFAULT_VISIBLE_GROUPS = frozenset({"projects"})
 
 #: Tag applied to the progressive-disclosure meta tools so they are never gated.
 _META_TAG = "phoenix-mcp-meta"
+
+# Sent in the initialize handshake; clients that honor it fold this into the model's
+# system prompt, so it says what the tools list cannot: skills exist and where they are.
+_INSTRUCTIONS = (
+    "Phoenix publishes skills as resources. `skill://<name>/SKILL.md` holds a skill's "
+    "instructions and the resources listed beside it are its supporting references. "
+    "Before working in a skill's domain, read its SKILL.md and follow it."
+)
 
 # Tools dispatch back into the Phoenix app via an ASGI transport, so this host is
 # never resolved over the network; it only supplies a syntactically valid base URL.
@@ -461,6 +472,7 @@ def build_phoenix_mcp_server(
     monty_consumer: "MontyConsumer" = "mcp",
     read_only: bool = False,
     db: "DbSessionFactory",
+    skills_roots: Sequence[Path] = (GENERAL_SKILLS_ROOT,),
 ) -> tuple[FastMCP, Optional[MontyPoolSandboxProvider]]:
     """Derive an MCP server from ``app``'s REST API.
 
@@ -478,6 +490,9 @@ def build_phoenix_mcp_server(
             mode. Ignored when code mode is off.
         read_only: Derive tools from GET routes only.
         db: Session factory for the analytics SQL tools.
+        skills_roots: Directories whose skill folders this consumer receives as
+            ``skill://`` resources. Defaults to the general skills alone; the
+            in-process agent adds its own root.
 
     Returns:
         The server, and — when code mode is enabled — the sandbox adapter backed
@@ -500,6 +515,7 @@ def build_phoenix_mcp_server(
         # Without this the handshake advertises the FastMCP library version, which
         # tells a client nothing about the Phoenix it is talking to.
         version=phoenix_version,
+        instructions=_INSTRUCTIONS,
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not
@@ -534,6 +550,8 @@ def build_phoenix_mcp_server(
     from phoenix.server.mcp.sql.tools import register_analytics_sql_tools
 
     register_analytics_sql_tools(mcp, db=db)
+    # Resources, not tools, so neither code mode nor group gating touches them.
+    mcp.add_provider(build_skills_provider(skills_roots))
     return mcp, sandbox_provider
 
 
