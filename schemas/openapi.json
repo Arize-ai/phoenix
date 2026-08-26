@@ -8843,7 +8843,7 @@
         "tags": [
           "chat"
         ],
-        "summary": "Run Server Agent",
+        "summary": "Run Headless Agent",
         "operationId": "legacyServerAgentChat",
         "deprecated": true,
         "parameters": [
