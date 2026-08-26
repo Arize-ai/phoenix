@@ -10,6 +10,11 @@
  * effectively no negatives, precision / false-positive rate cannot be measured
  * here. For a balanced precision/recall suite, see
  * `pii_detection.synthetic.eval.ts`.
+ * 
+  * Before running this benchmark, generate the fixture:
+ *   python scripts/benchmarks/pii_detection/sample_nemotron.py \
+ *     --n 150 --seed 20250824 \
+ *     --out js/benchmarks/evals-benchmarks/src/fixtures/pii_detection.nemotron.jsonl
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
