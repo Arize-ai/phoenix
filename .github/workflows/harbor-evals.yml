@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   harbor-eval:
-    name: ServerAgent regression triage (Daytona)
+    name: Headless agent regression triage (Daytona)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -47,7 +47,7 @@ jobs:
 
       # The agent is nondeterministic; require 3 of 4 steps rather than
       # perfection. Tighten once there's a pass-rate history.
-      - name: Run ServerAgent trial
+      - name: Run headless-agent trial
         run: |
           make harbor-run
           python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.75

@@ -60,7 +60,7 @@ class TestCallSubAgentToolset:
             final_chunks.append(chunk)
 
         toolset = CallSubAgentToolset(
-            server_agent=_subagent(),
+            subagent=_subagent(),
             publish_subagent_message_chunk=publish_subagent_message_chunk,
             set_subagent_final_tool_output=set_subagent_final_tool_output,
         )
@@ -101,7 +101,7 @@ class TestCallSubAgentToolset:
             final_chunks.append(chunk)
 
         toolset = CallSubAgentToolset(
-            server_agent=_subagent(),
+            subagent=_subagent(),
             publish_subagent_message_chunk=publish_subagent_message_chunk,
             set_subagent_final_tool_output=set_subagent_final_tool_output,
         )
@@ -121,13 +121,13 @@ class TestCallSubAgentToolset:
             seen_prompts.append(ctx.prompt)
             return ""
 
-        server_agent: Agent[AgentDependencies, AgentOutput] = Agent(
+        subagent: Agent[AgentDependencies, AgentOutput] = Agent(
             TestModel(custom_output_text="subagent summary"),
             deps_type=AgentDependencies,
             output_type=[str, DeferredToolRequests],
             instructions=capture_prompt,
         )
-        toolset = CallSubAgentToolset(server_agent=server_agent)
+        toolset = CallSubAgentToolset(subagent=subagent)
 
         await _call_subagent_tool(
             toolset=toolset,
@@ -143,13 +143,13 @@ class TestCallSubAgentToolset:
             seen_dependencies.append(ctx.deps)
             return ""
 
-        server_agent: Agent[AgentDependencies, AgentOutput] = Agent(
+        subagent: Agent[AgentDependencies, AgentOutput] = Agent(
             TestModel(custom_output_text="subagent summary"),
             deps_type=AgentDependencies,
             output_type=[str, DeferredToolRequests],
             instructions=capture_dependencies,
         )
-        toolset = CallSubAgentToolset(server_agent=server_agent)
+        toolset = CallSubAgentToolset(subagent=subagent)
         ctx = _run_context(tool_call_id="parent-tool-call-1")
 
         await _call_subagent_tool(toolset=toolset, ctx=ctx)

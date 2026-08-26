@@ -1,4 +1,4 @@
-"""Harbor adapter for Phoenix's in-process ServerAgent."""
+"""Harbor adapter for Phoenix's in-process headless agent."""
 
 import shlex
 import tempfile
@@ -17,14 +17,14 @@ _LATEST_LINK = "/logs/agent/latest"
 _INSTRUCTION_PATH = "/tmp/instruction.md"
 
 
-class PhoenixServerAgent(BaseAgent):
+class PhoenixHeadlessAgent(BaseAgent):
     # Harbor reuses the same agent instance for every step of a trial, so the
     # step counter can live here instead of in the container.
     _step: int = 0
 
     @staticmethod
     def name() -> str:
-        return "phoenix-server-agent"
+        return "phoenix-headless-agent"
 
     def version(self) -> str | None:
         return None
@@ -63,7 +63,7 @@ class PhoenixServerAgent(BaseAgent):
         # the exec working directory.
         command = " ".join(
             [
-                "python /opt/phoenix-eval/run_server_agent.py",
+                "python /opt/phoenix-eval/run_headless_agent.py",
                 "--db-path /data/phoenix.db",
                 f"--instruction-file {_INSTRUCTION_PATH}",
                 f"--model {shlex.quote(model_name)}",
@@ -80,7 +80,7 @@ class PhoenixServerAgent(BaseAgent):
             raise RuntimeError(
                 result.stderr
                 or result.stdout
-                or f"Phoenix ServerAgent runner failed with code {result.return_code}"
+                or f"Phoenix headless agent runner failed with code {result.return_code}"
             )
         answer = await environment.exec(f"cat {out_dir}/answer.md")
         if answer.return_code != 0:

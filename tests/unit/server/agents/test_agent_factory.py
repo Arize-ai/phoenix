@@ -20,7 +20,7 @@ from anthropic.types.beta import (
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from jinja2 import Template
 from opentelemetry.trace import NoOpTracerProvider
-from pydantic_ai import RunContext, UserError
+from pydantic_ai import Agent, RunContext, UserError
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
@@ -48,7 +48,10 @@ from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapabi
 from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.prompts import AgentPrompts
-from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
+from phoenix.server.agents.pydantic_ai import (
+    OpenInferenceAgentWrapper,
+    OpenInferenceModelWrapper,
+)
 from phoenix.server.agents.skills import get_skills
 from phoenix.server.agents.types import (
     AgentDependencies,
@@ -911,7 +914,7 @@ class TestSubagents:
         assert params is not None
         assert "call_subagent" in {tool.name for tool in params.function_tools}
         capability = _find_capability(agent, CallSubAgentCapability)
-        assert _get_capabilities(capability.server_agent, CallSubAgentCapability) == []
+        assert _get_capabilities(capability.subagent, CallSubAgentCapability) == []
 
     async def test_child_instructions_match_a_direct_headless_agent(self) -> None:
         model = TestModel(call_tools=[])
@@ -922,7 +925,7 @@ class TestSubagents:
             prompts=prompts,
             enable_subagents=True,
         )
-        child = _find_capability(parent, CallSubAgentCapability).server_agent
+        child = _find_capability(parent, CallSubAgentCapability).subagent
         direct_headless_agent = build_agent(
             model=model,
             headless=True,
@@ -936,6 +939,17 @@ class TestSubagents:
         child_instructions = child_result.all_messages()[0].instructions
         direct_instructions = direct_result.all_messages()[0].instructions
         assert child_instructions == direct_instructions
+
+    @pytest.mark.parametrize("headless", [False, True])
+    def test_factory_returns_an_unwrapped_agent(self, model: TestModel, headless: bool) -> None:
+        agent = build_agent(model=model, headless=headless)
+        assert type(agent) is Agent
+
+    def test_subagent_is_wrapped_with_its_own_agent_span(self, model: TestModel) -> None:
+        parent = build_agent(model=model, enable_subagents=True)
+        child = _find_capability(parent, CallSubAgentCapability).subagent
+        assert isinstance(child, OpenInferenceAgentWrapper)
+        assert type(child.wrapped) is Agent
 
 
 @pytest.mark.parametrize("headless", [False, True])

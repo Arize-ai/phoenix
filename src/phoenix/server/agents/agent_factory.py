@@ -7,7 +7,6 @@ import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests
-from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.capabilities import (
     AbstractCapability,
     CombinedCapability,
@@ -69,6 +68,12 @@ def build_skills_capability(*, prompts: AgentPrompts) -> SkillsCapability[AgentD
     )
 
 
+def build_agent_tracer(tracer_provider: TracerProvider | None) -> Tracer:
+    """The OpenInference tracer the PXI agent and its wrappers emit spans through."""
+    provider = tracer_provider or NoOpTracerProvider()
+    return OITracer(provider.get_tracer("phoenix.server.agents"), config=TraceConfig())
+
+
 def build_agent(
     *,
     headless: bool,
@@ -93,7 +98,7 @@ def build_agent(
     build_graphql_context: Callable[[], Context] | None = None,
     initial_bash_snapshot: bytes | None = None,
     on_bash_snapshot: Callable[[bytes], None] | None = None,
-) -> AbstractAgent[AgentDependencies, AgentOutput]:
+) -> Agent[AgentDependencies, AgentOutput]:
     resolved_prompts = prompts or AgentPrompts()
     user_id = int(principal.identity) if principal is not None else None
     is_viewer = principal.is_viewer if principal is not None else False
@@ -102,11 +107,7 @@ def build_agent(
         edit_permission == "bypass" or can_approve_mutations
     )
     require_mutation_approval = can_approve_mutations and edit_permission == "manual"
-    provider = tracer_provider or NoOpTracerProvider()
-    tracer: Tracer = OITracer(
-        provider.get_tracer("phoenix.server.agents"),
-        config=TraceConfig(),
-    )
+    tracer = build_agent_tracer(tracer_provider)
     capabilities: list[AbstractCapability[AgentDependencies]] = [
         WriteSpanNoteCapability(
             db=db,
@@ -188,7 +189,7 @@ def build_agent(
         )
         capabilities.append(
             CallSubAgentCapability(
-                server_agent=subagent,
+                subagent=OpenInferenceAgentWrapper(subagent, tracer=tracer),
                 publish_subagent_message_chunk=publish_subagent_message_chunk,
                 set_subagent_final_tool_output=set_subagent_final_tool_output,
             )
@@ -208,8 +209,4 @@ def build_agent(
         instructions=resolved_prompts.base,
         capabilities=[traced_capability, NativeToolRetryCapability()],
     )
-    if headless:
-        return OpenInferenceAgentWrapper(agent, tracer=tracer)
-    # The browser already creates the turn-level root span. Leaving the main
-    # agent unwrapped keeps its model and tool spans flat beneath that root.
     return agent

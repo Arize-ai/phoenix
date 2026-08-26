@@ -48,6 +48,7 @@ from pydantic import (
 )
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
+from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
@@ -122,7 +123,7 @@ from phoenix.db.types.data_stream_protocol import (
     UIMessagePart,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.server.agents.agent_factory import build_agent
+from phoenix.server.agents.agent_factory import build_agent, build_agent_tracer
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.context import (
@@ -136,6 +137,7 @@ from phoenix.server.agents.exceptions import AgentError, CompactionError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import UI_STATE_TEMPLATE, AgentPrompts
+from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
 from phoenix.server.agents.session_titles import (
     MAX_AGENT_SESSION_TITLE_LENGTH,
     truncate_agent_session_title,
@@ -3281,7 +3283,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     final_tool_output
                 )
 
-            agent = build_agent(
+            agent: AbstractAgent[AgentDependencies, AgentOutput] = build_agent(
                 headless=body.headless,
                 model=model,
                 db=request.app.state.db,
@@ -3312,7 +3314,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     None if body.headless else _set_subagent_final_tool_output
                 ),
             )
-            if not body.headless:
+            if body.headless:
+                agent = OpenInferenceAgentWrapper(agent, tracer=build_agent_tracer(tracer_provider))
+            else:
                 model_transcript_messages = _prepend_ui_state_blocks_from_metadata(
                     model_transcript_messages
                 )

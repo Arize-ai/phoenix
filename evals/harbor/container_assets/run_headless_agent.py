@@ -14,6 +14,7 @@ from asgi_lifespan import LifespanManager
 from openinference.instrumentation import OITracer, TraceConfig, get_span_kind_attributes
 from opentelemetry.sdk.trace import TracerProvider
 from phoenix.otel import register, using_attributes
+from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.test import TestModel
@@ -22,8 +23,8 @@ from phoenix.db.engines import create_engine
 from phoenix.db.types.data_stream_protocol import EditPermission
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.context import ResolvedContexts
-from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
-from phoenix.server.agents.types import AgentDependencies
+from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper, OpenInferenceModelWrapper
+from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.app import _db, create_app
 from phoenix.server.types import DbSessionFactory
 
@@ -95,7 +96,7 @@ async def run(args: argparse.Namespace) -> None:
         async with LifespanManager(app, startup_timeout=120, shutdown_timeout=120):
             graphql_mutations_enabled = _resolve_allow_mutations(args)
             edit_permission: EditPermission = "bypass" if graphql_mutations_enabled else "manual"
-            agent = build_agent(
+            agent: AbstractAgent[AgentDependencies, AgentOutput] = build_agent(
                 headless=True,
                 model=model,
                 schema=app.state.graphql_schema,
@@ -107,6 +108,8 @@ async def run(args: argparse.Namespace) -> None:
                 graphql_mutations_enabled=graphql_mutations_enabled,
                 tracer_provider=tracer_provider,
             )
+            if tracer is not None:
+                agent = OpenInferenceAgentWrapper(agent, tracer=tracer)
             trace_context = (
                 tracer.start_as_current_span(
                     "harbor.trajectory.step",

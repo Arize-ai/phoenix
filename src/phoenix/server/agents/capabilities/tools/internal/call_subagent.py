@@ -30,9 +30,9 @@ from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
-Delegate a natural-language task to the Phoenix GraphQL server agent, which queries the Phoenix backend and returns a concise answer. Use for any task that requires data about projects, traces, spans, datasets, experiments, or evaluations.
-The sub-agent does that work in its own context and returns only the answer you need. It has its own `bash` tool, running in a server-side virtual shell, that queries the Phoenix GraphQL API via the `phoenix-gql` command (read-only by default) and can write scratch files under its own workspace. Besides bash, it can also search the Phoenix documentation and the web when those tools are enabled. Its bash and file system are isolated from yours, and it returns only its final text answer, so any data it gathers must come back in that answer rather than as files you can read.
-Pass `task`, a single self-contained natural-language description of exactly what you need, along with `name`, a short human-readable name for the sub-agent. The sub-agent has no access to your context, so the task must be entirely self-contained and fully specified: explicitly pass along IDs, time ranges, and any other details rather than assuming they will be visible to the sub-agent.
+Delegate a natural-language task to a Phoenix subagent, which queries the Phoenix backend and returns a concise answer. Use for any task that requires data about projects, traces, spans, datasets, experiments, or evaluations.
+The subagent does that work in its own context and returns only the answer you need. It has its own `bash` tool, running in a server-side virtual shell, that queries the Phoenix GraphQL API via the `phoenix-gql` command (read-only by default) and can write scratch files under its own workspace. Besides bash, it can also search the Phoenix documentation and the web when those tools are enabled. Its bash and file system are isolated from yours, and it returns only its final text answer, so any data it gathers must come back in that answer rather than as files you can read.
+Pass `task`, a single self-contained natural-language description of exactly what you need, along with `name`, a short human-readable name for the subagent. The subagent has no access to your context, so the task must be entirely self-contained and fully specified: explicitly pass along IDs, time ranges, and any other details rather than assuming they will be visible to the subagent.
 """
 
 # The subagent runs on the shared assistant prompt, which frames its reply as a
@@ -66,7 +66,7 @@ def _discard_subagent_final_tool_output(_: ToolOutputAvailableChunk) -> None:
 class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
     """Toolset exposing the main agent's ``call_subagent`` delegation tool.
 
-    The tool delegates a natural-language task to the GraphQL server agent and
+    The tool delegates a natural-language task to the subagent and
     returns its answer, forwarding ``usage`` so token accounting aggregates into the
     parent run (the pydantic-ai agent-delegation pattern).
     """
@@ -74,7 +74,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
     def __init__(
         self,
         *,
-        server_agent: AbstractAgent[AgentDependencies, AgentOutput],
+        subagent: AbstractAgent[AgentDependencies, AgentOutput],
         publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
         | None = None,
         set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None,
@@ -105,7 +105,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
                 run_input=_get_dummy_request_data(tool_call_id=tool_call_id, task=task),
                 sdk_version=7,
             )
-            async with server_agent.run_stream_events(
+            async with subagent.run_stream_events(
                 f"{CALL_SUBAGENT_TASK_CONTRACT}\n{task}",
                 deps=ctx.deps,
                 usage=ctx.usage,
@@ -156,7 +156,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
 class CallSubAgentCapability(AbstractCapability[AgentDependencies]):
     """Capability that adds the `call_subagent` tool to an agent."""
 
-    server_agent: AbstractAgent[AgentDependencies, AgentOutput]
+    subagent: AbstractAgent[AgentDependencies, AgentOutput]
     publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]] | None = (
         None
     )
@@ -164,7 +164,7 @@ class CallSubAgentCapability(AbstractCapability[AgentDependencies]):
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return CallSubAgentToolset(
-            server_agent=self.server_agent,
+            subagent=self.subagent,
             publish_subagent_message_chunk=self.publish_subagent_message_chunk,
             set_subagent_final_tool_output=self.set_subagent_final_tool_output,
         )

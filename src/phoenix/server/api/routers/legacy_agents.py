@@ -34,11 +34,12 @@ from phoenix.config import (
     get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db.types.data_stream_protocol import PhoenixAssistantMessageMetadata
-from phoenix.server.agents.agent_factory import build_agent
+from phoenix.server.agents.agent_factory import build_agent, build_agent_tracer
 from phoenix.server.agents.context import ChatContext, resolve_contexts
 from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
+from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.api.routers.agents import (
     _build_phoenix_assistant_message_metadata,
@@ -167,13 +168,13 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         deprecated=True,
         responses=add_errors_to_responses([400, 401, 403, 404, 507]),
     )
-    async def run_server_agent(
+    async def run_headless_agent(
         session_id: str,
         request: Request,
         request_body: LegacyChatRequest,
     ) -> Response:
         if get_env_phoenix_agents_disable_bash():
-            raise HTTPException(status_code=403, detail="Server agent is disabled")
+            raise HTTPException(status_code=403, detail="Headless agent is disabled")
 
         body = request_body.root
         resolved_contexts = resolve_contexts(body.contexts)
@@ -235,7 +236,7 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
             enable_subagents=subagents_enabled,
         )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
-            agent=agent,
+            agent=OpenInferenceAgentWrapper(agent, tracer=build_agent_tracer(tracer_provider)),
             run_input=body,
             accept=request.headers.get("accept"),
             sdk_version=7,
@@ -273,7 +274,7 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
                                 )
                             yield chunk
             except Exception as exc:
-                logger.exception("Server agent chat stream failed for session %s", session_id)
+                logger.exception("Headless agent chat stream failed for session %s", session_id)
                 yield ErrorChunk(error_text=str(exc).strip() or type(exc).__name__)
             finally:
                 if tracer is not None:
