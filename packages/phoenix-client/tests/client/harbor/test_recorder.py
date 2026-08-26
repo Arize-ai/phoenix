@@ -39,7 +39,7 @@ from phoenix.client.harbor._recorder import (
     _retry_transient_write,
     experiment_identity,
 )
-from phoenix.client.harbor._scores import EvaluationRecord
+from phoenix.client.harbor._scores import ExtractedEvaluation
 
 
 def task(task_id: str, digest: str = "sha256:" + "a" * 64, **overrides: Any) -> TaskRecord:
@@ -184,7 +184,12 @@ def example_row(task_id: str, node_id: str) -> dict[str, Any]:
     }
 
 
-def trial_result(*, trial_name: str = "task-a__1", error: Any = None) -> TrialResult:
+def trial_result(
+    *,
+    trial_name: str = "task-a__1",
+    error: Any = None,
+    steps: list[Any] | None = None,
+) -> TrialResult:
     now = datetime.now(timezone.utc)
     return cast(
         TrialResult,
@@ -200,7 +205,7 @@ def trial_result(*, trial_name: str = "task-a__1", error: Any = None) -> TrialRe
             agent_execution=None,
             verifier=None,
             verifier_result=None,
-            step_results=None,
+            step_results=steps,
             exception_info=error,
             compute_token_cost_totals=lambda: (10, 2, 4, 0.01),
         ),
@@ -475,15 +480,17 @@ class TestExperimentNames:
         assert experiments.created[0]["experiment_name"].endswith("· default")
 
 
-class TestRecordTrial:
-    def test_phase_timing_does_not_break_legacy_run_reuse(self) -> None:
+class TestRecordExperimentRun:
+    def test_phase_timings_do_not_change_run_reuse_identity(self) -> None:
         result = trial_result()
         started_at = cast(datetime, result.started_at)
         result.environment_setup = TimingInfo(
             started_at=started_at,
             finished_at=started_at + timedelta(seconds=1.5),
         )
-        legacy_run = {
+        # Phase timings are intentionally excluded from immutable run output so a
+        # resumed job can reuse a run written before those timings were available.
+        existing_run = {
             "id": "run-existing",
             "output": {
                 "harbor_trial_id": "trial-id",
@@ -495,7 +502,7 @@ class TestRecordTrial:
             },
         }
 
-        assert PhoenixRecorder.can_reuse_run(cast(Any, legacy_run), trial_result=result)
+        assert PhoenixRecorder.can_reuse_run(cast(Any, existing_run), trial_result=result)
 
     async def test_records_the_planned_repetition_without_rewards(self) -> None:
         experiments = FakeExperiments()
@@ -522,7 +529,7 @@ class TestRecordTrial:
         }
         result = trial_result(trial_name="task-a__2")
 
-        await recorder(FakeClient(experiments=experiments)).record_trial(
+        await recorder(FakeClient(experiments=experiments)).record_experiment_run(
             plan=job,
             snapshot=SNAPSHOT,
             experiments=handle,
@@ -535,6 +542,56 @@ class TestRecordTrial:
         assert logged["error"] is None
         assert logged["output"]["harbor_trial_id"] == "trial-id"
         assert "reward" not in logged["output"]
+
+    @pytest.mark.parametrize(
+        ("has_verifier_result", "expected_error"),
+        [
+            (False, "step build: StepError: failed"),
+            (True, None),
+        ],
+        ids=["fatal-step-error", "non-fatal-step-error"],
+    )
+    async def test_only_fatal_step_errors_mark_the_experiment_run_failed(
+        self,
+        has_verifier_result: bool,
+        expected_error: str | None,
+    ) -> None:
+        experiments = FakeExperiments()
+        job = plan(
+            trials=(
+                TrialSlot(
+                    config=TrialConfig(
+                        task=TaskConfig(path=Path("task-a")),
+                        agent=slice_().agent,
+                        trial_name="task-a__1",
+                    ),
+                    identity_digest=slice_().identity_digest,
+                    repetition=1,
+                ),
+            )
+        )
+        handles = await recorder(FakeClient(experiments=experiments)).resolve_experiments(
+            job, SNAPSHOT
+        )
+        step_result = SimpleNamespace(
+            step_name="build",
+            exception_info=SimpleNamespace(
+                exception_type="StepError",
+                exception_message="failed",
+            ),
+            verifier_result=SimpleNamespace(rewards={"accuracy": 0.5})
+            if has_verifier_result
+            else None,
+        )
+
+        await recorder(FakeClient(experiments=experiments)).record_experiment_run(
+            plan=job,
+            snapshot=SNAPSHOT,
+            experiments=handles,
+            trial_result=trial_result(steps=[step_result]),
+        )
+
+        assert experiments.logged_runs[0]["error"] == expected_error
 
     async def test_transient_response_loss_recovers_conflicting_run(
         self, monkeypatch: pytest.MonkeyPatch
@@ -587,7 +644,7 @@ class TestRecordTrial:
             delays.append(delay)
 
         monkeypatch.setattr("phoenix.client.harbor._recorder.asyncio.sleep", no_sleep)
-        recorded = await recorder(client).record_trial(
+        recorded = await recorder(client).record_experiment_run(
             plan=job,
             snapshot=SNAPSHOT,
             experiments=handles,
@@ -601,17 +658,17 @@ class TestRecordTrial:
 
 class TestRecordEvaluations:
     @staticmethod
-    def records() -> tuple[EvaluationRecord, ...]:
+    def records() -> tuple[ExtractedEvaluation, ...]:
         now = datetime.now(timezone.utc)
         return (
-            EvaluationRecord(
+            ExtractedEvaluation(
                 name="reward",
                 score=1.0,
                 start_time=now,
                 end_time=now,
-                metadata={"harbor_trial_id": "trial-id", "source_key": "reward"},
+                metadata={"harbor_trial_id": "trial-id"},
             ),
-            EvaluationRecord(
+            ExtractedEvaluation(
                 name="infra_ok",
                 score=1.0,
                 label="ok",

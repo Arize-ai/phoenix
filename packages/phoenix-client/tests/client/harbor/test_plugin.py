@@ -238,7 +238,7 @@ class TestJobStart:
         assert job.started_hook is not None
         assert job.ended_hook is not None
 
-    @pytest.mark.parametrize("step_name", ["reward", "infra_ok"])
+    @pytest.mark.parametrize("step_name", ["reward", "infra_ok", "verifier"])
     async def test_reserved_evaluation_names_are_allowed_as_step_names(
         self,
         step_name: str,
@@ -265,9 +265,8 @@ class TestJobStart:
         [
             (StepRecord("", "check"),),
             (StepRecord("repeated", "first"), StepRecord("repeated", "second")),
-            (StepRecord("verifier", "check"),),
         ],
-        ids=["empty", "duplicate", "verifier"],
+        ids=["empty", "duplicate"],
     )
     async def test_invalid_step_names_stop_before_upload(
         self,
@@ -286,9 +285,7 @@ class TestJobStart:
 
         monkeypatch.setattr("phoenix.client.harbor._plugin.build_job_plan", _build)
 
-        with pytest.raises(
-            HarborPluginError, match="empty step name|repeats step name|step named 'verifier'"
-        ):
+        with pytest.raises(HarborPluginError, match="empty step name|repeats step name"):
             await PhoenixJobPlugin().on_job_start(FakeJob())
 
         assert wired.datasets.calls == []

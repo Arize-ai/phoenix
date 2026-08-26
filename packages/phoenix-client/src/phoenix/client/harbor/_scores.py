@@ -5,22 +5,21 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from harbor.models.trial.result import ExceptionInfo, TimingInfo, TrialResult
 
 from phoenix.client.harbor._errors import HarborPluginError
 
-logger = logging.getLogger(__name__)
-
-__all__ = ["EvaluationRecord", "extract_evaluations"]
+__all__ = ["ExtractedEvaluation", "extract_evaluations"]
 
 
 @dataclass(frozen=True)
-class EvaluationRecord:
+class ExtractedEvaluation:
+    """Evaluation data extracted before a Phoenix experiment run ID is available."""
+
     name: str
     score: float
     start_time: datetime
@@ -30,49 +29,42 @@ class EvaluationRecord:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-def extract_evaluations(trial_result: TrialResult) -> tuple[EvaluationRecord, ...]:
+def extract_evaluations(
+    trial_result: TrialResult,
+    *,
+    multi_step_reward_strategy: Literal["mean", "final"] | None = None,
+) -> tuple[ExtractedEvaluation, ...]:
     """Return the complete evaluation set for one terminal Harbor trial."""
     fallback_time = _fallback_time(trial_result)
     metadata = {"harbor_trial_id": str(trial_result.id)}
-    records: list[EvaluationRecord] = []
+    records: list[ExtractedEvaluation] = []
     origins: dict[str, str] = {}
 
     verifier_result = trial_result.verifier_result
     rewards = verifier_result.rewards if verifier_result is not None else None
     if rewards:
-        consumed_key = _primary_reward_key(trial_result, rewards)
         # Harbor sets TrialResult.verifier only for single-step trials. Multi-step
         # trials always use the fallback, so these evaluations get zero duration.
         start_time, end_time = _evaluation_times(trial_result.verifier, fallback_time)
+        reward_metadata = metadata.copy()
+        if multi_step_reward_strategy is not None:
+            reward_metadata["multi_step_reward_strategy"] = multi_step_reward_strategy
         for key in sorted(rewards):
             origin = f"trial-level verifier reward {key!r}"
-            if key == consumed_key:
-                explanation = None
-                if key != "reward":
-                    explanation = f"Derived from the sole trial-level verifier reward {key!r}."
-                record = EvaluationRecord(
-                    name="reward",
-                    score=float(rewards[key]),
-                    start_time=start_time,
-                    end_time=end_time,
-                    explanation=explanation,
-                    metadata={**metadata, "source_key": key},
-                )
-            else:
-                record = EvaluationRecord(
-                    name=f"verifier.{key}",
-                    score=float(rewards[key]),
-                    start_time=start_time,
-                    end_time=end_time,
-                    metadata=metadata.copy(),
-                )
+            record = ExtractedEvaluation(
+                name=key,
+                score=float(rewards[key]),
+                start_time=start_time,
+                end_time=end_time,
+                metadata=reward_metadata.copy(),
+            )
             _append_unique(records, origins, record, origin=origin)
 
     failures = _infrastructure_failures(trial_result)
     _append_unique(
         records,
         origins,
-        EvaluationRecord(
+        ExtractedEvaluation(
             name="infra_ok",
             score=0.0 if failures else 1.0,
             start_time=trial_result.started_at or fallback_time,
@@ -94,7 +86,7 @@ def extract_evaluations(trial_result: TrialResult) -> tuple[EvaluationRecord, ..
             _append_unique(
                 records,
                 origins,
-                EvaluationRecord(
+                ExtractedEvaluation(
                     name=f"{step_result.step_name}.{key}",
                     score=float(step_rewards[key]),
                     start_time=start_time,
@@ -105,22 +97,6 @@ def extract_evaluations(trial_result: TrialResult) -> tuple[EvaluationRecord, ..
             )
 
     return tuple(records)
-
-
-def _primary_reward_key(trial_result: TrialResult, rewards: dict[str, Any]) -> str | None:
-    """Return the key recorded as `reward`, matching Harbor's uploader rule."""
-    if "reward" in rewards:
-        return "reward"
-    if len(rewards) == 1:
-        return next(iter(rewards))
-    logger.warning(
-        "Harbor trial %r for task %r returned multiple verifier rewards without an "
-        "aggregate `reward`; recording sparse scores only. Keys: %s.",
-        str(trial_result.trial_name),
-        str(trial_result.task_name),
-        ", ".join(sorted(rewards)),
-    )
-    return None
 
 
 def _fallback_time(trial_result: TrialResult) -> datetime:
@@ -155,9 +131,9 @@ def _format_exception(where: str, exception: ExceptionInfo) -> str:
 
 
 def _append_unique(
-    records: list[EvaluationRecord],
+    records: list[ExtractedEvaluation],
     origins: dict[str, str],
-    record: EvaluationRecord,
+    record: ExtractedEvaluation,
     *,
     origin: str,
 ) -> None:

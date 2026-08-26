@@ -311,7 +311,7 @@ Harbor can use a different verifier for every task, so not every score is meanin
 
 ### Behaviorally completed
 
-A run is **behaviorally completed** when Harbor produced a verifier result. Only these runs can have a dense `reward` score.
+A run is **behaviorally completed** when Harbor produced a verifier result. The plugin records each reward under its exact Harbor key. Only a verifier result with a literal `reward` key produces a Phoenix evaluation named `reward`.
 
 | Harbor terminal state | Top-level exception | Step exceptions | Behaviorally completed | `reward` | `infra_ok` |
 | --- | --- | --- | --- | --- | --- |
@@ -319,28 +319,27 @@ A run is **behaviorally completed** when Harbor produced a verifier result. Only
 | Behavioral zero | none | none | Yes | `0` | 1 |
 | Single-step agent or verifier failure | present | n/a | No | not written | 0 |
 | Multi-step failure recorded on a step | usually none | present | Yes, if a final verifier result exists | Harbor's aggregate | 0 |
-| Multi-step failure with no verifier result | none or present | present | No | not written | 0 |
+| Fatal multi-step failure with no verifier result | none or present | present | No | not written | 0 |
 | Cancellation | `CancelledError` | partial | No | not written | 0 |
 
 Infrastructure status and behavioral completion are independent. A run can be behaviorally completed and still have `infra_ok = 0`.
 
-`reward` is present for behaviorally completed runs when the plugin can find one aggregate value. A verifier with several unnamed values has no clear aggregate, so that run has diagnostic scores only. Consumers must check `reward` coverage before computing cross-task summaries.
+`reward` is present only when Harbor emits that key. The plugin does not promote a sole differently named value or infer an aggregate from other keys. Consumers must check `reward` coverage before computing cross-task summaries.
 
 | Score | Coverage | Purpose |
 |---|---|---|
-| `reward` | Every behaviorally completed run with a determinable aggregate | Harbor's aggregate behavioral score; suitable for cross-task summaries |
+| `reward` | Only where Harbor emits it | Harbor's conventional behavioral score; suitable for cross-task summaries |
 | `infra_ok` | Every attempted run | Infrastructure success rate |
-| `verifier.<reward_key>` | Only where Harbor emits it | Other final-verifier diagnostics |
+| `<reward_key>` | Only where Harbor emits it | Trial-level verifier reward or diagnostic |
 | `<step_name>.<reward_key>` | Only where Harbor emits it | Step-level diagnosis within a task |
 
 Rules:
 
 - Read scores from `step_results` as well as the final verifier result.
 - Check the top-level result and every step result for infrastructure errors. Any exception sets `infra_ok = 0`. A reward of zero without an exception keeps `infra_ok = 1`.
-- Use the final verifier's `reward` value as the aggregate. If there is no `reward` key but there is one final value, use that value. If there are several final values, write the run and its `verifier.<reward_key>` scores but no aggregate `reward`. Warn with the trial, task, and sorted keys. Never choose a value by key order.
-
-  **Tradeoff:** Harbor's leaderboard chooses the first value by dictionary order. That choice is stable but has no semantic basis. Stopping the job would keep `reward` complete, but fixing the task changes its digest and requires a full rerun. The prototype keeps the run and warns instead. Revisit this choice if unnamed multi-value rewards are common.
-- Store other final-verifier rewards as `verifier.<reward_key>` and step rewards as `<step_name>.<reward_key>`. Validate reserved/generated name collisions before writing.
+- Store every final-verifier reward as `<reward_key>` and every step reward as `<step_name>.<reward_key>`. Do not infer `reward` from another key, even when the verifier emits only one value.
+- Add `multi_step_reward_strategy` to each trial-level reward evaluation for a multi-step task. Resolve Harbor's omitted default to `mean`; preserve an explicit `final`. Do not add this metadata to step-level scores, `infra_ok`, or single-step rewards.
+- Reject empty or duplicate step names before writing and detect any remaining generated-name collision during extraction.
 - Store step rewards in their original numeric scale.
 - Keep infrastructure failures separate from behavioral failures.
 - Do not add a built-in `all_steps_passed` or `tool_calls` score. Tasks can emit task-specific scores when useful.
@@ -405,7 +404,7 @@ Selecting the Phoenix plugin makes successful Phoenix recording a requirement. T
 - At `on_job_start`, validate dataset identity, Harbor compatibility, trace requirements, the Phoenix connection, and initial writes. Raise a clear error to stop the job before trial compute.
 - After trials begin, retry transient run and evaluation write failures with bounded exponential backoff. Connection errors, timeouts, and HTTP `5xx` responses are transient. If the retry budget is exhausted, raise and stop the job. Deterministic extraction errors and HTTP `4xx` responses fail immediately, except for the handled run-conflict recovery path. Completed Phoenix records remain available and Harbor persists terminal trial results for resume.
 - Keep one terminal-failure flag. After it is set, make later trial-end callbacks no-ops while Harbor cancels sibling trials.
-- Record an infrastructure exception as a run error and `infra_ok = 0`; do not rewrite it as `reward = 0`.
+- Record a top-level exception or a fatal step exception as a run error and `infra_ok = 0`; do not rewrite it as `reward = 0`. A step exception is fatal when Harbor reports no verifier result for that step. Other step exceptions affect `infra_ok` but not the native run error.
 - Do not ingest an attempt that Harbor will retry. Until Harbor exposes a terminal-attempt event, count START events by logical trial name and apply Harbor's retry rules.
 
 The adapter checks capabilities at runtime. Set a minimum Harbor version but no upper bound. Test the minimum version, latest stable release, and Harbor `main`. Add a temporary upper bound only for a known released incompatibility.

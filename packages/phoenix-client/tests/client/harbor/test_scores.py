@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Any, cast
@@ -18,7 +17,7 @@ from harbor.models.trial.result import ExceptionInfo, StepResult, TimingInfo, Tr
 from harbor.models.verifier.result import VerifierResult
 
 from phoenix.client.harbor._errors import HarborPluginError
-from phoenix.client.harbor._scores import EvaluationRecord, extract_evaluations
+from phoenix.client.harbor._scores import ExtractedEvaluation, extract_evaluations
 
 NOW = datetime(2026, 8, 24, 12, 0, tzinfo=timezone.utc)
 
@@ -74,7 +73,9 @@ def trial_result(
     )
 
 
-def by_name(records: tuple[EvaluationRecord, ...]) -> dict[str, EvaluationRecord]:
+def by_name(
+    records: tuple[ExtractedEvaluation, ...],
+) -> dict[str, ExtractedEvaluation]:
     return {record.name: record for record in records}
 
 
@@ -117,38 +118,44 @@ def test_state_matrix(result: TrialResult, expected: dict[str, float]) -> None:
     assert {name: record.score for name, record in records.items()} == expected
 
 
-def test_reward_key_is_consumed_and_other_trial_rewards_are_sparse() -> None:
+def test_trial_rewards_keep_their_harbor_names() -> None:
     records = by_name(extract_evaluations(trial_result(rewards={"reward": 0.75, "count": 4})))
 
-    assert set(records) == {"reward", "infra_ok", "verifier.count"}
-    assert records["reward"].metadata == {
-        "harbor_trial_id": "trial-id",
-        "source_key": "reward",
-    }
-    assert records["verifier.count"].score == 4.0
+    assert set(records) == {"reward", "infra_ok", "count"}
+    assert records["reward"].metadata == {"harbor_trial_id": "trial-id"}
+    assert records["count"].score == 4.0
 
 
-def test_sole_non_reward_key_becomes_reward_without_a_duplicate() -> None:
+def test_sole_non_reward_key_is_not_promoted_to_reward() -> None:
     records = by_name(extract_evaluations(trial_result(rewards={"accuracy": 0.8})))
 
-    assert set(records) == {"reward", "infra_ok"}
-    reward = records["reward"]
-    assert reward.score == 0.8
-    assert reward.metadata["source_key"] == "accuracy"
-    assert "accuracy" in cast(str, reward.explanation)
+    assert set(records) == {"accuracy", "infra_ok"}
+    assert records["accuracy"].score == 0.8
 
 
-def test_multi_key_result_without_reward_warns_and_stays_sparse(
-    caplog: pytest.LogCaptureFixture,
+def test_multi_key_result_without_reward_keeps_each_name() -> None:
+    records = by_name(extract_evaluations(trial_result(rewards={"tool_calls": 4, "accuracy": 0.8})))
+
+    assert set(records) == {"infra_ok", "accuracy", "tool_calls"}
+
+
+@pytest.mark.parametrize("strategy", ["mean", "final"])
+def test_multi_step_strategy_is_attached_to_trial_rewards(
+    strategy: Any,
 ) -> None:
-    with caplog.at_level(logging.WARNING, logger="phoenix.client.harbor._scores"):
-        records = by_name(
-            extract_evaluations(trial_result(rewards={"tool_calls": 4, "accuracy": 0.8}))
+    records = by_name(
+        extract_evaluations(
+            trial_result(rewards={"accuracy": 0.8, "tool_calls": 4}),
+            multi_step_reward_strategy=strategy,
         )
+    )
 
-    assert set(records) == {"infra_ok", "verifier.accuracy", "verifier.tool_calls"}
-    assert "task-a__1" in caplog.text
-    assert "accuracy, tool_calls" in caplog.text
+    assert records["accuracy"].metadata == {
+        "harbor_trial_id": "trial-id",
+        "multi_step_reward_strategy": strategy,
+    }
+    assert records["tool_calls"].metadata == records["accuracy"].metadata
+    assert "multi_step_reward_strategy" not in records["infra_ok"].metadata
 
 
 def test_step_scores_keep_their_scale_and_verifier_times() -> None:
@@ -201,5 +208,5 @@ def test_harbor_numeric_coercion_passes_through_as_float_scores() -> None:
     records = by_name(extract_evaluations(result))
 
     assert records["reward"].score == 1.0
-    assert records["verifier.count"].score == 2.0
+    assert records["count"].score == 2.0
     assert isinstance(records["reward"].score, float)

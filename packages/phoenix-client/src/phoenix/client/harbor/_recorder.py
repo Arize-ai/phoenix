@@ -20,7 +20,7 @@ from phoenix.client.client import AsyncClient
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import ExperimentSlice, JobPlan, canonical_digest
 from phoenix.client.harbor._naming import experiment_names, validate_experiment_naming
-from phoenix.client.harbor._scores import EvaluationRecord
+from phoenix.client.harbor._scores import ExtractedEvaluation
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +224,7 @@ class PhoenixRecorder:
             )
         return run
 
-    async def record_trial(
+    async def record_experiment_run(
         self,
         *,
         plan: JobPlan,
@@ -286,7 +286,7 @@ class PhoenixRecorder:
     async def record_evaluations(
         self,
         run_id: str,
-        records: Sequence[EvaluationRecord],
+        records: Sequence[ExtractedEvaluation],
     ) -> None:
         """Upsert the complete evaluation set for an experiment run."""
         for record in records:
@@ -301,7 +301,7 @@ class PhoenixRecorder:
                     f"{run_id}: {error}"
                 ) from error
 
-    async def _log_evaluation(self, run_id: str, record: EvaluationRecord) -> None:
+    async def _log_evaluation(self, run_id: str, record: ExtractedEvaluation) -> None:
         await self._client.experiments.log_evaluation(
             experiment_run_id=run_id,
             name=record.name,
@@ -472,10 +472,17 @@ def _trial_output(trial_result: TrialResult) -> dict[str, Any]:
 
 
 def _trial_error(trial_result: TrialResult) -> str | None:
-    error = trial_result.exception_info
-    if error is None:
-        return None
-    return f"{error.exception_type}: {error.exception_message}"
+    errors: list[str] = []
+    if error := trial_result.exception_info:
+        errors.append(f"{error.exception_type}: {error.exception_message}")
+    for step_result in trial_result.step_results or ():
+        if (
+            error := step_result.exception_info
+        ) is not None and step_result.verifier_result is None:
+            errors.append(
+                f"step {step_result.step_name}: {error.exception_type}: {error.exception_message}"
+            )
+    return "; ".join(errors) or None
 
 
 async def _retry_transient_write(

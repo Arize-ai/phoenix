@@ -109,6 +109,7 @@ class TestResolvedPlan:
         assert task.digest.startswith("sha256:") and len(task.digest) == 71
         assert [step.name for step in task.steps] == list(STEP_NAMES)
         assert all(step.instruction for step in task.steps)
+        assert task.multi_step_reward_strategy == "mean", "multi-step tasks default to mean"
         assert all(slot.trial_name for slot in plan.trials)
         assert existing_trial_results(job) == ()
         environment = task.to_example()["metadata"]["task_config"]["environment"]
@@ -176,22 +177,22 @@ class TestResolvedPlan:
 
 
 @pytest.mark.parametrize(
-    "rewards",
+    ("rewards", "expected_names"),
     [
-        None,
-        {},
-        {"reward": 0.5},
-        {"reward": 0.5, "tool_calls": 3},
-        {"accuracy": 0.8},
-        {"accuracy": 0.8, "tool_calls": 3},
+        (None, {"infra_ok"}),
+        ({}, {"infra_ok"}),
+        ({"reward": 0.5}, {"reward", "infra_ok"}),
+        ({"reward": 0.5, "tool_calls": 3}, {"reward", "tool_calls", "infra_ok"}),
+        ({"accuracy": 0.8}, {"accuracy", "infra_ok"}),
+        ({"accuracy": 0.8, "tool_calls": 3}, {"accuracy", "tool_calls", "infra_ok"}),
     ],
 )
-def test_primary_reward_rule_matches_harbors_uploader(
+def test_trial_reward_names_match_harbors_verifier_output(
     rewards: dict[str, float | int] | None,
+    expected_names: set[str],
 ) -> None:
     from harbor.models.trial.result import TrialResult
     from harbor.models.verifier.result import VerifierResult
-    from harbor.upload.uploader import _extract_primary_reward
 
     now = datetime.now(timezone.utc)
     trial = cast(
@@ -210,4 +211,4 @@ def test_primary_reward_rule_matches_harbors_uploader(
     )
 
     extracted = {record.name: record.score for record in extract_evaluations(trial)}
-    assert extracted.get("reward") == _extract_primary_reward(trial)
+    assert set(extracted) == expected_names

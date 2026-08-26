@@ -43,8 +43,6 @@ from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
 logger = logging.getLogger(__name__)
 
-_TRIAL_REWARD_PREFIX = "verifier"
-
 
 class PhoenixJobPlugin(BaseJobPlugin):
     """Record a Harbor job as a Phoenix dataset and experiments."""
@@ -117,7 +115,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
             self.experiments = experiments
             self._runs = runs
             for trial_result in resumed_trials:
-                await self._record_trial(trial_result, recorder=recorder)
+                await self._record_trial_result(trial_result, recorder=recorder)
 
         self._retry_config = job.config.retry
         try:
@@ -154,7 +152,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
             if self._terminal_failure is not None:
                 return
             try:
-                await self._record_trial(event.result)
+                await self._record_trial_result(event.result)
             except Exception as error:
                 self._terminal_failure = error
                 raise
@@ -175,7 +173,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
         attempts = self._attempts.get(str(event.trial_name), 1)
         return attempts <= retry.max_retries
 
-    async def _record_trial(
+    async def _record_trial_result(
         self,
         trial_result: TrialResult,
         *,
@@ -191,32 +189,43 @@ class PhoenixJobPlugin(BaseJobPlugin):
             raise HarborPluginError(
                 f"Harbor returned unplanned trial {trial_result.trial_name!r}."
             ) from error
-        key = (
+        run_key = (
             slot.identity_digest,
             snapshot.example_ids[slot.task_id],
             slot.repetition,
         )
-        existing = self._runs.get(key)
-        reusable = (
-            existing
-            if existing is not None
-            and PhoenixRecorder.can_reuse_run(existing, trial_result=trial_result)
+        existing_experiment_run = self._runs.get(run_key)
+        reusable_experiment_run = (
+            existing_experiment_run
+            if existing_experiment_run is not None
+            and PhoenixRecorder.can_reuse_run(
+                existing_experiment_run,
+                trial_result=trial_result,
+            )
             else None
         )
-        evaluations = extract_evaluations(trial_result)
+        task = plan.task_for(slot.task_id)
+        evaluations = extract_evaluations(
+            trial_result,
+            multi_step_reward_strategy=task.multi_step_reward_strategy,
+        )
 
-        async def record_with(active_recorder: PhoenixRecorder) -> v1.ExperimentRun:
-            run = reusable or await active_recorder.record_trial(
+        async def record_run_and_evaluations(
+            phoenix_recorder: PhoenixRecorder,
+        ) -> v1.ExperimentRun:
+            # A resumed job may already have an immutable successful run. Reuse it,
+            # then upsert evaluations that an interrupted ingestion may have missed.
+            run = reusable_experiment_run or await phoenix_recorder.record_experiment_run(
                 plan=plan,
                 snapshot=snapshot,
                 experiments=self.experiments,
                 trial_result=trial_result,
             )
-            await active_recorder.record_evaluations(str(run["id"]), evaluations)
+            await phoenix_recorder.record_evaluations(str(run["id"]), evaluations)
             return run
 
         if recorder is not None:
-            run = await record_with(recorder)
+            run = await record_run_and_evaluations(recorder)
         else:
             async with self._open_client() as client:
                 live_recorder = PhoenixRecorder(
@@ -224,8 +233,8 @@ class PhoenixJobPlugin(BaseJobPlugin):
                     experiment_name=self.experiment_name,
                     experiment_name_template=self.experiment_name_template,
                 )
-                run = await record_with(live_recorder)
-        self._runs[key] = run
+                run = await record_run_and_evaluations(live_recorder)
+        self._runs[run_key] = run
 
     @contextlib.asynccontextmanager
     async def _open_client(self) -> AsyncGenerator[AsyncClient, None]:
@@ -264,11 +273,6 @@ def _validate_step_names(plan: JobPlan) -> None:
                 raise HarborPluginError(
                     f"Harbor task {task.task_id!r} has an empty step name; evaluation names "
                     "cannot be generated."
-                )
-            if name == _TRIAL_REWARD_PREFIX:
-                raise HarborPluginError(
-                    f"Harbor task {task.task_id!r} has a step named {name!r}; its evaluation "
-                    f"names would collide with trial-level {name}.<key> scores."
                 )
             if name in seen:
                 raise HarborPluginError(
