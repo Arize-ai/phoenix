@@ -5,7 +5,7 @@ export * from "./createConcisenessEvaluator";
 export * from "./createCorrectnessEvaluator";
 export * from "./createDocumentRelevanceEvaluator";
 export * from "./createFaithfulnessEvaluator";
-export * from "./createHallucinationEvaluator"; // Deprecated: use createFaithfulnessEvaluator
+export * from "./createHallucinationEvaluator";
 export * from "./createPiiDetectionEvaluator";
 export * from "./createRefusalEvaluator";
 export * from "./createRetrievalRelevanceEvaluator";
