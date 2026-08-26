@@ -306,6 +306,64 @@ const spanConfigSchema = z.looseObject({
  * fold to apply (`max_output_tokens` and nested `reasoning.effort` are
  * Responses-only).
  */
+type ParsedOpenAISpanConfig = z.infer<typeof spanConfigSchema>;
+
+function buildOpenAIConfigFromSpan({
+  input,
+  apiType,
+}: {
+  input: ParsedOpenAISpanConfig;
+  apiType: OpenAIApiType | null;
+}): OpenAIConfig {
+  const config: OpenAIConfig = {};
+  if (input.temperature !== undefined) config.temperature = input.temperature;
+  if (input.top_p !== undefined) config.topP = input.top_p;
+  const maxCompletionTokens =
+    input.max_completion_tokens ??
+    input.max_tokens ??
+    (apiType === "RESPONSES" ? input.max_output_tokens : undefined);
+  if (maxCompletionTokens !== undefined) {
+    config.maxCompletionTokens = maxCompletionTokens;
+  }
+  if (input.frequency_penalty !== undefined) {
+    config.frequencyPenalty = input.frequency_penalty;
+  }
+  if (input.presence_penalty !== undefined) {
+    config.presencePenalty = input.presence_penalty;
+  }
+  if (input.seed !== undefined) config.seed = input.seed;
+  if (input.stop !== undefined) config.stop = [...input.stop];
+  const reasoningEffortRaw =
+    input.reasoning_effort ??
+    (apiType === "RESPONSES" ? input.reasoning?.effort : undefined);
+  const reasoningEffort = reasoningEffortRaw
+    ? toOpenAIReasoningEffortFormValue(reasoningEffortRaw)
+    : undefined;
+  if (reasoningEffort !== undefined) config.reasoningEffort = reasoningEffort;
+  if (input.extra_body !== undefined)
+    config.extraBody = { ...input.extra_body };
+  return config;
+}
+
+function buildOpenAIPromotedFields(
+  input: ParsedOpenAISpanConfig
+): OpenAIPromotedPlaygroundFields {
+  const format = input.response_format?.json_schema ?? input.text?.format;
+  if (!format) return {};
+
+  const jsonSchema: CanonicalResponseFormat["jsonSchema"] = {
+    name: typeof format.name === "string" ? format.name : "response",
+  };
+  if (format.schema !== undefined) jsonSchema.schema = format.schema;
+  if (format.strict !== undefined && format.strict !== null) {
+    jsonSchema.strict = format.strict;
+  }
+  if (format.description !== undefined && format.description !== null) {
+    jsonSchema.description = format.description;
+  }
+  return { responseFormat: { type: "json_schema", jsonSchema } };
+}
+
 export function openAIConfigFromSpanInvocationParameters(
   raw: unknown,
   apiType: OpenAIApiType | null
@@ -315,62 +373,12 @@ export function openAIConfigFromSpanInvocationParameters(
 } {
   const parsed = spanConfigSchema.safeParse(raw);
   const input = parsed.success ? parsed.data : {};
-  const config: OpenAIConfig = {};
-  if (input.temperature !== undefined) config.temperature = input.temperature;
-  if (input.top_p !== undefined) config.topP = input.top_p;
-  if (input.max_completion_tokens !== undefined)
-    config.maxCompletionTokens = input.max_completion_tokens;
-  else if (input.max_tokens !== undefined)
-    config.maxCompletionTokens = input.max_tokens;
-  else if (apiType === "RESPONSES" && input.max_output_tokens !== undefined)
-    config.maxCompletionTokens = input.max_output_tokens;
-  if (input.frequency_penalty !== undefined)
-    config.frequencyPenalty = input.frequency_penalty;
-  if (input.presence_penalty !== undefined)
-    config.presencePenalty = input.presence_penalty;
-  if (input.seed !== undefined) config.seed = input.seed;
-  if (input.stop !== undefined) config.stop = [...input.stop];
-  let reasoningEffortRaw: string | undefined;
-  if (input.reasoning_effort !== undefined)
-    reasoningEffortRaw = input.reasoning_effort;
-  else if (apiType === "RESPONSES" && input.reasoning?.effort !== undefined)
-    reasoningEffortRaw = input.reasoning.effort;
-  if (reasoningEffortRaw !== undefined) {
-    const form = toOpenAIReasoningEffortFormValue(reasoningEffortRaw);
-    if (form !== undefined) config.reasoningEffort = form;
-  }
-  if (input.extra_body !== undefined)
-    config.extraBody = { ...input.extra_body };
-
-  const promoted: OpenAIPromotedPlaygroundFields = {};
-  // Try both response-format shapes because recorded spans are not always
-  // tagged with which OpenAI API produced them.
-  const rf = input.response_format;
-  if (rf?.json_schema) {
-    const js = rf.json_schema;
-    const jsonSchema: CanonicalResponseFormat["jsonSchema"] = {
-      name: typeof js.name === "string" ? js.name : "response",
-    };
-    if (js.schema !== undefined) jsonSchema.schema = js.schema;
-    if (js.strict !== undefined && js.strict !== null)
-      jsonSchema.strict = js.strict;
-    if (js.description !== undefined && js.description !== null)
-      jsonSchema.description = js.description;
-    promoted.responseFormat = { type: "json_schema", jsonSchema };
-  } else if (input.text?.format !== undefined) {
-    const fmt = input.text.format;
-    if (fmt) {
-      const jsonSchema: CanonicalResponseFormat["jsonSchema"] = {
-        name: typeof fmt.name === "string" ? fmt.name : "response",
-      };
-      if (fmt.schema !== undefined) jsonSchema.schema = fmt.schema;
-      if (fmt.strict !== undefined) jsonSchema.strict = fmt.strict;
-      if (fmt.description !== undefined)
-        jsonSchema.description = fmt.description;
-      promoted.responseFormat = { type: "json_schema", jsonSchema };
-    }
-  }
-  return { config: normalizeOpenAIConfig(config), promoted };
+  return {
+    config: normalizeOpenAIConfig(
+      buildOpenAIConfigFromSpan({ input, apiType })
+    ),
+    promoted: buildOpenAIPromotedFields(input),
+  };
 }
 
 // ---------- field-keyed read/write ------------------------------------------

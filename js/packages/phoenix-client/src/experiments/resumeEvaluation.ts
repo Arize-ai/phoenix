@@ -301,6 +301,71 @@ function setupEvaluationTracer({
  * });
  * ```
  */
+function isEmptyEvaluationBatch({
+  batchLength,
+  totalProcessed,
+  logger,
+}: {
+  batchLength: number;
+  totalProcessed: number;
+  logger: Logger;
+}): boolean {
+  if (batchLength > 0) return false;
+  if (totalProcessed === 0) {
+    logger.info(`${PROGRESS_PREFIX.completed}No incomplete evaluations found.`);
+  }
+  return true;
+}
+
+function shouldContinueEvaluationFetch({
+  cursor,
+  signal,
+}: {
+  cursor: string | null;
+  signal: AbortSignal;
+}): boolean {
+  return cursor !== null && !signal.aborted;
+}
+
+function getEvaluationExecutionError({
+  rejections,
+  isAborted,
+  logger,
+}: {
+  rejections: unknown[];
+  isAborted: boolean;
+  logger: Logger;
+}): Error | null {
+  if (rejections.length === 0) return null;
+  const fetchError = rejections.find(
+    (reason) => reason instanceof EvaluationFetchError
+  );
+  if (fetchError instanceof Error) {
+    logger.error(`Critical: Failed to fetch evaluations from server`);
+    return fetchError;
+  }
+  const workerError = rejections.find(
+    (reason) =>
+      reason instanceof Error &&
+      !(reason instanceof EvaluationFetchError) &&
+      !(reason instanceof ChannelError)
+  );
+  if (workerError instanceof Error) return workerError;
+  const channelError = rejections.find(
+    (reason) => reason instanceof ChannelError
+  );
+  if (channelError instanceof Error && isAborted) {
+    return new EvaluationAbortedError(
+      "Evaluation stopped due to error in concurrent evaluator",
+      channelError
+    );
+  }
+  const reason = rejections[0];
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  logger.error(`Unexpected error during evaluation: ${error.message}`);
+  return error;
+}
+
 export async function resumeEvaluation({
   client: _client,
   experimentId,
@@ -425,12 +490,13 @@ export async function resumeEvaluation({
           const batchIncomplete = res.data?.data;
           invariant(batchIncomplete, "Failed to fetch incomplete evaluations");
 
-          if (batchIncomplete.length === 0) {
-            if (totalProcessed === 0) {
-              logger.info(
-                `${PROGRESS_PREFIX.completed}No incomplete evaluations found.`
-              );
-            }
+          if (
+            isEmptyEvaluationBatch({
+              batchLength: batchIncomplete.length,
+              totalProcessed,
+              logger,
+            })
+          ) {
             break;
           }
 
@@ -468,7 +534,7 @@ export async function resumeEvaluation({
           logger.debug(
             `${PROGRESS_PREFIX.progress}Fetched batch of ${batchCount} evaluation tasks.`
           );
-        } while (cursor !== null && !signal.aborted);
+        } while (shouldContinueEvaluationFetch({ cursor, signal }));
       } catch (error) {
         // Re-throw with context preservation
         if (error instanceof EvaluationFetchError) {
@@ -547,47 +613,11 @@ export async function resumeEvaluation({
         )
         .map((result) => result.reason);
 
-      if (rejections.length > 0) {
-        // Classify and handle errors based on their nature. When multiple tasks
-        // reject, prefer the most meaningful error over incidental fallout
-        // (e.g. a ChannelError raised in a blocked worker when the channel
-        // closes on abort).
-        const fetchError = rejections.find(
-          (reason) => reason instanceof EvaluationFetchError
-        );
-        const workerError = rejections.find(
-          (reason) =>
-            reason instanceof Error &&
-            !(reason instanceof EvaluationFetchError) &&
-            !(reason instanceof ChannelError)
-        );
-        const channelError = rejections.find(
-          (reason) => reason instanceof ChannelError
-        );
-
-        if (fetchError) {
-          // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
-          logger.error(`Critical: Failed to fetch evaluations from server`);
-          executionError = fetchError;
-        } else if (workerError) {
-          // Worker error in stopOnFirstError mode - already logged by worker
-          executionError = workerError;
-        } else if (channelError && signal.aborted) {
-          // Channel closed due to intentional abort - wrap in semantic error
-          executionError = new EvaluationAbortedError(
-            "Evaluation stopped due to error in concurrent evaluator",
-            channelError
-          );
-        } else {
-          // Unexpected error (not from worker, not from producer fetch)
-          // This could be a bug in our code or infrastructure failure
-          const reason = rejections[0];
-          const err =
-            reason instanceof Error ? reason : new Error(String(reason));
-          logger.error(`Unexpected error during evaluation: ${err.message}`);
-          executionError = err;
-        }
-      }
+      executionError = getEvaluationExecutionError({
+        rejections,
+        isAborted: signal.aborted,
+        logger,
+      });
     } finally {
       // Ensure channel is closed even if there are unexpected errors
       // This is a safety net in case producer's finally block didn't execute
