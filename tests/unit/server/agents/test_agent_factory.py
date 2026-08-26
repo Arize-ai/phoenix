@@ -54,6 +54,7 @@ from phoenix.server.agents.types import (
     AgentDependencies,
 )
 from phoenix.server.api.context import Context
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import DbSessionFactory
 
 _DEFAULT_PROMPTS = AgentPrompts()
@@ -107,7 +108,7 @@ def model() -> TestModel:
 
 
 def _stub_principal(*, is_viewer: bool) -> Any:
-    principal = Mock()
+    principal = Mock(spec=PhoenixUser)
     principal.identity = "1"
     principal.is_viewer = is_viewer
     return principal

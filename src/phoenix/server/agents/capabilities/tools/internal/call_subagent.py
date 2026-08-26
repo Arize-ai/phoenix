@@ -35,6 +35,16 @@ The sub-agent does that work in its own context and returns only the answer you 
 Pass `task`, a single self-contained natural-language description of exactly what you need, along with `name`, a short human-readable name for the sub-agent. The sub-agent has no access to your context, so the task must be entirely self-contained and fully specified: explicitly pass along IDs, time ranges, and any other details rather than assuming they will be visible to the sub-agent.
 """
 
+# The subagent runs on the shared assistant prompt, which frames its reply as a
+# message to a human; this preamble restores the return-value contract that the
+# parent's tool call depends on.
+CALL_SUBAGENT_TASK_CONTRACT = """\
+Your final text response is returned verbatim as a string to the calling agent — it is your \
+return value, not a message to a human. Output the literal result (data, JSON, text), not \
+confirmations like "Done."; if asked for JSON, return only the raw JSON with no code fences \
+or prose. Be concise: your caller may parse your output.
+"""
+
 
 class CallSubagentOutput(BaseModel):
     summary: str
@@ -96,7 +106,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
                 sdk_version=7,
             )
             async with server_agent.run_stream_events(
-                task,
+                f"{CALL_SUBAGENT_TASK_CONTRACT}\n{task}",
                 deps=ctx.deps,
                 usage=ctx.usage,
             ) as stream:

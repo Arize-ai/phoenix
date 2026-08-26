@@ -7,6 +7,7 @@ from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.db.types.data_stream_protocol import TextUIPart
 from phoenix.server.agents.capabilities.tools.internal.call_subagent import (
+    CALL_SUBAGENT_TASK_CONTRACT,
     CallSubagentOutput,
     CallSubAgentToolset,
 )
@@ -112,6 +113,28 @@ class TestCallSubAgentToolset:
             )
         assert published_chunks == []
         assert final_chunks == []
+
+    async def test_prefixes_the_task_with_the_return_value_contract(self) -> None:
+        seen_prompts: list[object] = []
+
+        def capture_prompt(ctx: RunContext[AgentDependencies]) -> str:
+            seen_prompts.append(ctx.prompt)
+            return ""
+
+        server_agent: Agent[AgentDependencies, AgentOutput] = Agent(
+            TestModel(custom_output_text="subagent summary"),
+            deps_type=AgentDependencies,
+            output_type=[str, DeferredToolRequests],
+            instructions=capture_prompt,
+        )
+        toolset = CallSubAgentToolset(server_agent=server_agent)
+
+        await _call_subagent_tool(
+            toolset=toolset,
+            ctx=_run_context(tool_call_id="parent-tool-call-1"),
+        )
+
+        assert seen_prompts == [f"{CALL_SUBAGENT_TASK_CONTRACT}\nSummarize latency"]
 
     async def test_passes_parent_dependencies_to_the_subagent(self) -> None:
         seen_dependencies: list[AgentDependencies] = []
