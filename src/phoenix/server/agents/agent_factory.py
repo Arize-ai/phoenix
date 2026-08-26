@@ -76,6 +76,7 @@ def build_agent_tracer(tracer_provider: TracerProvider | None) -> Tracer:
 
 def build_agent(
     *,
+    name: str,
     headless: bool,
     model: Model,
     prompts: AgentPrompts | None = None,
@@ -169,6 +170,7 @@ def build_agent(
             capabilities.append(web_fetch)
     if enable_subagents:
         subagent = build_agent(
+            name="PXISubagent",
             headless=True,
             model=model,
             db=db,
@@ -203,7 +205,7 @@ def build_agent(
 
     agent: Agent[AgentDependencies, AgentOutput] = Agent(
         model,
-        name="PXISubagent" if headless else "PXIAgent",
+        name=name,
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
         instructions=resolved_prompts.base,

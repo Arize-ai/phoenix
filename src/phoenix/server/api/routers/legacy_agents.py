@@ -218,6 +218,7 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         )
         subagents_enabled = _subagents_enabled(resolved_contexts)
         agent = build_agent(
+            name="PXIAgent",
             headless=True,
             model=model,
             schema=request.app.state.graphql_schema,

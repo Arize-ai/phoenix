@@ -87,6 +87,7 @@ between the emptiest and the busiest page in the app."""
 
 def build_agent(**kwargs: Any) -> Any:
     """Build an agent for factory tests with inert DB-backed tool dependencies."""
+    kwargs.setdefault("name", "PXIAgent")
     kwargs.setdefault("headless", False)
     kwargs.setdefault("db", Mock(spec=DbSessionFactory))
     kwargs.setdefault("event_queue", Mock())
@@ -950,6 +951,18 @@ class TestSubagents:
         child = _find_capability(parent, CallSubAgentCapability).subagent
         assert isinstance(child, OpenInferenceAgentWrapper)
         assert type(child.wrapped) is Agent
+
+    @pytest.mark.parametrize("headless", [False, True])
+    def test_agent_carries_the_name_it_was_built_with(
+        self, model: TestModel, headless: bool
+    ) -> None:
+        agent = build_agent(model=model, name="CustomName", headless=headless)
+        assert agent.name == "CustomName"
+
+    def test_subagent_is_named_pxi_subagent(self, model: TestModel) -> None:
+        parent = build_agent(model=model, name="PXIAgent", enable_subagents=True)
+        child = _find_capability(parent, CallSubAgentCapability).subagent
+        assert child.name == "PXISubagent"
 
 
 @pytest.mark.parametrize("headless", [False, True])

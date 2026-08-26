@@ -3283,6 +3283,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 )
 
             agent: AbstractAgent[AgentDependencies, AgentOutput] = build_agent(
+                name="PXIAgent",
                 headless=body.headless,
                 model=model,
                 db=request.app.state.db,

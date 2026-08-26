@@ -97,6 +97,7 @@ async def run(args: argparse.Namespace) -> None:
             graphql_mutations_enabled = _resolve_allow_mutations(args)
             edit_permission: EditPermission = "bypass" if graphql_mutations_enabled else "manual"
             agent: AbstractAgent[AgentDependencies, AgentOutput] = build_agent(
+                name="PXIAgent",
                 headless=True,
                 model=model,
                 schema=app.state.graphql_schema,
