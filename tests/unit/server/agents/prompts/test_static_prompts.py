@@ -66,6 +66,7 @@ def test_prefix_prompts_are_plain_strings() -> None:
     """
     prompts = AgentPrompts()
     assert isinstance(prompts.base, str)
+    assert isinstance(prompts.subagent, str)
     assert isinstance(prompts.docs_tool, str)
     assert isinstance(prompts.phoenix_mcp_tools, str)
     assert isinstance(AgentPrompts().ui_contexts, str)

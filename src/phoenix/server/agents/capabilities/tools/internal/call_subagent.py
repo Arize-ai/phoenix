@@ -30,19 +30,9 @@ from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
-Delegate a natural-language task to a Phoenix subagent, which queries the Phoenix backend and returns a concise answer. Use for any task that requires data about projects, traces, spans, datasets, experiments, or evaluations.
-The subagent does that work in its own context and returns only the answer you need. It has its own `bash` tool, running in a server-side virtual shell, that queries the Phoenix GraphQL API via the `phoenix-gql` command (read-only by default) and can write scratch files under its own workspace. Besides bash, it can also search the Phoenix documentation and the web when those tools are enabled. Its bash and file system are isolated from yours, and it returns only its final text answer, so any data it gathers must come back in that answer rather than as files you can read.
+Delegate a task to a Phoenix subagent. Use for any self-contained task when you wish to preserve your own context.
+The subagent does that work in its own context and returns only the answer you need.
 Pass `task`, a single self-contained natural-language description of exactly what you need, along with `name`, a short human-readable name for the subagent. The subagent has no access to your context, so the task must be entirely self-contained and fully specified: explicitly pass along IDs, time ranges, and any other details rather than assuming they will be visible to the subagent.
-"""
-
-# The subagent runs on the shared assistant prompt, which frames its reply as a
-# message to a human; this preamble restores the return-value contract that the
-# parent's tool call depends on.
-CALL_SUBAGENT_TASK_CONTRACT = """\
-Your final text response is returned verbatim as a string to the calling agent — it is your \
-return value, not a message to a human. Output the literal result (data, JSON, text), not \
-confirmations like "Done."; if asked for JSON, return only the raw JSON with no code fences \
-or prose. Be concise: your caller may parse your output.
 """
 
 
@@ -55,11 +45,11 @@ class CallSubagentOutputChunk(ToolOutputAvailableChunk):
     output: CallSubagentOutput
 
 
-async def _discard_subagent_message_chunk(_: ToolOutputAvailableChunk) -> None:
+async def _async_no_op(_: ToolOutputAvailableChunk) -> None:
     return None
 
 
-def _discard_subagent_final_tool_output(_: ToolOutputAvailableChunk) -> None:
+def _no_op(_: ToolOutputAvailableChunk) -> None:
     return None
 
 
@@ -79,10 +69,8 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
         | None = None,
         set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None,
     ) -> None:
-        publish_message_chunk = publish_subagent_message_chunk or _discard_subagent_message_chunk
-        set_final_tool_output = (
-            set_subagent_final_tool_output or _discard_subagent_final_tool_output
-        )
+        publish_message_chunk = publish_subagent_message_chunk or _async_no_op
+        set_final_tool_output = set_subagent_final_tool_output or _no_op
 
         async def call_subagent(ctx: RunContext[AgentDependencies], name: str, task: str) -> str:
             tool_call_id = ctx.tool_call_id
@@ -106,7 +94,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
                 sdk_version=7,
             )
             async with subagent.run_stream_events(
-                f"{CALL_SUBAGENT_TASK_CONTRACT}\n{task}",
+                task,
                 deps=ctx.deps,
                 usage=ctx.usage,
             ) as stream:

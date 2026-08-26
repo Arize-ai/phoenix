@@ -917,9 +917,9 @@ class TestSubagents:
         capability = _find_capability(agent, CallSubAgentCapability)
         assert _get_capabilities(capability.subagent, CallSubAgentCapability) == []
 
-    async def test_child_instructions_match_a_direct_headless_agent(self) -> None:
+    async def test_child_is_a_direct_headless_agent_plus_the_subagent_contract(self) -> None:
         model = TestModel(call_tools=[])
-        prompts = AgentPrompts(base="CUSTOM_STATIC_SENTINEL")
+        prompts = AgentPrompts(base="CUSTOM_STATIC_SENTINEL", subagent="SUBAGENT_SENTINEL")
         parent = build_agent(
             model=model,
             headless=False,
@@ -939,7 +939,46 @@ class TestSubagents:
 
         child_instructions = child_result.all_messages()[0].instructions
         direct_instructions = direct_result.all_messages()[0].instructions
-        assert child_instructions == direct_instructions
+        assert child_instructions is not None
+        assert direct_instructions is not None
+        assert "SUBAGENT_SENTINEL" not in direct_instructions
+        assert child_instructions.replace("SUBAGENT_SENTINEL", "").strip() == direct_instructions
+
+    @pytest.mark.parametrize("headless", [False, True])
+    async def test_subagent_contract_is_absent_unless_built_as_a_subagent(
+        self,
+        model: TestModel,
+        headless: bool,
+    ) -> None:
+        """The contract is about being invoked by another agent, not about
+        running without a browser: a headless agent still answers a human."""
+        prompts = AgentPrompts(subagent="SUBAGENT_SENTINEL")
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        result = await build_agent(model=model, headless=headless, prompts=prompts).run(
+            "hello", deps=deps
+        )
+
+        instructions = result.all_messages()[0].instructions
+        assert instructions is not None
+        assert "SUBAGENT_SENTINEL" not in instructions
+
+    async def test_subagent_contract_is_inside_cache_boundary(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        parent = build_agent(model=anthropic_model, enable_subagents=True)
+        child = _find_capability(parent, CallSubAgentCapability).subagent
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await child.run("hello", deps=deps)
+
+        cached_blocks, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(
+            captured_request.body
+        )
+        assert uncached_blocks == []
+        assert _DEFAULT_PROMPTS.subagent in _get_concatenated_text(cached_blocks)
 
     @pytest.mark.parametrize("headless", [False, True])
     def test_factory_returns_an_unwrapped_agent(self, model: TestModel, headless: bool) -> None:

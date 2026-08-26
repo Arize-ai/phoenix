@@ -23,6 +23,7 @@ from phoenix.server.agents.capabilities import (
     PhoenixMCPCapability,
     PhoenixMCPToolset,
     SkillsCapability,
+    SubagentCapability,
     UIContextsCapability,
     build_anthropic_prompt_cache_capability,
 )
@@ -79,6 +80,7 @@ def build_agent(
     name: str,
     headless: bool,
     model: Model,
+    is_subagent: bool = False,
     prompts: AgentPrompts | None = None,
     docs_mcp_server: MCPToolset[AgentDependencies] | None = None,
     phoenix_mcp_server: "FastMCP | None" = None,
@@ -188,6 +190,7 @@ def build_agent(
             graphql_mutations_enabled=graphql_mutations_enabled,
             enable_web_access=enable_web_access,
             enable_subagents=False,
+            is_subagent=True,
         )
         capabilities.append(
             CallSubAgentCapability(
@@ -196,6 +199,8 @@ def build_agent(
                 set_subagent_final_tool_output=set_subagent_final_tool_output,
             )
         )
+    if is_subagent:
+        capabilities.append(SubagentCapability(instructions=resolved_prompts.subagent))
     if is_viewer:
         capabilities.append(ViewerAccessCapability(instructions=resolved_prompts.viewer_access))
     traced_capability = OpenInferenceCapabilityWrapper(

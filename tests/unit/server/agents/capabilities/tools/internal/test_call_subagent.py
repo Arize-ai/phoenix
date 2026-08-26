@@ -7,7 +7,6 @@ from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.db.types.data_stream_protocol import TextUIPart
 from phoenix.server.agents.capabilities.tools.internal.call_subagent import (
-    CALL_SUBAGENT_TASK_CONTRACT,
     CallSubagentOutput,
     CallSubAgentToolset,
 )
@@ -114,7 +113,7 @@ class TestCallSubAgentToolset:
         assert published_chunks == []
         assert final_chunks == []
 
-    async def test_prefixes_the_task_with_the_return_value_contract(self) -> None:
+    async def test_passes_the_task_to_the_subagent_verbatim(self) -> None:
         seen_prompts: list[object] = []
 
         def capture_prompt(ctx: RunContext[AgentDependencies]) -> str:
@@ -134,7 +133,7 @@ class TestCallSubAgentToolset:
             ctx=_run_context(tool_call_id="parent-tool-call-1"),
         )
 
-        assert seen_prompts == [f"{CALL_SUBAGENT_TASK_CONTRACT}\nSummarize latency"]
+        assert seen_prompts == ["Summarize latency"]
 
     async def test_passes_parent_dependencies_to_the_subagent(self) -> None:
         seen_dependencies: list[AgentDependencies] = []
