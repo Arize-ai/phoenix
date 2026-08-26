@@ -27,6 +27,7 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 | Run experiment | [experiments-running-python](references/experiments-running-python.md), [experiments-running-typescript](references/experiments-running-typescript.md) |
 | Run evals in a test runner (CI gate) | [integrations-pytest](references/integrations-pytest.md), [integrations-vitest-jest](references/integrations-vitest-jest.md) |
 | Create dataset | [experiments-datasets-python](references/experiments-datasets-python.md), [experiments-datasets-typescript](references/experiments-datasets-typescript.md) |
+| Record a Harbor job as an experiment | [experiments-harbor-python](references/experiments-harbor-python.md) |
 | Generate synthetic data | [experiments-synthetic-python](references/experiments-synthetic-python.md), [experiments-synthetic-typescript](references/experiments-synthetic-typescript.md) |
 | Validate evaluator accuracy | [validation](references/validation.md), [validation-evaluators-python](references/validation-evaluators-python.md), [validation-evaluators-typescript](references/validation-evaluators-typescript.md) |
 | Sample traces for review | [observe-sampling-python](references/observe-sampling-python.md), [observe-sampling-typescript](references/observe-sampling-typescript.md) |

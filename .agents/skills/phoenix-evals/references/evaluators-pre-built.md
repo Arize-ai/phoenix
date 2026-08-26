@@ -3,8 +3,9 @@
 Use for exploration only. Validate before production.
 
 Pre-built evaluators are importable from `phoenix.evals.metrics` (Python) and
-`@arizeai/phoenix-evals` (TypeScript). They cover RAG quality (faithfulness,
-correctness, document relevance), conversation grounding (hallucination),
+`@arizeai/phoenix-evals` (TypeScript). They cover RAG and retrieval quality
+(faithfulness, correctness, document relevance, retrieval relevance),
+conversation grounding (hallucination),
 response quality (conciseness, refusal), safety (toxicity), conversation
 signals (user friction), agent tool use (tool selection, invocation, response
 handling), and code-based checks (regex match, exact match,
@@ -91,6 +92,64 @@ The TypeScript evaluator changed shape: it previously took a separate `context`
 field and returned `factual` / `hallucinated`. Existing stored evaluations,
 dashboards, thresholds, and label filters built on the old labels need migrating
 — do not compare old and new scores directly.
+
+## Retrieval quality: document relevance vs. retrieval relevance
+
+Two pre-built evaluators judge whether retrieved material bears on the request.
+They differ in *granularity* and in *what counts as a retrieval*:
+
+| Evaluator | Unit judged | Input fields | Reach for it when |
+| --------- | ----------- | ------------ | ----------------- |
+| Document relevance | One document at a time | `input`, `document_text` (`documentText` in TS) | Classic RAG — you want a per-chunk label to compute precision@k / recall@k |
+| Retrieval relevance | The whole retrieval step, holistically | `input`, `context` | Any retrieval step, source-agnostic — vector search, a tool or function call, an MCP server, a web search, or a database query |
+
+`RetrievalRelevanceEvaluator` is source-agnostic and scores the retrieved
+information *as a whole*: if any meaningful part of it materially helps address
+the request, the step is `relevant`. Labels are `relevant` / `irrelevant`, the
+score is **maximized** (`relevant` is `1.0`, `irrelevant` is `0.0`), and each
+result carries an `explanation` from the judge.
+
+Two field conventions matter, and getting them wrong quietly changes what you
+measured:
+
+- `input` should be the **user's request** — e.g. the trace root's
+  `input.value` — not a reformulated tool argument or a generated SQL query.
+- `context` should be the retrieved information for the step with **all
+  returned items joined together**, not one item at a time.
+
+Relevance is not correctness: outdated or later-contradicted information still
+scores `relevant` if it was genuinely about the right subject. A failed
+retrieval — an error, a timeout, or "no results found" — scores `irrelevant`.
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import RetrievalRelevanceEvaluator
+
+relevance_eval = RetrievalRelevanceEvaluator(llm=LLM(provider="openai", model="gpt-4o-mini"))
+scores = relevance_eval.evaluate({
+    "input": "What is the capital of France?",
+    "context": "Paris is the capital and largest city of France.",
+})
+print(scores[0].label)  # "relevant"
+```
+
+```typescript
+import { createRetrievalRelevanceEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = createRetrievalRelevanceEvaluator({ model: openai("gpt-4o-mini") });
+const result = await evaluator.evaluate({
+  input: "What is the capital of France?",
+  context: "Paris is the capital and largest city of France.",
+});
+console.log(result.label); // "relevant"
+```
+
+`RetrievalRelevanceEvaluator` takes `llm` plus arbitrary `**kwargs` forwarded to
+the LLM client (e.g. `temperature=0.0`), and requires a model that supports tool
+calling or structured output. The TypeScript factory accepts optional `name`,
+`choices`, `promptTemplate`, and `optimizationDirection` overrides on top of the
+usual classification evaluator arguments.
 
 ## When to Use
 
