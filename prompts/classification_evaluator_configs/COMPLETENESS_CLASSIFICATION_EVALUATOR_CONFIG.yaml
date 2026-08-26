@@ -22,8 +22,7 @@ messages:
 
       INCOMPLETE - At least one active intention was left unsatisfied. This includes an intention that was:
       - Ignored or never addressed: the user asked for something and the assistant never responded to that part.
-      - Only partially fulfilled: the assistant addressed some of a multi-part request but omitted a distinct part of it.
-      - Answered non-responsively: the assistant replied to that intention with something irrelevant, evasive, or that does not actually address what was asked.
+      - Only partially fulfilled: the assistant addressed some of a multi-part request but omitted a distinct part of it. Do not treat a single question as partial merely because the assistant could not name a specific fact that the available context does not contain.
       - Deflected without resolution: the assistant promised to do it, or said it would come back to it, but never followed through within the conversation.
       </rubric>
 
@@ -33,15 +32,17 @@ messages:
       3. Keep genuinely separate requests separate. When a single turn contains multiple distinct asks (e.g. "reset my password and also tell me my current plan"), treat each as its own intention and judge each independently. Do not collapse distinct requests into one summarized intention.
       4. Only count active intentions. If the user withdrew, retracted, or abandoned a request — for instance by changing their mind, saying never mind, or replacing it with a different one — it is no longer active and its being unaddressed does not make the conversation incomplete.
       5. A request the assistant genuinely cannot fulfill counts as addressed once the assistant says so. If the assistant does not complete an intention because the request is outside what it is able or permitted to do (it lacks the capability, tools, access, or knowledge to do it, or it declines on legitimate safety, security, privacy, or policy grounds) that intention is satisfied for completeness purposes, as long as the assistant clearly communicates that it cannot or will not do it. Completeness is about whether each intention was addressed, not whether the user got the outcome they wanted, so a well-founded "I can't do that" is a complete response. This does not cover an intention the assistant simply ignored, forgot, or left unaddressed with no such explanation, that is still incomplete.
-      6. Do not penalize an intention that is genuinely blocked on the user. If the assistant's last relevant action was a good-faith request for information it legitimately needs to proceed, and the user did not supply it before the conversation ended, treat that intention as addressed rather than unsatisfied. This does not apply when the assistant simply ignored the request or asked for something it did not need.
-      7. Judge satisfaction by what the assistant actually delivered, not by its claims about what it did. If the assistant asserts it completed a task but the conversation or tool results show it did not, the intention is unsatisfied.
-      8. Completeness is independent of correctness and quality. An answer that is fully responsive to an intention counts as satisfying it even if it is wrong, verbose, or poorly written — those are the concern of other evaluations. Only judge whether each intention was addressed.
+      6. Do not require a definitive answer when the provided evidence does not contain one. If the user asked a question and the assistant engages that question by stating that the given context, documents, or tool results do not specify the requested fact — optionally adding the closest relevant information that is available — the intention is satisfied. 
+      7. Do not penalize an intention that is genuinely blocked on the user. If the assistant's last relevant action was a good-faith request for information it legitimately needs to proceed, and the user did not supply it before the conversation ended, treat that intention as addressed rather than unsatisfied. This does not apply when the assistant simply ignored the request or asked for something it did not need.
+      8. Judge satisfaction by what the assistant actually delivered, not by its claims about what it did. If the assistant asserts it completed a task but the conversation or tool results show it did not, the intention is unsatisfied.
+      9. Completeness is independent of correctness and quality. An answer that is fully responsive to an intention counts as satisfying it even if it is wrong, verbose, or poorly written — those are the concern of other evaluations. Only judge whether each intention was addressed.
 
       Do not treat any of the following, on its own, as making a conversation incomplete:
       - Factual errors, low quality, verbosity, or poor style in a response that does address the intention.
       - An optional suggestion or proposal from the assistant that the user did not take up.
       - An intention the user themselves withdrew or abandoned.
       - The absence of information the assistant reasonably and explicitly asked the user for and never received.
+      - The assistant stating that the provided context, documents, or tools do not contain the requested fact, while still responding to that question.
 
       Put your complete analysis in your explanation. Work through the conversation and list every distinct user intention you identify, one line per intention, in the order they first appear, using this exact format:
       INTENTIONS:
