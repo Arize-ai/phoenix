@@ -169,21 +169,21 @@ export type DatasetEvaluatorMappingSource = {
 };
 
 /**
- * As produced by the server: `input` and `span` hold the same whole-span
- * document, and `output` is the span's raw output value. There is no
- * `metadata` key: an evaluator that needs one maps it explicitly.
+ * As produced by the server: `input` and `output` are the span's own input and
+ * output values, and everything else sits under `metadata` — the span filter
+ * language's names flat, with the whole span record under `metadata.span`.
  */
 export type SpanEvaluatorMappingSource = {
   input: unknown;
   output: unknown;
-  span: Record<string, unknown>;
+  metadata: Record<string, unknown>;
 };
 
 /**
- * As produced by the server: `input` and `session` hold the same whole-session
- * document, and `output` is the newest turn's output, null when that turn
- * produced none. There is no `metadata` key: an evaluator that needs one maps
- * it explicitly.
+ * As produced by the server: `input` and `output` are the values the session
+ * filter language spells `first_input` and `last_output`, and everything else
+ * sits under `metadata` — those names flat, with the whole session record under
+ * `metadata.session`.
  *
  * Structurally identical to a span source, but semantically distinct: the two
  * grains name different records and offer different mapping vocabulary, so the
@@ -192,7 +192,7 @@ export type SpanEvaluatorMappingSource = {
 export type SessionEvaluatorMappingSource = {
   input: unknown;
   output: unknown;
-  session: Record<string, unknown>;
+  metadata: Record<string, unknown>;
 };
 
 export type EvaluatorMappingSourceGrain = "dataset" | "span" | "session";

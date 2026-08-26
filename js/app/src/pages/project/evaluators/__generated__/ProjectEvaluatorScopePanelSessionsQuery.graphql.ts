@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f5871297b2070fcc0782cb3939bb40c>>
+ * @generated SignedSource<<f0d8a9b00c875796c563e88e9bb84691>>
  * @lightSyntaxTransform
  */
 
@@ -25,7 +25,6 @@ export type ProjectEvaluatorScopePanelSessionsQuery$data = {
         readonly session: {
           readonly id: string;
           readonly numTraces: number;
-          readonly sessionEvaluationBoundVariables: any;
           readonly sessionEvaluationContext: any | null;
           readonly sessionId: string;
           readonly tokenUsage: {
@@ -169,13 +168,6 @@ v6 = {
                   "kind": "ScalarField",
                   "name": "sessionEvaluationContext",
                   "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "sessionEvaluationBoundVariables",
-                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -270,16 +262,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7456d9c9355fb9461e402b069873b811",
+    "cacheID": "876e6b96743fcc3ec98e7dd1783fdc1a",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorScopePanelSessionsQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorScopePanelSessionsQuery(\n  $projectId: ID!\n  $sessionFilterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessions(first: $first, sort: {col: startTime, dir: desc}, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n        edges {\n          session: node {\n            id\n            sessionId\n            numTraces\n            tokenUsage {\n              total\n            }\n            sessionEvaluationContext\n            sessionEvaluationBoundVariables\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorScopePanelSessionsQuery(\n  $projectId: ID!\n  $sessionFilterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessions(first: $first, sort: {col: startTime, dir: desc}, sessionFilterCondition: $sessionFilterCondition, timeRange: $timeRange) {\n        edges {\n          session: node {\n            id\n            sessionId\n            numTraces\n            tokenUsage {\n              total\n            }\n            sessionEvaluationContext\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "41f84e8718d8ea809c6a91e66e159171";
+(node as any).hash = "f5834cfe7302b23d3823bcce1b2c51d0";
 
 export default node;

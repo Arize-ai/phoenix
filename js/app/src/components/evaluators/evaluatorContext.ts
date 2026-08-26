@@ -11,25 +11,22 @@ import {
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorMappingSourceState } from "@phoenix/store/evaluatorStore";
 import type { EvaluatorInputMapping } from "@phoenix/types";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
+
+/** The context key everything but the evaluator's input and output sits under. */
+export const EVALUATOR_METADATA_SLOT = "metadata";
 
 export type EvaluatorContextEntryStatus =
   | "resolved"
-  | "unset"
   | "unresolved"
   | "unverifiable";
 
 export type EvaluatorContextProvenance =
   | { kind: "path"; path: string }
-  | { kind: "literal" }
-  | { kind: "derived"; description: string }
-  | {
-      kind: "record";
-      grain: ProjectEvaluatorMappingSourceGrain;
-      name: string;
-    }
-  | { kind: "unset" };
+  | { kind: "literal" };
 
 export type MaterializedEvaluatorContextEntry = {
+  /** What the entry is written as: a slot name, or a `metadata.…` path. */
   name: string;
   status: EvaluatorContextEntryStatus;
   value?: unknown;
@@ -42,45 +39,54 @@ export type MaterializedEvaluatorContext = {
   /** False while the store contains only its generic source skeleton. */
   hasSampledRecord: boolean;
   /**
-   * Every value the selected record can supply by evaluator parameter name.
-   * Present as soon as a path resolves, sampled record or not, so the shape
-   * stays browsable; `hasSampledRecord` says whether any of it may be shown.
+   * The three values the evaluator receives, by name. Paths an authoring tool
+   * drills are resolved against this, so it stays browsable before a record is
+   * sampled; `hasSampledRecord` says whether any of it may be shown.
    */
   values: Record<string, unknown>;
   evaluatorInputs: MaterializedEvaluatorContextEntry[];
-  recordVariables: MaterializedEvaluatorContextEntry[];
+  /**
+   * The record's own names, as the `metadata.…` paths that read them. Binding
+   * is by the three slot names alone, so these are reached by path, never by
+   * name — the entry is written exactly as it must be typed.
+   */
+  vocabulary: MaterializedEvaluatorContextEntry[];
 };
 
 /**
- * Resolves the evaluator inputs and record variables shown by authoring tools.
+ * Resolves what an evaluator receives, for the authoring tools that offer and
+ * preview it.
  *
  * @param params - context inputs
  * @param params.grain - record kind the editor is authoring against
  * @param params.evaluatorMappingSource - grain-tagged sampled mapping source
  * @param params.inputMapping - current evaluator input mapping
  * @param params.slotDefaults - defaults for the selected record kind
- * @param params.recordVariableValues - sampled values for record variables
  */
 export function materializeEvaluatorContext({
   grain,
   evaluatorMappingSource,
   inputMapping,
   slotDefaults,
-  recordVariableValues,
 }: {
   grain: ProjectEvaluatorMappingSourceGrain;
   evaluatorMappingSource: EvaluatorMappingSourceState;
   inputMapping: EvaluatorInputMapping;
   slotDefaults: Readonly<Record<EvaluatorSlotName, EvaluatorSlotDefault>>;
-  recordVariableValues: Record<string, unknown>;
 }): MaterializedEvaluatorContext | null {
   if (evaluatorMappingSource.grain !== grain) {
     return null;
   }
 
   const source = evaluatorMappingSource.source as Record<string, unknown>;
-  const hasSampledRecord = Object.values(recordVariableValues).some(
-    (value) => value != null
+  const boundVariables = getEvaluatorBoundVariables(grain);
+  const recordMetadata = isStringKeyedObject(source[EVALUATOR_METADATA_SLOT])
+    ? source[EVALUATOR_METADATA_SLOT]
+    : {};
+  // A sampled record is one whose vocabulary carries values; the generic
+  // skeleton names every field and holds none of them.
+  const hasSampledRecord = boundVariables.some(
+    ({ name }) => recordMetadata[name] != null
   );
   const evaluatorInputs = EVALUATOR_SLOT_NAMES.map((slotName) =>
     materializeEvaluatorInput({
@@ -91,27 +97,28 @@ export function materializeEvaluatorContext({
       hasSampledRecord,
     })
   );
-  const recordVariables = getEvaluatorBoundVariables(grain).map((variable) =>
-    materializeRecordVariable({
-      grain,
-      variable,
-      values: recordVariableValues,
-      hasSampledRecord,
-    })
-  );
   const values: Record<string, unknown> = {};
-  for (const entry of [...evaluatorInputs, ...recordVariables]) {
+  for (const entry of evaluatorInputs) {
     if ("value" in entry) {
       values[entry.name] = entry.value;
     }
   }
+
+  // The vocabulary reads off whatever `metadata` ended up bound to, so what the
+  // rows offer is what the evaluator would actually receive under that name.
+  const boundMetadata = isStringKeyedObject(values[EVALUATOR_METADATA_SLOT])
+    ? values[EVALUATOR_METADATA_SLOT]
+    : {};
+  const vocabulary = boundVariables.map((variable) =>
+    materializeVocabularyEntry({ variable, boundMetadata, hasSampledRecord })
+  );
 
   return {
     grain,
     hasSampledRecord,
     values,
     evaluatorInputs,
-    recordVariables,
+    vocabulary,
   };
 }
 
@@ -137,50 +144,12 @@ function materializeEvaluatorInput({
     };
   }
 
-  const configuredPath = inputMapping.pathMapping[slotName];
-  if (configuredPath) {
-    return materializePath({
-      name: slotName,
-      source,
-      path: configuredPath,
-      hasSampledRecord,
-    });
-  }
-
-  if (slotDefault === null) {
-    return {
-      name: slotName,
-      status: "unset",
-      provenance: { kind: "unset" },
-    };
-  }
-  if (slotDefault.kind === "path") {
-    return materializePath({
-      name: slotName,
-      source,
-      path: slotDefault.path,
-      hasSampledRecord,
-    });
-  }
-
-  return hasSampledRecord && Object.hasOwn(source, slotName)
-    ? {
-        name: slotName,
-        status: "resolved",
-        value: source[slotName],
-        provenance: {
-          kind: "derived",
-          description: slotDefault.description,
-        },
-      }
-    : {
-        name: slotName,
-        status: "unverifiable",
-        provenance: {
-          kind: "derived",
-          description: slotDefault.description,
-        },
-      };
+  return materializePath({
+    name: slotName,
+    source,
+    path: inputMapping.pathMapping[slotName] || slotDefault.path,
+    hasSampledRecord,
+  });
 }
 
 function materializePath({
@@ -212,28 +181,27 @@ function materializePath({
       };
 }
 
-function materializeRecordVariable({
-  grain,
+function materializeVocabularyEntry({
   variable,
-  values,
+  boundMetadata,
   hasSampledRecord,
 }: {
-  grain: ProjectEvaluatorMappingSourceGrain;
   variable: EvaluatorBoundVariable;
-  values: Record<string, unknown>;
+  boundMetadata: Record<string, unknown>;
   hasSampledRecord: boolean;
 }): MaterializedEvaluatorContextEntry {
-  const hasValue = Object.hasOwn(values, variable.name);
+  const path = `${EVALUATOR_METADATA_SLOT}.${variable.name}`;
+  const hasValue = Object.hasOwn(boundMetadata, variable.name);
   const isResolved = hasSampledRecord && hasValue;
   return {
-    name: variable.name,
+    name: path,
     status: isResolved
       ? "resolved"
       : hasSampledRecord
         ? "unresolved"
         : "unverifiable",
-    ...(isResolved ? { value: values[variable.name] } : {}),
-    provenance: { kind: "record", grain, name: variable.name },
+    ...(isResolved ? { value: boundMetadata[variable.name] } : {}),
+    provenance: { kind: "path", path },
     description: variable.description,
   };
 }

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import {
   Suspense,
   useEffect,
@@ -67,17 +67,14 @@ import type {
 import type { ProjectEvaluatorScopePanelSessionCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionCountQuery.graphql";
 import type { ProjectEvaluatorScopePanelSessionsQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionsQuery.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
-import {
-  getEvaluatorBoundVariableNames,
-  getEvaluatorBoundVariables,
-} from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import { getEvaluatorBoundVariables } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { toBoundValueDisplay } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBoundVariables";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
   dropOtherGrainEntityPathMappings,
   getProjectEvaluatorMappingDiagnostics,
   toEvaluatorMappingSourceGrain,
-  type ProjectEvaluatorMappingDiagnostic,
+  type ProjectEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
@@ -685,7 +682,6 @@ function SessionRunList({
                     total
                   }
                   sessionEvaluationContext
-                  sessionEvaluationBoundVariables
                 }
               }
               pageInfo {
@@ -711,7 +707,6 @@ function SessionRunList({
         key: session.id,
         name: session.sessionId,
         context: session.sessionEvaluationContext,
-        boundVariables: session.sessionEvaluationBoundVariables,
         isSample: false,
         unavailableReason:
           session.sessionEvaluationContext == null
@@ -728,7 +723,6 @@ function SessionRunList({
             key: SAMPLE_ROW_KEY,
             name: "Sample session",
             context: sample.context,
-            boundVariables: getGenericSessionEvaluationContext().boundVariables,
             mappingContext: getGenericSessionEvaluationContext().context,
             isSample: true,
           },
@@ -785,15 +779,12 @@ type RecordedRunListRow = {
   /** Prefixes the card title on a span row; a session has no kind. */
   spanKind?: string;
   context: unknown;
-  /** What this record supplies to an evaluator by name, with no mapping entry. */
-  boundVariables?: unknown;
   /**
-   * What authoring builds against instead of `context`. A sample row sets
-   * these to the grain's generic no-values skeleton so completion and the
-   * bound-variable list read the schema, never the invented demo data.
+   * What authoring builds against instead of `context`. A sample row sets this
+   * to the grain's generic no-values skeleton so completion and the bindings
+   * list read the schema, never the invented demo data.
    */
   mappingContext?: unknown;
-  mappingBoundVariables?: unknown;
   isSample: boolean;
   /** An at-a-glance measure of the record, such as a session's trace count. */
   metric?: string;
@@ -868,7 +859,6 @@ function SpanRunList({
                   name
                   spanKind
                   evaluationContext
-                  evaluationBoundVariables
                 }
               }
               pageInfo {
@@ -896,7 +886,6 @@ function SpanRunList({
         name: span.name,
         spanKind: span.spanKind,
         context: span.evaluationContext,
-        boundVariables: span.evaluationBoundVariables,
         isSample: false,
       }))
     : sample
@@ -906,7 +895,6 @@ function SpanRunList({
             name: `Sample ${sample.spanKind} span`,
             spanKind: sample.spanKind.toLowerCase(),
             context: sample.context,
-            boundVariables: getGenericSpanEvaluationContext().boundVariables,
             mappingContext: getGenericSpanEvaluationContext().context,
             isSample: true,
           },
@@ -998,12 +986,6 @@ function RecordedRunList({
     if (context && hasEvaluatorMappingSourceShape(context)) {
       evaluatorStore.getState().setEvaluatorMappingSource(context);
     }
-    const boundVariables = activeRow?.boundVariables;
-    evaluatorStore
-      .getState()
-      .setEvaluatorBoundVariables(
-        isStringKeyedObject(boundVariables) ? boundVariables : {}
-      );
   });
   useEffect(() => {
     syncMappingSource();
@@ -1178,11 +1160,6 @@ function RecordedRunRow({
                     <Flex direction="column" gap="size-200">
                       <BindingPreview
                         context={row.mappingContext ?? row.context}
-                        boundVariables={
-                          isStringKeyedObject(row.boundVariables)
-                            ? row.boundVariables
-                            : {}
-                        }
                         recordNoun={recordNoun}
                         pathMapping={pathMapping}
                         requiredVariables={requiredVariables}
@@ -1302,10 +1279,8 @@ const contextViewerCSS = css`
 
 type BindingRow = {
   keyword: string;
-  /** Set only for explicit path mappings. */
+  /** The path the value is read from; every binding has one. */
   path?: string;
-  /** A default with no path — described in prose, never in path notation. */
-  derivedAnnotation?: string;
   /** One line on the name, shown on hover. */
   description?: string;
   /** Stands in for the value until a record supplies one. */
@@ -1315,15 +1290,12 @@ type BindingRow = {
 
 function BindingPreview({
   context,
-  boundVariables,
   recordNoun,
   pathMapping,
   requiredVariables,
   isSampleContext,
 }: {
   context: unknown;
-  /** The values this record supplies by name, with no mapping entry. */
-  boundVariables: Record<string, unknown>;
   recordNoun: RecordedRunNoun;
   pathMapping: Record<string, string>;
   requiredVariables?: string[];
@@ -1339,40 +1311,14 @@ function BindingPreview({
     pathMapping,
     variables,
     requiredVariables,
-    boundVariableNames: getEvaluatorBoundVariableNames(
-      recordNoun === "session" ? "session" : "span"
-    ),
   });
-  const resolvedValue = ({
-    path,
-    source,
-  }: ProjectEvaluatorMappingDiagnostic): unknown =>
-    source === "record" ? boundVariables[path] : getValueAtPath(context, path);
   const grain = recordNoun === "session" ? "session" : "span";
-  // The canonical slots always lead, each reflecting the mapping in force:
-  // an explicit path when one is set, the slot's default otherwise. A slot
-  // with no mapping and no default (metadata) binds nothing and shows no row.
-  const slotRows: BindingRow[] = EVALUATOR_SLOT_NAMES.flatMap((slotName) => {
-    const path = pathMapping[slotName];
-    if (path) {
-      return [
-        { keyword: slotName, path, value: getValueAtPath(context, path) },
-      ];
-    }
-    const slotDefault = getEvaluatorSlotDefault(grain, slotName);
-    if (slotDefault === null) {
-      return [];
-    }
-    const value = isStringKeyedObject(context) ? context[slotName] : undefined;
-    return [
-      slotDefault.kind === "path"
-        ? { keyword: slotName, path: slotDefault.path, value }
-        : {
-            keyword: slotName,
-            derivedAnnotation: slotDefault.description,
-            value,
-          },
-    ];
+  // The canonical slots always lead, each reflecting the mapping in force: an
+  // explicit path when one is set, the slot's default otherwise.
+  const slotRows: BindingRow[] = EVALUATOR_SLOT_NAMES.map((slotName) => {
+    const path =
+      pathMapping[slotName] || getEvaluatorSlotDefault(grain, slotName).path;
+    return { keyword: slotName, path, value: getValueAtPath(context, path) };
   });
   const mappedRows: BindingRow[] = diagnostics
     .filter(
@@ -1384,20 +1330,11 @@ function BindingPreview({
     .map((diagnostic) => ({
       keyword: diagnostic.variable,
       path: diagnostic.path,
-      value: resolvedValue(diagnostic),
-    }));
-  // The record's own names, in the same grammar: to the binding layer these
-  // and the slots are one namespace — the slots merely come with defaults.
-  const hasRecordValues = Object.keys(boundVariables).length > 0;
-  const vocabularyRows: BindingRow[] = getEvaluatorBoundVariables(grain)
-    .filter(({ name }) => !(name in pathMapping))
-    .map(({ name, type, description }) => ({
-      keyword: name,
-      description,
-      typeHint: hasRecordValues ? undefined : type,
-      value: boundVariables[name],
+      value: getValueAtPath(context, diagnostic.path),
     }));
   const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
+  const toggle = (keyword: string) =>
+    setExpandedKeyword((current) => (current === keyword ? null : keyword));
   return (
     <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
@@ -1405,18 +1342,25 @@ function BindingPreview({
           Values fill in once this project has a {recordNoun} that matches.
         </Alert>
       ) : null}
-      {[...slotRows, ...mappedRows, ...vocabularyRows].map((row) => (
-        <BindingPreviewRow
-          key={row.keyword}
-          row={row}
-          isExpanded={expandedKeyword === row.keyword}
-          onToggleExpanded={() =>
-            setExpandedKeyword((current) =>
-              current === row.keyword ? null : row.keyword
-            )
-          }
-        />
-      ))}
+      {[...slotRows, ...mappedRows].map((row) =>
+        row.keyword === METADATA_SLOT_NAME ? (
+          <BindingPreviewRow
+            key={row.keyword}
+            row={row}
+            isExpanded={expandedKeyword === row.keyword}
+            onToggleExpanded={() => toggle(row.keyword)}
+          >
+            <MetadataBindingTree value={row.value} grain={grain} />
+          </BindingPreviewRow>
+        ) : (
+          <BindingPreviewRow
+            key={row.keyword}
+            row={row}
+            isExpanded={expandedKeyword === row.keyword}
+            onToggleExpanded={() => toggle(row.keyword)}
+          />
+        )
+      )}
 
       {diagnostics.map(({ variable, path, status, source }) =>
         status === "missing" ? (
@@ -1443,6 +1387,51 @@ function BindingPreview({
   );
 }
 
+const METADATA_SLOT_NAME = "metadata";
+
+/**
+ * What `metadata` holds, in reading order: the record's own names first — the
+ * ones a filter condition already uses — then the whole record, collapsed,
+ * because it is the one branch nobody reads top to bottom.
+ */
+function MetadataBindingTree({
+  value,
+  grain,
+}: {
+  value: unknown;
+  grain: ProjectEvaluatorMappingSourceGrain;
+}) {
+  const metadata = isStringKeyedObject(value) ? value : {};
+  const hasRecordValues = Object.values(metadata).some(
+    (entry) => entry != null && !isStringKeyedObject(entry)
+  );
+  const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
+  const rows: BindingRow[] = getEvaluatorBoundVariables(grain).map(
+    ({ name, type, description }) => ({
+      keyword: name,
+      description,
+      typeHint: hasRecordValues ? undefined : type,
+      value: metadata[name],
+    })
+  );
+  return (
+    <Flex direction="column" gap="size-50">
+      {[...rows, { keyword: grain, value: metadata[grain] }].map((row) => (
+        <BindingPreviewRow
+          key={row.keyword}
+          row={row}
+          isExpanded={expandedKeyword === row.keyword}
+          onToggleExpanded={() =>
+            setExpandedKeyword((current) =>
+              current === row.keyword ? null : row.keyword
+            )
+          }
+        />
+      ))}
+    </Flex>
+  );
+}
+
 /** A value a single line cannot show whole earns the expand affordance. */
 function isExpandableBindingValue(value: unknown): boolean {
   if (typeof value === "string") {
@@ -1455,20 +1444,19 @@ function BindingPreviewRow({
   row,
   isExpanded,
   onToggleExpanded,
+  children,
 }: {
   row: BindingRow;
   isExpanded: boolean;
   onToggleExpanded: () => void;
+  /** Rendered in place of the raw value when the row opens onto a tree. */
+  children?: ReactNode;
 }) {
   const isTextValue = typeof row.value === "string";
-  const isExpandable = isExpandableBindingValue(row.value);
+  const isExpandable = children != null || isExpandableBindingValue(row.value);
   const display = toBoundValueDisplay(row.value);
   const annotation = row.path ? (
     <code className="binding-row__path">← {row.path}</code>
-  ) : row.derivedAnnotation ? (
-    <span className="binding-row__path binding-row__path--derived">
-      ← {row.derivedAnnotation}
-    </span>
   ) : null;
   const head = (
     <>
@@ -1508,14 +1496,15 @@ function BindingPreviewRow({
       </button>
       {isExpanded ? (
         <div className="binding-row__detail">
-          {isTextValue ? (
-            <pre className="binding-row__text">{String(row.value)}</pre>
-          ) : (
-            <JSONBlock
-              value={JSON.stringify(row.value, null, 2) ?? "undefined"}
-              basicSetup={{ lineNumbers: false }}
-            />
-          )}
+          {children ??
+            (isTextValue ? (
+              <pre className="binding-row__text">{String(row.value)}</pre>
+            ) : (
+              <JSONBlock
+                value={JSON.stringify(row.value, null, 2) ?? "undefined"}
+                basicSetup={{ lineNumbers: false }}
+              />
+            ))}
         </div>
       ) : null}
     </div>
@@ -1555,10 +1544,6 @@ const bindingRowCSS = css`
     font-size: var(--global-font-size-xs);
     font-weight: 600;
     color: var(--global-text-color-900);
-  }
-  .binding-row__path--derived {
-    font-family: var(--global-font-family-sans);
-    font-style: italic;
   }
   .binding-row__path {
     flex: none;
@@ -1645,9 +1630,12 @@ function getLatestMessageText(value: unknown): string | null {
 function hasEvaluatorMappingSourceShape(
   value: unknown
 ): value is EvaluatorMappingSource<"span" | "session"> {
+  if (!isStringKeyedObject(value) || !isStringKeyedObject(value.metadata)) {
+    return false;
+  }
+  const { metadata } = value;
   return (
-    isStringKeyedObject(value) &&
-    (isStringKeyedObject(value.span) || isStringKeyedObject(value.session))
+    isStringKeyedObject(metadata.span) || isStringKeyedObject(metadata.session)
   );
 }
 

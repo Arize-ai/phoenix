@@ -10,31 +10,20 @@ import type {
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { getValueAtPath, parsePathSegments } from "@phoenix/utils/objectUtils";
 
-/** A span evaluation context has no counterpart to a dataset `reference`. */
-export function dropReferencePathMappings(
-  inputMapping: EvaluatorInputMapping
-): EvaluatorInputMapping {
-  const pathMapping = Object.fromEntries(
-    Object.entries(inputMapping.pathMapping).filter(
-      ([, path]) => path !== "reference" && !path.startsWith("reference.")
-    )
-  );
-  return { ...inputMapping, pathMapping };
-}
-
 /**
  * Drops the paths rooted at the record kind an evaluator no longer runs on.
  *
- * A path may be written against the whole record — `span.attributes…`,
- * `session.turns…` — and that root exists only on its own kind. Switching an
- * evaluator from spans to sessions would otherwise leave paths behind that
- * match nothing, and a path that matches nothing fails the evaluation.
+ * A path may be written against the whole record — `metadata.span.attributes…`,
+ * `metadata.session.turns…` — and that key exists only on its own kind.
+ * Switching an evaluator from spans to sessions would otherwise leave paths
+ * behind that match nothing, and a path that matches nothing fails the
+ * evaluation.
  */
 export function dropOtherGrainEntityPathMappings(
   inputMapping: EvaluatorInputMapping,
   grain: ProjectEvaluatorMappingSourceGrain
 ): EvaluatorInputMapping {
-  const staleRoot = grain === "session" ? "span" : "session";
+  const staleRoot = grain === "session" ? "metadata.span" : "metadata.session";
   const pathMapping = Object.fromEntries(
     Object.entries(inputMapping.pathMapping).filter(
       ([, path]) => !isPathRootedAt(path, staleRoot)
@@ -71,7 +60,7 @@ function sortedEntriesJson(mapping: Record<string, unknown> | undefined) {
   );
 }
 
-/** `span`, `span.attributes`, and `span['a.b']` are rooted at `span`; `spanX` is not. */
+/** `metadata.span` and `metadata.span['a.b']` are rooted there; `metadata.spanX` is not. */
 function isPathRootedAt(path: string, root: string): boolean {
   if (!path.startsWith(root)) {
     return false;
@@ -322,11 +311,11 @@ export type ProjectEvaluatorMappingDiagnostic = {
   path: string;
   status: "resolved" | "missing" | "optional-missing" | "unverified";
   /**
-   * Where the value comes from: a path the author wrote, a field of the same
-   * name on the record's evaluation context, or a value the record supplies by
-   * name. Only `path` carries a path worth showing.
+   * Where the value comes from: a path the author wrote, or a field of the same
+   * name at the top of the evaluation context. Only `path` carries a path worth
+   * showing.
    */
-  source: "path" | "context" | "record";
+  source: "path" | "context";
 };
 
 export function getProjectEvaluatorMappingDiagnostics({
@@ -334,14 +323,11 @@ export function getProjectEvaluatorMappingDiagnostics({
   pathMapping,
   variables,
   requiredVariables = variables,
-  boundVariableNames,
 }: {
   context: unknown;
   pathMapping: Record<string, string>;
   variables: string[];
   requiredVariables?: string[];
-  /** The names this record kind supplies without a mapping entry. */
-  boundVariableNames?: ReadonlySet<string>;
 }): ProjectEvaluatorMappingDiagnostic[] {
   const requiredVariableNames = new Set(requiredVariables);
   const missingStatus = (variable: string) =>
@@ -378,9 +364,6 @@ export function getProjectEvaluatorMappingDiagnostics({
         status: "resolved",
         source: "context",
       };
-    }
-    if (boundVariableNames?.has(variable)) {
-      return { variable, path: variable, status: "resolved", source: "record" };
     }
     return {
       variable,

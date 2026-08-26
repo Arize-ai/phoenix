@@ -1,3 +1,5 @@
+import type { CompletionSection } from "@codemirror/autocomplete";
+
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import { toBracketSegment } from "@phoenix/utils/jsonUtils";
@@ -158,21 +160,44 @@ export function toMemberPreview(value: unknown): string {
   return toContentPreview(value, { maxLength: 48 }) ?? String(value);
 }
 
-/** One dropdown row: a member of the level the cursor is in. */
+/** One dropdown row: something the cursor's level can be extended with. */
 export type EvaluatorPathCompletion = {
-  /** The member name, matched against what the user has typed. */
+  /** The text matched against what the user has typed. */
   key: string;
   /** The whole path the row writes into the field. */
   path: string;
-  /** The member's value on the sampled record. */
+  /** The value the path reads on the sampled record. */
   preview: string;
   /** Which group the row sits under. */
-  section: EvaluatorPathCompletionSection;
-  /** One line on what a suggested path reaches, shown when highlighted. */
+  section: CompletionSection;
+  /** Where the row sits within its group; higher comes first. */
+  boost?: number;
+  /** The row's completion type, which styles it. */
+  type?: string;
+  /** One line on what the row reaches, shown when highlighted. */
   description?: string;
 };
 
-export type EvaluatorPathCompletionSection = "suggested" | "members";
+/**
+ * What keeps the top level's menu matching as a name grows into a path.
+ *
+ * The top level offers whole `metadata.<name>` paths, so the first dot has to
+ * stay inside the same result or those rows would drop out the moment they
+ * start to match. A second dot leaves — that is a level the top-level list does
+ * not describe, and re-querying is what opens it.
+ */
+export const EVALUATOR_ROOT_PATH_PATTERN = /^\w*(?:\.\w*)?$/;
+
+/** Pinned examples lead the root list; everything else follows in its group. */
+export const SUGGESTED_PATH_SECTION: CompletionSection = {
+  name: "Suggestions",
+  rank: 0,
+};
+
+/** A drill level is headed by the path that reaches it. */
+export const toPathMemberSection = (
+  containerPath: string
+): CompletionSection => ({ name: containerPath, rank: 3 });
 
 /** What a pinned suggestion supplies: the path and its one-line description. */
 export type EvaluatorSlotSuggestedPathLike = {
@@ -183,30 +208,29 @@ export type EvaluatorSlotSuggestedPathLike = {
 export type EvaluatorPathCompletionResult = {
   /** Document offset the typeahead matches and replaces from. */
   from: number;
-  /** The level the rows belong to; names the dropdown's member group. */
+  /** The level the rows belong to; empty at the top of the context. */
   containerPath: string;
   completions: EvaluatorPathCompletion[];
 };
 
 /**
- * The members the typeahead offers for the path being typed.
+ * The rows the typeahead offers for the path being typed.
  *
- * The vocabulary is the record itself: `rootToken` (`span`, `session`) names it,
- * the root level offers the record's own fields, and each `.` opens the level
- * below. `suggestedPaths` names root-relative paths worth pinning above the
- * rest — worked examples of what a mapping can reach. They are offered only at
- * the root, and only when they resolve on the record, so a suggestion is
- * always a path that would actually bind.
+ * The top level is the evaluation context itself, so `rootCandidates` names it
+ * — the shared candidate tree, whose rows are already whole paths. Each `.`
+ * after that opens the level below, read off the context. `suggestedPaths` are
+ * whole paths worth pinning above the rest, offered only at the top and only
+ * when they resolve, so a suggestion is always a path that would actually bind.
  */
 export function getEvaluatorPathCompletions({
   source,
-  rootToken,
+  rootCandidates = [],
   suggestedPaths = [],
   textBeforeCursor,
 }: {
-  /** The mapping source a path is resolved against. */
+  /** The evaluation context a path is resolved against. */
   source: Record<string, unknown>;
-  rootToken: string;
+  rootCandidates?: readonly EvaluatorPathCompletion[];
   suggestedPaths?: readonly EvaluatorSlotSuggestedPathLike[];
   textBeforeCursor: string;
 }): EvaluatorPathCompletionResult | null {
@@ -214,8 +238,27 @@ export function getEvaluatorPathCompletions({
   if (cursor === null) {
     return null;
   }
-  const isRoot = cursor.containerPath === "";
-  const containerPath = isRoot ? rootToken : cursor.containerPath;
+  if (cursor.containerPath === "") {
+    const suggested: EvaluatorPathCompletion[] = [];
+    for (const { path, description } of suggestedPaths) {
+      const resolution = resolveEvaluatorPath({ source, path });
+      if (resolution.status === "resolved") {
+        suggested.push({
+          key: path,
+          path,
+          preview: toMemberPreview(resolution.value),
+          section: SUGGESTED_PATH_SECTION,
+          description,
+        });
+      }
+    }
+    const completions = [...suggested, ...rootCandidates];
+    return completions.length === 0
+      ? null
+      : { from: cursor.from, containerPath: "", completions };
+  }
+
+  const { containerPath } = cursor;
   const resolution = resolveEvaluatorPath({ source, path: containerPath });
   const members = getEvaluatorPathMembers(
     resolution.status === "resolved" ? resolution.value : undefined,
@@ -225,39 +268,19 @@ export function getEvaluatorPathCompletions({
     return null;
   }
 
-  const isBrowsing = cursor.partial === "";
-  const suggested: EvaluatorPathCompletion[] = [];
-  if (isRoot) {
-    for (const { path: relativePath, description } of suggestedPaths) {
-      const path = `${rootToken}.${relativePath}`;
-      const resolution = resolveEvaluatorPath({ source, path });
-      if (resolution.status === "resolved") {
-        suggested.push({
-          key: relativePath,
-          path,
-          preview: toMemberPreview(resolution.value),
-          section: "suggested",
-          description,
-        });
-      }
-    }
-  }
-
+  const section = toPathMemberSection(containerPath);
+  const shown =
+    cursor.partial === "" ? members.slice(0, MAX_BROWSE_MEMBERS) : members;
   return {
     from: cursor.from,
     containerPath,
-    completions: [
-      ...suggested,
-      ...(isBrowsing ? members.slice(0, MAX_BROWSE_MEMBERS) : members).map(
-        (member) => toCompletion(member, "members")
-      ),
-    ],
+    completions: shown.map((member) => toCompletion(member, section)),
   };
 }
 
 function toCompletion(
   member: EvaluatorPathMember,
-  section: EvaluatorPathCompletionSection
+  section: CompletionSection
 ): EvaluatorPathCompletion {
   return {
     key: member.key,

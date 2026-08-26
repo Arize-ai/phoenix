@@ -17,13 +17,12 @@ import {
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import {
+  buildEvaluatorContextCandidates,
   EVALUATOR_INPUT_SECTION,
   getEvaluatorContextMembers,
   toEvaluatorCompletionClass,
-  toEvaluatorInputCompletion,
   toMemberDetail,
   toMemberSection,
-  toRecordVariableCompletion,
 } from "@phoenix/components/evaluators/evaluatorContextCompletions";
 import {
   MAX_BROWSE_MEMBERS,
@@ -216,7 +215,11 @@ export function createEvaluatorCompletions({
         declaredNames,
       });
     } else {
-      options = createBodyOptions({ declaredNames, evaluationContext });
+      options = createBodyOptions({
+        declaredNames,
+        evaluationContext,
+        language,
+      });
     }
 
     const typed = word.text.toLowerCase();
@@ -270,43 +273,43 @@ function createSignatureOptions({
       }));
   }
 
-  const evaluatorInputs = evaluationContext.evaluatorInputs
-    .filter(({ name }) => !declared.has(name))
-    .map((entry, index) =>
-      toEvaluatorInputCompletion({
-        entry,
-        evaluationContext,
-        index,
-      })
-    );
-  const recordVariables = evaluationContext.recordVariables
-    .filter(({ name }) => !declared.has(name))
-    .map((entry, index) =>
-      toRecordVariableCompletion({ entry, evaluationContext, index })
-    );
-  return [...evaluatorInputs, ...recordVariables];
+  // A parameter is a name, so the signature offers only the names the
+  // evaluator is handed; everything under them is reached in the body.
+  return buildEvaluatorContextCandidates(evaluationContext)
+    .filter(
+      (candidate) => !candidate.isNested && !declared.has(candidate.label)
+    )
+    .map((candidate) => ({
+      label: candidate.label,
+      type: candidate.type,
+      ...(candidate.detail ? { detail: candidate.detail } : {}),
+      info: candidate.info,
+      section: candidate.section,
+      boost: candidate.boost,
+    }));
 }
 
 function createBodyOptions({
   declaredNames,
   evaluationContext,
+  language,
 }: {
   declaredNames: string[];
   evaluationContext: MaterializedEvaluatorContext | null;
+  language: CodeEvaluatorLanguage;
 }): Completion[] {
-  const entriesByName = new Map(
+  const candidates =
     evaluationContext === null
       ? []
-      : [
-          ...evaluationContext.evaluatorInputs,
-          ...evaluationContext.recordVariables,
-        ].map((entry) => [entry.name, entry] as const)
+      : buildEvaluatorContextCandidates(evaluationContext);
+  const candidatesByLabel = new Map(
+    candidates.map((candidate) => [candidate.label, candidate] as const)
   );
-  return declaredNames.map((name, index) => {
-    const entry = entriesByName.get(name);
+  const parameters: Completion[] = declaredNames.map((name, index) => {
+    const candidate = candidatesByLabel.get(name);
     const preview =
-      entry?.status === "resolved" && evaluationContext?.hasSampledRecord
-        ? toMemberPreview(entry.value)
+      candidate && evaluationContext?.hasSampledRecord
+        ? toMemberPreview(candidate.value)
         : "";
     return {
       label: name,
@@ -315,6 +318,33 @@ function createBodyOptions({
       boost: 100 - index,
     };
   });
+  // A name the record supplies sits one level inside a declared parameter, so
+  // the body offers it as the expression that reads it — typing `latency`
+  // reaches the value without the author knowing where it lives.
+  const declared = new Set(declaredNames);
+  const members: Completion[] = candidates
+    .filter(
+      (candidate) => candidate.isNested && declared.has(candidate.rootName)
+    )
+    .map((candidate, index) => {
+      const accessor = toCodeEvaluatorAccessor({
+        language,
+        key: candidate.label.slice(candidate.rootName.length + 1),
+        isIndex: false,
+        isAbsent: candidate.value == null,
+      });
+      const expression = `${candidate.rootName}${accessor}`;
+      return {
+        label: candidate.label,
+        type: candidate.type,
+        ...(candidate.detail ? { detail: candidate.detail } : {}),
+        info: `inserts ${expression}`,
+        section: candidate.section,
+        boost: 50 - index,
+        apply: expression,
+      };
+    });
+  return [...parameters, ...members];
 }
 
 function createMemberOptions({

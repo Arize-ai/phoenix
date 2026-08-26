@@ -7,15 +7,15 @@ import type { EditorView } from "@uiw/react-codemirror";
 
 import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import {
+  buildEvaluatorContextCandidates,
   getEvaluatorContextMembers,
   HINT_COMPLETION_TYPE,
-  toEvaluatorInputCompletion,
   toMemberDetail,
   toMemberSection,
-  toRecordVariableCompletion,
 } from "@phoenix/components/evaluators/evaluatorContextCompletions";
 import type { EvaluatorPathMember } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import {
+  EVALUATOR_ROOT_PATH_PATTERN,
   getEvaluatorPathCursor,
   getEvaluatorPathMembers,
   MAX_BROWSE_MEMBERS,
@@ -60,15 +60,19 @@ export function getEvaluatorTemplateCompletions({
   const closingBrackets =
     templateFormat === TemplateFormats.Mustache ? "}}" : "}";
 
-  // An f-string keeps `{input.attributes.x}` as one literal schema property
-  // rather than reducing it to `input`, so a dotted insert would declare a
-  // variable nothing supplies. Root names are the only honest offer there.
+  // An f-string has no member syntax at all, so a typed dot leaves the menu
+  // with nothing honest to offer.
   if (templateFormat !== TemplateFormats.Mustache) {
     return variable.text.includes(".") || variable.text.includes("[")
       ? null
       : toResult({
           from: variable.from,
-          options: getRootOptions({ evaluationContext, closingBrackets }),
+          options: getRootOptions({
+            evaluationContext,
+            closingBrackets,
+            templateFormat,
+          }),
+          validFor: MEMBER_NAME_PATTERN,
         });
   }
 
@@ -89,7 +93,12 @@ export function getEvaluatorTemplateCompletions({
     return section === null
       ? toResult({
           from,
-          options: getRootOptions({ evaluationContext, closingBrackets }),
+          options: getRootOptions({
+            evaluationContext,
+            closingBrackets,
+            templateFormat,
+          }),
+          validFor: EVALUATOR_ROOT_PATH_PATTERN,
         })
       : toResult({
           from,
@@ -100,6 +109,7 @@ export function getEvaluatorTemplateCompletions({
             closingBrackets,
             isBrowsing: cursor.partial === "",
           }),
+          validFor: MEMBER_NAME_PATTERN,
         });
   }
 
@@ -122,38 +132,53 @@ export function getEvaluatorTemplateCompletions({
       closingBrackets,
       isBrowsing: cursor.partial === "",
     }),
+    validFor: MEMBER_NAME_PATTERN,
   });
 }
 
 function toResult({
   from,
   options,
+  validFor,
 }: {
   from: number;
   options: Completion[];
+  validFor: RegExp;
 }): CompletionResult | null {
-  return options.length === 0
-    ? null
-    : { from, options, validFor: MEMBER_NAME_PATTERN };
+  return options.length === 0 ? null : { from, options, validFor };
 }
 
+/**
+ * The shared candidate tree, written the way a template variable names things.
+ *
+ * An f-string keeps `{metadata.latency_ms}` as one literal schema property
+ * rather than reducing it to `metadata`, so a dotted insert would declare a
+ * variable nothing supplies; only the names the evaluator receives are honest
+ * there. Mustache reads a dotted path, so it takes the whole tree.
+ */
 function getRootOptions({
   evaluationContext,
   closingBrackets,
+  templateFormat,
 }: {
   evaluationContext: MaterializedEvaluatorContext;
   closingBrackets: string;
+  templateFormat: TemplateFormat;
 }): Completion[] {
-  return [
-    ...evaluationContext.evaluatorInputs.map((entry, index) => ({
-      ...toEvaluatorInputCompletion({ entry, evaluationContext, index }),
-      apply: applyTemplateInsertion(entry.name, closingBrackets),
-    })),
-    ...evaluationContext.recordVariables.map((entry, index) => ({
-      ...toRecordVariableCompletion({ entry, evaluationContext, index }),
-      apply: applyTemplateInsertion(entry.name, closingBrackets),
-    })),
-  ];
+  const candidates = buildEvaluatorContextCandidates(evaluationContext);
+  const addressable =
+    templateFormat === TemplateFormats.Mustache
+      ? candidates
+      : candidates.filter((candidate) => !candidate.isNested);
+  return addressable.map((candidate) => ({
+    label: candidate.label,
+    type: candidate.type,
+    ...(candidate.detail ? { detail: candidate.detail } : {}),
+    info: candidate.info,
+    section: candidate.section,
+    boost: candidate.boost,
+    apply: applyTemplateInsertion(candidate.label, closingBrackets),
+  }));
 }
 
 function toMemberOptions({
@@ -206,18 +231,6 @@ function getBlockCompletions({
 
   const options: Completion[] = [];
   if (cursor.containerPath === "") {
-    for (const entry of evaluationContext.evaluatorInputs) {
-      // A slot with nothing behind it is exactly what an inverted block is for.
-      if (entry.status === "unset" && blockPrefix === "^") {
-        options.push(
-          toBlockCompletion({
-            path: entry.name,
-            blockPrefix,
-            detail: "if empty",
-          })
-        );
-      }
-    }
     for (const [name, value] of Object.entries(evaluationContext.values)) {
       if (Array.isArray(value)) {
         options.push(

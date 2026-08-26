@@ -17,9 +17,6 @@ export const EvaluatorChatTemplate = () => {
   const inputMapping = useEvaluatorStore(
     (state) => state.evaluator.inputMapping
   );
-  const recordVariableValues = useEvaluatorStore(
-    (state) => state.evaluatorBoundVariables
-  );
   const example = evaluatorMappingSource.source;
   const availablePaths = useMemo(() => {
     return extractPathsFromDatasetExamples(
@@ -45,9 +42,8 @@ export const EvaluatorChatTemplate = () => {
           evaluatorMappingSource,
           inputMapping,
           slotDefaults: getEvaluatorSlotDefaults(grain),
-          recordVariableValues,
         });
-  }, [evaluatorMappingSource, inputMapping, recordVariableValues]);
+  }, [evaluatorMappingSource, inputMapping]);
   return (
     <TemplateEvaluatorContextProvider value={evaluationContext}>
       <PlaygroundTemplate

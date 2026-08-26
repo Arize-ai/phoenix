@@ -64,7 +64,7 @@ describe("evaluatorStore mapping source grain", () => {
         source: {
           input: { question: "What is Phoenix?" },
           output: { answer: "An AI observability platform" },
-          span: { span_id: "abc123", latency_ms: 12.5 },
+          metadata: { latency_ms: 12.5, span: { span_id: "abc123" } },
         },
       },
     });
@@ -72,7 +72,7 @@ describe("evaluatorStore mapping source grain", () => {
     expect(store.getState().evaluatorMappingSource.source).toEqual({
       input: { question: "What is Phoenix?" },
       output: { answer: "An AI observability platform" },
-      span: { span_id: "abc123", latency_ms: 12.5 },
+      metadata: { latency_ms: 12.5, span: { span_id: "abc123" } },
     });
     expect(store.getState().evaluator.inputMapping).toEqual({
       literalMapping: {},
@@ -89,9 +89,9 @@ describe("evaluatorStore mapping source grain", () => {
     });
 
     store.getState().setEvaluatorMappingSource({
-      input: { session_id: "s-1", duration_ms: 42 },
+      input: "hi",
       output: "hello",
-      session: { session_id: "s-1", duration_ms: 42 },
+      metadata: { duration_ms: 42, session: { session_id: "s-1" } },
     });
 
     // A dataset fallthrough would coerce input/output to objects and add
@@ -99,9 +99,9 @@ describe("evaluatorStore mapping source grain", () => {
     expect(store.getState().evaluatorMappingSource).toEqual({
       grain: "session",
       source: {
-        input: { session_id: "s-1", duration_ms: 42 },
+        input: "hi",
         output: "hello",
-        session: { session_id: "s-1", duration_ms: 42 },
+        metadata: { duration_ms: 42, session: { session_id: "s-1" } },
       },
     });
   });
@@ -113,7 +113,7 @@ describe("evaluatorStore mapping source grain", () => {
         source: {
           input: "What is Phoenix?",
           output: "An AI observability platform",
-          span: {},
+          metadata: {},
         },
       },
     });
@@ -133,7 +133,7 @@ describe("evaluatorStore mapping source grain", () => {
         source: {
           input: "What is Phoenix?",
           output: null,
-          span: {},
+          metadata: {},
         },
       },
     });
@@ -141,7 +141,7 @@ describe("evaluatorStore mapping source grain", () => {
     expect(store.getState().evaluatorMappingSource.source).toEqual({
       input: "What is Phoenix?",
       output: null,
-      span: {},
+      metadata: {},
     });
   });
 });

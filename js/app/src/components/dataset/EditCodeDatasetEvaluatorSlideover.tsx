@@ -343,7 +343,6 @@ function EditCodeDatasetEvaluatorSlideoverContent({
     | FreeformEvaluatorAnnotationConfig
   >[];
   const initialState: EvaluatorStoreProps = {
-    evaluatorBoundVariables: {},
     evaluator: {
       id: evaluator.id,
       globalName: evaluator.name ?? datasetEvaluator.name ?? "",

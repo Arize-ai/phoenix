@@ -11,37 +11,28 @@ type BySlot<T> = Record<
 >;
 
 /**
- * What a slot reads when its own path is left empty.
- *
- * A `path` default is one the author could have written themselves, so it
- * shows in the notation they would have written it in. A `derived` default is
- * assembled from the record rather than read off it and no path expresses it,
- * so it is described instead — never in path notation, which would invite an
- * author to type something that resolves to nothing. `null` is no default at
- * all: an unmapped slot binds nothing, and an evaluator that names it fails
- * validation rather than quietly receiving something.
+ * What a slot reads when its own path is left empty, written as a path the
+ * author could have typed themselves — so the ghost text in the field is in
+ * the same notation as anything they would replace it with.
  */
-export type EvaluatorSlotDefault =
-  | { kind: "path"; path: string }
-  | { kind: "derived"; description: string }
-  | null;
+export type EvaluatorSlotDefault = { kind: "path"; path: string };
 
 /**
  * Each slot's default, as the field's ghost text shows it.
  *
- * An unmapped slot stores nothing, so this is the only place the value it
- * resolves to is written down.
+ * An unmapped slot stores nothing and binds the context key of the same name,
+ * so this is the only place the record field behind that key is written down.
  */
 const SLOT_DEFAULTS: BySlot<EvaluatorSlotDefault> = {
   span: {
-    input: { kind: "path", path: "span" },
-    output: { kind: "path", path: "span.output_value" },
-    metadata: null,
+    input: { kind: "path", path: "metadata.span.input_value" },
+    output: { kind: "path", path: "metadata.span.output_value" },
+    metadata: { kind: "path", path: "metadata" },
   },
   session: {
-    input: { kind: "path", path: "session" },
-    output: { kind: "derived", description: "last turn's output" },
-    metadata: null,
+    input: { kind: "path", path: "metadata.first_input" },
+    output: { kind: "path", path: "metadata.last_output" },
+    metadata: { kind: "path", path: "metadata" },
   },
 };
 
@@ -52,47 +43,65 @@ export type EvaluatorSlotSuggestedPath = {
 };
 
 /**
- * Paths pinned above the record's own field list while a slot is still
+ * Paths pinned above the context's own field list while a slot is still
  * unmapped — worked examples of what a mapping can reach, from the plain
  * narrowing to the deeper cuts an author would otherwise have to discover
- * by drilling. Root-relative; each is offered only when it resolves on the
- * sampled record, so nothing here can suggest a path that would fail.
+ * by drilling. Each is offered only when it resolves on the sampled record,
+ * so nothing here can suggest a path that would fail.
  */
 const SLOT_SUGGESTED_PATHS: BySlot<readonly EvaluatorSlotSuggestedPath[]> = {
   span: {
     input: [
-      { path: "input_value", description: "The span's raw input value." },
       {
-        path: "attributes.llm.input_messages",
+        path: "metadata.span.input_value",
+        description: "The span's raw input value.",
+      },
+      {
+        path: "metadata.span.attributes.llm.input_messages",
         description: "The chat messages sent to the model.",
       },
       {
-        path: "attributes.input",
+        path: "metadata.span.attributes.input",
         description: "The input attribute, with its mime type.",
       },
     ],
     output: [
-      { path: "output_value", description: "The span's raw output value." },
       {
-        path: "attributes.llm.output_messages",
+        path: "metadata.span.output_value",
+        description: "The span's raw output value.",
+      },
+      {
+        path: "metadata.span.attributes.llm.output_messages",
         description: "The messages the model returned.",
       },
     ],
     metadata: [
-      { path: "attributes", description: "The span's whole attribute tree." },
       {
-        path: "attributes.llm",
+        path: "metadata.span.attributes",
+        description: "The span's whole attribute tree.",
+      },
+      {
+        path: "metadata.span.attributes.llm",
         description: "Model, token counts, and messages.",
       },
     ],
   },
   session: {
     input: [
-      { path: "turns", description: "Every turn of the session, in order." },
-      { path: "turns[0].input", description: "The session's opening request." },
+      {
+        path: "metadata.session.turns",
+        description: "Every turn of the session, in order.",
+      },
+      {
+        path: "metadata.session.turns[0].input",
+        description: "The session's opening request.",
+      },
     ],
     output: [
-      { path: "turns[0].output", description: "The first turn's response." },
+      {
+        path: "metadata.session.turns[0].output",
+        description: "The first turn's response.",
+      },
     ],
     metadata: [],
   },

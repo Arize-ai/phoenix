@@ -854,9 +854,6 @@ export const CodeEvaluatorSourceEditor = ({
   const inputMapping = useEvaluatorStore(
     (state) => state.evaluator.inputMapping
   );
-  const recordVariableValues = useEvaluatorStore(
-    (state) => state.evaluatorBoundVariables
-  );
   const evaluatorMappingSource = evaluatorMappingSourceState.source;
   const evaluationContext = useMemo(() => {
     const grain = evaluatorMappingSourceState.grain;
@@ -867,9 +864,8 @@ export const CodeEvaluatorSourceEditor = ({
           evaluatorMappingSource: evaluatorMappingSourceState,
           inputMapping,
           slotDefaults: getEvaluatorSlotDefaults(grain),
-          recordVariableValues,
         });
-  }, [evaluatorMappingSourceState, inputMapping, recordVariableValues]);
+  }, [evaluatorMappingSourceState, inputMapping]);
 
   // Generate the type footer based on language and available data
   const typeFooter = useMemo(

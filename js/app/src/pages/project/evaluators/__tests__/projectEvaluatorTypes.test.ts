@@ -1,6 +1,5 @@
 import {
   dropOtherGrainEntityPathMappings,
-  dropReferencePathMappings,
   formatProjectEvaluatorRunCounts,
   getProjectEvaluatorMappingDiagnostics,
   getProjectEvaluatorStatus,
@@ -50,28 +49,6 @@ describe("formatProjectEvaluatorRunCounts", () => {
     expect(
       formatProjectEvaluatorRunCounts({ ...runSummary, failedCount: 0 })
     ).toBe("118 evaluated · 3 queued");
-  });
-});
-
-describe("dropReferencePathMappings", () => {
-  it("drops only reference-rooted paths", () => {
-    expect(
-      dropReferencePathMappings({
-        literalMapping: { rubric: "helpfulness" },
-        pathMapping: {
-          direct: "reference",
-          nested: "reference.answer",
-          similarPrefix: "referenceX.answer",
-          input: "input.question",
-        },
-      })
-    ).toEqual({
-      literalMapping: { rubric: "helpfulness" },
-      pathMapping: {
-        similarPrefix: "referenceX.answer",
-        input: "input.question",
-      },
-    });
   });
 });
 
@@ -183,43 +160,35 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
     ]);
   });
 
-  it("counts a name the record supplies as resolved", () => {
+  // Binding is the three top-level names and nothing else, so a record name
+  // reaches the evaluator only through a path that maps it.
+  it("fails an unmapped record name, and resolves the path that maps it", () => {
     expect(
       getProjectEvaluatorMappingDiagnostics({
-        context: { input: "hi", output: "hello", metadata: {} },
+        context: { input: "hi", output: "hello", metadata: { latency_ms: 12 } },
         pathMapping: {},
-        variables: ["latency_ms", "made_up"],
-        boundVariableNames: new Set(["latency_ms"]),
+        variables: ["latency_ms"],
       })
     ).toEqual([
       {
         variable: "latency_ms",
         path: "latency_ms",
-        status: "resolved",
-        source: "record",
-      },
-      {
-        variable: "made_up",
-        path: "made_up",
         status: "missing",
         source: "context",
       },
     ]);
-  });
 
-  it("prefers an explicit mapping over a name the record supplies", () => {
     expect(
       getProjectEvaluatorMappingDiagnostics({
-        context: { span: { latency_ms: 12 } },
-        pathMapping: { latency_ms: "span.missing" },
+        context: { input: "hi", output: "hello", metadata: { latency_ms: 12 } },
+        pathMapping: { latency_ms: "metadata.latency_ms" },
         variables: ["latency_ms"],
-        boundVariableNames: new Set(["latency_ms"]),
       })
     ).toEqual([
       {
         variable: "latency_ms",
-        path: "span.missing",
-        status: "missing",
+        path: "metadata.latency_ms",
+        status: "resolved",
         source: "path",
       },
     ]);
@@ -233,12 +202,12 @@ describe("dropOtherGrainEntityPathMappings", () => {
         {
           literalMapping: { rubric: "helpfulness" },
           pathMapping: {
-            whole: "span",
-            nested: "span.attributes.llm.model_name",
-            bracketed: "span['a.b']",
-            similarPrefix: "spanX.name",
-            kept: "session.turns[0].input",
-            slot: "metadata.turns",
+            whole: "metadata.span",
+            nested: "metadata.span.attributes.llm.model_name",
+            bracketed: "metadata.span['a.b']",
+            similarPrefix: "metadata.spanX.name",
+            kept: "metadata.session.turns[0].input",
+            slot: "metadata.first_input",
           },
         },
         "session"
@@ -246,9 +215,9 @@ describe("dropOtherGrainEntityPathMappings", () => {
     ).toEqual({
       literalMapping: { rubric: "helpfulness" },
       pathMapping: {
-        similarPrefix: "spanX.name",
-        kept: "session.turns[0].input",
-        slot: "metadata.turns",
+        similarPrefix: "metadata.spanX.name",
+        kept: "metadata.session.turns[0].input",
+        slot: "metadata.first_input",
       },
     });
   });
@@ -259,15 +228,15 @@ describe("dropOtherGrainEntityPathMappings", () => {
         {
           literalMapping: {},
           pathMapping: {
-            stale: "session.turns[0].input",
-            kept: "span.attributes",
+            stale: "metadata.session.turns[0].input",
+            kept: "metadata.span.attributes",
           },
         },
         "span"
       )
     ).toEqual({
       literalMapping: {},
-      pathMapping: { kept: "span.attributes" },
+      pathMapping: { kept: "metadata.span.attributes" },
     });
   });
 });
@@ -285,7 +254,10 @@ describe("isSameInputMapping", () => {
 
     expect(
       isSameInputMapping(
-        { literalMapping: {}, pathMapping: { output: "span.attributes" } },
+        {
+          literalMapping: {},
+          pathMapping: { output: "metadata.span.attributes" },
+        },
         loaded
       )
     ).toBe(false);

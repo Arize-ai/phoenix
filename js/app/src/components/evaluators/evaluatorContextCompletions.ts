@@ -4,6 +4,7 @@ import type {
   MaterializedEvaluatorContext,
   MaterializedEvaluatorContextEntry,
 } from "@phoenix/components/evaluators/evaluatorContext";
+import { EVALUATOR_METADATA_SLOT } from "@phoenix/components/evaluators/evaluatorContext";
 import type { EvaluatorPathMember } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import {
   getEvaluatorPathMembers,
@@ -26,7 +27,7 @@ export const RECORD_SECTION_BY_GRAIN: Record<
   session: { name: "From the session", rank: 2 },
 };
 
-/** A slot no mapping fills in; its row is dimmed rather than dropped. */
+/** A row for a name the selected record does not supply; dimmed, not dropped. */
 export const UNSET_COMPLETION_TYPE = "evaluator-completion-unset";
 
 /** A row whose detail reads as prose rather than as a value. */
@@ -44,45 +45,93 @@ export function toEvaluatorCompletionClass(completion: Completion): string {
     : (CLASS_BY_COMPLETION_TYPE[completion.type] ?? "");
 }
 
-export function toEvaluatorInputCompletion({
-  entry,
-  evaluationContext,
-  index,
-}: {
-  entry: MaterializedEvaluatorContextEntry;
-  evaluationContext: MaterializedEvaluatorContext;
-  index: number;
-}): Completion {
-  return {
+/**
+ * One row of the candidate tree: what an author can name at the top level of
+ * the evaluation context.
+ *
+ * `label` is both what the typeahead matches against and what a surface writes,
+ * so a vocabulary row carries its whole `metadata.…` path as its label — typing
+ * `latency` finds `metadata.latency_ms` through the matcher every surface
+ * already has, with no filter of our own.
+ */
+export type EvaluatorContextCandidate = {
+  label: string;
+  /** The slot the label is rooted at; the only name a parameter can be. */
+  rootName: string;
+  /** Whether the label reaches inside its root rather than naming it. */
+  isNested: boolean;
+  value?: unknown;
+  type: string;
+  detail: string;
+  info: string;
+  section: CompletionSection;
+  boost: number;
+};
+
+/**
+ * Every name the three authoring surfaces offer at the top level, built once so
+ * they cannot disagree about what exists. A surface turns a row into a
+ * completion by adding the insertion its own syntax calls for.
+ *
+ * The evaluator's three inputs come first, then the record's own names as the
+ * paths that read them, then the record itself — the same reading order the
+ * bindings panel lays `metadata` out in.
+ */
+export function buildEvaluatorContextCandidates(
+  evaluationContext: MaterializedEvaluatorContext
+): EvaluatorContextCandidate[] {
+  const recordSection = RECORD_SECTION_BY_GRAIN[evaluationContext.grain];
+  const inputs = evaluationContext.evaluatorInputs.map((entry, index) => ({
     label: entry.name,
-    type: entry.status === "unset" ? UNSET_COMPLETION_TYPE : "variable",
+    rootName: entry.name,
+    isNested: false,
+    ...("value" in entry ? { value: entry.value } : {}),
+    type: "variable",
     detail: getEvaluatorInputDetail({ entry, evaluationContext }),
-    info: getEvaluatorInputInfo({ entry, evaluationContext }),
+    info: getEvaluatorInputInfo(entry),
     section: EVALUATOR_INPUT_SECTION,
     boost: 100 - index,
-  };
+  }));
+  const vocabulary = evaluationContext.vocabulary.map((entry, index) => ({
+    label: entry.name,
+    rootName: EVALUATOR_METADATA_SLOT,
+    isNested: true,
+    ...("value" in entry ? { value: entry.value } : {}),
+    type: entry.status === "unresolved" ? UNSET_COMPLETION_TYPE : "variable",
+    // Only a sampled record can preview a value; before one is picked the
+    // name alone is the whole offer, and "not set" would be a lie.
+    detail:
+      entry.status === "resolved"
+        ? toMemberPreview(entry.value)
+        : entry.status === "unresolved"
+          ? "not set"
+          : "",
+    info: entry.description ?? "No setup needed.",
+    section: recordSection,
+    boost: 100 - index,
+  }));
+  return [...inputs, ...vocabulary, toRecordCandidate(evaluationContext)];
 }
 
-export function toRecordVariableCompletion({
-  entry,
-  evaluationContext,
-  index,
-}: {
-  entry: MaterializedEvaluatorContextEntry;
-  evaluationContext: MaterializedEvaluatorContext;
-  index: number;
-}): Completion {
-  const preview =
-    entry.status === "resolved" && evaluationContext.hasSampledRecord
-      ? toMemberPreview(entry.value)
-      : "";
+/** The whole record, under the `metadata` key that holds it. */
+function toRecordCandidate(
+  evaluationContext: MaterializedEvaluatorContext
+): EvaluatorContextCandidate {
+  const label = `${EVALUATOR_METADATA_SLOT}.${evaluationContext.grain}`;
+  const resolution = resolveEvaluatorPath({
+    source: evaluationContext.values,
+    path: label,
+  });
   return {
-    label: entry.name,
+    label,
+    rootName: EVALUATOR_METADATA_SLOT,
+    isNested: true,
+    ...(resolution.status === "resolved" ? { value: resolution.value } : {}),
     type: "variable",
-    ...(preview ? { detail: preview } : {}),
-    info: getRecordVariableInfo(entry),
+    detail: "object",
+    info: `The whole ${evaluationContext.grain}.`,
     section: RECORD_SECTION_BY_GRAIN[evaluationContext.grain],
-    boost: 100 - index,
+    boost: 0,
   };
 }
 
@@ -135,67 +184,21 @@ function getEvaluatorInputDetail({
   entry: MaterializedEvaluatorContextEntry;
   evaluationContext: MaterializedEvaluatorContext;
 }): string {
-  if (entry.status === "unset") {
-    return "not set";
-  }
   const provenance = entry.provenance;
-  const origin =
-    provenance.kind === "path"
-      ? `← ${provenance.path}`
-      : provenance.kind === "derived"
-        ? `← ${provenance.description}`
-        : provenance.kind === "literal"
-          ? "literal"
-          : "";
   // An evaluator input's origin is what its row has to teach, so it owns the
   // detail column; a value preview beside it only crowds out the path.
-  return (
-    origin ||
-    (entry.status === "resolved" && evaluationContext.hasSampledRecord
+  return provenance.kind === "path"
+    ? `← ${provenance.path}`
+    : entry.status === "resolved" && evaluationContext.hasSampledRecord
       ? toMemberPreview(entry.value)
-      : "")
-  );
+      : "";
 }
 
-function getEvaluatorInputInfo({
-  entry,
-  evaluationContext,
-}: {
-  entry: MaterializedEvaluatorContextEntry;
-  evaluationContext: MaterializedEvaluatorContext;
-}): string {
-  if (entry.status === "unset") {
-    return "Not set. Set in Evaluator input.";
-  }
-  if (
-    entry.name === "input" &&
-    entry.provenance.kind === "path" &&
-    entry.provenance.path === evaluationContext.grain
-  ) {
-    return `Whole ${evaluationContext.grain}. Set in Evaluator input.`;
-  }
-  if (entry.name === "output") {
-    const noun = capitalize(evaluationContext.grain);
-    return `${noun} output. Set in Evaluator input.`;
-  }
-  if (entry.name === "metadata") {
-    return "Metadata. Set in Evaluator input.";
-  }
-  return "Set in Evaluator input.";
-}
-
-function getRecordVariableInfo(
+function getEvaluatorInputInfo(
   entry: MaterializedEvaluatorContextEntry
 ): string {
-  if (entry.name === "latency_ms") {
-    return "Span duration, ms. No setup needed.";
+  if (entry.name === EVALUATOR_METADATA_SLOT) {
+    return "Everything else about the record. Set in Evaluator input.";
   }
-  if (entry.name === "duration_ms") {
-    return "Session duration, ms. No setup needed.";
-  }
-  return entry.description ?? "No setup needed.";
-}
-
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  return "Set in Evaluator input.";
 }

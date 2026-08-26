@@ -13,9 +13,9 @@ import {
  * Where an evaluator's three inputs are read from on the record it runs on.
  *
  * Every evaluator receives the same three: `input`, `output`, and `metadata`.
- * Leaving one alone keeps the value the record already offers; pointing one at
- * a field of the record reads that field instead. Any field of the record is
- * reachable, so nothing about the record is off limits.
+ * Leaving one alone keeps the value the context already offers under that name;
+ * pointing one at a path reads that instead. Everything the record holds is
+ * reachable under `metadata`, so nothing about it is off limits.
  */
 export const ProjectEvaluatorInputMapping = ({
   grain,
@@ -32,12 +32,6 @@ export const ProjectEvaluatorInputMapping = ({
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
-  // The store's grain follows the evaluated target; a source built for the
-  // other grain has no root this grain's paths could be written against.
-  const source =
-    evaluatorMappingSource.grain === grain
-      ? (evaluatorMappingSource.source as Record<string, unknown>)
-      : undefined;
   return (
     <Flex direction="column" gap="size-200" width="100%">
       {EVALUATOR_SLOT_NAMES.map((slotName) => (
@@ -46,11 +40,13 @@ export const ProjectEvaluatorInputMapping = ({
           fieldName={slotName}
           label={slotName}
           size="M"
-          defaultMode="path"
           control={control}
           setValue={setValue}
           pathOptions={[]}
-          literalPlaceholder="Enter a value"
+          // A project evaluator's mapping is stored on the evaluator, not on
+          // the record, so a pinned constant would travel with it; every input
+          // is authored as a path.
+          allowsLiteral={false}
           renderPathInput={({
             value,
             onChange,
@@ -64,7 +60,7 @@ export const ProjectEvaluatorInputMapping = ({
               isInvalid={isInvalid}
               errorMessage={errorMessage}
               ariaLabel={ariaLabel}
-              source={source}
+              evaluatorMappingSource={evaluatorMappingSource}
               grain={grain}
               slotName={slotName}
             />

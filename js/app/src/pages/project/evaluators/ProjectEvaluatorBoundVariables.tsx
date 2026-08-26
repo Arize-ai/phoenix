@@ -4,6 +4,7 @@ import { Flex, Heading, Text } from "@phoenix/components";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { getEvaluatorBoundVariables } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 
 const GRAIN_NOUN: Record<ProjectEvaluatorMappingSourceGrain, string> = {
@@ -41,11 +42,12 @@ export function toBoundValueDisplay(value: unknown): {
 }
 
 /**
- * The values a record offers to an evaluator by name alone.
+ * The values a record offers under `metadata`.
  *
- * Writing `{{latency_ms}}` in a prompt, or `def evaluate(latency_ms)` in code,
- * reads the value shown here — no mapping row needed. These are the same names
- * a filter condition uses to pick records, so one vocabulary covers both.
+ * Writing `{{metadata.latency_ms}}` in a prompt, or reading
+ * `metadata["latency_ms"]` in code, reads the value shown here. These are the
+ * same names a filter condition uses to pick records, so one vocabulary covers
+ * both.
  */
 export const ProjectEvaluatorBoundVariables = ({
   grain,
@@ -54,9 +56,14 @@ export const ProjectEvaluatorBoundVariables = ({
   grain: ProjectEvaluatorMappingSourceGrain;
   showHeading?: boolean;
 }) => {
-  const values = useEvaluatorStore((state) => state.evaluatorBoundVariables);
+  const metadata = useEvaluatorStore((state) =>
+    state.evaluatorMappingSource.grain === grain
+      ? state.evaluatorMappingSource.source.metadata
+      : undefined
+  );
+  const values = isStringKeyedObject(metadata) ? metadata : {};
   const variables = getEvaluatorBoundVariables(grain);
-  const hasValues = Object.keys(values).length > 0;
+  const hasValues = variables.some(({ name }) => values[name] != null);
   return (
     <Flex direction="column" gap="size-100">
       {showHeading ? (

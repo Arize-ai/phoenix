@@ -3,16 +3,16 @@ import type { GenericEvaluationContext } from "@phoenix/pages/project/evaluators
 import type { EvaluatorMappingSource } from "@phoenix/types";
 
 /**
- * Mirrors the server's `session_eval_context()`: `input` and `session` hold
- * the same whole-session document, and `output` is the newest turn's output.
+ * Mirrors the server's `session_eval_context()`: `input` and `output` are the
+ * values the session filter language spells `first_input` and `last_output`,
+ * and `metadata` carries those names flat beside the whole session record
+ * under `metadata.session`.
  *
  * A project with no recorded sessions yet still needs something to author a
  * mapping against, the same way the span grain has a sample span.
  */
 export type SampleSessionEvaluationContext = {
   context: EvaluatorMappingSource<"session">;
-  /** What the session would supply by name, matching `sessionEvaluationBoundVariables`. */
-  boundVariables: Record<string, unknown>;
 };
 
 const TURNS = [
@@ -40,30 +40,30 @@ const SESSION_DOCUMENT: Record<string, unknown> = {
   turns: TURNS,
 };
 
+/** The session's own names, exactly as the session filter language spells them. */
+const SESSION_VOCABULARY: Record<string, unknown> = {
+  session_id: "support-2026-01-14-8842",
+  user_id: "user_2f9c",
+  first_input: TURNS[0].input,
+  last_output: TURNS[TURNS.length - 1].output,
+  duration_ms: 277781.0,
+  num_traces: 2,
+  num_traces_with_error: 0,
+  llm_span_count: 4,
+  tool_span_count: 1,
+  token_count_prompt: 1840,
+  token_count_completion: 296,
+  token_count_total: 2136,
+  prompt_cost: 0.0046,
+  completion_cost: 0.0018,
+  total_cost: 0.0064,
+};
+
 const SESSION_SAMPLE: SampleSessionEvaluationContext = {
   context: {
-    // `input` and `session` hold the same document, exactly as the server
-    // builds the context.
-    input: SESSION_DOCUMENT,
-    output: TURNS[TURNS.length - 1].output,
-    session: SESSION_DOCUMENT,
-  },
-  boundVariables: {
-    session_id: "support-2026-01-14-8842",
-    user_id: "user_2f9c",
-    first_input: TURNS[0].input,
-    last_output: TURNS[TURNS.length - 1].output,
-    duration_ms: 277781.0,
-    num_traces: 2,
-    num_traces_with_error: 0,
-    llm_span_count: 4,
-    tool_span_count: 1,
-    token_count_prompt: 1840,
-    token_count_completion: 296,
-    token_count_total: 2136,
-    prompt_cost: 0.0046,
-    completion_cost: 0.0018,
-    total_cost: 0.0064,
+    input: SESSION_VOCABULARY.first_input,
+    output: SESSION_VOCABULARY.last_output,
+    metadata: { ...SESSION_VOCABULARY, session: SESSION_DOCUMENT },
   },
 };
 
@@ -73,9 +73,9 @@ export function getSampleSessionEvaluationContext(): SampleSessionEvaluationCont
 
 /**
  * The session's standard fields with no values, mirroring the span grain's
- * generic context: the completion popup and bound-variable list build from
- * this skeleton, and one empty turn keeps the turn shape drillable. The
- * sample above exists only as a runnable demo record.
+ * generic context: the completion popup and bindings list build from this
+ * skeleton, and one empty turn keeps the turn shape drillable. The sample
+ * above exists only as a runnable demo record.
  */
 const GENERIC_SESSION_DOCUMENT: Record<string, unknown> = {
   session_id: null,
@@ -93,13 +93,18 @@ const GENERIC_SESSION_DOCUMENT: Record<string, unknown> = {
 
 const GENERIC_SESSION_CONTEXT: GenericEvaluationContext<"session"> = {
   context: {
-    input: GENERIC_SESSION_DOCUMENT,
+    input: null,
     output: null,
-    session: GENERIC_SESSION_DOCUMENT,
+    metadata: {
+      ...Object.fromEntries(
+        [...getEvaluatorBoundVariableNames("session")].map((name) => [
+          name,
+          null,
+        ])
+      ),
+      session: GENERIC_SESSION_DOCUMENT,
+    },
   },
-  boundVariables: Object.fromEntries(
-    [...getEvaluatorBoundVariableNames("session")].map((name) => [name, null])
-  ),
 };
 
 export function getGenericSessionEvaluationContext(): GenericEvaluationContext<"session"> {

@@ -90,44 +90,75 @@ describe("createCompletionOptions", () => {
   });
 });
 
-describe("code evaluator body drill", () => {
+describe("code evaluator completions", () => {
   const evaluationContext = materializeEvaluatorContext({
     grain: "span",
     evaluatorMappingSource: {
       grain: "span",
       source: {
-        input: { attributes: { llm: { model_name: "gpt-4o-mini" } } },
+        input: "Why?",
         output: "Because.",
-        span: {
-          attributes: { llm: { model_name: "gpt-4o-mini" } },
-          output_value: "Because.",
+        metadata: {
+          latency_ms: 842.5,
+          span: {
+            attributes: { llm: { model_name: "gpt-4o-mini" } },
+            output_value: "Because.",
+          },
         },
       },
     },
-    inputMapping: { pathMapping: { input: "span" }, literalMapping: {} },
+    inputMapping: { pathMapping: {}, literalMapping: {} },
     slotDefaults: getEvaluatorSlotDefaults("span"),
-    recordVariableValues: { latency_ms: 842.5 },
+  });
+  const spanMappingSource = { input: "Why?", output: "Because.", metadata: {} };
+
+  function completeAt(source: string, explicit = true) {
+    const state = EditorState.create({ doc: source, extensions: [python()] });
+    return createEvaluatorCompletions({
+      mappingSource: spanMappingSource,
+      language: "PYTHON",
+      evaluationContext,
+    })(new CompletionContext(state, source.length, explicit));
+  }
+
+  // A parameter is a name, so only the three the evaluator is handed can be
+  // one; everything under them is reached in the body.
+  it("offers only the evaluator's own inputs in the signature", () => {
+    expect(completeAt("def evaluate(")?.options.map((o) => o.label)).toEqual([
+      "input",
+      "output",
+      "metadata",
+    ]);
+  });
+
+  it("reaches a record name from the body by the name alone", () => {
+    const result = completeAt("def evaluate(metadata):\n    value = latency");
+
+    expect(
+      result?.options.find((o) => o.label === "metadata.latency_ms")
+    ).toMatchObject({
+      apply: 'metadata["latency_ms"]',
+      info: 'inserts metadata["latency_ms"]',
+      detail: "842.5",
+    });
+  });
+
+  // Nothing under an undeclared parameter can be written, so nothing under it
+  // is offered.
+  it("offers nothing from a parameter the signature does not declare", () => {
+    expect(completeAt("def evaluate(input):\n    value = latency")).toBeNull();
   });
 
   it("offers the container's members and commits them in the editor's language", () => {
-    const source = `def evaluate(input, output):\n    convo = input[`;
-    const state = EditorState.create({
-      doc: source,
-      extensions: [python()],
-    });
-    const result = createEvaluatorCompletions({
-      mappingSource: { input: {}, output: {}, span: {} },
-      language: "PYTHON",
-      evaluationContext,
-    })(new CompletionContext(state, source.length, false));
+    const result = completeAt(
+      "def evaluate(metadata, output):\n    record = metadata[",
+      false
+    );
 
-    expect(result?.options.map((option) => option.label)).toEqual([
-      "attributes",
-      "output_value",
-    ]);
+    expect(result?.options.map((o) => o.label)).toEqual(["latency_ms", "span"]);
     expect(result?.options[0]).toMatchObject({
-      info: 'inserts input["attributes"]',
-      section: { name: "input" },
+      info: 'inserts metadata["latency_ms"]',
+      section: { name: "metadata" },
     });
   });
 });

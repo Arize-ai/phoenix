@@ -1,6 +1,14 @@
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { parsePathSegments } from "@phoenix/utils/objectUtils";
+import {
+  getGenericSessionEvaluationContext,
+  getSampleSessionEvaluationContext,
+} from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
+import {
+  getGenericSpanEvaluationContext,
+  getSampleSpanEvaluationContext,
+} from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 
+import { resolveEvaluatorPath } from "../evaluatorPathCompletions";
 import type { EvaluatorSlotName } from "../evaluatorSlotDefaults";
 import {
   EVALUATOR_SLOT_NAMES,
@@ -10,38 +18,48 @@ import {
 
 const GRAINS: ProjectEvaluatorMappingSourceGrain[] = ["span", "session"];
 
-const defaultsFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
-  EVALUATOR_SLOT_NAMES.map((slotName) =>
-    getEvaluatorSlotDefault(grain, slotName)
+const genericContextFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
+  (grain === "span"
+    ? getGenericSpanEvaluationContext()
+    : getGenericSessionEvaluationContext()
+  ).context as unknown as Record<string, unknown>;
+
+const sampleContextFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
+  (grain === "span"
+    ? getSampleSpanEvaluationContext("")
+    : getSampleSessionEvaluationContext()
+  ).context as unknown as Record<string, unknown>;
+
+const defaultPathsFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
+  EVALUATOR_SLOT_NAMES.map(
+    (slotName) => getEvaluatorSlotDefault(grain, slotName).path
   );
 
 describe("evaluator slot defaults", () => {
   // The ghost in the field is the only place these are written down, so
   // changing one changes what an author is told an unmapped slot will read.
-  it("names what every slot falls back to", () => {
-    expect(defaultsFor("span")).toEqual([
-      { kind: "path", path: "span" },
-      { kind: "path", path: "span.output_value" },
-      null,
+  it("names the path every slot falls back to", () => {
+    expect(defaultPathsFor("span")).toEqual([
+      "metadata.span.input_value",
+      "metadata.span.output_value",
+      "metadata",
     ]);
-    expect(defaultsFor("session")).toEqual([
-      { kind: "path", path: "session" },
-      { kind: "derived", description: "last turn's output" },
-      null,
+    expect(defaultPathsFor("session")).toEqual([
+      "metadata.first_input",
+      "metadata.last_output",
+      "metadata",
     ]);
   });
 
-  // A derived default is assembled from the record, so there is no path that
-  // reads it. Describing one in path notation would invite an author to type
-  // something that resolves to nothing.
-  it("keeps a derived default from reading as a path", () => {
-    const derived = GRAINS.flatMap(defaultsFor).filter(
-      (slotDefault) => slotDefault?.kind === "derived"
-    );
-
-    expect(derived).not.toHaveLength(0);
-    for (const slotDefault of derived) {
-      expect(parsePathSegments(slotDefault.description)).toBeNull();
+  // A default is shown as a path an author could have typed, so it has to be
+  // one: a ghost that resolves to nothing teaches a path that would fail.
+  it("keeps every default a path the context actually holds", () => {
+    for (const grain of GRAINS) {
+      for (const path of defaultPathsFor(grain)) {
+        expect(
+          resolveEvaluatorPath({ source: genericContextFor(grain), path })
+        ).toMatchObject({ status: "resolved" });
+      }
     }
   });
 
@@ -50,29 +68,39 @@ describe("evaluator slot defaults", () => {
       getEvaluatorSlotSuggestedPaths(grain, slotName).map(({ path }) => path);
 
     expect(paths("span", "input")).toEqual([
-      "input_value",
-      "attributes.llm.input_messages",
-      "attributes.input",
+      "metadata.span.input_value",
+      "metadata.span.attributes.llm.input_messages",
+      "metadata.span.attributes.input",
     ]);
     expect(paths("span", "output")).toEqual([
-      "output_value",
-      "attributes.llm.output_messages",
+      "metadata.span.output_value",
+      "metadata.span.attributes.llm.output_messages",
     ]);
-    expect(paths("span", "metadata")).toEqual(["attributes", "attributes.llm"]);
-    expect(paths("session", "input")).toEqual(["turns", "turns[0].input"]);
-    expect(paths("session", "output")).toEqual(["turns[0].output"]);
+    expect(paths("span", "metadata")).toEqual([
+      "metadata.span.attributes",
+      "metadata.span.attributes.llm",
+    ]);
+    expect(paths("session", "input")).toEqual([
+      "metadata.session.turns",
+      "metadata.session.turns[0].input",
+    ]);
+    expect(paths("session", "output")).toEqual([
+      "metadata.session.turns[0].output",
+    ]);
     expect(paths("session", "metadata")).toEqual([]);
   });
 
-  it("describes every suggestion, and never in path notation", () => {
-    for (const grain of ["span", "session"] as const) {
+  it("suggests only paths a real record resolves", () => {
+    for (const grain of GRAINS) {
       for (const slotName of EVALUATOR_SLOT_NAMES) {
-        for (const { description } of getEvaluatorSlotSuggestedPaths(
+        for (const { path, description } of getEvaluatorSlotSuggestedPaths(
           grain,
           slotName
         )) {
           expect(description).not.toBe("");
-          expect(parsePathSegments(description)).toBeNull();
+          expect(
+            resolveEvaluatorPath({ source: sampleContextFor(grain), path })
+          ).toMatchObject({ status: "resolved" });
         }
       }
     }
