@@ -26,12 +26,6 @@ def test_datagen_cli_flags_override_environment() -> None:
             "30",
             "--burstiness",
             "0.8",
-            "--epsilon",
-            "0.1",
-            "--seed",
-            "42",
-            "--error-rate",
-            "0.25",
         ]
     )
 
@@ -53,9 +47,6 @@ def test_datagen_cli_flags_override_environment() -> None:
     assert config.project == "cli-project"
     assert config.rate == 30
     assert config.burstiness == 0.8
-    assert config.epsilon == 0.1
-    assert config.seed == 42
-    assert config.error_rate == 0.25
     assert args.func is datagen.run
 
 
@@ -105,7 +96,7 @@ def test_datagen_default_run_loop_preserves_operation_order(
     datagen.register(subparsers)
     datagen.run(parser.parse_args(["datagen"]))
 
-    assert replayer_kwargs["error_rate"] == 0
+    assert replayer_kwargs == {"project_name": None}
     assert events == [
         ("emit", {}),
         ("export", "request"),

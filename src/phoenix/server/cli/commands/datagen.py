@@ -12,9 +12,6 @@ if TYPE_CHECKING:
 _DEFAULT_ENDPOINT = "http://localhost:6006"
 _DEFAULT_RATE = 12.0
 _DEFAULT_BURSTINESS = 0.5
-_DEFAULT_EPSILON = 0.02
-_DEFAULT_SEED = 0
-_DEFAULT_ERROR_RATE = 0.0
 
 _Value = TypeVar("_Value")
 
@@ -28,9 +25,6 @@ class _Config:
     project: str | None
     rate: float
     burstiness: float
-    epsilon: float
-    seed: int
-    error_rate: float
 
 
 def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
@@ -49,10 +43,7 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     parser.add_argument("--api-key", help="Phoenix API key (env: PHOENIX_API_KEY).")
     parser.add_argument(
         "--corpus",
-        help=(
-            "Local directory of recorded traces to replay "
-            "(default: the bundled or published corpus)."
-        ),
+        help="Local corpus archive (default: the published corpus).",
     )
     parser.add_argument(
         "--project",
@@ -67,21 +58,6 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
         "--burstiness",
         type=_nonnegative_float,
         help="Interarrival variability; 0 is uniform (default: 0.5).",
-    )
-    parser.add_argument(
-        "--epsilon",
-        type=_probability,
-        help="Per-span contamination probability (default: 0.02).",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        help="Random seed (default: 0).",
-    )
-    parser.add_argument(
-        "--error-rate",
-        type=_probability,
-        help="Per-operation synthetic error probability (default: 0).",
     )
 
 
@@ -98,10 +74,7 @@ def run(args: Namespace) -> None:
     corpus = load_corpus(config.corpus)
     replayer = Replayer(
         corpus,
-        epsilon=config.epsilon,
-        seed=config.seed,
         project_name=config.project,
-        error_rate=config.error_rate,
     )
 
     try:
@@ -139,9 +112,6 @@ def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
         project=args.project or environ.get("PHOENIX_PROJECT_NAME"),
         rate=args.rate if args.rate is not None else _DEFAULT_RATE,
         burstiness=args.burstiness if args.burstiness is not None else _DEFAULT_BURSTINESS,
-        epsilon=args.epsilon if args.epsilon is not None else _DEFAULT_EPSILON,
-        seed=args.seed if args.seed is not None else _DEFAULT_SEED,
-        error_rate=args.error_rate if args.error_rate is not None else _DEFAULT_ERROR_RATE,
     )
 
 
@@ -175,11 +145,4 @@ def _nonnegative_float(value: str) -> float:
     parsed = float(value)
     if parsed < 0:
         raise ValueError("must not be negative")
-    return parsed
-
-
-def _probability(value: str) -> float:
-    parsed = float(value)
-    if not 0 <= parsed <= 1:
-        raise ValueError("must be between zero and one")
     return parsed

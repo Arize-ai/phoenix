@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-import hashlib
-import secrets
 import time
 from collections import defaultdict, deque
-from dataclasses import dataclass
 from typing import Sequence, cast
 
 import numpy as np
 from openinference.semconv.resource import ResourceAttributes
-from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
-from opentelemetry.proto.trace.v1.trace_pb2 import Span, Status
+from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
 from phoenix.datagen.composer import SessionComposer
 from phoenix.datagen.loader import Corpus
@@ -24,16 +20,9 @@ _SESSION_ID = "session.id"
 _PROMPT_TOKENS = "llm.token_count.prompt"
 _COMPLETION_TOKENS = "llm.token_count.completion"
 _TOTAL_TOKENS = "llm.token_count.total"
-_ANOMALY = "datagen.anomaly"
 _COST_PREFIX = "llm.cost."
-_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 _PARENT_END_MARGIN_NS = 1
-_ERROR_EXCEPTION_TYPE = "PhoenixDatagenReplayError"
-_ERROR_EXCEPTION_MESSAGE = "Synthetic replay error"
-_ERROR_EXCEPTION_STACKTRACE = "PhoenixDatagenReplayError: Synthetic replay error"
-_ERROR_SPAN_KINDS = frozenset(
-    (OpenInferenceSpanKindValues.LLM.value, OpenInferenceSpanKindValues.TOOL.value)
-)
+_JITTER_SIGMA = 0.1
 
 
 class Replayer:
@@ -43,31 +32,12 @@ class Replayer:
         self,
         corpus: Corpus,
         *,
-        epsilon: float = 0.02,
-        seed: int | None = None,
         project_name: str | None = None,
-        error_rate: float = 0.0,
+        _random: np.random.Generator | None = None,
     ) -> None:
-        if not 0.0 <= epsilon <= 1.0:
-            raise ValueError("epsilon must be between 0 and 1")
-        if not 0.0 <= error_rate <= 1.0:
-            raise ValueError("error_rate must be between 0 and 1")
-        self._seed = seed
-        self._random = np.random.default_rng(seed)
-        self._error_rate = error_rate
-        self._error_random: np.random.Generator | None = None
-        identity_seed = int.from_bytes(
-            hashlib.sha256(f"{seed}:".encode() + secrets.token_bytes(16)).digest(),
-            "big",
-        )
-        self._identity_random = np.random.default_rng(identity_seed)
+        self._random = _random or np.random.default_rng()
         self._project_name = project_name or "phoenix-datagen"
         self._composer = SessionComposer(corpus, random=self._random)
-        self._numerics = _NumericsEngine.from_requests(
-            corpus.requests,
-            epsilon=epsilon,
-            random=self._random,
-        )
         self._queue: deque[ExportTraceServiceRequest] = deque()
 
     def emit(self, *, now_ns: int | None = None) -> ExportTraceServiceRequest:
@@ -111,19 +81,6 @@ class Replayer:
             for emission in emissions:
                 _shift_request_times(emission, offset_ns)
         self._queue.extend(emissions)
-
-    def _get_error_random(self) -> np.random.Generator:
-        if self._error_random is None:
-            error_seed = (
-                None
-                if self._seed is None
-                else int.from_bytes(
-                    hashlib.sha256(f"{self._seed}:error".encode()).digest(),
-                    "big",
-                )
-            )
-            self._error_random = np.random.default_rng(error_seed)
-        return self._error_random
 
     def _rewrite(
         self,
@@ -170,158 +127,57 @@ class Replayer:
                 )
             _set_string_attribute(span, _SESSION_ID, session_id)
 
-        self._numerics.apply(spans)
-        if self._error_rate:
-            _inject_errors(
-                spans,
-                error_rate=self._error_rate,
-                random=self._get_error_random(),
-            )
+        _jitter_numerics(spans, random=self._random)
         _extend_parent_end_times(spans)
         _clamp_event_times(spans)
         return request
 
     def _fresh_id(self, size: int) -> bytes:
-        identifier = bytes(self._identity_random.bytes(size))
+        identifier = bytes(self._random.bytes(size))
         while not any(identifier):
-            identifier = bytes(self._identity_random.bytes(size))
+            identifier = bytes(self._random.bytes(size))
         return identifier
 
 
-@dataclass(frozen=True)
-class _LognormalFit:
-    mean: float
-    sigma: float
+def _jitter_numerics(
+    spans: Sequence[Span],
+    *,
+    random: np.random.Generator,
+) -> None:
+    for span in spans:
+        _remove_attributes(span, lambda key: key.startswith(_COST_PREFIX))
+        prompt = _positive_int_attribute(span, _PROMPT_TOKENS)
+        completion = _positive_int_attribute(span, _COMPLETION_TOKENS)
+        total = _positive_int_attribute(span, _TOTAL_TOKENS)
+        if prompt is not None:
+            prompt = _jitter_positive_int(prompt, random=random)
+            _set_int_attribute(span, _PROMPT_TOKENS, prompt)
+        if completion is not None:
+            completion = _jitter_positive_int(completion, random=random)
+            _set_int_attribute(span, _COMPLETION_TOKENS, completion)
+        if prompt is not None and completion is not None:
+            if total is not None:
+                _set_int_attribute(span, _TOTAL_TOKENS, prompt + completion)
+        elif total is not None:
+            _set_int_attribute(
+                span,
+                _TOTAL_TOKENS,
+                _jitter_positive_int(total, random=random),
+            )
 
-    @classmethod
-    def from_values(cls, values: Sequence[int], default: int) -> _LognormalFit:
-        logs = np.log(np.asarray(values or [default], dtype=float))
-        return cls(mean=float(np.mean(logs)), sigma=max(0.15, float(np.std(logs))))
-
-
-@dataclass(frozen=True)
-class _NumericsEngine:
-    prompt_fit: _LognormalFit
-    completion_fit: _LognormalFit
-    nanoseconds_per_completion_token: float
-    epsilon: float
-    random: np.random.Generator
-
-    @classmethod
-    def from_requests(
-        cls,
-        requests: Sequence[ExportTraceServiceRequest],
-        *,
-        epsilon: float,
-        random: np.random.Generator,
-    ) -> _NumericsEngine:
-        prompt_values = []
-        completion_values = []
-        latency_per_token = []
-        for request in requests:
-            for span in _iter_spans(request):
-                prompt = _numeric_attribute(span, _PROMPT_TOKENS)
-                completion = _numeric_attribute(span, _COMPLETION_TOKENS)
-                if prompt is not None and prompt > 0:
-                    prompt_values.append(int(prompt))
-                if completion is not None and completion > 0:
-                    completion_values.append(int(completion))
-                    duration = span.end_time_unix_nano - span.start_time_unix_nano
-                    if duration > 0:
-                        latency_per_token.append(duration / completion)
-        return cls(
-            prompt_fit=_LognormalFit.from_values(prompt_values, 100),
-            completion_fit=_LognormalFit.from_values(completion_values, 50),
-            nanoseconds_per_completion_token=float(
-                np.median(latency_per_token) if latency_per_token else 5_000_000
-            ),
-            epsilon=epsilon,
+        duration = max(1, span.end_time_unix_nano - span.start_time_unix_nano)
+        span.end_time_unix_nano = span.start_time_unix_nano + _jitter_positive_int(
+            duration,
             random=random,
         )
 
-    def apply(self, spans: Sequence[Span]) -> None:
-        for span in spans:
-            _remove_attributes(span, lambda key: key.startswith(_COST_PREFIX) or key == _ANOMALY)
-            has_tokens = any(
-                _numeric_attribute(span, key) is not None
-                for key in (_PROMPT_TOKENS, _COMPLETION_TOKENS, _TOTAL_TOKENS)
-            )
-            if not has_tokens:
-                continue
 
-            prompt_tokens = max(
-                1,
-                int(round(self.random.lognormal(self.prompt_fit.mean, self.prompt_fit.sigma))),
-            )
-            completion_tokens = max(
-                1,
-                int(
-                    round(
-                        self.random.lognormal(
-                            self.completion_fit.mean,
-                            self.completion_fit.sigma,
-                        )
-                    )
-                ),
-            )
-            is_anomaly = bool(self.random.random() < self.epsilon)
-            if is_anomaly:
-                inflation = 3.0 + float(self.random.pareto(2.0))
-                prompt_tokens = max(prompt_tokens + 1, int(round(prompt_tokens * inflation)))
-                completion_tokens = max(
-                    completion_tokens + 1,
-                    int(round(completion_tokens * inflation)),
-                )
-
-            total_tokens = prompt_tokens + completion_tokens
-            latency_noise = float(self.random.lognormal(mean=-0.01125, sigma=0.15))
-            latency_ns = max(
-                1,
-                int(
-                    20_000_000
-                    + completion_tokens * self.nanoseconds_per_completion_token * latency_noise
-                ),
-            )
-            _set_int_attribute(span, _PROMPT_TOKENS, prompt_tokens)
-            _set_int_attribute(span, _COMPLETION_TOKENS, completion_tokens)
-            _set_int_attribute(span, _TOTAL_TOKENS, total_tokens)
-            span.end_time_unix_nano = span.start_time_unix_nano + latency_ns
-            if is_anomaly:
-                _set_bool_attribute(span, _ANOMALY, True)
-
-
-def _inject_errors(
-    spans: Sequence[Span],
-    *,
-    error_rate: float,
-    random: np.random.Generator,
-) -> None:
-    spans_by_id = {span.span_id: span for span in spans}
-    for span in spans:
-        if _string_attribute(span, _SPAN_KIND) not in _ERROR_SPAN_KINDS:
-            continue
-        if random.random() >= error_rate:
-            continue
-
-        span.status.code = Status.STATUS_CODE_ERROR
-        retained_events = [event for event in span.events if event.name != "exception"]
-        del span.events[:]
-        span.events.extend(retained_events)
-        event = span.events.add(name="exception", time_unix_nano=span.end_time_unix_nano)
-        for key, value in (
-            ("exception.type", _ERROR_EXCEPTION_TYPE),
-            ("exception.message", _ERROR_EXCEPTION_MESSAGE),
-            ("exception.stacktrace", _ERROR_EXCEPTION_STACKTRACE),
-        ):
-            event.attributes.add(key=key).value.string_value = value
-        ancestor_id = span.parent_span_id
-        visited = {span.span_id}
-        while ancestor := spans_by_id.get(ancestor_id):
-            if ancestor.span_id in visited:
-                break
-            ancestor.status.code = Status.STATUS_CODE_ERROR
-            visited.add(ancestor.span_id)
-            ancestor_id = ancestor.parent_span_id
+def _jitter_positive_int(value: int, *, random: np.random.Generator) -> int:
+    factor = float(random.lognormal(mean=0.0, sigma=_JITTER_SIGMA))
+    jittered = max(1, round(value * factor))
+    if jittered == value:
+        return value + 1 if factor >= 1.0 or value == 1 else value - 1
+    return jittered
 
 
 def _extend_parent_end_times(spans: Sequence[Span]) -> None:
@@ -406,11 +262,11 @@ def _numeric_attribute(span: Span, key: str) -> int | float | None:
     return None
 
 
-def _string_attribute(span: Span, key: str) -> str | None:
-    attribute = _attribute(span, key)
-    if attribute is None or attribute.value.WhichOneof("value") != "string_value":
+def _positive_int_attribute(span: Span, key: str) -> int | None:
+    value = _numeric_attribute(span, key)
+    if value is None or value <= 0:
         return None
-    return cast(str, attribute.value.string_value)
+    return int(value)
 
 
 def _ensure_attribute(span: Span, key: str):  # type: ignore[no-untyped-def]
@@ -427,10 +283,6 @@ def _set_int_attribute(span: Span, key: str, value: int) -> None:
 
 def _set_string_attribute(span: Span, key: str, value: str) -> None:
     _ensure_attribute(span, key).value.string_value = value
-
-
-def _set_bool_attribute(span: Span, key: str, value: bool) -> None:
-    _ensure_attribute(span, key).value.bool_value = value
 
 
 def _remove_attributes(span: Span, predicate):  # type: ignore[no-untyped-def]

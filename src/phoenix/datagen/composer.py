@@ -33,7 +33,7 @@ class ComposedTrace:
 
 @dataclass(frozen=True)
 class ComposedSession:
-    """A same-archetype sequence of whole recorded fragments."""
+    """A same-domain, same-archetype sequence of whole recorded fragments."""
 
     archetype: Archetype
     fragments: Sequence[Fragment]
