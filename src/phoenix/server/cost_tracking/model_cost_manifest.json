@@ -1774,6 +1774,11 @@
           "base_rate": 7.5e-8,
           "is_prompt": true,
           "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
         }
       ]
     },
@@ -1798,7 +1803,7 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 7.5e-6,
+          "base_rate": 3.75e-6,
           "is_prompt": false,
           "token_type": "reasoning"
         }
@@ -6521,6 +6526,24 @@
       ]
     },
     {
+      "name": "together_ai/MiniMaxAI/MiniMax-M3",
+      "name_pattern": "MiniMaxAI/MiniMax-M3",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "together_ai/Qwen/Qwen3-235B-A22B-Instruct-2507-tput",
       "name_pattern": "Qwen/Qwen3-235B-A22B-Instruct-2507-tput",
       "source": "litellm",
@@ -6647,6 +6670,114 @@
       ]
     },
     {
+      "name": "together_ai/Qwen/Qwen3.5-9B",
+      "name_pattern": "Qwen/Qwen3\\.5-9B",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.7e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.5e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen3.6-Plus",
+      "name_pattern": "Qwen/Qwen3\\.6-Plus",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen3.7-Max",
+      "name_pattern": "Qwen/Qwen3\\.7-Max",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen3.7-Plus",
+      "name_pattern": "Qwen/Qwen3\\.7-Plus",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 3.2e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.28e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen3.8-2.4T-A95B",
+      "name_pattern": "Qwen/Qwen3\\.8-2\\.4T-A95B",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/arize-ai/qwen-2-1.5b-instruct",
+      "name_pattern": "arize-ai/qwen-2-1\\.5b-instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "together_ai/deepseek-ai/DeepSeek-R1",
       "name_pattern": "deepseek-ai/DeepSeek-R1",
       "source": "litellm",
@@ -6719,18 +6850,126 @@
       ]
     },
     {
+      "name": "together_ai/deepseek-ai/DeepSeek-V4-Flash-0731",
+      "name_pattern": "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.4e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.8e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/deepseek-ai/DeepSeek-V4-Pro",
+      "name_pattern": "deepseek-ai/DeepSeek-V4-Pro",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.74e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.48e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/deepseek-ai/DeepSeek-V4-Pro-0813",
+      "name_pattern": "deepseek-ai/DeepSeek-V4-Pro-0813",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.32e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.96e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/google/gemma-3n-E4B-it",
+      "name_pattern": "google/gemma-3n-E4B-it",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.2e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/google/gemma-4-31B-it",
+      "name_pattern": "google/gemma-4-31B-it",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 3.9e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9.7e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/intfloat/multilingual-e5-large-instruct",
+      "name_pattern": "intfloat/multilingual-e5-large-instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-8,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo",
       "name_pattern": "meta-llama/Llama-3\\.3-70B-Instruct-Turbo",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
         {
-          "base_rate": 8.8e-7,
+          "base_rate": 1.04e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 8.8e-7,
+          "base_rate": 1.04e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -6767,6 +7006,24 @@
         },
         {
           "base_rate": 5.9e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/meta-llama/Llama-Guard-4-12B",
+      "name_pattern": "meta-llama/Llama-Guard-4-12B",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-7,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -6821,6 +7078,24 @@
         },
         {
           "base_rate": 1.8e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/meta-models/Muse-Glimmer-30B",
+      "name_pattern": "meta-models/Muse-Glimmer-30B",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 3.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -6899,6 +7174,60 @@
       ]
     },
     {
+      "name": "together_ai/moonshotai/Kimi-K2.7-Code",
+      "name_pattern": "moonshotai/Kimi-K2\\.7-Code",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 9.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/moonshotai/Kimi-K3",
+      "name_pattern": "moonshotai/Kimi-K3",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/nvidia/nemotron-3-ultra-550b-a55b",
+      "name_pattern": "nvidia/nemotron-3-ultra-550b-a55b",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.6e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "together_ai/openai/gpt-oss-120b",
       "name_pattern": "openai/gpt-oss-120b",
       "source": "litellm",
@@ -6929,6 +7258,60 @@
         },
         {
           "base_rate": 2e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/pearl-ai/gemma-4-31b-it",
+      "name_pattern": "pearl-ai/gemma-4-31b-it",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 2.8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8.6e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/thinkingmachines/Inkling",
+      "name_pattern": "thinkingmachines/Inkling",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.05e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/thinkingmachines/Inkling-Small",
+      "name_pattern": "thinkingmachines/Inkling-Small",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.2e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -6983,6 +7366,24 @@
         },
         {
           "base_rate": 2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/zai-org/GLM-5.2",
+      "name_pattern": "zai-org/GLM-5\\.2",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.4e-6,
           "is_prompt": false,
           "token_type": "output"
         }
