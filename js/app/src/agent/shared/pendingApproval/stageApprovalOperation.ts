@@ -5,10 +5,8 @@ import type { ApprovalApplyResult, PendingApproval } from "./types";
 
 /**
  * Stage an approval-gated write on behalf of a `ui.*` operation call and
- * return the promise the calling `execute_browser_action` script awaits. The operation
- * counterpart of {@link bindPendingApproval} + `stage*Write`: instead of
- * reporting the outcome through `addToolOutput` (the retired one-tool-call
- * contract), accept/reject resolve the returned promise —
+ * return the promise the calling `execute_browser_action` script awaits.
+ * Accept/reject resolve the returned promise —
  * `{ ok: true, output: { status: "accepted" | "rejected", … } }` — so the
  * script parked on the `await` continues with the user's decision. A failed
  * apply resolves `{ ok: false, error }`.

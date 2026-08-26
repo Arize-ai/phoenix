@@ -115,8 +115,7 @@ export type UIOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
   /**
    * Marks an operation whose handler legitimately awaits completion of work
    * that can outlast the script's wall-clock budget (e.g. a playground run).
-   * Like `approval`-kind calls, the budget pauses while the call is in
-   * flight.
+   * The execution budget pauses while the call is in flight.
    */
   longRunning?: boolean;
   /** Capability keys that must be enabled for this operation to dispatch. */
@@ -133,8 +132,7 @@ export type UIOperationDescriptor<TSchema extends z.ZodType = z.ZodType> = {
 /**
  * The callable a mounted component registers for an operation. Receives
  * input already validated against the descriptor's `inputSchema`, plus the
- * per-call context. Approval handlers return a promise that stays pending
- * until the user accepts or rejects.
+ * per-call context.
  */
 export type UIOperationHandler<TInput> = (
   input: TInput,

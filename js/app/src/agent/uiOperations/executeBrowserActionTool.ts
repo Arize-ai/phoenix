@@ -586,9 +586,7 @@ export const executeBrowserActionTool = defineTool<ExecuteBrowserActionInput>({
           const result = await dispatchUIOperationCall({
             operationName,
             input: operationInput,
-            // Approval handlers key pending entries by this id; interrupt
-            // cleanup finds them again by the toolCallId prefix, and the
-            // script-approval grant is resolved from its host prefix.
+            // The script-approval grant is resolved from this id's host prefix.
             callId: `${toolCall.toolCallId}:${callSequence}`,
             agentStore,
             sessionId,
