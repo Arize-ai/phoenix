@@ -16,7 +16,7 @@ import {
   ChartPanel,
   ChartPanelStrip,
 } from "@phoenix/components/chart";
-import { Token } from "@phoenix/components/core/token";
+import { Badge } from "@phoenix/components/core/badge";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import type {
   ProjectEvaluatorStats_projectEvaluator$data,
@@ -217,9 +217,7 @@ function ProjectEvaluatorActivityPanel({
         <ActivityField label="status">
           <TooltipTrigger delay={0}>
             <Focusable>
-              <Token role="button" color={status.color}>
-                {status.label}
-              </Token>
+              <Badge variant={status.variant}>{status.label}</Badge>
             </Focusable>
             <Tooltip>
               <TooltipArrow />

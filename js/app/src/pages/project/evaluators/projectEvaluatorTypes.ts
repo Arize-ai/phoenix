@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 
+import type { BadgeVariant } from "@phoenix/components/core/badge";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import type {
@@ -171,7 +172,7 @@ export type ProjectEvaluatorRunSummary = {
 
 export type ProjectEvaluatorStatus = {
   label: string;
-  color: string;
+  variant: BadgeVariant;
   /** Why the evaluator is in this state, shown on hover and on the details page. */
   explanation: string;
 };
@@ -188,14 +189,14 @@ export function getProjectEvaluatorStatus({
 }: {
   schedulabilityStatus: string;
   schedulabilityReason: string | null | undefined;
-  // Only the status is read, so callers that have just that -- the page header
-  // reads it off its own query -- need not fetch the counts as well.
+  // Only the status is read, so callers that have just that need not fetch
+  // the counts as well.
   runSummary: Pick<ProjectEvaluatorRunSummary, "status">;
 }): ProjectEvaluatorStatus {
   if (schedulabilityStatus === "NOT_SCHEDULABLE") {
     return {
       label: "Not scheduled",
-      color: "var(--global-color-warning)",
+      variant: "warning",
       explanation: getSchedulabilityExplanation(schedulabilityReason),
     };
   }
@@ -203,25 +204,25 @@ export function getProjectEvaluatorStatus({
     case "FAILING":
       return {
         label: "Failing",
-        color: "var(--global-color-danger)",
+        variant: "danger",
         explanation: "The most recent evaluation failed.",
       };
     case "HEALTHY":
       return {
         label: "Healthy",
-        color: "var(--global-color-success)",
+        variant: "success",
         explanation: "Evaluations are running and producing annotations.",
       };
     case "QUEUED":
       return {
         label: "Queued",
-        color: "var(--global-color-info)",
+        variant: "info",
         explanation: "Evaluations are waiting to run.",
       };
     default:
       return {
         label: "Never ran",
-        color: "var(--global-color-gray-300)",
+        variant: "default",
         explanation:
           "No evaluations have been scheduled for this evaluator yet.",
       };
