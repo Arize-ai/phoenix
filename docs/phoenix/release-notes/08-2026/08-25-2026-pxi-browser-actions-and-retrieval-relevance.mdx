@@ -1,0 +1,311 @@
+---
+title: "08.25.2026: PXI Browser Actions, Retrieval Relevance, and REST Additions"
+description: "PXI drives the Phoenix UI with sandboxed scripts, writes through GraphQL behind an approval card, and reads Phoenix's own REST API in-process; a source-agnostic Retrieval Relevance evaluator in both evals SDKs; plain-English AI query for trace filters; click a chart bin to narrow the time range; one table column per annotation; and REST endpoints for project retention and model providers."
+---
+
+# PXI Drives the Phoenix UI with Scripts
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+The assistant no longer picks from a fixed menu of one tool per UI action. It discovers the
+operations available on your page, then writes a single script that reads state, branches on it,
+and applies every change in one turn — so "set the model to gpt-5, run the playground, and show me
+the output" is one action instead of three round trips.
+
+- **Two meta-tools replace roughly fifty per-action tools** — `search_browser_actions` returns the
+  full operation catalog with TypeScript-style signatures and doc comments, and
+  `execute_browser_action` runs a script against it.
+- **Scripts run sandboxed in your browser** — a locked worker with its own protocol channel and a
+  dedicated CSP, calling operations through a validated `ui.*` proxy. Nothing reaches the page
+  outside the catalog.
+- **The catalog says what is reachable from where** — every operation reports whether it is
+  available on the current page, and an unavailable one comes back with a route hint instead of a
+  dead end.
+- **Structured results, stable error codes** — each call resolves to `{ok: true, output}` or
+  `{ok: false, code, error}` with codes like `STALE_REVISION`, `NOT_AVAILABLE`, and
+  `INVALID_INPUT`, so the assistant recovers on the code rather than on prose it has to parse.
+- **Navigation asks first** — `ui.navigation.goTo` is approval-gated and never auto-accepted; a
+  rejection ends the attempt rather than triggering a retry.
+- **Writes that used to need their own tools now live in the catalog** — patching experiments,
+  batch span annotation, annotation configs, and dataset reads and writes are all operations.
+
+<CardGroup cols={2}>
+  <Card title="PXI" icon="robot" href="/docs/phoenix/pxi">
+    The AI engineering agent built into Phoenix
+  </Card>
+</CardGroup>
+
+# PXI Mutations, Gated by Your Approval
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+The assistant can now change Phoenix through GraphQL mutations, and in manual edit-permission mode
+every mutation stops and shows you the resolved document and variables with Accept and Reject
+before anything is written.
+
+- **On by default, approval-gated** — mutations are enabled without a toggle; manual mode routes
+  each one through the approval card, bypass mode runs them directly.
+- **Detection happens at execution time** — the mutation is caught by parsing what is actually
+  about to run, so a document arriving through a file, stdin, or a pipe is gated the same way an
+  inline one is.
+- **What you approve is what runs** — approvals are bound to a digest of the document; if the
+  re-run does not match, Phoenix asks again.
+- **Approvals survive a reload** — the captured payload is stamped onto the persisted message, so
+  the card is still there when you come back to the conversation.
+- **Subagents cannot slip past it** — they get mutation access only in bypass mode, since they have
+  no way to surface an approval request.
+
+# PXI Reads Phoenix's Own REST API
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+The assistant reaches the Phoenix REST API as an in-process MCP toolset built from the same OpenAPI
+derivation external clients consume — over an in-memory transport, with no network hop. An endpoint
+added to `/v1` shows up in the assistant's catalog without anyone hand-writing a tool for it.
+
+- **Code mode, not one tool per endpoint** — the assistant gets discovery tools plus a sandboxed
+  `execute`, so work spanning many endpoints becomes one block that loops and aggregates, and only
+  the result comes back.
+- **Its own server, not the mounted one** — what external MCP clients are configured to see does
+  not decide what the assistant can do, and turning off the public `/mcp` mount does not take the
+  assistant's tools with it.
+- **Read-only** — a mutation reached this way would skip the approval path the assistant's editing
+  tools go through, so the surface stays read-only for now.
+- **The analytics SQL tools are in the same catalog** — `describeSqlSchema` and `executeSql` are one
+  `call_tool` away.
+- **Separate sandbox share** — the assistant holds its own admission class in the Monty pool, so it
+  and external clients cannot starve each other.
+
+# Retrieval Relevance Evaluator
+
+August 21, 2026
+
+**Available in arize-phoenix-evals 3.5.0+ (Python) and @arizeai/phoenix-evals 2.3.0+ (TypeScript)**
+
+Judge whether the information a step retrieved actually bears on the request it was serving —
+whatever produced it. Unlike document relevance, this evaluator is source-agnostic and scores the
+retrieved information holistically, per retrieval step.
+
+- **Any retrieval source** — vector search, a tool or function call, an MCP server, a web search, a
+  SQL query, or results embedded in an LLM turn.
+- **Two inputs** — `input` is the request the retrieval served, `context` is everything it returned,
+  joined together.
+- **Binary, explained** — `relevant` (1.0) or `irrelevant` (0.0), with the judge's reasoning, and
+  `maximize` as the optimization direction.
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import RetrievalRelevanceEvaluator
+
+llm = LLM(provider="openai", model="gpt-4o")
+relevance_eval = RetrievalRelevanceEvaluator(llm=llm)
+
+scores = relevance_eval.evaluate(
+    {
+        "input": "What is the return policy?",
+        "context": "Our return policy allows returns within 30 days of purchase.",
+    }
+)
+print(scores[0])
+```
+
+```typescript
+import { createRetrievalRelevanceEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = createRetrievalRelevanceEvaluator({ model: openai("gpt-4o") });
+
+const result = await evaluator.evaluate({
+  input: "What is the return policy?",
+  context: "Our return policy allows returns within 30 days of purchase.",
+});
+console.log(result.label);
+```
+
+Use input mapping when the retrieved items arrive as a list rather than one string:
+
+```python
+eval_input = {
+    "query": "What is the return policy?",
+    "retrieved": {
+        "documents": [
+            "Our return policy allows returns within 30 days.",
+            "Refunds are processed within 5 business days.",
+        ]
+    },
+}
+input_mapping = {
+    "input": "query",
+    "context": lambda x: "\n\n".join(x["retrieved"]["documents"]),
+}
+scores = relevance_eval.evaluate(eval_input, input_mapping)
+```
+
+<CardGroup cols={2}>
+  <Card title="Retrieval Relevance" icon="magnifying-glass" href="/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance">
+    Span kinds to score, formatting tips, and prompt customization
+  </Card>
+</CardGroup>
+
+# Plain-English AI Query for Trace Filters
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+The trace filter field joins the span, session, and experiment-run fields in accepting plain
+English. Toggle the sparkle, describe the traces you want, and press Enter to have a trace filter
+expression written and validated for you — Escape undoes it.
+
+- **A vocabulary the compiler owns** — the terms and snippets offered to the model are derived from
+  the same trace filter compiler that validates the result, so what the model is told about is
+  exactly what compiles.
+- **Grammar the prompt now states outright** — `len()` takes a bracketed list comprehension, a
+  comprehension takes one `for` clause with distinct loop variables, trace-level fields cannot
+  appear inside a comprehension over spans, and there are no method calls.
+- **Tuned against a graded corpus** — fifteen natural-language cases whose accepted expressions are
+  compile-verified under both SQLite and PostgreSQL; all three evaluation models now clear their
+  minimum pass rate.
+- **From DSL mode, Mod-Enter** hands the draft you are already typing to AI query.
+
+<CardGroup cols={2}>
+  <Card title="Filter Expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    The span, trace, and session filter languages AI query writes
+  </Card>
+</CardGroup>
+
+# Click a Chart Bin to Narrow the Time Range
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+Every project metric chart now answers a click as well as a drag. Click a bar and the whole page's
+time range snaps to that bin; drag across the plot and it takes the window you swept.
+
+- **The bin, exactly** — the new range is the clicked bin's own boundaries at the chart's query
+  scale, not an approximation from the pointer position.
+- **A click stays a click** — a gesture is a drag once the pointer moves more than a few pixels, so
+  a small wobble inside one bar still narrows to that bar.
+- **Across the metric charts** — span and trace counts, span errors, trace latency percentiles,
+  token counts and cost, and annotation score time series.
+- **The cursor says which gesture you get** — a pointer where bin clicking is available, a crosshair
+  while brushing.
+
+# One Table Column per Annotation
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+Annotations spread out of a single crowded summary cell into their own columns on the spans,
+traces, and sessions tables, so you can show, hide, and reorder them like any other column.
+
+- **Pick them from the column selector** — annotation columns sit in the same flat, drag-to-reorder
+  list as the built-in columns, hidden by default.
+- **Color-coded target type** — a span, trace, or session token beside each column tells same-named
+  annotations of different kinds apart, in both the selector and the details popover.
+- **Details in the cell** — hovering a value opens the full annotation list with scores, labels,
+  explanations, and annotator kind.
+- **Filter from the popover** — inline filter chips append the matching condition to the table's
+  filter.
+
+<CardGroup cols={2}>
+  <Card title="Annotate Traces" icon="pen" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations">
+    Record and review feedback on spans, traces, and sessions
+  </Card>
+</CardGroup>
+
+# Retention Policies and Model Providers over REST
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+Three additions to the v1 REST API cover work that previously required GraphQL.
+
+**`PATCH /v1/projects/{project_identifier}/retention`** points a project at an existing trace
+retention policy, or resets it to the default. It never creates, edits, or deletes a policy —
+policy CRUD stays in GraphQL. `policy_id` is required but nullable, so an omitted key is a `422`
+rather than a silent reset, and validation runs before the write: a malformed ID is a `422`, an
+unresolvable one a `404`, and the current assignment is left untouched either way. Admin only.
+
+```bash
+curl -X PATCH "$PHOENIX_ENDPOINT/v1/projects/my-project/retention" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"policy_id": "UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI="}'
+```
+
+```bash
+curl -X PATCH "$PHOENIX_ENDPOINT/v1/projects/my-project/retention" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"policy_id": null}'
+```
+
+**`GET /v1/model_providers`** lists the built-in provider families this deployment exposes —
+`OPENAI`, `ANTHROPIC`, `GOOGLE`, and the rest — narrowed by `PHOENIX_ALLOWED_PROVIDERS` exactly as
+the GraphQL query is. The set is a fixed enum, so the response is not paginated.
+
+**`GET /v1/custom_model_providers`** lists user-defined providers with cursor pagination. Encrypted
+provider credentials are never returned, and are absent from the response model entirely.
+
+```bash
+curl "$PHOENIX_ENDPOINT/v1/model_providers" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+```
+
+<CardGroup cols={2}>
+  <Card title="Data Retention" icon="clock-rotate-left" href="/docs/phoenix/settings/data-retention">
+    Define and assign trace retention policies
+  </Card>
+  <Card title="Custom AI Providers" icon="plug" href="/docs/phoenix/settings/custom-ai-providers">
+    Register providers beyond the built-in families
+  </Card>
+</CardGroup>
+
+# Native Scrollbars and Real Not-Found Pages
+
+August 25, 2026
+
+**Available in arize-phoenix 20.4.0+**
+
+- **An Accessibility tab in your profile** — Profile → Accessibility turns on native scrollbars, so
+  Phoenix uses your browser and operating system's default scrollbar appearance instead of its own
+  minimal style. The setting sits alongside your other display preferences and persists in your
+  browser.
+- **A missing entity is a 404, not a crash** — redirect lookups that come up empty now render a
+  clear not-found view with a way back, instead of the generic "Something went wrong" page. Real
+  failures and server-disconnected states keep their own views.
+- **Unmatched URLs render a 404 page** rather than a blank one.
+- **A project looked up by name that does not exist yet** shows the onboarding empty state pointing
+  at exporter setup, since that is the expected first-run experience.
+
+# Also in This Release
+
+August 20 – August 25, 2026
+
+**Available in arize-phoenix 20.4.0+ and arize-phoenix-evals 3.5.1+**
+
+- **A faster, cheaper assistant** — the PXI system prompt is now static, with per-turn UI state
+  moved onto the turn itself, so the cached prefix stays stable across a conversation.
+- **The evals SDK moves to the Anthropic SDK v1** — upgrade `anthropic` alongside
+  `arize-phoenix-evals` 3.5.1.
+- **Evaluator prompt validation errors no longer echo the submitted tool JSON** back at you.
+- **Filter overlays stay visible in clipped layouts**, and long filter expressions and share
+  tooltips read correctly instead of overflowing.
+- **Annotation pills stay clamped** inside tracing table cells, and the details drawer lines up with
+  the app frame.
+- **Log in with Enter** — pressing Enter in the login form submits it instead of navigating to
+  forgot-password.
+- **Refreshed built-in token prices** so cost tracking stays accurate for the current model lineup.
+- **Prompt cache usage is preserved** through the OpenAI-compatible `/v1/chat/completions` proxy.
+- **Analytics SQL over MCP** correctly parenthesizes `BETWEEN`, `IN`, and operator keys when reading
+  JSON on PostgreSQL.
