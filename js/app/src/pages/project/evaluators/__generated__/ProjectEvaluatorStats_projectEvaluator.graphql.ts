@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aaa45ad1d75f929bc29bb80debd3e3dc>>
+ * @generated SignedSource<<75e9e4793a0890bda8dbff59b26b3743>>
  * @lightSyntaxTransform
  */
 
@@ -11,6 +11,9 @@ import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
+export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
+export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TRACE_TARGET_UNSUPPORTED";
+export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly createdAt: string;
@@ -28,7 +31,10 @@ export type ProjectEvaluatorStats_projectEvaluator$data = {
     readonly lastError: string | null;
     readonly lastRunAt: string | null;
     readonly queuedCount: number;
+    readonly status: ProjectEvaluatorRunStatus;
   };
+  readonly schedulabilityReason: ProjectEvaluatorSchedulabilityReason | null;
+  readonly schedulabilityStatus: ProjectEvaluatorSchedulabilityStatus;
   readonly traceProject: {
     readonly id: string;
   };
@@ -73,6 +79,20 @@ return {
     {
       "alias": null,
       "args": null,
+      "kind": "ScalarField",
+      "name": "schedulabilityStatus",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "schedulabilityReason",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "Project",
       "kind": "LinkedField",
       "name": "project",
@@ -98,6 +118,13 @@ return {
       "name": "runSummary",
       "plural": false,
       "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "status",
+          "storageKey": null
+        },
         {
           "alias": null,
           "args": null,
@@ -179,6 +206,6 @@ return {
 };
 })();
 
-(node as any).hash = "95d095ef8aa342ce518e0a6383b94e5a";
+(node as any).hash = "dadb92512086a6fb8d5eb07943aea04c";
 
 export default node;

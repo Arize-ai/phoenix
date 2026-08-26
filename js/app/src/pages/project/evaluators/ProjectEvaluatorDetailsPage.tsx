@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
-import { Focusable } from "react-aria";
 import { Outlet, useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -17,13 +16,9 @@ import {
   TabList,
   Tabs,
   Text,
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { Empty } from "@phoenix/components/core/empty";
-import { Token } from "@phoenix/components/core/token";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   ConnectedTimeRangeSelector,
@@ -49,7 +44,6 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
 import { ProjectEvaluatorStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStats";
 import { ProjectEvaluatorTraces } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTraces";
-import { getProjectEvaluatorStatus } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 
 /**
@@ -137,11 +131,6 @@ function ProjectEvaluatorDetailsPageContent({
     return <ProjectEvaluatorNotFound />;
   }
   const evaluator = projectEvaluator.evaluator;
-  const status = getProjectEvaluatorStatus({
-    schedulabilityStatus: projectEvaluator.schedulabilityStatus,
-    schedulabilityReason: projectEvaluator.schedulabilityReason,
-    runSummary: projectEvaluator.runSummary,
-  });
   const isLLMEvaluator = evaluator.kind === "LLM";
   const canEdit = evaluator.kind === "LLM" || evaluator.kind === "CODE";
 
@@ -152,27 +141,12 @@ function ProjectEvaluatorDetailsPageContent({
       </TopNavActions>
       <PageHeader
         title={
-          <Flex direction="row" gap="size-150" alignItems="center">
-            <Heading level={1}>
-              <Truncate
-                maxWidth="100%"
-                title={`Evaluator: ${projectEvaluator.name}`}
-              >{`Evaluator: ${projectEvaluator.name}`}</Truncate>
-            </Heading>
-            {/* The label alone says what; the explanation on hover says why,
-                  matching the status cell in the evaluators table. */}
-            <TooltipTrigger delay={0}>
-              <Focusable>
-                <Token role="button" color={status.color}>
-                  {status.label}
-                </Token>
-              </Focusable>
-              <Tooltip>
-                <TooltipArrow />
-                <Text size="XS">{status.explanation}</Text>
-              </Tooltip>
-            </TooltipTrigger>
-          </Flex>
+          <Heading level={1}>
+            <Truncate
+              maxWidth="100%"
+              title={`Evaluator: ${projectEvaluator.name}`}
+            >{`Evaluator: ${projectEvaluator.name}`}</Truncate>
+          </Heading>
         }
         subTitle={evaluator.description}
         extra={

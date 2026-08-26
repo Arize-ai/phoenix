@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import { Focusable } from "react-aria";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
@@ -15,6 +16,7 @@ import {
   ChartPanel,
   ChartPanelStrip,
 } from "@phoenix/components/chart";
+import { Token } from "@phoenix/components/core/token";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import type {
   ProjectEvaluatorStats_projectEvaluator$data,
@@ -28,6 +30,7 @@ import {
 import {
   formatLastRun,
   getAnnotationLevel,
+  getProjectEvaluatorStatus,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { useProjectEvaluatorResultAnnotations } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import { languageLabel } from "@phoenix/pages/settings/sandboxes/utils";
@@ -66,6 +69,8 @@ export function ProjectEvaluatorStats({
       fragment ProjectEvaluatorStats_projectEvaluator on ProjectEvaluator {
         createdAt
         evaluationTarget
+        schedulabilityStatus
+        schedulabilityReason
         project {
           id
         }
@@ -73,6 +78,7 @@ export function ProjectEvaluatorStats({
           id
         }
         runSummary {
+          status
           lastRunAt
           queuedCount
           evaluatedCount
@@ -211,6 +217,11 @@ function ProjectEvaluatorActivityPanel({
   projectEvaluator: ProjectEvaluatorStats_projectEvaluator$data;
 }) {
   const { runSummary, evaluator } = projectEvaluator;
+  const status = getProjectEvaluatorStatus({
+    schedulabilityStatus: projectEvaluator.schedulabilityStatus,
+    schedulabilityReason: projectEvaluator.schedulabilityReason,
+    runSummary,
+  });
   const { shortDateFormatter, fullTimeFormatter } = useTimeFormatters();
   return (
     <ChartPanel
@@ -219,6 +230,21 @@ function ProjectEvaluatorActivityPanel({
       fillHeight
     >
       <dl css={activityFieldsCSS}>
+        <ActivityField label="status">
+          {/* The label alone says what; the explanation on hover says why,
+              matching the status cell in the evaluators table. */}
+          <TooltipTrigger delay={0}>
+            <Focusable>
+              <Token role="button" color={status.color}>
+                {status.label}
+              </Token>
+            </Focusable>
+            <Tooltip>
+              <TooltipArrow />
+              <Text size="XS">{status.explanation}</Text>
+            </Tooltip>
+          </TooltipTrigger>
+        </ActivityField>
         <ActivityField label="last run">
           {runSummary.lastRunAt == null ? (
             <Text size="S">{formatLastRun(runSummary.lastRunAt)}</Text>
