@@ -373,6 +373,8 @@ class TestPrompts:
             created_version = await session.get(models.PromptVersion, id_)
         assert created_version is not None
         assert created_version.prompt_id == prompt.id
+        assert created_version.description == "Created by REST"
+        self._assert_version_content_matches(created_version, prompt_versions[0])
         self._compare_prompt_version(data, created_version)
 
     async def test_create_prompt_version_by_id(
@@ -400,6 +402,8 @@ class TestPrompts:
             created_version = await session.get(models.PromptVersion, id_)
         assert created_version is not None
         assert created_version.prompt_id == prompt.id
+        assert created_version.description == "Created by prompt ID"
+        self._assert_version_content_matches(created_version, prompt_versions[1])
         self._compare_prompt_version(data, created_version)
 
     async def test_create_prompt_version_with_tags(
@@ -440,6 +444,61 @@ class TestPrompts:
         assert tag is not None
         assert tag.prompt_version_id == created_id
         assert tag.description == "Current production prompt"
+
+    async def test_create_prompt_version_moves_tag_without_clearing_description(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        tag_name = Identifier.model_validate("production")
+        async with db() as session:
+            session.add(
+                models.PromptVersionTag(
+                    name=tag_name,
+                    description="Serves prod traffic",
+                    prompt_id=prompt.id,
+                    prompt_version_id=prompt_versions[0].id,
+                )
+            )
+        request_body = {
+            "version": self._prompt_version_request_body(prompt_versions[1]),
+            "tags": [{"name": tag_name.root}],
+        }
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/versions"
+        response = await httpx_client.post(url, json=request_body)
+
+        assert response.status_code == 201, response.text
+        created_id = from_global_id_with_expected_type(
+            GlobalID.from_id(response.json()["data"]["id"]), PromptVersion.__name__
+        )
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).where(
+                    models.PromptVersionTag.prompt_id == prompt.id,
+                    models.PromptVersionTag.name == tag_name,
+                )
+            )
+        assert tag is not None
+        assert tag.prompt_version_id == created_id
+        assert tag.description == "Serves prod traffic"
+
+    async def test_create_prompt_version_rejects_mismatched_provider(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        request_body = {
+            "version": self._prompt_version_request_body(
+                prompt_versions[0],
+                model_provider=ModelProvider.ANTHROPIC,
+            )
+        }
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/versions"
+        response = await httpx_client.post(url, json=request_body)
+        assert response.status_code == 422, response.text
+        assert "does not match" in response.text
 
     async def test_create_prompt_version_missing_prompt(
         self,
@@ -546,6 +605,20 @@ class TestPrompts:
                 prompt_version.tools.model_dump(),
             )
         assert not data
+
+    @staticmethod
+    def _assert_version_content_matches(
+        created: models.PromptVersion,
+        source: models.PromptVersion,
+    ) -> None:
+        assert created.model_provider == source.model_provider
+        assert created.model_name == source.model_name
+        assert created.template == source.template
+        assert created.template_type == source.template_type
+        assert created.template_format == source.template_format
+        assert created.invocation_parameters == source.invocation_parameters
+        assert created.tools == source.tools
+        assert created.response_format == source.response_format
 
     @staticmethod
     def _prompt_version_request_body(
