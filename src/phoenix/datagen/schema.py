@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Literal, Mapping, Sequence, TypedDict, cast
+from typing import Any, Literal, Mapping, Sequence, cast
 
 Archetype = Literal[
     "plain_chat",
@@ -12,10 +12,6 @@ Archetype = Literal[
     "guardrailed",
     "structured_extraction",
 ]
-QualityTier = Literal["high", "standard", "deliberately_bad"]
-LengthBand = Literal["single_turn", "short", "medium", "long"]
-GenerationLane = Literal["self_play", "scripted"]
-
 ARCHETYPES = frozenset(
     {
         "plain_chat",
@@ -26,63 +22,8 @@ ARCHETYPES = frozenset(
         "structured_extraction",
     }
 )
-QUALITY_TIERS = frozenset({"high", "standard", "deliberately_bad"})
-LENGTH_BANDS = frozenset({"single_turn", "short", "medium", "long"})
-GENERATION_LANES = frozenset({"self_play", "scripted"})
 
 _TRACE_ID_PATTERN = re.compile(r"[0-9a-fA-F]{32}")
-
-
-class FileMetadata(TypedDict):
-    sha256: str
-    size_bytes: int
-
-
-class CorpusManifestV2(TypedDict):
-    schema_version: Literal[2]
-    generated_at: str
-    generation_revision: str
-    matrix_sha256: str
-    matrix_seed: int
-    fragment_count: int
-    trace_count: int
-    span_count: int
-    span_kinds: Sequence[str]
-    instrumenter_package_versions: Mapping[str, str]
-    files: Mapping[str, FileMetadata]
-    quality_gate_summary: Mapping[str, Any]
-
-
-class ModelUsedRecord(TypedDict):
-    role: str
-    provider: str
-    model: str
-
-
-class FragmentRecordV2(TypedDict):
-    fragment_id: str
-    archetype: Archetype
-    domain: str
-    topic: str
-    scenario_template: str
-    persona: str
-    register: str
-    quality_tier: QualityTier
-    failure_mode: str
-    length_band: LengthBand
-    lane: GenerationLane
-    models_used: Sequence[ModelUsedRecord]
-    turn_count: int
-    trace_ids: Sequence[str]
-    content_sha256: str
-    quality_results: Mapping[str, Any]
-
-
-@dataclass(frozen=True)
-class ModelUsed:
-    role: str
-    provider: str
-    model: str
 
 
 @dataclass(frozen=True)
@@ -91,18 +32,7 @@ class Fragment:
     archetype: Archetype
     domain: str
     trace_ids: tuple[str, ...]
-    topic: Any = None
-    scenario_template: Any = None
-    persona: Any = None
-    register: Any = None
-    quality_tier: Any = None
-    failure_mode: Any = None
-    length_band: Any = None
-    lane: Any = None
-    models_used: tuple[ModelUsed, ...] = ()
-    turn_count: Any = None
-    content_sha256: Any = None
-    quality_results: Mapping[str, Any] = field(default_factory=dict)
+    extra: Mapping[str, Any] = field(default_factory=dict)
 
 
 class SchemaValidationError(ValueError):
@@ -111,9 +41,9 @@ class SchemaValidationError(ValueError):
         super().__init__(message)
 
 
-def validate_corpus_manifest_v2(value: Mapping[str, Any]) -> CorpusManifestV2:
+def validate_corpus_manifest_v2(value: Mapping[str, Any]) -> Mapping[str, Any]:
     _require_literal(value, "schema_version", 2)
-    return cast(CorpusManifestV2, value)
+    return value
 
 
 def validate_fragment_v2(value: Mapping[str, Any]) -> Fragment:
@@ -131,38 +61,16 @@ def validate_fragment_v2(value: Mapping[str, Any]) -> Fragment:
             )
         trace_ids.append(trace_id.lower())
 
-    raw_models = value.get("models_used")
-    models = (
-        tuple(
-            ModelUsed(
-                role=cast(str, raw_model.get("role", "")),
-                provider=cast(str, raw_model.get("provider", "")),
-                model=cast(str, raw_model.get("model", "")),
-            )
-            for raw_model in raw_models
-            if isinstance(raw_model, Mapping)
-        )
-        if isinstance(raw_models, list)
-        else ()
-    )
-    quality_results = value.get("quality_results")
     return Fragment(
         fragment_id=fragment_id,
         archetype=cast(Archetype, archetype),
         domain=domain,
         trace_ids=tuple(trace_ids),
-        topic=value.get("topic"),
-        scenario_template=value.get("scenario_template"),
-        persona=value.get("persona"),
-        register=value.get("register"),
-        quality_tier=value.get("quality_tier"),
-        failure_mode=value.get("failure_mode"),
-        length_band=value.get("length_band"),
-        lane=value.get("lane"),
-        models_used=tuple(models),
-        turn_count=value.get("turn_count"),
-        content_sha256=value.get("content_sha256"),
-        quality_results=quality_results if isinstance(quality_results, Mapping) else {},
+        extra={
+            key: item
+            for key, item in value.items()
+            if key not in {"fragment_id", "archetype", "domain", "trace_ids"}
+        },
     )
 
 

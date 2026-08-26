@@ -6,7 +6,8 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 
-from phoenix.datagen import ComposerConfig, Corpus, SessionComposer, load_corpus
+from phoenix.datagen import Corpus, load_corpus
+from phoenix.datagen.composer import SessionComposer
 
 
 def test_composer_samples_whole_same_archetype_fragments_without_replacement() -> None:
@@ -17,15 +18,6 @@ def test_composer_samples_whole_same_archetype_fragments_without_replacement() -
     }
     composer = SessionComposer(
         corpus,
-        config=ComposerConfig(
-            session_fragments_median=2,
-            session_fragments_sigma=0,
-            session_fragments_max=2,
-            archetype_mix={"plain_chat": 1},
-            fragment_gap_median_seconds=5,
-            fragment_gap_sigma=0,
-            fragment_gap_max_seconds=5,
-        ),
         random=np.random.default_rng(7),
     )
 
@@ -59,7 +51,7 @@ def test_composer_samples_whole_same_archetype_fragments_without_replacement() -
     second_start_ns = min(
         trace.virtual_start_ns for trace in traces_by_fragment[second.fragment_id]
     )
-    assert second_start_ns - first_end_ns == 5_000_000_000
+    assert 0 <= second_start_ns - first_end_ns <= 3_600_000_000_000
     assert recorded == {
         trace_id: request.SerializeToString()
         for trace_id, request in corpus.requests_by_trace_id.items()
@@ -79,15 +71,6 @@ def test_composer_keeps_same_archetype_sessions_within_one_application() -> None
     )
     composer = SessionComposer(
         corpus,
-        config=ComposerConfig(
-            session_fragments_median=4,
-            session_fragments_sigma=0,
-            session_fragments_max=4,
-            archetype_mix={"plain_chat": 1},
-            fragment_gap_median_seconds=0,
-            fragment_gap_sigma=0,
-            fragment_gap_max_seconds=0,
-        ),
         random=np.random.default_rng(23),
     )
 

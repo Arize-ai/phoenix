@@ -517,14 +517,16 @@ def _jaccard(left: frozenset[str], right: frozenset[str]) -> float:
 
 
 def _value(fragment: Fragment | Mapping[str, Any], field: str) -> Any:
-    return fragment.get(field) if isinstance(fragment, Mapping) else getattr(fragment, field)
+    if isinstance(fragment, Mapping):
+        return fragment.get(field)
+    return getattr(fragment, field, fragment.extra.get(field))
 
 
 def _fragment_failure_mode(fragment: Fragment | Mapping[str, Any]) -> str:
     value = (
         fragment.get("failure_mode", "none")
         if isinstance(fragment, Mapping)
-        else fragment.failure_mode
+        else fragment.extra.get("failure_mode", "none")
     )
     if not isinstance(value, str) or not value:
         raise QualityError("judge routing requires string failure modes")

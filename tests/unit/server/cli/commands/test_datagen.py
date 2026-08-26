@@ -1,7 +1,6 @@
 import time
 from argparse import ArgumentParser
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -70,9 +69,9 @@ def test_datagen_default_run_loop_preserves_operation_order(
         def __init__(self, _corpus: object, **kwargs: object) -> None:
             replayer_kwargs.update(kwargs)
 
-        def emit(self, **kwargs: object) -> SimpleNamespace:
+        def emit(self, **kwargs: object) -> str:
             events.append(("emit", kwargs))
-            return SimpleNamespace(request="request", anomalies=("anomaly",))
+            return "request"
 
         def interarrival_seconds(self, **kwargs: object) -> float:
             events.append(("interarrival", kwargs))

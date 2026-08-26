@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import isfinite, log
-from typing import Mapping, Sequence, cast
+from math import log
+from typing import Sequence, cast
 
 import numpy as np
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
@@ -12,39 +12,14 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 
 from phoenix.datagen.loader import Corpus
-from phoenix.datagen.schema import ARCHETYPES, Archetype, Fragment
+from phoenix.datagen.schema import Archetype, Fragment
 
-
-@dataclass(frozen=True)
-class ComposerConfig:
-    """Distribution settings for virtual sessions."""
-
-    session_fragments_median: float = 2.0
-    session_fragments_sigma: float = 1.0
-    session_fragments_max: int = 24
-    archetype_mix: Mapping[Archetype, float] | None = None
-    fragment_gap_median_seconds: float = 180.0
-    fragment_gap_sigma: float = 0.9
-    fragment_gap_max_seconds: float = 3600.0
-
-    def __post_init__(self) -> None:
-        if not isfinite(self.session_fragments_median) or self.session_fragments_median <= 0:
-            raise ValueError("session_fragments_median must be greater than zero")
-        if not isfinite(self.session_fragments_sigma) or self.session_fragments_sigma < 0:
-            raise ValueError("session_fragments_sigma must not be negative")
-        if self.session_fragments_max < 1:
-            raise ValueError("session_fragments_max must be at least one")
-        if not isfinite(self.fragment_gap_median_seconds) or self.fragment_gap_median_seconds < 0:
-            raise ValueError("fragment_gap_median_seconds must not be negative")
-        if not isfinite(self.fragment_gap_sigma) or self.fragment_gap_sigma < 0:
-            raise ValueError("fragment_gap_sigma must not be negative")
-        if not isfinite(self.fragment_gap_max_seconds) or self.fragment_gap_max_seconds < 0:
-            raise ValueError("fragment_gap_max_seconds must not be negative")
-        for archetype, weight in (self.archetype_mix or {}).items():
-            if archetype not in ARCHETYPES:
-                raise ValueError(f"unsupported archetype in mix: {archetype}")
-            if not isfinite(weight) or weight <= 0:
-                raise ValueError(f"archetype weight for {archetype} must be greater than zero")
+_SESSION_FRAGMENTS_MEDIAN = 2.0
+_SESSION_FRAGMENTS_SIGMA = 1.0
+_SESSION_FRAGMENTS_MAX = 24
+_FRAGMENT_GAP_MEDIAN_SECONDS = 180.0
+_FRAGMENT_GAP_SIGMA = 0.9
+_FRAGMENT_GAP_MAX_SECONDS = 3600.0
 
 
 @dataclass(frozen=True)
@@ -74,12 +49,10 @@ class SessionComposer:
         self,
         corpus: Corpus,
         *,
-        config: ComposerConfig,
         random: np.random.Generator,
     ) -> None:
         if not corpus.fragments:
             raise ValueError("corpus contains no fragments")
-        self._config = config
         self._random = random
         self._requests_by_trace_id = corpus.requests_by_trace_id
         fragments_by_application: dict[Archetype, dict[str, list[Fragment]]] = {}
@@ -93,25 +66,13 @@ class SessionComposer:
             }
             for archetype, applications in fragments_by_application.items()
         }
-        configured_mix = config.archetype_mix or {
-            archetype: 1.0 for archetype in self._fragments_by_application
-        }
-        unavailable = set(configured_mix).difference(self._fragments_by_application)
-        if unavailable:
-            raise ValueError(
-                f"archetype mix references unavailable archetypes: {sorted(unavailable)!r}"
-            )
-        if not configured_mix:
-            raise ValueError("archetype mix contains no available archetypes")
-        self._archetypes = tuple(configured_mix)
-        weights = np.asarray(tuple(configured_mix.values()), dtype=float)
-        self._archetype_probabilities = weights / weights.sum()
+        self._archetypes = tuple(sorted(self._fragments_by_application))
 
     def compose(self, *, now_ns: int) -> ComposedSession:
         """Materialize one backdated session ending at ``now_ns``."""
         archetype = cast(
             Archetype,
-            self._random.choice(self._archetypes, p=self._archetype_probabilities),
+            self._random.choice(self._archetypes),
         )
         applications = tuple(self._fragments_by_application[archetype])
         domain = str(self._random.choice(applications))
@@ -158,21 +119,19 @@ class SessionComposer:
         count = int(
             round(
                 self._random.lognormal(
-                    mean=log(self._config.session_fragments_median),
-                    sigma=self._config.session_fragments_sigma,
+                    mean=log(_SESSION_FRAGMENTS_MEDIAN),
+                    sigma=_SESSION_FRAGMENTS_SIGMA,
                 )
             )
         )
-        return min(self._config.session_fragments_max, max(1, count))
+        return min(_SESSION_FRAGMENTS_MAX, max(1, count))
 
     def _draw_fragment_gap_ns(self) -> int:
-        if self._config.fragment_gap_median_seconds == 0:
-            return 0
         seconds = self._random.lognormal(
-            mean=log(self._config.fragment_gap_median_seconds),
-            sigma=self._config.fragment_gap_sigma,
+            mean=log(_FRAGMENT_GAP_MEDIAN_SECONDS),
+            sigma=_FRAGMENT_GAP_SIGMA,
         )
-        seconds = min(self._config.fragment_gap_max_seconds, max(0.0, float(seconds)))
+        seconds = min(_FRAGMENT_GAP_MAX_SECONDS, max(0.0, float(seconds)))
         return round(seconds * 1_000_000_000)
 
     def _sample_fragments(

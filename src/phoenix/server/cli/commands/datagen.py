@@ -111,7 +111,7 @@ def run(args: Namespace) -> None:
             headers=config.headers,
         ) as exporter:
             while True:
-                exporter.export(replayer.emit().request)
+                exporter.export(replayer.emit())
                 time.sleep(
                     replayer.interarrival_seconds(
                         rate=config.rate,

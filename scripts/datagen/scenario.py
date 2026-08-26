@@ -21,7 +21,6 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 
 from phoenix.datagen.loader import Corpus, CorpusError, load_corpus
 from phoenix.datagen.schema import (
-    CorpusManifestV2,
     Fragment,
     SchemaValidationError,
     validate_corpus_manifest_v2,
@@ -34,6 +33,7 @@ from scripts.datagen.quality import (
     NORMALIZER_VERSION,
     SHORT_FRAGMENT_RULE,
 )
+from scripts.datagen.records import CorpusManifestV2
 from scripts.datagen.serialization import canonical_bytes, read_jsonl
 
 _ARCHIVE_FILES = ("manifest.json", "fragments.jsonl", "traces.jsonl")
@@ -587,22 +587,11 @@ def _validate_membership(rows: Sequence[Mapping[str, Any]], trace_ids: set[str])
 
 def _fragment_document(fragment: Fragment) -> dict[str, Any]:
     return {
+        **fragment.extra,
         "fragment_id": fragment.fragment_id,
         "archetype": fragment.archetype,
         "domain": fragment.domain,
-        "topic": fragment.topic,
-        "scenario_template": fragment.scenario_template,
-        "persona": fragment.persona,
-        "register": fragment.register,
-        "quality_tier": fragment.quality_tier,
-        "failure_mode": fragment.failure_mode,
-        "length_band": fragment.length_band,
-        "lane": fragment.lane,
-        "models_used": [model.__dict__ for model in fragment.models_used],
-        "turn_count": fragment.turn_count,
         "trace_ids": list(fragment.trace_ids),
-        "content_sha256": fragment.content_sha256,
-        "quality_results": dict(fragment.quality_results),
     }
 
 

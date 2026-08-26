@@ -1,4 +1,4 @@
-import dataclasses
+from dataclasses import replace
 from pathlib import Path
 from typing import Iterator
 
@@ -9,16 +9,17 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span, Status
 
-from phoenix.datagen import ComposerConfig, Corpus, Replayer, load_corpus
+from phoenix.datagen import Corpus, Replayer, load_corpus
 
 _PROMPT_TOKENS = "llm.token_count.prompt"
 _COMPLETION_TOKENS = "llm.token_count.completion"
 _TOTAL_TOKENS = "llm.token_count.total"
+_NOW_NS = 1_000_000_000_000_000
 
 
 def test_replayer_groups_trace_spans_across_jsonl_lines() -> None:
     corpus_path = Path(__file__).parent / "fixtures" / "split_trace"
-    corpus = _without_fragments(load_corpus(corpus_path))
+    corpus = load_corpus(corpus_path)
 
     assert len(corpus.requests) == corpus.manifest["trace_count"] == 1
     request = corpus.requests[0]
@@ -40,8 +41,8 @@ def test_replayer_groups_trace_spans_across_jsonl_lines() -> None:
     }
 
     recorded_trace_id = next(_iter_spans(request)).trace_id
-    emitted = Replayer(corpus, epsilon=0, seed=7).emit(now_ns=10_000_000_000)
-    spans = tuple(_iter_spans(emitted.request))
+    emitted = Replayer(corpus, epsilon=0, seed=7).emit(now_ns=_NOW_NS)
+    spans = tuple(_iter_spans(emitted))
     emitted_trace_ids = {span.trace_id for span in spans}
 
     assert len(spans) == corpus.manifest["span_count"] == 2
@@ -58,21 +59,20 @@ def test_replayer_rewrites_identity_and_time_while_preserving_structure() -> Non
         manifest=corpus.manifest,
         requests=corpus.requests[:1],
         source=corpus.source,
+        fragments=(replace(corpus.fragments[0], trace_ids=(corpus.fragments[0].trace_ids[0],)),),
     )
     original_spans = tuple(_iter_spans(corpus.requests[0]))
     replayer = Replayer(one_trace_corpus, epsilon=0, seed=7)
 
-    emitted = replayer.emit(now_ns=10_000_000_000)
-    spans = tuple(_iter_spans(emitted.request))
+    emitted = replayer.emit(now_ns=_NOW_NS)
+    spans = tuple(_iter_spans(emitted))
 
     assert {span.trace_id for span in spans} != {span.trace_id for span in original_spans}
     assert len({span.trace_id for span in spans}) == 1
     assert len({span.span_id for span in spans}) == len(spans)
-    assert min(span.start_time_unix_nano for span in spans) == 10_000_000_000
-    assert {span.name: span.start_time_unix_nano for span in spans} == {
-        "turn-1": 10_000_000_000,
-        "chat": 10_100_000_000,
-    }
+    starts = {span.name: span.start_time_unix_nano for span in spans}
+    assert starts["chat"] - starts["turn-1"] == 100_000_000
+    assert max(span.end_time_unix_nano for span in spans) <= _NOW_NS
     root = next(span for span in spans if span.name == "turn-1")
     child = next(span for span in spans if span.name == "chat")
     assert child.parent_span_id == root.span_id
@@ -81,17 +81,17 @@ def test_replayer_rewrites_identity_and_time_while_preserving_structure() -> Non
     assert session_ids != {"session-a"}
 
     session_replayer = Replayer(corpus, epsilon=0, seed=7)
-    scheduled = [session_replayer.emit(now_ns=10_000_000_000) for _ in range(3)]
-    emitted_names = [next(_iter_spans(emission.request)).name for emission in scheduled]
+    scheduled = [session_replayer.emit(now_ns=_NOW_NS) for _ in range(3)]
+    emitted_names = [next(_iter_spans(emission)).name for emission in scheduled]
     assert emitted_names.index("turn-1") < emitted_names.index("turn-2")
     assert emitted_names.index("other-session") < emitted_names.index("turn-2")
     emitted_session_ids = {
         span.name: _attribute(span, "session.id")
         for emission in scheduled
-        for span in _iter_spans(emission.request)
+        for span in _iter_spans(emission)
     }
     assert emitted_session_ids["turn-1"] == emitted_session_ids["turn-2"]
-    assert emitted_session_ids["turn-1"] != emitted_session_ids["other-session"]
+    assert emitted_session_ids["turn-1"] == emitted_session_ids["other-session"]
 
 
 @pytest.mark.parametrize("seed", range(3))
@@ -100,7 +100,7 @@ def test_replayer_preserves_temporal_and_token_contracts_across_seeds(seed: int)
     replayer = Replayer(corpus, epsilon=0, seed=seed)
 
     for _ in range(corpus.manifest["trace_count"]):
-        spans = tuple(_iter_spans(replayer.emit(now_ns=10_000_000_000).request))
+        spans = tuple(_iter_spans(replayer.emit(now_ns=_NOW_NS)))
         spans_by_id = {span.span_id: span for span in spans}
         for span in spans:
             if parent := spans_by_id.get(span.parent_span_id):
@@ -126,17 +126,16 @@ def test_replayer_rebases_events_and_preserves_dangling_parent() -> None:
         manifest=corpus.manifest,
         requests=(request,),
         source=corpus.source,
+        fragments=(replace(corpus.fragments[0], trace_ids=(corpus.fragments[0].trace_ids[0],)),),
     )
 
-    now_ns = 10_000_000_000
-    spans = tuple(
-        _iter_spans(Replayer(one_trace_corpus, epsilon=0, seed=7).emit(now_ns=now_ns).request)
-    )
+    now_ns = _NOW_NS
+    spans = tuple(_iter_spans(Replayer(one_trace_corpus, epsilon=0, seed=7).emit(now_ns=now_ns)))
     emitted_root = next(span for span in spans if span.name == "turn-1")
     emitted_child = next(span for span in spans if span.name == "chat")
     emitted_span_ids = {span.span_id for span in spans}
     event_times = [event.time_unix_nano for event in emitted_child.events]
-    time_offset = now_ns - recorded_first_start
+    time_offset = emitted_root.start_time_unix_nano - recorded_first_start
 
     assert emitted_root.parent_span_id
     assert emitted_root.parent_span_id != recorded_parent_id
@@ -157,10 +156,10 @@ def test_same_seed_emits_equal_numeric_draws_with_disjoint_trace_ids() -> None:
     second = Replayer(corpus, epsilon=0.25, seed=7)
 
     first_requests = tuple(
-        first.emit(now_ns=10_000_000_000).request for _ in range(corpus.manifest["trace_count"])
+        first.emit(now_ns=_NOW_NS) for _ in range(corpus.manifest["trace_count"])
     )
     second_requests = tuple(
-        second.emit(now_ns=10_000_000_000).request for _ in range(corpus.manifest["trace_count"])
+        second.emit(now_ns=_NOW_NS) for _ in range(corpus.manifest["trace_count"])
     )
 
     first_trace_ids = {span.trace_id for request in first_requests for span in _iter_spans(request)}
@@ -181,20 +180,20 @@ def test_replayer_sets_project_resource_attribute() -> None:
             attribute.value.string_value = "recorded-project"
 
     emitted = Replayer(corpus, epsilon=0, seed=7, project_name="configured-project").emit(
-        now_ns=10_000_000_000
+        now_ns=_NOW_NS
     )
 
     assert {
         attribute.value.string_value
-        for resource_spans in emitted.request.resource_spans
+        for resource_spans in emitted.resource_spans
         for attribute in resource_spans.resource.attributes
         if attribute.key == ResourceAttributes.PROJECT_NAME
     } == {"configured-project"}
 
-    default_emitted = Replayer(_fixture_corpus(), epsilon=0, seed=7).emit(now_ns=10_000_000_000)
+    default_emitted = Replayer(_fixture_corpus(), epsilon=0, seed=7).emit(now_ns=_NOW_NS)
     assert {
         attribute.value.string_value
-        for resource_spans in default_emitted.request.resource_spans
+        for resource_spans in default_emitted.resource_spans
         for attribute in resource_spans.resource.attributes
         if attribute.key == ResourceAttributes.PROJECT_NAME
     } == {"phoenix-datagen"}
@@ -212,23 +211,14 @@ def test_replayer_composes_backdated_fragment_sessions_with_fresh_identities() -
     replayer = Replayer(
         corpus,
         epsilon=0,
-        seed=7,
-        composer_config=ComposerConfig(
-            session_fragments_median=2,
-            session_fragments_sigma=0,
-            session_fragments_max=2,
-            archetype_mix={"plain_chat": 1},
-            fragment_gap_median_seconds=5,
-            fragment_gap_sigma=0,
-            fragment_gap_max_seconds=5,
-        ),
+        seed=23,
     )
-    wall_time_ns = 100_000_000_000
+    wall_time_ns = _NOW_NS
 
     emissions = tuple(
         replayer.emit(now_ns=wall_time_ns + index * 1_000_000_000) for index in range(4)
     )
-    spans_by_emission = [tuple(_iter_spans(emission.request)) for emission in emissions]
+    spans_by_emission = [tuple(_iter_spans(emission)) for emission in emissions]
 
     assert [spans[0].name for spans in spans_by_emission] == [
         "turn-1",
@@ -251,12 +241,9 @@ def test_replayer_composes_backdated_fragment_sessions_with_fresh_identities() -
         "recorded:turn-2",
     ]
     trace_starts = [min(span.start_time_unix_nano for span in spans) for spans in spans_by_emission]
-    assert [start - trace_starts[0] for start in trace_starts] == [
-        0,
-        2_000_000_000,
-        7_600_000_000,
-        9_600_000_000,
-    ]
+    assert trace_starts[1] - trace_starts[0] == 2_000_000_000
+    assert trace_starts[2] > max(span.end_time_unix_nano for span in spans_by_emission[1])
+    assert trace_starts[3] - trace_starts[2] == 2_000_000_000
     assert (
         max(span.end_time_unix_nano for spans in spans_by_emission for span in spans)
         <= wall_time_ns
@@ -267,44 +254,29 @@ def test_replayer_composes_backdated_fragment_sessions_with_fresh_identities() -
         assert child.parent_span_id == root.span_id
 
     next_session = replayer.emit(now_ns=wall_time_ns + 20_000_000_000)
-    assert {
-        _attribute(span, "session.id") for span in _iter_spans(next_session.request)
-    } != session_ids
+    assert {_attribute(span, "session.id") for span in _iter_spans(next_session)} != session_ids
 
 
-def test_contamination_labels_match_anomaly_ground_truth() -> None:
-    replayer = Replayer(_fixture_corpus(), epsilon=1, seed=11)
-    emitted = replayer.emit(now_ns=10_000_000_000)
+def test_contamination_marks_emitted_spans_and_inflates_tokens() -> None:
+    corpus = _fixture_corpus()
+    clean = Replayer(corpus, epsilon=0, seed=11).emit(now_ns=_NOW_NS)
+    emitted = Replayer(corpus, epsilon=1, seed=11).emit(now_ns=_NOW_NS)
 
-    spans = tuple(_iter_spans(emitted.request))
-    labeled_ids = {
-        (span.trace_id.hex(), span.span_id.hex())
-        for span in spans
-        if _attribute(span, "datagen.anomaly") is True
-    }
-    assert {anomaly.run_nonce for anomaly in emitted.anomalies} == {replayer.run_nonce}
-    assert {anomaly.kind for anomaly in emitted.anomalies} == {"token_inflation"}
-    anomaly_ids = {(anomaly.trace_id, anomaly.span_id) for anomaly in emitted.anomalies}
-    assert labeled_ids == anomaly_ids
-    assert len(labeled_ids) == len(spans)
-    spans_by_id = {(span.trace_id.hex(), span.span_id.hex()): span for span in spans}
-    for anomaly in emitted.anomalies:
-        span = spans_by_id[(anomaly.trace_id, anomaly.span_id)]
-        inflated_fields = anomaly.inflated_fields
-        assert inflated_fields[_PROMPT_TOKENS] == _attribute(span, _PROMPT_TOKENS)
-        assert inflated_fields[_COMPLETION_TOKENS] == _attribute(span, _COMPLETION_TOKENS)
-        assert inflated_fields[_TOTAL_TOKENS] == _attribute(span, _TOTAL_TOKENS)
-        assert (
-            inflated_fields["latency_ms"]
-            == (span.end_time_unix_nano - span.start_time_unix_nano) / 1_000_000
-        )
+    spans = tuple(_iter_spans(emitted))
+    assert all(_attribute(span, "datagen.anomaly") is True for span in spans)
+    for span in spans:
+        _assert_token_contract(span)
+    clean_first = next(_iter_spans(clean))
+    contaminated_first = spans[0]
+    for key in (_PROMPT_TOKENS, _COMPLETION_TOKENS, _TOTAL_TOKENS):
+        assert _attribute(contaminated_first, key) > _attribute(clean_first, key)
     assert all(
         not any(attribute.key.startswith("llm.cost.") for attribute in span.attributes)
         for span in spans
     )
 
 
-def test_replayer_injects_seeded_errors_and_records_typed_ground_truth() -> None:
+def test_replayer_injects_seeded_errors_and_propagates_status() -> None:
     corpus = _fixture_corpus()
     tool_span = next(_iter_spans(corpus.requests[1]))
     next(
@@ -323,25 +295,18 @@ def test_replayer_injects_seeded_errors_and_records_typed_ground_truth() -> None
 
     replayer = Replayer(corpus, epsilon=1, seed=17, error_rate=1)
     emissions = [
-        replayer.emit(now_ns=10_000_000_000 + index * 1_000_000_000)
+        replayer.emit(now_ns=_NOW_NS + index * 1_000_000_000)
         for index in range(corpus.manifest["trace_count"])
     ]
 
-    spans = tuple(span for emission in emissions for span in _iter_spans(emission.request))
-    spans_by_id = {(span.trace_id.hex(), span.span_id.hex()): span for span in spans}
-    eligible_spans = {
-        span_id: span
-        for span_id, span in spans_by_id.items()
-        if _attribute(span, "openinference.span.kind") in {"LLM", "TOOL"}
-    }
-    anomalies = [anomaly for emission in emissions for anomaly in emission.anomalies]
-    error_records = [anomaly for anomaly in anomalies if anomaly.kind == "error_injection"]
-    token_records = [anomaly for anomaly in anomalies if anomaly.kind == "token_inflation"]
+    spans = tuple(span for emission in emissions for span in _iter_spans(emission))
+    eligible_spans = tuple(
+        span for span in spans if _attribute(span, "openinference.span.kind") in {"LLM", "TOOL"}
+    )
 
-    assert {(record.trace_id, record.span_id) for record in error_records} == set(eligible_spans)
-    assert {(record.trace_id, record.span_id) for record in token_records} == set(spans_by_id)
-    assert all(record.inflated_fields == {} for record in error_records)
-    for span_id, span in eligible_spans.items():
+    assert eligible_spans
+    assert all(_attribute(span, "datagen.anomaly") is True for span in spans)
+    for span in eligible_spans:
         exception_events = [event for event in span.events if event.name == "exception"]
         assert len(exception_events) == 1
         assert {
@@ -354,28 +319,14 @@ def test_replayer_injects_seeded_errors_and_records_typed_ground_truth() -> None
         }
         assert span.status.code == Status.STATUS_CODE_ERROR
         assert _attribute(span, "output.value") == recorded_outputs[span.name]
-        assert {
-            record.kind for record in anomalies if (record.trace_id, record.span_id) == span_id
-        } == {"token_inflation", "error_injection"}
 
     propagated_parent = next(span for span in spans if span.name == "turn-1")
     assert propagated_parent.status.code == Status.STATUS_CODE_ERROR
     assert not [event for event in propagated_parent.events if event.name == "exception"]
-    assert not [
-        record
-        for record in error_records
-        if (record.trace_id, record.span_id)
-        == (propagated_parent.trace_id.hex(), propagated_parent.span_id.hex())
-    ]
 
 
 def _fixture_corpus() -> Corpus:
-    return _without_fragments(load_corpus(Path(__file__).parent / "fixtures" / "scenario"))
-
-
-def _without_fragments(corpus: Corpus) -> Corpus:
-    """Drop fragments so Replayer skips session composition."""
-    return dataclasses.replace(corpus, fragments=())
+    return load_corpus(Path(__file__).parent / "fixtures" / "scenario")
 
 
 def _iter_spans(request: ExportTraceServiceRequest) -> Iterator[Span]:

@@ -88,6 +88,7 @@ def test_load_corpus_ignores_unconsumed_metadata(tmp_path: Path) -> None:
 
     assert corpus.manifest["future_metadata"] == {"format": "unconstrained"}
     assert len(corpus.fragments) == 2
+    assert corpus.fragments[0].extra == {"future_metadata": ["anything"]}
 
 
 def test_load_corpus_rejects_invalid_fragment_trace_membership(tmp_path: Path) -> None:

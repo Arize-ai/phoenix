@@ -14,7 +14,6 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, Span
 
 from phoenix.datagen.schema import (
-    CorpusManifestV2,
     Fragment,
     SchemaValidationError,
     validate_corpus_manifest_v2,
@@ -33,7 +32,7 @@ class Corpus:
     manifest: Mapping[str, Any]
     requests: Sequence[ExportTraceServiceRequest]
     source: str
-    fragments: Sequence[Fragment] = ()
+    fragments: Sequence[Fragment]
 
     @property
     def schema_version(self) -> int:
@@ -139,7 +138,7 @@ def _parse_requests(content: bytes, source: str) -> tuple[ExportTraceServiceRequ
     return tuple(requests)
 
 
-def _validate_corpus_manifest_v2(manifest: Mapping[str, Any], source: str) -> CorpusManifestV2:
+def _validate_corpus_manifest_v2(manifest: Mapping[str, Any], source: str) -> Mapping[str, Any]:
     try:
         return validate_corpus_manifest_v2(manifest)
     except SchemaValidationError as error:

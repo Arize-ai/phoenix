@@ -6,8 +6,8 @@ import hashlib
 import secrets
 import time
 from collections import defaultdict, deque
-from dataclasses import dataclass, replace
-from typing import Literal, Mapping, Sequence, cast
+from dataclasses import dataclass
+from typing import Sequence, cast
 
 import numpy as np
 from openinference.semconv.resource import ResourceAttributes
@@ -17,7 +17,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span, Status
 
-from phoenix.datagen.composer import ComposerConfig, SessionComposer
+from phoenix.datagen.composer import SessionComposer
 from phoenix.datagen.loader import Corpus
 
 _SESSION_ID = "session.id"
@@ -35,34 +35,6 @@ _ERROR_SPAN_KINDS = frozenset(
     (OpenInferenceSpanKindValues.LLM.value, OpenInferenceSpanKindValues.TOOL.value)
 )
 
-AnomalyKind = Literal["token_inflation", "error_injection"]
-
-
-@dataclass(frozen=True)
-class Anomaly:
-    """Ground truth for one contaminated emitted span."""
-
-    run_nonce: str
-    trace_id: str
-    span_id: str
-    inflated_fields: Mapping[str, int | float]
-    kind: AnomalyKind = "token_inflation"
-
-
-@dataclass(frozen=True)
-class EmittedTrace:
-    """One rewritten OTLP trace request and its anomaly ground truth."""
-
-    request: ExportTraceServiceRequest
-    anomalies: Sequence[Anomaly]
-
-
-@dataclass(frozen=True)
-class _TraceTemplate:
-    request: ExportTraceServiceRequest
-    session_key: str
-    has_session: bool
-
 
 class Replayer:
     """Continuously produce varied traces while preserving recorded structure."""
@@ -74,83 +46,36 @@ class Replayer:
         epsilon: float = 0.02,
         seed: int | None = None,
         project_name: str | None = None,
-        composer_config: ComposerConfig | None = None,
         error_rate: float = 0.0,
     ) -> None:
         if not 0.0 <= epsilon <= 1.0:
             raise ValueError("epsilon must be between 0 and 1")
         if not 0.0 <= error_rate <= 1.0:
             raise ValueError("error_rate must be between 0 and 1")
-        self.run_nonce = secrets.token_hex(16)
         self._seed = seed
         self._random = np.random.default_rng(seed)
         self._error_rate = error_rate
         self._error_random: np.random.Generator | None = None
         identity_seed = int.from_bytes(
-            hashlib.sha256(f"{seed}:".encode() + bytes.fromhex(self.run_nonce)).digest(),
+            hashlib.sha256(f"{seed}:".encode() + secrets.token_bytes(16)).digest(),
             "big",
         )
         self._identity_random = np.random.default_rng(identity_seed)
         self._project_name = project_name or "phoenix-datagen"
-        self._composer = (
-            SessionComposer(
-                corpus,
-                config=composer_config or ComposerConfig(),
-                random=self._random,
-            )
-            if corpus.fragments
-            else None
-        )
+        self._composer = SessionComposer(corpus, random=self._random)
         self._numerics = _NumericsEngine.from_requests(
             corpus.requests,
             epsilon=epsilon,
             random=self._random,
         )
-        templates_by_session: dict[str, list[_TraceTemplate]] = defaultdict(list)
-        trace_number = 0
-        for request in corpus.requests:
-            for trace_request in _split_traces(request):
-                session_ids = {
-                    session_id
-                    for span in _iter_spans(trace_request)
-                    if (session_id := _string_attribute(span, _SESSION_ID))
-                }
-                if len(session_ids) > 1:
-                    raise ValueError("A corpus trace contains multiple session.id values")
-                has_session = bool(session_ids)
-                session_key = next(iter(session_ids), f"__trace_{trace_number}")
-                templates_by_session[session_key].append(
-                    _TraceTemplate(trace_request, session_key, has_session)
-                )
-                trace_number += 1
-        if not templates_by_session:
-            raise ValueError("corpus contains no traces")
-        self._sessions = {key: tuple(templates) for key, templates in templates_by_session.items()}
-        self._queues: dict[str, deque[_TraceTemplate]] = {}
-        self._session_ids: dict[str, str] = {}
-        self._ready_sessions: deque[str] = deque()
-        self._composed_queue: deque[EmittedTrace] = deque()
+        self._queue: deque[ExportTraceServiceRequest] = deque()
 
-    def emit(self, *, now_ns: int | None = None) -> EmittedTrace:
+    def emit(self, *, now_ns: int | None = None) -> ExportTraceServiceRequest:
         """Emit the next scheduled trace with fresh identity and numeric values."""
         current_time_ns = time.time_ns() if now_ns is None else now_ns
-        if self._composer is not None:
-            if not self._composed_queue:
-                self._begin_composed_session(now_ns=current_time_ns)
-            return self._composed_queue.popleft()
-        if not any(self._queues.values()):
-            self._begin_cycle()
-        if not self._ready_sessions:
-            available_sessions = [key for key, queue in self._queues.items() if queue]
-            self._random.shuffle(available_sessions)
-            self._ready_sessions.extend(available_sessions)
-        session_key = self._ready_sessions.popleft()
-        template = self._queues[session_key].popleft()
-        return self._rewrite(
-            template,
-            now_ns=current_time_ns,
-            session_id=self._session_ids.get(session_key),
-        )
+        if not self._queue:
+            self._begin_composed_session(now_ns=current_time_ns)
+        return self._queue.popleft()
 
     def interarrival_seconds(self, *, rate: float, burstiness: float) -> float:
         """Draw the delay before the next trace for a traces-per-minute rate."""
@@ -167,41 +92,25 @@ class Replayer:
         )
         return float(mean_interval * multiplier)
 
-    def _begin_cycle(self) -> None:
-        self._queues = {key: deque(templates) for key, templates in self._sessions.items()}
-        self._session_ids = {
-            key: f"datagen-{self._fresh_id(16).hex()}"
-            for key, templates in self._sessions.items()
-            if templates[0].has_session
-        }
-        self._ready_sessions.clear()
-
     def _begin_composed_session(self, *, now_ns: int) -> None:
-        assert self._composer is not None
         session = self._composer.compose(now_ns=now_ns)
         session_id = f"datagen-{self._fresh_id(16).hex()}"
         emissions = [
             self._rewrite(
-                _TraceTemplate(
-                    request=trace.request,
-                    session_key=trace.fragment_id,
-                    has_session=True,
-                ),
+                trace.request,
                 now_ns=trace.virtual_start_ns,
                 session_id=session_id,
             )
             for trace in session.traces
         ]
         latest_end_ns = max(
-            span.end_time_unix_nano
-            for emission in emissions
-            for span in _iter_spans(emission.request)
+            span.end_time_unix_nano for emission in emissions for span in _iter_spans(emission)
         )
         if latest_end_ns > now_ns:
             offset_ns = now_ns - latest_end_ns
             for emission in emissions:
-                _shift_request_times(emission.request, offset_ns)
-        self._composed_queue.extend(emissions)
+                _shift_request_times(emission, offset_ns)
+        self._queue.extend(emissions)
 
     def _get_error_random(self) -> np.random.Generator:
         if self._error_random is None:
@@ -218,13 +127,13 @@ class Replayer:
 
     def _rewrite(
         self,
-        template: _TraceTemplate,
+        template: ExportTraceServiceRequest,
         *,
         now_ns: int,
-        session_id: str | None,
-    ) -> EmittedTrace:
+        session_id: str,
+    ) -> ExportTraceServiceRequest:
         request = ExportTraceServiceRequest()
-        request.CopyFrom(template.request)
+        request.CopyFrom(template)
         _set_project_name(request, self._project_name)
         spans = tuple(_iter_spans(request))
         first_start = min(span.start_time_unix_nano for span in spans)
@@ -259,21 +168,18 @@ class Replayer:
                     if span.parent_span_id in span_ids
                     else dangling_parent_ids[span.parent_span_id]
                 )
-            if session_id is not None:
-                _set_string_attribute(span, _SESSION_ID, session_id)
+            _set_string_attribute(span, _SESSION_ID, session_id)
 
-        anomalies = self._numerics.apply(spans, run_nonce=self.run_nonce)
+        self._numerics.apply(spans)
         if self._error_rate:
-            anomalies += _inject_errors(
+            _inject_errors(
                 spans,
                 error_rate=self._error_rate,
                 random=self._get_error_random(),
-                run_nonce=self.run_nonce,
             )
         _extend_parent_end_times(spans)
         _clamp_event_times(spans)
-        anomalies = _refresh_anomaly_latencies(anomalies, spans)
-        return EmittedTrace(request=request, anomalies=anomalies)
+        return request
 
     def _fresh_id(self, size: int) -> bytes:
         identifier = bytes(self._identity_random.bytes(size))
@@ -333,8 +239,7 @@ class _NumericsEngine:
             random=random,
         )
 
-    def apply(self, spans: Sequence[Span], *, run_nonce: str) -> tuple[Anomaly, ...]:
-        anomalies = []
+    def apply(self, spans: Sequence[Span]) -> None:
         for span in spans:
             _remove_attributes(span, lambda key: key.startswith(_COST_PREFIX) or key == _ANOMALY)
             has_tokens = any(
@@ -383,20 +288,6 @@ class _NumericsEngine:
             span.end_time_unix_nano = span.start_time_unix_nano + latency_ns
             if is_anomaly:
                 _set_bool_attribute(span, _ANOMALY, True)
-                anomalies.append(
-                    Anomaly(
-                        run_nonce=run_nonce,
-                        trace_id=span.trace_id.hex(),
-                        span_id=span.span_id.hex(),
-                        inflated_fields={
-                            _PROMPT_TOKENS: prompt_tokens,
-                            _COMPLETION_TOKENS: completion_tokens,
-                            _TOTAL_TOKENS: total_tokens,
-                            "latency_ms": latency_ns / 1_000_000,
-                        },
-                    )
-                )
-        return tuple(anomalies)
 
 
 def _inject_errors(
@@ -404,10 +295,8 @@ def _inject_errors(
     *,
     error_rate: float,
     random: np.random.Generator,
-    run_nonce: str,
-) -> tuple[Anomaly, ...]:
+) -> None:
     spans_by_id = {span.span_id: span for span in spans}
-    anomalies = []
     for span in spans:
         if _string_attribute(span, _SPAN_KIND) not in _ERROR_SPAN_KINDS:
             continue
@@ -425,16 +314,6 @@ def _inject_errors(
             ("exception.stacktrace", _ERROR_EXCEPTION_STACKTRACE),
         ):
             event.attributes.add(key=key).value.string_value = value
-        anomalies.append(
-            Anomaly(
-                run_nonce=run_nonce,
-                trace_id=span.trace_id.hex(),
-                span_id=span.span_id.hex(),
-                inflated_fields={},
-                kind="error_injection",
-            )
-        )
-
         ancestor_id = span.parent_span_id
         visited = {span.span_id}
         while ancestor := spans_by_id.get(ancestor_id):
@@ -443,7 +322,6 @@ def _inject_errors(
             ancestor.status.code = Status.STATUS_CODE_ERROR
             visited.add(ancestor.span_id)
             ancestor_id = ancestor.parent_span_id
-    return tuple(anomalies)
 
 
 def _extend_parent_end_times(spans: Sequence[Span]) -> None:
@@ -492,25 +370,6 @@ def _shift_request_times(request: ExportTraceServiceRequest, offset_ns: int) -> 
             event.time_unix_nano += offset_ns
 
 
-def _refresh_anomaly_latencies(
-    anomalies: Sequence[Anomaly],
-    spans: Sequence[Span],
-) -> tuple[Anomaly, ...]:
-    spans_by_id = {span.span_id.hex(): span for span in spans}
-    refreshed = []
-    for anomaly in anomalies:
-        if anomaly.kind != "token_inflation":
-            refreshed.append(anomaly)
-            continue
-        span = spans_by_id[anomaly.span_id]
-        inflated_fields = dict(anomaly.inflated_fields)
-        inflated_fields["latency_ms"] = (
-            span.end_time_unix_nano - span.start_time_unix_nano
-        ) / 1_000_000
-        refreshed.append(replace(anomaly, inflated_fields=inflated_fields))
-    return tuple(refreshed)
-
-
 def _set_project_name(request: ExportTraceServiceRequest, project_name: str) -> None:
     for resource_spans in request.resource_spans:
         attributes = resource_spans.resource.attributes
@@ -523,33 +382,6 @@ def _set_project_name(request: ExportTraceServiceRequest, project_name: str) -> 
         attributes.extend(retained)
         attribute = attributes.add(key=ResourceAttributes.PROJECT_NAME)
         attribute.value.string_value = project_name
-
-
-def _split_traces(
-    request: ExportTraceServiceRequest,
-) -> tuple[ExportTraceServiceRequest, ...]:
-    trace_ids = list(dict.fromkeys(span.trace_id for span in _iter_spans(request)))
-    requests = []
-    for trace_id in trace_ids:
-        trace_request = ExportTraceServiceRequest()
-        for resource_spans in request.resource_spans:
-            matching_scopes = []
-            for scope_spans in resource_spans.scope_spans:
-                matching_spans = [span for span in scope_spans.spans if span.trace_id == trace_id]
-                if matching_spans:
-                    matching_scopes.append((scope_spans, matching_spans))
-            if not matching_scopes:
-                continue
-            new_resource_spans = trace_request.resource_spans.add()
-            new_resource_spans.resource.CopyFrom(resource_spans.resource)
-            new_resource_spans.schema_url = resource_spans.schema_url
-            for scope_spans, matching_spans in matching_scopes:
-                new_scope_spans = new_resource_spans.scope_spans.add()
-                new_scope_spans.scope.CopyFrom(scope_spans.scope)
-                new_scope_spans.schema_url = scope_spans.schema_url
-                new_scope_spans.spans.extend(matching_spans)
-        requests.append(trace_request)
-    return tuple(requests)
 
 
 def _iter_spans(request: ExportTraceServiceRequest):  # type: ignore[no-untyped-def]
