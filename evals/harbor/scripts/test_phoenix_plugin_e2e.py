@@ -154,7 +154,7 @@ def _assert_regression_triage_evaluations(
         _check(annotations["reward"]["score"] == reward, repr(annotations))
         _check(annotations["infra_ok"]["score"] == 1.0, repr(annotations))
         _check(annotations["infra_ok"]["label"] == "ok", repr(annotations))
-        _check("verifier.tool_calls" in annotations, repr(annotations))
+        _check("tool_calls" in annotations, repr(annotations))
         if expect_all_steps:
             _check(step_reward_names <= annotations.keys(), repr(annotations))
 
