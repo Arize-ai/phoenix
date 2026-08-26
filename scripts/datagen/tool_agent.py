@@ -13,94 +13,56 @@
 #   "protobuf==7.35.1",
 # ]
 # ///
-"""Record variable-depth tool-agent turns as OTLP protobuf JSON lines."""
+"""Record fixed tool-agent fixtures through LangChain callbacks."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from threading import Lock
 from typing import TYPE_CHECKING, Any, cast
 
-from google.protobuf.json_format import MessageToJson
-from langchain_core.messages import AIMessage, BaseMessage, ToolMessage, convert_to_messages
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
 from langchain_core.tools import BaseTool, StructuredTool
 from langchain_openai import ChatOpenAI
 from openinference.instrumentation import get_attributes_from_context, using_session
 from openinference.instrumentation.langchain import LangChainInstrumentor
-from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor, TracerProvider
-from opentelemetry.sdk.trace.export import (
-    SimpleSpanProcessor,
-    SpanExporter,
-    SpanExportResult,
-)
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 if TYPE_CHECKING or __package__:
-    from scripts.datagen.fake_tools import (
-        DEFAULT_REGISTRY,
-        MAX_TOOL_LOOP_STEPS,
-        InjectedToolFailure,
-        InvocationLedger,
-        ToolContext,
-        load_default_fixture_sets,
+    from scripts.datagen.fake_tools import LocalTools, ToolError, local_tools
+    from scripts.datagen.mock_openai_provider import ScriptedOpenAIProvider
+    from scripts.datagen.recording import (
+        RecorderFixture,
+        SpanCaptureExporter,
+        append_spans,
+        fixtures_for,
+        record_fixture,
+        reset_recording,
+        trace_ids,
     )
-    from scripts.datagen.generation import GenerationError
-    from scripts.datagen.self_play import (
-        AssistantRequest,
-        RecordedAssistantTurn,
-        TokenUsage,
-        ToolInvoker,
-    )
-    from scripts.datagen.serialization import canonical_bytes
 else:
-    from fake_tools import (
-        DEFAULT_REGISTRY,
-        MAX_TOOL_LOOP_STEPS,
-        InjectedToolFailure,
-        InvocationLedger,
-        ToolContext,
-        load_default_fixture_sets,
+    from fake_tools import LocalTools, ToolError, local_tools
+    from mock_openai_provider import ScriptedOpenAIProvider
+    from recording import (
+        RecorderFixture,
+        SpanCaptureExporter,
+        append_spans,
+        fixtures_for,
+        record_fixture,
+        reset_recording,
+        trace_ids,
     )
-    from generation import GenerationError
-    from self_play import AssistantRequest, RecordedAssistantTurn, TokenUsage, ToolInvoker
-    from serialization import canonical_bytes
 
-SCENARIO_NAME = "tool_agent"
-
-
-class ToolAgentError(GenerationError):
-    """Raised when a tool-agent turn cannot complete within its contract."""
-
-
-class SpanCaptureExporter(SpanExporter):
-    """Retain completed spans until a recorder persists one turn."""
-
-    def __init__(self) -> None:
-        self._spans: list[ReadableSpan] = []
-        self._lock = Lock()
-
-    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
-        with self._lock:
-            self._spans.extend(spans)
-        return SpanExportResult.SUCCESS
-
-    def checkpoint(self) -> int:
-        with self._lock:
-            return len(self._spans)
-
-    def spans_since(self, checkpoint: int) -> tuple[ReadableSpan, ...]:
-        with self._lock:
-            return tuple(self._spans[checkpoint:])
+MAX_TOOL_CALLS = 3
 
 
 class OpenInferenceContextSpanProcessor(SpanProcessor):
-    """Copy ambient OpenInference attributes onto callback-created spans."""
+    """Apply the active session to spans started by LangChain callbacks."""
 
     def on_start(self, span: Span, parent_context: Any = None) -> None:
         span.set_attributes(dict(get_attributes_from_context()))
@@ -113,251 +75,161 @@ class OpenInferenceContextSpanProcessor(SpanProcessor):
 
 
 class ToolAgentRecorder:
-    """Record ReAct-style assistant turns through LangChain callbacks."""
-
-    def __init__(self, model: ChatOpenAI, exporter: SpanCaptureExporter) -> None:
+    def __init__(
+        self,
+        model: ChatOpenAI,
+        tools: LocalTools,
+        exporter: SpanCaptureExporter,
+    ) -> None:
         self._model = model
+        self._tools = tools
         self._exporter = exporter
 
-    def record(
-        self,
-        request: AssistantRequest,
-        invoke_tool: ToolInvoker,
-    ) -> RecordedAssistantTurn:
-        tools = _bound_tools(request.tools, invoke_tool)
+    def record(self, fixture: RecorderFixture, traces_path: Path) -> tuple[str, ...]:
+        prompt = fixture.inputs.get("prompt")
+        if not isinstance(prompt, str):
+            raise ValueError(f"fixture {fixture.fragment_id!r} has no tool-agent prompt")
+        tools = _bound_tools(self._tools)
         model = self._model.bind_tools(tools)
         checkpoint = self._exporter.checkpoint()
-        usage = TokenUsage()
 
-        def run_tool_agent(inputs: Mapping[str, Any]) -> tuple[list[BaseMessage], TokenUsage]:
-            messages = list(convert_to_messages(cast(Any, inputs["messages"])))
-            turn_messages: list[BaseMessage] = []
-            turn_usage = TokenUsage()
-            tool_calls = 0
-            while True:
+        def run_agent(inputs: Mapping[str, Any]) -> list[BaseMessage]:
+            messages: list[BaseMessage] = list(cast(Sequence[BaseMessage], inputs["messages"]))
+            for _ in range(MAX_TOOL_CALLS + 1):
                 reply = model.invoke(messages)
-                turn_usage += _token_usage(reply)
-                turn_messages.append(reply)
-                if not reply.tool_calls:
-                    return turn_messages, turn_usage
-                if tool_calls + len(reply.tool_calls) > MAX_TOOL_LOOP_STEPS:
-                    raise ToolAgentError(
-                        f"assistant requested more than {MAX_TOOL_LOOP_STEPS} tool calls"
-                    )
                 messages.append(reply)
+                if not reply.tool_calls:
+                    return messages
                 for call in reply.tool_calls:
                     tool = _tool_by_name(tools, call["name"])
                     try:
                         result = tool.invoke(call["args"])
-                    except InjectedToolFailure as error:
-                        message = ToolMessage(
-                            content=canonical_bytes(
-                                {"error": type(error).__name__, "message": str(error)}
-                            ).decode(),
-                            tool_call_id=call["id"],
-                            name=call["name"],
-                            status="error",
+                    except ToolError as error:
+                        messages.append(
+                            ToolMessage(
+                                content=json.dumps({"error": str(error)}),
+                                tool_call_id=call["id"],
+                                name=call["name"],
+                                status="error",
+                            )
                         )
                     else:
-                        message = ToolMessage(
-                            content=canonical_bytes(result).decode(),
-                            tool_call_id=call["id"],
-                            name=call["name"],
+                        messages.append(
+                            ToolMessage(
+                                content=json.dumps(result, sort_keys=True, separators=(",", ":")),
+                                tool_call_id=call["id"],
+                                name=call["name"],
+                            )
                         )
-                    tool_calls += 1
-                    messages.append(message)
-                    turn_messages.append(message)
+            raise RuntimeError(f"fixture {fixture.fragment_id!r} exceeded its tool-call limit")
 
-        agent = RunnableLambda(run_tool_agent).with_config({"run_name": "datagen_tool_agent"})
+        agent = RunnableLambda(run_agent).with_config({"run_name": "datagen_tool_agent"})
         try:
-            with using_session(request.cell_id):
-                turn_messages, usage = agent.invoke({"messages": list(request.messages)})
+            with using_session(fixture.fragment_id):
+                result = agent.invoke({"messages": [{"role": "user", "content": prompt}]})
         finally:
             spans = self._exporter.spans_since(checkpoint)
             if spans:
-                _append_spans(request.traces_path, spans)
-
-        serialized = tuple(_message_dict(message) for message in turn_messages)
-        if not serialized or serialized[-1].get("role") != "assistant":
-            raise ToolAgentError("tool-agent turn did not finish with an assistant response")
-        content = serialized[-1].get("content")
-        if not isinstance(content, str) or not content.strip():
-            raise ToolAgentError("tool-agent turn finished without assistant content")
-        return RecordedAssistantTurn(
-            messages=serialized,
-            trace_ids=_trace_ids(spans),
-            usage=usage,
-        )
+                append_spans(traces_path, spans)
+        if not result or not isinstance(result[-1], AIMessage) or not result[-1].content:
+            raise RuntimeError(f"fixture {fixture.fragment_id!r} did not finish with an answer")
+        return trace_ids(spans)
 
 
-def _bound_tools(
-    schemas: Sequence[Mapping[str, Any]], invoke_tool: ToolInvoker
-) -> tuple[StructuredTool, ...]:
-    tools = []
-    for schema in schemas:
-        function = schema.get("function")
-        if not isinstance(function, Mapping):
-            raise ToolAgentError("tool schema must contain a function object")
-        name = function.get("name")
-        description = function.get("description")
-        parameters = function.get("parameters")
-        if (
-            not isinstance(name, str)
-            or not name
-            or not isinstance(description, str)
-            or not isinstance(parameters, Mapping)
-        ):
-            raise ToolAgentError("tool schema has invalid function metadata")
+def _bound_tools(tools: LocalTools) -> tuple[StructuredTool, ...]:
+    result = []
+    for schema in tools.schemas:
+        function = cast(Mapping[str, Any], schema["function"])
+        name = cast(str, function["name"])
 
-        def call_tool(_name: str = name, **arguments: Any) -> Mapping[str, Any]:
-            return invoke_tool(_name, arguments)
+        def invoke(_name: str = name, **arguments: Any) -> Mapping[str, Any]:
+            return tools.invoke(_name, arguments)
 
-        tools.append(
+        result.append(
             StructuredTool.from_function(
-                func=call_tool,
+                func=invoke,
                 name=name,
-                description=description,
-                args_schema=dict(parameters),
+                description=cast(str, function["description"]),
+                args_schema=dict(cast(Mapping[str, Any], function["parameters"])),
                 infer_schema=False,
             )
         )
-    if not tools:
-        raise ToolAgentError("tool-agent recorder requires at least one bound tool")
-    return tuple(tools)
+    return tuple(result)
 
 
 def _tool_by_name(tools: Sequence[BaseTool], name: str) -> BaseTool:
     try:
         return next(tool for tool in tools if tool.name == name)
     except StopIteration as error:
-        raise ToolAgentError(f"assistant requested unknown tool {name!r}") from error
+        raise RuntimeError(f"scripted model requested unknown tool {name!r}") from error
 
 
-def _token_usage(message: AIMessage) -> TokenUsage:
-    metadata: Mapping[str, Any] = message.usage_metadata or {}
-    input_details = metadata.get("input_token_details") or {}
-    return TokenUsage(
-        input_tokens=int(metadata.get("input_tokens", 0)),
-        cached_input_tokens=int(input_details.get("cache_read", 0)),
-        output_tokens=int(metadata.get("output_tokens", 0)),
+def record(
+    output_dir: Path,
+    *,
+    fixtures: Sequence[RecorderFixture] | None = None,
+) -> tuple[dict[str, Any], ...]:
+    """Record every selected tool-agent fixture into a corpus directory."""
+    reset_recording(output_dir)
+    exporter = SpanCaptureExporter()
+    provider = TracerProvider(resource=Resource.create({"service.name": "datagen.tool_agent"}))
+    provider.add_span_processor(OpenInferenceContextSpanProcessor())
+    provider.add_span_processor(SimpleSpanProcessor(cast(Any, exporter)))
+    instrumentor = LangChainInstrumentor()
+    instrumentor.instrument(tracer_provider=provider)
+    fragments = []
+    try:
+        for fixture in fixtures_for("tool_agent", fixtures=fixtures):
+            scripted = ScriptedOpenAIProvider(_responses_for(fixture))
+            model = ChatOpenAI(
+                model="datagen-scripted",
+                api_key="datagen-dummy-key",
+                base_url="https://datagen.test/v1",
+                http_client=scripted.http_client(),
+                max_retries=0,
+                temperature=0,
+            )
+            recorder = ToolAgentRecorder(model, local_tools(fixture.domain), exporter)
+            fragments.append(record_fixture(fixture, output_dir, recorder.record))
+    finally:
+        instrumentor.uninstrument()
+        provider.shutdown()
+    return tuple(fragments)
+
+
+def _responses_for(fixture: RecorderFixture) -> tuple[dict[str, Any], ...]:
+    prompt = str(fixture.inputs.get("prompt", ""))
+    if "calculate" in prompt:
+        expression = "42.25 * 2" if "42.25" in prompt else "125000 - 8500"
+        calls = (
+            {"name": "document_search", "arguments": {"query": prompt, "limit": 1}},
+            {"name": "safe_arithmetic", "arguments": {"expression": expression}},
+        )
+    elif fixture.domain == "coding_agent":
+        identifier = "issue-204" if "issue-204" in prompt else "issue-219"
+        calls = (
+            {"name": "document_search", "arguments": {"query": prompt, "limit": 1}},
+            {"name": "record_lookup", "arguments": {"record_id": identifier}},
+        )
+    else:
+        identifier = next(
+            value for value in ("order-1001", "warehouse-east") if value in prompt
+        )
+        calls = (
+            {"name": "record_lookup", "arguments": {"record_id": identifier}},
+            {"name": "status_lookup", "arguments": {"status_id": identifier}},
+        )
+    return tuple({"tool_call": call} for call in calls) + (
+        {"content": "The local records and policy data support the requested next step."},
     )
-
-
-def _message_dict(message: BaseMessage) -> Mapping[str, Any]:
-    if isinstance(message, AIMessage):
-        value: dict[str, Any] = {"role": "assistant", "content": message.content}
-        if message.tool_calls:
-            value["tool_calls"] = [
-                {
-                    "id": call["id"],
-                    "type": "function",
-                    "function": {
-                        "name": call["name"],
-                        "arguments": canonical_bytes(call["args"]).decode(),
-                    },
-                }
-                for call in message.tool_calls
-            ]
-        return value
-    if isinstance(message, ToolMessage):
-        value = {
-            "role": "tool",
-            "content": message.content,
-            "tool_call_id": message.tool_call_id,
-            "name": message.name,
-        }
-        if message.status == "error":
-            value["status"] = "error"
-        return value
-    raise ToolAgentError(f"unexpected agent message type {type(message).__name__}")
-
-
-def _trace_ids(spans: Sequence[ReadableSpan]) -> tuple[str, ...]:
-    return tuple(dict.fromkeys(f"{span.context.trace_id:032x}" for span in spans))
-
-
-def _append_spans(path: Path, spans: Sequence[ReadableSpan]) -> None:
-    payload = json.loads(MessageToJson(encode_spans(spans), indent=None))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as output:
-        output.write(json.dumps(payload, separators=(",", ":")) + "\n")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--prompt", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--fixture-set", default="retail")
-    parser.add_argument("--pass-seed", type=int, default=0)
-    parser.add_argument("--cell-id", required=True)
-    parser.add_argument(
-        "--base-url", default=os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:8765/v1")
-    )
     args = parser.parse_args()
-
-    fixture_sets = load_default_fixture_sets()
-    try:
-        fixture_set = fixture_sets[args.fixture_set]
-    except KeyError as error:
-        raise ToolAgentError(f"unknown fixture set {args.fixture_set!r}") from error
-    if len(args.cell_id) != 64 or any(
-        character not in "0123456789abcdef" for character in args.cell_id
-    ):
-        raise ToolAgentError("cell-id must be a 64-character lowercase hexadecimal string")
-
-    provider = TracerProvider(
-        resource=Resource.create({"service.name": f"datagen.{SCENARIO_NAME}"})
-    )
-    exporter = SpanCaptureExporter()
-    provider.add_span_processor(OpenInferenceContextSpanProcessor())
-    provider.add_span_processor(SimpleSpanProcessor(exporter))
-    instrumentor = LangChainInstrumentor()
-    instrumentor.instrument(tracer_provider=provider)
-    try:
-        model = ChatOpenAI(
-            model="gpt-4.1-mini",
-            base_url=args.base_url,
-            api_key=os.getenv("OPENAI_API_KEY", "datagen-dummy-key"),
-            temperature=0,
-        )
-        recorder = ToolAgentRecorder(model, exporter)
-        ledger = InvocationLedger(args.output_dir / "tool-invocations.jsonl")
-        call_count = 0
-
-        def invoke_tool(name: str, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
-            nonlocal call_count
-            call_count += 1
-            return DEFAULT_REGISTRY.invoke(
-                name,
-                arguments,
-                ToolContext(
-                    pass_seed=args.pass_seed,
-                    cell_id=args.cell_id,
-                    fixture_set=fixture_set,
-                    call_ordinal=call_count,
-                ),
-                ledger,
-            )
-
-        recorded = recorder.record(
-            AssistantRequest(
-                cell_id=args.cell_id,
-                attempt_id=f"{args.cell_id}:generation:1",
-                turn_index=0,
-                model="gpt-4.1-mini",
-                messages=({"role": "user", "content": args.prompt},),
-                tools=tuple(DEFAULT_REGISTRY.model_schemas()),
-                traces_path=args.output_dir / "traces.jsonl",
-            ),
-            invoke_tool,
-        )
-        (args.output_dir / "messages.json").write_text(
-            json.dumps(recorded.messages, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-    finally:
-        instrumentor.uninstrument()
-        provider.shutdown()
+    fragments = record(args.output_dir)
+    print(f"Recorded {len(fragments)} tool-agent fragments in {args.output_dir}")
 
 
 if __name__ == "__main__":

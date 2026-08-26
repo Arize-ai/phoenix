@@ -1,53 +1,11 @@
-"""Local providers and framework components for the RAG recorder."""
+"""Local framework components for the LlamaIndex RAG recorder."""
 
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-
-from llama_index.core import Document, VectorStoreIndex
-from llama_index.core.embeddings import MockEmbedding
-from llama_index.core.llms import MockLLM
-from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.postprocessor.cohere_rerank import CohereRerank
-
-SESSIONS = {
-    "shipping-help": (
-        "When should my standard-delivery order arrive?",
-        "Would express shipping arrive sooner?",
-    ),
-    "returns-help": (
-        "Can I return an unused backpack bought 18 days ago?",
-        "When will the refund appear after I mail it back?",
-    ),
-    "account-safety": (
-        "I saw an account login I do not recognize. What should I do first?",
-        "When should support escalate an account-security case?",
-    ),
-}
-POLICY_DOCUMENTS = (
-    Document(
-        text=(
-            "Standard delivery normally takes 4–6 business days after fulfillment. "
-            "Express delivery takes 1–2 business days."
-        ),
-        metadata={"source": "shipping-policy"},
-    ),
-    Document(
-        text=(
-            "Unused items can be returned within 30 days. Refunds usually appear "
-            "within 3–5 business days after the warehouse scan."
-        ),
-        metadata={"source": "returns-policy"},
-    ),
-    Document(
-        text=(
-            "For an unfamiliar login, reset the password, revoke other sessions, and "
-            "enable multi-factor authentication. Escalate continued suspicious activity."
-        ),
-        metadata={"source": "account-security"},
-    ),
-)
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -83,15 +41,26 @@ class _LocalCohereClient:
         return _RerankResponse(results=tuple(ranked))
 
 
-def build_rag_engine() -> RetrieverQueryEngine:
-    embedding = MockEmbedding(embed_dim=16)
-    index = VectorStoreIndex.from_documents(list(POLICY_DOCUMENTS), embed_model=embedding)
-    retriever = index.as_retriever(similarity_top_k=len(POLICY_DOCUMENTS))
-    reranker = CohereRerank(
-        api_key="datagen-dummy-key",
-        model="rerank-v3.5",
-        top_n=2,
+def build_rag_engine(documents: Sequence[Mapping[str, Any]]) -> Any:
+    """Build a local LlamaIndex query engine over fixture documents."""
+    from llama_index.core import Document, VectorStoreIndex  # type: ignore[import-not-found]
+    from llama_index.core.embeddings import MockEmbedding  # type: ignore[import-not-found]
+    from llama_index.core.llms import MockLLM  # type: ignore[import-not-found]
+    from llama_index.core.query_engine import (  # type: ignore[import-not-found]
+        RetrieverQueryEngine,
     )
+    from llama_index.postprocessor.cohere_rerank import (  # type: ignore[import-not-found]
+        CohereRerank,
+    )
+
+    nodes = [
+        Document(text=str(document["text"]), metadata={"source": str(document["source"])})
+        for document in documents
+    ]
+    embedding = MockEmbedding(embed_dim=16)
+    index = VectorStoreIndex.from_documents(nodes, embed_model=embedding)
+    retriever = index.as_retriever(similarity_top_k=len(nodes))
+    reranker = CohereRerank(api_key="datagen-dummy-key", model="rerank-v3.5", top_n=2)
     reranker._client = _LocalCohereClient()
     return RetrieverQueryEngine.from_args(
         retriever,

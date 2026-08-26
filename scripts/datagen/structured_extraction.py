@@ -11,115 +11,150 @@
 #   "protobuf==7.35.1",
 # ]
 # ///
-"""Record structured extraction through instrumented OpenAI function calls."""
+"""Record fixed analytics extractions through instrumented OpenAI calls."""
 
 from __future__ import annotations
 
+import argparse
 import json
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from openai import OpenAI
 from openinference.instrumentation import using_session
+from openinference.instrumentation.openai import OpenAIInstrumentor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-if __package__:
-    from scripts.datagen.generation import GenerationError
-    from scripts.datagen.openai_chat_sessions import SpanCaptureExporter, _append_spans
+if TYPE_CHECKING or __package__:
+    from scripts.datagen.mock_openai_provider import ScriptedOpenAIProvider
+    from scripts.datagen.recording import (
+        RecorderFixture,
+        SpanCaptureExporter,
+        append_spans,
+        fixtures_for,
+        record_fixture,
+        reset_recording,
+        trace_ids,
+    )
 else:
-    from generation import GenerationError
-    from openai_chat_sessions import SpanCaptureExporter, _append_spans
+    from mock_openai_provider import ScriptedOpenAIProvider
+    from recording import (
+        RecorderFixture,
+        SpanCaptureExporter,
+        append_spans,
+        fixtures_for,
+        record_fixture,
+        reset_recording,
+        trace_ids,
+    )
 
 EXTRACTION_TOOL = {
     "type": "function",
     "function": {
-        "name": "extract_support_case",
-        "description": "Extract the support case fields from the user message.",
+        "name": "extract_analysis_request",
+        "description": "Extract an analytics request into a stable execution brief.",
         "strict": True,
         "parameters": {
             "type": "object",
             "additionalProperties": False,
             "properties": {
-                "order_id": {"type": "string"},
-                "intent": {"type": "string", "enum": ["return", "delivery", "account"]},
-                "urgent": {"type": "boolean"},
+                "purpose": {"type": "string"},
+                "metrics": {"type": "array", "items": {"type": "string"}},
+                "dimensions": {"type": "array", "items": {"type": "string"}},
+                "unresolved": {"type": "array", "items": {"type": "string"}},
+                "format": {"type": "string"},
             },
-            "required": ["order_id", "intent", "urgent"],
+            "required": ["purpose", "metrics", "dimensions", "unresolved", "format"],
         },
     },
 }
 
 
-@dataclass(frozen=True)
-class ExtractionRequest:
-    cell_id: str
-    model: str
-    text: str
-    traces_path: Path
-
-
-@dataclass(frozen=True)
-class SupportCase:
-    order_id: str
-    intent: Literal["return", "delivery", "account"]
-    urgent: bool
-    trace_ids: tuple[str, ...]
-
-
-class StructuredExtractionRecorder:
-    def __init__(self, client: OpenAI, exporter: SpanCaptureExporter) -> None:
-        self._client = client
-        self._exporter = exporter
-
-    def record(self, request: ExtractionRequest) -> SupportCase:
-        checkpoint = self._exporter.checkpoint()
-        try:
-            with using_session(request.cell_id):
-                response = self._client.chat.completions.create(
-                    model=request.model,
-                    messages=[{"role": "user", "content": request.text}],
-                    tools=cast(Any, [EXTRACTION_TOOL]),
-                    tool_choice={
-                        "type": "function",
-                        "function": {"name": "extract_support_case"},
-                    },
+def record(
+    output_dir: Path,
+    *,
+    fixtures: Sequence[RecorderFixture] | None = None,
+) -> tuple[dict[str, Any], ...]:
+    """Record every selected extraction fixture into a corpus directory."""
+    reset_recording(output_dir)
+    exporter = SpanCaptureExporter()
+    provider = TracerProvider(
+        resource=Resource.create({"service.name": "datagen.structured_extraction"})
+    )
+    provider.add_span_processor(SimpleSpanProcessor(cast(Any, exporter)))
+    instrumentor = OpenAIInstrumentor()
+    instrumentor.instrument(tracer_provider=provider)
+    fragments = []
+    try:
+        for fixture in fixtures_for("structured_extraction", fixtures=fixtures):
+            fragments.append(
+                record_fixture(
+                    fixture,
+                    output_dir,
+                    lambda selected, traces_path: _record_fixture(selected, traces_path, exporter),
                 )
-        finally:
-            spans = self._exporter.spans_since(checkpoint)
-            if spans:
-                _append_spans(request.traces_path, spans)
-
-        calls = response.choices[0].message.tool_calls
-        if calls is None or len(calls) != 1 or calls[0].function.name != "extract_support_case":
-            raise GenerationError(
-                "structured extraction response omitted the required function call"
             )
-        try:
-            value = json.loads(calls[0].function.arguments)
-        except json.JSONDecodeError as error:
-            raise GenerationError(
-                "structured extraction returned invalid JSON arguments"
-            ) from error
-        order_id, intent, urgent = _validate_case(value)
-        return SupportCase(
-            order_id=order_id,
-            intent=intent,
-            urgent=urgent,
-            trace_ids=tuple(dict.fromkeys(f"{span.context.trace_id:032x}" for span in spans)),
-        )
+    finally:
+        instrumentor.uninstrument()
+        provider.shutdown()
+    return tuple(fragments)
 
 
-def _validate_case(value: Any) -> tuple[str, Literal["return", "delivery", "account"], bool]:
-    if not isinstance(value, Mapping) or set(value) != {"order_id", "intent", "urgent"}:
-        raise GenerationError("structured extraction fields do not match the declared schema")
-    order_id = value["order_id"]
-    intent = value["intent"]
-    urgent = value["urgent"]
-    if not isinstance(order_id, str) or not order_id:
-        raise GenerationError("structured extraction order_id must be a non-empty string")
-    if intent not in ("return", "delivery", "account"):
-        raise GenerationError("structured extraction intent is outside the declared enum")
-    if not isinstance(urgent, bool):
-        raise GenerationError("structured extraction urgent must be a boolean")
-    return order_id, cast(Literal["return", "delivery", "account"], intent), urgent
+def _record_fixture(
+    fixture: RecorderFixture,
+    traces_path: Path,
+    exporter: SpanCaptureExporter,
+) -> tuple[str, ...]:
+    text = fixture.inputs.get("text")
+    expected = fixture.inputs.get("result")
+    if not isinstance(text, str) or not isinstance(expected, Mapping):
+        raise ValueError(f"fixture {fixture.fragment_id!r} has invalid extraction inputs")
+    arguments = dict(expected)
+    arguments.setdefault("unresolved", [])
+    scripted = ScriptedOpenAIProvider(
+        ({"tool_call": {"name": "extract_analysis_request", "arguments": arguments}},)
+    )
+    client = OpenAI(
+        api_key="datagen-dummy-key",
+        base_url="https://datagen.test/v1",
+        http_client=cast(Any, scripted.http_client()),
+        max_retries=0,
+    )
+    checkpoint = exporter.checkpoint()
+    try:
+        with using_session(fixture.fragment_id):
+            response = client.chat.completions.create(
+                model="datagen-scripted",
+                messages=[{"role": "user", "content": text}],
+                tools=cast(Any, [EXTRACTION_TOOL]),
+                tool_choice={
+                    "type": "function",
+                    "function": {"name": "extract_analysis_request"},
+                },
+            )
+    finally:
+        spans = exporter.spans_since(checkpoint)
+        if spans:
+            append_spans(traces_path, spans)
+    calls = response.choices[0].message.tool_calls
+    if calls is None or len(calls) != 1:
+        raise ValueError(f"fixture {fixture.fragment_id!r} returned no extraction")
+    call = cast(Any, calls[0])
+    if json.loads(call.function.arguments) != arguments:
+        raise ValueError(f"fixture {fixture.fragment_id!r} returned an unexpected extraction")
+    return trace_ids(spans)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    args = parser.parse_args()
+    fragments = record(args.output_dir)
+    print(f"Recorded {len(fragments)} structured-extraction fragments in {args.output_dir}")
+
+
+if __name__ == "__main__":
+    main()

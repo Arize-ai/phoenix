@@ -10,54 +10,47 @@
 #   "protobuf==7.35.1",
 # ]
 # ///
-"""Record a bounded multi-agent handoff graph through LangChain callbacks."""
+"""Record fixed multi-agent graph fixtures through LangChain callbacks."""
 
 from __future__ import annotations
 
-import json
+import argparse
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from pathlib import Path
-from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
-from google.protobuf.json_format import MessageToJson
 from langchain_core.runnables import RunnableLambda
 from openinference.instrumentation import get_attributes_from_context, using_session
-from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
-from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
-from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from openinference.instrumentation.langchain import LangChainInstrumentor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-MAX_HANDOFFS = 2
-
-
-@dataclass(frozen=True)
-class GraphResult:
-    answer: str
-    handoffs: tuple[str, ...]
-    trace_ids: tuple[str, ...]
-
-
-class SpanCaptureExporter(SpanExporter):
-    def __init__(self) -> None:
-        self._spans: list[ReadableSpan] = []
-        self._lock = Lock()
-
-    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
-        with self._lock:
-            self._spans.extend(spans)
-        return SpanExportResult.SUCCESS
-
-    def checkpoint(self) -> int:
-        with self._lock:
-            return len(self._spans)
-
-    def spans_since(self, checkpoint: int) -> tuple[ReadableSpan, ...]:
-        with self._lock:
-            return tuple(self._spans[checkpoint:])
+if TYPE_CHECKING or __package__:
+    from scripts.datagen.recording import (
+        RecorderFixture,
+        SpanCaptureExporter,
+        append_spans,
+        fixtures_for,
+        record_fixture,
+        reset_recording,
+        trace_ids,
+    )
+else:
+    from recording import (
+        RecorderFixture,
+        SpanCaptureExporter,
+        append_spans,
+        fixtures_for,
+        record_fixture,
+        reset_recording,
+        trace_ids,
+    )
 
 
 class OpenInferenceContextSpanProcessor(SpanProcessor):
+    """Apply the active session to spans started by LangChain callbacks."""
+
     def on_start(self, span: Span, parent_context: Any = None) -> None:
         span.set_attributes(dict(get_attributes_from_context()))
 
@@ -72,61 +65,80 @@ class GraphMultiAgentRecorder:
     def __init__(self, exporter: SpanCaptureExporter) -> None:
         self._exporter = exporter
 
-    def record(self, session_id: str, prompt: str, traces_path: Path) -> GraphResult:
+    def record(self, fixture: RecorderFixture, traces_path: Path) -> tuple[str, ...]:
+        prompt = fixture.inputs.get("prompt")
+        documents = fixture.inputs.get("documents")
+        if not isinstance(prompt, str) or not isinstance(documents, list) or not documents:
+            raise ValueError(f"fixture {fixture.fragment_id!r} has invalid graph inputs")
         checkpoint = self._exporter.checkpoint()
 
         def research(state: Mapping[str, Any]) -> dict[str, Any]:
-            return {
-                **state,
-                "evidence": "Standard delivery is four to six business days.",
-                "handoffs": [*state["handoffs"], "research_agent->writer_agent"],
-            }
+            evidence = " ".join(
+                str(document.get("text", ""))
+                for document in documents
+                if isinstance(document, dict)
+            )
+            return {**state, "evidence": evidence}
 
         def write(state: Mapping[str, Any]) -> dict[str, Any]:
-            return {
-                **state,
-                "answer": f"For {state['prompt']}: {state['evidence']}",
-            }
+            if "ack-timeout" in fixture.fragment_id:
+                raise RuntimeError("writer could not validate the acknowledgement boundary")
+            return {**state, "answer": f"{state['prompt']}: {state['evidence']}"}
 
-        research_agent = RunnableLambda(research).with_config({"run_name": "research_agent"})
-        writer_agent = RunnableLambda(write).with_config({"run_name": "writer_agent"})
-        research_node = RunnableLambda(research_agent.invoke).with_config(
-            {"run_name": "research_policy_node"}
-        )
-        writer_node = RunnableLambda(writer_agent.invoke).with_config(
-            {"run_name": "writer_response_node"}
-        )
+        researcher = RunnableLambda(research).with_config({"run_name": "research_agent"})
+        writer = RunnableLambda(write).with_config({"run_name": "writer_agent"})
 
         def supervise(state: Mapping[str, Any]) -> dict[str, Any]:
-            researched = research_node.invoke(state)
-            if len(researched["handoffs"]) >= MAX_HANDOFFS:
-                raise RuntimeError("multi-agent handoff limit reached before writer")
-            researched = {
-                **researched,
-                "handoffs": [*researched["handoffs"], "supervisor_agent->writer_agent"],
-            }
-            return writer_node.invoke(researched)
+            return writer.invoke(researcher.invoke(state))
 
         graph = RunnableLambda(supervise).with_config({"run_name": "supervisor_agent"})
         try:
-            with using_session(session_id):
-                result = graph.invoke({"prompt": prompt, "handoffs": []})
+            with using_session(fixture.fragment_id):
+                try:
+                    graph.invoke({"prompt": prompt})
+                except RuntimeError:
+                    if "ack-timeout" not in fixture.fragment_id:
+                        raise
         finally:
             spans = self._exporter.spans_since(checkpoint)
             if spans:
-                _append_spans(traces_path, spans)
-        handoffs = tuple(result["handoffs"])
-        if len(handoffs) > MAX_HANDOFFS:
-            raise RuntimeError(f"multi-agent graph exceeded {MAX_HANDOFFS} handoffs")
-        return GraphResult(
-            answer=result["answer"],
-            handoffs=handoffs,
-            trace_ids=tuple(dict.fromkeys(f"{span.context.trace_id:032x}" for span in spans)),
-        )
+                append_spans(traces_path, spans)
+        return trace_ids(spans)
 
 
-def _append_spans(path: Path, spans: Sequence[ReadableSpan]) -> None:
-    payload = json.loads(MessageToJson(encode_spans(spans), indent=None))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as output:
-        output.write(json.dumps(payload, separators=(",", ":")) + "\n")
+def record(
+    output_dir: Path,
+    *,
+    fixtures: Sequence[RecorderFixture] | None = None,
+) -> tuple[dict[str, Any], ...]:
+    """Record every selected graph fixture into a corpus directory."""
+    reset_recording(output_dir)
+    exporter = SpanCaptureExporter()
+    provider = TracerProvider(
+        resource=Resource.create({"service.name": "datagen.graph_multi_agent"})
+    )
+    provider.add_span_processor(OpenInferenceContextSpanProcessor())
+    provider.add_span_processor(SimpleSpanProcessor(cast(Any, exporter)))
+    instrumentor = LangChainInstrumentor()
+    instrumentor.instrument(tracer_provider=provider)
+    fragments = []
+    try:
+        recorder = GraphMultiAgentRecorder(exporter)
+        for fixture in fixtures_for("graph_multi_agent", fixtures=fixtures):
+            fragments.append(record_fixture(fixture, output_dir, recorder.record))
+    finally:
+        instrumentor.uninstrument()
+        provider.shutdown()
+    return tuple(fragments)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    args = parser.parse_args()
+    fragments = record(args.output_dir)
+    print(f"Recorded {len(fragments)} graph fragments in {args.output_dir}")
+
+
+if __name__ == "__main__":
+    main()

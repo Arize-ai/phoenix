@@ -7,6 +7,7 @@ import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Lock
 from typing import Any, Literal, TypeAlias, cast
 
 Archetype = Literal[
@@ -35,6 +36,36 @@ _TRACE_ID_PATTERN = re.compile(r"[0-9a-fA-F]{32}")
 
 class RecordingError(ValueError):
     """Raised when a recorder fixture or its output is malformed."""
+
+
+class SpanCaptureExporter:
+    """Retain completed spans until a fixture appends them to its corpus row."""
+
+    def __init__(self) -> None:
+        self._spans: list[Any] = []
+        self._lock = Lock()
+
+    def export(self, spans: Sequence[Any]) -> Any:
+        from opentelemetry.sdk.trace.export import SpanExportResult
+
+        with self._lock:
+            self._spans.extend(spans)
+        return SpanExportResult.SUCCESS
+
+    def shutdown(self) -> None:
+        pass
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        del timeout_millis
+        return True
+
+    def checkpoint(self) -> int:
+        with self._lock:
+            return len(self._spans)
+
+    def spans_since(self, checkpoint: int) -> tuple[Any, ...]:
+        with self._lock:
+            return tuple(self._spans[checkpoint:])
 
 
 @dataclass(frozen=True)
@@ -96,6 +127,27 @@ def record_fixture(
     fragment = fixture.fragment_record(trace_ids)
     _append_json(output_dir / "fragments.jsonl", fragment)
     return fragment
+
+
+def reset_recording(output_dir: Path) -> None:
+    """Prepare an empty two-file recorder output directory."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for name in ("fragments.jsonl", "traces.jsonl"):
+        (output_dir / name).write_text("", encoding="utf-8")
+
+
+def append_spans(path: Path, spans: Sequence[Any]) -> None:
+    """Append completed SDK spans as one protobuf-JSON OTLP request."""
+    from google.protobuf.json_format import MessageToJson
+    from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
+
+    payload = json.loads(MessageToJson(encode_spans(spans), indent=None))
+    _append_json(path, payload)
+
+
+def trace_ids(spans: Sequence[Any]) -> tuple[str, ...]:
+    """Return trace identifiers in first-seen order."""
+    return tuple(dict.fromkeys(f"{span.context.trace_id:032x}" for span in spans))
 
 
 def validate_recording(
