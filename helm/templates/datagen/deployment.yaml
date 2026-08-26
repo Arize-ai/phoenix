@@ -29,8 +29,6 @@ spec:
           command: ["phoenix", "datagen"]
           args:
             - --rate={{ .Values.datagen.rate }}
-            - --epsilon={{ .Values.datagen.epsilon }}
-            - --seed={{ .Values.datagen.seed }}
             {{- with .Values.datagen.args }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

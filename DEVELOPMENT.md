@@ -74,10 +74,9 @@ ingestion path. Start Phoenix locally, then run:
 phoenix datagen
 ```
 
-Use `--rate`, `--burstiness`, and `--epsilon` to vary traffic and anomaly frequency. The
-collector defaults to `http://localhost:6006`; set `PHOENIX_COLLECTOR_ENDPOINT` and
-`PHOENIX_API_KEY` for a remote Phoenix deployment. Run `phoenix datagen --help` for corpus,
-seed, and anomaly-manifest options.
+Use `--rate` and `--burstiness` to vary the traffic cadence. The collector defaults to
+`http://localhost:6006`; set `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` for a remote
+Phoenix deployment. Run `phoenix datagen --help` for project, corpus, and authentication options.
 
 On Railway, use the same Phoenix image for a second service whose start command is
 `phoenix datagen`. Configure its collector endpoint and API key as environment variables so

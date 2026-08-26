@@ -16,4 +16,4 @@ kubectl apply -k kustomize/datagen
 ```
 
 This overlay adds a `phoenix-datagen` Deployment and an internal Phoenix Service. Edit
-`kustomize/datagen/deployment.yaml` to tune the project, rate, epsilon, or seed.
+`kustomize/datagen/deployment.yaml` to change the collector endpoint or add command-line arguments.

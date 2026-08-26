@@ -49,17 +49,11 @@ datagen:
   # -- Phoenix collector endpoint. When empty, defaults to the Phoenix service DNS name
   endpoint: ""
 
-  # -- Destination project (PHOENIX_PROJECT_NAME). When empty, phoenix datagen uses its scenario-based default
+  # -- Destination project (PHOENIX_PROJECT_NAME). When empty, defaults to phoenix-datagen
   projectName: ""
 
   # -- Mean traces per minute
   rate: 12
-
-  # -- Per-span contamination probability
-  epsilon: 0.02
-
-  # -- Random seed
-  seed: 0
 
   # -- Additional arguments passed to phoenix datagen
   args: []

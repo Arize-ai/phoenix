@@ -5,7 +5,7 @@ from pathlib import Path
 
 from phoenix.datagen import load_corpus
 from phoenix.datagen.fetcher import fetch_corpus, load_corpus_pointer
-from scripts.datagen.scenario import package_corpus
+from scripts.datagen.corpus import package_corpus
 
 
 def test_fetch_corpus_caches_digest_addressed_archive(tmp_path: Path) -> None:

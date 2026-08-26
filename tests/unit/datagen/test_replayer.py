@@ -19,7 +19,7 @@ _NOW_NS = 1_000_000_000_000_000
 
 
 def test_replayer_emits_varied_coherent_sessions(tmp_path: Path) -> None:
-    corpus = _load_fixture_corpus(tmp_path, "scenario")
+    corpus = _load_fixture_corpus(tmp_path, "replay")
     request = corpus.requests[0]
     fragment = replace(corpus.fragments[0], trace_ids=(corpus.fragments[0].trace_ids[0],))
     corpus = Corpus(requests=(request,), source=corpus.source, fragments=(fragment,))

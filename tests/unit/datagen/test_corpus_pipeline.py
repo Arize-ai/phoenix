@@ -4,8 +4,8 @@ import tarfile
 from pathlib import Path
 
 from phoenix.datagen import load_corpus
+from scripts.datagen.corpus import command as corpus_command
 from scripts.datagen.publish import command as publish_command
-from scripts.datagen.scenario import command as corpus_command
 
 
 def test_package_and_prepare_publication(tmp_path: Path) -> None:

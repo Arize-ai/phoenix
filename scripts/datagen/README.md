@@ -45,7 +45,7 @@ may span multiple rows.
 After all selected fixtures have been recorded into one directory:
 
 ```console
-uv run python -m scripts.datagen.scenario <recording-dir> \
+uv run python -m scripts.datagen.corpus <recording-dir> \
   --archive dist/datagen/corpus.tar.gz
 ```
 
