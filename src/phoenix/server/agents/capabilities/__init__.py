@@ -13,7 +13,6 @@ from phoenix.server.agents.capabilities.native_tool_retry import (
 from phoenix.server.agents.capabilities.phoenix_mcp import (
     PhoenixMCPCapability,
     PhoenixMCPToolset,
-    handshake_instructions,
 )
 from phoenix.server.agents.capabilities.subagent import SubagentCapability
 from phoenix.server.agents.capabilities.tools.external import (
@@ -33,5 +32,4 @@ __all__ = [
     "UIContextsCapability",
     "get_external_tool_capability_function",
     "get_external_tool_definition",
-    "handshake_instructions",
 ]

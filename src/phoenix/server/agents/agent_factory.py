@@ -25,7 +25,6 @@ from phoenix.server.agents.capabilities import (
     SubagentCapability,
     UIContextsCapability,
     build_anthropic_prompt_cache_capability,
-    handshake_instructions,
 )
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
@@ -150,7 +149,7 @@ def build_agent(
                     id="phoenix_rest_api",
                 ),
                 instructions=resolved_prompts.phoenix_mcp_tools,
-                server_instructions=handshake_instructions(phoenix_mcp_server),
+                server_instructions=phoenix_mcp_server.instructions,
             )
         )
     if enable_web_access:
