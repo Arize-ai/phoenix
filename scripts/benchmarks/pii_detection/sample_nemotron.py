@@ -1,10 +1,11 @@
-"""Sample a small, stratified fixture from the nvidia/Nemotron-PII dataset.
+"""Regenerate the checked-in Nemotron-PII JSONL fixture.
 
-This is a one-time developer tool. It draws a deterministic, stratified sample
-from the public Nemotron-PII dataset and writes it to the committed JSONL
-fixture that the `pii_detection.eval.ts` benchmark reads. The benchmark itself
-does not depend on this script or on network access at run time; re-run this
-only to regenerate or resize the fixture.
+This is not a run-time dependency of the benchmark. `pii_detection.eval.ts`
+reads `js/benchmarks/evals-benchmarks/src/fixtures/pii_detection.nemotron.jsonl`.
+Re-run this script only to resample or resize that file.
+
+It draws a deterministic, stratified sample from the public Nemotron-PII
+dataset. The benchmark does not call this script.
 
 Nemotron-PII (https://huggingface.co/datasets/nvidia/Nemotron-PII) is a
 synthetic, span-annotated NER dataset of 100k single documents (emails, forms,

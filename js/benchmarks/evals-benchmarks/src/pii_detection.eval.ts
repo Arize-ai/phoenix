@@ -1,20 +1,17 @@
 /**
  * PII-detection evaluator benchmark
  *
- * The dataset is a 150-record sample of the public
- * nvidia/Nemotron-PII dataset (see scripts/benchmarks/pii_detection/
- * sample_nemotron.py), committed as a fixture for deterministic, offline runs.
- * Nemotron-PII is a span-annotated NER corpus that is ~99% positive, so this
- * iteration measures only the binary DETECTION RATE: given realistic
- * PII-bearing text, does the evaluator score `pii_detected`? Because there are
- * effectively no negatives, precision / false-positive rate cannot be measured
- * here. For a balanced precision/recall suite, see
- * `pii_detection.synthetic.eval.ts`.
+ * Reads the checked-in JSONL at `fixtures/pii_detection.nemotron.jsonl` — a
+ * 150-record sample of the public nvidia/Nemotron-PII dataset. Do not generate
+ * it before a normal run; the file is in git so the suite is deterministic and
+ * offline. To resample or resize, run
+ * `scripts/benchmarks/pii_detection/sample_nemotron.py`.
  *
- * Before running this benchmark, generate the fixture:
- *   python scripts/benchmarks/pii_detection/sample_nemotron.py \
- *     --n 150 --seed 20250824 \
- *     --out js/benchmarks/evals-benchmarks/src/fixtures/pii_detection.nemotron.jsonl
+ * Nemotron-PII is a span-annotated NER corpus that is ~99% positive, so this
+ * suite measures only the binary DETECTION RATE: given realistic PII-bearing
+ * text, does the evaluator score `pii_detected`? Because there are effectively
+ * no negatives, precision / false-positive rate cannot be measured here. For a
+ * balanced precision/recall suite, see `pii_detection.synthetic.eval.ts`.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
