@@ -57,11 +57,40 @@ else:
 
 Provider = Literal["scripted", "live"]
 
-_IMPERFECT_USER_PROMPT = (
-    "You are an imperfect human continuing the conversation. Reply with only the next user "
-    "message: terse, sometimes vague or typo-prone, occasionally correcting a detail, and free "
-    "to shift goals. Do not label the speaker or explain the simulation."
-)
+_DISPOSITION_PROMPTS: Mapping[str, str] = {
+    "impatient": (
+        "You are an imperfect human continuing the conversation. You are impatient and want a "
+        "useful answer quickly, so press for specifics and skip pleasantries. Reply with only the "
+        "next user message. Do not label the speaker or explain the simulation."
+    ),
+    "confused_novice": (
+        "You are an imperfect human continuing the conversation. You are a confused novice who "
+        "may misuse terms, ask basic follow-ups, or need an earlier point clarified. Reply with "
+        "only the next user message. Do not label the speaker or explain the simulation."
+    ),
+    "terse_expert": (
+        "You are an imperfect human continuing the conversation. You are a terse expert who uses "
+        "precise domain language, omits context you assume is obvious, and corrects inaccuracies "
+        "directly. Reply with only the next user message. Do not label the speaker or explain the "
+        "simulation."
+    ),
+    "chatty": (
+        "You are an imperfect human continuing the conversation. You are chatty and volunteer "
+        "small contextual details, reactions, and side comments while pursuing the task. Reply "
+        "with only the next user message. Do not label the speaker or explain the simulation."
+    ),
+    "frustrated": (
+        "You are an imperfect human continuing the conversation. You are frustrated by the "
+        "situation, show restrained annoyance, and challenge answers that do not resolve the "
+        "problem. Reply with only the next user message. Do not label the speaker or explain the "
+        "simulation."
+    ),
+    "distracted": (
+        "You are an imperfect human continuing the conversation. You are distracted mid-task, so "
+        "you may lose the thread, revise a detail, or abruptly return to an earlier concern. Reply "
+        "with only the next user message. Do not label the speaker or explain the simulation."
+    ),
+}
 
 
 def record(
@@ -73,6 +102,7 @@ def record(
     provider: Provider = "scripted",
     model: str | None = None,
     live_client: OpenAI | None = None,
+    disposition: str | None = None,
 ) -> tuple[dict[str, Any], ...]:
     """Record every selected plain-chat fixture into a corpus directory."""
     model = resolve_live_model(model)
@@ -97,6 +127,13 @@ def record(
         selected_fixtures: Sequence[RecorderFixture] = (conditioned.fixture,)
     else:
         selected_fixtures = fixtures_for("plain_chat", fixtures=fixtures)
+    if disposition is not None and disposition not in _DISPOSITION_PROMPTS:
+        raise ValueError(f"unknown plain-chat disposition {disposition!r}")
+    disposition_prompts = (
+        (_DISPOSITION_PROMPTS[disposition],)
+        if disposition is not None
+        else tuple(_DISPOSITION_PROMPTS.values())
+    )
     prepare_recording(output_dir, append=append)
     exporter = SpanCaptureExporter()
     tracer_provider = TracerProvider(
@@ -107,7 +144,7 @@ def record(
     instrumentor.instrument(tracer_provider=tracer_provider)
     fragments = []
     try:
-        for fixture in selected_fixtures:
+        for fixture_index, fixture in enumerate(selected_fixtures):
             fragments.append(
                 record_fixture(
                     fixture,
@@ -119,6 +156,9 @@ def record(
                         provider=provider,
                         model=model,
                         live_client=live_client,
+                        disposition_prompt=disposition_prompts[
+                            fixture_index % len(disposition_prompts)
+                        ],
                     ),
                 )
             )
@@ -136,6 +176,7 @@ def _record_fixture(
     provider: Provider,
     model: str | None,
     live_client: OpenAI | None,
+    disposition_prompt: str,
 ) -> tuple[str, ...]:
     if provider == "scripted":
         scripted = ScriptedOpenAIProvider.for_fixture(fixture)
@@ -166,7 +207,7 @@ def _record_fixture(
                 ):
                     raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid turn")
                 if provider == "live" and turn_index > 0:
-                    user = _simulate_user(client, model_name, messages)
+                    user = _simulate_user(client, model_name, messages, disposition_prompt)
                 if not isinstance(user, str):
                     if provider == "scripted" or turn_index == 0:
                         raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid turn")
@@ -196,13 +237,14 @@ def _simulate_user(
     client: OpenAI,
     model: str,
     messages: Sequence[Mapping[str, Any]],
+    disposition_prompt: str,
 ) -> str | None:
     with suppress_tracing():
         response = client.chat.completions.create(
             model=model,
             messages=cast(
                 Any,
-                [{"role": "system", "content": _IMPERFECT_USER_PROMPT}, *messages],
+                [{"role": "system", "content": disposition_prompt}, *messages],
             ),
         )
     return response.choices[0].message.content
@@ -215,6 +257,7 @@ def main() -> None:
     parser.add_argument("--append", action="store_true")
     parser.add_argument("--provider", choices=("scripted", "live"), default="scripted")
     parser.add_argument("--model")
+    parser.add_argument("--disposition", choices=tuple(_DISPOSITION_PROMPTS))
     args = parser.parse_args()
     fragments = record(
         args.output_dir,
@@ -222,6 +265,7 @@ def main() -> None:
         append=args.append,
         provider=args.provider,
         model=args.model,
+        disposition=args.disposition,
     )
     print(f"Recorded {len(fragments)} plain-chat fragments in {args.output_dir}")
 
