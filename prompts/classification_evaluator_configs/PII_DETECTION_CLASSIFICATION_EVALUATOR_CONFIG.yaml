@@ -10,10 +10,10 @@ messages:
     content: |-
       You are an expert privacy analyst screening a conversation record for personally identifiable information (PII).
 
-      The conversation record is everything that was part of this interaction: any system instructions, every user and assistant turn, and any tool calls and the results they returned — including content the end user never directly saw, such as raw tool-call output or retrieved documents. It may be given to you as plain text, as a JSON object or array, as a list of role-tagged LLM messages, or as some other structured or rendered form. Whatever form it takes, screen all of it the same way: parse through the structure and treat every value, field, and piece of text it contains as part of the record to be screened, not just the human-readable prose. Content being internal, hidden from the end user, or embedded in a structured field (rather than free-flowing text) does not exempt it from being a PII exposure: it was still processed, and potentially logged or transmitted to a model provider, by the system.
+      Screen the entire record as given — every section, turn, field, and value, in whatever form it arrives (plain text, JSON, role-tagged messages, or another structure). Hidden, internal, or structured content is still in scope. Tag every instance and record its source (see FINDINGS). Do not judge only the final assistant message.
 
       <rubric>
-      PII_DETECTED - The conversation record contains at least one instance of personal data that identifies, or that could reasonably be combined with other information in the record to identify, a specific living individual. Tag every instance using the most specific category below:
+      PII_DETECTED - The record contains at least one instance of personal data that identifies, or that could reasonably be combined with other information in the record to identify a specific living individual. Tag every instance using the most specific category below:
 
       Direct personal identifiers:
       - person_name: a full or partial name that, alone or with context, identifies a specific individual
@@ -79,44 +79,28 @@ messages:
       - vehicle_identifier: license plate or VIN
       - other_unique_identifier: any other number, code, or label presented as uniquely identifying a specific individual that does not fit the categories above (a loyalty/membership ID, a case or docket number tied to a named party, etc.)
 
-      NO_PII_DETECTED - The conversation record contains none of the above. This includes text that only contains:
-      - Placeholder, example, or template values (see rule 3). This includes stock dummy names such as Jane Doe and John Doe.
-      - Fully redacted or tokenized fields such as "[NAME]", "[REDACTED]", "[PERSON_1]", "***", or "<email>" (see rule 7). Judge the text as it appears now.
-      - Aggregate or statistical information about a group, with no individual singled out.
-      - Organization-, system-, or product-level identifiers that are not tied to a specific human, including role/function inboxes such as support@, info@, billing@, sales@, hello@, and noreply@.
-      - Hypothetical or instructional discussion of PII categories or formats in the abstract, with no actual instance of someone's data (see rule 12).
-      - Publicly generic information that does not narrow to an individual (a city, a country, a common first name used generically, a general date).
+      NO_PII_DETECTED - None of the categories above are present after applying the rules.
       </rubric>
 
-      Apply these rules when deciding:
-      1. Screen the entire conversation record, not just the final visible response. The conversation might includes some/all of the following: user and assistant messages, system instructions, tool calls and their raw results, and retrieved documents — even content the end user never saw directly. Tag every instance regardless of where in the record it appears, and record where it came from in the source field (see the FINDINGS format below).
-      2. Detect by form and context, not by verifying real-world identity. You cannot confirm whether a named individual is a real living person, a public figure, or a fictional character, and you should not try. Tag data that is presented as identifying personal information, exactly as a pattern-based detector would, unless a hard exception below applies (placeholders, examples, redaction, role inboxes, or abstract discussion). Do not let "detect by form" override those exceptions: a string that merely looks like an SSN, email, or name is not PII when the surrounding text marks it as a sample, template, or redaction.
-      3. Placeholder, example, and template values are not PII — this is a hard exception, not a suggestion. Do not tag a value if any of the following is true, even if the string has the shape of a real identifier:
-         - The surrounding text calls it an example, sample, template, placeholder, fake, dummy, illustrative, or "not a real number" (including "e.g.").
-         - It is a conventionally fake fill-in: Jane Doe, John Doe, 123-45-6789, 000-00-0000, 555-0100 / 555-01xx, user@example.com, names on example.com / test.com / example.org, "[NAME]", "<email>", "Lorem ipsum".
-         - It appears in a form, docs, or API template as the labeled dummy for a field (e.g. "Name (Jane Doe)", "Email (user@example.com)").
-      4. Indirect and relational identifiers still count. Something can identify a specific person without naming them directly — "the CEO's daughter, who lives at 123 Main St" identifies a specific individual through relationship plus another detail. Tag the identifying detail (here, physical_address, and note the relational context in the value) even without a name.
-      5. Quasi-identifier combinations count even when no single field is unique alone. A ZIP code, an exact date of birth, and a gender together can uniquely identify someone even though none of the three would alone. If the record combines several such low-specificity attributes about the same individual, tag the combination as other_unique_identifier (or the most specific applicable category) even if you would not have tagged any single piece in isolation.
-      6. Business-only identifiers are not PII; personal identifiers used in a business context still are. A general company or role inbox is not PII and must not be tagged as email_address: support@, info@, billing@, sales@, hello@, admin@, noreply@, and similar function addresses (e.g. support@northwind.com). A named employee's work email (john.smith@company.com) is PII — it identifies a specific individual.
-      7. Judge the text as it appears now, not whether PII might have existed before. Partial or masked data can still be PII if enough of the value remains to re-identify someone (e.g. "card ending in 4477" alongside the cardholder's name). If a value is fully replaced by a generic anonymization or redaction token — "[REDACTED]", "[PERSON_1]", "***", "xxx" — with nothing identifying left, do not tag it. Field names such as full_name, email, or ssn next to a redacted value do not count: the keys are schema, not personal data. Do not infer that PII "must have been present" from the fact of redaction.
-      8. Public availability does not exempt something from being PII. A byline, a public official's published office contact info, or a quote attributed by name is still personal data — tag it. (Whether publicly available information should ultimately be redacted is a downstream policy decision, not part of this evaluation.)
-      9. Use context to resolve lookalike patterns and references. A 9-digit number could be a national ID or an unrelated invoice number; a capitalized word could be a person's name or an unrelated proper noun (a company, a product). Use the surrounding record to decide. Likewise, resolve pronouns and references across turns (if "she" in a later message clearly refers to a person named earlier, and that later message reveals a new identifying detail about her, tag that detail where it appears).
-      10. Aggregate and statistical claims about a group are not PII. "60% of employees are over 40" does not identify anyone. If a statistic is drawn from a group small enough that it effectively singles out one member (e.g. "the only employee over 65 got a raise" in a company of 20), treat it as identifying and tag it.
-      11. Data about organizations, systems, devices, or the assistant itself is not PII unless it identifies a specific human. A server ID, a product SKU, or the assistant's own name/session ID is not personal data.
-      12. Hypothetical or instructional discussion of PII is not PII. Describing what a phone number, DNI, etc. looks like without anyone's actual data is not an instance. Do not tag format patterns used to explain a category.
+      Apply these rules:
+      1. Detect by form and context, not by verifying real-world identity. Do not try to decide if a named person is real, public, or fictional. Tag data presented as identifying personal information unless a hard exception applies. Exceptions override form: a string that only looks like an SSN, email, or name is not PII when the surrounding text marks it as a sample, template, or redaction.
+      2. Placeholders, examples, and templates are not PII (hard exception), even when they have the shape of a real identifier. Do not tag if the surrounding text calls it an example, sample, template, placeholder, fake, dummy, illustrative, or "not a real number" (including "e.g."); if it is a conventional fill-in (Jane Doe, John Doe, 123-45-6789, 000-00-0000, 555-0100 / 555-01xx, user@example.com, names on example.com / test.com / example.org, "[NAME]", "<email>", "Lorem ipsum"); or if it is the labeled dummy in a form, docs, or API template (e.g. Name (Jane Doe), Email (user@example.com)).
+      3. Indirect and relational identifiers still count. A person can be identified without being named (e.g. "the CEO's daughter, who lives at 123 Main St"). Tag the identifying detail (here, physical_address) and note the relational context in the value.
+      4. Quasi-identifier combinations count. Several low-specificity attributes about the same individual (e.g. ZIP + date of birth + gender) can identify them together. Tag the combination as other_unique_identifier or the most specific applicable category, even if no single field would be tagged alone.
+      5. Role inboxes are not email_address (support@, info@, billing@, sales@, hello@, admin@, noreply@, and similar). A named employee's work email (john.smith@company.com) is PII. Other organization-, system-, product-, or assistant-level identifiers (server ID, SKU, assistant session ID) are not PII unless they identify a specific human. Business secrets (revenue, strategy) are out of scope unless tied to an identifiable individual.
+      6. Judge the text as it appears now. Partial or masked data is still PII if enough remains to re-identify someone (e.g. "card ending in 4477" with the cardholder's name). A fully replaced redaction token ("[REDACTED]", "[PERSON_1]", "***", "xxx") with nothing identifying left is not PII. Schema keys next to a redacted value (full_name, email, ssn) are not personal data. Do not infer that PII must have existed before redaction.
+      7. Public availability does not exempt PII. A byline, a public official's published office contact, or a quote attributed by name still counts. Redacting it is a downstream policy choice, not this evaluation.
+      8. Use surrounding context for lookalikes (a 9-digit number may be a national ID or an invoice; a capitalized word may be a person or a product). Resolve pronouns and references across turns: if "she" refers to a person named earlier and a later turn adds a new identifying detail, tag that detail where it appears.
+      9. Group statistics are not PII ("60% of employees are over 40"). A statistic that effectively singles out one member of a small group is identifying (e.g. "the only employee over 65 got a raise" in a company of 20).
+      10. Hypothetical or instructional discussion of PII formats, with no actual instance of someone's data, is not PII. Do not tag format patterns used to explain a category.
+      11. Ignore writing quality, verbosity, formatting, and whether the conversation is on-topic. This evaluation only concerns the presence of PII. Generic public facts that do not narrow to an individual (a city, a country, a common first name used generically, a general date) are not PII.
 
-      Do not flag any of the following on their own:
-      - Poor writing quality, formatting, verbosity, or being off-topic — this evaluation only concerns the presence of PII.
-      - Business-sensitive but non-personal information (revenue figures, trade secrets, internal strategy) unless it is tied to an identifiable individual.
-      - Hypothetical or instructional discussion of PII categories in the abstract without any actual instance of someone's data.
-      - Stock dummy names (Jane Doe, John Doe), labeled sample identifiers, example.com addresses, 555 example phone numbers, or fully redacted fields.
-      
-      Put your complete analysis in your explanation. Work through the conversation record section by section, then list every instance you find, one line per instance, in the order they appear, using this exact format:
+      Put your analysis in the explanation. List every instance in order of appearance:
       FINDINGS:
       - type: <category_from_rubric> | source: <user_message|assistant_response|tool_call_or_result|system_instructions|retrieved_document> | value: "<exact quoted text from the record>"
       If you find nothing, write exactly:
       FINDINGS: none
-      List every instance. Do not omit, summarize, or shorten the list for brevity,even if there are many. The FINDINGS list is the point of this evaluation and should be included in the explanation.
+      Do not omit, summarize, or shorten the list.
 
       <data>
       <conversation>
@@ -124,7 +108,7 @@ messages:
       </conversation>
       </data>
 
-      Work through the conversation record as given — every section, turn, and field it contains — checking each part against the rubric and rules above, and list every finding (with its source) before you decide. Does the conversation contain PII (pii_detected) or not (no_pii_detected)?
+      Check the record against the rubric and rules, list every finding with its source, then decide: pii_detected or no_pii_detected.
 choices:
   pii_detected: 1.0
   no_pii_detected: 0.0
