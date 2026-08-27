@@ -1,12 +1,9 @@
-import { approvalOutcome } from "@phoenix/agent/shared/pendingApproval";
-
 import {
   PATCH_EXPERIMENT_NAVIGATION_CANCEL_ERROR,
   PATCH_EXPERIMENT_STALE_TARGET_ERROR,
-  PATCH_EXPERIMENT_TOOL_NAME,
 } from "./constants";
 import type {
-  BindPendingPatchExperimentOptions,
+  BindPendingPatchExperimentOperationOptions,
   PatchExperimentFieldDiff,
   PendingPatchExperiment,
 } from "./types";
@@ -19,13 +16,31 @@ function toChangeOutput(diff: PatchExperimentFieldDiff[]) {
   }));
 }
 
-export function bindPendingPatchExperimentActions({
+/**
+ * Render one side of a pending experiment edit as text, for the unified-diff
+ * body of the script-child approval card.
+ */
+export function patchExperimentDiffToText(
+  diff: PatchExperimentFieldDiff[],
+  side: "previous" | "next"
+): string {
+  return diff
+    .map((change) => `${change.field}: ${change[side] ?? "(none)"}`)
+    .join("\n");
+}
+
+/**
+ * Attach callbacks that resolve the calling `execute_browser_action` script.
+ * Apply failures and drift resolve `{ ok: false }`; rejection resolves
+ * `{ ok: true, output: { status: "rejected", … } }`.
+ */
+export function bindPendingPatchExperimentOperationActions({
   pendingPatch,
   fetchExperimentSnapshot,
   commitPatchExperiment,
-  addToolOutput,
+  emitResult,
   setPendingPatchExperiment,
-}: BindPendingPatchExperimentOptions): PendingPatchExperiment {
+}: BindPendingPatchExperimentOperationOptions): PendingPatchExperiment {
   const { experimentId, experimentName, payload, diff } = pendingPatch;
   return {
     ...pendingPatch,
@@ -37,11 +52,9 @@ export function bindPendingPatchExperimentActions({
         currentUpdatedAt = (await fetchExperimentSnapshot(experimentId))
           .updatedAt;
       } catch (error) {
-        await addToolOutput({
-          state: "output-error",
-          tool: PATCH_EXPERIMENT_TOOL_NAME,
-          toolCallId: pendingPatch.toolCallId,
-          errorText:
+        emitResult({
+          ok: false,
+          error:
             error instanceof Error
               ? error.message
               : "Failed to re-read the experiment before applying the edit.",
@@ -51,23 +64,16 @@ export function bindPendingPatchExperimentActions({
 
       // Re-fetch only checks for drift; the committed payload is the stored one.
       if (currentUpdatedAt !== pendingPatch.expectedUpdatedAt) {
-        await addToolOutput({
-          state: "output-error",
-          tool: PATCH_EXPERIMENT_TOOL_NAME,
-          toolCallId: pendingPatch.toolCallId,
-          errorText: PATCH_EXPERIMENT_STALE_TARGET_ERROR,
-        });
+        emitResult({ ok: false, error: PATCH_EXPERIMENT_STALE_TARGET_ERROR });
         return;
       }
 
       try {
         await commitPatchExperiment({ experimentId, payload });
       } catch (error) {
-        await addToolOutput({
-          state: "output-error",
-          tool: PATCH_EXPERIMENT_TOOL_NAME,
-          toolCallId: pendingPatch.toolCallId,
-          errorText:
+        emitResult({
+          ok: false,
+          error:
             error instanceof Error
               ? error.message
               : "Failed to apply the experiment edit.",
@@ -75,10 +81,8 @@ export function bindPendingPatchExperimentActions({
         return;
       }
 
-      await addToolOutput({
-        state: "output-available",
-        tool: PATCH_EXPERIMENT_TOOL_NAME,
-        toolCallId: pendingPatch.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           status: "applied",
           acceptedBy: approvalSource,
@@ -89,34 +93,27 @@ export function bindPendingPatchExperimentActions({
             approvalSource === "auto"
               ? `Experiment "${experimentName}" edit auto-applied.`
               : `Experiment "${experimentName}" updated.`,
-          ...approvalOutcome({ decision: "accepted", source: approvalSource }),
         },
       });
     },
     reject: async () => {
       setPendingPatchExperiment(pendingPatch.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: PATCH_EXPERIMENT_TOOL_NAME,
-        toolCallId: pendingPatch.toolCallId,
+      emitResult({
+        ok: true,
         output: {
           status: "rejected",
           experimentId,
           experimentName,
           changes: toChangeOutput(diff),
           message: `User rejected the proposed edit to experiment "${experimentName}".`,
-          ...approvalOutcome({ decision: "rejected", source: "user" }),
         },
       });
     },
     cancel: async () => {
       setPendingPatchExperiment(pendingPatch.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: PATCH_EXPERIMENT_TOOL_NAME,
-        toolCallId: pendingPatch.toolCallId,
-        errorText: PATCH_EXPERIMENT_NAVIGATION_CANCEL_ERROR,
-        outcome: "interrupted",
+      emitResult({
+        ok: false,
+        error: PATCH_EXPERIMENT_NAVIGATION_CANCEL_ERROR,
       });
     },
   };

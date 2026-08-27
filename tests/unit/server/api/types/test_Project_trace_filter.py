@@ -577,17 +577,13 @@ def test_trace_filter_vocabulary_requires_descriptions(
 
 @pytest.mark.parametrize(
     "term",
-    [
-        term
-        for term in trace_filter_vocabulary_terms(
-            annotation_names=("quality",),
-            root_span_attribute_paths=(("custom", "key"),),
-        )
-        if term.iterable_name is None
-    ],
+    trace_filter_vocabulary_terms(
+        annotation_names=("quality",),
+        root_span_attribute_paths=(("custom", "key"),),
+    ),
     ids=lambda term: term.name,
 )
-def test_trace_filter_top_level_vocabulary_completions_compile(
+def test_trace_filter_vocabulary_completions_compile(
     term: vocabulary_module.FilterVocabularyTerm,
 ) -> None:
     iterable_conditions = {
@@ -600,10 +596,39 @@ def test_trace_filter_top_level_vocabulary_completions_compile(
             "any(cost_detail.tokens is not None for cost_detail in span_cost_details)"
         ),
     }
-    if term.type == "iterable":
+    nested_iterable_conditions = {
+        "children": (
+            "any(any(child.name is not None for child in span.children) for span in spans)"
+        ),
+        "siblings": (
+            "any(any(sibling.name is not None for sibling in span.siblings) for span in spans)"
+        ),
+        "annotations": (
+            "any(any(annotation.name is not None for annotation in span.annotations) "
+            "for span in spans)"
+        ),
+        "cost_details": (
+            "any(any(cost_detail.tokens is not None for cost_detail in span.cost_details) "
+            "for span in spans)"
+        ),
+    }
+    loop_variables = {
+        "spans": "span",
+        "trace_annotations": "annotation",
+        "span_annotations": "annotation",
+        "span_cost_details": "cost_detail",
+    }
+    if term.iterable_name is None and term.type == "iterable":
         condition = iterable_conditions[term.name]
-    else:
+    elif term.iterable_name is None:
         inserted_text = 'attributes["key"]' if term.name == "attributes[...]" else term.name
         condition = f"{inserted_text} is None"
+    elif term.type == "iterable":
+        condition = nested_iterable_conditions[term.name]
+    else:
+        loop_variable = loop_variables[term.iterable_name]
+        condition = (
+            f"any({loop_variable}.{term.name} is None for {loop_variable} in {term.iterable_name})"
+        )
 
     TraceFilter(condition)

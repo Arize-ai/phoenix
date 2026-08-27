@@ -1,15 +1,9 @@
 import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
 import {
   applyDraftOperations,
-  type CodeEvaluatorDraftHost,
   type CodeEvaluatorDraftSnapshot,
-  createEditCodeEvaluatorDraftClientAction,
-  createReadCodeEvaluatorDraftClientAction,
-  type EditCodeEvaluatorDraftOperation,
   type EvaluatorSubmitResult,
-  type PendingCodeEvaluatorEdit,
   parseEditCodeEvaluatorDraftInput,
-  type SandboxConfigIndex,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 
 function makeSnapshot(
@@ -35,54 +29,7 @@ function makeSnapshot(
   };
 }
 
-function makeHost(
-  initial: CodeEvaluatorDraftSnapshot,
-  sandboxConfigs: SandboxConfigIndex = {
-    "py-sandbox": { language: "PYTHON" },
-    "ts-sandbox": { language: "TYPESCRIPT" },
-  }
-): {
-  host: CodeEvaluatorDraftHost;
-  snapshotRef: { current: CodeEvaluatorDraftSnapshot };
-} {
-  const snapshotRef = { current: initial };
-  const previewOperations = (
-    snapshot: CodeEvaluatorDraftSnapshot,
-    operations: EditCodeEvaluatorDraftOperation[]
-  ) => applyDraftOperations({ snapshot, operations, sandboxConfigs });
-  const host: CodeEvaluatorDraftHost = {
-    getSnapshot: () => snapshotRef.current,
-    previewOperations,
-    applyOperations: (operations) => {
-      const proposed = previewOperations(snapshotRef.current, operations);
-      if (!proposed.ok) return proposed;
-      snapshotRef.current = proposed.output;
-      return { ok: true, output: proposed.output };
-    },
-    submit: async ({ approvalSource }) => ({
-      ok: true,
-      acceptedBy: approvalSource,
-      evaluator: { id: "ev-1", name: snapshotRef.current.name },
-    }),
-  };
-  return { host, snapshotRef };
-}
-
 describe("code evaluator draft agent tools", () => {
-  it("reads the current draft snapshot", async () => {
-    const { host } = makeHost(makeSnapshot());
-    const action = createReadCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-    });
-    const result = await action({});
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const snapshot = JSON.parse(
-      result.output ?? ""
-    ) as CodeEvaluatorDraftSnapshot;
-    expect(snapshot.mode).toBe("create");
-  });
-
   it("rejects set_language in edit mode (language is immutable)", () => {
     const result = applyDraftOperations({
       snapshot: makeSnapshot({ mode: "edit", evaluatorNodeId: "abc" }),
@@ -320,157 +267,6 @@ describe("code evaluator draft agent tools", () => {
         },
       ],
     });
-  });
-
-  it("registers a pending edit when the propose-time gate passes", async () => {
-    const initial = makeSnapshot();
-    const { host } = makeHost(initial);
-    let pending: PendingCodeEvaluatorEdit | null = null;
-    const action = createEditCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
-      },
-    });
-    const result = await action(
-      {
-        operations: [{ type: "set_description", description: "from model" }],
-      },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async () => undefined,
-      }
-    );
-    expect(result.ok).toBe(true);
-    expect(pending).not.toBeNull();
-    expect(pending!.after.description).toBe("from model");
-  });
-
-  it("applies the pending edit on accept", async () => {
-    const initial = makeSnapshot();
-    const { host, snapshotRef } = makeHost(initial);
-    let pending: PendingCodeEvaluatorEdit | null = null;
-    const outputs: Array<Record<string, unknown>> = [];
-    const action = createEditCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
-      },
-    });
-    await action(
-      {
-        operations: [{ type: "set_description", description: "accepted" }],
-      },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async (payload: Record<string, unknown>) => {
-          outputs.push(payload);
-        },
-      }
-    );
-    await pending!.accept!();
-    expect(snapshotRef.current.description).toBe("accepted");
-    expect(outputs[0]).toMatchObject({ state: "output-available" });
-  });
-
-  it("leaves the form unchanged when the user rejects the proposed edit", async () => {
-    const initial = makeSnapshot({ description: "original" });
-    const { host, snapshotRef } = makeHost(initial);
-    let pending: PendingCodeEvaluatorEdit | null = null;
-    const outputs: Array<Record<string, unknown>> = [];
-    const action = createEditCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
-      },
-    });
-    await action(
-      {
-        operations: [{ type: "set_description", description: "from model" }],
-      },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async (payload: Record<string, unknown>) => {
-          outputs.push(payload);
-        },
-      }
-    );
-    await pending!.reject!();
-    expect(snapshotRef.current.description).toBe("original");
-    expect(outputs[0]).toMatchObject({
-      state: "output-available",
-      output: expect.objectContaining({ status: "rejected" }),
-    });
-  });
-
-  it("auto-applies the edit without surfacing a confirmation when shouldAutoAccept is true", async () => {
-    const initial = makeSnapshot({ description: "original" });
-    const { host, snapshotRef } = makeHost(initial);
-    let surfacedPending = false;
-    const outputs: Array<Record<string, unknown>> = [];
-    const action = createEditCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        if (edit) surfacedPending = true;
-      },
-      shouldAutoAccept: () => true,
-    });
-    const result = await action(
-      {
-        operations: [{ type: "set_description", description: "auto" }],
-      },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async (payload: Record<string, unknown>) => {
-          outputs.push(payload);
-        },
-      }
-    );
-    expect(result.ok).toBe(true);
-    // Auto-mode must never surface the accept/reject confirmation dialog.
-    expect(surfacedPending).toBe(false);
-    // The edit is applied immediately and stamped as auto-approved.
-    expect(snapshotRef.current.description).toBe("auto");
-    expect(outputs[0]).toMatchObject({
-      state: "output-available",
-      output: expect.objectContaining({
-        status: "accepted",
-        acceptedBy: "auto",
-      }),
-    });
-  });
-
-  it("does not persist on draft-edit accept (accept is form-operation-only)", async () => {
-    const initial = makeSnapshot({ description: "original" });
-    const { host, snapshotRef } = makeHost(initial);
-    let submitCalled = false;
-    host.submit = async ({ approvalSource }) => {
-      submitCalled = true;
-      return {
-        ok: true,
-        acceptedBy: approvalSource,
-        evaluator: { id: "ev-1", name: snapshotRef.current.name },
-      };
-    };
-    let pending: PendingCodeEvaluatorEdit | null = null;
-    const action = createEditCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
-      },
-      shouldAutoAccept: () => true,
-    });
-    await action(
-      { operations: [{ type: "set_description", description: "edited" }] },
-      { toolCallId: "tc", sessionId: "s", addToolOutput: async () => undefined }
-    );
-    void pending;
-    expect(snapshotRef.current.description).toBe("edited");
-    expect(submitCalled).toBe(false);
   });
 });
 

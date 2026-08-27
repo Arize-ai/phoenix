@@ -35,6 +35,7 @@ from pydantic_ai.messages import (
     NativeToolCallPart,
     NativeToolReturnPart,
     RetryPromptPart,
+    SpeechPart,
     SystemPromptPart,
     TextContent,
     TextPart,
@@ -257,6 +258,7 @@ def _get_single_text_content(parts: Sequence[ModelRequestPart | ModelResponsePar
             ThinkingPart,
             CompactionPart,
             FilePart,
+            SpeechPart,
         ),
     ):
         return None
@@ -279,7 +281,7 @@ def _get_text_content_from_model_request_part(part: ModelRequestPart) -> str | N
                 return None
             texts.append(text)
         return "\n".join(texts)
-    if isinstance(part, (ToolReturnPart, RetryPromptPart, ToolAvailabilityDeltaPart)):
+    if isinstance(part, (ToolReturnPart, RetryPromptPart, ToolAvailabilityDeltaPart, SpeechPart)):
         return None
     assert_never(part)
 

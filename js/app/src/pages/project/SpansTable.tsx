@@ -28,9 +28,15 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import {
+  AnnotationSummaryGroupToken,
+  AnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import {
+  TraceAnnotationSummaryGroupToken,
+  TraceAnnotationSummaryGroupTokens,
+} from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import type { Annotation } from "@phoenix/components/annotation/types";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -69,7 +75,7 @@ import {
 } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
+import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
@@ -104,7 +110,8 @@ import {
   ANNOTATION_COLUMN_SIZING,
   DEFAULT_SORT,
   getGqlSort,
-  makeAnnotationColumnId,
+  makeFlatAnnotationColumnId,
+  normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
@@ -119,6 +126,10 @@ type SpansTableProps = {
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+const renderSpanTraceAnnotationFilterActions = (annotation: Annotation) => (
+  <SpanTraceAnnotationTooltipFilterActions annotation={annotation} />
+);
 
 const defaultColumnSettings = {
   minSize: 100,
@@ -343,12 +354,7 @@ export function SpansTable(props: SpansTableProps) {
                     }
                   }
                   traceAnnotationSummaries {
-                    labelFractions {
-                      fraction
-                      label
-                    }
                     count
-                    meanScore
                     name
                   }
                   ...TraceAnnotationSummaryGroup
@@ -366,14 +372,6 @@ export function SpansTable(props: SpansTableProps) {
                   score
                   annotatorKind
                   createdAt
-                }
-                spanAnnotationSummaries {
-                  labelFractions {
-                    fraction
-                    label
-                  }
-                  meanScore
-                  name
                 }
                 documentRetrievalMetrics {
                   evaluationName
@@ -445,39 +443,17 @@ export function SpansTable(props: SpansTableProps) {
     visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        columns: [
-          {
-            header: `labels`,
-            accessorKey: makeAnnotationColumnId(name, "label"),
-            cell: ({ row }) => {
-              const annotation = row.original.spanAnnotationSummaries.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return (
-                <SummaryValueLabels
-                  name={name}
-                  labelFractions={annotation.labelFractions}
-                />
-              );
-            },
-          } as ColumnDef<TableRow>,
-          {
-            header: `mean score`,
-            accessorKey: makeAnnotationColumnId(name, "score"),
-            cell: ({ row }) => {
-              const annotation = row.original.spanAnnotationSummaries.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return <MeanScore value={annotation.meanScore} fallback={null} />;
-            },
-          } as ColumnDef<TableRow>,
-        ],
+        accessorKey: makeFlatAnnotationColumnId(name),
+        cell: ({ row }) => {
+          return (
+            <AnnotationSummaryGroupToken
+              span={row.original}
+              annotationName={name}
+              annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
+            />
+          );
+        },
       };
     });
 
@@ -485,43 +461,19 @@ export function SpansTable(props: SpansTableProps) {
     visibleTraceAnnotationColumnNames.map((name) => {
       return {
         header: name,
-        columns: [
-          {
-            header: `labels`,
-            accessorKey: makeAnnotationColumnId(name, "label", "trace"),
-            enableSorting: false,
-            cell: ({ row }) => {
-              const annotation =
-                row.original.trace.traceAnnotationSummaries.find(
-                  (annotation) => annotation.name === name
-                );
-              if (!annotation) {
-                return null;
-              }
-              return (
-                <SummaryValueLabels
-                  name={name}
-                  labelFractions={annotation.labelFractions}
-                />
-              );
-            },
-          } as ColumnDef<TableRow>,
-          {
-            header: `mean score`,
-            accessorKey: makeAnnotationColumnId(name, "score", "trace"),
-            enableSorting: false,
-            cell: ({ row }) => {
-              const annotation =
-                row.original.trace.traceAnnotationSummaries.find(
-                  (annotation) => annotation.name === name
-                );
-              if (!annotation) {
-                return null;
-              }
-              return <MeanScore value={annotation.meanScore} fallback={null} />;
-            },
-          } as ColumnDef<TableRow>,
-        ],
+        accessorKey: makeFlatAnnotationColumnId(name, "trace"),
+        enableSorting: false,
+        cell: ({ row }) => {
+          return (
+            <TraceAnnotationSummaryGroupToken
+              trace={row.original.trace}
+              annotationName={name}
+              annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
+              renderFilterActions={renderSpanTraceAnnotationFilterActions}
+            />
+          );
+        },
       };
     });
 
@@ -602,6 +554,8 @@ export function SpansTable(props: SpansTableProps) {
             <TraceAnnotationSummaryGroupTokens
               trace={row.original.trace}
               annotationConfigsByName={annotationConfigsByName}
+              showFilterActions
+              renderFilterActions={renderSpanTraceAnnotationFilterActions}
             />
           </OverflowRow>
         );
@@ -899,6 +853,19 @@ export function SpansTable(props: SpansTableProps) {
   const setStoredColumnOrder = useTracingContext(
     (state) => state.setColumnOrder
   );
+  const normalizedStoredColumnOrder = normalizeAnnotationColumnOrder({
+    columnOrder: storedColumnOrder,
+    annotationKinds: [
+      {
+        names: visibleAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name),
+      },
+      {
+        names: visibleTraceAnnotationColumnNames,
+        getColumnId: (name) => makeFlatAnnotationColumnId(name, "trace"),
+      },
+    ],
+  });
   const {
     leafColumnOrder,
     visibleColumnOrder,
@@ -906,7 +873,7 @@ export function SpansTable(props: SpansTableProps) {
     getColumnOrderIndex,
   } = useColumnOrder({
     columns,
-    columnOrder: storedColumnOrder,
+    columnOrder: normalizedStoredColumnOrder,
     onColumnOrderChange: setStoredColumnOrder,
     columnVisibility,
     nonOrderableColumnIds: [CHECKBOX_COLUMN_ID],

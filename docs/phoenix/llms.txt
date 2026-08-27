@@ -12,7 +12,6 @@
 
 ## Quick Start
 
-- [Agent-Assisted Setup](https://arize.com/docs/phoenix/agent-assisted-setup): Let your coding agent instrument your app and verify traces with px setup
 - [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing): Instrument an app and send your first traces to Phoenix
 - [Evaluations Quickstart](https://arize.com/docs/phoenix/get-started/get-started-evaluations): Run your first LLM evaluator and view results
 - [Playground Quickstart](https://arize.com/docs/phoenix/get-started/get-started-prompt-playground): Test prompt variations against real examples in the Playground
@@ -112,7 +111,7 @@
 
 ### Pre-Built Metrics
 
-- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): Pick a pre-built LLM or code evaluator — faithfulness, hallucination, toxicity, RAG relevance, tool calling
+- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): Pick a pre-built LLM or code evaluator — faithfulness, hallucination, toxicity, retrieval relevance, tool calling
 
 ### Server-Side Evaluations
 
@@ -127,22 +126,17 @@
 
 - [Conciseness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/conciseness): Evaluate whether LLM responses are concise and free of unnecessary content
 - [Correctness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/correctness): Evaluate whether LLM responses are generally correct and complete
-- [Document Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/document-relevance): Evaluate whether retrieved documents are relevant to user queries
 - [Exact Match](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match): Evaluate if output exactly matches expected value
 - [Faithfulness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/faithfulness): Evaluate whether LLM responses are faithful to the provided context
 - [Hallucination](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/hallucination): Detect claims unsupported by the conversation, including fabricated tool results
 - [Matches Regex](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/matches-regex): Evaluate if output matches a regular expression pattern
 - [Precision / Recall / F-Score](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore): Compute precision, recall, and F-beta scores for classification tasks
-- [Q&A on Retrieved Data](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data): Legacy evaluator — score whether an LLM answer is correct given retrieved context
 - [Refusal](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/refusal): Detect when an LLM refuses or declines to answer a user query
-- [Retrieval (RAG) Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance): Legacy evaluator — score whether retrieved documents are relevant to the query
-- [SQL Generation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval): Legacy evaluator — score whether generated SQL matches a natural-language query description
-- [Summarization](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/summarization-eval): Legacy evaluator — score whether a summary faithfully captures the source document
-- [Agent Function Calling Eval](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval): Legacy evaluator — score tool selection, parameter extraction, and generated tool call code
+- [Retrieval Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance): Score whether retrieved context — RAG, tool, MCP, or web search — is relevant to the request
 - [Tool Invocation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-invocation): Evaluate whether LLM tool calls have correct arguments and formatting
 - [Tool Response Handling](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling): Evaluate how agents process tool results — error handling, data extraction, and recovery
 - [Tool Selection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection): Evaluate whether LLMs select the correct tools for given tasks
-- [Toxicity](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity): Legacy evaluator — detect toxic, harmful, or offensive content in LLM responses
+- [Toxicity](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity): Detect toxic, harmful, or offensive content in LLM responses
 - [User Friction](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/user-friction): Detect when a user expresses friction or frustration with an assistant's preceding response
 
 - [Contains](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains): Check whether a text contains one or more specified words
@@ -456,7 +450,6 @@
 ### Evaluation
 
 - [LLM as a Judge](https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge): LLM-based evaluation best practices
-- [Evaluator Input Mapping](https://arize.com/docs/phoenix/evaluation/concepts-evals/input-mapping): Reshape nested payloads to an evaluator's expected fields with `input_mapping` and `bind_evaluator`
 
 ## Resources
 
@@ -537,6 +530,17 @@
 - [OpenInference Java](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-java): Build custom Java instrumentors with OpenInference semantic conventions
 - [OpenInference JavaScript](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript): Build custom JS instrumentors with OpenInference semantic conventions
 
+
+### REST API — Agent Sessions
+
+- [Create A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/create-a-session): POST /v1/agent_sessions — start a new PXI agent session
+- [List Sessions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-sessions): GET /v1/agent_sessions — paginate agent sessions
+- [Get A Session By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/get-a-session-by-id): GET /v1/agent_sessions/{session_id} — fetch a single session
+- [Update A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/update-a-session): PATCH /v1/agent_sessions/{session_id} — rename a session or switch its model
+- [List Session Messages](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-session-messages): GET /v1/agent_sessions/{session_id}/messages — page through a session's transcript
+- [Submit Tool Outputs](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/submit-tool-outputs): POST /v1/agent_sessions/{session_id}/tool_outputs — return results for pending tool calls
+- [Compact A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/compact-a-session): POST /v1/agent_sessions/{session_id}/compact — summarize older turns into a checkpoint
+- [Chat With A Session](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/chat-with-a-session): POST /v1/agent_sessions/{session_id}/chat — send a turn and stream the agent's response
 
 ### REST API — Annotation Configs
 
@@ -832,6 +836,7 @@
 - [08.04.2026: Chat Completions Proxy, AI Query, and Annotation Charts](https://arize.com/docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts): Proxy OpenAI-compatible chat completions with server-held credentials, write filters in plain English, chart every annotation, and judge hallucination against the conversation
 - [08.11.2026: Persistent Agent Sessions](https://arize.com/docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions): Agent conversations persist server-side — browse, restore, rewind, branch, and compact them from the browser or the pxi terminal client
 - [08.12.2026: Session Filter Expressions, REST API Expansion, and Endpoint Configuration](https://arize.com/docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config): Filter sessions with a full expression language, manage dataset splits and experiment tags over REST, transfer traces between projects, and point every SDK at PHOENIX_ENDPOINT
+- [08.17.2026: Trace Filter Expressions and Analytics SQL](https://arize.com/docs/phoenix/release-notes/08-2026/08-17-2026-trace-filters-and-analytics-sql): Filter the traces table with a full expression language and query Phoenix with read-only SQL over MCP
 
 ### 2025
 

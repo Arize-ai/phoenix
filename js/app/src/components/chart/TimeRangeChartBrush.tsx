@@ -3,7 +3,14 @@ import type { MouseEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { MouseHandlerDataParam } from "recharts";
 
+import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { clampNumber } from "@phoenix/utils/numberUtils";
+
+import { getTimeBinRange } from "./timeBins";
+
+// Click slop in container pixels. Use pixels rather than snapped timestamps so
+// a real drag that starts and ends in one bin remains a drag.
+const CLICK_MAX_DRAG_PX = 4;
 
 const timeRangeChartBrushCSS = css`
   /* Dragging out a selection must not select axis text or the chart svg */
@@ -15,9 +22,21 @@ const timeRangeChartBrushCSS = css`
     cursor: crosshair !important;
   }
 
+  &[data-bin-click="true"] {
+    .recharts-wrapper,
+    .recharts-surface {
+      cursor: pointer !important;
+    }
+  }
+
   &[data-selecting="true"] {
     .recharts-tooltip-cursor {
       display: none;
+    }
+
+    .recharts-wrapper,
+    .recharts-surface {
+      cursor: crosshair !important;
     }
   }
 `;
@@ -40,6 +59,11 @@ type TimeRangeChartBrushRenderProps = {
 type TimeRangeChartBrushProps = {
   children: (props: TimeRangeChartBrushRenderProps) => ReactNode;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
+  /**
+   * Must match the `timeBinConfig.scale` used to query the chart. When
+   * provided, clicking narrows the selected time range to the clicked bin.
+   */
+  scale?: TimeBinScale;
 };
 
 type BrushSelection = {
@@ -126,9 +150,9 @@ function getPlotArea(container: HTMLDivElement): BrushPlotArea {
 }
 
 /**
- * Convert an in-progress brush selection into a normalized TimeRange with
- * start <= end. Returns null for zero-width selections (e.g. a click without
- * a drag) so callers can ignore non-gestures.
+ * Convert a dragged brush selection into a normalized TimeRange with start <=
+ * end. Returns null when both snapped timestamps are equal. Depending on the
+ * pointer distance, callers may handle that gesture as a bin click instead.
  */
 function getOrderedSelectionRange(selection: BrushSelection): TimeRange | null {
   const start = Math.min(selection.start, selection.end);
@@ -143,11 +167,43 @@ function getOrderedSelectionRange(selection: BrushSelection): TimeRange | null {
 }
 
 /**
- * Wraps a recharts time-series chart with a click-and-drag brush that emits a
- * `TimeRange` for the selected window. The chart is rendered via a render prop
- * so the brush stays agnostic to the chart's data shape and axis configuration;
- * spread the supplied `chartProps` onto the chart element to wire up the mouse
- * handlers.
+ * Resolve a completed pointer gesture to either the clicked bin or the dragged
+ * time range.
+ *
+ * @param params - completed gesture parameters
+ * @param params.selection - snapped timestamps and clamped pointer positions
+ * @param params.scale - chart query scale, if bin clicking is enabled
+ * @param params.utcOffsetMinutes - fixed UTC offset used for chart binning
+ * @param params.clickMaxDragPx - maximum pointer movement treated as a click
+ */
+export function getBrushGestureTimeRange({
+  selection,
+  scale,
+  utcOffsetMinutes,
+  clickMaxDragPx = CLICK_MAX_DRAG_PX,
+}: {
+  selection: BrushSelection;
+  scale?: TimeBinScale;
+  utcOffsetMinutes: number;
+  clickMaxDragPx?: number;
+}): TimeRange | null {
+  const pointerDistance = Math.abs(selection.endX - selection.startX);
+  if (scale != null && pointerDistance <= clickMaxDragPx) {
+    return getTimeBinRange({
+      binStartMs: selection.end,
+      scale,
+      utcOffsetMinutes,
+    });
+  }
+  return getOrderedSelectionRange(selection);
+}
+
+/**
+ * Wraps a recharts time-series chart with two narrowing gestures: clicking a
+ * bin when `scale` is provided, or dragging a brush across a window. The chart
+ * is rendered via a render prop so the brush stays agnostic to the chart's data
+ * shape and axis configuration; spread the supplied `chartProps` onto the chart
+ * element to wire up the mouse handlers.
  *
  * When `onTimeRangeSelected` is omitted the brush is a transparent passthrough
  * with no overlay, mouse handlers, or extra DOM, so it is safe to use even for
@@ -156,7 +212,9 @@ function getOrderedSelectionRange(selection: BrushSelection): TimeRange | null {
 export function TimeRangeChartBrush({
   children,
   onTimeRangeSelected,
+  scale,
 }: TimeRangeChartBrushProps) {
+  const utcOffsetMinutes = useUTCOffsetMinutes();
   const [selection, setSelection] = useState<BrushSelection | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const selectionRef = useRef<BrushSelection | null>(null);
@@ -247,8 +305,12 @@ export function TimeRangeChartBrush({
               end: timestamp,
               endX: cursorX ?? currentSelection.endX,
             };
-      const timeRange = getOrderedSelectionRange(nextSelection);
       setBrushSelection(null);
+      const timeRange = getBrushGestureTimeRange({
+        selection: nextSelection,
+        scale,
+        utcOffsetMinutes,
+      });
       if (timeRange) {
         onTimeRangeSelected(timeRange);
       }
@@ -269,6 +331,7 @@ export function TimeRangeChartBrush({
   return (
     <div
       css={timeRangeChartBrushCSS}
+      data-bin-click={scale != null ? "true" : undefined}
       data-selecting={selection != null ? "true" : undefined}
       ref={containerRef}
       style={{ position: "relative", width: "100%", height: "100%" }}
@@ -293,7 +356,7 @@ export function TimeRangeChartBrush({
           position: "relative",
           width: "100%",
           height: "100%",
-          cursor: "crosshair",
+          cursor: selection != null || scale == null ? "crosshair" : "pointer",
           zIndex: 1,
         }}
       >

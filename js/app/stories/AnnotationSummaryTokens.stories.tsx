@@ -60,6 +60,7 @@ const meta = {
     layout: "centered",
   },
   args: {
+    annotationTargetType: "span",
     summaries: [
       { name: "quality", meanScore: 0.6, labelFractions: [] },
       { name: "rationale-only", meanScore: null, labelFractions: [] },
@@ -107,6 +108,7 @@ export const UnifiedHoverPreview: Story = {
       timeout: 2000,
     });
     await expect(within(preview).getByText("quality")).toBeInTheDocument();
+    await expect(within(preview).getByText("span")).toBeInTheDocument();
     await expect(
       within(preview).getByText("Grounded in the supplied context.")
     ).toBeInTheDocument();

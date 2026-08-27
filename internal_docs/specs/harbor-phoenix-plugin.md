@@ -39,7 +39,7 @@ The prototype requires **no Phoenix server changes**. It requires **one new publ
 
 ### Goals
 
-- One-command setup through `harbor run --plugin phoenix`.
+- One-command setup through `harbor run --plugin arize-phoenix`.
 - Support any Harbor dataset and agent that meets the selected trace mode's requirements.
 - Preserve Harbor's task, trial, attempt, agent, model, and reward identities.
 - Show comparable results across agents and models.
@@ -52,7 +52,9 @@ The prototype requires **no Phoenix server changes**. It requires **one new publ
 - Harbor is the execution harness. Phoenix does not rerun these experiments or select Harbor tasks.
 - Harbor's verifier remains the authority for rewards. The plugin does not calculate a second aggregate reward.
 - Dataset example `output` remains an empty object. A Harbor solution is an executable way to produce an end state, not a reference response.
-- The prototype accepts one Harbor dataset and no direct tasks. It rejects all other job shapes before trials begin.
+- The prototype accepts one Harbor dataset or a direct-task-only job. It rejects jobs that
+  combine both sources. A single direct task gets a namespaced synthetic dataset name;
+  several direct tasks require an explicit `dataset` plugin setting.
 - The prototype does not create wrapper spans for Harbor lifecycle phases or verifiers.
 - The prototype does not include a post-hoc ingestion command.
 
@@ -73,7 +75,10 @@ The prototype requires **no Phoenix server changes**. It requires **one new publ
 | Step reward                   | Sparse evaluation           | Named `<step_name>.<reward_key>`                                  |
 | ATIF trajectory or OTLP spans | Trace                       | Linked to the experiment run when available                       |
 
-Use one Phoenix dataset for one Harbor dataset. Require one configured dataset and no direct tasks. Harbor's resolved task plan loses the source information needed to support other job shapes safely.
+Use one Phoenix dataset for one Harbor task collection. A normal job maps its single configured
+Harbor dataset directly. A direct-task-only job maps the resolved task set to a synthetic Phoenix
+dataset. Do not combine configured datasets and direct tasks, and do not accept several configured
+datasets.
 
 Infer the dataset name from the resolved `DatasetConfig`:
 
@@ -83,10 +88,14 @@ Infer the dataset name from the resolved `DatasetConfig`:
 | registry bare name (`--dataset <name>`) | `is_registry()` | the selected bare name |
 | published package (`--dataset <org>/<name>`) | `is_package()` | the selected `<org>/<name>` |
 | repository source (`--repo` with `--dataset`) | `is_repo()` | resolved registry metadata name |
+| one direct task (`--path`, package, or Git task) | direct task | `harbor-task/<declared task name>` |
 
 A local dataset exposes only its directory name. After inferring a name, verify that every resolved task has the same source.
 
-The optional `dataset` setting overrides the inferred name, but not the one-dataset rule. If Harbor does not provide a clear name, stop the job before trials begin.
+The optional `dataset` setting overrides the inferred name, but not the one-collection rule. For
+several direct tasks it is required and declares that the complete resolved task set is one
+synthetic dataset snapshot. Full update semantics apply, so a later job using the same name and a
+different task set creates a new version whose examples exactly match the later job.
 
 Reject duplicate task IDs. Phoenix uses the task ID for example and run identity, so duplicates would merge separate tasks.
 
@@ -118,7 +127,7 @@ The job lock does not exist at `on_job_start`. The compatibility adapter builds 
 
 ## 4. Plugin design
 
-Phoenix owns and releases `arize-phoenix-harbor` from `packages/phoenix-harbor/`. The `phoenix_harbor` module registers `phoenix` in Harbor's `harbor.plugins` entry-point group.
+The plugin lives in `arize-phoenix-client` as `phoenix.client.harbor` and registers `arize-phoenix` in Harbor's `harbor.plugins` entry-point group. Harbor is imported only when the plugin is selected.
 
 The package has three main components:
 
@@ -126,7 +135,7 @@ The package has three main components:
 2. **Mapping core.** Converts the internal Harbor model into Phoenix datasets, experiments, runs, evaluations, and trace links.
 3. **Phoenix job plugin.** Connects Harbor lifecycle hooks to the mapping core and stops the job when required Phoenix recording fails.
 
-The package supports normal jobs on Harbor `>=0.18.0`. It checks required capabilities at runtime. Regrade and source-job plans are not supported.
+The package supports normal jobs on Harbor `>=0.21.0`. It checks required capabilities at runtime. Regrade and source-job plans are not supported.
 
 Phoenix version requirements depend on the feature:
 
@@ -302,7 +311,7 @@ Harbor can use a different verifier for every task, so not every score is meanin
 
 ### Behaviorally completed
 
-A run is **behaviorally completed** when Harbor produced a verifier result. Only these runs can have a dense `reward` score.
+A run is **behaviorally completed** when Harbor produced a verifier result. The plugin records each reward under its exact Harbor key. Only a verifier result with a literal `reward` key produces a Phoenix evaluation named `reward`.
 
 | Harbor terminal state | Top-level exception | Step exceptions | Behaviorally completed | `reward` | `infra_ok` |
 | --- | --- | --- | --- | --- | --- |
@@ -310,32 +319,31 @@ A run is **behaviorally completed** when Harbor produced a verifier result. Only
 | Behavioral zero | none | none | Yes | `0` | 1 |
 | Single-step agent or verifier failure | present | n/a | No | not written | 0 |
 | Multi-step failure recorded on a step | usually none | present | Yes, if a final verifier result exists | Harbor's aggregate | 0 |
-| Multi-step failure with no verifier result | none or present | present | No | not written | 0 |
+| Fatal multi-step failure with no verifier result | none or present | present | No | not written | 0 |
 | Cancellation | `CancelledError` | partial | No | not written | 0 |
 
 Infrastructure status and behavioral completion are independent. A run can be behaviorally completed and still have `infra_ok = 0`.
 
-`reward` is present for behaviorally completed runs when the plugin can find one aggregate value. A verifier with several unnamed values has no clear aggregate, so that run has diagnostic scores only. Consumers must check `reward` coverage before computing cross-task summaries.
+`reward` is present only when Harbor emits that key. The plugin does not promote a sole differently named value or infer an aggregate from other keys. Consumers must check `reward` coverage before computing cross-task summaries.
 
 | Score | Coverage | Purpose |
 |---|---|---|
-| `reward` | Every behaviorally completed run with a determinable aggregate | Harbor's aggregate behavioral score; suitable for cross-task summaries |
+| `reward` | Only where Harbor emits it | Harbor's conventional behavioral score; suitable for cross-task summaries |
 | `infra_ok` | Every attempted run | Infrastructure success rate |
-| `verifier.<reward_key>` | Only where Harbor emits it | Other final-verifier diagnostics |
+| `<reward_key>` | Only where Harbor emits it | Trial-level verifier reward or diagnostic |
 | `<step_name>.<reward_key>` | Only where Harbor emits it | Step-level diagnosis within a task |
 
 Rules:
 
 - Read scores from `step_results` as well as the final verifier result.
 - Check the top-level result and every step result for infrastructure errors. Any exception sets `infra_ok = 0`. A reward of zero without an exception keeps `infra_ok = 1`.
-- Use the final verifier's `reward` value as the aggregate. If there is no `reward` key but there is one final value, use that value. If there are several final values, write the run and its `verifier.<reward_key>` scores but no aggregate `reward`. Warn with the trial, task, and sorted keys. Never choose a value by key order.
-
-  **Tradeoff:** Harbor's leaderboard chooses the first value by dictionary order. That choice is stable but has no semantic basis. Stopping the job would keep `reward` complete, but fixing the task changes its digest and requires a full rerun. The prototype keeps the run and warns instead. Revisit this choice if unnamed multi-value rewards are common.
-- Store other final-verifier rewards as `verifier.<reward_key>` and step rewards as `<step_name>.<reward_key>`. Validate reserved/generated name collisions before writing.
+- Store every final-verifier reward as `<reward_key>` and every step reward as `<step_name>.<reward_key>`. Do not infer `reward` from another key, even when the verifier emits only one value.
+- Add `multi_step_reward_strategy` to each trial-level reward evaluation for a multi-step task. Resolve Harbor's omitted default to `mean`; preserve an explicit `final`. Do not add this metadata to step-level scores, `infra_ok`, or single-step rewards.
+- Reject empty or duplicate step names before writing and detect any remaining generated-name collision during extraction.
 - Store step rewards in their original numeric scale.
 - Keep infrastructure failures separate from behavioral failures.
 - Do not add a built-in `all_steps_passed` or `tool_calls` score. Tasks can emit task-specific scores when useful.
-- Store the Harbor terminal trial ID, token usage, cost, and available phase timings in a compact JSON-safe run `output` envelope. The public Phoenix run API has no run-metadata argument.
+- Store the Harbor terminal trial ID, token usage, and cost in a compact JSON-safe run `output` envelope. The public Phoenix run API has no run-metadata argument. Defer phase timings until the output schema can represent multi-step timings without breaking reuse of immutable runs written by older plugin versions.
 
 Phoenix can calculate token cost and latency from traces. Consumers can calculate pass rate, pass^k, confidence intervals, and release gates from stored rewards.
 
@@ -394,8 +402,9 @@ Finding and then creating an experiment is not atomic. Run only one ingester for
 Selecting the Phoenix plugin makes successful Phoenix recording a requirement. This avoids spending compute on a job that will not be recorded. Users can omit the plugin when they want to run Harbor without Phoenix.
 
 - At `on_job_start`, validate dataset identity, Harbor compatibility, trace requirements, the Phoenix connection, and initial writes. Raise a clear error to stop the job before trial compute.
-- After trials begin, raise any required Phoenix write or trace-link error. Harbor stops the job, but completed Phoenix runs remain available. Keep one terminal-failure flag. After it is set, make later trial-end callbacks no-ops while Harbor cancels sibling trials.
-- Record an infrastructure exception as a run error and `infra_ok = 0`; do not rewrite it as `reward = 0`.
+- The plugin configures HTTPX's built-in retries for `ConnectError` and `ConnectTimeout` while establishing a connection. It does not retry HTTP responses or other transport errors itself. Any run or evaluation write that still fails raises and stops the job, except for the handled run-conflict recovery path. Completed Phoenix records remain available and Harbor persists terminal trial results for resume.
+- Keep one terminal-failure flag. After it is set, make later trial-end callbacks no-ops while Harbor cancels sibling trials.
+- Record a top-level exception or a fatal step exception as a run error and `infra_ok = 0`; do not rewrite it as `reward = 0`. A step exception is fatal when Harbor reports no verifier result for that step. Other step exceptions affect `infra_ok` but not the native run error.
 - Do not ingest an attempt that Harbor will retry. Until Harbor exposes a terminal-attempt event, count START events by logical trial name and apply Harbor's retry rules.
 
 The adapter checks capabilities at runtime. Set a minimum Harbor version but no upper bound. Test the minimum version, latest stable release, and Harbor `main`. Add a temporary upper bound only for a known released incompatibility.
@@ -410,10 +419,11 @@ Pass settings through Harbor's `--plugin-kwarg` option.
 | `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix endpoint |
 | `api_key` | `PHOENIX_API_KEY` | Phoenix authentication |
 | `trace_mode` | `atif` | `atif`, `otlp`, or `none` |
-| `experiment_name_template` | `{job_name} · {agent} · {model}` | Experiment naming |
+| `experiment_name` | unset | Exact name for a job with one agent configuration |
+| `experiment_name_template` | `{job.name} · {agent.name} · {agent.model}` | Experiment naming |
 | `project` | experiment's project | Optional trace-project override |
 
-Experiment names must distinguish agent/model configurations in Phoenix's compare view. `{job_name}` defaults to a Harbor timestamp. If two configurations still have the same name, append a short configuration digest. This can happen when they differ only in skills, environment, or keyword arguments.
+Experiment names must distinguish agent/model configurations in Phoenix's compare view. `{job.name}` defaults to a Harbor timestamp. If two configurations still have the same name, append a short configuration digest. This can happen when they differ only in skills, environment, or keyword arguments.
 
 In OTLP mode the plugin does not inject exporter configuration. The user supplies endpoint, credentials, and `openinference.project.name` through Harbor's per-agent environment, and the plugin validates them at job start (§5.1).
 
@@ -422,7 +432,7 @@ In OTLP mode the plugin does not inject exporter configuration. The user supplie
 ### Included
 
 - Harbor plugin entry point and compatibility adapter
-- Exactly one configured Harbor dataset and no direct tasks
+- One configured Harbor dataset, or a direct-task-only job with an unambiguous synthetic name
 - Dataset and example upsert with digest-based versioning
 - One experiment for each agent and model
 - Streaming experiment runs with deterministic repetitions

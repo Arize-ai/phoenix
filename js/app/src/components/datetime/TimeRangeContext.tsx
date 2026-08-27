@@ -8,10 +8,9 @@ import React, {
 } from "react";
 import { useSearchParams } from "react-router";
 
-import {
-  SET_TIME_RANGE_TOOL_NAME,
-  type SetTimeRangeInput,
-} from "@phoenix/agent/tools/timeRange";
+import type { SetTimeRangeInput } from "@phoenix/agent/tools/timeRange";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import { setTimeRangeOperation } from "@phoenix/agent/uiOperations/operations/setTimeRange";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
@@ -34,12 +33,21 @@ export type TimeRangeContextType = {
    * steering interactions (preset picks, pan/zoom) do not block the input
    * event.
    */
-  setTimeRange: (timeRange: OpenTimeRangeWithKey) => void;
+  setTimeRange: (
+    timeRange: OpenTimeRangeWithKey,
+    options?: SetTimeRangeOptions
+  ) => void;
   /**
-   * Apply a closed time range as a custom selection. Wraps the state write in
-   * a transition so brush-driven updates do not block the input event.
+   * Apply a chart-selected closed time range as a custom selection. The URL
+   * write remains transition-wrapped and pushes a history entry so browser
+   * Back restores the prior range.
    */
   setCustomTimeRange: (timeRange: TimeRange) => void;
+};
+
+export type SetTimeRangeOptions = {
+  /** Choose whether the URL write replaces or pushes browser history. */
+  history?: "replace" | "push";
 };
 
 /** ISO 8601 bounds for the active time range. */
@@ -153,10 +161,14 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
    *
    * The URL write is declarative: a last-N key is written as just the key
    * (clearing any bounds) and a custom range as just its bounds. The write
-   * replaces history (no new entry per change) and any last-N key is persisted
-   * as the user's preference.
+   * replaces history by default and any last-N key is persisted as the user's
+   * preference. Callers can explicitly push discrete changes that should be
+   * undoable with browser Back.
    */
-  const setTimeRange = (timeRange: OpenTimeRangeWithKey) => {
+  const setTimeRange = (
+    timeRange: OpenTimeRangeWithKey,
+    options?: SetTimeRangeOptions
+  ) => {
     startTransition(() => {
       setSearchParams(
         (currentSearchParams) =>
@@ -164,7 +176,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
             searchParams: currentSearchParams,
             timeRange,
           }),
-        { replace: true }
+        { replace: options?.history !== "push" }
       );
       // Persist the preset and re-anchor "now" so the live window refreshes.
       if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
@@ -175,11 +187,14 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setCustomTimeRange = (timeRange: TimeRange) => {
-    setTimeRange({
-      timeRangeKey: "custom",
-      start: timeRange.start,
-      end: timeRange.end,
-    });
+    setTimeRange(
+      {
+        timeRangeKey: "custom",
+        start: timeRange.start,
+        end: timeRange.end,
+      },
+      { history: "push" }
+    );
   };
 
   // Seed a fresh URL from the stored preference on first load. Once the URL
@@ -248,7 +263,7 @@ function parseOptionalDateTime(value: string | undefined): Date | undefined {
 }
 
 /**
- * Register the browser-side implementation of PXI's `set_time_range` tool
+ * Register the browser-side implementation of PXI's `timeRange.set` operation
  * while a time range provider is mounted.
  */
 function useRegisterSetTimeRangeClientAction({
@@ -303,14 +318,14 @@ function useRegisterSetTimeRangeClientAction({
     }
   );
 
-  useEffect(() => {
-    const { registerClientAction, unregisterClientAction } =
-      agentStore.getState();
-    registerClientAction(SET_TIME_RANGE_TOOL_NAME, (input) =>
-      handleSetTimeRange(input as SetTimeRangeInput)
-    );
-    return () => {
-      unregisterClientAction(SET_TIME_RANGE_TOOL_NAME);
-    };
-  }, [agentStore]);
+  useEffect(
+    () =>
+      registerUIOperations({
+        agentStore,
+        operations: [
+          { descriptor: setTimeRangeOperation, handler: handleSetTimeRange },
+        ],
+      }),
+    [agentStore]
+  );
 }

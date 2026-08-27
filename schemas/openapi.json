@@ -6078,6 +6078,79 @@
             "description": "Not Found"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Create prompt version",
+        "description": "Create a new version for an existing prompt by identifier.",
+        "operationId": "createPromptVersion",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromptVersionRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created prompt version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePromptVersionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
       }
     },
     "/v1/prompt_versions/{prompt_version_id}": {
@@ -6995,6 +7068,189 @@
               }
             },
             "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/retention": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Set a project's trace retention policy",
+        "description": "Assign an existing trace retention policy to a project, or reset the project to the default policy with a null `policy_id`. Retention policies are standalone, reusable entities: this endpoint only changes which policy the project points at, and never creates, edits, or deletes a policy.",
+        "operationId": "setProjectRetentionPolicy",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProjectRetentionPolicyRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The project's retention policy assignment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetProjectRetentionPolicyResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/model_providers": {
+      "get": {
+        "tags": [
+          "model_providers"
+        ],
+        "summary": "List built-in model provider families",
+        "description": "Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.",
+        "operationId": "getModelProviders",
+        "responses": {
+          "200": {
+            "description": "A list of built-in model provider families",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetModelProvidersResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/custom_model_providers": {
+      "get": {
+        "tags": [
+          "model_providers"
+        ],
+        "summary": "List custom model providers",
+        "description": "Retrieve a paginated list of user-defined custom model providers. Encrypted provider credentials are never returned. Built-in provider families are listed separately by `GET /v1/model_providers`.",
+        "operationId": "getCustomModelProviders",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (custom provider ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (custom provider ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "The max number of custom providers to return at a time (at most 1000).",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of custom providers to return at a time (at most 1000)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of custom model providers with pagination information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCustomModelProvidersResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "422": {
             "content": {
@@ -8660,7 +8916,7 @@
         "tags": [
           "chat"
         ],
-        "summary": "Run Server Agent",
+        "summary": "Run Headless Agent",
         "operationId": "legacyServerAgentChat",
         "deprecated": true,
         "parameters": [
@@ -9462,6 +9718,119 @@
         }
       }
     },
+    "/v1/agent_sessions/{session_id}/tool_approvals": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Submit Agent Session Tool Approvals",
+        "description": "Persist answered tool approvals for the session's open turn.",
+        "operationId": "submitAgentSessionToolApprovals",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitAgentSessionToolApprovalsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitAgentSessionToolApprovalsResponseBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the session's current state; the body's ``code`` field says how.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSessionConflictError"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/agent_sessions/{session_id}/chat": {
       "post": {
         "tags": [
@@ -9661,6 +10030,7 @@
               "agent_session_model_stale",
               "agent_session_messages_stale",
               "agent_session_tool_outputs_conflict",
+              "agent_session_tool_approvals_conflict",
               "agent_session_already_compact",
               "agent_session_compaction_conflict"
             ],
@@ -9685,7 +10055,7 @@
           "code"
         ],
         "title": "AgentSessionConflictError",
-        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_already_compact``: there are no complete turns to\n  compact \u2014 either nothing new has finished since the transcript's latest\n  checkpoint, or a concurrent request's checkpoint already covers them.\n  Not retryable; the conversation is as compact as it can get.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
+        "description": "Body of every HTTP 409 returned by the agent session routes.\n\n- ``agent_session_busy``: another turn holds the session's turn lock.\n- ``agent_session_model_stale``: the request asserted a model the session\n  is no longer set to; refetch the session before retrying.\n- ``agent_session_messages_stale``: the send's ``lastMessageId`` no longer\n  matches the persisted transcript \u2014 another client appended; refetch the\n  transcript and retry.\n- ``agent_session_tool_outputs_conflict``: the submitted ``toolOutputs`` do\n  not match the transcript's trailing assistant message (no trailing\n  assistant message to continue, an unknown ``toolCallId``, or a tool-name\n  mismatch). Unlike ``agent_session_messages_stale`` this is not a\n  concurrent-writer race but an inconsistent request; fix the client\n  rather than retrying.\n- ``agent_session_tool_approvals_conflict``: the submitted ``toolApprovals``\n  do not match the transcript's trailing assistant message (no trailing\n  assistant message to answer, an unknown ``toolCallId``, a call that is\n  not awaiting approval, or a reversal of an already-persisted answer).\n  Like the tool-output conflict this is an inconsistent request rather than\n  a concurrent-writer race; fix the client rather than retrying.\n- ``agent_session_already_compact``: there are no complete turns to\n  compact \u2014 either nothing new has finished since the transcript's latest\n  checkpoint, or a concurrent request's checkpoint already covers them.\n  Not retryable; the conversation is as compact as it can get.\n- ``agent_session_compaction_conflict``: the conversation changed while it\n  was being compacted; retry."
       },
       "AgentSessionData": {
         "properties": {
@@ -9778,54 +10148,6 @@
           "is_ephemeral"
         ],
         "title": "AgentSessionSummary"
-      },
-      "AgentSpanContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "span",
-            "title": "Type"
-          },
-          "projectNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Projectnodeid"
-          },
-          "spanNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Spannodeid"
-          },
-          "otelSpanId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Otelspanid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type"
-        ],
-        "title": "AgentSpanContext",
-        "description": "Span the user has selected.\n\nExactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry\nhex) must be set. ``project_node_id`` is optional because a span can be\nselected from views outside a project route."
       },
       "AnnotateSessionsRequestBody": {
         "properties": {
@@ -10144,6 +10466,7 @@
             "title": "Timezone"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -10250,6 +10573,25 @@
           "total"
         ],
         "title": "AssistantMessageMetadataUsageTokens"
+      },
+      "BuiltInModelProvider": {
+        "properties": {
+          "provider": {
+            "$ref": "#/components/schemas/ModelProvider",
+            "description": "The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI')."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The human-readable name of the provider family (e.g. 'OpenAI')."
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "name"
+        ],
+        "title": "BuiltInModelProvider"
       },
       "BuiltInProviderModelSelection": {
         "properties": {
@@ -10638,34 +10980,34 @@
             "$ref": "#/components/schemas/AppContext"
           },
           {
-            "$ref": "#/components/schemas/ProjectContext"
+            "$ref": "#/components/schemas/ProjectUIContext"
           },
           {
-            "$ref": "#/components/schemas/TraceContext"
+            "$ref": "#/components/schemas/TraceUIContext"
           },
           {
-            "$ref": "#/components/schemas/SessionContext"
+            "$ref": "#/components/schemas/SessionUIContext"
           },
           {
-            "$ref": "#/components/schemas/PromptContext"
+            "$ref": "#/components/schemas/PromptUIContext"
           },
           {
-            "$ref": "#/components/schemas/PromptVersionContext"
+            "$ref": "#/components/schemas/PromptVersionUIContext"
           },
           {
-            "$ref": "#/components/schemas/AgentSpanContext"
+            "$ref": "#/components/schemas/SpanUIContext"
           },
           {
-            "$ref": "#/components/schemas/PlaygroundContext"
+            "$ref": "#/components/schemas/PlaygroundUIContext"
           },
           {
-            "$ref": "#/components/schemas/CodeEvaluatorContext"
+            "$ref": "#/components/schemas/CodeEvaluatorUIContext"
           },
           {
-            "$ref": "#/components/schemas/LlmEvaluatorContext"
+            "$ref": "#/components/schemas/LlmEvaluatorUIContext"
           },
           {
-            "$ref": "#/components/schemas/DatasetContext"
+            "$ref": "#/components/schemas/DatasetUIContext"
           },
           {
             "$ref": "#/components/schemas/GraphQLContext"
@@ -10683,18 +11025,18 @@
           "propertyName": "type",
           "mapping": {
             "app": "#/components/schemas/AppContext",
-            "code_evaluator": "#/components/schemas/CodeEvaluatorContext",
-            "dataset": "#/components/schemas/DatasetContext",
+            "code_evaluator": "#/components/schemas/CodeEvaluatorUIContext",
+            "dataset": "#/components/schemas/DatasetUIContext",
             "graphql": "#/components/schemas/GraphQLContext",
-            "llm_evaluator": "#/components/schemas/LlmEvaluatorContext",
-            "playground": "#/components/schemas/PlaygroundContext",
-            "project": "#/components/schemas/ProjectContext",
-            "prompt": "#/components/schemas/PromptContext",
-            "prompt_version": "#/components/schemas/PromptVersionContext",
-            "session": "#/components/schemas/SessionContext",
-            "span": "#/components/schemas/AgentSpanContext",
+            "llm_evaluator": "#/components/schemas/LlmEvaluatorUIContext",
+            "playground": "#/components/schemas/PlaygroundUIContext",
+            "project": "#/components/schemas/ProjectUIContext",
+            "prompt": "#/components/schemas/PromptUIContext",
+            "prompt_version": "#/components/schemas/PromptVersionUIContext",
+            "session": "#/components/schemas/SessionUIContext",
+            "span": "#/components/schemas/SpanUIContext",
             "subagents": "#/components/schemas/SubagentsContext",
-            "trace": "#/components/schemas/TraceContext",
+            "trace": "#/components/schemas/TraceUIContext",
             "web_access": "#/components/schemas/WebAccessContext"
           }
         }
@@ -10776,6 +11118,14 @@
             "title": "Tooloutputs",
             "description": "Client-executed tool results for pending tool calls on the transcript's trailing assistant message, matched by ``toolCallId``. Submitted alone they continue the assistant turn; submitted with ``message`` they resolve dangling tool calls before the new user turn runs."
           },
+          "toolApprovals": {
+            "items": {
+              "$ref": "#/components/schemas/ToolApproval"
+            },
+            "type": "array",
+            "title": "Toolapprovals",
+            "description": "Responses to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Cannot be combined with ``message``."
+          },
           "lastMessageId": {
             "anyOf": [
               {
@@ -10814,7 +11164,7 @@
         "title": "ChatRequestBody",
         "description": "Assistant chat submit request payload."
       },
-      "CodeEvaluatorContext": {
+      "CodeEvaluatorUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -10833,12 +11183,12 @@
             "title": "Evaluatornodeid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type"
         ],
-        "title": "CodeEvaluatorContext",
-        "description": "Code-evaluator create/edit form mounted in the current browser route."
+        "title": "CodeEvaluatorUIContext"
       },
       "CompactAgentSessionRequestBody": {
         "properties": {
@@ -11644,6 +11994,44 @@
         ],
         "title": "CreatePromptResponseBody"
       },
+      "CreatePromptVersionRequestBody": {
+        "properties": {
+          "version": {
+            "$ref": "#/components/schemas/PromptVersionData"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PromptVersionTagData"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "CreatePromptVersionRequestBody"
+      },
+      "CreatePromptVersionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PromptVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreatePromptVersionResponseBody"
+      },
       "CreateSessionNoteRequestBody": {
         "properties": {
           "data": {
@@ -11886,6 +12274,71 @@
         ],
         "title": "CreatedApiKey"
       },
+      "CustomModelProvider": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the custom provider."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The unique name of the custom provider."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of the custom provider."
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "The free-form provider label recorded on the custom provider. Unlike the `provider` of a built-in family, this is not drawn from a fixed set."
+          },
+          "sdk": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "azure_openai",
+              "anthropic",
+              "google_genai",
+              "aws_bedrock"
+            ],
+            "title": "Sdk",
+            "description": "The SDK used to communicate with the custom provider."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The time the custom provider was created."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "The time the custom provider was last updated."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "provider",
+          "sdk",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CustomModelProvider"
+      },
       "CustomProviderModelSelection": {
         "properties": {
           "providerType": {
@@ -11994,37 +12447,6 @@
           "example_count"
         ],
         "title": "Dataset"
-      },
-      "DatasetContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "dataset",
-            "title": "Type"
-          },
-          "datasetNodeId": {
-            "type": "string",
-            "title": "Datasetnodeid"
-          },
-          "datasetVersionNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Datasetversionnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "datasetNodeId"
-        ],
-        "title": "DatasetContext",
-        "description": "Dataset the user is currently viewing or has bound to a workflow.\n\nCarries the dataset's relay node id and, when known, the active version\nnode id. These IDs scope the create-form handoff link and the sampling of\nactive dataset examples used as prompt context; the dataset schema itself\nis open."
       },
       "DatasetExample": {
         "properties": {
@@ -12188,6 +12610,37 @@
           "updated_at"
         ],
         "title": "DatasetSplit"
+      },
+      "DatasetUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dataset",
+            "title": "Type"
+          },
+          "datasetNodeId": {
+            "type": "string",
+            "title": "Datasetnodeid"
+          },
+          "datasetVersionNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetversionnodeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "datasetNodeId"
+        ],
+        "title": "DatasetUIContext"
       },
       "DatasetVersion": {
         "properties": {
@@ -13364,6 +13817,34 @@
         ],
         "title": "GetApiKeysResponseBody"
       },
+      "GetCustomModelProvidersResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CustomModelProvider"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetCustomModelProvidersResponseBody"
+      },
       "GetDatasetLabelResponseBody": {
         "properties": {
           "data": {
@@ -13483,6 +13964,22 @@
           "next_cursor"
         ],
         "title": "GetIncompleteExperimentRunsResponseBody"
+      },
+      "GetModelProvidersResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/BuiltInModelProvider"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetModelProvidersResponseBody"
       },
       "GetProjectAnnotationConfigsResponseBody": {
         "properties": {
@@ -13827,13 +14324,15 @@
             "title": "Mutationsenabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
           "mutationsEnabled"
         ],
         "title": "GraphQLContext",
-        "description": "GraphQL runtime state."
+        "description": "Deprecated GraphQL mutations opt-in.",
+        "deprecated": true
       },
       "HTTPValidationError": {
         "properties": {
@@ -14621,7 +15120,7 @@
         ],
         "title": "ListExperimentsResponseBody"
       },
-      "LlmEvaluatorContext": {
+      "LlmEvaluatorUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -14640,12 +15139,12 @@
             "title": "Evaluatornodeid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type"
         ],
-        "title": "LlmEvaluatorContext",
-        "description": "LLM-evaluator create/edit form mounted in the current browser route."
+        "title": "LlmEvaluatorUIContext"
       },
       "LocalUser": {
         "properties": {
@@ -15679,6 +16178,25 @@
             "type": "boolean",
             "title": "Iscompactionmessage",
             "default": false
+          },
+          "uiContexts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UIContexts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "editPermission": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "bypass"
+            ],
+            "title": "Editpermission",
+            "default": "manual"
           }
         },
         "additionalProperties": false,
@@ -15691,7 +16209,7 @@
         "title": "PhoenixUserMessageMetadata",
         "description": "The ``phoenix`` metadata namespace the browser attaches to outgoing\nuser messages."
       },
-      "PlaygroundBuiltinModelContext": {
+      "PlaygroundBuiltinModelUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -15708,64 +16226,15 @@
             "title": "Modelname"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "provider",
           "modelName"
         ],
-        "title": "PlaygroundBuiltinModelContext",
-        "description": "Built-in playground model selection."
+        "title": "PlaygroundBuiltinModelUIContext"
       },
-      "PlaygroundContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "playground",
-            "title": "Type"
-          },
-          "recordExperiments": {
-            "type": "boolean",
-            "title": "Recordexperiments",
-            "default": true
-          },
-          "repetitions": {
-            "type": "integer",
-            "title": "Repetitions",
-            "default": 1
-          },
-          "nextExperimentScaffold": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PlaygroundExperimentScaffoldContext"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "instances": {
-            "items": {
-              "$ref": "#/components/schemas/PlaygroundInstanceContext"
-            },
-            "type": "array",
-            "title": "Instances"
-          },
-          "evaluators": {
-            "items": {
-              "$ref": "#/components/schemas/PlaygroundEvaluatorContext"
-            },
-            "type": "array",
-            "title": "Evaluators"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type"
-        ],
-        "title": "PlaygroundContext",
-        "description": "Playground prompt editor state mounted in the current browser route."
-      },
-      "PlaygroundCustomProviderModelContext": {
+      "PlaygroundCustomProviderModelUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -15790,6 +16259,7 @@
             "title": "Modelname"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "customProviderId",
@@ -15797,10 +16267,9 @@
           "provider",
           "modelName"
         ],
-        "title": "PlaygroundCustomProviderModelContext",
-        "description": "Custom-provider playground model selection."
+        "title": "PlaygroundCustomProviderModelUIContext"
       },
-      "PlaygroundEvaluatorContext": {
+      "PlaygroundEvaluatorUIContext": {
         "properties": {
           "datasetEvaluatorId": {
             "type": "string",
@@ -15828,6 +16297,7 @@
             "title": "Isapplied"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "datasetEvaluatorId",
@@ -15836,10 +16306,9 @@
           "isBuiltin",
           "isApplied"
         ],
-        "title": "PlaygroundEvaluatorContext",
-        "description": "One dataset evaluator on the mounted playground's roster. ``name`` is\nuser-controlled; sanitize at every model-visible boundary."
+        "title": "PlaygroundEvaluatorUIContext"
       },
-      "PlaygroundExperimentScaffoldContext": {
+      "PlaygroundExperimentScaffoldUIContext": {
         "properties": {
           "name": {
             "anyOf": [
@@ -15869,11 +16338,11 @@
             "default": false
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "PlaygroundExperimentScaffoldContext",
-        "description": "Experiment name/description/metadata the user has staged for the playground's\n*next* dataset-backed run, before that run has started.\n\nThe playground UI lets the user pre-set how the next recorded run's experiment\nwill be named, described, and tagged (via the ``set_playground_experiment_recording``\ntool or the recording form). That staged state is surfaced here so the agent can\nsee what is already set and avoid re-staging it.\n\nField semantics:\n- ``name`` / ``description``: the staged values, surfaced to the model verbatim,\n  or ``None`` when the user has not staged them.\n- ``has_metadata``: a presence flag, not the value. Only *whether* metadata has\n  been staged is model-relevant (so the agent knows not to re-attach it); the\n  metadata object itself is deliberately kept out of the prompt.\n\nA field left unstaged (``None`` / ``False``) falls back to the server default when\nthe run starts. The scaffold is consumed once that next run begins."
+        "title": "PlaygroundExperimentScaffoldUIContext"
       },
-      "PlaygroundInstanceContext": {
+      "PlaygroundInstanceUIContext": {
         "properties": {
           "instanceId": {
             "type": "integer",
@@ -15884,17 +16353,17 @@
               {
                 "oneOf": [
                   {
-                    "$ref": "#/components/schemas/PlaygroundBuiltinModelContext"
+                    "$ref": "#/components/schemas/PlaygroundBuiltinModelUIContext"
                   },
                   {
-                    "$ref": "#/components/schemas/PlaygroundCustomProviderModelContext"
+                    "$ref": "#/components/schemas/PlaygroundCustomProviderModelUIContext"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
-                    "builtin": "#/components/schemas/PlaygroundBuiltinModelContext",
-                    "custom": "#/components/schemas/PlaygroundCustomProviderModelContext"
+                    "builtin": "#/components/schemas/PlaygroundBuiltinModelUIContext",
+                    "custom": "#/components/schemas/PlaygroundCustomProviderModelUIContext"
                   }
                 }
               },
@@ -15916,12 +16385,61 @@
             "title": "Experimentid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "instanceId"
         ],
-        "title": "PlaygroundInstanceContext",
-        "description": "One mounted playground instance and its current model selection.\n\n``experiment_id`` carries the relay node id of the experiment produced by\nthis instance's last dataset-backed run, or ``None`` when the instance has\nnot produced one. Ephemeral experiments are included: they remain queryable\nuntil the server sweeps them ~24h after their last update."
+        "title": "PlaygroundInstanceUIContext"
+      },
+      "PlaygroundUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "playground",
+            "title": "Type"
+          },
+          "recordExperiments": {
+            "type": "boolean",
+            "title": "Recordexperiments",
+            "default": true
+          },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions",
+            "default": 1
+          },
+          "nextExperimentScaffold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaygroundExperimentScaffoldUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instances": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundInstanceUIContext"
+            },
+            "type": "array",
+            "title": "Instances"
+          },
+          "evaluators": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundEvaluatorUIContext"
+            },
+            "type": "array",
+            "title": "Evaluators"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PlaygroundUIContext"
       },
       "Project": {
         "properties": {
@@ -15953,7 +16471,33 @@
         ],
         "title": "Project"
       },
-      "ProjectContext": {
+      "ProjectRetentionPolicyData": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id",
+            "description": "The retention policy the project now uses, or null when the project falls back to the default policy."
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "policy_id"
+        ],
+        "title": "ProjectRetentionPolicyData"
+      },
+      "ProjectUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -15976,13 +16520,13 @@
             "title": "Spanfilter"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
           "projectNodeId"
         ],
-        "title": "ProjectContext",
-        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all. It\ndescribes the view in full, root-span scoping included (which is expressed\nwithin the filter DSL as ``parent_id is None``)."
+        "title": "ProjectUIContext"
       },
       "Prompt": {
         "properties": {
@@ -16421,26 +16965,6 @@
           "messages"
         ],
         "title": "PromptChatTemplate"
-      },
-      "PromptContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "prompt",
-            "title": "Type"
-          },
-          "promptNodeId": {
-            "type": "string",
-            "title": "Promptnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "promptNodeId"
-        ],
-        "title": "PromptContext",
-        "description": "Prompt the user is currently viewing."
       },
       "PromptData": {
         "properties": {
@@ -17537,6 +18061,26 @@
         ],
         "title": "PromptTools"
       },
+      "PromptUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prompt",
+            "title": "Type"
+          },
+          "promptNodeId": {
+            "type": "string",
+            "title": "Promptnodeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "promptNodeId"
+        ],
+        "title": "PromptUIContext"
+      },
       "PromptVersion": {
         "properties": {
           "description": {
@@ -17694,31 +18238,6 @@
           "id"
         ],
         "title": "PromptVersion"
-      },
-      "PromptVersionContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "prompt_version",
-            "title": "Type"
-          },
-          "promptNodeId": {
-            "type": "string",
-            "title": "Promptnodeid"
-          },
-          "promptVersionNodeId": {
-            "type": "string",
-            "title": "Promptversionnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "promptNodeId",
-          "promptVersionNodeId"
-        ],
-        "title": "PromptVersionContext",
-        "description": "Prompt version the user is currently viewing."
       },
       "PromptVersionData": {
         "properties": {
@@ -17923,6 +18442,31 @@
           "name"
         ],
         "title": "PromptVersionTagData"
+      },
+      "PromptVersionUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prompt_version",
+            "title": "Type"
+          },
+          "promptNodeId": {
+            "type": "string",
+            "title": "Promptnodeid"
+          },
+          "promptVersionNodeId": {
+            "type": "string",
+            "title": "Promptversionnodeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "promptNodeId",
+          "promptVersionNodeId"
+        ],
+        "title": "PromptVersionUIContext"
       },
       "PromptXAIInvocationParameters": {
         "properties": {
@@ -18300,31 +18844,6 @@
         ],
         "title": "SessionAnnotationsResponseBody"
       },
-      "SessionContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session",
-            "title": "Type"
-          },
-          "projectNodeId": {
-            "type": "string",
-            "title": "Projectnodeid"
-          },
-          "sessionNodeId": {
-            "type": "string",
-            "title": "Sessionnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "projectNodeId",
-          "sessionNodeId"
-        ],
-        "title": "SessionContext",
-        "description": "Session the user is currently viewing."
-      },
       "SessionData": {
         "properties": {
           "id": {
@@ -18443,6 +18962,31 @@
           "end_time"
         ],
         "title": "SessionTraceData"
+      },
+      "SessionUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "sessionNodeId": {
+            "type": "string",
+            "title": "Sessionnodeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId",
+          "sessionNodeId"
+        ],
+        "title": "SessionUIContext"
       },
       "SetDatasetLabelsForDatasetResponseBody": {
         "properties": {
@@ -18573,6 +19117,39 @@
           "next_cursor"
         ],
         "title": "SetProjectAnnotationConfigsResponseBody"
+      },
+      "SetProjectRetentionPolicyRequestBody": {
+        "properties": {
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id",
+            "description": "The ID (GlobalID) of an existing trace retention policy to assign, or null to reset the project to the default policy."
+          }
+        },
+        "type": "object",
+        "required": [
+          "policy_id"
+        ],
+        "title": "SetProjectRetentionPolicyRequestBody"
+      },
+      "SetProjectRetentionPolicyResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProjectRetentionPolicyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SetProjectRetentionPolicyResponseBody"
       },
       "SourceDocumentUIPart": {
         "properties": {
@@ -19131,6 +19708,55 @@
         ],
         "title": "SpanNoteData"
       },
+      "SpanUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "span",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectnodeid"
+          },
+          "spanNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spannodeid"
+          },
+          "otelSpanId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{16}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Otelspanid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "SpanUIContext"
+      },
       "SpansResponseBody": {
         "properties": {
           "data": {
@@ -19185,6 +19811,7 @@
             "title": "Enabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -19192,6 +19819,44 @@
         ],
         "title": "SubagentsContext",
         "description": "User's per-turn request to expose the subagent-spawning tool."
+      },
+      "SubmitAgentSessionToolApprovalsRequestBody": {
+        "properties": {
+          "toolApprovals": {
+            "items": {
+              "$ref": "#/components/schemas/ToolApproval"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Toolapprovals",
+            "description": "Answers to tool calls awaiting approval on the trailing assistant message, matched by ``toolCallId``. Resending a persisted answer is a no-op; an answer that reverses one, or that matches no call awaiting approval, is rejected with HTTP 409 and code ``agent_session_tool_approvals_conflict``."
+          },
+          "lastMessageId": {
+            "type": "string",
+            "title": "Lastmessageid",
+            "description": "The trailing assistant message's id. On mismatch the submission is rejected with HTTP 409 and code ``agent_session_messages_stale``."
+          }
+        },
+        "type": "object",
+        "required": [
+          "toolApprovals",
+          "lastMessageId"
+        ],
+        "title": "SubmitAgentSessionToolApprovalsRequestBody",
+        "description": "Persist answered tool approvals without continuing the turn."
+      },
+      "SubmitAgentSessionToolApprovalsResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PhoenixUIMessage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SubmitAgentSessionToolApprovalsResponseBody",
+        "description": "The trailing assistant message with the submitted approvals applied."
       },
       "SubmitAgentSessionToolOutputsRequestBody": {
         "properties": {
@@ -19314,6 +19979,26 @@
         ],
         "title": "TextUIPart",
         "description": "A text part of a message."
+      },
+      "ToolApproval": {
+        "properties": {
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "description": "Whether the user approved the tool call."
+          }
+        },
+        "type": "object",
+        "required": [
+          "toolCallId",
+          "approved"
+        ],
+        "title": "ToolApproval",
+        "description": "A user's response to a tool call awaiting approval."
       },
       "ToolApprovalRequested": {
         "properties": {
@@ -20093,30 +20778,6 @@
         ],
         "title": "TraceAnnotationsResponseBody"
       },
-      "TraceContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "trace",
-            "title": "Type"
-          },
-          "projectNodeId": {
-            "type": "string",
-            "title": "Projectnodeid"
-          },
-          "otelTraceId": {
-            "type": "string",
-            "title": "Oteltraceid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "projectNodeId",
-          "otelTraceId"
-        ],
-        "title": "TraceContext"
-      },
       "TraceData": {
         "properties": {
           "id": {
@@ -20269,6 +20930,32 @@
         ],
         "title": "TraceSpanData"
       },
+      "TraceUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "trace",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "otelTraceId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Oteltraceid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId",
+          "otelTraceId"
+        ],
+        "title": "TraceUIContext"
+      },
       "TransferTracesData": {
         "properties": {
           "transferred_trace_count": {
@@ -20352,6 +21039,113 @@
         ],
         "title": "TurnTraceContext",
         "description": "The trace identity a turn's spans are parented to."
+      },
+      "UIContexts": {
+        "properties": {
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TraceUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpanUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "promptVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersionUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "playground": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaygroundUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "codeEvaluator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodeEvaluatorUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "llmEvaluator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LlmEvaluatorUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UIContexts"
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {
@@ -20919,6 +21713,7 @@
             "title": "Enabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",

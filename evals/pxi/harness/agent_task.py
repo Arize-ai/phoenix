@@ -5,6 +5,7 @@ import os
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
 
@@ -29,11 +30,11 @@ from phoenix.config import (
     get_env_collector_endpoint,
     get_env_disable_agent_assistant,
 )
+from phoenix.db.types.data_stream_protocol.ui_state_types import ProjectUIContext
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.agents.context import (
     ChatContext,
-    ProjectContext,
     ResolvedContexts,
     resolve_contexts,
 )
@@ -43,8 +44,10 @@ from phoenix.server.agents.model_factory import (
 from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
+from phoenix.server.agents.prompts import UI_STATE_TEMPLATE
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.api.routers.agents import _get_ui_contexts, _render_ui_state
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 
@@ -227,7 +230,7 @@ def build_shared_docs_mcp_server() -> MCPToolset[Any] | None:
 
 def _default_contexts() -> ResolvedContexts:
     contexts = ResolvedContexts(
-        project=ProjectContext(
+        project=ProjectUIContext(
             type="project",
             project_node_id=DEFAULT_PROJECT_NODE_ID,
             span_filter="",
@@ -248,6 +251,35 @@ def _build_contexts(input: dict[str, Any]) -> ResolvedContexts:
 def _build_dependencies(input: dict[str, Any]) -> AgentDependencies:
     contexts = _build_contexts(input)
     return AgentDependencies(contexts=contexts)
+
+
+def _ui_state_block(deps: AgentDependencies) -> str:
+    return _render_ui_state(
+        _get_ui_contexts(deps.contexts), deps.edit_permission, template=UI_STATE_TEMPLATE
+    )
+
+
+def _attach_ui_state(
+    block: str,
+    *,
+    user_prompt: str | None,
+    message_history: list[ModelMessage] | None,
+) -> tuple[str | None, list[ModelMessage] | None]:
+    """Prepend the state block to the run's earliest user turn."""
+    for message_index, message in enumerate(message_history or ()):
+        if not isinstance(message, ModelRequest):
+            continue
+        for part_index, part in enumerate(message.parts):
+            if not (isinstance(part, UserPromptPart) and isinstance(part.content, str)):
+                continue
+            parts = list(message.parts)
+            parts[part_index] = replace(part, content=f"{block}\n\n{part.content}")
+            assert message_history is not None
+            message_history[message_index] = replace(message, parts=parts)
+            return user_prompt, message_history
+    if user_prompt is not None:
+        return f"{block}\n\n{user_prompt}", message_history
+    return user_prompt, message_history
 
 
 def _build_run_inputs(
@@ -314,8 +346,9 @@ def _materialize_messages(raw_messages: list[Any]) -> list[ModelMessage]:
     Primed tool calls + returns are exactly the same message shape pydantic_ai
     builds for genuinely-executed tools, so the model cannot tell the
     difference. This lets datasets isolate one step of agent behavior (e.g.
-    "given a known latest-trace date, did set_spans_filter get the right
-    args?") from the upstream discovery steps that would normally precede it.
+    "given a primed catalog and a known latest-trace date, did the
+    ui.spansFilter.set invocation get the right condition?") from the
+    upstream discovery steps that would normally precede it.
     """
     if not isinstance(raw_messages, list):
         raise ValueError("PXI eval input.messages must be a list")
@@ -569,6 +602,12 @@ async def run_pxi_example(
     """
     try:
         user_prompt, message_history = _build_run_inputs(input)
+        deps = _build_dependencies(input)
+        user_prompt, message_history = _attach_ui_state(
+            _ui_state_block(deps),
+            user_prompt=user_prompt,
+            message_history=message_history,
+        )
         model = await _build_model()
         tracer_provider = _get_tracer_provider()
         if tracer_provider is not None:
@@ -581,6 +620,8 @@ async def run_pxi_example(
                 ),
             )
         agent = build_agent(
+            name="PXIAgent",
+            headless=False,
             model=model,
             docs_mcp_server=docs_mcp_server,
             tracer_provider=tracer_provider,
@@ -590,7 +631,7 @@ async def run_pxi_example(
         )
         result = await agent.run(
             user_prompt,
-            deps=_build_dependencies(input),
+            deps=deps,
             message_history=message_history,
         )
         output = agent_task_output(result)

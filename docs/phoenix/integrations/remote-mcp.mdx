@@ -33,6 +33,8 @@ The `/mcp` endpoint requires **Phoenix 19.0.0 or later**. On older servers, upgr
 
 Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as its own authorization server and supports dynamic client registration, so there is nothing to pre-configure — add the server, and your client opens a browser window where you log in with your Phoenix account. Tokens are scoped to your user's permissions.
 
+A client that follows the MCP authorization spec finds all of this on its own: the endpoint advertises [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) protected-resource metadata at `/.well-known/oauth-protected-resource/mcp`, which points at Phoenix's authorization server. See [Agent Authentication Discovery](/docs/phoenix/self-hosting/features/authentication#agent-authentication-discovery) for the full set of discovery endpoints.
+
 <Tip>
   The [`px` CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) automates the steps below for Claude Code, Codex, Gemini, Cursor, OpenCode, and VS Code — it infers your endpoint and writes each agent's config for you:
 

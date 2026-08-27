@@ -45,8 +45,9 @@ const chartsResizeHandleCSS = css`
  * A strip of user-selected metric charts shown above a project table (spans,
  * traces, or sessions) for troubleshooting. Any chart in the chart catalog
  * can be added. Charts support legend-based series filtering, and most
- * support drag-to-select time range zooming. The selection is persisted per
- * project and per table view.
+ * support click-to-narrow and drag-to-select time range zooming, with browser
+ * Back restoring the prior range. The chart selection is persisted per project
+ * and per table view.
  */
 const TableMetricsCharts = memo(function TableMetricsCharts({
   view,

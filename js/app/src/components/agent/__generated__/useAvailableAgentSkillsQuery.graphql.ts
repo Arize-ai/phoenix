@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<edfcb8c95bd957d622d45ef38ddc4c78>>
+ * @generated SignedSource<<1c5bef42d6a1305fe1cd9bd434a24d6a>>
  * @lightSyntaxTransform
  */
 
@@ -8,15 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type AvailableAgentSkillsInput = {
-  hasCodeEvaluatorContext?: boolean;
-  hasDatasetContext?: boolean;
-  hasLlmEvaluatorContext?: boolean;
-  hasPlaygroundContext?: boolean;
-};
-export type useAvailableAgentSkillsQuery$variables = {
-  input?: AvailableAgentSkillsInput | null;
-};
+export type useAvailableAgentSkillsQuery$variables = Record<PropertyKey, never>;
 export type useAvailableAgentSkillsQuery$data = {
   readonly availableAgentSkills: ReadonlyArray<{
     readonly description: string;
@@ -32,21 +24,8 @@ export type useAvailableAgentSkillsQuery = {
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "input"
-  }
-],
-v1 = [
-  {
     "alias": null,
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "input",
-        "variableName": "input"
-      }
-    ],
+    "args": null,
     "concreteType": "AgentSkill",
     "kind": "LinkedField",
     "name": "availableAgentSkills",
@@ -79,32 +58,32 @@ v1 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
     "name": "useAvailableAgentSkillsQuery",
-    "selections": (v1/*:: as any*/),
+    "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [],
     "kind": "Operation",
     "name": "useAvailableAgentSkillsQuery",
-    "selections": (v1/*:: as any*/)
+    "selections": (v0/*:: as any*/)
   },
   "params": {
-    "cacheID": "6d1ed961dcc6c90e21d4c60d4f31c6ef",
+    "cacheID": "a6d3389d16b285411064bbaf1a60a79e",
     "id": null,
     "metadata": {},
     "name": "useAvailableAgentSkillsQuery",
     "operationKind": "query",
-    "text": "query useAvailableAgentSkillsQuery(\n  $input: AvailableAgentSkillsInput\n) {\n  availableAgentSkills(input: $input) {\n    name\n    description\n    summary\n  }\n}\n"
+    "text": "query useAvailableAgentSkillsQuery {\n  availableAgentSkills {\n    name\n    description\n    summary\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7d46e246444b90376bb1599da8d2db2a";
+(node as any).hash = "2127bddbd6e0f8ad434d1de9304c0321";
 
 export default node;

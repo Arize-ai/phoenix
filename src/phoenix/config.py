@@ -1800,7 +1800,7 @@ class OAuth2ClientConfig:
         if self.client_assertion_file and not os.path.isabs(self.client_assertion_file):
             # Enforced here so the rule holds however the path arrived. A relative path would
             # resolve against the working directory, which nothing about this deployment
-            # pins — and requiring it now is only possible now, since tightening the contract
+            # pins — and requiring it is only possible now, since tightening the contract
             # after a release would break anyone who had relied on the looser one.
             source = (
                 f"named by {self.client_assertion_file_env_var}"

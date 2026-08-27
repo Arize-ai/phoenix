@@ -53,6 +53,7 @@ The connection questions only need answering once. On a repo that's already regi
 ```bash
 px setup instrument   # Instrument and verify traces again
 px setup skills       # Install the coding-agent skills alone
+px setup mcp          # Register the Phoenix MCP server with a coding agent
 ```
 
 ## Run non-interactively (CI or agents)
@@ -66,6 +67,10 @@ px setup --no-input --endpoint http://localhost:6006 --project my-app
 # Instrument too. Requires --agent when there's no TTY to choose one.
 px setup --no-input --instrument --agent claude --yolo --format raw
 ```
+
+The documentation that the MCP server offers is interactive by default. Pass `--docs-mcp` to connect the
+Phoenix docs MCP server to the coding agent without prompting, or `--no-docs-mcp`
+to skip it — either keeps a non-interactive run from stalling on a question.
 
 A run that instruments only succeeds if a trace actually arrived — the agent's
 own claim that it finished doesn't count. **Exit code `6` means the wait ran out

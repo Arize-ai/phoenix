@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.2.0...arize-phoenix-client-v3.3.0) (2026-08-22)
+
+
+### Features
+
+* **pxi:** enable phoenix-gql mutations by default with approval in manual mode ([#15415](https://github.com/Arize-ai/phoenix/issues/15415)) ([391d0dd](https://github.com/Arize-ai/phoenix/commit/391d0ddaa6aa2ec9bdda152ec6dd16ea585abb87))
+
 ## [3.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.1.0...arize-phoenix-client-v3.2.0) (2026-08-14)
 
 

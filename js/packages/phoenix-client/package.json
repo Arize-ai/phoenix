@@ -120,8 +120,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^4.0.36",
-    "@ai-sdk/otel": "^1.0.58",
+    "@ai-sdk/openai": "^4.0.46",
+    "@ai-sdk/otel": "^1.0.77",
     "@anthropic-ai/sdk": "^0.111.0",
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-testing": "workspace:*",
@@ -129,13 +129,13 @@
     "@opentelemetry/sdk-trace-node": "^2.10.0",
     "@types/async": "^3.2.25",
     "@types/node": "^26.2.0",
-    "ai": "^7.0.58",
+    "ai": "^7.0.77",
     "dotenv": "^17.4.2",
     "jest": "^30.4.2",
     "openai": "^6.49.0",
     "openapi-typescript": "^7.13.0",
-    "tsx": "^4.23.11",
-    "vitest": "^4.1.10"
+    "tsx": "^4.23.12",
+    "vitest": "^4.1.11"
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",

@@ -15,7 +15,7 @@ export function createSetVariableValuesClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseSetVariableValuesInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid set_variable_values input." };
+      return { ok: false, error: "Invalid playground.variables.set input." };
     }
 
     playgroundStore.getState().setVariableValues(parsed.values);
@@ -24,15 +24,11 @@ export function createSetVariableValuesClientAction({
 
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          status: "updated",
-          variables: variableKeys,
-          message: `Set ${variableKeys.length} playground variable value${variableKeys.length === 1 ? "" : "s"}.`,
-        },
-        null,
-        2
-      ),
+      output: {
+        status: "updated",
+        variables: variableKeys,
+        message: `Set ${variableKeys.length} playground variable value${variableKeys.length === 1 ? "" : "s"}.`,
+      },
     };
   };
 }

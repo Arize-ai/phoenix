@@ -37,10 +37,9 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
-	gen-session-filter-ai-query-vocabulary check-session-filter-ai-query-vocabulary \
+	codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets gen-otel-models \
 	gh-comment-watch \
-	harbor-stage-environments harbor-publish-fixtures harbor-oracle harbor-run harbor-view \
+	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -97,21 +96,21 @@ help: ## Show this help message
 	@echo -e "  lint-frontend          - Lint frontend only (js/app/)"
 	@echo -e "  lint-ts                - Lint all TypeScript (js/ workspace)"
 	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
+	@echo -e "  check-filter-dsl-snippets - Ensure UI filter DSL snippets compile under the Python filters"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL and SQLite (use ARGS=/SQLITE_ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
-	@echo -e "  gen-session-filter-ai-query-vocabulary   - Generate the session AI query vocabulary"
-	@echo -e "  check-session-filter-ai-query-vocabulary - Check the session AI query vocabulary for drift"
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
 	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
 	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
+	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Run the isolated Phoenix Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
-	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real ServerAgent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
+	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real headless-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
@@ -308,7 +307,7 @@ typecheck-ts: ## Type check all TypeScript (js/ workspace, including the app)
 	@echo -e "$(CYAN)Type checking TypeScript...$(NC)"
 	@cd $(JS_DIR) && $(PNPM) run --silent typecheck
 
-typecheck: check-session-filter-ai-query-vocabulary typecheck-python typecheck-ts ## Type check all code (Python + TypeScript workspace)
+typecheck: typecheck-python typecheck-ts ## Type check all code (Python + TypeScript workspace)
 	@echo -e "$(GREEN)✓ Type checking complete$(NC)"
 
 #=============================================================================
@@ -383,12 +382,6 @@ build-ts: ## Build all TypeScript (js/ workspace, including the app)
 build: build-python build-ts ## Build everything (Python + TypeScript workspace)
 	@echo -e "$(GREEN)✓ Build complete$(NC)"
 
-gen-session-filter-ai-query-vocabulary: ## Generate the session AI query vocabulary
-	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py
-
-check-session-filter-ai-query-vocabulary: ## Check the session AI query vocabulary for drift
-	@$(UV) run python scripts/generate_session_filter_ai_query_vocabulary.py --check
-
 #=============================================================================
 # Utilities
 #=============================================================================
@@ -440,6 +433,11 @@ check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have pe
 	@$(UV) run python $(CURDIR)/scripts/ci/ensure_graphql_mutations_have_permission_classes.py src/phoenix/server/api
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
+check-filter-dsl-snippets: ## Ensure UI filter DSL snippets and examples compile under the Python filters
+	@echo -e "$(CYAN)Checking UI filter DSL snippets against the Python filters...$(NC)"
+	@$(UV) run python $(CURDIR)/scripts/ci/check_filter_dsl_snippets.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
 gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py
 	@echo -e "$(CYAN)Generating OTel GenAI semconv Pydantic models...$(NC)"
 	@$(UV) run --script scripts/generate_otel_gen_ai_models.py
@@ -483,7 +481,7 @@ HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
 # Environment backend for trials (harbor run -e): docker, daytona, etc.
 # Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
 HARBOR_ENV ?= docker
-HARBOR_VERSION ?= 0.18.0
+HARBOR_VERSION ?= 0.21.0
 # harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
 # repo's .python-version (3.10).
 HARBOR_PYTHON ?= 3.13
@@ -502,7 +500,7 @@ HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VER
 
 # The runner is staged into the task's Docker build context by stage_harbor_task_environments.sh.
 define check-harbor-staged
-	@test -f $(HARBOR_TASK)/environment/run_server_agent.py || \
+	@test -f $(HARBOR_TASK)/environment/run_headless_agent.py || \
 		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
 endef
 
@@ -515,16 +513,20 @@ harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud stor
 	@echo -e "$(CYAN)Publishing Harbor fixtures...$(NC)"
 	./evals/harbor/scripts/publish_fixtures.sh
 
+harbor-plugin-e2e: ## Run the isolated Phoenix Harbor plugin E2E matrix
+	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
+		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py
+
 harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
 	$(check-harbor-staged)
 	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
 	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
-harbor-run: ## Run the real ServerAgent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
+harbor-run: ## Run the real headless-agent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
 	$(check-harbor-staged)
-	@echo -e "$(CYAN)Running Harbor ServerAgent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
+	@echo -e "$(CYAN)Running Harbor headless-agent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
-		-a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
+		-a evals.harbor.agents.phoenix_headless_agent:PhoenixHeadlessAgent \
 		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer

@@ -66,7 +66,7 @@ def test_counts_subagent_tools() -> None:
         "call-subagent", name="call_subagent", kind="TOOL", parent_id="root", start=5
     )
     subagent = _span(
-        "subagent", name="ServerAgent.iter", kind="AGENT", parent_id="call-subagent", start=6
+        "subagent", name="PXISubagent.iter", kind="AGENT", parent_id="call-subagent", start=6
     )
     nested_tool = _span(
         "nested-tool", name="query_phoenix", kind="TOOL", parent_id="subagent", start=7
