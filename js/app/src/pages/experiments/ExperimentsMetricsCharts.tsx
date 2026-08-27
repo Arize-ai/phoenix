@@ -1,3 +1,4 @@
+import { View } from "@phoenix/components";
 import {
   ChartPanelStrip,
   getMetricChartsViewSetting,
@@ -22,17 +23,26 @@ export function ExperimentsMetricsCharts() {
   );
   const charts = getExperimentMetricCharts(selectedChartKeys);
   return (
-    <ChartPanelStrip chartCount={charts.length}>
-      {charts.map((chart) => (
-        <DeferredExperimentMetricPanel
-          key={chart.key}
-          chart={chart}
-          datasetId={datasetId}
-          experimentSelection={RECENT_EXPERIMENT_SELECTION}
-          fillHeight
-        />
-      ))}
-    </ChartPanelStrip>
+    // The strip owns no outer spacing, so this edge-to-edge placement above
+    // the table supplies its own gutters.
+    <View
+      paddingStart="size-200"
+      paddingEnd="size-200"
+      paddingTop="size-100"
+      height="100%"
+    >
+      <ChartPanelStrip chartCount={charts.length}>
+        {charts.map((chart) => (
+          <DeferredExperimentMetricPanel
+            key={chart.key}
+            chart={chart}
+            datasetId={datasetId}
+            experimentSelection={RECENT_EXPERIMENT_SELECTION}
+            fillHeight
+          />
+        ))}
+      </ChartPanelStrip>
+    </View>
   );
 }
 
