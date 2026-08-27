@@ -30,7 +30,7 @@ export type JSSandboxDispatchCall = (call: {
   callSequence: number;
 }) => Promise<UIOperationResult>;
 
-/** Wall-clock budget for one script, excluding time spent awaiting approvals. */
+/** Wall-clock budget for one script, excluding long-running operation waits. */
 export const DEFAULT_JS_SANDBOX_TIMEOUT_MS = 30_000;
 
 /** Maximum `ui.*` calls one script may make. */
@@ -38,12 +38,12 @@ export const DEFAULT_MAX_UI_CALLS_PER_SCRIPT = 50;
 
 /**
  * Cap on the total time one script may spend awaiting timer-pausing
- * operations (approvals, long-running ops). The execution budget pauses
- * during those waits so they don't eat the script's execution time, but an
- * unbounded wait would let a script keep a worker alive — and burning CPU —
- * forever. The bridge enforces both budgets with a single timer that is
- * always armed toward the nearer of the two deadlines, bounding every run to
- * `timeoutMs + maxPausedMs` of wall time.
+ * operations (long-running ops such as a playground run). The execution
+ * budget pauses during those waits so they don't eat the script's execution
+ * time, but an unbounded wait would let a script keep a worker alive — and
+ * burning CPU — forever. The bridge enforces both budgets with a single
+ * timer that is always armed toward the nearer of the two deadlines,
+ * bounding every run to `timeoutMs + maxPausedMs` of wall time.
  */
 export const DEFAULT_MAX_PAUSED_MS = 300_000;
 
@@ -115,22 +115,21 @@ export function createJSSandboxWorker(): JSSandboxWorkerLike {
  * runaway script cannot evade them:
  * - an execution budget (`timeoutMs`) of active wall-clock time, hard-killed
  *   via `terminate()`;
- * - the execution clock *pauses* while an `approval`-kind operation awaits
- *   the user's accept/reject decision (or a `longRunning` operation is in
- *   flight), then resumes;
+ * - the execution clock *pauses* while a `longRunning` operation (e.g. a
+ *   playground run) is in flight, then resumes;
  * - a wait budget (`maxPausedMs`) on total paused time, so chaining
- *   approvals cannot keep the worker alive forever;
+ *   long-running operations cannot keep the worker alive forever;
  * - a per-script `ui.*` call budget.
  *
  * @param params.script - agent-authored script body; may `await ui.*` calls,
  *   call `log(...)`, and `return` a final value
  * @param params.dispatchCall - operation dispatcher (injectable for tests)
  * @param params.createWorker - worker factory (injectable for tests)
- * @param params.timeoutMs - wall-clock budget, excluding approval waits
+ * @param params.timeoutMs - wall-clock budget, excluding long-running waits
  * @param params.maxCalls - maximum `ui.*` calls before the run is failed
  * @param params.maxPausedMs - cap on total time the execution clock may
- *   spend paused for approvals / long-running ops; a run that keeps waiting
- *   past this budget is hard-killed no matter what it is awaiting
+ *   spend paused for long-running ops; a run that keeps waiting past this
+ *   budget is hard-killed no matter what it is awaiting
  * @param params.registerAbort - receives a callback that force-fails the run
  *   (chat interrupt / session teardown); the worker is terminated and the
  *   run resolves `ok: false`
@@ -160,7 +159,7 @@ export function runJSSandboxScript({
     let callCount = 0;
     // One timer, two budgets: `timeoutMs` of active execution and
     // `maxPausedMs` of total time spent awaiting timer-pausing operations
-    // (approvals, long-running ops). Every pause/resume transition banks the
+    // (long-running ops). Every pause/resume transition banks the
     // budget that was running and re-arms the timer toward the other one, so
     // exactly one deadline is pending at any moment — the nearer of the two —
     // and every run is bounded by timeoutMs + maxPausedMs of wall time no
@@ -171,12 +170,12 @@ export function runJSSandboxScript({
     let timerId: ReturnType<typeof setTimeout> | undefined;
     let waitStartedAt = 0;
     let isSettled = false;
-    // How many timer-pausing operations (approval / long-running) are in
-    // flight right now. The execution budget is banked while this is > 0 and
-    // only resumes when the last one settles — a plain boolean would let the
-    // first of several concurrent approvals (e.g. a `Promise.all` of `ui.*`
-    // calls) restart the execution clock while the user is still deciding on
-    // the others.
+    // How many timer-pausing (long-running) operations are in flight right
+    // now. The execution budget is banked while this is > 0 and only resumes
+    // when the last one settles — a plain boolean would let the first of
+    // several concurrent long-running operations (e.g. a `Promise.all` of
+    // `ui.*` calls) restart the execution clock while the others are still
+    // in flight.
     let pauseDepth = 0;
 
     const worker = createWorker();
@@ -213,7 +212,7 @@ export function runJSSandboxScript({
             ok: false,
             error:
               pauseDepth > 0
-                ? `Script exceeded the ${maxPausedMs}ms budget for awaiting approvals and long-running operations and was terminated.`
+                ? `Script exceeded the ${maxPausedMs}ms budget for awaiting long-running operations and was terminated.`
                 : `Script exceeded the ${timeoutMs}ms execution budget and was terminated.`,
             callCount,
             logs,
@@ -223,7 +222,7 @@ export function runJSSandboxScript({
       );
     };
 
-    // First pausing op in flight: bank the execution budget and start
+    // First long-running op in flight: bank the execution budget and start
     // spending the wait budget. Further concurrent pausing ops just deepen
     // the count.
     const pauseTimer = () => {
@@ -267,13 +266,12 @@ export function runJSSandboxScript({
         });
         return;
       }
-      // Approval operations block on the user's accept/reject decision, and
-      // long-running operations await external completion (e.g. a playground
-      // run); neither wait must burn the script's execution budget.
+      // Long-running operations await external completion (e.g. a
+      // playground run); that wait must not burn the script's execution
+      // budget. (Approvals no longer park scripts: consent is script-level,
+      // resolved before the worker spawns.)
       const descriptor = getUIOperationDescriptor(message.operationName);
-      const pausesTimerWhileInFlight =
-        descriptor?.operationKind === "approval" ||
-        descriptor?.longRunning === true;
+      const pausesTimerWhileInFlight = descriptor?.longRunning === true;
       if (pausesTimerWhileInFlight) {
         pauseTimer();
       }

@@ -127,8 +127,8 @@ export const removePromptInstanceOperation = defineUIOperation({
     "delete or remove a comparison instance. Pass the numeric `instanceId`; use " +
     "alphabetic labels (A, B, C, D) only when discussing instances with the user. " +
     "The playground must keep at least one prompt instance, so this tool is rejected " +
-    "when only one instance remains. In manual approval mode the browser asks the " +
-    "user to accept or reject the removal; in bypass mode it removes immediately.",
+    "when only one instance remains. The removal is a state change covered by the " +
+    "script-level approval (write_description).",
   inputSchema: removePromptInstanceInputSchema,
   operationKind: "approval",
   requireSession: true,
@@ -150,9 +150,9 @@ export const removePromptInstanceOperation = defineUIOperation({
 export const editPromptOperation = defineUIOperation({
   name: "playground.prompt.edit",
   description:
-    "Propose edits to one playground prompt instance. This tool does not change the " +
-    "prompt immediately: the browser renders an inline diff and the user must accept " +
-    "or reject it. Call `playground.prompt.read` before your first edit and pass its " +
+    "Edit one playground prompt instance. The edit is a state change covered by the " +
+    "script-level approval (write_description). " +
+    "Call `playground.prompt.read` before your first edit and pass its " +
     "`revision` as `expectedRevision`. Edits are rejected if the prompt changed since " +
     "that read — but a successful edit returns the new `revision`, which is valid as " +
     "the next `expectedRevision`, so chained edits need no re-read between them. " +

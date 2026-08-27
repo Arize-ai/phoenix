@@ -1,3 +1,4 @@
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
 import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
@@ -7,8 +8,8 @@ import type { BatchSpanAnnotateInput } from "./types";
 
 /**
  * Handler for the `spans.annotate` operation: stages the batch of proposed
- * annotations and parks the calling script on the approval. Bypass edit mode
- * auto-accepts exactly like the retired standalone tool.
+ * annotations. Applies immediately in bypass edit mode or when the run holds
+ * a script-level approval grant; otherwise stages the Accept/Reject card.
  */
 export function createBatchSpanAnnotateClientAction({
   agentStore,
@@ -29,7 +30,10 @@ export function createBatchSpanAnnotateClientAction({
           agentStore.getState().setPendingBatchSpanAnnotate,
       });
 
-      if (agentStore.getState().permissions.edits === "bypass") {
+      if (
+        agentStore.getState().permissions.edits === "bypass" ||
+        isOperationCallApprovalGranted(context.callId)
+      ) {
         void pendingAnnotation.accept?.({ approvalSource: "auto" });
         return;
       }
