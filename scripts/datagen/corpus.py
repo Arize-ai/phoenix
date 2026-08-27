@@ -28,6 +28,7 @@ _ARCHIVE_MEMBERS = ("fragments.jsonl", "traces.jsonl")
 _FRAGMENT_FIELDS = ("fragment_id", "archetype", "domain", "trace_ids")
 _SPAN_KIND = "openinference.span.kind"
 _SESSION_ID = "session.id"
+_INPUT_VALUE = "input.value"
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,7 @@ class CorpusPackage:
     tool_span_share: float
     llm_turns_by_session: Mapping[str, int]
     llm_turns_per_session: Mapping[str, int | float]
+    opening_diversity_by_domain: Mapping[str, Mapping[str, int]]
 
 
 class CorpusArchiveError(ValueError):
@@ -87,6 +89,20 @@ def _corpus_statistics(corpus: Corpus) -> dict[str, Any]:
                 if span_kind == "LLM":
                     llm_turns_by_session[session_id] += 1
 
+    openings_by_domain: dict[str, set[str]] = {}
+    fragments_by_domain: Counter[str] = Counter()
+    for fragment in corpus.fragments:
+        fragments_by_domain[fragment.domain] += 1
+        request = corpus.requests_by_trace_id.get(fragment.trace_ids[0])
+        if request is None:
+            continue
+        for span in _iter_spans(request):
+            if span.parent_span_id:
+                continue
+            if opening := _string_attribute(span, _INPUT_VALUE):
+                openings_by_domain.setdefault(fragment.domain, set()).add(opening[:200])
+                break
+
     span_count = sum(span_kind_counts.values())
     span_kind_counts.setdefault("TOOL", 0)
     span_kind_shares = {
@@ -102,6 +118,13 @@ def _corpus_statistics(corpus: Corpus) -> dict[str, Any]:
         "tool_span_share": tool_span_count / span_count,
         "llm_turns_by_session": dict(llm_turns_by_session),
         "llm_turns_per_session": _distribution(list(llm_turns_by_session.values())),
+        "opening_diversity_by_domain": {
+            domain: {
+                "fragments": fragments_by_domain[domain],
+                "distinct_openings": len(openings_by_domain.get(domain, set())),
+            }
+            for domain in sorted(fragments_by_domain)
+        },
     }
 
 
@@ -244,6 +267,9 @@ def _package_document(package: CorpusPackage) -> dict[str, Any]:
         "tool_span_share": package.tool_span_share,
         "llm_turns_by_session": dict(package.llm_turns_by_session),
         "llm_turns_per_session": dict(package.llm_turns_per_session),
+        "opening_diversity_by_domain": {
+            domain: dict(counts) for domain, counts in package.opening_diversity_by_domain.items()
+        },
     }
 
 

@@ -171,7 +171,12 @@
     "archetype": "tool_agent",
     "domain": "coding_agent",
     "inputs": {
-      "prompt": "Find the current Router entry point and check issue-204 before proposing a documentation fix."
+      "prompt": "Find the current Router entry point and check issue-204 before proposing a documentation fix.",
+      "prompt_variants": [
+        "The README still tells people to call Router.dispatch \u2014 can you confirm what the current entry point is and what issue-204 wants changed?",
+        "Before I touch the routing docs: what does issue-204 actually ask for, and which Router method is the supported one now?",
+        "Docs cleanup: verify the public routing API in router.py against issue-204 and draft the correction."
+      ]
     }
   },
   {
@@ -179,7 +184,12 @@
     "archetype": "tool_agent",
     "domain": "coding_agent",
     "inputs": {
-      "prompt": "Find the retry ownership guidance and look up issue-219."
+      "prompt": "Find the retry ownership guidance and look up issue-219.",
+      "prompt_variants": [
+        "issue-219 says backoff starts one attempt early. Can you trace how retry delays are computed and where the off-by-one lives?",
+        "Our retries fire sooner than configured \u2014 walk the scheduler and retry module and find out why.",
+        "Investigate issue-219: reproduce the early backoff against retry.py and propose the fix."
+      ]
     }
   },
   {
@@ -255,6 +265,110 @@
     }
   },
   {
+    "fragment_id": "coding-retry-test-failure",
+    "archetype": "tool_agent",
+    "domain": "coding_agent",
+    "inputs": {
+      "prompt": "tests/test_retry.py is red after the last merge; investigate the failure and fix retry.py.",
+      "prompt_variants": [
+        "The retry unit test started failing \u2014 run it, read the module, and land the fix.",
+        "CI shows test_retry failing on main. Find the cause in retry.py and correct it.",
+        "Can you get tests/test_retry.py passing again? Start from the failing assertion."
+      ]
+    }
+  },
+  {
+    "fragment_id": "coding-metrics-histogram",
+    "archetype": "tool_agent",
+    "domain": "coding_agent",
+    "inputs": {
+      "prompt": "issue-231 says our latency histograms miss the slow tail; check metrics.py against the metrics conventions and fix the buckets.",
+      "prompt_variants": [
+        "Latency charts flatline above one second \u2014 see issue-231 and bring metrics.py in line with the conventions doc.",
+        "Fix the histogram bucket list in metrics.py; issue-231 has the report and the conventions doc has the requirement.",
+        "Why don't we see slow requests in the latency histogram? Check issue-231 and propose the metrics.py change."
+      ]
+    }
+  },
+  {
+    "fragment_id": "coding-config-parsing",
+    "archetype": "tool_agent",
+    "domain": "coding_agent",
+    "inputs": {
+      "prompt": "Users report RELAYCACHE_TIMEOUT ignores decimal values; trace it through config.py and fix the parsing.",
+      "prompt_variants": [
+        "issue-242: setting RELAYCACHE_TIMEOUT=2.5 behaves like 2 \u2014 find the truncation and fix it.",
+        "The timeout env var silently drops fractions of a second. Audit config.py and correct the parse.",
+        "Config bug: decimal timeouts are being floored. Check the configuration reference and fix load_settings."
+      ]
+    }
+  },
+  {
+    "fragment_id": "coding-broker-doubleack",
+    "archetype": "tool_agent",
+    "domain": "coding_agent",
+    "inputs": {
+      "prompt": "issue-250: consumers see duplicate acknowledgements; audit the ack path in broker.py against the acknowledgement contract.",
+      "prompt_variants": [
+        "We're double-acking redelivered messages somewhere \u2014 trace broker.py's handle path and fix it.",
+        "Read the broker acknowledgement contract, then explain why issue-250's duplicate acks happen and patch it.",
+        "Duplicate ack reports keep coming in. Reproduce against broker.py and propose the minimal fix."
+      ]
+    }
+  },
+  {
+    "fragment_id": "coding-scheduler-defer",
+    "archetype": "tool_agent",
+    "domain": "coding_agent",
+    "inputs": {
+      "prompt": "schedule_retry defers even when retries are exhausted; confirm the behavior against scheduler.py and adjust it.",
+      "prompt_variants": [
+        "Does the scheduler defer on the final attempt? Read scheduler.py and fix it if so.",
+        "Audit schedule_retry: it looks like we sleep once more after the last retry. Verify and correct.",
+        "The retry scheduler seems to waste a delay after the final attempt \u2014 investigate scheduler.py."
+      ]
+    }
+  },
+  {
+    "fragment_id": "coding-changelog-audit",
+    "archetype": "tool_agent",
+    "domain": "coding_agent",
+    "inputs": {
+      "prompt": "Prepare release notes: compare docs/CHANGELOG.md against the closed and ready issues and draft the missing 1.4 entries.",
+      "prompt_variants": [
+        "issue-263 says the changelog is missing 1.4 entries \u2014 audit the issues and write them.",
+        "Before we cut 1.4, reconcile the CHANGELOG with the issue tracker per the release process doc.",
+        "Draft the missing changelog entries for the upcoming release; the release process doc has the rule."
+      ]
+    }
+  },
+  {
+    "fragment_id": "coding-router-deprecation",
+    "archetype": "tool_agent",
+    "domain": "coding_agent",
+    "inputs": {
+      "prompt": "Plan the removal of Router.dispatch: find every usage in the repo and outline the deprecation steps.",
+      "prompt_variants": [
+        "Where is Router.dispatch still referenced? Sweep the repo and write a removal plan.",
+        "We want to delete the dispatch alias next minor \u2014 list its call sites and the steps to remove it safely.",
+        "Scope the Router.dispatch removal: usages, docs mentions, and the order of changes."
+      ]
+    }
+  },
+  {
+    "fragment_id": "coding-test-coverage",
+    "archetype": "tool_agent",
+    "domain": "coding_agent",
+    "inputs": {
+      "prompt": "Which modules lack tests? List the source files, check the test suite, and propose the two highest-value tests to add.",
+      "prompt_variants": [
+        "Do a quick coverage audit: which relaycache modules have no test file, and what should we test first?",
+        "Sweep src/ against tests/ and recommend where new tests would pay off most.",
+        "Find the untested modules and draft the two tests you'd add first."
+      ]
+    }
+  },
+  {
     "fragment_id": "support-safe-summary-guardrail",
     "archetype": "guardrailed",
     "domain": "customer_support",
@@ -289,8 +403,13 @@
       "text": "Build last month's net revenue and order count by region in USD for an executive slide. Use completed orders only; correction: include refunded orders in order count but subtract refunds from net revenue.",
       "result": {
         "purpose": "executive sales reporting",
-        "metrics": ["net_revenue", "order_count"],
-        "dimensions": ["region"],
+        "metrics": [
+          "net_revenue",
+          "order_count"
+        ],
+        "dimensions": [
+          "region"
+        ],
         "format": "presentation_summary"
       }
     }
@@ -303,8 +422,16 @@
       "text": "Export last month's refunds with order, refund, reason, amount, currency, and refund timestamp. I first said spreadsheet, but the reconciliation system needs UTF-8 CSV with one row per refund.",
       "result": {
         "purpose": "refund reconciliation",
-        "metrics": ["refund_amount"],
-        "dimensions": ["order_id", "refund_id", "reason", "currency", "refund_timestamp"],
+        "metrics": [
+          "refund_amount"
+        ],
+        "dimensions": [
+          "order_id",
+          "refund_id",
+          "reason",
+          "currency",
+          "refund_timestamp"
+        ],
         "format": "csv"
       }
     }
@@ -317,9 +444,16 @@
       "text": "Show daily paid-to-shipped fulfillment time for last week. Use local days, but I do not know which warehouse or timezone the operations review expects yet.",
       "result": {
         "purpose": "fulfillment reporting",
-        "metrics": ["paid_to_shipped_time"],
-        "dimensions": ["day"],
-        "unresolved": ["timezone", "warehouse_scope"],
+        "metrics": [
+          "paid_to_shipped_time"
+        ],
+        "dimensions": [
+          "day"
+        ],
+        "unresolved": [
+          "timezone",
+          "warehouse_scope"
+        ],
         "format": "table"
       }
     }

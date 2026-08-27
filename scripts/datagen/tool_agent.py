@@ -20,7 +20,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -228,6 +230,16 @@ def _message_text(message: AIMessage) -> str:
     )
 
 
+def _with_prompt_variant(fixture: RecorderFixture, rng: random.Random) -> RecorderFixture:
+    """Pick one authored phrasing of the fixture's opening prompt for this run."""
+    variants = fixture.inputs.get("prompt_variants")
+    prompt = fixture.inputs.get("prompt")
+    if not isinstance(variants, list) or not isinstance(prompt, str):
+        return fixture
+    phrasings = [prompt, *(v for v in variants if isinstance(v, str))]
+    return replace(fixture, inputs={**fixture.inputs, "prompt": rng.choice(phrasings)})
+
+
 def record(
     output_dir: Path,
     *,
@@ -272,6 +284,15 @@ def record(
         )
     else:
         selected_fixtures = fixtures_for("tool_agent", fixtures=fixtures)
+        if provider == "scripted" and fixtures is None:
+            # Auto-selection in scripted mode keeps only fixtures that have a
+            # deterministic episode; the rest record live.
+            selected_fixtures = tuple(
+                fixture
+                for fixture in selected_fixtures
+                if fixture.domain != "coding_agent"
+                or fixture.fragment_id in _SCRIPTED_CODING_EPISODES
+            )
     prepare_recording(output_dir, append=append)
     exporter = SpanCaptureExporter()
     tracer_provider = TracerProvider(
@@ -283,8 +304,11 @@ def record(
     instrumentor = LangChainInstrumentor()
     instrumentor.instrument(tracer_provider=tracer_provider)
     fragments = []
+    variant_rng = random.Random()
     try:
         for fixture in selected_fixtures:
+            if provider == "live":
+                fixture = _with_prompt_variant(fixture, variant_rng)
             if provider == "scripted":
                 scripted = ScriptedOpenAIProvider(_responses_for(fixture))
                 selected_model = ChatOpenAI(
@@ -309,6 +333,13 @@ def record(
         instrumentor.uninstrument()
         tracer_provider.shutdown()
     return tuple(fragments)
+
+
+# Coding fixtures with a deterministic scripted episode; the rest are
+# recorded live, where the model chooses its own tool calls.
+_SCRIPTED_CODING_EPISODES = frozenset(
+    {"coding-router-api-tools", "coding-retry-policy-tools"}
+)
 
 
 def _responses_for(fixture: RecorderFixture) -> tuple[dict[str, Any], ...]:

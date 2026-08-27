@@ -23,14 +23,16 @@ class _SessionLengthProfile(NamedTuple):
     maximum: int
 
 
-# Session lengths differ by application shape: an agent work session strings
-# together many episodes, a chat conversation runs several turns, a one-shot
-# extraction rarely repeats. Medians are fragments per session; each fragment
-# carries its recorded traces.
+# Session lengths differ by application shape. Episodic applications (agent
+# work sessions, batch extraction) naturally string together several
+# independent fragments; conversational applications record whole
+# conversations as single fragments, so their sessions compose few of them.
+# Medians are fragments per session; each fragment carries its recorded
+# traces.
 _SESSION_LENGTH_PROFILES: Mapping[Archetype, _SessionLengthProfile] = {
     "tool_agent": _SessionLengthProfile(median=6.0, sigma=0.8, maximum=30),
-    "plain_chat": _SessionLengthProfile(median=3.0, sigma=0.8, maximum=8),
-    "rag": _SessionLengthProfile(median=3.0, sigma=0.8, maximum=8),
+    "plain_chat": _SessionLengthProfile(median=1.0, sigma=0.6, maximum=3),
+    "rag": _SessionLengthProfile(median=2.0, sigma=0.8, maximum=6),
     "structured_extraction": _SessionLengthProfile(median=4.0, sigma=1.0, maximum=16),
     "graph_multi_agent": _SessionLengthProfile(median=2.0, sigma=0.8, maximum=6),
     "guardrailed": _SessionLengthProfile(median=3.0, sigma=0.8, maximum=8),

@@ -32,8 +32,11 @@ _ARCHETYPES = frozenset(
     }
 )
 _TRACE_ID_PATTERN = re.compile(r"[0-9a-fA-F]{32}")
-_LIVE_MODEL_ALIASES = {"luna": "gpt-5.6-luna"}
-_LIVE_MODEL_OPTIONS = {"gpt-5.6-luna": {"reasoning_effort": "none"}}
+_LIVE_MODEL_ALIASES = {"luna": "gpt-5.6-luna", "terra": "gpt-5.6-terra"}
+_LIVE_MODEL_OPTIONS = {
+    "gpt-5.6-luna": {"reasoning_effort": "none"},
+    "gpt-5.6-terra": {"reasoning_effort": "none"},
+}
 
 
 class RecordingError(ValueError):

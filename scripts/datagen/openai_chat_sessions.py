@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import random
 from collections.abc import Mapping, Sequence
+from math import log
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -56,6 +58,32 @@ else:
     )
 
 Provider = Literal["scripted", "live"]
+
+# Live conversations run until the simulated user is satisfied. The target
+# steers how much conversation happens before the wind-down instruction is
+# added; the actual ending is the simulated user closing without a further
+# request. The hard cap only guards against a conversation that never closes.
+_TARGET_TURNS_MEDIAN = 8.0
+_TARGET_TURNS_SIGMA = 0.4
+_TARGET_TURNS_MAX = 25
+
+_WIND_DOWN_SUFFIX = (
+    " Your remaining concerns are nearly addressed. When the assistant has "
+    "answered your current question, close the conversation with a brief "
+    "message of thanks or acknowledgement that asks nothing further. If "
+    "something important is still unresolved, ask about it instead."
+)
+
+
+def _draw_target_turns(rng: random.Random) -> int:
+    target = round(rng.lognormvariate(log(_TARGET_TURNS_MEDIAN), _TARGET_TURNS_SIGMA))
+    return min(_TARGET_TURNS_MAX, max(2, target))
+
+
+def _is_closing(message: str) -> bool:
+    """A wind-down-phase user message with no question or request ends the session."""
+    return "?" not in message
+
 
 _DISPOSITION_PROMPTS: Mapping[str, str] = {
     "impatient": (
@@ -103,6 +131,7 @@ def record(
     model: str | None = None,
     live_client: OpenAI | None = None,
     disposition: str | None = None,
+    target_turns: int | None = None,
 ) -> tuple[dict[str, Any], ...]:
     """Record every selected plain-chat fixture into a corpus directory."""
     model = resolve_live_model(model)
@@ -134,6 +163,7 @@ def record(
         if disposition is not None
         else tuple(_DISPOSITION_PROMPTS.values())
     )
+    length_rng = random.Random()
     prepare_recording(output_dir, append=append)
     exporter = SpanCaptureExporter()
     tracer_provider = TracerProvider(
@@ -159,6 +189,7 @@ def record(
                         disposition_prompt=disposition_prompts[
                             fixture_index % len(disposition_prompts)
                         ],
+                        target_turns=target_turns or _draw_target_turns(length_rng),
                     ),
                 )
             )
@@ -177,6 +208,7 @@ def _record_fixture(
     model: str | None,
     live_client: OpenAI | None,
     disposition_prompt: str,
+    target_turns: int,
 ) -> tuple[str, ...]:
     if provider == "scripted":
         scripted = ScriptedOpenAIProvider.for_fixture(fixture)
@@ -191,38 +223,24 @@ def _record_fixture(
         client = cast(OpenAI, live_client)
         model_name = cast(str, model)
     turns = fixture.inputs.get("turns")
-    if not isinstance(turns, list):
+    if not isinstance(turns, list) or not turns:
         raise ValueError(f"fixture {fixture.fragment_id!r} has no chat turns")
     messages: list[Mapping[str, Any]] = []
     checkpoint = exporter.checkpoint()
     try:
         with using_session(fixture.fragment_id):
-            for turn_index, turn in enumerate(turns):
-                if not isinstance(turn, dict):
-                    raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid turn")
-                user = turn.get("user")
-                expected = turn.get("assistant")
-                if provider == "scripted" and (
-                    not isinstance(user, str) or not isinstance(expected, str)
-                ):
-                    raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid turn")
-                if provider == "live" and turn_index > 0:
-                    user = _simulate_user(client, model_name, messages, disposition_prompt)
-                if not isinstance(user, str):
-                    if provider == "scripted" or turn_index == 0:
-                        raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid turn")
-                    break
-                messages.append({"role": "user", "content": user})
-                response = client.chat.completions.create(
-                    model=model_name,
-                    messages=cast(Any, messages),
+            if provider == "scripted":
+                _run_scripted_turns(fixture, client, model_name, turns, messages)
+            else:
+                _run_live_conversation(
+                    fixture,
+                    client,
+                    model_name,
+                    turns,
+                    messages,
+                    disposition_prompt=disposition_prompt,
+                    target_turns=target_turns,
                 )
-                content = response.choices[0].message.content
-                if provider == "scripted" and content != expected:
-                    raise ValueError(f"fixture {fixture.fragment_id!r} returned unexpected content")
-                if not isinstance(content, str):
-                    break
-                messages.append({"role": "assistant", "content": content})
     except Exception:
         if provider == "scripted":
             raise
@@ -231,6 +249,61 @@ def _record_fixture(
         if spans:
             append_spans(traces_path, spans)
     return trace_ids(spans)
+
+
+def _run_scripted_turns(
+    fixture: RecorderFixture,
+    client: OpenAI,
+    model_name: str,
+    turns: Sequence[Any],
+    messages: list[Mapping[str, Any]],
+) -> None:
+    for turn in turns:
+        if not isinstance(turn, dict):
+            raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid turn")
+        user = turn.get("user")
+        expected = turn.get("assistant")
+        if not isinstance(user, str) or not isinstance(expected, str):
+            raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid turn")
+        messages.append({"role": "user", "content": user})
+        response = client.chat.completions.create(model=model_name, messages=cast(Any, messages))
+        content = response.choices[0].message.content
+        if content != expected:
+            raise ValueError(f"fixture {fixture.fragment_id!r} returned unexpected content")
+        messages.append({"role": "assistant", "content": content})
+
+
+def _run_live_conversation(
+    fixture: RecorderFixture,
+    client: OpenAI,
+    model_name: str,
+    turns: Sequence[Any],
+    messages: list[Mapping[str, Any]],
+    *,
+    disposition_prompt: str,
+    target_turns: int,
+) -> None:
+    opening = turns[0].get("user") if isinstance(turns[0], dict) else None
+    if not isinstance(opening, str):
+        raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid opening turn")
+    hard_cap = max(target_turns * 2, target_turns + 3)
+    user: str | None = opening
+    for turn_index in range(hard_cap):
+        winding_down = turn_index + 1 >= target_turns
+        if turn_index > 0:
+            prompt = disposition_prompt + (_WIND_DOWN_SUFFIX if winding_down else "")
+            user = _simulate_user(client, model_name, messages, prompt)
+        if not isinstance(user, str):
+            break
+        closing = turn_index > 0 and winding_down and _is_closing(user)
+        messages.append({"role": "user", "content": user})
+        response = client.chat.completions.create(model=model_name, messages=cast(Any, messages))
+        content = response.choices[0].message.content
+        if not isinstance(content, str):
+            break
+        messages.append({"role": "assistant", "content": content})
+        if closing:
+            break
 
 
 def _simulate_user(
@@ -258,6 +331,15 @@ def main() -> None:
     parser.add_argument("--provider", choices=("scripted", "live"), default="scripted")
     parser.add_argument("--model")
     parser.add_argument("--disposition", choices=tuple(_DISPOSITION_PROMPTS))
+    parser.add_argument(
+        "--target-turns",
+        type=int,
+        help=(
+            "Steer live conversations toward this many user turns; the ending "
+            "still happens when the simulated user closes. Drawn per fixture "
+            "when omitted."
+        ),
+    )
     args = parser.parse_args()
     fragments = record(
         args.output_dir,
@@ -266,6 +348,7 @@ def main() -> None:
         provider=args.provider,
         model=args.model,
         disposition=args.disposition,
+        target_turns=args.target_turns,
     )
     print(f"Recorded {len(fragments)} plain-chat fragments in {args.output_dir}")
 

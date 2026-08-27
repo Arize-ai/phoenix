@@ -9,7 +9,7 @@ pytest.importorskip("openinference.instrumentation.openai")
 from openai import OpenAI
 
 from scripts.datagen.mock_openai_provider import ScriptedOpenAIProvider
-from scripts.datagen.openai_chat_sessions import _DISPOSITION_PROMPTS, record
+from scripts.datagen.openai_chat_sessions import _DISPOSITION_PROMPTS, _WIND_DOWN_SUFFIX, record
 from scripts.datagen.recording import fixtures_for
 
 
@@ -70,25 +70,33 @@ def test_live_plain_chat_simulates_later_user_turns(tmp_path: Path) -> None:
         model="test-live-model",
         live_client=client,
         disposition="terse_expert",
+        target_turns=4,
     )
 
+    # Four user turns: the opening, two engaged simulated turns, and a
+    # wind-down turn whose simulated message carries no further question, so
+    # the conversation closes organically after the assistant's final reply.
     assert fragments[0]["trace_ids"]
-    assert len(provider.requests) == len(turns) * 2 - 1
+    assert len(provider.requests) == 7
     assert {request["model"] for request in provider.requests} == {"test-live-model"}
     assert provider.requests[0]["messages"] == [{"role": "user", "content": turns[0]["user"]}]
     assert [
         provider.requests[index]["messages"][-1]["content"]
         for index in range(2, len(provider.requests), 2)
     ] == list(simulated_users)
-    assert all(
-        provider.requests[index]["messages"][0]
-        == {"role": "system", "content": _DISPOSITION_PROMPTS["terse_expert"]}
+    system_prompts = [
+        provider.requests[index]["messages"][0]["content"]
         for index in range(1, len(provider.requests), 2)
-    )
+    ]
+    assert all(prompt.startswith(_DISPOSITION_PROMPTS["terse_expert"]) for prompt in system_prompts)
+    assert system_prompts[-1].endswith(_WIND_DOWN_SUFFIX)
+    assert not any(prompt.endswith(_WIND_DOWN_SUFFIX) for prompt in system_prompts[:-1])
     spans = _spans(tmp_path / "traces.jsonl")
-    assert len(spans) == len(turns)
+    assert len(spans) == 4
     assert all(
-        prompt not in json.dumps(span) for span in spans for prompt in _DISPOSITION_PROMPTS.values()
+        text not in json.dumps(span)
+        for span in spans
+        for text in (*_DISPOSITION_PROMPTS.values(), _WIND_DOWN_SUFFIX)
     )
     assert {
         attribute["value"]["stringValue"]

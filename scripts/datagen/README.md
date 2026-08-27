@@ -25,6 +25,11 @@ The fixture set includes multiple examples for plain chat, RAG, tool agents, gra
 guardrails, and structured extraction. Success, blocked, redacted, conflicting-source, and
 incomplete-input examples are represented directly in the app inputs.
 
+Tool-agent fixtures may carry `prompt_variants`: alternative phrasings of the opening prompt.
+Live recording picks one phrasing per run, so repeated runs of the same task do not open with
+identical text. Coding fixtures without a deterministic scripted episode are skipped by
+scripted auto-selection and record live only.
+
 ## Offline providers and tools
 
 `ScriptedOpenAIProvider` serves a fixed sequence of text, tool-call, or HTTP responses through an
@@ -72,6 +77,12 @@ uv run --script scripts/datagen/tool_agent.py \
 
 Graph and guardrail recorders are deterministic applications and therefore expose condition and
 append controls without provider or model options.
+
+Live plain-chat conversations run until the simulated user closes them. A target turn count
+(drawn per fixture, or set with `--target-turns`) controls when the simulator is told to wrap
+up once its current concern is addressed; the conversation ends at that natural closing
+message, with a hard cap at twice the target. Live model aliases: `luna` and `terra` resolve
+to their provider model IDs with tool-calling options applied.
 
 A live run records every instrumented invocation that emits trace IDs. Responses are not compared
 with fixture-authored answers, and incomplete responses or traced application errors are retained.
@@ -157,7 +168,9 @@ may span multiple rows.
 
 ## Package a corpus
 
-After all selected fixtures and conditions have been recorded into one directory:
+After all selected fixtures and conditions have been recorded into one directory, package the
+recording. The printed statistics include `opening_diversity_by_domain` — distinct opening
+inputs per domain — so low seed variety is visible before publication:
 
 ```console
 uv run python -m scripts.datagen.corpus <recording-dir> \
