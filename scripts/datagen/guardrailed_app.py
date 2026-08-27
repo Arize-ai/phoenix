@@ -20,24 +20,26 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING or __package__:
+    from scripts.datagen.conditions import materialize_condition
     from scripts.datagen.recording import (
         RecorderFixture,
         SpanCaptureExporter,
         append_spans,
         fixtures_for,
+        prepare_recording,
         record_fixture,
-        reset_recording,
         trace_ids,
         validate_recording,
     )
 else:
+    from conditions import materialize_condition
     from recording import (
         RecorderFixture,
         SpanCaptureExporter,
         append_spans,
         fixtures_for,
+        prepare_recording,
         record_fixture,
-        reset_recording,
         trace_ids,
         validate_recording,
     )
@@ -47,6 +49,8 @@ def record(
     output_dir: Path,
     *,
     fixtures: Sequence[RecorderFixture] | None = None,
+    condition: str | None = None,
+    append: bool = False,
 ) -> tuple[dict[str, Any], ...]:
     """Record every selected guardrail fixture into a corpus directory."""
     from guardrails import Guard  # type: ignore[import-not-found]
@@ -78,7 +82,16 @@ def record(
                 )
             return FailResult(error_message="request blocked by policy")
 
-    reset_recording(output_dir)
+    if condition is not None and fixtures is not None:
+        raise ValueError("condition and fixtures cannot be selected together")
+    if condition is not None:
+        conditioned = materialize_condition(condition)
+        if conditioned.fixture.archetype != "guardrailed":
+            raise ValueError(f"condition {condition!r} does not select a guardrail fixture")
+        selected_fixtures: Sequence[RecorderFixture] = (conditioned.fixture,)
+    else:
+        selected_fixtures = fixtures_for("guardrailed", fixtures=fixtures)
+    prepare_recording(output_dir, append=append)
     exporter = SpanCaptureExporter()
     provider = TracerProvider(resource=Resource.create({"service.name": "datagen.guardrailed"}))
     provider.add_span_processor(SimpleSpanProcessor(cast(Any, exporter)))
@@ -110,7 +123,7 @@ def record(
 
     fragments = []
     try:
-        for fixture in fixtures_for("guardrailed", fixtures=fixtures):
+        for fixture in selected_fixtures:
             fragments.append(record_fixture(fixture, output_dir, adapter))
     finally:
         instrumentor.uninstrument()
@@ -126,8 +139,10 @@ def record(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--condition")
+    parser.add_argument("--append", action="store_true")
     args = parser.parse_args()
-    fragments = record(args.output_dir)
+    fragments = record(args.output_dir, condition=args.condition, append=args.append)
     print(f"Recorded {len(fragments)} guardrail fragments in {args.output_dir}")
 
 

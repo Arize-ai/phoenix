@@ -1,6 +1,6 @@
 # Trace corpus recorders
 
-These scripts record deterministic application traffic through real OpenInference instrumenters.
+These scripts record application traffic through real OpenInference instrumenters.
 The resulting corpus contains raw OTLP protobuf JSON requests and the fragment rows used by the
 Phoenix datagen composer. Recording frameworks remain outside Phoenix runtime dependencies.
 
@@ -30,6 +30,54 @@ connection or API key.
 and ticket creation over `tool_fixtures.json`. The file contains separate customer-support,
 analytics, and coding data sets.
 
+## Generate varied recordings
+
+`organic_conditions.json` defines authored changes to recorder inputs. Each condition names a base
+fixture, a unique output fragment ID, an intensity, and one payload for each strength. Document
+edits and matched local-tool result overlays are applied before the application runs. Keep every
+condition fragment ID distinct from the IDs in `recorder_fixtures.json` and from other conditions.
+Intensity below `0.2` selects `subtle`, intensity below `0.5` selects `moderate`, and all higher
+valid values select `strong`.
+
+All recorder commands accept `--condition` and `--append`. With neither flag, a recorder uses its
+fixed fixtures and resets the output directory. A condition selects its one materialized fixture;
+`--append` preserves existing rows so multiple conditions and archetypes can share a recording
+directory.
+
+Plain chat, RAG, tool agent, and structured extraction also accept `--provider scripted|live`.
+Scripted is the default. Live recording requires an explicit `--model`, reads `OPENAI_API_KEY`, and
+uses `OPENAI_BASE_URL` when it is set. For example:
+
+```console
+export OPENAI_API_KEY="..."
+uv run --script scripts/datagen/tool_agent.py \
+  --output-dir dist/datagen/recording \
+  --condition support-stale-delivery-status \
+  --provider live \
+  --model gpt-5.4 \
+  --append
+```
+
+Graph and guardrail recorders are deterministic applications and therefore expose condition and
+append controls without provider or model options.
+
+A live run records every instrumented invocation that emits trace IDs. Responses are not compared
+with fixture-authored answers, and incomplete responses or traced application errors are retained.
+A run fails the recording contract only when it emits no trace IDs. Review or evaluate quality
+after recording; do not remove ambiguous outcomes from the generation stream.
+
+An operating agent can choose conditions, model power, run count, and command order. To use Codex
+with ChatGPT subscription access, authenticate once and ask the non-interactive command to inspect
+the playbook and invoke recorder commands:
+
+```console
+codex login
+codex exec 'Read scripts/datagen/README.md and scripts/datagen/organic_conditions.json. Choose varied conditions and models, run the applicable recorders into dist/datagen/recording with --append, and retain every run that emits trace IDs.'
+```
+
+`codex exec` chooses and runs commands in this workflow; it is not a provider implemented by the
+recorders. Direct `--provider live` recorder calls use API credentials from the environment.
+
 ## Recorder environments
 
 Every framework recorder has a PEP 723 dependency block and must be run with `uv run --script`.
@@ -42,7 +90,7 @@ may span multiple rows.
 
 ## Package a corpus
 
-After all selected fixtures have been recorded into one directory:
+After all selected fixtures and conditions have been recorded into one directory:
 
 ```console
 uv run python -m scripts.datagen.corpus <recording-dir> \

@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
@@ -34,6 +35,7 @@ from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor, TracerPro
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 if TYPE_CHECKING or __package__:
+    from scripts.datagen.conditions import materialize_condition
     from scripts.datagen.fake_tools import LocalTools, ToolError, local_tools
     from scripts.datagen.mock_openai_provider import ScriptedOpenAIProvider
     from scripts.datagen.recording import (
@@ -41,11 +43,12 @@ if TYPE_CHECKING or __package__:
         SpanCaptureExporter,
         append_spans,
         fixtures_for,
+        prepare_recording,
         record_fixture,
-        reset_recording,
         trace_ids,
     )
 else:
+    from conditions import materialize_condition
     from fake_tools import LocalTools, ToolError, local_tools
     from mock_openai_provider import ScriptedOpenAIProvider
     from recording import (
@@ -53,12 +56,13 @@ else:
         SpanCaptureExporter,
         append_spans,
         fixtures_for,
+        prepare_recording,
         record_fixture,
-        reset_recording,
         trace_ids,
     )
 
 MAX_TOOL_CALLS = 3
+Provider = Literal["scripted", "live"]
 
 
 class OpenInferenceContextSpanProcessor(SpanProcessor):
@@ -80,10 +84,13 @@ class ToolAgentRecorder:
         model: ChatOpenAI,
         tools: LocalTools,
         exporter: SpanCaptureExporter,
+        *,
+        require_terminal_answer: bool,
     ) -> None:
         self._model = model
         self._tools = tools
         self._exporter = exporter
+        self._require_terminal_answer = require_terminal_answer
 
     def record(self, fixture: RecorderFixture, traces_path: Path) -> tuple[str, ...]:
         prompt = fixture.inputs.get("prompt")
@@ -127,11 +134,17 @@ class ToolAgentRecorder:
         try:
             with using_session(fixture.fragment_id):
                 result = agent.invoke({"messages": [{"role": "user", "content": prompt}]})
+        except Exception:
+            if self._require_terminal_answer:
+                raise
+            result = []
         finally:
             spans = self._exporter.spans_since(checkpoint)
             if spans:
                 append_spans(traces_path, spans)
-        if not result or not isinstance(result[-1], AIMessage) or not result[-1].content:
+        if self._require_terminal_answer and (
+            not result or not isinstance(result[-1], AIMessage) or not result[-1].content
+        ):
             raise RuntimeError(f"fixture {fixture.fragment_id!r} did not finish with an answer")
         return trace_ids(spans)
 
@@ -168,32 +181,78 @@ def record(
     output_dir: Path,
     *,
     fixtures: Sequence[RecorderFixture] | None = None,
+    condition: str | None = None,
+    append: bool = False,
+    provider: Provider = "scripted",
+    model: str | None = None,
+    live_model: ChatOpenAI | None = None,
 ) -> tuple[dict[str, Any], ...]:
     """Record every selected tool-agent fixture into a corpus directory."""
-    reset_recording(output_dir)
+    if provider not in ("scripted", "live"):
+        raise ValueError(f"unknown tool-agent provider {provider!r}")
+    if condition is not None and fixtures is not None:
+        raise ValueError("condition and fixtures cannot be selected together")
+    if provider == "live" and not model:
+        raise ValueError("live tool-agent recording requires an explicit model")
+    if provider == "live" and live_model is None:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("live tool-agent recording requires OPENAI_API_KEY")
+        model_args: dict[str, Any] = {
+            "model": model,
+            "api_key": api_key,
+            "max_retries": 0,
+        }
+        if base_url := os.environ.get("OPENAI_BASE_URL"):
+            model_args["base_url"] = base_url
+        live_model = ChatOpenAI(**model_args)
+    conditioned_tools: LocalTools | None = None
+    if condition is not None:
+        conditioned = materialize_condition(condition)
+        if conditioned.fixture.archetype != "tool_agent":
+            raise ValueError(f"condition {condition!r} does not select a tool-agent fixture")
+        selected_fixtures: Sequence[RecorderFixture] = (conditioned.fixture,)
+        conditioned_tools = local_tools(
+            conditioned.fixture.domain,
+            fixture_set=conditioned.tool_fixture_set,
+            result_overlays=conditioned.tool_result_overlays,
+        )
+    else:
+        selected_fixtures = fixtures_for("tool_agent", fixtures=fixtures)
+    prepare_recording(output_dir, append=append)
     exporter = SpanCaptureExporter()
-    provider = TracerProvider(resource=Resource.create({"service.name": "datagen.tool_agent"}))
-    provider.add_span_processor(OpenInferenceContextSpanProcessor())
-    provider.add_span_processor(SimpleSpanProcessor(cast(Any, exporter)))
+    tracer_provider = TracerProvider(
+        resource=Resource.create({"service.name": "datagen.tool_agent"})
+    )
+    tracer_provider.add_span_processor(OpenInferenceContextSpanProcessor())
+    tracer_provider.add_span_processor(SimpleSpanProcessor(cast(Any, exporter)))
     instrumentor = LangChainInstrumentor()
-    instrumentor.instrument(tracer_provider=provider)
+    instrumentor.instrument(tracer_provider=tracer_provider)
     fragments = []
     try:
-        for fixture in fixtures_for("tool_agent", fixtures=fixtures):
-            scripted = ScriptedOpenAIProvider(_responses_for(fixture))
-            model = ChatOpenAI(
-                model="datagen-scripted",
-                api_key="datagen-dummy-key",
-                base_url="https://datagen.test/v1",
-                http_client=scripted.http_client(),
-                max_retries=0,
-                temperature=0,
+        for fixture in selected_fixtures:
+            if provider == "scripted":
+                scripted = ScriptedOpenAIProvider(_responses_for(fixture))
+                selected_model = ChatOpenAI(
+                    model="datagen-scripted",
+                    api_key="datagen-dummy-key",
+                    base_url="https://datagen.test/v1",
+                    http_client=scripted.http_client(),
+                    max_retries=0,
+                    temperature=0,
+                )
+            else:
+                selected_model = cast(ChatOpenAI, live_model)
+            recorder = ToolAgentRecorder(
+                selected_model,
+                conditioned_tools or local_tools(fixture.domain),
+                exporter,
+                require_terminal_answer=provider == "scripted",
             )
-            recorder = ToolAgentRecorder(model, local_tools(fixture.domain), exporter)
             fragments.append(record_fixture(fixture, output_dir, recorder.record))
     finally:
         instrumentor.uninstrument()
-        provider.shutdown()
+        tracer_provider.shutdown()
     return tuple(fragments)
 
 
@@ -212,9 +271,7 @@ def _responses_for(fixture: RecorderFixture) -> tuple[dict[str, Any], ...]:
             {"name": "record_lookup", "arguments": {"record_id": identifier}},
         )
     else:
-        identifier = next(
-            value for value in ("order-1001", "warehouse-east") if value in prompt
-        )
+        identifier = next(value for value in ("order-1001", "warehouse-east") if value in prompt)
         calls = (
             {"name": "record_lookup", "arguments": {"record_id": identifier}},
             {"name": "status_lookup", "arguments": {"status_id": identifier}},
@@ -227,8 +284,18 @@ def _responses_for(fixture: RecorderFixture) -> tuple[dict[str, Any], ...]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--condition")
+    parser.add_argument("--append", action="store_true")
+    parser.add_argument("--provider", choices=("scripted", "live"), default="scripted")
+    parser.add_argument("--model")
     args = parser.parse_args()
-    fragments = record(args.output_dir)
+    fragments = record(
+        args.output_dir,
+        condition=args.condition,
+        append=args.append,
+        provider=args.provider,
+        model=args.model,
+    )
     print(f"Recorded {len(fragments)} tool-agent fragments in {args.output_dir}")
 
 

@@ -27,23 +27,25 @@ from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor, TracerPro
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 if TYPE_CHECKING or __package__:
+    from scripts.datagen.conditions import materialize_condition
     from scripts.datagen.recording import (
         RecorderFixture,
         SpanCaptureExporter,
         append_spans,
         fixtures_for,
+        prepare_recording,
         record_fixture,
-        reset_recording,
         trace_ids,
     )
 else:
+    from conditions import materialize_condition
     from recording import (
         RecorderFixture,
         SpanCaptureExporter,
         append_spans,
         fixtures_for,
+        prepare_recording,
         record_fixture,
-        reset_recording,
         trace_ids,
     )
 
@@ -110,9 +112,20 @@ def record(
     output_dir: Path,
     *,
     fixtures: Sequence[RecorderFixture] | None = None,
+    condition: str | None = None,
+    append: bool = False,
 ) -> tuple[dict[str, Any], ...]:
     """Record every selected graph fixture into a corpus directory."""
-    reset_recording(output_dir)
+    if condition is not None and fixtures is not None:
+        raise ValueError("condition and fixtures cannot be selected together")
+    if condition is not None:
+        conditioned = materialize_condition(condition)
+        if conditioned.fixture.archetype != "graph_multi_agent":
+            raise ValueError(f"condition {condition!r} does not select a graph fixture")
+        selected_fixtures: Sequence[RecorderFixture] = (conditioned.fixture,)
+    else:
+        selected_fixtures = fixtures_for("graph_multi_agent", fixtures=fixtures)
+    prepare_recording(output_dir, append=append)
     exporter = SpanCaptureExporter()
     provider = TracerProvider(
         resource=Resource.create({"service.name": "datagen.graph_multi_agent"})
@@ -124,7 +137,7 @@ def record(
     fragments = []
     try:
         recorder = GraphMultiAgentRecorder(exporter)
-        for fixture in fixtures_for("graph_multi_agent", fixtures=fixtures):
+        for fixture in selected_fixtures:
             fragments.append(record_fixture(fixture, output_dir, recorder.record))
     finally:
         instrumentor.uninstrument()
@@ -135,8 +148,10 @@ def record(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--condition")
+    parser.add_argument("--append", action="store_true")
     args = parser.parse_args()
-    fragments = record(args.output_dir)
+    fragments = record(args.output_dir, condition=args.condition, append=args.append)
     print(f"Recorded {len(fragments)} graph fragments in {args.output_dir}")
 
 

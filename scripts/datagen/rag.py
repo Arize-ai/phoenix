@@ -41,7 +41,7 @@ class _LocalCohereClient:
         return _RerankResponse(results=tuple(ranked))
 
 
-def build_rag_engine(documents: Sequence[Mapping[str, Any]]) -> Any:
+def build_rag_engine(documents: Sequence[Mapping[str, Any]], *, llm: Any = None) -> Any:
     """Build a local LlamaIndex query engine over fixture documents."""
     from llama_index.core import Document, VectorStoreIndex  # type: ignore[import-not-found]
     from llama_index.core.embeddings import MockEmbedding  # type: ignore[import-not-found]
@@ -64,7 +64,7 @@ def build_rag_engine(documents: Sequence[Mapping[str, Any]]) -> Any:
     reranker._client = _LocalCohereClient()
     return RetrieverQueryEngine.from_args(
         retriever,
-        llm=MockLLM(max_tokens=24),
+        llm=llm or MockLLM(max_tokens=24),
         node_postprocessors=[reranker],
     )
 

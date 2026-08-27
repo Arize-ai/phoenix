@@ -136,6 +136,16 @@ def reset_recording(output_dir: Path) -> None:
         (output_dir / name).write_text("", encoding="utf-8")
 
 
+def prepare_recording(output_dir: Path, *, append: bool) -> None:
+    """Prepare recorder output, preserving existing rows when requested."""
+    if not append:
+        reset_recording(output_dir)
+        return
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for name in ("fragments.jsonl", "traces.jsonl"):
+        (output_dir / name).touch()
+
+
 def append_spans(path: Path, spans: Sequence[Any]) -> None:
     """Append completed SDK spans as one protobuf-JSON OTLP request."""
     from google.protobuf.json_format import MessageToJson

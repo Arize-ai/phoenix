@@ -23,6 +23,19 @@ def test_tool_agent_fixture_records_framework_and_tool_spans(tmp_path: Path) -> 
     assert {"AGENT", "TOOL", "LLM"}.issubset(kinds)
 
 
+def test_conditioned_tool_agent_records_authored_tool_results(tmp_path: Path) -> None:
+    fragments = record(tmp_path, condition="support-stale-delivery-status")
+
+    assert fragments[0]["fragment_id"] == "support-order-and-status-tools-stale"
+    outputs = {
+        attribute["value"].get("stringValue", "")
+        for span in _spans(tmp_path / "traces.jsonl")
+        for attribute in span["attributes"]
+        if attribute["key"] == "output.value"
+    }
+    assert any("exception_review" in output for output in outputs)
+
+
 def _spans(path: Path) -> list[dict[str, Any]]:
     return [
         span
