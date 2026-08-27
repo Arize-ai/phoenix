@@ -46,6 +46,7 @@ class AgentPrompts:
     phoenix_mcp_tools: str = _PHOENIX_MCP_TOOL_INSTRUCTIONS
     ui_contexts: str = _UI_CONTEXT_INSTRUCTIONS
 
+
 __all__ = [
     "AgentPrompts",
     "COMPACTION_INSTRUCTIONS_TEMPLATE",
