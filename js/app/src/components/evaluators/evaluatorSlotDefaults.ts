@@ -15,7 +15,7 @@ type BySlot<T> = Record<
  * author could have typed themselves — so the ghost text in the field is in
  * the same notation as anything they would replace it with.
  */
-export type EvaluatorSlotDefault = { kind: "path"; path: string };
+export type EvaluatorSlotDefault = { path: string };
 
 /**
  * Each slot's default, as the field's ghost text shows it.
@@ -25,14 +25,14 @@ export type EvaluatorSlotDefault = { kind: "path"; path: string };
  */
 const SLOT_DEFAULTS: BySlot<EvaluatorSlotDefault> = {
   span: {
-    input: { kind: "path", path: "metadata.span.input_value" },
-    output: { kind: "path", path: "metadata.span.output_value" },
-    metadata: { kind: "path", path: "metadata" },
+    input: { path: "metadata.span.input_value" },
+    output: { path: "metadata.span.output_value" },
+    metadata: { path: "metadata" },
   },
   session: {
-    input: { kind: "path", path: "metadata.first_input" },
-    output: { kind: "path", path: "metadata.last_output" },
-    metadata: { kind: "path", path: "metadata" },
+    input: { path: "metadata.first_input" },
+    output: { path: "metadata.last_output" },
+    metadata: { path: "metadata" },
   },
 };
 

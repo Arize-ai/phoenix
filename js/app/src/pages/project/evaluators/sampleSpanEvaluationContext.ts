@@ -82,17 +82,16 @@ const LLM_SAMPLE: SampleSpanEvaluationContext = {
   },
 };
 
-const SAMPLES_BY_SPAN_KIND: Record<string, SampleSpanEvaluationContext> = {
-  LLM: LLM_SAMPLE,
-};
-
-const SPAN_KIND_FILTER_PATTERN = /span_kind\s*==\s*['"]([A-Za-z_]+)['"]/;
-
+/**
+ * The span a scope with no matching records is previewed against.
+ *
+ * `_filterCondition` is what the scope selects on; the one sample stands in for
+ * every kind of span it could pick, so nothing reads it yet.
+ */
 export function getSampleSpanEvaluationContext(
-  filterCondition: string
+  _filterCondition: string
 ): SampleSpanEvaluationContext {
-  const spanKind = filterCondition.match(SPAN_KIND_FILTER_PATTERN)?.[1];
-  return (spanKind && SAMPLES_BY_SPAN_KIND[spanKind]) || LLM_SAMPLE;
+  return LLM_SAMPLE;
 }
 
 /** A grain's shape with no values: what exists, never what it holds. */

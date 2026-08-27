@@ -34,7 +34,7 @@ describe("the binding preview", () => {
         >
           <BindingPreview
             context={getSampleSpanEvaluationContext("").context}
-            recordNoun="span"
+            grain="span"
             inputMapping={{
               pathMapping: { input: "metadata.span.name" },
               literalMapping: {},

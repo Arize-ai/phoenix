@@ -48,38 +48,6 @@ ${TYPESCRIPT_INDENT}return { score: 1, label: "pass", explanation: "..." };
 `;
 }
 
-/**
- * Returns every source string the language-swap guard treats as a
- * generated default — i.e., placeholders that are safe to overwrite on
- * language change. User-authored code must not appear in this set.
- */
-export function getAllGeneratedSources(
-  language: CodeEvaluatorLanguage,
-  grain: EvaluatorMappingSourceGrain
-): string[] {
-  return [getDefaultCodeEvaluatorSource(language, grain)];
-}
-
-/**
- * The source code a language switch should land on: the default placeholder
- * for the next language when the current source is still a generated
- * placeholder, otherwise the current source untouched — never overwrite
- * user-authored code.
- */
-export function getNextCodeEvaluatorSource({
-  sourceCode,
-  language,
-  nextLanguage,
-}: {
-  sourceCode: string;
-  language: CodeEvaluatorLanguage;
-  nextLanguage: CodeEvaluatorLanguage;
-}): string {
-  return getAllGeneratedSources(language).includes(sourceCode)
-    ? getDefaultCodeEvaluatorSource(nextLanguage)
-    : sourceCode;
-}
-
 export const extractCodeEvaluatorVariables = ({
   language,
   sourceCode,
@@ -116,7 +84,8 @@ export function extractCodeEvaluatorVariablesFromState({
   );
 }
 
-export type CodeEvaluatorCompletionPosition = "signature" | "body" | null;
+/** Where in the `evaluate` declaration a completion is being asked for. */
+type CodeEvaluatorCompletionPosition = "signature" | "body" | null;
 
 /**
  * Locates the cursor in the top-level `evaluate` declaration CodeMirror parsed.

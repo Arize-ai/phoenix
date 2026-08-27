@@ -75,12 +75,12 @@ import type { ProjectEvaluatorScopePanelSessionCountQuery } from "@phoenix/pages
 import type { ProjectEvaluatorScopePanelSessionsQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionsQuery.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
 import { getEvaluatorBoundVariables } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
-import { toBoundValueDisplay } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBoundVariables";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
   dropOtherGrainEntityPathMappings,
   getProjectEvaluatorMappingDiagnostics,
   toEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
@@ -801,8 +801,6 @@ type RecordedRunListRow = {
   unavailableReason?: string;
 };
 
-/** Names the kind of record a row holds, for prose and accessible labels. */
-type RecordedRunNoun = "span" | "session";
 
 const SAMPLE_ROW_KEY = "__sample__";
 
@@ -947,7 +945,7 @@ function RecordedRunList({
   onCanRunAllChange,
 }: {
   rows: RecordedRunListRow[];
-  recordNoun: RecordedRunNoun;
+  recordNoun: ProjectEvaluatorMappingSourceGrain;
   listLabel: string;
   hasMore: boolean;
   isLoadingMore: boolean;
@@ -1084,7 +1082,7 @@ function RecordedRunRow({
   requiredVariables,
 }: {
   row: RecordedRunListRow;
-  recordNoun: RecordedRunNoun;
+  recordNoun: ProjectEvaluatorMappingSourceGrain;
   isExpanded: boolean;
   onToggleExpanded: () => void;
   run: RecordedRun | undefined;
@@ -1166,7 +1164,7 @@ function RecordedRunRow({
                     <Flex direction="column" gap="size-200">
                       <BindingPreview
                         context={row.mappingContext ?? row.context}
-                        recordNoun={recordNoun}
+                        grain={recordNoun}
                         inputMapping={inputMapping}
                         requiredVariables={requiredVariables}
                         isSampleContext={row.isSample}
@@ -1301,13 +1299,14 @@ type BindingRow = {
  */
 export function BindingPreview({
   context,
-  recordNoun,
+  grain,
   inputMapping,
   requiredVariables,
   isSampleContext,
 }: {
   context: unknown;
-  recordNoun: RecordedRunNoun;
+  /** The kind of record the row holds; the same word its prose uses. */
+  grain: ProjectEvaluatorMappingSourceGrain;
   inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
   isSampleContext: boolean;
@@ -1323,7 +1322,6 @@ export function BindingPreview({
     variables,
     requiredVariables,
   });
-  const grain = recordNoun === "session" ? "session" : "span";
   // The preview binds what a live run binds because it is the same
   // materialization the authoring tools read — the slot fallbacks, the
   // `metadata` key, and the path resolver all live there, not here.
@@ -1367,8 +1365,8 @@ export function BindingPreview({
   return (
     <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
-        <Alert variant="info" title={`Standard ${recordNoun} fields`}>
-          Values fill in once this project has a {recordNoun} that matches.
+        <Alert variant="info" title={`Standard ${grain} fields`}>
+          Values fill in once this project has a {grain} that matches.
         </Alert>
       ) : null}
       {[...slotRows, ...mappedRows].map((row) =>
@@ -1396,11 +1394,11 @@ export function BindingPreview({
           <Alert
             key={variable}
             variant="danger"
-            title={`${variable} would fail on this ${recordNoun}`}
+            title={`${variable} would fail on this ${grain}`}
           >
             {source === "path"
               ? `Nothing matches ${path}, so the evaluation stops with an error instead of writing an annotation.`
-              : `This ${recordNoun} offers no ${variable}, so the evaluation stops with an error instead of writing an annotation.`}
+              : `This ${grain} offers no ${variable}, so the evaluation stops with an error instead of writing an annotation.`}
           </Alert>
         ) : status === "unverified" ? (
           <Alert
@@ -1469,6 +1467,35 @@ function MetadataBindingTree({
       ))}
     </Flex>
   );
+}
+
+/** Digits a rounded number keeps before the rest moves to the hover title. */
+const DISPLAY_SIGNIFICANT_DIGITS = 4;
+
+/**
+ * What a bound value reads as in the row, plus the exact value to hover for
+ * when rounding hid something.
+ *
+ * A cost arrives with more decimals than a row this narrow can be read at, so
+ * the row is rounded and the full number stays one hover away. Whole numbers
+ * and everything that is not a number are already exact.
+ */
+function toBoundValueDisplay(value: unknown): {
+  text: string | undefined;
+  exact?: string;
+} {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    !Number.isInteger(value)
+  ) {
+    const rounded = Number(value.toPrecision(DISPLAY_SIGNIFICANT_DIGITS));
+    return {
+      text: String(rounded),
+      exact: rounded === value ? undefined : String(value),
+    };
+  }
+  return { text: toContentPreview(value, { maxLength: 64 }) };
 }
 
 /** A value a single line cannot show whole earns the expand affordance. */

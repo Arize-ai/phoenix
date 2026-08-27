@@ -78,7 +78,6 @@ import { CodeEvaluatorTestSection } from "@phoenix/components/evaluators/CodeEva
 import { generateEvaluatorTypes } from "@phoenix/components/evaluators/codeEvaluatorTypeGeneration";
 import {
   extractCodeEvaluatorVariables,
-  getAllGeneratedSources,
   getDefaultCodeEvaluatorSource,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
@@ -576,13 +575,12 @@ export const EditCodeEvaluatorDialogContent = ({
                   language={language}
                   onLanguageChange={(nextLanguage) => {
                     setLanguage((currentLanguage) => {
-                      // Auto-swap only if sourceCode is still a generated
+                      // Auto-swap only if sourceCode is still the generated
                       // placeholder — never overwrite user-authored code.
-                      const currentDefaults = getAllGeneratedSources(
-                        currentLanguage,
-                        grain
-                      );
-                      if (currentDefaults.includes(sourceCode)) {
+                      if (
+                        sourceCode ===
+                        getDefaultCodeEvaluatorSource(currentLanguage, grain)
+                      ) {
                         setSourceCode(
                           getDefaultCodeEvaluatorSource(nextLanguage, grain)
                         );

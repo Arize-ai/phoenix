@@ -3,8 +3,6 @@ import type { ReactNode } from "react";
 import { Flex, Heading, Text, View } from "@phoenix/components";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
-import { BOUND_VARIABLES_PLACEMENT } from "@phoenix/pages/project/evaluators/boundVariablesPlacement";
-import { ProjectEvaluatorBoundVariables } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBoundVariables";
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import type {
@@ -99,16 +97,6 @@ const ProjectEvaluatorInputMappingSection = ({
           <ProjectEvaluatorInputMapping key={grain} grain={grain} />
         </View>
       </Flex>
-      {BOUND_VARIABLES_PLACEMENT === "mapping-section" ? (
-        <View
-          borderRadius="medium"
-          borderWidth="thin"
-          padding="size-200"
-          borderColor="default"
-        >
-          <ProjectEvaluatorBoundVariables grain={grain} />
-        </View>
-      ) : null}
     </Flex>
   );
 };

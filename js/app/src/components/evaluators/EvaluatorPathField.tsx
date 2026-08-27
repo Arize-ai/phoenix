@@ -22,10 +22,7 @@ import {
   resolveEvaluatorPath,
   SUGGESTED_PATH_SECTION,
 } from "./evaluatorPathCompletions";
-import type {
-  EvaluatorSlotDefault,
-  EvaluatorSlotName,
-} from "./evaluatorSlotDefaults";
+import type { EvaluatorSlotName } from "./evaluatorSlotDefaults";
 import {
   getEvaluatorSlotDefault,
   getEvaluatorSlotDefaults,
@@ -164,7 +161,7 @@ export function EvaluatorPathField({
       aria-label={ariaLabel}
       subjectLabel="path"
       leadingVisual={null}
-      placeholder={toGhostText(slotDefault)}
+      placeholder={slotDefault.path}
       value={value}
       onChange={onChange}
       completions={NO_COMPLETIONS}
@@ -179,11 +176,6 @@ export function EvaluatorPathField({
 }
 
 function noop() {}
-
-/** The ghost the field shows while the slot is unmapped. */
-function toGhostText(slotDefault: EvaluatorSlotDefault): string {
-  return slotDefault.path;
-}
 
 /**
  * Offers the level of the evaluation context the cursor sits in.

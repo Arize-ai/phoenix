@@ -14,7 +14,6 @@ import type {
   EvaluatorMappingSource,
   EvaluatorMappingSourceGrain,
 } from "@phoenix/types";
-import { assertUnreachable } from "@phoenix/typeUtils";
 
 type EvaluatorMappingSourceFieldConfig<
   TGrain extends EvaluatorMappingSourceGrain,
@@ -60,86 +59,35 @@ const DATASET_FIELD_CONFIG: EvaluatorMappingSourceFieldConfig<"dataset">[] = [
   },
 ];
 
-const SPAN_FIELD_CONFIG: EvaluatorMappingSourceFieldConfig<"span">[] = [
-  {
-    field: "input",
-    label: "input",
-    description: "The whole matched span.",
-    tooltip:
-      "An unmapped input receives the entire span document; a path mapping narrows it to one field.",
-  },
-  {
-    field: "output",
-    label: "output",
-    description: "From the matched span's output.",
-    tooltip:
-      "This is the span's output value, extracted using OpenInference semantic conventions.",
-  },
-];
-
-const SESSION_FIELD_CONFIG: EvaluatorMappingSourceFieldConfig<"session">[] = [
-  {
-    field: "input",
-    label: "input",
-    description: "The whole matched session.",
-    tooltip:
-      "An unmapped input receives the entire session document, including its turns; a path mapping narrows it to one field.",
-  },
-  {
-    field: "output",
-    label: "output",
-    description: "From the matched session's last turn.",
-    tooltip:
-      "This is the output of the session's newest turn, null when that turn produced none.",
-  },
-];
-
 const editorContainerCSS = css`
   min-height: 60px;
   border-radius: var(--global-rounding-small);
   background-color: var(--global-input-field-background-color);
 `;
 
+/**
+ * Only a dataset example's context is authored by hand; a span or a session
+ * arrives from the server and is chosen, never typed.
+ */
 type EvaluatorMappingSourceEditorProps = {
-  [TGrain in EvaluatorMappingSourceGrain]: {
-    grain: TGrain;
-    value: EvaluatorMappingSource<TGrain>;
-    onFieldChange: (
-      field: Extract<keyof EvaluatorMappingSource<TGrain>, string>,
-      value: Record<string, unknown>
-    ) => void;
-    editorKeyPrefix?: string;
-  };
-}[EvaluatorMappingSourceGrain];
+  grain: "dataset";
+  value: EvaluatorMappingSource<"dataset">;
+  onFieldChange: (
+    field: Extract<keyof EvaluatorMappingSource<"dataset">, string>,
+    value: Record<string, unknown>
+  ) => void;
+  editorKeyPrefix?: string;
+};
 
 export function EvaluatorMappingSourceEditor(
   props: EvaluatorMappingSourceEditorProps
 ) {
-  switch (props.grain) {
-    case "span":
-      return (
-        <EvaluatorMappingSourceFields
-          {...props}
-          fieldConfig={SPAN_FIELD_CONFIG}
-        />
-      );
-    case "session":
-      return (
-        <EvaluatorMappingSourceFields
-          {...props}
-          fieldConfig={SESSION_FIELD_CONFIG}
-        />
-      );
-    case "dataset":
-      return (
-        <EvaluatorMappingSourceFields
-          {...props}
-          fieldConfig={DATASET_FIELD_CONFIG}
-        />
-      );
-    default:
-      return assertUnreachable(props);
-  }
+  return (
+    <EvaluatorMappingSourceFields
+      {...props}
+      fieldConfig={DATASET_FIELD_CONFIG}
+    />
+  );
 }
 
 function EvaluatorMappingSourceFields<
