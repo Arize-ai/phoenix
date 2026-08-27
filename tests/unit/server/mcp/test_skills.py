@@ -53,9 +53,10 @@ class TestHandshake:
             assert client.initialize_result is not None
             instructions = client.initialize_result.instructions or ""
 
-        assert "Available skills:" in instructions
+        assert "<available_skills>" in instructions
         for skill in load_skills(PXI_SKILLS_ROOTS):
-            assert f"- {skill.name}: {skill.description}" in instructions
+            assert f"<name>{skill.name}</name>" in instructions
+            assert f"<description>{skill.description}</description>" in instructions
         assert "`load_skill`" in instructions
         assert "`load_skill_reference`" in instructions
 

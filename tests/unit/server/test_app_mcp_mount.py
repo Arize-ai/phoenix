@@ -156,8 +156,8 @@ async def test_the_agents_own_server_adds_the_pxi_skills(
         )
 
     instructions = app.state.pxi_mcp_server.instructions
-    assert "- project-overview: " in instructions
-    assert "- phoenix-graphql: " in instructions
+    assert "<name>project-overview</name>" in instructions
+    assert "<name>phoenix-graphql</name>" in instructions
 
 
 def test_code_mode_requires_a_monty_runtime(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -374,10 +374,10 @@ def _get_concatenated_text(blocks: list[BetaTextBlockParam]) -> str:
 
 
 def _get_skills_catalog(body: MessageCreateParams) -> str:
-    """Return the ``Available skills:`` listing from the request's system blocks."""
+    """Return the ``<available_skills>`` listing from the request's system blocks."""
     text = "\n".join(_get_system_texts(body))
-    start = text.index("Available skills:")
-    end = text.index("\n\n", start)
+    start = text.index("<available_skills>")
+    end = text.index("</available_skills>", start)
     return text[start:end]
 
 
@@ -443,7 +443,7 @@ class TestSystemBlockCacheBoundary:
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
-        assert "Available skills:" in cached_text
+        assert "<available_skills>" in cached_text
         assert "<phoenix_project_context>" in cached_text
 
     async def test_nothing_sits_after_the_cache_breakpoint(
@@ -476,7 +476,7 @@ class TestSystemBlockCacheBoundary:
         cached_text = _get_concatenated_text(cached_blocks)
         for documented in (
             _DEFAULT_PROMPTS.base,
-            "Available skills:",
+            "<available_skills>",
             "<phoenix_project_context>",
             "<phoenix_playground_context>",
             "<phoenix_gql_mutations_policy>",
@@ -1090,9 +1090,10 @@ class TestSkills:
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
-        assert "Available skills:" in cached_text
+        assert "<available_skills>" in cached_text
         for skill in load_skills(PXI_SKILLS_ROOTS):
-            assert f"- {skill.name}: {skill.description}" in cached_text
+            assert f"<name>{skill.name}</name>" in cached_text
+            assert f"<description>{skill.description}</description>" in cached_text
 
     async def test_catalog_is_identical_on_an_empty_and_a_fully_mounted_surface(
         self,
@@ -1147,7 +1148,7 @@ class TestSkills:
         await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
 
         assert "load_skill" not in _get_tool_names(captured_request.body)
-        assert "Available skills:" not in "\n".join(_get_system_texts(captured_request.body))
+        assert "<available_skills>" not in "\n".join(_get_system_texts(captured_request.body))
 
 
 class TestEvaluatorsSkillLoadContract:

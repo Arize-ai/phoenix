@@ -15,6 +15,8 @@ from fastmcp.tools.base import Tool
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
+from phoenix.server.agents.prompts.templating import get_template
+
 _SERVER_DIR = Path(__file__).resolve().parents[2]
 
 GENERAL_SKILLS_ROOT = Path(__file__).resolve().parent / "general"
@@ -22,6 +24,8 @@ PXI_SKILLS_ROOT = _SERVER_DIR / "agents" / "prompts" / "skills"
 PXI_SKILLS_ROOTS: tuple[Path, ...] = (GENERAL_SKILLS_ROOT, PXI_SKILLS_ROOT)
 
 SKILL_TOOLS_TAG = "phoenix-mcp-skills"
+
+_INSTRUCTIONS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 
 _SKILL_FILE = "SKILL.md"
 _REFERENCES_DIR = "references"
@@ -177,26 +181,11 @@ def get_skill_instructions(skills: Sequence[Skill]) -> str:
     which is the one place a skill's trigger guidance can reach a model before
     the skill is loaded.
     """
-    listing = "\n".join(f"- {skill.name}: {skill.description}" for skill in skills)
-    return (
-        "Phoenix skills are instructions for working in a domain. Before working in a "
-        "skill's domain, call `load_skill` with its name and follow what it returns.\n\n"
-        f"Available skills:\n{listing}\n\n"
-        "Load each skill at most once per conversation: if a successful load already "
-        "appears in the conversation, reuse it. A loaded skill may list reference files; "
-        "load one with `load_skill_reference`, using the exact names the skill lists."
-    )
+    return _INSTRUCTIONS_TEMPLATE.render(skills=skills)
 
 
 def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
-    """Add ``load_skill`` and ``load_skill_reference`` over ``skills`` to ``mcp``.
-
-    Both tools enumerate their parameters in the schema rather than listing
-    them in a description, so a client can validate a call before making it.
-    ``reference_name`` enumerates every skill's references at once: a
-    per-skill conditional schema is not portable across the model providers
-    clients hand tool schemas to, so a mismatched pair is caught at call time.
-    """
+    """Add ``load_skill`` and ``load_skill_reference`` over ``skills`` to ``mcp``."""
     by_name = {skill.name: skill for skill in skills}
     reference_names = sorted({r.name for skill in skills for r in skill.references})
 
@@ -229,7 +218,6 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
             )
         return reference.read()
 
-    # `output_schema=None`: see `register_analytics_sql_tools` for the reasoning.
     load = Tool.from_function(
         load_skill,
         description=(
@@ -250,11 +238,13 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
         annotations=_READ_ONLY,
         output_schema=None,
     )
-    mcp.add_tool(_enumerate(load, skill_name=list(by_name)))
-    mcp.add_tool(_enumerate(read, skill_name=list(by_name), reference_name=reference_names))
+    mcp.add_tool(_set_parameter_enums(load, skill_name=list(by_name)))
+    mcp.add_tool(
+        _set_parameter_enums(read, skill_name=list(by_name), reference_name=reference_names)
+    )
 
 
-def _enumerate(tool: Tool, **values: Sequence[str]) -> Tool:
+def _set_parameter_enums(tool: Tool, **values: Sequence[str]) -> Tool:
     """Constrain ``tool``'s named string parameters to ``values`` in its schema.
 
     A parameter with no values is left open: an empty ``enum`` is invalid.
