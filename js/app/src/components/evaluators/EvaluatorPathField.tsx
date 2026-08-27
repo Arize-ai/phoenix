@@ -91,6 +91,8 @@ export function EvaluatorPathField({
 
   // CodeMirror is reconfigured whenever these change identity, which discards
   // the open dropdown, so they are memoized rather than left to the compiler.
+  // This only stops churn; a reconfigure the data genuinely earned is what
+  // DSLFilterConditionField re-opens the dropdown after.
   const evaluationContext = useMemo(
     () =>
       materializeEvaluatorContext({

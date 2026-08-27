@@ -890,8 +890,9 @@ export const CodeEvaluatorSourceEditor = ({
 
   // The sampled record can arrive after the user has already put the cursor
   // in a completable position — the reconfigure it causes discards any open
-  // dropdown, so re-open it. The source offers nothing outside those
-  // positions, so this is inert elsewhere in the source code.
+  // dropdown, so re-open it, the same way DSLFilterConditionField does. The
+  // source offers nothing outside those positions, so this is inert
+  // elsewhere in the source code.
   const editorViewRef = useRef<EditorView | null>(null);
   useEffect(() => {
     const editorView = editorViewRef.current;
