@@ -12,9 +12,11 @@ import {
   toCodeEvaluatorAccessor,
   toCodeEvaluatorPathExpression,
 } from "@phoenix/components/evaluators/codeEvaluatorMemberPath";
+import type { CodeEvaluatorSignatureNameSlot } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import {
   extractCodeEvaluatorVariablesFromState,
   getCodeEvaluatorCompletionPosition,
+  getCodeEvaluatorSignatureNameSlot,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import {
@@ -182,12 +184,21 @@ export function createEvaluatorCompletions({
       return null;
     }
 
+    if (position === "signature") {
+      return createSignatureResult({
+        context,
+        mappingSource,
+        language,
+        evaluationContext,
+      });
+    }
+
     const declaredNames = extractCodeEvaluatorVariablesFromState({
       language,
       state: context.state,
     });
 
-    if (position === "body" && evaluationContext !== null) {
+    if (evaluationContext !== null) {
       const drill = createMemberDrillResult({
         context,
         language,
@@ -203,28 +214,10 @@ export function createEvaluatorCompletions({
     if (!word) {
       return null;
     }
-    let options: Completion[];
-
-    if (position === "signature") {
-      options = createSignatureOptions({
-        mappingSource,
-        language,
-        evaluationContext,
-        declaredNames,
-      });
-    } else if (word.text.includes(".") || word.text.includes("?")) {
-      options = createMemberOptions({
-        mappingSource,
-        language,
-        declaredNames,
-      });
-    } else {
-      options = createBodyOptions({
-        declaredNames,
-        evaluationContext,
-        language,
-      });
-    }
+    const options =
+      word.text.includes(".") || word.text.includes("?")
+        ? createMemberOptions({ mappingSource, language, declaredNames })
+        : createBodyOptions({ declaredNames, evaluationContext, language });
 
     const typed = word.text.toLowerCase();
     const filteredOptions = typed
@@ -233,11 +226,7 @@ export function createEvaluatorCompletions({
     if (filteredOptions.length === 0) {
       return null;
     }
-    if (
-      position !== "signature" &&
-      word.from === word.to &&
-      !context.explicit
-    ) {
+    if (word.from === word.to && !context.explicit) {
       return null;
     }
 
@@ -252,6 +241,94 @@ export function createEvaluatorCompletions({
       }),
     };
   };
+}
+
+/**
+ * The names the signature can still be given, written into the name slot the
+ * cursor sits in.
+ *
+ * Returns null where the signature is not naming a parameter — a default
+ * value, an annotation, or a variadic binds none of the evaluator's inputs.
+ */
+function createSignatureResult({
+  context,
+  mappingSource,
+  language,
+  evaluationContext,
+}: {
+  context: CompletionContext;
+  mappingSource: EvaluatorMappingSource;
+  language: CodeEvaluatorLanguage;
+  evaluationContext: MaterializedEvaluatorContext | null;
+}): CompletionResult | null {
+  const slot = getCodeEvaluatorSignatureNameSlot({
+    language,
+    state: context.state,
+    pos: context.pos,
+  });
+  if (slot === null) {
+    return null;
+  }
+  const slotName = context.state.doc.sliceString(slot.from, slot.to);
+  const options = createSignatureOptions({
+    mappingSource,
+    language,
+    evaluationContext,
+    // The name being rewritten is not one the signature already spends, or the
+    // row that would replace it would be filtered out of its own slot.
+    declaredNames: extractCodeEvaluatorVariablesFromState({
+      language,
+      state: context.state,
+    }).filter((name) => name !== slotName),
+  }).map((option) => ({
+    ...option,
+    apply: toSignatureInsertion({
+      state: context.state,
+      slot,
+      name: option.label,
+    }),
+  }));
+
+  const typed = context.state.doc
+    .sliceString(slot.from, context.pos)
+    .toLowerCase();
+  const filteredOptions = typed
+    ? options.filter((option) => option.label.toLowerCase().includes(typed))
+    : options;
+  return filteredOptions.length === 0
+    ? null
+    : {
+        from: slot.from,
+        to: slot.to,
+        options: filteredOptions,
+        validFor: /^\w*$/,
+      };
+}
+
+/**
+ * A name written into its slot, with whatever separates it from its
+ * neighbours.
+ *
+ * Both languages put a space after a comma and inside a destructure, so a row
+ * landing against one supplies the space the author has not typed yet.
+ */
+function toSignatureInsertion({
+  state,
+  slot,
+  name,
+}: {
+  state: EditorState;
+  slot: CodeEvaluatorSignatureNameSlot;
+  name: string;
+}): string {
+  if (slot.requiresDestructure) {
+    return `{ ${name} }`;
+  }
+  const before = state.doc.sliceString(slot.from - 1, slot.from);
+  const after = state.doc.sliceString(slot.to, slot.to + 1);
+  const lead = before === "," || before === "{" ? " " : "";
+  const trail = after === "}" ? " " : "";
+  return `${lead}${name}${trail}`;
 }
 
 function createSignatureOptions({
@@ -270,9 +347,8 @@ function createSignatureOptions({
     return createCompletionOptions({ mappingSource, language })
       .filter(
         (option) =>
+          option.type === "variable" &&
           !option.label.includes(".") &&
-          !option.label.includes("(") &&
-          !option.label.includes("?") &&
           !declared.has(option.label)
       )
       .map((option, index) => ({

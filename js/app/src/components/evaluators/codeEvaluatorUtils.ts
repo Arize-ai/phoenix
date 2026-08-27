@@ -110,14 +110,7 @@ export function getCodeEvaluatorCompletionPosition({
   }
 
   const nodeAtCursor = syntaxTree(state).resolveInner(pos, -1);
-  const isInParameters = hasAncestor({
-    node: nodeAtCursor,
-    ancestor: definition.paramList,
-  });
-  const isInObjectPattern =
-    definition.objectPattern === null ||
-    hasAncestor({ node: nodeAtCursor, ancestor: definition.objectPattern });
-  if (isInParameters && isInObjectPattern) {
+  if (hasAncestor({ node: nodeAtCursor, ancestor: definition.paramList })) {
     return "signature";
   }
 
@@ -135,6 +128,237 @@ export function getCodeEvaluatorCompletionPosition({
     return "body";
   }
   return null;
+}
+
+/**
+ * The parameter name the cursor is writing, and how it has to be written.
+ *
+ * A completion at the signature replaces this range rather than the text
+ * behind the cursor, so a name edited from the middle is rewritten whole
+ * instead of being doubled.
+ */
+export type CodeEvaluatorSignatureNameSlot = {
+  from: number;
+  to: number;
+  /**
+   * Whether the name has to be wrapped in a destructure. A TypeScript
+   * evaluator is handed one object, so a parameter list that has not opened
+   * one yet grows it around the name being written.
+   */
+  requiresDestructure: boolean;
+};
+
+/**
+ * The name slot the cursor sits in, or null where the signature is not naming
+ * a parameter — inside a default value, an annotation, or a variadic, none of
+ * which bind one of the evaluator's inputs.
+ *
+ * @param params - editor position inputs
+ * @param params.language - evaluator source language
+ * @param params.state - current CodeMirror state
+ * @param params.pos - cursor offset in the document
+ */
+export function getCodeEvaluatorSignatureNameSlot({
+  language,
+  state,
+  pos,
+}: {
+  language: CodeEvaluatorLanguage;
+  state: EditorState;
+  pos: number;
+}): CodeEvaluatorSignatureNameSlot | null {
+  const definition = getCodeEvaluatorDefinition({ language, state });
+  if (definition === null) {
+    return null;
+  }
+  if (language === "PYTHON") {
+    return getPythonNameSlot({ state, paramList: definition.paramList, pos });
+  }
+  return definition.objectPattern === null
+    ? getTypeScriptParameterNameSlot({
+        state,
+        paramList: definition.paramList,
+        pos,
+      })
+    : getTypeScriptPatternNameSlot({
+        state,
+        objectPattern: definition.objectPattern,
+        pos,
+      });
+}
+
+/** One comma-separated slot of a parameter list or destructure. */
+type ParameterSegment = {
+  from: number;
+  to: number;
+  children: CodeEvaluatorSyntaxNode[];
+};
+
+/** The slot `pos` sits in, brackets and separators excluded. */
+function findParameterSegment({
+  parent,
+  pos,
+}: {
+  parent: CodeEvaluatorSyntaxNode;
+  pos: number;
+}): ParameterSegment | null {
+  const segments: ParameterSegment[] = [];
+  let from = parent.from;
+  let children: CodeEvaluatorSyntaxNode[] = [];
+  let isClosed = false;
+  for (const child of getDirectChildren(parent)) {
+    if (child.name === "(" || child.name === "{") {
+      from = child.to;
+      children = [];
+    } else if (child.name === ",") {
+      segments.push({ from, to: child.from, children });
+      from = child.to;
+      children = [];
+    } else if (child.name === ")" || child.name === "}") {
+      segments.push({ from, to: child.from, children });
+      isClosed = true;
+      break;
+    } else {
+      children.push(child);
+    }
+  }
+  if (!isClosed) {
+    segments.push({ from, to: parent.to, children });
+  }
+  return (
+    segments.find((segment) => segment.from <= pos && pos <= segment.to) ?? null
+  );
+}
+
+function getPythonNameSlot({
+  state,
+  paramList,
+  pos,
+}: {
+  state: EditorState;
+  paramList: CodeEvaluatorSyntaxNode;
+  pos: number;
+}): CodeEvaluatorSignatureNameSlot | null {
+  const segment = findParameterSegment({ parent: paramList, pos });
+  if (segment === null) {
+    return null;
+  }
+  // A variadic gathers whatever is left over instead of binding one of the
+  // evaluator's inputs, so its name is not a slot a row can fill.
+  if (segment.children.some(({ name }) => name === "*" || name === "**")) {
+    return null;
+  }
+  const trailing = segment.children.find(
+    ({ name }) => name === "TypeDef" || name === "AssignOp"
+  );
+  return toNameSlot({
+    state,
+    from: segment.from,
+    to: trailing?.from ?? segment.to,
+    pos,
+    requiresDestructure: false,
+  });
+}
+
+function getTypeScriptPatternNameSlot({
+  state,
+  objectPattern,
+  pos,
+}: {
+  state: EditorState;
+  objectPattern: CodeEvaluatorSyntaxNode;
+  pos: number;
+}): CodeEvaluatorSignatureNameSlot | null {
+  const segment = findParameterSegment({ parent: objectPattern, pos });
+  if (segment === null) {
+    return null;
+  }
+  const property = segment.children.find(
+    ({ name }) => name === "PatternProperty"
+  );
+  if (property === undefined) {
+    return toNameSlot({
+      state,
+      from: segment.from,
+      to: segment.to,
+      pos,
+      requiresDestructure: false,
+    });
+  }
+  if (findDirectChild({ parent: property, name: "Spread" }) !== null) {
+    return null;
+  }
+  // The key is what binds an input; a rename or a default sits beside it and
+  // names nothing the evaluator is handed.
+  const propertyName = findDirectChild({
+    parent: property,
+    name: "PropertyName",
+  });
+  return propertyName === null
+    ? null
+    : toNameSlot({
+        state,
+        from: propertyName.from,
+        to: propertyName.to,
+        pos,
+        requiresDestructure: false,
+      });
+}
+
+function getTypeScriptParameterNameSlot({
+  state,
+  paramList,
+  pos,
+}: {
+  state: EditorState;
+  paramList: CodeEvaluatorSyntaxNode;
+  pos: number;
+}): CodeEvaluatorSignatureNameSlot | null {
+  const segment = findParameterSegment({ parent: paramList, pos });
+  if (segment === null) {
+    return null;
+  }
+  if (segment.children.some(({ name }) => name === "Spread")) {
+    return null;
+  }
+  const annotation = segment.children.find(
+    ({ name }) => name === "TypeAnnotation"
+  );
+  return toNameSlot({
+    state,
+    from: segment.from,
+    to: annotation?.from ?? segment.to,
+    pos,
+    requiresDestructure: true,
+  });
+}
+
+/** The slot's name text, less the whitespace the author left around it. */
+function toNameSlot({
+  state,
+  from,
+  to,
+  pos,
+  requiresDestructure,
+}: {
+  state: EditorState;
+  from: number;
+  to: number;
+  pos: number;
+  requiresDestructure: boolean;
+}): CodeEvaluatorSignatureNameSlot | null {
+  if (from > to || pos < from || pos > to) {
+    return null;
+  }
+  const text = state.doc.sliceString(from, to);
+  if (text.trim() === "") {
+    return { from: pos, to: pos, requiresDestructure };
+  }
+  const start = from + (text.length - text.trimStart().length);
+  const end = to - (text.length - text.trimEnd().length);
+  return pos < start || pos > end
+    ? null
+    : { from: start, to: end, requiresDestructure };
 }
 
 type CodeEvaluatorVariableDefinition = {
@@ -236,8 +460,7 @@ function getCodeEvaluatorDefinition({
       if (
         nameNode !== null &&
         getNodeText({ state, node: nameNode }) === "evaluate" &&
-        paramList !== null &&
-        objectPattern !== null
+        paramList !== null
       ) {
         return {
           paramList,
@@ -272,8 +495,7 @@ function getCodeEvaluatorDefinition({
         nameNode !== null &&
         getNodeText({ state, node: nameNode }) === "evaluate" &&
         arrowFunction !== null &&
-        paramList !== null &&
-        objectPattern !== null
+        paramList !== null
       ) {
         return {
           paramList,
