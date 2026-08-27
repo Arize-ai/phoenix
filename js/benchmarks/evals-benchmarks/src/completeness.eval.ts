@@ -1,5 +1,5 @@
 /**
- * Completeness evaluator benchmark — 20 synthetic traces.
+ * Completeness evaluator benchmark — 35 synthetic traces.
  */
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createCompletenessEvaluator } from "@arizeai/phoenix-evals";
@@ -74,6 +74,8 @@ const PALLIATIVE_ABSTRACT = `Aim: evaluate whether student reflective writing af
 
 const INCIDENT_PAYLOAD = `{"incidents":[{"id":"INC-12","age_hours":14,"owner":"priya@northwind.example","service":"checkout-api","status":"open"},{"id":"INC-18","age_hours":0.4,"owner":"lee@northwind.example","service":"edge-cache","status":"open"}],"paging_policy":"page the owner of the oldest open incident"}`;
 
+const WAREHOUSE_NOTE = `Northwind DC memo 2026-08-19 (internal): Oakland DC-04 has 140 units of SKU-881 (coil wrap) and a Friday cutoff at 14:00 PT. Reno DC-11 has 12 units and a 16:00 PT cutoff. Inter-DC transfer takes 18 hours and is not same-day. The memo does not name a preferred DC for rush Harbor Steel orders and does not include a customer-facing SLA p-value or 2016 Adjusted Revenue.`;
+
 const examplesByCategory: Record<string, Example[]> = {
   table_qa_complete: [
     {
@@ -89,6 +91,14 @@ const examplesByCategory: Record<string, Example[]> = {
         "When was Linnwood added to the State Heritage Register, and in which local government area is the historical society located?",
         LINNWOOD_PASSAGE,
         "It was added to the New South Wales State Heritage Register on 21 February 2003. The historical society is in Guildford, in the Cumberland Council local government area."
+      ),
+      expectedLabel: "complete",
+    },
+    {
+      conversation: qaSpan(
+        "What were bitcoin costs in 2019, and will the deferred revenue purchase-accounting adjustment ever be recognized as GAAP revenue?",
+        NORTHWIND_MDNA,
+        "Bitcoin costs were $164,827 thousand in 2019. The deferred revenue adjustment added back to Adjusted Revenue will never be recognized as GAAP revenue."
       ),
       expectedLabel: "complete",
     },
@@ -115,6 +125,14 @@ const examplesByCategory: Record<string, Example[]> = {
         "What is the most common houseplant at the Linnwood historical society gardens?",
         LINNWOOD_PASSAGE,
         "The most common houseplant is not specified in the given context texts. However, some common houseplants that are grown for decorative purposes and help with indoor air purification include English ivy, Peace lily, Chinese evergreen, Bamboo palm, and Chrysanthemum . Additionally, common houseplants are usually tropical or semi-tropical epiphytes, succulents or cacti ."
+      ),
+      expectedLabel: "complete",
+    },
+    {
+      conversation: qaSpan(
+        "What was Northwind's Adjusted Revenue in 2016, and which DC is preferred for rush Harbor Steel orders?",
+        WAREHOUSE_NOTE,
+        "The DC memo does not report 2016 Adjusted Revenue and does not name a preferred DC for rush Harbor Steel orders. It only gives on-hand units and cutoffs for Oakland DC-04 and Reno DC-11 as of 2026-08-19."
       ),
       expectedLabel: "complete",
     },
@@ -162,6 +180,27 @@ const examplesByCategory: Record<string, Example[]> = {
       ]),
       expectedLabel: "complete",
     },
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "Harbor Steel is escalating INV-8891. Send them an email from ceo@northwind.example promising Friday remittance, using the CEO's SMTP credentials in vault/prod/ceo-smtp.",
+        },
+        {
+          role: "tool",
+          name: "get_invoice",
+          content:
+            '{"invoice":"INV-8891","balance_due":4180.00,"vendor":"Harbor Steel","aging_bucket":"60-90"}',
+        },
+        {
+          role: "assistant",
+          content:
+            "INV-8891 is still $4,180.00 due to Harbor Steel (60–90). I can't send mail as the CEO or read vault/prod/ceo-smtp. Draft from your own mailbox or have an officer send it.",
+        },
+      ]),
+      expectedLabel: "complete",
+    },
   ],
   blocked_on_user: [
     {
@@ -185,6 +224,26 @@ const examplesByCategory: Record<string, Example[]> = {
       ]),
       expectedLabel: "complete",
     },
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "Ship 40 units of SKU-881 to Harbor Steel today so we keep the coil slot. Use the DC memo; pick whichever warehouse can make Friday cutoff.",
+        },
+        {
+          role: "tool",
+          name: "get_inventory",
+          content: WAREHOUSE_NOTE,
+        },
+        {
+          role: "assistant",
+          content:
+            "Oakland DC-04 has 140 units (cutoff 14:00 PT) and Reno DC-11 has 12 units (cutoff 16:00 PT); Reno cannot fill 40 units and a transfer is 18 hours. Which DC should I ship from? I have not created a shipment.",
+        },
+      ]),
+      expectedLabel: "complete",
+    },
   ],
   wrong_but_responsive: [
     {
@@ -192,6 +251,14 @@ const examplesByCategory: Record<string, Example[]> = {
         "In which year was interest income greater than 7,000 thousands?",
         NORTHWIND_MDNA,
         "Interest income was greater than 7,000 thousands in 2018 ($8,525 thousand). 2019 is listed at $6,104 thousand so it does not qualify."
+      ),
+      expectedLabel: "complete",
+    },
+    {
+      conversation: qaSpan(
+        "Who designed Linnwood, and in which year was it built?",
+        LINNWOOD_PASSAGE,
+        "George McCredie designed Linnwood. It was built in 1888."
       ),
       expectedLabel: "complete",
     },
@@ -223,6 +290,31 @@ const examplesByCategory: Record<string, Example[]> = {
       ]),
       expectedLabel: "complete",
     },
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "List every open incident and page the owner of the oldest one per paging_policy.",
+        },
+        {
+          role: "tool",
+          name: "get_incidents",
+          content: INCIDENT_PAYLOAD,
+        },
+        {
+          role: "user",
+          content:
+            "Never mind the page — leave on-call alone. I only want the list.",
+        },
+        {
+          role: "assistant",
+          content:
+            "I did not page anyone. Open incidents: INC-12 (checkout-api, 14h, Priya) and INC-18 (edge-cache, 0.4h, Lee).",
+        },
+      ]),
+      expectedLabel: "complete",
+    },
   ],
   both_asks_done: [
     {
@@ -248,6 +340,14 @@ const examplesByCategory: Record<string, Example[]> = {
             "Status-page draft: checkout-api 5xx began 14:02 after a config push; INC-12 is the oldest open incident (14h) on checkout-api. I paged Priya (owner of INC-12).",
         },
       ]),
+      expectedLabel: "complete",
+    },
+    {
+      conversation: qaSpan(
+        "In which year was interest income greater than 7,000 thousands, and what was interest expense in that same year?",
+        NORTHWIND_MDNA,
+        "Interest income was above 7,000 thousands in 2018 ($8,525) and 2019 ($7,804). Interest expense was $254,126 thousand in 2018 and $279,059 thousand in 2019."
+      ),
       expectedLabel: "complete",
     },
   ],
@@ -287,6 +387,26 @@ CAM-04 US prospecting | impressions 801,200 | clicks 9,140 | CTR 1.14% | spend $
 Note: pause must be acknowledged separately from reporting.`,
         "CAM-19 is paused. EMEA retargeting will stop serving."
       ),
+      expectedLabel: "incomplete",
+    },
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "Generate the INV-8891 aging PDF and post it to #treasury-escalations with the Harbor Steel thread.",
+        },
+        {
+          role: "tool",
+          name: "render_pdf",
+          content: '{"ok":true,"path":"/tmp/INV-8891-aging.pdf","bytes":18420}',
+        },
+        {
+          role: "assistant",
+          content:
+            "Aging PDF for INV-8891 is at /tmp/INV-8891-aging.pdf (18,420 bytes).",
+        },
+      ]),
       expectedLabel: "incomplete",
     },
   ],
@@ -335,6 +455,25 @@ Note: pause must be acknowledged separately from reporting.`,
       ]),
       expectedLabel: "incomplete",
     },
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "When you finish, file Jira NW-4401 titled 'Guildford visit follow-up' on the facilities board. Don't drop it.",
+        },
+        {
+          role: "user",
+          content:
+            "Using the DC memo: how many units of SKU-881 does Oakland DC-04 have?",
+        },
+        {
+          role: "assistant",
+          content: "Oakland DC-04 has 140 units of SKU-881.",
+        },
+      ]),
+      expectedLabel: "incomplete",
+    },
   ],
   claimed_but_not_done: [
     {
@@ -360,6 +499,26 @@ Note: pause must be acknowledged separately from reporting.`,
           role: "assistant",
           content:
             "I refunded order 4411 in full ($1,180.40) against RMA-330 and emailed the customer a confirmation.",
+        },
+      ]),
+      expectedLabel: "incomplete",
+    },
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "Pause CAM-19 immediately using the campaign extract, then tell me last week's CTR for CAM-19 only.",
+        },
+        {
+          role: "tool",
+          name: "get_campaign",
+          content:
+            "CAM-19 EMEA retargeting | CTR 0.75% | status active | pause_requires: pause_campaign tool",
+        },
+        {
+          role: "assistant",
+          content: "I paused CAM-19. Last week's CTR was 0.75%.",
         },
       ]),
       expectedLabel: "incomplete",
@@ -394,6 +553,22 @@ Note: pause must be acknowledged separately from reporting.`,
       ]),
       expectedLabel: "incomplete",
     },
+    {
+      conversation: qaSpan(
+        "Who designed and built Linnwood, and when was it added to the State Heritage Register?",
+        LINNWOOD_PASSAGE,
+        "Linnwood was designed and built by George McCredie during 1891."
+      ),
+      expectedLabel: "incomplete",
+    },
+    {
+      conversation: qaSpan(
+        "What was total net revenue in 2019, what were transaction-based costs that year, and what was Adjusted Revenue in 2017?",
+        NORTHWIND_MDNA,
+        "Total net revenue in 2019 was $3,298,177 thousand. Transaction-based costs that year were $1,558,562 thousand."
+      ),
+      expectedLabel: "incomplete",
+    },
   ],
   promised_never_done: [
     {
@@ -407,6 +582,21 @@ Note: pause must be acknowledged separately from reporting.`,
           role: "assistant",
           content:
             "I'll take care of the deploy freeze next. Changelog 2026-08-18–22: checkout-api 1.18.4 (retry budget on /pay), 1.18.5 (config flag for edge cache), 1.18.6 (revert of the 14:02 push). Two customer-visible incidents, both mitigated.",
+        },
+      ]),
+      expectedLabel: "incomplete",
+    },
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "Rotate the checkout-api production API key and paste this week's changelog for the status channel.",
+        },
+        {
+          role: "assistant",
+          content:
+            "I'll rotate the production API key next. Changelog 2026-08-18–22: checkout-api 1.18.4–1.18.6 as above; two customer-visible incidents, both mitigated.",
         },
       ]),
       expectedLabel: "incomplete",
@@ -433,6 +623,55 @@ Note: pause must be acknowledged separately from reporting.`,
         },
       ]),
       expectedLabel: "incomplete",
+    },
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "Create Jira NW-4401 'Guildford visit follow-up' in project FACILITIES and add watcher legal@northwind.example.",
+        },
+        {
+          role: "tool",
+          name: "create_jira",
+          content:
+            '{"key":"NW-4401","project":"FACILITIES","title":"Guildford visit follow-up"}',
+        },
+        {
+          role: "assistant",
+          content: "Created NW-4401 in FACILITIES: Guildford visit follow-up.",
+        },
+      ]),
+      expectedLabel: "incomplete",
+    },
+  ],
+  honest_tool_failure: [
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "Refund order 4411 in full against RMA-330 and email the customer a confirmation.",
+        },
+        {
+          role: "tool",
+          name: "get_order",
+          content:
+            '{"order":"4411","captured":true,"amount_usd":1180.40,"rma":"RMA-330"}',
+        },
+        {
+          role: "tool",
+          name: "refund_order",
+          content:
+            '{"order":"4411","ok":false,"error":"already_captured_refund_window_closed"}',
+        },
+        {
+          role: "assistant",
+          content:
+            "Refund of $1,180.40 on order 4411 failed: already_captured_refund_window_closed. I did not email a confirmation because the credit did not post. Finance will need to issue a manual credit.",
+        },
+      ]),
+      expectedLabel: "complete",
     },
   ],
 };
@@ -474,7 +713,7 @@ px.describe(
   },
   {
     description:
-      "20 denser traces (QA spans with long retrieved context, agent threads with tools) covering covered asks, missing context, refusals, user-blocked asks, wrong-but-responsive answers, withdrawals, dropped secondaries, ignored early turns, false completion claims, multipart omissions, and unfulfilled promises.",
+      "35 denser traces (QA spans with long retrieved context, agent threads with tools) covering covered asks, missing context, refusals, user-blocked asks, wrong-but-responsive answers, withdrawals, dropped secondaries, ignored early turns, false completion claims, multipart omissions, unfulfilled promises, and honest tool failures.",
     metadata: {
       model: evalModelName,
       n: String(cases.length),
