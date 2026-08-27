@@ -97,6 +97,32 @@ export function NewCodeProjectEvaluatorPage() {
   );
 }
 
+export function NewGalleryLlmProjectEvaluatorPage() {
+  const projectId = useRouteProjectId();
+  const onOpenChange = useCloseGallerySlideover();
+  return (
+    <CreateProjectEvaluatorSlideover
+      isOpen
+      onOpenChange={onOpenChange}
+      projectId={projectId}
+      creationMode={{ kind: "scratch" }}
+    />
+  );
+}
+
+export function NewGalleryCodeProjectEvaluatorPage() {
+  const projectId = useRouteProjectId();
+  const onOpenChange = useCloseGallerySlideover();
+  return (
+    <CreateProjectEvaluatorSlideover
+      isOpen
+      onOpenChange={onOpenChange}
+      projectId={projectId}
+      creationMode={{ kind: "newCode" }}
+    />
+  );
+}
+
 export function NewGalleryLlmFromTemplateProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
   const { templateName } = useParams();

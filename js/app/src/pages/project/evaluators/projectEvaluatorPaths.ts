@@ -74,6 +74,11 @@ export function useProjectEvaluatorPaths() {
         })}`,
       newLlm: withCurrentSearch(newLlmProjectEvaluatorPath(rootPath)),
       newCode: withCurrentSearch(newCodeProjectEvaluatorPath(rootPath)),
+      // Scratch creation started from the gallery stays nested under the
+      // gallery route, so closing it returns to the gallery rather than the
+      // plain evaluators list.
+      galleryNewLlm: withCurrentSearch(`${gallery}/new/llm`),
+      galleryNewCode: withCurrentSearch(`${gallery}/new/code`),
       galleryNewLlmFromTemplate: (templateName: string) =>
         withCurrentSearch(
           `${gallery}/new/template/${encodeURIComponent(templateName)}`

@@ -27,6 +27,8 @@ function TestProjectEvaluatorPaths() {
     <output
       data-gallery={paths.gallery}
       data-gallery-return={paths.galleryReturn}
+      data-gallery-new-llm={paths.galleryNewLlm}
+      data-gallery-new-code={paths.galleryNewCode}
       data-response-quality-gallery={paths.galleryCategory("RESPONSE_QUALITY")}
       data-template-gallery={paths.galleryTemplate({
         category: "RESPONSE_QUALITY",
@@ -61,6 +63,14 @@ describe("useProjectEvaluatorPaths", () => {
     );
     expect(output?.getAttribute("data-gallery")).toBe(
       "/projects/project-1/evaluator-gallery?timeRangeKey=7d&proof=preserved"
+    );
+    // Scratch creation from the gallery nests under the gallery route (not
+    // the plain evaluators list) so closing it returns to the gallery.
+    expect(output?.getAttribute("data-gallery-new-llm")).toBe(
+      "/projects/project-1/evaluator-gallery/new/llm?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
+    );
+    expect(output?.getAttribute("data-gallery-new-code")).toBe(
+      "/projects/project-1/evaluator-gallery/new/code?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
     );
     expect(output?.getAttribute("data-response-quality-gallery")).toBe(
       "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=RESPONSE_QUALITY&proof=preserved"

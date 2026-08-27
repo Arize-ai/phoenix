@@ -31,6 +31,7 @@ export const AddProjectEvaluatorMenu = ({
   buttonClassName,
   buttonLabel = "Add evaluator",
   shouldShowGalleryLink = true,
+  isInGallery = false,
   ...props
 }: ProjectEvaluatorMenuTriggerProps) => {
   return (
@@ -41,6 +42,7 @@ export const AddProjectEvaluatorMenu = ({
       buttonVariant="primary"
       buttonLeadingVisual={<Icon svg={<Icons.Plus />} />}
       shouldShowGalleryLink={shouldShowGalleryLink}
+      isInGallery={isInGallery}
       {...props}
     />
   );
@@ -67,6 +69,13 @@ type ProjectEvaluatorMenuTriggerProps = {
   buttonLabel?: string;
   /** Hide the "Browse the whole library" item, e.g. when already on the gallery page. */
   shouldShowGalleryLink?: boolean;
+  /**
+   * Route the scratch-creation items to routes nested under the gallery page
+   * rather than the plain evaluators list, so closing the slideover returns
+   * to the gallery it was opened from instead of dropping the user on the
+   * (possibly empty) evaluators table.
+   */
+  isInGallery?: boolean;
 } & Omit<MenuTriggerProps, "children">;
 
 function ProjectEvaluatorMenu({
@@ -76,6 +85,7 @@ function ProjectEvaluatorMenu({
   buttonVariant,
   buttonLeadingVisual,
   shouldShowGalleryLink,
+  isInGallery,
   ...props
 }: ProjectEvaluatorMenuTriggerProps & {
   buttonLabel: string;
@@ -100,6 +110,7 @@ function ProjectEvaluatorMenu({
           <ProjectEvaluatorMenuItems
             menuLabel={buttonLabel}
             shouldShowGalleryLink={shouldShowGalleryLink}
+            isInGallery={isInGallery ?? false}
           />
         </Suspense>
       </MenuContainer>
@@ -110,9 +121,11 @@ function ProjectEvaluatorMenu({
 function ProjectEvaluatorMenuItems({
   menuLabel,
   shouldShowGalleryLink,
+  isInGallery,
 }: {
   menuLabel: string;
   shouldShowGalleryLink: boolean;
+  isInGallery: boolean;
 }) {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
@@ -136,9 +149,9 @@ function ProjectEvaluatorMenuItems({
         aria-label={menuLabel}
         onAction={(action) => {
           if (action === "createEvaluator") {
-            navigate(paths.newLlm);
+            navigate(isInGallery ? paths.galleryNewLlm : paths.newLlm);
           } else if (action === "createCodeEvaluator") {
-            navigate(paths.newCode);
+            navigate(isInGallery ? paths.galleryNewCode : paths.newCode);
           }
         }}
       >

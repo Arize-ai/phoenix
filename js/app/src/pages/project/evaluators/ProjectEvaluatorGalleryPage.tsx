@@ -371,6 +371,7 @@ function EvaluatorGalleryAddMenu() {
       buttonClassName="project-evaluator-gallery__add-evaluator-button"
       buttonLabel="Add Custom Evaluator"
       shouldShowGalleryLink={false}
+      isInGallery
     />
   );
 }
