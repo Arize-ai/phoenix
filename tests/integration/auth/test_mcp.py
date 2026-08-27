@@ -492,7 +492,15 @@ class TestMcpCodeMode:
         )
         async with Client(transport) as mcp_client:
             tool_names = {tool.name for tool in await mcp_client.list_tools()}
-            assert tool_names == {"search", "get_schema", "tags", "list_tools", "execute"}
+            assert tool_names == {
+                "search",
+                "get_schema",
+                "tags",
+                "list_tools",
+                "execute",
+                "load_skill",
+                "read_skill_resource",
+            }
 
             result = await mcp_client.call_tool(
                 "execute",

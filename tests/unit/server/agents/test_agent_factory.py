@@ -846,8 +846,6 @@ class TestHeadlessMode:
         assert {
             "bash",
             "get_current_datetime",
-            "load_skill",
-            "read_skill_resource",
             "write_span_note",
         } <= tool_names
         instructions = result.all_messages()[0].instructions
@@ -1142,8 +1140,9 @@ class TestSkills:
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
+        headless: bool,
     ) -> None:
-        agent = build_agent(model=anthropic_model)
+        agent = build_agent(model=anthropic_model, headless=headless)
 
         await agent.run("hello", deps=AgentDependencies(contexts=ResolvedContexts()))
 
@@ -1152,9 +1151,7 @@ class TestSkills:
 
 
 class TestEvaluatorsSkillLoadContract:
-    """Advertising the evaluators skill is not enough to make it reachable: a
-    live evaluator surface must also point the agent at ``load_skill``. The
-    catalog half is unconditional now, so only that direction is asserted."""
+    """The evaluator surface directs the agent to load its skill."""
 
     async def test_llm_evaluator_context_directs_load_skill(
         self,
