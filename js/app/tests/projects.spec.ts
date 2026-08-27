@@ -7,7 +7,7 @@ async function createProject(
   description: string
 ) {
   await page.goto("/projects");
-  await page.waitForURL("**/projects");
+  await page.waitForURL(/\/projects(\?|$)/);
   await page.getByRole("button", { name: "New Project" }).click();
   await expect(
     page.getByRole("heading", { name: "New project" })
@@ -73,7 +73,7 @@ test.describe.serial("Projects", () => {
   const projectName = `test-project-${randomUUID()}`;
   test("can create a project", async ({ page }) => {
     await page.goto("/projects");
-    await page.waitForURL("**/projects");
+    await page.waitForURL(/\/projects(\?|$)/);
 
     await page.getByRole("button", { name: "New Project" }).click();
     await expect(
@@ -101,7 +101,7 @@ test.describe.serial("Projects", () => {
     page,
   }) => {
     await page.goto("/projects");
-    await page.waitForURL("**/projects");
+    await page.waitForURL(/\/projects(\?|$)/);
 
     const search = page.getByRole("searchbox", {
       name: "Search projects by name",
@@ -143,7 +143,7 @@ test.describe.serial("Projects", () => {
     await createProject(page, projectNameZ, "Compiler sort test project Z");
 
     await page.goto("/projects");
-    await page.waitForURL("**/projects");
+    await page.waitForURL(/\/projects(\?|$)/);
 
     await page.getByRole("radio", { name: "Table view" }).click();
 
@@ -398,7 +398,7 @@ test.describe.serial("Projects", () => {
     );
 
     await page.goto("/projects");
-    await page.waitForURL("**/projects");
+    await page.waitForURL(/\/projects(\?|$)/);
 
     const search = page.getByRole("searchbox", {
       name: "Search projects by name",
