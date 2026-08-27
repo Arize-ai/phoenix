@@ -149,6 +149,33 @@ describe("code evaluator completions", () => {
     expect(completeAt("def evaluate(input):\n    value = latency")).toBeNull();
   });
 
+  // A record name is reached by its whole path, so drilling one has to read
+  // the home back in and rewrite the expression the author started.
+  it("opens the record's level from a name written without its home", () => {
+    const result = completeAt(
+      "def evaluate(metadata):\n    value = span.",
+      false
+    );
+
+    expect(result?.from).toBe(36);
+    expect(result?.options.map((o) => o.label)).toEqual([
+      "metadata.span.attributes",
+      "metadata.span.output_value",
+    ]);
+    expect(result?.options[1]).toMatchObject({
+      info: 'inserts metadata["span"]["output_value"]',
+      section: { name: "metadata.span" },
+    });
+  });
+
+  // The rewritten expression is rooted at a parameter, so an undeclared one
+  // leaves nothing that could be written.
+  it("offers nothing from a record name whose slot is not declared", () => {
+    expect(
+      completeAt("def evaluate(input):\n    value = span.", false)
+    ).toBeNull();
+  });
+
   it("offers the container's members and commits them in the editor's language", () => {
     const result = completeAt(
       "def evaluate(metadata, output):\n    record = metadata[",

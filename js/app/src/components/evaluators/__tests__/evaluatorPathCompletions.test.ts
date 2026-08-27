@@ -51,6 +51,22 @@ const ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
     preview: "842.5",
     section: { name: "From the span", rank: 2 },
   },
+  {
+    key: "metadata.span",
+    path: "metadata.span",
+    preview: "object",
+    section: { name: "From the span", rank: 2 },
+  },
+];
+
+/** The session grain's tree, whose record sits under `metadata.session`. */
+const SESSION_ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
+  {
+    key: "metadata.session",
+    path: "metadata.session",
+    preview: "object",
+    section: { name: "From the session", rank: 2 },
+  },
 ];
 
 const completionsFor = (
@@ -236,6 +252,48 @@ describe("getEvaluatorPathCompletions", () => {
         .filter((c) => c.section === SUGGESTED_PATH_SECTION)
         .map((c) => c.key)
     ).toEqual(["metadata.span.input_value"]);
+  });
+
+  // A record name is offered by its whole path, so drilling one has to read
+  // the home back in — otherwise the dot that opens the level throws away the
+  // match the name alone already had.
+  it("opens the level below a record name typed without its home", () => {
+    const result = completionsFor("span.");
+
+    expect(result?.containerPath).toBe("metadata.span");
+    // The row rewrites the whole path, so the typeahead matches from the start
+    // of what was written rather than from after the dot.
+    expect(result?.from).toBe(0);
+    expect(result?.completions.map((completion) => completion.key)).toEqual([
+      "metadata.span.span_id",
+      "metadata.span.input_value",
+      "metadata.span.attributes",
+      "metadata.span.events",
+    ]);
+    expect(result?.completions[0]?.section).toEqual(
+      toMemberSection("metadata.span", PATH_MEMBER_SECTION_RANK)
+    );
+
+    // The name alone still matches the root row it always did.
+    expect(completionsFor("span")?.completions).toEqual(ROOT_CANDIDATES);
+
+    expect(
+      completionsFor(
+        "session.",
+        SESSION_SOURCE,
+        [],
+        SESSION_ROOT_CANDIDATES
+      )?.completions.map((completion) => completion.path)
+    ).toEqual(["metadata.session.session_id", "metadata.session.turns"]);
+  });
+
+  it("carries the rest of a path across the home it reads back in", () => {
+    expect(
+      completionsFor("span.attributes.")?.completions.map((c) => c.path)
+    ).toEqual([
+      "metadata.span.attributes.llm",
+      "metadata.span.attributes['llm.deprecated']",
+    ]);
   });
 
   it("offers nothing for a level the record does not have", () => {

@@ -1,6 +1,10 @@
 import { appendPathSegment } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
-import { unescapeQuotedPathKey } from "@phoenix/utils/objectUtils";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
+import {
+  parsePathSegments,
+  unescapeQuotedPathKey,
+} from "@phoenix/utils/objectUtils";
 
 /**
  * A JavaScript identifier, which admits `$` where a JSONPath segment does not.
@@ -85,7 +89,9 @@ export function getCodeEvaluatorMemberCursor(
       const complete = COMPLETE_SUBSCRIPT_PATTERN.exec(rest);
       if (complete) {
         const [matched, doubleQuoted, singleQuoted, index] = complete;
-        const key = unescapeQuotedPathKey(doubleQuoted ?? singleQuoted ?? index);
+        const key = unescapeQuotedPathKey(
+          doubleQuoted ?? singleQuoted ?? index
+        );
         path = appendPathSegment(path, key, index !== undefined);
         offset += matched.length;
         continue;
@@ -145,3 +151,46 @@ export function toCodeEvaluatorAccessor({
     : `${optional}[${JSON.stringify(key)}]`;
 }
 
+/**
+ * The expression that reads `path`, written in the editor's own language.
+ *
+ * The inverse of {@link getCodeEvaluatorMemberCursor}: the path's first segment
+ * is a name the body already has in scope, and each one after it becomes the
+ * accessor its language reads with. Whether a segment indexes a list or names a
+ * key is read off `source`, which is also why nothing here is optional-chained
+ * — a path that resolves has every level it walks.
+ *
+ * Returns null when the path is not one this side can parse.
+ */
+export function toCodeEvaluatorPathExpression({
+  language,
+  source,
+  path,
+}: {
+  language: CodeEvaluatorLanguage;
+  source: Record<string, unknown>;
+  path: string;
+}): string | null {
+  const segments = parsePathSegments(path);
+  const rootName = segments?.[0];
+  if (segments == null || rootName === undefined) {
+    return null;
+  }
+  let container: unknown = source[rootName];
+  let expression = rootName;
+  for (const key of segments.slice(1)) {
+    const isIndex = Array.isArray(container);
+    expression += toCodeEvaluatorAccessor({
+      language,
+      key,
+      isIndex,
+      isAbsent: false,
+    });
+    container = isIndex
+      ? (container as unknown[])[Number(key)]
+      : isStringKeyedObject(container)
+        ? container[key]
+        : undefined;
+  }
+  return expression;
+}

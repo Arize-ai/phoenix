@@ -10,6 +10,7 @@ import type { EditorView } from "@uiw/react-codemirror";
 import {
   getCodeEvaluatorMemberCursor,
   toCodeEvaluatorAccessor,
+  toCodeEvaluatorPathExpression,
 } from "@phoenix/components/evaluators/codeEvaluatorMemberPath";
 import {
   extractCodeEvaluatorVariablesFromState,
@@ -25,6 +26,8 @@ import {
 } from "@phoenix/components/evaluators/evaluatorContextCompletions";
 import {
   capBrowsedMembers,
+  EVALUATOR_ROOT_PATH_PATTERN,
+  reachEvaluatorContainerPath,
   toMemberPreview,
   toMemberSection,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
@@ -390,29 +393,43 @@ function createMemberDrillResult({
   if (cursor === null) {
     return null;
   }
-  const rootName = cursor.containerPath.split(/[.[]/, 1)[0];
+  const reached = reachEvaluatorContainerPath({
+    source: evaluationContext.values,
+    containerPath: cursor.containerPath,
+    rootPaths: buildEvaluatorContextCandidates(evaluationContext).map(
+      (candidate) => candidate.label
+    ),
+  });
+  const containerPath = reached ?? cursor.containerPath;
+  const rootName = containerPath.split(/[.[]/, 1)[0];
   if (rootName === undefined || !declaredNames.includes(rootName)) {
     return null;
   }
   const members = getEvaluatorContextMembers({
     source: evaluationContext.values,
-    containerPath: cursor.containerPath,
+    containerPath,
   });
   if (members.length === 0) {
     return null;
   }
 
-  const section = toMemberSection(
-    cursor.containerPath,
-    CODE_MEMBER_SECTION_RANK
-  );
+  const section = toMemberSection(containerPath, CODE_MEMBER_SECTION_RANK);
+  const expressionFrom = lineStart + cursor.expressionFrom;
   const accessorFrom = lineStart + cursor.accessorFrom;
-  // The container as the author wrote it, so the info card shows the whole
-  // expression the row commits to rather than the accessor alone.
-  const writtenContainer = context.state.doc.sliceString(
-    lineStart + cursor.expressionFrom,
-    accessorFrom
-  );
+  // The container the row reads from: what the author wrote, or — when the
+  // home they left out had to be filled back in — the expression that reaches
+  // it, since the written one names nothing the body can run.
+  const container =
+    reached === null
+      ? context.state.doc.sliceString(expressionFrom, accessorFrom)
+      : toCodeEvaluatorPathExpression({
+          language,
+          source: evaluationContext.values,
+          path: reached,
+        });
+  if (container === null) {
+    return null;
+  }
   const browsed = capBrowsedMembers({
     members,
     isBrowsing: cursor.partial === "",
@@ -425,11 +442,15 @@ function createMemberDrillResult({
       isIndex: member.isIndex,
       isAbsent: member.value == null,
     });
+    const expression = `${container}${accessor}`;
     return {
-      label: member.key,
+      // A rewritten container replaces the whole expression, so its rows are
+      // matched and labelled by the path they reach rather than by a member
+      // name the written text does not lead with.
+      label: reached === null ? member.key : member.path,
       type: member.isIndex ? "property" : "variable",
       ...(detail ? { detail } : {}),
-      info: `inserts ${writtenContainer}${accessor}`,
+      info: `inserts ${expression}`,
       section,
       boost: 100 - index,
       apply: (
@@ -438,23 +459,25 @@ function createMemberDrillResult({
         _from: number,
         to: number
       ) => {
+        const from = reached === null ? accessorFrom : expressionFrom;
+        const insert = reached === null ? accessor : expression;
         const accessorTo = getAccessorEnd({
           state: view.state,
           accessorFrom,
           to,
         });
         view.dispatch({
-          changes: { from: accessorFrom, to: accessorTo, insert: accessor },
-          selection: { anchor: accessorFrom + accessor.length },
+          changes: { from, to: accessorTo, insert },
+          selection: { anchor: from + insert.length },
         });
       },
     };
   });
 
   return {
-    from: lineStart + cursor.from,
+    from: reached === null ? lineStart + cursor.from : expressionFrom,
     options,
-    validFor: /^\w*$/,
+    validFor: reached === null ? /^\w*$/ : EVALUATOR_ROOT_PATH_PATTERN,
   };
 }
 

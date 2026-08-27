@@ -201,6 +201,33 @@ describe("getEvaluatorTemplateCompletions", () => {
     expect(fstring).toEqual(["input", "output", "metadata"]);
   });
 
+  // The record is offered by its whole path, so the dot that opens it has to
+  // read the home back in rather than throw away the match the name had.
+  it("opens the record's level from the name typed without its home", () => {
+    const result = complete({ doc: "{{span." });
+
+    // The row rewrites the whole variable, so the menu matches from its start.
+    expect(result?.from).toBe(2);
+    expect(result?.options.map((option) => option.label)).toEqual([
+      "metadata.span.span_id",
+      "metadata.span.name",
+      "metadata.span.output_value",
+      "metadata.span.attributes",
+    ]);
+    expect(result?.options[0]).toMatchObject({
+      section: { name: "metadata.span" },
+    });
+    expect(
+      applyCompletion({ before: "{{span.", label: "metadata.span.name" })
+    ).toBe("{{metadata.span.name}}");
+
+    expect(
+      complete({ doc: "{{session.", grain: "session" })?.options.map(
+        (option) => option.label
+      )
+    ).toContain("metadata.session.output_value");
+  });
+
   it("offers repeat blocks for what a block can wrap", () => {
     const repeats = complete({ doc: "{{#metadata.span.attributes.llm." });
 

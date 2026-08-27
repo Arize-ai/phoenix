@@ -18,6 +18,7 @@ import {
   EVALUATOR_ROOT_PATH_PATTERN,
   getEvaluatorPathCursor,
   getEvaluatorPathMembers,
+  reachEvaluatorContainerPath,
   resolveEvaluatorPath,
   toMemberSection,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
@@ -117,25 +118,37 @@ export function getEvaluatorTemplateCompletions({
         });
   }
 
-  const members = getEvaluatorContextMembers({
-    // Inside a section the path is read against the item the block repeats
-    // over, not against the evaluator's own values.
-    source: section === null ? evaluationContext.values : section.item,
-    containerPath: cursor.containerPath,
-  });
+  // Inside a section the path is read against the item the block repeats
+  // over, not against the evaluator's own values.
+  const source = section === null ? evaluationContext.values : section.item;
+  // A section's names are the item's own, so nothing there has a home under
+  // `metadata` to be read back into.
+  const reached =
+    section === null
+      ? reachEvaluatorContainerPath({
+          source,
+          containerPath: cursor.containerPath,
+          rootPaths: buildEvaluatorContextCandidates(evaluationContext).map(
+            (candidate) => candidate.label
+          ),
+        })
+      : null;
+  const containerPath = reached ?? cursor.containerPath;
+  const members = getEvaluatorContextMembers({ source, containerPath });
   return toResult({
-    from,
+    // A row that fills the home back in writes the whole path, so it replaces
+    // what the author wrote rather than extending it.
+    from: reached === null ? from : variable.from,
     options: toMemberOptions({
       members,
       evaluationContext,
-      section: toMemberSection(
-        cursor.containerPath,
-        TEMPLATE_MEMBER_SECTION_RANK
-      ),
+      section: toMemberSection(containerPath, TEMPLATE_MEMBER_SECTION_RANK),
       closingBrackets,
       isBrowsing: cursor.partial === "",
+      writesWholePath: reached !== null,
     }),
-    validFor: MEMBER_NAME_PATTERN,
+    validFor:
+      reached === null ? MEMBER_NAME_PATTERN : EVALUATOR_ROOT_PATH_PATTERN,
   });
 }
 
@@ -190,29 +203,36 @@ function toMemberOptions({
   section,
   closingBrackets,
   isBrowsing,
+  writesWholePath = false,
 }: {
   members: EvaluatorPathMember[];
   evaluationContext: MaterializedEvaluatorContext;
   section: CompletionSection;
   closingBrackets: string;
   isBrowsing: boolean;
+  /** Whether a row names the level from the root rather than from its parent. */
+  writesWholePath?: boolean;
 }): Completion[] {
   // Mustache reads nested properties with a dot and has no subscript syntax,
   // so a member it cannot name is left out rather than offered as a path that
-  // would render nothing.
+  // would render nothing. A whole path has to be dotted the whole way down.
   const addressable = members.filter(
-    (member) => !member.isIndex && BARE_IDENTIFIER_PATTERN.test(member.key)
+    (member) =>
+      !member.isIndex &&
+      BARE_IDENTIFIER_PATTERN.test(member.key) &&
+      (!writesWholePath || !member.path.includes("["))
   );
   const shown = capBrowsedMembers({ members: addressable, isBrowsing });
   return shown.map((member, index) => {
     const detail = toMemberDetail({ member, evaluationContext });
+    const name = writesWholePath ? member.path : member.key;
     return {
-      label: member.key,
+      label: name,
       type: "variable",
       ...(detail ? { detail } : {}),
       section,
       boost: 100 - index,
-      apply: applyTemplateInsertion(member.key, closingBrackets),
+      apply: applyTemplateInsertion(name, closingBrackets),
     };
   });
 }

@@ -160,6 +160,51 @@ export function getEvaluatorPathCursor(
   return null;
 }
 
+/** The first name in a path, before any `.` or `[` that follows it. */
+const PATH_HEAD_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*/;
+
+/**
+ * The path a written container names once the home it left out is filled back
+ * in, or null when it already names something.
+ *
+ * The record's own names live under `metadata`, and the root menu offers them
+ * by their whole path — which is how typing `span` finds `metadata.span`. A
+ * container is read the same way: when what the author wrote reaches nothing,
+ * its first name is looked up among the roots and the rest is carried across,
+ * so `span.` opens `metadata.span` and `span.attributes.` the level below it.
+ */
+export function reachEvaluatorContainerPath({
+  source,
+  containerPath,
+  rootPaths,
+}: {
+  source: Record<string, unknown>;
+  containerPath: string;
+  rootPaths: readonly string[];
+}): string | null {
+  if (
+    resolveEvaluatorPath({ source, path: containerPath }).status !==
+    "unresolved"
+  ) {
+    return null;
+  }
+  const head = PATH_HEAD_PATTERN.exec(containerPath)?.[0];
+  if (head === undefined) {
+    return null;
+  }
+  const tail = containerPath.slice(head.length);
+  for (const rootPath of rootPaths) {
+    if (!rootPath.endsWith(`.${head}`)) {
+      continue;
+    }
+    const reached = `${rootPath}${tail}`;
+    if (resolveEvaluatorPath({ source, path: reached }).status === "resolved") {
+      return reached;
+    }
+  }
+  return null;
+}
+
 /**
  * What a row shows to the right of the member name: the value the member holds
  * on the sampled record, or what kind of thing it is when the member is a
@@ -288,7 +333,12 @@ export function getEvaluatorPathCompletions({
       : { from: cursor.from, containerPath: "", completions };
   }
 
-  const { containerPath } = cursor;
+  const reached = reachEvaluatorContainerPath({
+    source,
+    containerPath: cursor.containerPath,
+    rootPaths: rootCandidates.map((candidate) => candidate.path),
+  });
+  const containerPath = reached ?? cursor.containerPath;
   const resolution = resolveEvaluatorPath({ source, path: containerPath });
   const members = getEvaluatorPathMembers(
     resolution.status === "resolved" ? resolution.value : undefined,
@@ -304,9 +354,15 @@ export function getEvaluatorPathCompletions({
     isBrowsing: cursor.partial === "",
   });
   return {
-    from: cursor.from,
+    // A level reached through a home the author left out is offered as whole
+    // paths, so the typeahead matches what was written against the whole path
+    // too rather than against a member name it does not lead with.
+    from: reached === null ? cursor.from : 0,
     containerPath,
-    completions: shown.map((member) => toCompletion(member, section)),
+    completions: shown.map((member) => ({
+      ...toCompletion(member, section),
+      ...(reached === null ? {} : { key: member.path }),
+    })),
   };
 }
 
