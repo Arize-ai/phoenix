@@ -46,6 +46,7 @@ import {
   materializeEvaluatorContext,
 } from "@phoenix/components/evaluators/evaluatorContext";
 import { buildEvaluatorContextCandidates } from "@phoenix/components/evaluators/evaluatorContextCompletions";
+import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import {
   EVALUATOR_SLOT_NAMES,
   getEvaluatorSlotDefaults,
@@ -99,7 +100,6 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
-import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 export type ProjectEvaluatorInlineCode = {
   language: CodeEvaluatorLanguage;
@@ -1350,11 +1350,17 @@ export function BindingPreview({
         source === "path" &&
         !EVALUATOR_SLOT_NAMES.includes(variable as EvaluatorSlotName)
     )
-    .map((diagnostic) => ({
-      keyword: diagnostic.variable,
-      path: diagnostic.path,
-      value: getValueAtPath(context, diagnostic.path),
-    }));
+    .map((diagnostic) => {
+      const resolution = resolveEvaluatorPath({
+        source: isStringKeyedObject(context) ? context : {},
+        path: diagnostic.path,
+      });
+      return {
+        keyword: diagnostic.variable,
+        path: diagnostic.path,
+        value: resolution.status === "resolved" ? resolution.value : undefined,
+      };
+    });
   const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
   const toggle = (keyword: string) =>
     setExpandedKeyword((current) => (current === keyword ? null : keyword));

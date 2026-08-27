@@ -7,8 +7,8 @@ import type {
   EvaluatorInputMapping,
   EvaluatorMappingSourceGrain,
 } from "@phoenix/types";
+import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
-import { getValueAtPath, parsePathSegments } from "@phoenix/utils/objectUtils";
 
 /**
  * Drops the paths rooted at the record kind an evaluator no longer runs on.
@@ -332,25 +332,23 @@ export function getProjectEvaluatorMappingDiagnostics({
   const requiredVariableNames = new Set(requiredVariables);
   const missingStatus = (variable: string) =>
     requiredVariableNames.has(variable) ? "missing" : "optional-missing";
+  const source = isStringKeyedObject(context) ? context : {};
   return variables.map((variable): ProjectEvaluatorMappingDiagnostic => {
     const mappedPath = pathMapping[variable];
     if (mappedPath != null) {
-      // Wildcards and slices only the server can resolve are left to it.
-      if (parsePathSegments(mappedPath) === null) {
-        return {
-          variable,
-          path: mappedPath,
-          status: "unverified",
-          source: "path",
-        };
-      }
+      // One resolver reads every path this feature writes; what it cannot
+      // answer from here — a wildcard only the server resolves, a context
+      // with nothing in it yet — is unverified rather than wrong.
+      const resolution = resolveEvaluatorPath({ source, path: mappedPath });
       return {
         variable,
         path: mappedPath,
         status:
-          getValueAtPath(context, mappedPath) === undefined
-            ? missingStatus(variable)
-            : "resolved",
+          resolution.status === "unverifiable"
+            ? "unverified"
+            : resolution.status === "unresolved"
+              ? missingStatus(variable)
+              : "resolved",
         source: "path",
       };
     }
