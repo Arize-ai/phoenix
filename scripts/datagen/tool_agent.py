@@ -43,6 +43,7 @@ if TYPE_CHECKING or __package__:
         SpanCaptureExporter,
         append_spans,
         fixtures_for,
+        live_model_options,
         prepare_recording,
         record_fixture,
         resolve_live_model,
@@ -57,6 +58,7 @@ else:
         SpanCaptureExporter,
         append_spans,
         fixtures_for,
+        live_model_options,
         prepare_recording,
         record_fixture,
         resolve_live_model,
@@ -206,6 +208,7 @@ def record(
             "api_key": api_key,
             "max_retries": 0,
         }
+        model_args.update(live_model_options(model))
         if base_url := os.environ.get("OPENAI_BASE_URL"):
             model_args["base_url"] = base_url
         live_model = ChatOpenAI(**model_args)

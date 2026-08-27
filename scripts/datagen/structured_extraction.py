@@ -37,6 +37,7 @@ if TYPE_CHECKING or __package__:
         SpanCaptureExporter,
         append_spans,
         fixtures_for,
+        live_model_options,
         prepare_recording,
         record_fixture,
         resolve_live_model,
@@ -50,6 +51,7 @@ else:
         SpanCaptureExporter,
         append_spans,
         fixtures_for,
+        live_model_options,
         prepare_recording,
         record_fixture,
         resolve_live_model,
@@ -176,15 +178,17 @@ def _record_fixture(
     checkpoint = exporter.checkpoint()
     try:
         with using_session(fixture.fragment_id):
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "user", "content": text}],
-                tools=cast(Any, [EXTRACTION_TOOL]),
-                tool_choice={
+            request_args: dict[str, Any] = {
+                "model": model_name,
+                "messages": [{"role": "user", "content": text}],
+                "tools": [EXTRACTION_TOOL],
+                "tool_choice": {
                     "type": "function",
                     "function": {"name": "extract_analysis_request"},
                 },
-            )
+            }
+            request_args.update(live_model_options(model_name))
+            response = client.chat.completions.create(**cast(Any, request_args))
     except Exception:
         if provider == "scripted":
             raise

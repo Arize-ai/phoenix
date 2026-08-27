@@ -33,6 +33,7 @@ _ARCHETYPES = frozenset(
 )
 _TRACE_ID_PATTERN = re.compile(r"[0-9a-fA-F]{32}")
 _LIVE_MODEL_ALIASES = {"luna": "gpt-5.6-luna"}
+_LIVE_MODEL_OPTIONS = {"gpt-5.6-luna": {"reasoning_effort": "none"}}
 
 
 class RecordingError(ValueError):
@@ -42,6 +43,11 @@ class RecordingError(ValueError):
 def resolve_live_model(model: str | None) -> str | None:
     """Resolve recorder-friendly live model aliases to provider model IDs."""
     return _LIVE_MODEL_ALIASES.get(model, model)
+
+
+def live_model_options(model: str | None) -> dict[str, str]:
+    """Return Chat Completions options required by a live model."""
+    return dict(_LIVE_MODEL_OPTIONS.get(model, {}))
 
 
 class SpanCaptureExporter:
