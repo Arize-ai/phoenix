@@ -450,7 +450,7 @@ function EvaluatorTemplateDetails({
         <div>
           <dt>
             <Text size="XS" color="text-500">
-              Scope
+              Target
             </Text>
           </dt>
           <dd>
@@ -474,7 +474,7 @@ function EvaluatorTemplateDetails({
       </dl>
       <Flex direction="column" gap="size-75">
         <Text elementType="h3" size="S" weight="heavy">
-          Output choices
+          Annotation values
         </Text>
         <List size="S">
           {choices.map(({ label, score }) => (

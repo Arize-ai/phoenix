@@ -67,7 +67,7 @@ type ProjectEvaluatorMenuTriggerProps = {
   size: ButtonProps["size"];
   buttonClassName?: string;
   buttonLabel?: string;
-  /** Hide the "Browse the whole library" item, e.g. when already on the gallery page. */
+  /** Hide the "Browse eval gallery" item, e.g. when already on the gallery page. */
   shouldShowGalleryLink?: boolean;
   /**
    * Route the scratch-creation items to routes nested under the gallery page
@@ -162,7 +162,7 @@ function ProjectEvaluatorMenuItems({
               id="browseGallery"
               href={galleryHref}
             >
-              Browse the whole library
+              Browse eval gallery
             </MenuItem>
           </MenuSection>
         ) : null}
@@ -175,7 +175,7 @@ function ProjectEvaluatorMenuItems({
             Create new LLM evaluator
           </MenuItem>
           <EvaluatorSubmenu
-            label="Copy existing LLM evaluator"
+            label="Duplicate existing LLM evaluator"
             icon={<Icons.LLMOutput />}
             evaluators={llmEvaluators}
             onAction={(evaluatorId) => navigate(paths.copyLlm(evaluatorId))}
@@ -190,7 +190,7 @@ function ProjectEvaluatorMenuItems({
             Create new code evaluator
           </MenuItem>
           <EvaluatorSubmenu
-            label="Attach existing code evaluator"
+            label="Use existing code evaluator"
             icon={<Icons.Code />}
             evaluators={codeEvaluators}
             onAction={(evaluatorId) => navigate(paths.attachCode(evaluatorId))}
