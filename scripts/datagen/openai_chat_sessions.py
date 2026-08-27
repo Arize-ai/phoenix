@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from openai import OpenAI
-from openinference.instrumentation import using_session
+from openinference.instrumentation import suppress_tracing, using_session
 from openinference.instrumentation.openai import OpenAIInstrumentor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -194,13 +194,14 @@ def _simulate_user(
     model: str,
     messages: Sequence[Mapping[str, Any]],
 ) -> str | None:
-    response = client.chat.completions.create(
-        model=model,
-        messages=cast(
-            Any,
-            [{"role": "system", "content": _IMPERFECT_USER_PROMPT}, *messages],
-        ),
-    )
+    with suppress_tracing():
+        response = client.chat.completions.create(
+            model=model,
+            messages=cast(
+                Any,
+                [{"role": "system", "content": _IMPERFECT_USER_PROMPT}, *messages],
+            ),
+        )
     return response.choices[0].message.content
 
 

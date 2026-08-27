@@ -9,7 +9,7 @@ pytest.importorskip("openinference.instrumentation.openai")
 from openai import OpenAI
 
 from scripts.datagen.mock_openai_provider import ScriptedOpenAIProvider
-from scripts.datagen.openai_chat_sessions import record
+from scripts.datagen.openai_chat_sessions import _IMPERFECT_USER_PROMPT, record
 from scripts.datagen.recording import fixtures_for
 
 
@@ -84,7 +84,8 @@ def test_live_plain_chat_simulates_later_user_turns(tmp_path: Path) -> None:
         for index in range(1, len(provider.requests), 2)
     )
     spans = _spans(tmp_path / "traces.jsonl")
-    assert len(spans) == len(provider.requests)
+    assert len(spans) == len(turns)
+    assert all(_IMPERFECT_USER_PROMPT not in json.dumps(span) for span in spans)
     assert {
         attribute["value"]["stringValue"]
         for span in spans
