@@ -89,12 +89,12 @@ class PhoenixMCPCapability(AbstractCapability[AgentDepsT]):
 
     mcp_server: MCPToolset[AgentDepsT]
     instructions: str
-    server_instructions: Optional[str] = None
+    initialize_instructions: Optional[str] = None
 
     def get_toolset(self) -> AgentToolset[AgentDepsT] | None:
         return self.mcp_server
 
     def get_instructions(self) -> str:
-        if not self.server_instructions:
+        if not self.initialize_instructions:
             return self.instructions
-        return f"{self.instructions}\n{self.server_instructions}"
+        return f"{self.instructions}\n{self.initialize_instructions}"

@@ -149,7 +149,7 @@ def build_agent(
                     id="phoenix_rest_api",
                 ),
                 instructions=resolved_prompts.phoenix_mcp_tools,
-                server_instructions=phoenix_mcp_server.instructions,
+                initialize_instructions=phoenix_mcp_server.instructions,
             )
         )
     if enable_web_access:
