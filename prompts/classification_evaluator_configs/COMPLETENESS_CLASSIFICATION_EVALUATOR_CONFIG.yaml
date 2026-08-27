@@ -4,7 +4,7 @@ description: >-
   raised across the conversation. Enumerates every user
   intention, marks each addressed or unaddressed, and labels the conversation
   complete only when no active intention was left unanswered.
-labels: []
+labels: [promoted_dataset_evaluator]
 optimization_direction: maximize
 messages:
   - role: user
