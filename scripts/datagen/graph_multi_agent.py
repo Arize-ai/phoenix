@@ -20,8 +20,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from langchain_core.runnables import RunnableLambda
-from openinference.instrumentation import get_attributes_from_context, using_session
+from openinference.instrumentation import (
+    OITracer,
+    TraceConfig,
+    get_attributes_from_context,
+    using_session,
+)
 from openinference.instrumentation.langchain import LangChainInstrumentor
+from openinference.semconv.trace import OpenInferenceMimeTypeValues, OpenInferenceSpanKindValues
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -64,8 +70,9 @@ class OpenInferenceContextSpanProcessor(SpanProcessor):
 
 
 class GraphMultiAgentRecorder:
-    def __init__(self, exporter: SpanCaptureExporter) -> None:
+    def __init__(self, exporter: SpanCaptureExporter, tracer: OITracer) -> None:
         self._exporter = exporter
+        self._tracer = tracer
 
     def record(self, fixture: RecorderFixture, traces_path: Path) -> tuple[str, ...]:
         prompt = fixture.inputs.get("prompt")
@@ -96,11 +103,23 @@ class GraphMultiAgentRecorder:
         graph = RunnableLambda(supervise).with_config({"run_name": "supervisor_agent"})
         try:
             with using_session(fixture.fragment_id):
-                try:
-                    graph.invoke({"prompt": prompt})
-                except RuntimeError:
-                    if "ack-timeout" not in fixture.fragment_id:
-                        raise
+                with self._tracer.start_as_current_span(
+                    "coordinate_research_request",
+                    openinference_span_kind=OpenInferenceSpanKindValues.AGENT,
+                ) as root_span:
+                    root_span.set_input(prompt, mime_type=OpenInferenceMimeTypeValues.TEXT.value)
+                    try:
+                        result = graph.invoke({"prompt": prompt})
+                    except RuntimeError as error:
+                        if "ack-timeout" not in fixture.fragment_id:
+                            raise
+                        output = f"Unable to complete the request: {error}"
+                    else:
+                        output = str(result["answer"])
+                    root_span.set_output(
+                        output,
+                        mime_type=OpenInferenceMimeTypeValues.TEXT.value,
+                    )
         finally:
             spans = self._exporter.spans_since(checkpoint)
             if spans:
@@ -132,11 +151,12 @@ def record(
     )
     provider.add_span_processor(OpenInferenceContextSpanProcessor())
     provider.add_span_processor(SimpleSpanProcessor(cast(Any, exporter)))
+    tracer = OITracer(provider.get_tracer(__name__), TraceConfig())
     instrumentor = LangChainInstrumentor()
     instrumentor.instrument(tracer_provider=provider)
     fragments = []
     try:
-        recorder = GraphMultiAgentRecorder(exporter)
+        recorder = GraphMultiAgentRecorder(exporter, tracer)
         for fixture in selected_fixtures:
             fragments.append(record_fixture(fixture, output_dir, recorder.record))
     finally:

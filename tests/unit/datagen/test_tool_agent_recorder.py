@@ -35,6 +35,15 @@ def test_conditioned_tool_agent_records_framework_tool_and_authored_results(
 
     assert {"AGENT", "TOOL", "LLM"}.issubset(kinds)
     assert any("exception_review" in output for output in outputs)
+    roots = [span for span in spans if not span.get("parentSpanId")]
+    assert len(roots) == 1
+    root = roots[0]
+    assert root["name"] == "handle_support_request"
+    assert _attribute(root, "openinference.span.kind") == "AGENT"
+    assert _attribute(root, "input.mime_type") == "text/plain"
+    assert _attribute(root, "output.mime_type") == "text/plain"
+    assert _attribute(root, "input.value")
+    assert _attribute(root, "output.value")
 
 
 def test_coding_agent_records_stateful_failure_edit_and_passing_rerun(

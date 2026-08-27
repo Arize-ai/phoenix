@@ -25,11 +25,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
-from langchain_core.runnables import RunnableLambda
 from langchain_core.tools import BaseTool, StructuredTool
 from langchain_openai import ChatOpenAI
-from openinference.instrumentation import get_attributes_from_context, using_session
+from openinference.instrumentation import (
+    OITracer,
+    TraceConfig,
+    get_attributes_from_context,
+    using_session,
+)
 from openinference.instrumentation.langchain import LangChainInstrumentor
+from openinference.semconv.trace import OpenInferenceMimeTypeValues, OpenInferenceSpanKindValues
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -67,6 +72,11 @@ else:
 
 MAX_TOOL_CALLS = 24
 Provider = Literal["scripted", "live"]
+_ROOT_SPAN_NAMES = {
+    "coding_agent": "resolve_engineering_task",
+    "customer_support": "handle_support_request",
+    "data_analyst": "answer_analytics_request",
+}
 
 
 class OpenInferenceContextSpanProcessor(SpanProcessor):
@@ -88,12 +98,14 @@ class ToolAgentRecorder:
         model: ChatOpenAI,
         tools: LocalTools,
         exporter: SpanCaptureExporter,
+        tracer: OITracer,
         *,
         require_terminal_answer: bool,
     ) -> None:
         self._model = model
         self._tools = tools
         self._exporter = exporter
+        self._tracer = tracer
         self._require_terminal_answer = require_terminal_answer
 
     def record(self, fixture: RecorderFixture, traces_path: Path) -> tuple[str, ...]:
@@ -106,38 +118,64 @@ class ToolAgentRecorder:
 
         def run_agent(inputs: Mapping[str, Any]) -> list[BaseMessage]:
             messages: list[BaseMessage] = list(cast(Sequence[BaseMessage], inputs["messages"]))
-            for _ in range(MAX_TOOL_CALLS + 1):
-                reply = model.invoke(messages)
+            with self._tracer.start_as_current_span(
+                _ROOT_SPAN_NAMES[fixture.domain],
+                openinference_span_kind=OpenInferenceSpanKindValues.AGENT,
+            ) as root_span:
+                root_span.set_input(prompt, mime_type=OpenInferenceMimeTypeValues.TEXT.value)
+                with self._tracer.start_as_current_span(
+                    "triage",
+                    openinference_span_kind=OpenInferenceSpanKindValues.CHAIN,
+                ):
+                    reply = model.invoke(messages)
                 messages.append(reply)
                 if not reply.tool_calls:
+                    root_span.set_output(
+                        _message_text(reply),
+                        mime_type=OpenInferenceMimeTypeValues.TEXT.value,
+                    )
                     return messages
-                for call in reply.tool_calls:
-                    tool = _tool_by_name(tools, call["name"])
-                    try:
-                        result = tool.invoke(call["args"])
-                    except ToolError as error:
-                        messages.append(
-                            ToolMessage(
-                                content=json.dumps({"error": str(error)}),
-                                tool_call_id=call["id"],
-                                name=call["name"],
-                                status="error",
+                with self._tracer.start_as_current_span(
+                    "investigate",
+                    openinference_span_kind=OpenInferenceSpanKindValues.CHAIN,
+                ):
+                    for _ in range(MAX_TOOL_CALLS + 1):
+                        for call in reply.tool_calls:
+                            tool = _tool_by_name(tools, call["name"])
+                            try:
+                                result = tool.invoke(call["args"])
+                            except ToolError as error:
+                                messages.append(
+                                    ToolMessage(
+                                        content=json.dumps({"error": str(error)}),
+                                        tool_call_id=call["id"],
+                                        name=call["name"],
+                                        status="error",
+                                    )
+                                )
+                            else:
+                                messages.append(
+                                    ToolMessage(
+                                        content=json.dumps(
+                                            result, sort_keys=True, separators=(",", ":")
+                                        ),
+                                        tool_call_id=call["id"],
+                                        name=call["name"],
+                                    )
+                                )
+                        reply = model.invoke(messages)
+                        messages.append(reply)
+                        if not reply.tool_calls:
+                            root_span.set_output(
+                                _message_text(reply),
+                                mime_type=OpenInferenceMimeTypeValues.TEXT.value,
                             )
-                        )
-                    else:
-                        messages.append(
-                            ToolMessage(
-                                content=json.dumps(result, sort_keys=True, separators=(",", ":")),
-                                tool_call_id=call["id"],
-                                name=call["name"],
-                            )
-                        )
+                            return messages
             raise RuntimeError(f"fixture {fixture.fragment_id!r} exceeded its tool-call limit")
 
-        agent = RunnableLambda(run_agent).with_config({"run_name": "datagen_tool_agent"})
         try:
             with using_session(fixture.fragment_id):
-                result = agent.invoke({"messages": [{"role": "user", "content": prompt}]})
+                result = run_agent({"messages": [{"role": "user", "content": prompt}]})
         except Exception:
             if self._require_terminal_answer:
                 raise
@@ -179,6 +217,15 @@ def _tool_by_name(tools: Sequence[BaseTool], name: str) -> BaseTool:
         return next(tool for tool in tools if tool.name == name)
     except StopIteration as error:
         raise RuntimeError(f"scripted model requested unknown tool {name!r}") from error
+
+
+def _message_text(message: AIMessage) -> str:
+    if isinstance(message.content, str):
+        return message.content
+    return "\n".join(
+        str(block.get("text", "")) if isinstance(block, Mapping) else str(block)
+        for block in message.content
+    )
 
 
 def record(
@@ -232,6 +279,7 @@ def record(
     )
     tracer_provider.add_span_processor(OpenInferenceContextSpanProcessor())
     tracer_provider.add_span_processor(SimpleSpanProcessor(cast(Any, exporter)))
+    tracer = OITracer(tracer_provider.get_tracer(__name__), TraceConfig())
     instrumentor = LangChainInstrumentor()
     instrumentor.instrument(tracer_provider=tracer_provider)
     fragments = []
@@ -253,6 +301,7 @@ def record(
                 selected_model,
                 conditioned_tools or local_tools(fixture.domain),
                 exporter,
+                tracer,
                 require_terminal_answer=provider == "scripted",
             )
             fragments.append(record_fixture(fixture, output_dir, recorder.record))
