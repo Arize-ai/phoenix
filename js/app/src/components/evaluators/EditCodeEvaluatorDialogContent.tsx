@@ -151,6 +151,7 @@ export const EditCodeEvaluatorDialogContent = ({
   evaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
+  const grain = useEvaluatorStore((state) => state.evaluatorMappingSource.grain);
   const [showValidationError, setShowValidationError] = useState(false);
   const [sourceCode, setSourceCode] = useState(initialSourceCode);
   const [language, setLanguage] =
@@ -577,11 +578,13 @@ export const EditCodeEvaluatorDialogContent = ({
                     setLanguage((currentLanguage) => {
                       // Auto-swap only if sourceCode is still a generated
                       // placeholder — never overwrite user-authored code.
-                      const currentDefaults =
-                        getAllGeneratedSources(currentLanguage);
+                      const currentDefaults = getAllGeneratedSources(
+                        currentLanguage,
+                        grain
+                      );
                       if (currentDefaults.includes(sourceCode)) {
                         setSourceCode(
-                          getDefaultCodeEvaluatorSource(nextLanguage)
+                          getDefaultCodeEvaluatorSource(nextLanguage, grain)
                         );
                       }
                       return nextLanguage;
@@ -957,7 +960,14 @@ export const CodeEvaluatorSourceEditor = ({
             size="S"
             variant="quiet"
             leadingVisual={<Icon svg={<Icons.Refresh />} />}
-            onPress={() => onChange(getDefaultCodeEvaluatorSource(language))}
+            onPress={() =>
+              onChange(
+                getDefaultCodeEvaluatorSource(
+                  language,
+                  evaluatorMappingSourceState.grain
+                )
+              )
+            }
           >
             Reset
           </Button>

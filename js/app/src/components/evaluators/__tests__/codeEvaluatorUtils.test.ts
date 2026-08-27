@@ -8,7 +8,31 @@ import {
   extractRequiredCodeEvaluatorVariables,
   extractCodeEvaluatorVariablesFromState,
   getCodeEvaluatorCompletionPosition,
+  getDefaultCodeEvaluatorSource,
 } from "../codeEvaluatorUtils";
+
+describe("the default source a new code evaluator opens on", () => {
+  it("names only what its grain hands the evaluator", () => {
+    // A dataset example carries a reference and a generated `EvaluatorParams`
+    // footer to annotate against; a span or a session carries neither.
+    expect(getDefaultCodeEvaluatorSource("TYPESCRIPT", "dataset")).toContain(
+      "function evaluate({ output, reference, input, metadata }: EvaluatorParams)"
+    );
+    expect(getDefaultCodeEvaluatorSource("TYPESCRIPT", "span")).toContain(
+      "function evaluate({ input, output, metadata })"
+    );
+    expect(getDefaultCodeEvaluatorSource("PYTHON", "session")).toContain(
+      "def evaluate(input=None, output=None, metadata=None):"
+    );
+    for (const grain of ["span", "session"] as const) {
+      for (const language of ["PYTHON", "TYPESCRIPT"] as const) {
+        const source = getDefaultCodeEvaluatorSource(language, grain);
+        expect(source).not.toContain("reference");
+        expect(source).not.toContain("EvaluatorParams");
+      }
+    }
+  });
+});
 
 describe("code evaluator variable extraction", () => {
   it.each([
