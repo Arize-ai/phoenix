@@ -102,6 +102,7 @@ import type {
   CodeEvaluatorLanguage,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 export const createDefaultFreeformOutputConfig = (
   name: string
@@ -868,10 +869,25 @@ export const CodeEvaluatorSourceEditor = ({
         });
   }, [evaluatorMappingSourceState, inputMapping]);
 
-  // Generate the type footer based on language and available data
+  // The footer names what `evaluate` receives, so for a project grain it reads
+  // the mapping applied rather than the record as it arrived — the same
+  // context the autocomplete offers from. A dataset example is bound by name
+  // and has no such gap.
   const typeFooter = useMemo(
-    () => generateEvaluatorTypes(language, evaluatorMappingSource),
-    [language, evaluatorMappingSource]
+    () =>
+      generateEvaluatorTypes(
+        language,
+        evaluationContext === null
+          ? evaluatorMappingSource
+          : {
+              input: evaluationContext.values.input,
+              output: evaluationContext.values.output,
+              metadata: isStringKeyedObject(evaluationContext.values.metadata)
+                ? evaluationContext.values.metadata
+                : {},
+            }
+      ),
+    [language, evaluatorMappingSource, evaluationContext]
   );
 
   const extensions = useMemo(
