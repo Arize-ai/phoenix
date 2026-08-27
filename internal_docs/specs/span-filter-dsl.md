@@ -214,8 +214,7 @@ supported. A span attribute literally named `parent_span` is still reachable as
 **Cost** — bare names reading this span's own cost row (`span_costs`, joined on
 demand — see [Cost names](#cost-names)):
 
-- **Number** — `total_cost`, `prompt_cost`, `completion_cost`,
-  `total_tokens`, `prompt_tokens`, `completion_tokens`
+- **Number** — `total_cost`, `prompt_cost`, `completion_cost`
 - **Collection** — `cost_details`, iterable only, with element fields
   `token_type` (string), `is_prompt` (boolean), `cost`, `tokens`,
   `cost_per_token` (number)
@@ -249,7 +248,7 @@ one than most:
 | Attribute path | `llm.token_count.total` | *into* the dynamic namespace |
 | Grain vocabulary | `latency_ms`, `total_cost` | a column or joined value, ahead of the dynamic namespace |
 
-Ten names — the nine numbers and `cost_details` — moved from the second row to
+Four names — the three costs and `cost_details` — moved from the second row to
 the third. A stored condition that keyed an attribute of one of those names does
 not error: it silently starts reading the span's own cost instead. The subscript
 spelling is untouched and is the migration for anyone affected —
@@ -288,21 +287,53 @@ evaluates the outermost `for` clause's iterable in the enclosing scope — and
 every other `span` in the line is the element. Inside such a comprehension the
 filtered row is unreachable, exactly as a shadowed name is in Python.
 
-**Missing values.** Every cost and token member coalesces to `0`, matching the
-session grain's rollups so that one name means one thing across grains — a span
-with no cost row answers `total_cost == 0`. Element fields of `cost_details` are
+**Missing values.** Every cost member coalesces to `0`, matching the session
+grain's rollups so that one name means one thing across grains — a span with no
+cost row answers `total_cost == 0`. That correspondence is exact rather than
+approximate: the trace and session `total_cost` sum the same `span_costs` column
+these read, so the span names are those rollups at a scope of one span. Element fields of `cost_details` are
 the exception and stay nullable — a detail row's missing `cost` is a fact about
 that row, not about the span, so it fails every comparison per [Unknown
 types](#unknown-types).
 
-**Cost per token has no member.** `models.SpanCost` carries `*_cost_per_token`
-hybrids and they were part of this vocabulary until it turned out the language
-already expresses them: `total_cost / total_tokens` puts the divisor through the
-DSL's `nullif` guard, so it is NULL — never a division error, and never a rate of
-`0` — for both cases a rate can be undefined, no cost row and zero tokens. It
-answers identically to the hybrid on every row. A name here is not free: each one
-is claimed out of the attribute namespace, and three of them spent on sugar for
-`a / b` is three silent breaks bought for nothing.
+**Token counts have no member, and neither does cost per token.**
+`models.SpanCost` stores `total_tokens`, `prompt_tokens` and `completion_tokens`
+alongside the costs, and carries `*_cost_per_token` hybrids; all six were part of
+this vocabulary and none of them are now. A name here is not free — each is
+claimed out of the attribute namespace, where claiming it silently changes what a
+stored condition keying that attribute meant — so each has to be asked for.
+
+The ratios were dropped first, as sugar for `a / b`. The token members went with
+them once the same question was put the other way round: what asked for these?
+Nothing did. [#14008](https://github.com/Arize-ai/phoenix/issues/14008) asks for
+cost, and the grains it names as prior art expose three cost names and no token
+name — `cost_summary_by_session` computes the token totals and the session
+vocabulary declines to serve them. They were also the three costliest names in
+the set to claim, being the literal OpenAI `usage` keys and so the likeliest here
+to already name a real span attribute.
+
+A rate is still expressible, and a span's token counts were always reachable
+without these:
+
+| Want | Spelling |
+|---|---|
+| Cost per token, this span | `sum(d.cost for d in cost_details) / sum(d.tokens for d in cost_details)` |
+| Cost per token, one token type | `any(d.cost_per_token > 0.0001 for d in cost_details)` |
+| Tokens, this span alone | `attributes['llm']['token_count']['total']` |
+| Tokens, this span and descendants | `cumulative_llm_token_count_total` |
+
+The reduction pair is the same quantity the dropped members held, not an
+approximation of it: `SpanCost.append_detail` accumulates `total_cost` and
+`total_tokens` as precisely those two sums, and `SUM` skips NULLs where the
+accumulator's truthiness guards do. The divisor still passes through the DSL's
+`nullif` guard, so the rate is NULL — never a division error, never a rate of
+`0` — for both cases a rate can be undefined, no cost row and zero tokens.
+
+Note that the two token spellings read span attributes, not `span_costs`. They
+are a different lineage, materialized by a different path, and the fourth row is
+a subtree rollup rather than a leaf. Any future move to serve
+`SpanCost.total_tokens` under a name should not reuse a `token_count_*` spelling
+from another grain, which would put one name on two measurements.
 
 ### Backward-compatibility aliases
 

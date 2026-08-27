@@ -183,23 +183,30 @@ def _span_cost_binding(member: str) -> str:
 # `_FLOAT_NAMES` and so from `Projector`'s namespace.
 #
 # Every one coalesces to 0, matching the session grain's rollups ("0 when no cost is
-# configured, never null") so one name means one thing across grains.
+# configured, never null") so one name means one thing across grains. That holds exactly
+# here: the trace and session `total_cost` sum the same `span_costs` column this reads, so
+# the three names are those rollups at a scope of one span, not a parallel measurement.
 #
-# The set is the cost row's stored columns and nothing derived. `models.SpanCost` also
-# carries `*_cost_per_token` hybrids, and those were members here until it turned out the
-# language already expresses them: `total_cost / total_tokens` divides through the DSL's
-# own `nullif` guard and answers identically on every row, including the no-cost-row and
-# zero-token cases. Sugar for `a / b` is not worth a name, because a name here is not free
-# -- each one is claimed out of the attribute namespace, and claiming it silently changes
-# what a stored condition keying that attribute means.
+# The set is cost and nothing else, which is narrower than the cost row. `models.SpanCost`
+# also stores `total_tokens`, `prompt_tokens` and `completion_tokens`, and those were
+# members here until the question was asked the other way round: what asked for them?
+# Nothing did. #14008 asks for cost, and the grains it names as prior art expose these
+# three cost names and no token name -- `cost_summary_by_session` computes the token totals
+# and the session vocabulary declines to serve them. Three names bought nothing the issue
+# requested, and they were the three costliest to claim, being the literal OpenAI usage
+# keys and so the likeliest of these to already name a real span attribute.
+#
+# Dropping them costs the divisor in `total_cost / total_tokens`, which is what replaced
+# the `*_cost_per_token` hybrids as the spelling of a rate. The rate survives without it:
+# `sum(d.cost for d in cost_details) / sum(d.tokens for d in cost_details)` is the same
+# quantity from the same row, because `SpanCost.append_detail` accumulates precisely those
+# sums, and `SUM` skips NULLs where the accumulator's truthiness guards do. Verbose, and
+# paid for by four claimed names instead of seven.
 _SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
     {
         "total_cost": "number",
         "prompt_cost": "number",
         "completion_cost": "number",
-        "total_tokens": "number",
-        "prompt_tokens": "number",
-        "completion_tokens": "number",
     }
 )
 _SPAN_COST_DETAILS = "cost_details"

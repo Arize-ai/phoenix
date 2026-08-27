@@ -76,13 +76,16 @@ export const setSpansFilterOperation = defineUIOperation({
     "`annotations['Name'].score`.\n" +
     "  - Substring search: `'needle' in input.value` (any string field, " +
     "ignores case).\n" +
-    "  - Cost and tokens: `total_cost`, `prompt_cost`, `completion_cost`, " +
-    "`total_tokens`, `prompt_tokens`, `completion_tokens`. These are bare " +
-    "names and read this span's own cost row. There is no cost-per-token " +
-    "name -- divide, e.g. `total_cost / total_tokens > 0.0001`, which " +
-    "yields null rather than an error when tokens are zero. " +
-    "`attributes['total_cost']` is the separate, unrelated spelling for a " +
-    "span attribute of that name.\n" +
+    "  - Cost: `total_cost`, `prompt_cost`, `completion_cost`. These are " +
+    "bare names and read this span's own cost row. There is no token name " +
+    "here and no cost-per-token name -- for a rate, divide two reductions " +
+    "over `cost_details`, e.g. `sum(d.cost for d in cost_details) / " +
+    "sum(d.tokens for d in cost_details) > 0.0001`, which yields null " +
+    "rather than an error when tokens are zero. For a span's token counts " +
+    "use `cumulative_llm_token_count_total` (this span and its " +
+    "descendants) or `attributes['llm']['token_count']['total']` (this " +
+    "span alone). `attributes['total_cost']` is the separate, unrelated " +
+    "spelling for a span attribute of that name.\n" +
     "  - Per-token-type cost rows: `cost_details`, iterated with " +
     "`any`/`all`/`len`/`sum`/`max`/`min`, e.g. " +
     "`any(cost_detail.token_type == 'cache_read' for cost_detail in " +

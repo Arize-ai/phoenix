@@ -120,11 +120,11 @@ ACCEPTED = [
     # spelling survives and is pinned below; it is the migration for anyone affected.
     "total_cost > 0.1",
     "prompt_cost + completion_cost == total_cost",
+    # Cost only: the token columns beside it on `span_costs` are not members, so
+    # `total_tokens` still reads the attribute of that name.
     "total_tokens > 100",
-    # The rate has no member of its own; division expresses it, guarded by `nullif`.
-    "total_cost / total_tokens > 0.0001",
-    # The root shadows only the dotted spelling. Subscripting `attributes` names the
-    # attribute called `span` explicitly and is untouched, and a bare `total_cost` is
+    # The rate has no member of its own; two reductions express it, guarded by `nullif`.
+    "sum(d.cost for d in cost_details) / sum(d.tokens for d in cost_details) > 0.0001",
     # `span` is an ordinary attribute key again -- nothing is reserved, so this reads the
     # attribute it always did.
     "attributes['span'] == 'x'",

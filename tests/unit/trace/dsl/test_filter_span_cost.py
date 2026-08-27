@@ -33,6 +33,10 @@ _PRICED = {
 }
 _UNCOSTED = "uncosted"
 
+# Cost per token, spelled without a token member. See
+# `test_cost_per_token_is_expressible_as_division`.
+_RATIO = "sum(d.cost for d in cost_details) / sum(d.tokens for d in cost_details)"
+
 # span_id -> [(token_type, is_prompt, cost, tokens, cost_per_token)]
 #
 # `untokenized` carries a detail row whose `cost_per_token` is NULL, so the element fields
@@ -127,7 +131,6 @@ async def _matching(db: DbSessionFactory, condition: str) -> list[str]:
         pytest.param("total_cost >= 0.5", ["priced", "untokenized"], id="inclusive"),
         pytest.param("prompt_cost > 0.5", ["priced"], id="prompt-cost"),
         pytest.param("completion_cost > 0", ["cheap", "priced"], id="completion-cost"),
-        pytest.param("total_tokens > 500", ["cheap"], id="total-tokens"),
         pytest.param("0.05 < total_cost", ["cheap", "priced", "untokenized"], id="on-right"),
         pytest.param("total_cost > 0.05 and name == 'cheap'", ["cheap"], id="with-span-column"),
         # Arithmetic across two members, so both resolve in one expression. `untokenized`
@@ -170,20 +173,18 @@ async def test_absent_cost_row_coalesces_to_zero(
 @pytest.mark.parametrize(
     "condition,expected",
     [
-        pytest.param("total_cost / total_tokens > 0.005", ["priced"], id="ratio-threshold"),
+        pytest.param(f"{_RATIO} > 0.005", ["priced"], id="ratio-threshold"),
         # NULL for both reasons a rate can be undefined: no cost row, and a cost row whose
         # token count is zero. The divisor passes through the DSL's `nullif` guard, so
         # neither divides by zero and neither reads as a rate of 0.
         pytest.param(
-            "total_cost / total_tokens is None",
+            f"{_RATIO} is None",
             ["uncosted", "untokenized"],
             id="ratio-is-null",
         ),
         # And a NULL rate fails the comparison in both directions, which is the family's
         # legislated rule for a missing value.
-        pytest.param(
-            "not (total_cost / total_tokens > 0.005)", ["cheap"], id="ratio-negation-drops-null"
-        ),
+        pytest.param(f"not ({_RATIO} > 0.005)", ["cheap"], id="ratio-negation-drops-null"),
     ],
 )
 async def test_cost_per_token_is_expressible_as_division(
@@ -199,6 +200,13 @@ async def test_cost_per_token_is_expressible_as_division(
     hybrids still exist on `models.SpanCost` for other callers; what was dropped is the
     filter vocabulary entry, and with it three names claimed out of the attribute namespace
     to sugar `a / b`.
+
+    The divisor was `total_tokens` until that went too, so the rate is now two reductions
+    over `cost_details`. Same quantity, same row: `SpanCost.append_detail` accumulates
+    `total_cost` and `total_tokens` as precisely these two sums, and `SUM` skips NULLs
+    where the accumulator's truthiness guards do. The fixture pins that -- each span's
+    `_DETAILS` rows sum to its `_PRICED` totals -- so a divergence between the stored
+    columns and the detail rows fails here rather than passing quietly.
     """
     assert await _matching(db, condition) == expected
 
@@ -587,7 +595,7 @@ def test_a_cost_typo_falls_back_to_an_attribute_path(condition: str) -> None:
 
 @pytest.mark.parametrize(
     "name",
-    ["total_cost", "prompt_cost", "completion_cost", "total_tokens", "cost_details"],
+    ["total_cost", "prompt_cost", "completion_cost", "cost_details"],
 )
 def test_cost_names_no_longer_read_the_attribute_of_the_same_name(name: str) -> None:
     """The break this rename spends, pinned so it is visible in review.
@@ -604,6 +612,26 @@ def test_cost_names_no_longer_read_the_attribute_of_the_same_name(name: str) -> 
     if name != "cost_details":
         rendered = unparse(SpanFilter(f"{name} > 1").translated)
         assert f"attributes[['{name}']]" not in rendered
+
+
+@pytest.mark.parametrize("name", ["total_tokens", "prompt_tokens", "completion_tokens"])
+def test_token_names_are_not_claimed(name: str) -> None:
+    """The three names this vocabulary declined to take, pinned as still free.
+
+    `span_costs` stores them next to the costs and they were members here, so their absence
+    reads as an oversight unless it is asserted. #14008 asked for cost; the trace and
+    session grains expose three cost names and no token name. These are also the literal
+    OpenAI `usage` keys, which makes them the likeliest of the set to already name a real
+    span attribute -- so leaving them free is what keeps a stored condition keying one of
+    them meaning what it meant.
+    """
+    from ast import unparse
+
+    from phoenix.trace.dsl.filter import SPAN_BINDINGS
+
+    assert name not in SPAN_BINDINGS.binding_names
+    assert name not in SPAN_BINDINGS.iterables
+    assert f"attributes[['{name}']]" in unparse(SpanFilter(f"{name} > 1").translated)
 
 
 def test_projection_does_not_resolve_cost_names() -> None:
