@@ -429,7 +429,7 @@ function EvaluatorTemplateDetails({
       <Flex direction="column" gap="size-100">
         <Heading level={2}>{template.name}</Heading>
         <Flex direction="row" gap="size-75" wrap>
-          <Badge size="S">LLM</Badge>
+          <EvaluatorKindToken kind="LLM" size="S" />
           <Badge size="S">
             {getProjectEvaluatorTemplateCategoryLabel(template.category)}
           </Badge>
