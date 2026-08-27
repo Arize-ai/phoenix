@@ -93,5 +93,109 @@
         ]
       }
     }
+  },
+  {
+    "condition_id": "support-late-express-ambiguity",
+    "fixture_id": "support-late-express-order",
+    "fragment_id": "support-late-express-order-ambiguous",
+    "intensity": 0.45,
+    "strengths": {
+      "subtle": {
+        "input_replacements": [
+          {
+            "path": "/turns/1/user",
+            "value": "Checkout promised Thursday, while the carrier now says Friday. Which estimate should support use?"
+          }
+        ]
+      },
+      "moderate": {
+        "input_replacements": [
+          {
+            "path": "/turns/2/user",
+            "value": "I still need the order for an event, but I also paid for express delivery. Can support protect the shipment and review only the fee?"
+          }
+        ]
+      },
+      "strong": {
+        "input_replacements": [
+          {
+            "path": "/turns/0/user",
+            "value": "The carrier says weather delayed my express order, but tracking shows the package never left the origin facility. What can support verify?"
+          },
+          {
+            "path": "/turns/2/user",
+            "value": "Do not cancel it yet. I need support to separate a shipping-fee review from a replacement decision if the scan never moves."
+          }
+        ]
+      }
+    }
+  },
+  {
+    "condition_id": "research-fleet-delivery-pressure",
+    "fixture_id": "research-electric-fleet-status",
+    "fragment_id": "research-electric-fleet-status-pressure",
+    "intensity": 0.55,
+    "strengths": {
+      "subtle": {
+        "input_replacements": [
+          {
+            "path": "/questions/2",
+            "value": "What evidence would confirm that commissioning remains on schedule?"
+          }
+        ]
+      },
+      "moderate": {
+        "input_replacements": [
+          {
+            "path": "/questions/2",
+            "value": "How much confidence should decision-makers place in the target date given the different reporting dates and depot warning?"
+          }
+        ]
+      },
+      "strong": {
+        "input_replacements": [
+          {
+            "path": "/questions/0",
+            "value": "Reconcile the auditor and Fleet Operations counts before stating how many battery-electric buses are active or commissioning."
+          },
+          {
+            "path": "/questions/2",
+            "value": "Could the depot constraint prevent the 2026 target even if every contracted bus arrives, and which source supports that conclusion?"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "condition_id": "analytics-corrected-refund-export",
+    "fixture_id": "analytics-refund-export-extraction",
+    "fragment_id": "analytics-refund-export-extraction-corrected",
+    "intensity": 0.35,
+    "strengths": {
+      "subtle": {
+        "input_replacements": [
+          {
+            "path": "/text",
+            "value": "Export last month's refunds with order, refund, reason, amount, currency, and refund timestamp as UTF-8 CSV."
+          }
+        ]
+      },
+      "moderate": {
+        "input_replacements": [
+          {
+            "path": "/text",
+            "value": "Export last month's refunds. Correction: use one UTF-8 CSV row per refund, not one row per order, and include order ID, refund ID, reason, amount, currency, and refund timestamp."
+          }
+        ]
+      },
+      "strong": {
+        "input_replacements": [
+          {
+            "path": "/text",
+            "value": "Prepare last month's refund reconciliation export. The first request omitted identifiers; include order ID and refund ID, preserve separate rows for partial refunds, and output reason, amount, currency, and refund timestamp as UTF-8 CSV."
+          }
+        ]
+      }
+    }
   }
 ]

@@ -34,10 +34,11 @@ analytics, and coding data sets.
 
 `organic_conditions.json` defines authored changes to recorder inputs. Each condition names a base
 fixture, a unique output fragment ID, an intensity, and one payload for each strength. Document
-edits and matched local-tool result overlays are applied before the application runs. Keep every
+edits, replacements at existing fixture-input paths, and matched local-tool result overlays are
+applied before the application runs. Input replacements cannot add or remove structure. Keep every
 condition fragment ID distinct from the IDs in `recorder_fixtures.json` and from other conditions.
-Intensity below `0.2` selects `subtle`, intensity below `0.5` selects `moderate`, and all higher
-valid values select `strong`.
+Intensity below `0.2` selects `subtle`, intensity below `0.5` selects `moderate`, and all higher valid
+values select `strong`.
 
 All recorder commands accept `--condition` and `--append`. With neither flag, a recorder uses its
 fixed fixtures and resets the output directory. A condition selects its one materialized fixture;
@@ -65,6 +66,61 @@ A live run records every instrumented invocation that emits trace IDs. Responses
 with fixture-authored answers, and incomplete responses or traced application errors are retained.
 A run fails the recording contract only when it emits no trace IDs. Review or evaluate quality
 after recording; do not remove ambiguous outcomes from the generation stream.
+
+### Ordered mixed recording playbook
+
+Choose one live model for the batch and run these commands in order. The first command starts a new
+recording and captures every scripted tool fixture, including the longer coding sessions. Each later
+command appends either all base fixtures for one recorder or its authored condition. The resulting
+recording contains more than two dozen fragments across all six archetypes.
+
+```console
+export DATAGEN_MODEL="gpt-5-mini"
+
+uv run --script scripts/datagen/tool_agent.py \
+  --output-dir dist/datagen/recording
+
+uv run --script scripts/datagen/openai_chat_sessions.py \
+  --output-dir dist/datagen/recording \
+  --provider live --model "$DATAGEN_MODEL" --append
+uv run --script scripts/datagen/openai_chat_sessions.py \
+  --output-dir dist/datagen/recording \
+  --condition support-late-express-ambiguity \
+  --provider live --model "$DATAGEN_MODEL" --append
+
+uv run --script scripts/datagen/llama_index_rag.py \
+  --output-dir dist/datagen/recording \
+  --provider live --model "$DATAGEN_MODEL" --append
+uv run --script scripts/datagen/llama_index_rag.py \
+  --output-dir dist/datagen/recording \
+  --condition research-fleet-delivery-pressure \
+  --provider live --model "$DATAGEN_MODEL" --append
+
+uv run --script scripts/datagen/tool_agent.py \
+  --output-dir dist/datagen/recording \
+  --provider live --model "$DATAGEN_MODEL" --append
+uv run --script scripts/datagen/tool_agent.py \
+  --output-dir dist/datagen/recording \
+  --condition support-stale-delivery-status \
+  --provider live --model "$DATAGEN_MODEL" --append
+
+uv run --script scripts/datagen/structured_extraction.py \
+  --output-dir dist/datagen/recording \
+  --provider live --model "$DATAGEN_MODEL" --append
+uv run --script scripts/datagen/structured_extraction.py \
+  --output-dir dist/datagen/recording \
+  --condition analytics-corrected-refund-export \
+  --provider live --model "$DATAGEN_MODEL" --append
+
+uv run --script scripts/datagen/graph_multi_agent.py \
+  --output-dir dist/datagen/recording --append
+uv run --script scripts/datagen/guardrailed_app.py \
+  --output-dir dist/datagen/recording --append
+```
+
+Keep every command result that reports trace IDs, including responses that are incomplete,
+ambiguous, or accompanied by a traced application error. If a command reports no trace IDs, fix
+that recorder before continuing so later `--append` calls do not hide the missing fragment.
 
 An operating agent can choose conditions, model power, run count, and command order. To use Codex
 with ChatGPT subscription access, authenticate once and ask the non-interactive command to inspect

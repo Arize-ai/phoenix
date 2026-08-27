@@ -31,6 +31,7 @@ def test_condition_materialization_selects_strength_and_isolates_inputs(tmp_path
     )
 
     assert conditioned.fixture.fragment_id == "conditioned-tool-fragment"
+    assert conditioned.fixture.inputs["prompt"] == "Check the strong policy and order status."
     input_documents = cast(list[dict[str, Any]], conditioned.fixture.inputs["documents"])
     assert input_documents[0]["text"] == "Returns close after 14 days."
     assert conditioned.tool_fixture_set is not None
@@ -78,6 +79,12 @@ def _condition(intensity: float) -> dict[str, Any]:
     strengths = {}
     for strength, days in (("subtle", "29"), ("moderate", "21"), ("strong", "14")):
         strengths[strength] = {
+            "input_replacements": [
+                {
+                    "path": "/prompt",
+                    "value": f"Check the {strength} policy and order status.",
+                }
+            ],
             "document_edits": [
                 {
                     "target": "fixture",

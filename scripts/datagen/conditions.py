@@ -54,7 +54,14 @@ class _DocumentEdit:
 
 
 @dataclass(frozen=True)
+class _InputReplacement:
+    path: str
+    value: Any
+
+
+@dataclass(frozen=True)
 class _Payload:
+    input_replacements: tuple[_InputReplacement, ...]
     document_edits: tuple[_DocumentEdit, ...]
     tool_overlays: tuple[ToolResultOverlay, ...]
 
@@ -191,13 +198,24 @@ def _parse_condition(value: Any, source: Path) -> _Condition:
 
 def _parse_payload(value: Any, field: str, source: Path) -> _Payload:
     raw = _object(value, field, source)
-    unknown = set(raw) - {"document_edits", "tool_overlays"}
+    unknown = set(raw) - {"input_replacements", "document_edits", "tool_overlays"}
     if unknown:
         raise ConditionError(f"{field} in {source} has unknown fields: {sorted(unknown)}")
+    replacements_value = raw.get("input_replacements", [])
     edits_value = raw.get("document_edits", [])
     overlays_value = raw.get("tool_overlays", [])
-    if not isinstance(edits_value, list) or not isinstance(overlays_value, list):
-        raise ConditionError(f"{field} in {source} edits and overlays must be arrays")
+    if (
+        not isinstance(replacements_value, list)
+        or not isinstance(edits_value, list)
+        or not isinstance(overlays_value, list)
+    ):
+        raise ConditionError(
+            f"{field} in {source} replacements, edits, and overlays must be arrays"
+        )
+    replacements = tuple(
+        _parse_input_replacement(item, f"{field}.input_replacements[{index}]", source)
+        for index, item in enumerate(replacements_value)
+    )
     edits = tuple(
         _parse_document_edit(item, f"{field}.document_edits[{index}]", source)
         for index, item in enumerate(edits_value)
@@ -206,9 +224,15 @@ def _parse_payload(value: Any, field: str, source: Path) -> _Payload:
         _parse_tool_overlay(item, f"{field}.tool_overlays[{index}]", source)
         for index, item in enumerate(overlays_value)
     )
-    if not edits and not overlays:
-        raise ConditionError(f"{field} in {source} must define an edit or overlay")
-    return _Payload(edits, overlays)
+    if not replacements and not edits and not overlays:
+        raise ConditionError(f"{field} in {source} must define a replacement, edit, or overlay")
+    return _Payload(replacements, edits, overlays)
+
+
+def _parse_input_replacement(value: Any, field: str, source: Path) -> _InputReplacement:
+    raw = _object(value, field, source)
+    _exact_fields(raw, {"path", "value"}, field, source)
+    return _InputReplacement(_string(raw, "path", field, source), raw["value"])
 
 
 def _parse_document_edit(value: Any, field: str, source: Path) -> _DocumentEdit:
@@ -280,6 +304,8 @@ def _materialize_payload(
         if base_tool_fixture_set is not None
         else None
     )
+    for replacement in payload.input_replacements:
+        _apply_input_replacement(inputs, replacement)
     for edit in payload.document_edits:
         if edit.target == "fixture":
             documents = inputs.get("documents")
@@ -298,6 +324,39 @@ def _materialize_payload(
                 f"fixture {fixture.fragment_id!r} has invalid tool overlays: {error}"
             ) from error
     return inputs, tool_fixture_set
+
+
+def _apply_input_replacement(inputs: dict[str, Any], replacement: _InputReplacement) -> None:
+    if not replacement.path.startswith("/"):
+        raise ConditionError(f"input replacement path {replacement.path!r} must start with '/'")
+    parts = tuple(
+        part.replace("~1", "/").replace("~0", "~")
+        for part in replacement.path.removeprefix("/").split("/")
+    )
+    current: Any = inputs
+    for part in parts[:-1]:
+        if isinstance(current, dict) and part in current:
+            current = current[part]
+        elif isinstance(current, list) and part.isdecimal() and int(part) < len(current):
+            current = current[int(part)]
+        else:
+            raise ConditionError(f"input replacement path {replacement.path!r} does not exist")
+    leaf = parts[-1]
+    if isinstance(current, dict) and leaf in current:
+        current[leaf] = _replacement_value(current[leaf], replacement)
+    elif isinstance(current, list) and leaf.isdecimal() and int(leaf) < len(current):
+        index = int(leaf)
+        current[index] = _replacement_value(current[index], replacement)
+    else:
+        raise ConditionError(f"input replacement path {replacement.path!r} does not exist")
+
+
+def _replacement_value(current: Any, replacement: _InputReplacement) -> Any:
+    if isinstance(current, (dict, list)) or isinstance(replacement.value, (dict, list)):
+        raise ConditionError(
+            f"input replacement path {replacement.path!r} must replace a scalar value"
+        )
+    return _json_copy(replacement.value)
 
 
 def _apply_document_edit(documents: list[Any], edit: _DocumentEdit) -> None:
