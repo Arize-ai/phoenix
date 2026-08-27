@@ -21,6 +21,12 @@
           "user": "Actually, keep the backpack if the larger one is unavailable. I mostly need to know whether opening the packaging changes the deadline.",
           "assistant": "Opening the shipping packaging does not by itself change the 30-day deadline. The merchandise still needs to be unused and include its original product tags; availability can be checked before starting a return."
         }
+      ],
+      "opening_variants": [
+        "I bought a backpack about three weeks ago and never used it \u2014 is a return still possible?",
+        "What's the return window on an unworn item? Mine arrived 18 days ago.",
+        "Hi, hoping to return a backpack from a couple weeks back. It's still got the tags on.",
+        "Am I past the cutoff to send back an unused backpack from an order delivered on the 9th?"
       ]
     }
   },
@@ -42,6 +48,12 @@
           "user": "I still want the order. Can you refund only the express fee and avoid canceling it?",
           "assistant": "Yes, an eligible shipping-fee adjustment can be reviewed separately from the merchandise order. Support should confirm there was no address correction, weather exception, or attempted delivery before issuing it."
         }
+      ],
+      "opening_variants": [
+        "I paid for express shipping and the order still hasn't shown up \u2014 what are my options?",
+        "My express delivery is late. Do I get the shipping fee back?",
+        "Order was supposed to arrive two days ago on express. Who do I talk to about this?",
+        "Why is my express order past its delivery estimate, and what will support do about it?"
       ]
     }
   },
@@ -63,6 +75,12 @@
           "user": "I leave tomorrow. If it does not appear tonight, I need a replacement sent to a different address.",
           "assistant": "Support can document the time-sensitive replacement request when opening the claim after the 24-hour scan window. A different destination may require address verification before shipment, so the claim and replacement timing should be handled as separate steps."
         }
+      ],
+      "opening_variants": [
+        "Tracking says delivered but there's no package anywhere. Help?",
+        "My order shows as delivered yesterday and I never received it.",
+        "The carrier marked my delivery complete, but nothing arrived \u2014 what now?",
+        "Package marked delivered, checked with neighbors, nothing. What's the next step?"
       ]
     }
   },

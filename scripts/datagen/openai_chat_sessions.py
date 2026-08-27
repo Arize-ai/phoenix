@@ -19,6 +19,7 @@ import argparse
 import os
 import random
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from math import log
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -121,6 +122,21 @@ _DISPOSITION_PROMPTS: Mapping[str, str] = {
 }
 
 
+def _with_opening_variant(fixture: RecorderFixture, rng: random.Random) -> RecorderFixture:
+    """Pick one authored phrasing of the conversation's opening for this run."""
+    variants = fixture.inputs.get("opening_variants")
+    turns = fixture.inputs.get("turns")
+    if not isinstance(variants, list) or not isinstance(turns, list) or not turns:
+        return fixture
+    first = turns[0]
+    if not isinstance(first, dict) or not isinstance(first.get("user"), str):
+        return fixture
+    phrasings = [first["user"], *(v for v in variants if isinstance(v, str))]
+    opening = rng.choice(phrasings)
+    new_turns = [{**first, "user": opening}, *turns[1:]]
+    return replace(fixture, inputs={**fixture.inputs, "turns": new_turns})
+
+
 def record(
     output_dir: Path,
     *,
@@ -164,6 +180,7 @@ def record(
         else tuple(_DISPOSITION_PROMPTS.values())
     )
     length_rng = random.Random()
+    opening_rng = random.Random()
     prepare_recording(output_dir, append=append)
     exporter = SpanCaptureExporter()
     tracer_provider = TracerProvider(
@@ -175,6 +192,8 @@ def record(
     fragments = []
     try:
         for fixture_index, fixture in enumerate(selected_fixtures):
+            if provider == "live" and condition is None:
+                fixture = _with_opening_variant(fixture, opening_rng)
             fragments.append(
                 record_fixture(
                     fixture,
