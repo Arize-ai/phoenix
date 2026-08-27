@@ -93,11 +93,16 @@ function CategoryCards({
   };
 
   const showPreviousCategories = () => {
-    showCategoryAtIndex(Math.max(firstVisibleCategoryIndex - 1, 0));
+    showCategoryAtIndex(
+      Math.max(firstVisibleCategoryIndex - CATEGORY_CARDS_PER_VIEW, 0)
+    );
   };
   const showNextCategories = () => {
     showCategoryAtIndex(
-      Math.min(firstVisibleCategoryIndex + 1, lastFirstVisibleCategoryIndex)
+      Math.min(
+        firstVisibleCategoryIndex + CATEGORY_CARDS_PER_VIEW,
+        lastFirstVisibleCategoryIndex
+      )
     );
   };
 
