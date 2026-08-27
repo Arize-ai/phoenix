@@ -39,6 +39,7 @@ if TYPE_CHECKING or __package__:
         fixtures_for,
         prepare_recording,
         record_fixture,
+        resolve_live_model,
         trace_ids,
     )
 else:
@@ -51,6 +52,7 @@ else:
         fixtures_for,
         prepare_recording,
         record_fixture,
+        resolve_live_model,
         trace_ids,
     )
 
@@ -89,6 +91,7 @@ def record(
     live_client: OpenAI | None = None,
 ) -> tuple[dict[str, Any], ...]:
     """Record every selected extraction fixture into a corpus directory."""
+    model = resolve_live_model(model)
     if provider not in ("scripted", "live"):
         raise ValueError(f"unknown extraction provider {provider!r}")
     if condition is not None and fixtures is not None:

@@ -4,7 +4,12 @@ from phoenix.datagen.loader import load_corpus
 from scripts.datagen.corpus import package_corpus
 from scripts.datagen.graph_multi_agent import record as record_graph
 from scripts.datagen.openai_chat_sessions import record as record_chat
-from scripts.datagen.recording import fixtures_for
+from scripts.datagen.recording import fixtures_for, resolve_live_model
+
+
+def test_live_model_alias() -> None:
+    assert resolve_live_model("luna") == "gpt-5.6-luna"
+    assert resolve_live_model("gpt-5.4") == "gpt-5.4"
 
 
 def test_recording_resets_then_appends_into_a_multi_archetype_corpus(tmp_path: Path) -> None:

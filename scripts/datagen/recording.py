@@ -32,10 +32,16 @@ _ARCHETYPES = frozenset(
     }
 )
 _TRACE_ID_PATTERN = re.compile(r"[0-9a-fA-F]{32}")
+_LIVE_MODEL_ALIASES = {"luna": "gpt-5.6-luna"}
 
 
 class RecordingError(ValueError):
     """Raised when a recorder fixture or its output is malformed."""
+
+
+def resolve_live_model(model: str | None) -> str | None:
+    """Resolve recorder-friendly live model aliases to provider model IDs."""
+    return _LIVE_MODEL_ALIASES.get(model, model)
 
 
 class SpanCaptureExporter:
