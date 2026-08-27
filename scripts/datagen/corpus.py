@@ -10,15 +10,24 @@ import os
 import sys
 import tarfile
 import tempfile
+from collections import Counter
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Mapping, Sequence, TextIO
+from statistics import fmean, median
+from typing import Any, Iterator, Mapping, Sequence, TextIO
+
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
+    ExportTraceServiceRequest,
+)
+from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
 from phoenix.datagen.loader import Corpus, CorpusError, load_corpus
 
 _ARCHIVE_MEMBERS = ("fragments.jsonl", "traces.jsonl")
 _FRAGMENT_FIELDS = ("fragment_id", "archetype", "domain", "trace_ids")
+_SPAN_KIND = "openinference.span.kind"
+_SESSION_ID = "session.id"
 
 
 @dataclass(frozen=True)
@@ -28,6 +37,14 @@ class CorpusPackage:
     size_bytes: int
     fragment_count: int
     trace_count: int
+    span_count: int
+    span_kind_counts: Mapping[str, int]
+    span_kind_shares: Mapping[str, float]
+    spans_per_trace: Mapping[str, int | float]
+    tool_span_count: int
+    tool_span_share: float
+    llm_turns_by_session: Mapping[str, int]
+    llm_turns_per_session: Mapping[str, int | float]
 
 
 class CorpusArchiveError(ValueError):
@@ -46,13 +63,70 @@ def package_corpus(source: Path, destination: Path) -> CorpusPackage:
         },
     )
     archive_bytes = destination.read_bytes()
+    statistics = _corpus_statistics(corpus)
     return CorpusPackage(
         path=destination,
         sha256=sha256(archive_bytes).hexdigest(),
         size_bytes=len(archive_bytes),
         fragment_count=len(corpus.fragments),
         trace_count=len(corpus.requests),
+        **statistics,
     )
+
+
+def _corpus_statistics(corpus: Corpus) -> dict[str, Any]:
+    spans_per_trace = [sum(1 for _ in _iter_spans(request)) for request in corpus.requests]
+    span_kind_counts: Counter[str] = Counter()
+    llm_turns_by_session: Counter[str] = Counter()
+    for request in corpus.requests:
+        for span in _iter_spans(request):
+            span_kind = _string_attribute(span, _SPAN_KIND) or "UNKNOWN"
+            span_kind_counts[span_kind] += 1
+            if session_id := _string_attribute(span, _SESSION_ID):
+                llm_turns_by_session.setdefault(session_id, 0)
+                if span_kind == "LLM":
+                    llm_turns_by_session[session_id] += 1
+
+    span_count = sum(span_kind_counts.values())
+    span_kind_counts.setdefault("TOOL", 0)
+    span_kind_shares = {
+        span_kind: count / span_count for span_kind, count in span_kind_counts.items()
+    }
+    tool_span_count = span_kind_counts["TOOL"]
+    return {
+        "span_count": span_count,
+        "span_kind_counts": dict(span_kind_counts),
+        "span_kind_shares": span_kind_shares,
+        "spans_per_trace": _distribution(spans_per_trace),
+        "tool_span_count": tool_span_count,
+        "tool_span_share": tool_span_count / span_count,
+        "llm_turns_by_session": dict(llm_turns_by_session),
+        "llm_turns_per_session": _distribution(list(llm_turns_by_session.values())),
+    }
+
+
+def _iter_spans(request: ExportTraceServiceRequest) -> Iterator[Span]:
+    for resource_spans in request.resource_spans:
+        for scope_spans in resource_spans.scope_spans:
+            yield from scope_spans.spans
+
+
+def _string_attribute(span: Span, key: str) -> str | None:
+    attribute = next((attribute for attribute in span.attributes if attribute.key == key), None)
+    if attribute is None or attribute.value.WhichOneof("value") != "string_value":
+        return None
+    return attribute.value.string_value or None
+
+
+def _distribution(values: Sequence[int]) -> dict[str, int | float]:
+    if not values:
+        return {}
+    return {
+        "min": min(values),
+        "median": median(values),
+        "mean": fmean(values),
+        "max": max(values),
+    }
 
 
 def _read_bytes(path: Path) -> bytes:
@@ -162,6 +236,14 @@ def _package_document(package: CorpusPackage) -> dict[str, Any]:
         "size_bytes": package.size_bytes,
         "fragment_count": package.fragment_count,
         "trace_count": package.trace_count,
+        "span_count": package.span_count,
+        "span_kind_counts": dict(package.span_kind_counts),
+        "span_kind_shares": dict(package.span_kind_shares),
+        "spans_per_trace": dict(package.spans_per_trace),
+        "tool_span_count": package.tool_span_count,
+        "tool_span_share": package.tool_span_share,
+        "llm_turns_by_session": dict(package.llm_turns_by_session),
+        "llm_turns_per_session": dict(package.llm_turns_per_session),
     }
 
 

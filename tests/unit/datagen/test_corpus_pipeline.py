@@ -21,6 +21,28 @@ def test_package_and_prepare_publication(tmp_path: Path) -> None:
         == 0
     )
     package = json.loads(package_output.getvalue())
+    assert {
+        key: package[key]
+        for key in (
+            "span_count",
+            "span_kind_counts",
+            "span_kind_shares",
+            "spans_per_trace",
+            "tool_span_count",
+            "tool_span_share",
+            "llm_turns_by_session",
+            "llm_turns_per_session",
+        )
+    } == {
+        "span_count": 4,
+        "span_kind_counts": {"CHAIN": 1, "LLM": 3, "TOOL": 0},
+        "span_kind_shares": {"CHAIN": 0.25, "LLM": 0.75, "TOOL": 0.0},
+        "spans_per_trace": {"min": 1, "median": 1, "mean": 4 / 3, "max": 2},
+        "tool_span_count": 0,
+        "tool_span_share": 0.0,
+        "llm_turns_by_session": {"session-a": 2, "session-b": 1},
+        "llm_turns_per_session": {"min": 1, "median": 1.5, "mean": 1.5, "max": 2},
+    }
 
     with tarfile.open(archive, "r:gz") as contents:
         assert [member.name for member in contents.getmembers()] == [
