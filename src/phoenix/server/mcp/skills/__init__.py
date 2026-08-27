@@ -1,24 +1,3 @@
-"""Skills served by the Phoenix MCP server.
-
-A skill is a directory named for the skill, holding a ``SKILL.md`` — YAML
-frontmatter above Markdown instructions — and, optionally, a ``resources/``
-directory of supporting files. The frontmatter carries ``name`` (the directory
-name), ``description`` (when to load the skill; advertised before it is
-loaded) and ``summary`` (a one-line label for the assistant's skill picker).
-
-The server advertises every skill's name and description in its ``initialize``
-instructions, so a client learns what exists during the handshake, and serves
-the rest on demand through two tools: ``load_skill`` returns a skill's full
-instructions and ``read_skill_resource`` returns one of its supporting files.
-
-Skills live in two roots because the server has two kinds of consumer: coding
-agents connected at the ``/mcp`` mount, and the PXI agent running in-process.
-:data:`GENERAL_SKILLS_ROOT` holds skills that assume nothing beyond the MCP
-surface and reach every consumer. :data:`PXI_SKILLS_ROOT` holds skills that
-lean on PXI-only affordances (its bash tools, ``ui.*`` operations) and reach
-only the in-process server.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence
