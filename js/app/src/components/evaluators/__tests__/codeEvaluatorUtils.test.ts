@@ -1,7 +1,32 @@
 import {
   extractCodeEvaluatorVariables,
   extractRequiredCodeEvaluatorVariables,
+  getDefaultCodeEvaluatorSource,
+  getNextCodeEvaluatorSource,
 } from "../codeEvaluatorUtils";
+
+describe("getNextCodeEvaluatorSource", () => {
+  it("swaps a generated placeholder for the next language's placeholder", () => {
+    expect(
+      getNextCodeEvaluatorSource({
+        sourceCode: getDefaultCodeEvaluatorSource("PYTHON"),
+        language: "PYTHON",
+        nextLanguage: "TYPESCRIPT",
+      })
+    ).toEqual(getDefaultCodeEvaluatorSource("TYPESCRIPT"));
+  });
+
+  it("never overwrites user-authored code", () => {
+    const sourceCode = "def evaluate(output):\n    return 1.0\n";
+    expect(
+      getNextCodeEvaluatorSource({
+        sourceCode,
+        language: "PYTHON",
+        nextLanguage: "TYPESCRIPT",
+      })
+    ).toEqual(sourceCode);
+  });
+});
 
 describe("code evaluator variable extraction", () => {
   it.each([
