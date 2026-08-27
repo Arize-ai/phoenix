@@ -1616,6 +1616,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
                 )
                 if fn.description:
                     tool_spec["description"] = fn.description
+                if isinstance(fn.strict, bool):
+                    tool_spec["strict"] = fn.strict
                 tool_list.append(ToolTypeDef(toolSpec=tool_spec))
 
             tool_config = ToolConfigurationTypeDef(tools=tool_list)
@@ -2212,7 +2214,7 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                     params["tool_choice"] = choice_tool
                 else:
                     assert_never(tc.type)
-            if tools.disable_parallel_tool_calls:
+            elif tools.disable_parallel_tool_calls:
                 params["tool_choice"] = ToolChoiceAutoParam(
                     type="auto", disable_parallel_tool_use=True
                 )
@@ -2230,6 +2232,8 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                     )
                     if f.description:
                         t["description"] = f.description
+                    if isinstance(f.strict, bool):
+                        t["strict"] = f.strict
                     tool_list.append(t)
                 params["tools"] = tool_list
                 extra_headers = _anthropic_beta_headers_for_tools(tool_list)

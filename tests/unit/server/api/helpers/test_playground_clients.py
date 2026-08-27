@@ -25,8 +25,11 @@ from phoenix.db.types.model_provider import LLMClientFactory, ModelProvider
 from phoenix.db.types.prompts import (
     PromptAnthropicInvocationParameters,
     PromptAnthropicInvocationParametersContent,
+    PromptAwsInvocationParameters,
+    PromptAwsInvocationParametersContent,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
+    PromptToolChoiceNone,
     PromptToolChoiceSpecificFunctionTool,
     PromptToolChoiceZeroOrMore,
     PromptToolFunction,
@@ -42,6 +45,7 @@ from phoenix.server.api.helpers.playground_clients import (
     AnthropicClient,
     AzureOpenAIChatCompletionsClient,
     AzureOpenAIResponsesClient,
+    BedrockClient,
     GoogleClient,
     OpenAIChatCompletionsClient,
     OpenAICompatibleClient,
@@ -561,6 +565,95 @@ class TestAnthropicStreamingClient:
         ]
         assert extra_headers is None
 
+    def _anthropic_client(self) -> Any:
+        @asynccontextmanager
+        async def create_client() -> AsyncIterator[Any]:
+            yield None
+
+        return AnthropicClient(
+            client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+            model_name="claude-3-5-sonnet-latest",
+            provider="anthropic",
+        )
+
+    def _anthropic_params(self, tools: PromptTools) -> dict[str, Any]:
+        params, _, _ = self._anthropic_client()._anthropic_message_params(
+            messages=[
+                create_playground_message(ChatCompletionMessageRole.USER, "Evaluate this answer.")
+            ],
+            tools=tools,
+            response_format=None,
+            invocation_parameters=PromptAnthropicInvocationParameters(
+                type="anthropic",
+                anthropic=PromptAnthropicInvocationParametersContent(max_tokens=1024),
+            ),
+        )
+        return dict(params)
+
+    @staticmethod
+    def _function_tool(strict: Any = None) -> PromptToolFunction:
+        kwargs: dict[str, Any] = {
+            "name": "correctness",
+            "description": "Evaluate correctness",
+            "parameters": {"type": "object", "properties": {"label": {"type": "string"}}},
+        }
+        if strict is not None:
+            kwargs["strict"] = strict
+        return PromptToolFunction(type="function", function=PromptToolFunctionDefinition(**kwargs))
+
+    def test_specific_tool_choice_survives_disable_parallel_tool_calls(self) -> None:
+        """Disabling parallel tool use must not downgrade a specific tool choice to `auto`."""
+        params = self._anthropic_params(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceSpecificFunctionTool(
+                    type="specific_function", function_name="correctness"
+                ),
+                disable_parallel_tool_calls=True,
+                tools=[self._function_tool()],
+            )
+        )
+        assert params["tool_choice"] == {
+            "type": "tool",
+            "name": "correctness",
+            "disable_parallel_tool_use": True,
+        }
+
+    def test_tool_choice_none_survives_disable_parallel_tool_calls(self) -> None:
+        """`none` means "do not call tools" and must not be turned into `auto`."""
+        params = self._anthropic_params(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceNone(type="none"),
+                disable_parallel_tool_calls=True,
+                tools=[self._function_tool()],
+            )
+        )
+        assert params["tool_choice"] == {"type": "none"}
+
+    def test_disable_parallel_tool_calls_without_explicit_choice_falls_back_to_auto(self) -> None:
+        """With no explicit choice, the flag still yields `auto` + `disable_parallel_tool_use`."""
+        params = self._anthropic_params(
+            PromptTools(
+                type="tools",
+                disable_parallel_tool_calls=True,
+                tools=[self._function_tool()],
+            )
+        )
+        assert params["tool_choice"] == {"type": "auto", "disable_parallel_tool_use": True}
+
+    def test_function_tool_strict_is_forwarded(self) -> None:
+        """The stored prompt tool's `strict` setting must reach the Anthropic request."""
+        params = self._anthropic_params(
+            PromptTools(type="tools", tools=[self._function_tool(strict=True)])
+        )
+        assert params["tools"][0]["strict"] is True
+
+    def test_function_tool_omits_strict_when_unset(self) -> None:
+        """`strict` is optional; an unset value must not be sent."""
+        params = self._anthropic_params(PromptTools(type="tools", tools=[self._function_tool()]))
+        assert "strict" not in params["tools"][0]
+
     def test_raw_computer_tools_add_anthropic_beta_header(self) -> None:
         @asynccontextmanager
         async def create_client() -> AsyncIterator[Any]:
@@ -656,6 +749,57 @@ TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUME
 
 # tool attributes
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+
+
+class TestBedrockClient:
+    def _converse_request(self, tools: PromptTools) -> dict[str, Any]:
+        @asynccontextmanager
+        async def create_client() -> AsyncIterator[Any]:
+            yield None
+
+        client: Any = BedrockClient(
+            client_factory=LLMClientFactory(create_client, ("aws", "test")),
+            model_name="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            provider="aws",
+        )
+        request = client._converse_build_request(
+            messages=[
+                create_playground_message(ChatCompletionMessageRole.USER, "Evaluate this answer.")
+            ],
+            tools=tools,
+            response_format=None,
+            invocation_parameters=PromptAwsInvocationParameters(
+                type="aws",
+                aws=PromptAwsInvocationParametersContent(max_tokens=1024),
+            ),
+            span=INVALID_SPAN,
+        )
+        return dict(request)
+
+    @staticmethod
+    def _function_tool(strict: Any = None) -> PromptToolFunction:
+        kwargs: dict[str, Any] = {
+            "name": "correctness",
+            "description": "Evaluate correctness",
+            "parameters": {"type": "object", "properties": {"label": {"type": "string"}}},
+        }
+        if strict is not None:
+            kwargs["strict"] = strict
+        return PromptToolFunction(type="function", function=PromptToolFunctionDefinition(**kwargs))
+
+    def test_function_tool_strict_is_forwarded(self) -> None:
+        """The stored prompt tool's `strict` setting must reach the Bedrock toolSpec."""
+        request = self._converse_request(
+            PromptTools(type="tools", tools=[self._function_tool(strict=True)])
+        )
+        tool_spec = request["toolConfig"]["tools"][0]["toolSpec"]
+        assert tool_spec["strict"] is True
+
+    def test_function_tool_omits_strict_when_unset(self) -> None:
+        """`strict` is optional; an unset value must not be sent."""
+        request = self._converse_request(PromptTools(type="tools", tools=[self._function_tool()]))
+        tool_spec = request["toolConfig"]["tools"][0]["toolSpec"]
+        assert "strict" not in tool_spec
 
 
 class TestGetOpenAIClientClass:
