@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import log
-from typing import Sequence
+from typing import Mapping, NamedTuple, Sequence
 
 import numpy as np
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
@@ -14,9 +14,28 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from phoenix.datagen.loader import Corpus
 from phoenix.datagen.schema import Archetype, Fragment
 
-_SESSION_FRAGMENTS_MEDIAN = 2.0
-_SESSION_FRAGMENTS_SIGMA = 1.0
-_SESSION_FRAGMENTS_MAX = 24
+
+class _SessionLengthProfile(NamedTuple):
+    """Lognormal draw parameters for fragments per composed session."""
+
+    median: float
+    sigma: float
+    maximum: int
+
+
+# Session lengths differ by application shape: an agent work session strings
+# together many episodes, a chat conversation runs several turns, a one-shot
+# extraction rarely repeats. Medians are fragments per session; each fragment
+# carries its recorded traces.
+_SESSION_LENGTH_PROFILES: Mapping[Archetype, _SessionLengthProfile] = {
+    "tool_agent": _SessionLengthProfile(median=6.0, sigma=0.8, maximum=30),
+    "plain_chat": _SessionLengthProfile(median=3.0, sigma=0.8, maximum=8),
+    "rag": _SessionLengthProfile(median=3.0, sigma=0.8, maximum=8),
+    "structured_extraction": _SessionLengthProfile(median=4.0, sigma=1.0, maximum=16),
+    "graph_multi_agent": _SessionLengthProfile(median=2.0, sigma=0.8, maximum=6),
+    "guardrailed": _SessionLengthProfile(median=3.0, sigma=0.8, maximum=8),
+}
+_DEFAULT_SESSION_LENGTH = _SessionLengthProfile(median=2.0, sigma=1.0, maximum=24)
 _FRAGMENT_GAP_MEDIAN_SECONDS = 180.0
 _FRAGMENT_GAP_SIGMA = 0.9
 _FRAGMENT_GAP_MAX_SECONDS = 3600.0
@@ -60,7 +79,7 @@ class SessionComposer:
             fragments_by_application.setdefault(fragment.archetype, {}).setdefault(
                 fragment.domain, []
             ).append(fragment)
-        self._fragments_by_application = {
+        self._fragments_by_application: dict[Archetype, dict[str, tuple[Fragment, ...]]] = {
             archetype: {
                 domain: tuple(fragments) for domain, fragments in sorted(applications.items())
             }
@@ -83,7 +102,7 @@ class SessionComposer:
         """Materialize one backdated session ending at ``now_ns``."""
         cell_index = int(self._random.choice(len(self._cells), p=self._cell_probabilities))
         archetype, domain = self._cells[cell_index]
-        fragments = self._sample_fragments(archetype, domain, self._draw_fragment_count())
+        fragments = self._sample_fragments(archetype, domain, self._draw_fragment_count(archetype))
         traces: list[ComposedTrace] = []
         cursor_ns = 0
         for fragment_index, fragment in enumerate(fragments):
@@ -122,16 +141,17 @@ class SessionComposer:
             end_time_ns=now_ns,
         )
 
-    def _draw_fragment_count(self) -> int:
+    def _draw_fragment_count(self, archetype: Archetype) -> int:
+        profile = _SESSION_LENGTH_PROFILES.get(archetype, _DEFAULT_SESSION_LENGTH)
         count = int(
             round(
                 self._random.lognormal(
-                    mean=log(_SESSION_FRAGMENTS_MEDIAN),
-                    sigma=_SESSION_FRAGMENTS_SIGMA,
+                    mean=log(profile.median),
+                    sigma=profile.sigma,
                 )
             )
         )
-        return min(_SESSION_FRAGMENTS_MAX, max(1, count))
+        return min(profile.maximum, max(1, count))
 
     def _draw_fragment_gap_ns(self) -> int:
         seconds = self._random.lognormal(
