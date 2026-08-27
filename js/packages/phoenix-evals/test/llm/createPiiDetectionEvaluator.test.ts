@@ -18,8 +18,7 @@ describe("createPiiDetectionEvaluator", () => {
       .spyOn(generateClassificationModule, "generateClassification")
       .mockResolvedValue({
         label: "pii_detected",
-        explanation:
-          'FINDINGS:\n- type: email_address | source: user_message | value: "jane.doe@acme.com"',
+        explanation: "FINDINGS:\n- type: email_address | source: user_message",
       });
     const evaluator = createPiiDetectionEvaluator({ model });
 

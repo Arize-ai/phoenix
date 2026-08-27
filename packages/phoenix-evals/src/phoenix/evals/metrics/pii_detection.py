@@ -50,7 +50,6 @@ class PiiDetectionEvaluator(ClassificationEvaluator):
         [Score(name='pii_detection', score=1.0, label='pii_detected',
             explanation=(
                 'FINDINGS:\\n- type: email_address | source: user_message'
-                ' | value: "jane.doe@acme.com"'
             ),
             metadata={'model': 'gpt-4o-mini'},
             kind="llm", direction="minimize")]

@@ -99,7 +99,7 @@ Apply these rules:
 
 Put your analysis in the explanation. List every instance in order of appearance:
 FINDINGS:
-- type: <category_from_rubric> | source: <user_message|assistant_response|tool_call_or_result|system_instructions|retrieved_document> | value: "<exact quoted text from the record>"
+- type: <category_from_rubric> | source: <user_message|assistant_response|tool_call_or_result|system_instructions|retrieved_document>
 If you find nothing, write exactly:
 FINDINGS: none
 Do not omit, summarize, or shorten the list.
