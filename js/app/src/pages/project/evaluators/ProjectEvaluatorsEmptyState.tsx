@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useRef, useState } from "react";
+import { type ReactNode, Suspense, useRef, useState } from "react";
 import { useLazyLoadQuery } from "react-relay";
 
 import {
@@ -14,6 +14,7 @@ import {
 } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
+import { BuildProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   PROJECT_EVALUATOR_CATEGORIES,
@@ -41,7 +42,8 @@ export function ProjectEvaluatorsEmptyState() {
           <EvaluatorCategoryCards />
         </Suspense>
       </ErrorBoundary>
-      <Flex justifyContent="start">
+      <Flex direction="row" gap="size-100" wrap="wrap" justifyContent="center">
+        <BuildProjectEvaluatorMenu size="S" />
         <LinkButton size="S" variant="primary" to={paths.gallery}>
           Browse the library
         </LinkButton>
@@ -79,17 +81,12 @@ function CategoryCards({
 
   const showCategoryAtIndex = (categoryIndex: number) => {
     const categoryCardList = categoryCardListRef.current;
-    const firstCategoryCard = categoryCardList?.children.item(0);
     const targetCategoryCard = categoryCardList?.children.item(categoryIndex);
-    if (
-      categoryCardList &&
-      firstCategoryCard instanceof HTMLElement &&
-      targetCategoryCard instanceof HTMLElement
-    ) {
-      // Measure actual offsets so the scroll target stays aligned if card or
-      // gap tokens change.
-      categoryCardList.scrollTo({
-        left: targetCategoryCard.offsetLeft - firstCategoryCard.offsetLeft,
+    if (targetCategoryCard instanceof HTMLElement) {
+      // The scroll port's padding keeps adjacent cards peeking at the edges.
+      targetCategoryCard.scrollIntoView({
+        block: "nearest",
+        inline: "start",
       });
     }
     setFirstVisibleCategoryIndex(categoryIndex);
@@ -110,18 +107,19 @@ function CategoryCards({
       aria-roledescription="carousel"
       aria-label="Evaluator categories"
     >
-      <Flex direction="column" gap="size-200">
-        <CategoryCarouselHeader
-          hasPreviousCategories={hasPreviousCategories}
-          hasNextCategories={hasNextCategories}
-          onPrevious={showPreviousCategories}
-          onNext={showNextCategories}
-        />
+      <CategoryCarouselControls
+        hasPreviousCategories={hasPreviousCategories}
+        hasNextCategories={hasNextCategories}
+        onPrevious={showPreviousCategories}
+        onNext={showNextCategories}
+      >
         <ul
           ref={categoryCardListRef}
           id={CATEGORY_CAROUSEL_ID}
           css={categoryCardListCSS}
           aria-live="polite"
+          data-overflow-start={hasPreviousCategories}
+          data-overflow-end={hasNextCategories}
         >
           {PROJECT_EVALUATOR_CATEGORIES.map(
             ({ value, label, description }, categoryIndex) => {
@@ -176,25 +174,33 @@ function CategoryCards({
             }
           )}
         </ul>
-      </Flex>
+      </CategoryCarouselControls>
     </section>
   );
 }
 
 function EvaluatorCategoryCardsSkeleton() {
+  const hasCategoryOverflow =
+    PROJECT_EVALUATOR_CATEGORIES.length > CATEGORY_CARDS_PER_VIEW;
   return (
-    <Flex direction="column" gap="size-200" aria-hidden="true">
-      <CategoryCarouselHeader />
-      <ul css={categoryCardListCSS}>
-        {PROJECT_EVALUATOR_CATEGORIES.slice(0, CATEGORY_CARDS_PER_VIEW).map(
-          ({ value }) => (
+    <div aria-hidden="true">
+      <CategoryCarouselControls>
+        <ul
+          id={CATEGORY_CAROUSEL_ID}
+          css={categoryCardListCSS}
+          data-overflow-end={hasCategoryOverflow}
+        >
+          {PROJECT_EVALUATOR_CATEGORIES.slice(
+            0,
+            CATEGORY_CARDS_PER_VIEW + 1
+          ).map(({ value }) => (
             <li key={value}>
               <Skeleton height={CATEGORY_CARD_MIN_HEIGHT} />
             </li>
-          )
-        )}
-      </ul>
-    </Flex>
+          ))}
+        </ul>
+      </CategoryCarouselControls>
+    </div>
   );
 }
 
@@ -202,34 +208,22 @@ function EvaluatorCategoryCardsError() {
   return <CategoryCards templates={[]} />;
 }
 
-function CategoryCarouselHeader({
+function CategoryCarouselControls({
+  children,
   hasPreviousCategories = false,
   hasNextCategories = false,
   onPrevious,
   onNext,
 }: {
+  children: ReactNode;
   hasPreviousCategories?: boolean;
   hasNextCategories?: boolean;
   onPrevious?: () => void;
   onNext?: () => void;
 }) {
   return (
-    <Flex
-      direction="row"
-      gap="size-100"
-      wrap="wrap"
-      alignItems="center"
-      justifyContent="space-between"
-    >
-      <Flex direction="row" gap="size-100" wrap="wrap" alignItems="baseline">
-        <Text elementType="h2" size="S" weight="heavy">
-          Browse by category
-        </Text>
-        <Text size="S" color="text-700">
-          Pick an area to start browsing.
-        </Text>
-      </Flex>
-      <Flex direction="row" gap="size-50">
+    <Flex direction="row" gap="size-100" alignItems="center" width="100%">
+      <Flex alignItems="center" css={categoryCarouselControlCSS}>
         <IconButton
           size="S"
           isDisabled={!hasPreviousCategories}
@@ -239,6 +233,9 @@ function CategoryCarouselHeader({
         >
           <Icon svg={<Icons.ChevronLeftSmall />} />
         </IconButton>
+      </Flex>
+      {children}
+      <Flex alignItems="center" css={categoryCarouselControlCSS}>
         <IconButton
           size="S"
           isDisabled={!hasNextCategories}
@@ -256,19 +253,42 @@ function CategoryCarouselHeader({
 const emptyStateContentCSS = css`
   box-sizing: border-box;
   margin-inline: auto;
-  padding: var(--global-dimension-size-400) var(--global-dimension-size-300)
-    var(--global-dimension-size-600);
+  padding: var(--global-dimension-size-400) 0 var(--global-dimension-size-600);
+`;
+
+const categoryCarouselControlCSS = css`
+  position: relative;
+  align-self: stretch;
+
+  > button {
+    position: static;
+
+    /* Extend the real button's hit target without enlarging its visual state. */
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+    }
+  }
 `;
 
 const categoryCardListCSS = css`
   --category-card-gap: var(--global-dimension-size-125);
+  --category-carousel-peek: var(--global-dimension-size-250);
+  --category-carousel-fade-start: 0px;
+  --category-carousel-fade-end: 0px;
 
+  box-sizing: border-box;
   display: flex;
+  flex: 1;
   gap: var(--category-card-gap);
+  min-width: 0;
   overflow: hidden;
   margin: 0;
-  padding: 0;
+  /* Reserve the same edge slot whether it holds empty space or a card peek. */
+  padding: 0 var(--category-carousel-peek);
   list-style: none;
+  scroll-padding-inline: var(--category-carousel-peek);
   scroll-behavior: smooth;
 
   > li {
@@ -280,6 +300,32 @@ const categoryCardListCSS = css`
       );
   }
 
+  &[data-overflow-start="true"] {
+    --category-carousel-fade-start: var(--category-carousel-peek);
+  }
+
+  &[data-overflow-end="true"] {
+    --category-carousel-fade-end: var(--category-carousel-peek);
+  }
+
+  /* Match the directional overflow treatment used by horizontal tabs. */
+  &:is([data-overflow-start="true"], [data-overflow-end="true"]) {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      black var(--category-carousel-fade-start),
+      black calc(100% - var(--category-carousel-fade-end)),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black var(--category-carousel-fade-start),
+      black calc(100% - var(--category-carousel-fade-end)),
+      transparent
+    );
+  }
+
   @media (prefers-reduced-motion: reduce) {
     scroll-behavior: auto;
   }
@@ -287,12 +333,19 @@ const categoryCardListCSS = css`
 
 const categoryCardCSS = css`
   box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
   flex-direction: column;
   min-height: ${CATEGORY_CARD_MIN_HEIGHT}px;
   min-width: 0;
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
   border-radius: var(--global-rounding-small);
+  transition: background-color 0.15s ease;
+
+  &:has(> .link-container > a:hover) {
+    background-color: var(--global-card-header-background-color-hover);
+  }
 
   > .link-container {
     display: flex;
@@ -314,34 +367,71 @@ const categorySummaryLinkCSS = css`
     var(--global-dimension-size-100);
   border-radius: var(--global-rounding-small) var(--global-rounding-small) 0 0;
   color: var(--global-text-color-900);
-  transition: background-color 0.15s ease;
+
+  /* Stretch this anchor without wrapping the sibling template links. */
+  &::after {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    border-radius: var(--global-rounding-small);
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  &:focus-visible::after {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
+  }
 
   &:hover {
-    background-color: var(--global-card-header-background-color-hover);
     text-decoration: none;
   }
 `;
 
 const templateLinkListCSS = css`
+  --template-link-gap: var(--global-dimension-size-100);
+
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: none;
   flex-direction: column;
-  gap: var(--global-dimension-size-100);
+  gap: var(--template-link-gap);
   width: 100%;
   height: var(--global-dimension-size-1700);
   margin: 0;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   list-style: none;
+  /* Padding falls through to the category link; rows and gaps opt back in. */
+  pointer-events: none;
 
   li {
     min-width: 0;
+  }
+
+  li + li {
+    position: relative;
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: calc(-1 * var(--template-link-gap));
+      right: 0;
+      left: 0;
+      height: var(--template-link-gap);
+      pointer-events: auto;
+    }
   }
 
   .link-container {
     display: flex;
     width: 100%;
     max-width: none;
+    pointer-events: auto;
   }
 `;
 

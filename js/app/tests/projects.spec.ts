@@ -215,10 +215,10 @@ test.describe.serial("Projects", () => {
       page.getByRole("heading", { name: "Evaluators", exact: true })
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Browse by category" })
+      page.getByRole("link", { name: "Browse the library" })
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Browse the library" })
+      page.getByRole("button", { name: "Build from scratch" })
     ).toBeVisible();
     await expect(
       page.getByRole("searchbox", { name: "Search evaluators by name" })
@@ -228,7 +228,10 @@ test.describe.serial("Projects", () => {
     ).toHaveCount(0);
     await expect(evaluatorsTab).toContainText("0");
 
-    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page.getByRole("button", { name: "Build from scratch" }).click();
+    await expect(
+      page.getByRole("menuitem", { name: "Browse the whole library" })
+    ).toHaveCount(0);
     await page
       .getByRole("menuitem", { name: "Create new LLM evaluator" })
       .click();
@@ -327,7 +330,7 @@ test.describe.serial("Projects", () => {
     await expect(updatedRow).not.toBeVisible();
     await expect(evaluatorsTab).toContainText("0");
     await expect(
-      page.getByRole("heading", { name: "Browse by category" })
+      page.getByRole("button", { name: "Build from scratch" })
     ).toBeVisible();
     await expect(
       page.getByRole("searchbox", { name: "Search evaluators by name" })
