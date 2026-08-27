@@ -232,7 +232,8 @@ def session_eval_context(
     carry every name in ``SESSION_BOUND_VARIABLE_NAMES``.
 
     The applied policy is returned beside the context rather than inside it: it is
-    pipeline bookkeeping, and every top-level context key is bindable.
+    published on the annotation, not bound by the evaluator, and every top-level
+    context key is bindable.
     """
     total_root_count = (
         len(turns) if total_eligible_root_count is None else total_eligible_root_count
@@ -290,6 +291,10 @@ async def load_session_eval_context(
         models.Trace.project_rowid == project_id,
         models.Span.parent_id.is_(None),
     )
+    # Counted rather than derived from the loaded turns because the turns are
+    # capped: the difference is what `turn_cap_omitted_count` reports on every
+    # published annotation, telling a reader how much of the session the score
+    # did not see.
     total_eligible_root_count = (
         await session.scalar(
             select(func.count(func.distinct(models.Trace.id)))
@@ -361,7 +366,9 @@ def has_eligible_root_turns(applied_policy: Mapping[str, Any]) -> bool:
     A session whose traces carry no root span loads no turns. Live hydration
     refuses it (``NO_ROOT_TURNS``) rather than evaluating that emptiness, so the
     preview field reads the same predicate and reports the session as unevaluable
-    instead of offering the empty context.
+    instead of offering the empty context. Reading it off the applied policy
+    keeps one spelling of the question, though an empty count and an empty turn
+    list always agree.
     """
     return bool(applied_policy["total_eligible_root_count"])
 
