@@ -2,19 +2,24 @@
 
 These scripts record application traffic through real OpenInference instrumenters.
 The resulting corpus contains raw OTLP protobuf JSON requests and the fragment rows used by the
-Phoenix datagen composer. Recording frameworks remain outside Phoenix runtime dependencies.
+Phoenix datagen composer. A **fragment** is one replayable unit — a conversation turn or an agent
+episode — pointing at the recorded traces it produced. Recording frameworks remain outside Phoenix
+runtime dependencies.
 
 ## Fixed inputs
 
 `recorder_fixtures.json` contains the application inputs for every retained recorder:
 
 - a stable fragment ID;
-- an archetype and domain;
+- an archetype (which kind of application produced the trace — plain chat, RAG, tool agent,
+  graph agent, guardrails, or structured extraction) and a domain (its subject area, such as
+  customer support or coding);
 - direct prompts, turns, documents, or expected structured values.
 
 The fixtures contain no sampling weights or generated text. Each recorder receives a
 `RecorderFixture`, appends OTLP requests to `traces.jsonl`, and returns the trace IDs it emitted.
-`record_fixture` then appends the matching four-field row to `fragments.jsonl`.
+`record_fixture` then appends the matching fragment row (`fragment_id`, `archetype`, `domain`,
+`trace_ids`) to `fragments.jsonl`.
 
 The fixture set includes multiple examples for plain chat, RAG, tool agents, graph agents,
 guardrails, and structured extraction. Success, blocked, redacted, conflicting-source, and
@@ -32,18 +37,24 @@ analytics, and coding data sets.
 
 ## Generate varied recordings
 
-`organic_conditions.json` defines authored changes to recorder inputs. Each condition names a base
-fixture, a unique output fragment ID, an intensity, and one payload for each strength. Document
-edits, replacements at existing fixture-input paths, and matched local-tool result overlays are
-applied before the application runs. Input replacements cannot add or remove structure. Keep every
-condition fragment ID distinct from the IDs in `recorder_fixtures.json` and from other conditions.
-Intensity below `0.2` selects `subtle`, intensity below `0.5` selects `moderate`, and all higher valid
-values select `strong`.
+`organic_conditions.json` defines authored input variations: degraded versions of the base
+fixture inputs that let response-quality issues arise naturally rather than by script. Each
+condition names a base fixture, a unique output fragment ID, an intensity, and one payload per
+intensity level. Document edits, replacements at existing fixture-input paths, and
+matched local-tool result overlays are applied before the application runs. Input replacements
+cannot add or remove structure. Keep every condition fragment ID distinct from the IDs in
+`recorder_fixtures.json` and from other conditions. Intensity selects the level:
+
+| Intensity | Level |
+| --------- | ----- |
+| below 0.2 | `subtle` |
+| below 0.5 | `moderate` |
+| 0.5 and above | `strong` |
 
 All recorder commands accept `--condition` and `--append`. With neither flag, a recorder uses its
-fixed fixtures and resets the output directory. A condition selects its one materialized fixture;
-`--append` preserves existing rows so multiple conditions and archetypes can share a recording
-directory.
+fixed fixtures and resets the output directory. `--condition` runs the one fixture with that
+condition's edits applied; `--append` preserves existing rows so multiple conditions and
+recorders can share a recording directory.
 
 Plain chat, RAG, tool agent, and structured extraction also accept `--provider scripted|live`.
 Scripted is the default. Live recording requires an explicit `--model`, reads `OPENAI_API_KEY`, and
@@ -64,10 +75,10 @@ append controls without provider or model options.
 
 A live run records every instrumented invocation that emits trace IDs. Responses are not compared
 with fixture-authored answers, and incomplete responses or traced application errors are retained.
-A run fails the recording contract only when it emits no trace IDs. Review or evaluate quality
-after recording; do not remove ambiguous outcomes from the generation stream.
+A run fails only when it emits no trace IDs. Review or evaluate quality after recording; keep
+ambiguous outcomes in the recorded set.
 
-### Ordered mixed recording playbook
+### Recording playbook (all recorders, one directory)
 
 Choose one live model for the batch and run these commands in order. The first command starts a new
 recording and captures every scripted tool fixture, including the longer coding sessions. Each later
@@ -122,9 +133,9 @@ Keep every command result that reports trace IDs, including responses that are i
 ambiguous, or accompanied by a traced application error. If a command reports no trace IDs, fix
 that recorder before continuing so later `--append` calls do not hide the missing fragment.
 
-An operating agent can choose conditions, model power, run count, and command order. To use Codex
-with ChatGPT subscription access, authenticate once and ask the non-interactive command to inspect
-the playbook and invoke recorder commands:
+Anyone — or any coding agent — running this playbook can choose the conditions, models, run
+count, and command order. To use Codex with ChatGPT subscription access, authenticate once and ask
+the non-interactive command to inspect the playbook and invoke recorder commands:
 
 ```console
 codex login
