@@ -126,7 +126,7 @@ List every instance. Do not omit, summarize, or shorten the list for brevity,eve
 </conversation>
 </data>
 
-Work through the conversation record section by section — system instructions, each turn, each tool call and its result — checking each part against the rubric and rules above, and list every finding (with its source) before you decide. Does the conversation contain PII (pii_detected) or not (no_pii_detected)?
+Work through the conversation record as given — every section, turn, and field it contains — checking each part against the rubric and rules above, and list every finding (with its source) before you decide. Does the conversation contain PII (pii_detected) or not (no_pii_detected)?
 `,
     },
   ],
