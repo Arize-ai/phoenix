@@ -55,6 +55,12 @@ else:
 
 Provider = Literal["scripted", "live"]
 
+_IMPERFECT_USER_PROMPT = (
+    "You are an imperfect human continuing the conversation. Reply with only the next user "
+    "message: terse, sometimes vague or typo-prone, occasionally correcting a detail, and free "
+    "to shift goals. Do not label the speaker or explain the simulation."
+)
+
 
 def record(
     output_dir: Path,
@@ -147,15 +153,21 @@ def _record_fixture(
     checkpoint = exporter.checkpoint()
     try:
         with using_session(fixture.fragment_id):
-            for turn in turns:
+            for turn_index, turn in enumerate(turns):
                 if not isinstance(turn, dict):
                     raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid turn")
                 user = turn.get("user")
                 expected = turn.get("assistant")
-                if not isinstance(user, str) or (
-                    provider == "scripted" and not isinstance(expected, str)
+                if provider == "scripted" and (
+                    not isinstance(user, str) or not isinstance(expected, str)
                 ):
                     raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid turn")
+                if provider == "live" and turn_index > 0:
+                    user = _simulate_user(client, model_name, messages)
+                if not isinstance(user, str):
+                    if provider == "scripted" or turn_index == 0:
+                        raise ValueError(f"fixture {fixture.fragment_id!r} has an invalid turn")
+                    break
                 messages.append({"role": "user", "content": user})
                 response = client.chat.completions.create(
                     model=model_name,
@@ -175,6 +187,21 @@ def _record_fixture(
         if spans:
             append_spans(traces_path, spans)
     return trace_ids(spans)
+
+
+def _simulate_user(
+    client: OpenAI,
+    model: str,
+    messages: Sequence[Mapping[str, Any]],
+) -> str | None:
+    response = client.chat.completions.create(
+        model=model,
+        messages=cast(
+            Any,
+            [{"role": "system", "content": _IMPERFECT_USER_PROMPT}, *messages],
+        ),
+    )
+    return response.choices[0].message.content
 
 
 def main() -> None:
