@@ -173,6 +173,7 @@ class PhoenixRecorder:
         run: v1.ExperimentRun,
         *,
         trial_result: TrialResult,
+        expected_trace_id: str | None = None,
     ) -> bool:
         """Validate an immutable successful run or allow a failed run to be replaced."""
         if run.get("error"):
@@ -185,6 +186,9 @@ class PhoenixRecorder:
             mismatches.append("output")
         if expected_error is not None:
             mismatches.append("error")
+        stored_trace_id = run.get("trace_id")
+        if stored_trace_id is not None and stored_trace_id != expected_trace_id:
+            mismatches.append("trace")
         if mismatches:
             trial_name = str(trial_result.trial_name)
             fields = ", ".join(mismatches)
@@ -229,7 +233,6 @@ class PhoenixRecorder:
         snapshot: DatasetSnapshot,
         experiments: Mapping[str, ExperimentHandle],
         trial_result: TrialResult,
-        existing_run: v1.ExperimentRun | None = None,
         trace_id: str | None = None,
     ) -> v1.ExperimentRun:
         """Record one terminal Harbor trial as a Phoenix experiment run."""
@@ -249,19 +252,6 @@ class PhoenixRecorder:
                 f"Harbor trial {trial_name!r} has no complete start and end timestamps."
             )
 
-        if existing_run is not None and self.can_reuse_run(existing_run, trial_result=trial_result):
-            stored_trace_id = existing_run.get("trace_id")
-            if trace_id is None or stored_trace_id == trace_id:
-                return existing_run
-            if stored_trace_id is not None:
-                logger.warning(
-                    "Phoenix run %s is already linked to trace %s; keeping it instead of %s.",
-                    existing_run["id"],
-                    stored_trace_id,
-                    trace_id,
-                )
-                return existing_run
-
         try:
             return await self._client.experiments.log_run(
                 experiment_id=experiment.experiment_id,
@@ -275,26 +265,12 @@ class PhoenixRecorder:
             )
         except httpx.HTTPStatusError as error:
             if error.response.status_code == 409:
-                recovered = await self._recover_conflicting_run(
+                return await self._recover_conflicting_run(
                     experiment=experiment,
                     dataset_example_id=example_id,
                     repetition=slot.repetition,
                     trial_result=trial_result,
                 )
-                if trace_id is not None and recovered.get("trace_id") is None:
-                    logger.warning(
-                        "Phoenix kept Harbor run %s untraced after rejecting trace attachment. "
-                        "Upgrade the Phoenix server to a version that supports one-time trace "
-                        "backfill.",
-                        recovered["id"],
-                    )
-                elif trace_id is not None and recovered.get("trace_id") != trace_id:
-                    logger.warning(
-                        "Phoenix run %s already has trace %s; keeping the first link.",
-                        recovered["id"],
-                        recovered.get("trace_id"),
-                    )
-                return recovered
             raise HarborPluginError(
                 f"Could not record Harbor trial {trial_name!r} in Phoenix experiment "
                 f"{experiment.name!r}: {error}"

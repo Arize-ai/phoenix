@@ -190,7 +190,7 @@ class TestConfiguration:
         monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "https://phoenix.example")
         plugin = PhoenixJobPlugin()
         assert plugin.dataset is None
-        assert plugin.trace_mode == "none"
+        assert plugin.trace_mode == "atif"
         assert plugin.experiment_name is None
         assert plugin.experiment_name_template == DEFAULT_EXPERIMENT_NAME_TEMPLATE
 
@@ -397,7 +397,7 @@ class TestJobStart:
 
         monkeypatch.setattr("phoenix.client.harbor._plugin.build_harbor_trace", build_trace)
         monkeypatch.setattr(PhoenixRecorder, "confirm_trace", confirm_trace)
-        plugin = PhoenixJobPlugin(trace_mode="atif")
+        plugin = PhoenixJobPlugin()
         job = FakeJob()
         await plugin.on_job_start(job)
 

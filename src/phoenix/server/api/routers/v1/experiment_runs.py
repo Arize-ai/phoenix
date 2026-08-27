@@ -102,79 +102,44 @@ async def create_experiment_run(
     error = request_body.error
 
     async with request.app.state.db() as session:
-        attached_trace = False
         # Check if a record already exists
         existing_run = await session.scalar(
             select(models.ExperimentRun)
             .where(models.ExperimentRun.experiment_id == experiment_rowid)
             .where(models.ExperimentRun.dataset_example_id == dataset_example_id)
             .where(models.ExperimentRun.repetition_number == repetition_number)
-            .with_for_update()
         )
 
         if existing_run is not None and existing_run.error is None:
+            # Record exists and has no error - reject the update
             run_gid = GlobalID("ExperimentRun", str(existing_run.id))
-            if trace_id is None:
-                raise HTTPException(
-                    status_code=409,
-                    detail=(
-                        f"Experiment run {run_gid} already exists with a successful result "
-                        "and cannot be updated"
-                    ),
-                )
-            if existing_run.trace_id == trace_id:
-                id_ = existing_run.id
-            elif existing_run.trace_id is not None:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Experiment run {run_gid} is already linked to another trace",
-                )
-            else:
-                project_name = await session.scalar(
-                    select(models.Experiment.project_name).where(
-                        models.Experiment.id == experiment_rowid
-                    )
-                )
-                trace_exists = (
-                    await session.scalar(
-                        select(models.Trace.id)
-                        .join(models.Project, models.Trace.project_rowid == models.Project.id)
-                        .where(models.Trace.trace_id == trace_id)
-                        .where(models.Project.name == project_name)
-                    )
-                    if project_name is not None
-                    else None
-                )
-                if trace_exists is None:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=(f"Trace {trace_id!r} does not exist in the experiment's project"),
-                    )
-                existing_run.trace_id = trace_id
-                id_ = existing_run.id
-                attached_trace = True
-        else:
-            # Either no record exists, or existing record has an error - proceed with upsert
-            stmt = insert_on_conflict(
-                {
-                    "experiment_id": experiment_rowid,
-                    "dataset_example_id": dataset_example_id,
-                    "trace_id": trace_id,
-                    "output": ExperimentRunOutput(task_output=task_output),
-                    "repetition_number": repetition_number,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "error": error,
-                },
-                table=models.ExperimentRun,
-                dialect=request.app.state.db.dialect,
-                unique_by=["experiment_id", "dataset_example_id", "repetition_number"],
-                on_conflict=OnConflict.DO_UPDATE,
-            ).returning(models.ExperimentRun.id)
-            id_ = await session.scalar(stmt)
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Experiment run {run_gid} already exists with a successful result "
+                    "and cannot be updated"
+                ),
+            )
+        # Either no record exists, or existing record has an error - proceed with upsert
+        stmt = insert_on_conflict(
+            {
+                "experiment_id": experiment_rowid,
+                "dataset_example_id": dataset_example_id,
+                "trace_id": trace_id,
+                "output": ExperimentRunOutput(task_output=task_output),
+                "repetition_number": repetition_number,
+                "start_time": start_time,
+                "end_time": end_time,
+                "error": error,
+            },
+            table=models.ExperimentRun,
+            dialect=request.app.state.db.dialect,
+            unique_by=["experiment_id", "dataset_example_id", "repetition_number"],
+            on_conflict=OnConflict.DO_UPDATE,
+        ).returning(models.ExperimentRun.id)
+        id_ = await session.scalar(stmt)
 
-    if existing_run is None or existing_run.error is not None or attached_trace:
-        request.state.event_queue.put(ExperimentRunInsertEvent((id_,)))
+    request.state.event_queue.put(ExperimentRunInsertEvent((id_,)))
     run_gid = GlobalID("ExperimentRun", str(id_))
     return CreateExperimentRunResponseBody(
         data=CreateExperimentRunResponseBodyData(id=str(run_gid))

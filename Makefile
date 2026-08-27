@@ -109,7 +109,7 @@ help: ## Show this help message
 	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
 	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Run the isolated Phoenix Harbor plugin E2E matrix"
-	@echo -e "  $(YELLOW)harbor-plugin-e2e-atif$(NC)  - Run the credentialed Terminus-2 ATIF backfill E2E"
+	@echo -e "  $(YELLOW)harbor-plugin-e2e-atif$(NC)  - Run the credentialed Terminus-2 ATIF E2E"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real headless-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -520,8 +520,7 @@ harbor-plugin-e2e: ## Run the isolated Phoenix Harbor plugin E2E matrix
 	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
 		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py
 
-harbor-plugin-e2e-atif: ## Run the credentialed Terminus-2 ATIF backfill E2E
-	OPENAI_API_KEY="$${OPENAI_API_KEY:-$$(security find-generic-password -a "$$USER" -s OPENAI_API_KEY -w)}" \
+harbor-plugin-e2e-atif: ## Run the credentialed Terminus-2 ATIF E2E
 	HARBOR_VERSION=$(HARBOR_ATIF_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
 	HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_E2E_ATIF=1 \
 		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py

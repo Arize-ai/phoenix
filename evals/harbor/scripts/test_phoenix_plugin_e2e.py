@@ -213,7 +213,7 @@ def _harbor_command(
     jobs_dir: Path,
     arguments: Iterable[str],
     *,
-    trace_mode: str = "none",
+    trace_mode: str = "atif",
 ) -> list[str]:
     return [
         "uvx",
@@ -244,7 +244,7 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     jobs_dir = root / "jobs"
     jobs_dir.mkdir()
     client = Client(base_url=endpoint)
-    job_name = "plugin-e2e-atif-backfill"
+    job_name = "plugin-e2e-atif"
     arguments = [
         "-p",
         str(DIRECT_TASK),
@@ -265,13 +265,6 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         "--job-name",
         job_name,
     ]
-    untraced_command = _harbor_command(
-        wheel,
-        endpoint,
-        jobs_dir,
-        arguments,
-        trace_mode="none",
-    )
     traced_command = _harbor_command(
         wheel,
         endpoint,
@@ -280,7 +273,7 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         trace_mode="atif",
     )
 
-    _run(untraced_command, description="Terminus-2 writes ATIF and records an untraced run")
+    _run(traced_command, description="Terminus-2 records a run with its ATIF trace")
     canonical_roots = sorted((jobs_dir / job_name).rglob("trajectory.json"))
     _check(bool(canonical_roots), "Terminus-2 wrote no canonical trajectory.json")
     for path in canonical_roots:
@@ -293,14 +286,9 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     experiment = experiments[0]
     initial_runs = _runs(client, experiment["id"])
     _check(len(initial_runs) == 1, repr(initial_runs))
-    _check(initial_runs[0].get("trace_id") is None, repr(initial_runs[0]))
+    trace_id = initial_runs[0].get("trace_id")
+    _check(isinstance(trace_id, str) and len(trace_id) == 32, repr(initial_runs[0]))
     evaluations_before = _evaluation_state(endpoint, experiment["id"])
-
-    _run(traced_command, description="completed job resume backfills its ATIF trace")
-    backfilled_runs = _runs(client, experiment["id"])
-    _check(len(backfilled_runs) == 1, repr(backfilled_runs))
-    trace_id = backfilled_runs[0].get("trace_id")
-    _check(isinstance(trace_id, str) and len(trace_id) == 32, repr(backfilled_runs[0]))
     project_name = experiment.get("project_name")
     _check(bool(project_name), repr(experiment))
     spans = client.spans.get_spans(
@@ -308,13 +296,13 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         trace_ids=[str(trace_id)],
         limit=10_000,
     )
-    _check(bool(spans), "Backfilled trace has no spans")
+    _check(bool(spans), "ATIF trace has no spans")
     roots = [span for span in spans if span.get("parent_id") is None]
     _check(len(roots) == 1 and roots[0]["name"] == "harbor.trial", repr(roots))
     span_ids = {span["context"]["span_id"] for span in spans}
     _check(
         all(span.get("parent_id") in span_ids for span in spans if span.get("parent_id")),
-        "Backfilled trace contains an unresolved parent",
+        "ATIF trace contains an unresolved parent",
     )
     agent_roots = [span for span in spans if span["span_kind"] == "AGENT"]
     _check(len(agent_roots) >= len(canonical_roots), repr(agent_roots))
@@ -323,7 +311,7 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
             str(span["attributes"].get("session.id", "")).startswith(f"harbor:{trace_id}:")
             for span in agent_roots
         ),
-        "Backfilled trace exposed an unnamespaced producer session",
+        "ATIF trace exposed an unnamespaced producer session",
     )
     _check(_evaluation_state(endpoint, experiment["id"]) == evaluations_before, "Evals changed")
 

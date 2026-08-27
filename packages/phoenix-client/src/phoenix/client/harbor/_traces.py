@@ -30,19 +30,17 @@ from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_p
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["AtifArtifact", "HarborTrace", "build_harbor_trace"]
+__all__ = ["HarborTrace", "build_harbor_trace", "harbor_trace_id"]
 
 _NAMESPACE = "phoenix.harbor.atif.v1"
 _CANONICAL_FILENAME = "trajectory.json"
 
 
 @dataclass(frozen=True)
-class AtifArtifact:
-    path: Path
+class _TrajectorySource:
     relative_path: str
     role: Literal["agent", "user-agent"]
     step_name: str | None
-    trajectory: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -64,7 +62,7 @@ class _Graph:
     trial_root: Path
     trial_key: str
     warning_prefix: str
-    artifacts: list[AtifArtifact]
+    sources: list[_TrajectorySource]
     trajectories: list[MutableMapping[str, Any]]
     source_paths: list[str]
     unresolved_references: list[str]
@@ -90,7 +88,7 @@ def build_harbor_trace(
     """
     trial_name = str(trial_result.trial_name)
     trial_root = Path(trial_result.config.trials_dir) / trial_name
-    trial_key = f"{plan.job_id}:{trial_result.id}"
+    trial_key = _trial_key(plan, trial_result)
     graph = _Graph(
         trial_root,
         trial_key,
@@ -130,7 +128,7 @@ def build_harbor_trace(
     if not graph.trajectories:
         return None
 
-    trace_id = _hex_id(f"{_NAMESPACE}:{trial_key}:trace", length=32)
+    trace_id = harbor_trace_id(plan, trial_result)
     root_span_id = _hex_id(f"{_NAMESPACE}:{trial_key}:root", length=16)
     normalized = _normalize_trajectories(graph, trace_id)
     try:
@@ -158,6 +156,11 @@ def build_harbor_trace(
         graph.warn(f"Could not convert Harbor ATIF for trial {trial_name!r}: {error}")
         return None
     return HarborTrace(trace_id=trace_id, spans=spans, source_paths=tuple(graph.source_paths))
+
+
+def harbor_trace_id(plan: JobPlan, trial_result: TrialResult) -> str:
+    """Return the deterministic Phoenix trace ID for a Harbor trial."""
+    return _hex_id(f"{_NAMESPACE}:{_trial_key(plan, trial_result)}:trace", length=32)
 
 
 def _root_locations(trial_result: TrialResult) -> tuple[_RootLocation, ...]:
@@ -230,9 +233,7 @@ def _load_file(
         return None
 
     relative_path = _display_path(canonical_path, graph.trial_root)
-    graph.artifacts.append(
-        AtifArtifact(canonical_path, relative_path, role, step_name, copy.deepcopy(raw))
-    )
+    graph.sources.append(_TrajectorySource(relative_path, role, step_name))
     graph.source_paths.append(relative_path)
     graph.trajectories.append(raw)
     graph.loaded[canonical_path] = raw
@@ -469,12 +470,12 @@ def _normalize_trajectories(graph: _Graph, trace_id: str) -> list[Mapping[str, A
                 if isinstance(ref_session, str) and ref_session:
                     ref["session_id"] = _session_id(trace_id, ref_session)
 
-    for artifact, document in zip(graph.artifacts, normalized):
+    for source, document in zip(graph.sources, normalized):
         normalize_document(
             document,
-            role=artifact.role,
-            step_name=artifact.step_name,
-            relative_path=artifact.relative_path,
+            role=source.role,
+            step_name=source.step_name,
+            relative_path=source.relative_path,
             index_path="root",
         )
 
@@ -578,6 +579,10 @@ def _trajectory_id(
 ) -> str:
     seed = ":".join((_NAMESPACE, trial_key, role, step_name or "single", relative_path, index_path))
     return f"harbor-{hashlib.sha256(seed.encode()).hexdigest()}"
+
+
+def _trial_key(plan: JobPlan, trial_result: TrialResult) -> str:
+    return f"{plan.job_id}:{trial_result.id}"
 
 
 def _session_id(trace_id: str, producer_session_id: str) -> str:

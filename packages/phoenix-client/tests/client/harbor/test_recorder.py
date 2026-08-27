@@ -681,51 +681,6 @@ class TestRecordExperimentRun:
         assert recorded == existing_run
         assert len(experiments.logged_runs) == 1
 
-    async def test_existing_untraced_run_is_reposted_for_trace_attachment(self) -> None:
-        experiments = FakeExperiments()
-        job = plan(
-            trials=(
-                TrialSlot(
-                    config=TrialConfig(
-                        task=TaskConfig(path=Path("task-a")),
-                        agent=slice_().agent,
-                        trial_name="task-a__1",
-                    ),
-                    identity_digest=slice_().identity_digest,
-                    repetition=1,
-                ),
-            )
-        )
-        handles = await recorder(FakeClient(experiments=experiments)).resolve_experiments(
-            job, SNAPSHOT
-        )
-        existing = {
-            "id": "run-existing",
-            "experiment_id": "experiment-1",
-            "dataset_example_id": "node-a",
-            "repetition_number": 1,
-            "output": {
-                "harbor_trial_id": "trial-id",
-                "harbor_trial_name": "task-a__1",
-                "harbor_trial_uri": "file:///trial",
-                "task_name": "task-a",
-                "token_usage": {"input": 10, "cache": 2, "output": 4},
-                "cost_usd": 0.01,
-            },
-        }
-
-        recorded = await recorder(FakeClient(experiments=experiments)).record_experiment_run(
-            plan=job,
-            snapshot=SNAPSHOT,
-            experiments=handles,
-            trial_result=trial_result(),
-            existing_run=cast(Any, existing),
-            trace_id="a" * 32,
-        )
-
-        assert recorded.get("trace_id") == "a" * 32
-        assert experiments.logged_runs[0]["trace_id"] == "a" * 32
-
 
 def span(span_id: str, trace_id: str = "a" * 32) -> dict[str, Any]:
     return {

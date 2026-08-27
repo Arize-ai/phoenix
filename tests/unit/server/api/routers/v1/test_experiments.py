@@ -1,4 +1,3 @@
-import asyncio
 import json
 from datetime import datetime, timezone
 from io import StringIO
@@ -9,7 +8,7 @@ import httpx
 import pandas as pd
 import pytest
 from httpx import HTTPStatusError
-from sqlalchemy import select, text
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -17,80 +16,6 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import verify_experiment_examples_junction_table
 from tests.unit.server.api.conftest import ExperimentsWithIncompleteRuns
-
-
-@pytest.mark.postgres_only
-async def test_concurrent_trace_attachment_accepts_exactly_one_trace(
-    httpx_client: httpx.AsyncClient,
-    dataset_with_experiments_and_runs: Any,
-    db: DbSessionFactory,
-) -> None:
-    now = datetime.now(timezone.utc)
-    trace_ids = [token_hex(16), token_hex(16)]
-    async with db() as session:
-        project = models.Project(name="default")
-        session.add(project)
-        await session.flush()
-        session.add_all(
-            models.Trace(
-                project_rowid=project.id,
-                trace_id=trace_id,
-                start_time=now,
-                end_time=now,
-            )
-            for trace_id in trace_ids
-        )
-
-    payload = {
-        "dataset_example_id": str(GlobalID("DatasetExample", "1")),
-        "repetition_number": 1,
-        "output": "must_not_replace_original",
-        "error": "must_not_replace_original",
-        "start_time": now.isoformat(),
-        "end_time": now.isoformat(),
-    }
-    experiment_gid = GlobalID("Experiment", "0")
-
-    async with db() as lock_session:
-        await lock_session.scalar(
-            select(models.ExperimentRun).where(models.ExperimentRun.id == 0).with_for_update()
-        )
-        requests = [
-            asyncio.create_task(
-                httpx_client.post(
-                    f"v1/experiments/{experiment_gid}/runs",
-                    json={**payload, "trace_id": trace_id},
-                )
-            )
-            for trace_id in trace_ids
-        ]
-
-        for _ in range(100):
-            blocked_requests = await lock_session.scalar(
-                text(
-                    """
-                    SELECT count(*)
-                    FROM pg_stat_activity
-                    WHERE datname = current_database()
-                      AND pid <> pg_backend_pid()
-                      AND wait_event_type = 'Lock'
-                    """
-                )
-            )
-            if blocked_requests == 2:
-                break
-            await asyncio.sleep(0.01)
-        assert blocked_requests == 2
-
-    responses = await asyncio.gather(*requests)
-    assert sorted(response.status_code for response in responses) == [200, 409]
-
-    async with db() as session:
-        run = await session.get(models.ExperimentRun, 0)
-        assert run is not None
-        assert run.trace_id in trace_ids
-        assert run.output == {"out": "barr"}
-        assert run.error is None
 
 
 async def test_experiments_api(

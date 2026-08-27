@@ -60,8 +60,7 @@ def upload_atif_trajectories_as_spans(
 
     Converts ATIF (Agent Trajectory Interchange Format) trajectory dicts
     into Phoenix/OpenTelemetry-compatible span trees and uploads them.
-    Supports ATIF schema versions v1.0 through v1.7, with forward-compatible
-    preservation for ATIF v1.8 audio content.
+    Supports ATIF schema versions v1.0 through v1.7.
 
     **Trace structure**
 

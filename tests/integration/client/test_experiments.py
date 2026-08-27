@@ -21,7 +21,6 @@ from .._helpers import (  # pyright: ignore[reportPrivateUsage]
     _await_or_return,
     _gql,
     _httpx_client,
-    _until_spans_exist,
 )
 
 
@@ -1849,6 +1848,7 @@ class TestExperimentsIntegration:
         )[0]
         assert failed_run["id"] is not None
 
+        # Verify the failed run was created with the error
         runs = helper.get_runs(exp["id"])
         example1_runs = [r for r in runs if r["dataset_example_id"] == examples[1]["id"]]
         assert len(example1_runs) == 1
@@ -1861,6 +1861,7 @@ class TestExperimentsIntegration:
         )[0]
         assert updated_run["id"] is not None
 
+        # Verify the error was updated
         runs = helper.get_runs(exp["id"])
         example1_runs = [r for r in runs if r["dataset_example_id"] == examples[1]["id"]]
         assert len(example1_runs) == 1
@@ -1873,6 +1874,7 @@ class TestExperimentsIntegration:
         )[0]
         assert successful_retry["id"] is not None
 
+        # Verify the run is now successful (error is None)
         runs = helper.get_runs(exp["id"])
         example1_runs = [r for r in runs if r["dataset_example_id"] == examples[1]["id"]]
         assert len(example1_runs) == 1
@@ -1892,129 +1894,6 @@ class TestExperimentsIntegration:
             },
         )
         assert response.status_code == 409
-
-    async def test_successful_run_accepts_one_trace_link_without_other_mutation(
-        self,
-        _app: _AppInfo,
-        _setup_experiment_test: _SetupExperimentTest,
-    ) -> None:
-        client, helper = _setup_experiment_test(False)
-        assert isinstance(client, SyncClient)
-        dataset_id, examples = helper.create_dataset(
-            inputs=[{"q": "test"}],
-            outputs=[{"a": "answer"}],
-        )
-        experiment = helper.create_experiment(dataset_id, repetitions=1)
-        run = helper.create_runs(
-            experiment["id"],
-            [(examples[0]["id"], 1, "original_output", None)],
-        )[0]
-        project_name = experiment["project_name"]
-        assert project_name is not None
-
-        def trace_span(trace_id: str, span_id: str) -> v1.Span:
-            return {
-                "name": "root",
-                "context": {"trace_id": trace_id, "span_id": span_id},
-                "span_kind": "CHAIN",
-                "start_time": helper.now,
-                "end_time": helper.now,
-                "status_code": "OK",
-                "attributes": {},
-            }
-
-        trace_id = token_hex(16)
-        span_id = token_hex(8)
-        client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-            project_identifier=project_name,
-            spans=[trace_span(trace_id, span_id)],
-        )
-        await _until_spans_exist(_app, [span_id])
-        payload = {
-            "dataset_example_id": examples[0]["id"],
-            "repetition_number": 1,
-            "output": "must_not_replace_original",
-            "error": "must_not_replace_original",
-            "start_time": "2020-01-01T00:00:00+00:00",
-            "end_time": "2020-01-01T00:00:01+00:00",
-            "trace_id": trace_id,
-        }
-
-        response = helper.http_client.post(f"v1/experiments/{experiment['id']}/runs", json=payload)
-        response.raise_for_status()
-        assert response.json()["data"]["id"] == run["id"]
-        stored = helper.get_runs(experiment["id"])[0]
-        assert stored["trace_id"] == trace_id
-        assert stored["output"] == "original_output"
-        assert stored.get("error") is None
-        assert stored["start_time"] != payload["start_time"]
-
-        repeated = helper.http_client.post(f"v1/experiments/{experiment['id']}/runs", json=payload)
-        assert repeated.status_code == 200
-        assert repeated.json()["data"]["id"] == run["id"]
-
-        other_trace_id = token_hex(16)
-        other_span_id = token_hex(8)
-        client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-            project_identifier=project_name,
-            spans=[trace_span(other_trace_id, other_span_id)],
-        )
-        await _until_spans_exist(_app, [other_span_id])
-        conflict = helper.http_client.post(
-            f"v1/experiments/{experiment['id']}/runs",
-            json={**payload, "trace_id": other_trace_id},
-        )
-        assert conflict.status_code == 409
-
-    async def test_successful_run_rejects_trace_from_another_project(
-        self,
-        _app: _AppInfo,
-        _setup_experiment_test: _SetupExperimentTest,
-    ) -> None:
-        client, helper = _setup_experiment_test(False)
-        assert isinstance(client, SyncClient)
-        dataset_id, examples = helper.create_dataset(
-            inputs=[{"q": "test"}],
-            outputs=[{"a": "answer"}],
-        )
-        experiment = helper.create_experiment(dataset_id, repetitions=1)
-        helper.create_runs(
-            experiment["id"],
-            [(examples[0]["id"], 1, "original_output", None)],
-        )
-        trace_id = token_hex(16)
-        span_id = token_hex(8)
-        client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
-            project_identifier=f"other-project-{token_hex(4)}",
-            spans=[
-                {
-                    "name": "root",
-                    "context": {"trace_id": trace_id, "span_id": span_id},
-                    "span_kind": "CHAIN",
-                    "start_time": helper.now,
-                    "end_time": helper.now,
-                    "status_code": "OK",
-                    "attributes": {},
-                }
-            ],
-        )
-        await _until_spans_exist(_app, [span_id])
-
-        response = helper.http_client.post(
-            f"v1/experiments/{experiment['id']}/runs",
-            json={
-                "dataset_example_id": examples[0]["id"],
-                "repetition_number": 1,
-                "output": "original_output",
-                "error": None,
-                "start_time": helper.now,
-                "end_time": helper.now,
-                "trace_id": trace_id,
-            },
-        )
-
-        assert response.status_code == 404
-        assert helper.get_runs(experiment["id"])[0].get("trace_id") is None
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_create_experiment(

@@ -38,7 +38,6 @@ uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
   harbor run -p evals/harbor/tasks/regression-triage -a oracle -e docker \
   --plugin arize-phoenix \
   --plugin-kwarg endpoint=http://127.0.0.1:6006 \
-  --plugin-kwarg trace_mode=none \
   --yes
 ```
 
@@ -81,30 +80,6 @@ configuration digest, not by its display name. Two jobs may use the same exact n
 treated as the same experiment. Include `{job.name}` or `{job.id}` when those jobs should also be
 easy to distinguish by name in Phoenix.
 
-## ATIF traces
-
-Tracing is opt-in. Pass `trace_mode=atif` to import the canonical ATIF files written by the
-Harbor agent and attach one trace to each experiment run:
-
-```bash
-harbor run ... \
-  --plugin arize-phoenix \
-  --plugin-kwarg endpoint=http://127.0.0.1:6006 \
-  --plugin-kwarg trace_mode=atif
-```
-
-The plugin discovers `trajectory.json` in the completed trial's agent directories, follows local
-continuation and subagent references, and stores the resulting trace in the experiment's own
-Phoenix project. It does not fetch remote references or read files outside the Harbor agent log
-directory. Missing or invalid trajectories, upload failures, and attachment conflicts emit a
-warning without dropping the experiment run or its evaluations.
-
-Trace IDs and span IDs are deterministic for a Harbor job and trial. Re-running a completed job
-repairs a partial upload and can attach a trace to a successful run that was originally recorded
-with `trace_mode=none`. The trace link is write-once. Phoenix keeps the first link if a run already
-points to another trace. Older Phoenix servers that do not support one-time attachment keep the
-uploaded trace and untraced run separately, then log an upgrade warning.
-
 Both trial targets accept overrides, e.g.:
 
 ```bash
@@ -126,15 +101,14 @@ and startup failures with Harbor 0.21.0. Successful runs remove their temporary 
 runs print and retain the workspace path for investigation. Set `HARBOR_E2E_KEEP=1` to retain a
 successful run as well.
 
-Run the explicit Terminus-2 ATIF test with an OpenAI key from macOS Keychain:
+Run the explicit Terminus-2 ATIF test with `OPENAI_API_KEY` already set in the environment:
 
 ```bash
 make harbor-plugin-e2e-atif
 ```
 
-This target reads `OPENAI_API_KEY` with `keyget` for the duration of the command. It runs Terminus-2
-once with tracing disabled, resumes the completed job with ATIF enabled to backfill the existing
-run, then resumes it again to check idempotency. It defaults to Harbor 0.22.0 and
+The target runs Terminus-2 with ATIF tracing enabled, then resumes it to check idempotency. It
+defaults to Harbor 0.22.0 and
 `openai/gpt-5-mini`; override them with `HARBOR_ATIF_VERSION` and `HARBOR_ATIF_MODEL`. Like the
 credential-free matrix, it uses a disposable Phoenix working directory and does not touch the
 shared `~/.phoenix/phoenix.db`.
