@@ -10,6 +10,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
@@ -27,6 +28,7 @@ import {
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import type { TimeRangeISOStrings } from "@phoenix/components/datetime";
 import {
   EvaluatorAverageCost,
   EvaluatorCost,
@@ -42,6 +44,7 @@ import {
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
+import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
@@ -64,12 +67,12 @@ const scrollableAreaCSS = css`
   overflow: auto;
 `;
 
-const readRow = (row: ProjectEvaluatorsTable_row$key) => {
-  return readInlineData(
+const readRow = (
+  row: ProjectEvaluatorsTable_row$key & ProjectEvaluatorsTable_costs$key
+) => {
+  const rowData = readInlineData<ProjectEvaluatorsTable_row$key>(
     graphql`
-      fragment ProjectEvaluatorsTable_row on ProjectEvaluator
-      @inline
-      @argumentDefinitions(costTimeRange: { type: "TimeRange" }) {
+      fragment ProjectEvaluatorsTable_row on ProjectEvaluator @inline {
         id
         name
         evaluationTarget
@@ -86,23 +89,6 @@ const readRow = (row: ProjectEvaluatorsTable_row$key) => {
           queuedCount
           evaluatedCount
           failedCount
-        }
-        # TODO: These aggregate scans may become expensive as evaluator projects grow.
-        # Move them onto ProjectEvaluator so CODE evaluators can skip them, and consider @defer.
-        traceProject {
-          id
-          traceCount(timeRange: $costTimeRange)
-          costSummary(timeRange: $costTimeRange) {
-            total {
-              cost
-            }
-            prompt {
-              cost
-            }
-            completion {
-              cost
-            }
-          }
         }
         evaluator {
           kind
@@ -134,6 +120,33 @@ const readRow = (row: ProjectEvaluatorsTable_row$key) => {
     `,
     row
   );
+  const costData = readInlineData<ProjectEvaluatorsTable_costs$key>(
+    graphql`
+      fragment ProjectEvaluatorsTable_costs on ProjectEvaluator
+      @inline
+      @argumentDefinitions(timeRange: { type: "TimeRange!" }) {
+        # TODO: These aggregate scans may become expensive as evaluator projects grow.
+        # Move them onto ProjectEvaluator so CODE evaluators can skip them, and consider @defer.
+        traceProject {
+          id
+          traceCount(timeRange: $timeRange)
+          costSummary(timeRange: $timeRange) {
+            total {
+              cost
+            }
+            prompt {
+              cost
+            }
+            completion {
+              cost
+            }
+          }
+        }
+      }
+    `,
+    row
+  );
+  return { ...rowData, ...costData };
 };
 
 type TableRow = ReturnType<typeof readRow>;
@@ -142,11 +155,14 @@ export function ProjectEvaluatorsTable({
   project,
   projectId,
   filter,
+  timeRange,
 }: {
   project: ProjectEvaluatorsTable_project$key;
   projectId: string;
   /** Free-text name search from the toolbar; empty means unfiltered. */
   filter: string;
+  /** Selected project time range used by the cost aggregates. */
+  timeRange: TimeRangeISOStrings;
 }) {
   "use no memo";
   const {
@@ -163,14 +179,14 @@ export function ProjectEvaluatorsTable({
         first: { type: "Int", defaultValue: 30 }
         after: { type: "String", defaultValue: null }
         filter: { type: "ProjectEvaluatorFilter", defaultValue: null }
-        costTimeRange: { type: "TimeRange" }
+        timeRange: { type: "TimeRange!" }
       ) {
         evaluators(first: $first, after: $after, filter: $filter)
           @connection(key: "ProjectEvaluatorsTable_evaluators") {
           edges {
             node {
               ...ProjectEvaluatorsTable_row
-                @arguments(costTimeRange: $costTimeRange)
+              ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
             }
           }
         }
@@ -179,24 +195,35 @@ export function ProjectEvaluatorsTable({
     project
   );
   const trimmedFilter = filter.trim();
+  const isFirstRender = useRef(true);
   // Filtered server-side; a client-side filter would only see the loaded page.
   useEffect(() => {
+    // The parent query already carries the initial filter and selected range.
+    // Refetch only after the filter or live selected range changes.
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     startTransition(() => {
       refetch(
         {
+          after: null,
+          first: PAGE_SIZE,
           filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
+          timeRange,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [trimmedFilter, refetch]);
+  }, [trimmedFilter, refetch, timeRange]);
   const loadNext = useCallback(() => {
     _loadNext(PAGE_SIZE, {
       UNSTABLE_extraVariables: {
         filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
+        timeRange,
       },
     });
-  }, [_loadNext, trimmedFilter]);
+  }, [_loadNext, trimmedFilter, timeRange]);
   const tableData = useMemo(
     () => data.evaluators.edges.map(({ node }) => readRow(node)),
     [data.evaluators.edges]
@@ -281,8 +308,8 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "cost",
-        header: "total cost (7d)",
-        size: 165,
+        header: "total cost",
+        size: 120,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
           <EvaluatorCost
@@ -293,8 +320,8 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "averageCost",
-        header: "avg cost / run (7d)",
-        size: 230,
+        header: "avg cost / run",
+        size: 185,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
           <EvaluatorAverageCost

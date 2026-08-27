@@ -5,7 +5,7 @@ import { Outlet, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Skeleton, View } from "@phoenix/components";
-import { getEvaluatorCostTimeRange } from "@phoenix/pages/evaluators/evaluatorCostUtils";
+import { useTimeRange } from "@phoenix/components/datetime";
 import type { ProjectEvaluatorsPageQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsPageQuery.graphql";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
@@ -44,22 +44,25 @@ function ProjectEvaluatorsPageContent({
   projectId: string;
   filter: string;
 }) {
-  const [costTimeRange] = useState(() => getEvaluatorCostTimeRange());
+  const { timeRangeISOStrings } = useTimeRange();
+  // The owner query supplies the initial range. Subsequent live or user-selected
+  // range changes refetch the pagination fragment in ProjectEvaluatorsTable,
+  // matching the spans and traces table pattern without reloading this query.
+  const [initialTimeRange] = useState(() => timeRangeISOStrings);
   const data = useLazyLoadQuery<ProjectEvaluatorsPageQuery>(
     graphql`
       query ProjectEvaluatorsPageQuery(
         $projectId: ID!
-        $costTimeRange: TimeRange
+        $timeRange: TimeRange!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            ...ProjectEvaluatorsTable_project
-              @arguments(costTimeRange: $costTimeRange)
+            ...ProjectEvaluatorsTable_project @arguments(timeRange: $timeRange)
           }
         }
       }
     `,
-    { projectId, costTimeRange },
+    { projectId, timeRange: initialTimeRange },
     { fetchPolicy: "store-and-network" }
   );
   invariant(data.project, "project is required");
@@ -68,6 +71,7 @@ function ProjectEvaluatorsPageContent({
       project={data.project}
       projectId={projectId}
       filter={filter}
+      timeRange={timeRangeISOStrings}
     />
   );
 }

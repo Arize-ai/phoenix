@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d759ac19a5ef113d533dca0ba0b5343a>>
+ * @generated SignedSource<<edf5bc42e18a71ee1a4d597806936ffe>>
  * @lightSyntaxTransform
  */
 
@@ -29,51 +29,30 @@ export type DatasetEvaluatorsTable_evaluators$key = {
 import DatasetEvaluatorsTableEvaluatorsQuery_graphql from './DatasetEvaluatorsTableEvaluatorsQuery.graphql';
 
 const node: ReaderFragment = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "costTimeRange"
-},
-v1 = [
+var v0 = [
   "datasetEvaluators"
 ],
-v2 = {
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
-},
-v5 = [
-  {
-    "kind": "Variable",
-    "name": "timeRange",
-    "variableName": "costTimeRange"
-  }
-],
-v6 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "cost",
-    "storageKey": null
-  }
-];
+};
 return {
   "argumentDefinitions": [
     {
@@ -81,7 +60,6 @@ return {
       "kind": "LocalArgument",
       "name": "after"
     },
-    (v0/*:: as any*/),
     {
       "defaultValue": null,
       "kind": "LocalArgument",
@@ -105,7 +83,7 @@ return {
         "count": "first",
         "cursor": "after",
         "direction": "forward",
-        "path": (v1/*:: as any*/)
+        "path": (v0/*:: as any*/)
       }
     ],
     "refetch": {
@@ -115,7 +93,7 @@ return {
           "cursor": "after"
         },
         "backward": null,
-        "path": (v1/*:: as any*/)
+        "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [
         "node"
@@ -168,8 +146,8 @@ return {
                   "kind": "InlineDataFragmentSpread",
                   "name": "DatasetEvaluatorsTable_row",
                   "selections": [
+                    (v1/*:: as any*/),
                     (v2/*:: as any*/),
-                    (v3/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -177,7 +155,7 @@ return {
                       "name": "description",
                       "storageKey": null
                     },
-                    (v4/*:: as any*/),
+                    (v3/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -206,73 +184,13 @@ return {
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": "Project",
-                      "kind": "LinkedField",
-                      "name": "project",
-                      "plural": false,
-                      "selections": [
-                        (v2/*:: as any*/),
-                        {
-                          "alias": null,
-                          "args": (v5/*:: as any*/),
-                          "kind": "ScalarField",
-                          "name": "traceCount",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": (v5/*:: as any*/),
-                          "concreteType": "SpanCostSummary",
-                          "kind": "LinkedField",
-                          "name": "costSummary",
-                          "plural": false,
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "CostBreakdown",
-                              "kind": "LinkedField",
-                              "name": "total",
-                              "plural": false,
-                              "selections": (v6/*:: as any*/),
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "CostBreakdown",
-                              "kind": "LinkedField",
-                              "name": "prompt",
-                              "plural": false,
-                              "selections": (v6/*:: as any*/),
-                              "storageKey": null
-                            },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "CostBreakdown",
-                              "kind": "LinkedField",
-                              "name": "completion",
-                              "plural": false,
-                              "selections": (v6/*:: as any*/),
-                              "storageKey": null
-                            }
-                          ],
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
                       "concreteType": null,
                       "kind": "LinkedField",
                       "name": "evaluator",
                       "plural": false,
                       "selections": [
+                        (v1/*:: as any*/),
                         (v2/*:: as any*/),
-                        (v3/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -287,7 +205,7 @@ return {
                           "name": "createdAt",
                           "storageKey": null
                         },
-                        (v4/*:: as any*/),
+                        (v3/*:: as any*/),
                         {
                           "kind": "InlineFragment",
                           "selections": [
@@ -299,8 +217,8 @@ return {
                               "name": "prompt",
                               "plural": false,
                               "selections": [
-                                (v2/*:: as any*/),
-                                (v3/*:: as any*/)
+                                (v1/*:: as any*/),
+                                (v2/*:: as any*/)
                               ],
                               "storageKey": null
                             },
@@ -312,7 +230,7 @@ return {
                               "name": "promptVersionTag",
                               "plural": false,
                               "selections": [
-                                (v3/*:: as any*/)
+                                (v2/*:: as any*/)
                               ],
                               "storageKey": null
                             },
@@ -363,8 +281,8 @@ return {
                               "name": "sandboxConfig",
                               "plural": false,
                               "selections": [
+                                (v1/*:: as any*/),
                                 (v2/*:: as any*/),
-                                (v3/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -394,16 +312,8 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "args": [
-                    {
-                      "kind": "Variable",
-                      "name": "costTimeRange",
-                      "variableName": "costTimeRange"
-                    }
-                  ],
-                  "argumentDefinitions": [
-                    (v0/*:: as any*/)
-                  ]
+                  "args": null,
+                  "argumentDefinitions": []
                 },
                 {
                   "alias": null,
@@ -465,13 +375,13 @@ return {
       ],
       "storageKey": null
     },
-    (v2/*:: as any*/)
+    (v1/*:: as any*/)
   ],
   "type": "Dataset",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "cc84d1b492249e49c001aa1619fda62f";
+(node as any).hash = "a8c96f9c66acdc2abd7f597e5ccd8355";
 
 export default node;

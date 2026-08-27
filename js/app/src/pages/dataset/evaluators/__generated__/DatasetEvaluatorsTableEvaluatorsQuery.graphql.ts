@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d4666ad594433acc810623cd5da9c025>>
+ * @generated SignedSource<<be32d4862b79565df966601d7e3d7f35>>
  * @lightSyntaxTransform
  */
 
@@ -12,10 +12,6 @@ import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorColumn = "createdAt" | "kind" | "name" | "updatedAt";
 export type DatasetEvaluatorFilterColumn = "name";
 export type SortDir = "asc" | "desc";
-export type TimeRange = {
-  end?: string | null;
-  start?: string | null;
-};
 export type DatasetEvaluatorFilter = {
   col: DatasetEvaluatorFilterColumn;
   value: string;
@@ -26,7 +22,6 @@ export type DatasetEvaluatorSort = {
 };
 export type DatasetEvaluatorsTableEvaluatorsQuery$variables = {
   after?: string | null;
-  costTimeRange?: TimeRange | null;
   filter?: DatasetEvaluatorFilter | null;
   first?: number | null;
   id: string;
@@ -51,105 +46,80 @@ var v0 = {
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "costTimeRange"
-},
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
   "name": "filter"
 },
-v3 = {
+v2 = {
   "defaultValue": 100,
   "kind": "LocalArgument",
   "name": "first"
 },
-v4 = {
+v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "id"
 },
-v5 = {
+v4 = {
   "defaultValue": null,
   "kind": "LocalArgument",
   "name": "sort"
 },
-v6 = [
+v5 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
+v6 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "first"
+  },
+  {
+    "kind": "Variable",
+    "name": "sort",
+    "variableName": "sort"
+  }
+],
 v7 = {
-  "kind": "Variable",
-  "name": "after",
-  "variableName": "after"
-},
-v8 = {
-  "kind": "Variable",
-  "name": "filter",
-  "variableName": "filter"
-},
-v9 = {
-  "kind": "Variable",
-  "name": "first",
-  "variableName": "first"
-},
-v10 = {
-  "kind": "Variable",
-  "name": "sort",
-  "variableName": "sort"
-},
-v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v12 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v13 = [
-  (v7/*:: as any*/),
-  (v8/*:: as any*/),
-  (v9/*:: as any*/),
-  (v10/*:: as any*/)
-],
-v14 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v15 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
-},
-v16 = [
-  {
-    "kind": "Variable",
-    "name": "timeRange",
-    "variableName": "costTimeRange"
-  }
-],
-v17 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "cost",
-    "storageKey": null
-  }
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -157,8 +127,7 @@ return {
       (v1/*:: as any*/),
       (v2/*:: as any*/),
       (v3/*:: as any*/),
-      (v4/*:: as any*/),
-      (v5/*:: as any*/)
+      (v4/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -166,24 +135,14 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v6/*:: as any*/),
+        "args": (v5/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           {
-            "args": [
-              (v7/*:: as any*/),
-              {
-                "kind": "Variable",
-                "name": "costTimeRange",
-                "variableName": "costTimeRange"
-              },
-              (v8/*:: as any*/),
-              (v9/*:: as any*/),
-              (v10/*:: as any*/)
-            ],
+            "args": (v6/*:: as any*/),
             "kind": "FragmentSpread",
             "name": "DatasetEvaluatorsTable_evaluators"
           }
@@ -200,29 +159,28 @@ return {
       (v0/*:: as any*/),
       (v1/*:: as any*/),
       (v2/*:: as any*/),
-      (v3/*:: as any*/),
-      (v5/*:: as any*/),
-      (v4/*:: as any*/)
+      (v4/*:: as any*/),
+      (v3/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v6/*:: as any*/),
+        "args": (v5/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v11/*:: as any*/),
-          (v12/*:: as any*/),
+          (v7/*:: as any*/),
+          (v8/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v13/*:: as any*/),
+                "args": (v6/*:: as any*/),
                 "concreteType": "DatasetEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "datasetEvaluators",
@@ -244,8 +202,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v12/*:: as any*/),
-                          (v14/*:: as any*/),
+                          (v8/*:: as any*/),
+                          (v9/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -253,7 +211,7 @@ return {
                             "name": "description",
                             "storageKey": null
                           },
-                          (v15/*:: as any*/),
+                          (v10/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -276,67 +234,7 @@ return {
                                 "name": "profilePictureUrl",
                                 "storageKey": null
                               },
-                              (v12/*:: as any*/)
-                            ],
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "Project",
-                            "kind": "LinkedField",
-                            "name": "project",
-                            "plural": false,
-                            "selections": [
-                              (v12/*:: as any*/),
-                              {
-                                "alias": null,
-                                "args": (v16/*:: as any*/),
-                                "kind": "ScalarField",
-                                "name": "traceCount",
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": (v16/*:: as any*/),
-                                "concreteType": "SpanCostSummary",
-                                "kind": "LinkedField",
-                                "name": "costSummary",
-                                "plural": false,
-                                "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "CostBreakdown",
-                                    "kind": "LinkedField",
-                                    "name": "total",
-                                    "plural": false,
-                                    "selections": (v17/*:: as any*/),
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "CostBreakdown",
-                                    "kind": "LinkedField",
-                                    "name": "prompt",
-                                    "plural": false,
-                                    "selections": (v17/*:: as any*/),
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "CostBreakdown",
-                                    "kind": "LinkedField",
-                                    "name": "completion",
-                                    "plural": false,
-                                    "selections": (v17/*:: as any*/),
-                                    "storageKey": null
-                                  }
-                                ],
-                                "storageKey": null
-                              }
+                              (v8/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -348,9 +246,9 @@ return {
                             "name": "evaluator",
                             "plural": false,
                             "selections": [
-                              (v11/*:: as any*/),
-                              (v12/*:: as any*/),
-                              (v14/*:: as any*/),
+                              (v7/*:: as any*/),
+                              (v8/*:: as any*/),
+                              (v9/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -365,7 +263,7 @@ return {
                                 "name": "createdAt",
                                 "storageKey": null
                               },
-                              (v15/*:: as any*/),
+                              (v10/*:: as any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -377,8 +275,8 @@ return {
                                     "name": "prompt",
                                     "plural": false,
                                     "selections": [
-                                      (v12/*:: as any*/),
-                                      (v14/*:: as any*/)
+                                      (v8/*:: as any*/),
+                                      (v9/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   },
@@ -390,8 +288,8 @@ return {
                                     "name": "promptVersionTag",
                                     "plural": false,
                                     "selections": [
-                                      (v14/*:: as any*/),
-                                      (v12/*:: as any*/)
+                                      (v9/*:: as any*/),
+                                      (v8/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   },
@@ -417,7 +315,7 @@ return {
                                         "name": "modelProvider",
                                         "storageKey": null
                                       },
-                                      (v12/*:: as any*/)
+                                      (v8/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -443,8 +341,8 @@ return {
                                     "name": "sandboxConfig",
                                     "plural": false,
                                     "selections": [
-                                      (v12/*:: as any*/),
-                                      (v14/*:: as any*/),
+                                      (v8/*:: as any*/),
+                                      (v9/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -460,7 +358,7 @@ return {
                                             "name": "backendType",
                                             "storageKey": null
                                           },
-                                          (v12/*:: as any*/)
+                                          (v8/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       }
@@ -474,7 +372,7 @@ return {
                             ],
                             "storageKey": null
                           },
-                          (v11/*:: as any*/)
+                          (v7/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -530,7 +428,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v13/*:: as any*/),
+                "args": (v6/*:: as any*/),
                 "filters": [
                   "sort",
                   "filter"
@@ -550,16 +448,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "20be5193e22ca918fe8dd10c4ce23f30",
+    "cacheID": "3d0486d0c54711d5237d1b5bd2619b25",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $costTimeRange: TimeRange\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_Nw8hk\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_Nw8hk on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row_2WJEbX\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row_2WJEbX on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  project {\n    id\n    traceCount(timeRange: $costTimeRange)\n    costSummary(timeRange: $costTimeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cc84d1b492249e49c001aa1619fda62f";
+(node as any).hash = "a8c96f9c66acdc2abd7f597e5ccd8355";
 
 export default node;

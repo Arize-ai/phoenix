@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<168cb1b2f759ef5cc6464e14c599f984>>
+ * @generated SignedSource<<ed8e043dcaf59e47a02e6a259722a8cb>>
  * @lightSyntaxTransform
  */
 
@@ -267,62 +267,14 @@ v18 = {
   "name": "profilePictureUrl",
   "storageKey": null
 },
-v19 = [
-  {
-    "kind": "Variable",
-    "name": "timeRange",
-    "variableName": "costTimeRange"
-  }
-],
-v20 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "cost",
-    "storageKey": null
-  }
-],
-v21 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "CostBreakdown",
-    "kind": "LinkedField",
-    "name": "total",
-    "plural": false,
-    "selections": (v20/*:: as any*/),
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "CostBreakdown",
-    "kind": "LinkedField",
-    "name": "prompt",
-    "plural": false,
-    "selections": (v20/*:: as any*/),
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "CostBreakdown",
-    "kind": "LinkedField",
-    "name": "completion",
-    "plural": false,
-    "selections": (v20/*:: as any*/),
-    "storageKey": null
-  }
-],
-v22 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v23 = {
+v20 = {
   "alias": null,
   "args": null,
   "concreteType": "Prompt",
@@ -335,28 +287,28 @@ v23 = {
   ],
   "storageKey": null
 },
-v24 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v25 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelProvider",
   "storageKey": null
 },
-v26 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "language",
   "storageKey": null
 },
-v27 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -454,35 +406,6 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "Project",
-                    "kind": "LinkedField",
-                    "name": "project",
-                    "plural": false,
-                    "selections": [
-                      (v3/*:: as any*/),
-                      {
-                        "alias": null,
-                        "args": (v19/*:: as any*/),
-                        "kind": "ScalarField",
-                        "name": "traceCount",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": (v19/*:: as any*/),
-                        "concreteType": "SpanCostSummary",
-                        "kind": "LinkedField",
-                        "name": "costSummary",
-                        "plural": false,
-                        "selections": (v21/*:: as any*/),
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
                     "concreteType": null,
                     "kind": "LinkedField",
                     "name": "evaluator",
@@ -491,12 +414,12 @@ return {
                       (v3/*:: as any*/),
                       (v4/*:: as any*/),
                       (v6/*:: as any*/),
-                      (v22/*:: as any*/),
+                      (v19/*:: as any*/),
                       (v16/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v23/*:: as any*/),
+                          (v20/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -517,8 +440,8 @@ return {
                             "name": "promptVersion",
                             "plural": false,
                             "selections": [
-                              (v24/*:: as any*/),
-                              (v25/*:: as any*/)
+                              (v21/*:: as any*/),
+                              (v22/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -529,7 +452,7 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v26/*:: as any*/),
+                          (v23/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -548,7 +471,7 @@ return {
                                 "name": "provider",
                                 "plural": false,
                                 "selections": [
-                                  (v27/*:: as any*/)
+                                  (v24/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -564,13 +487,7 @@ return {
                   }
                 ],
                 "args": null,
-                "argumentDefinitions": [
-                  {
-                    "defaultValue": null,
-                    "kind": "LocalArgument",
-                    "name": "costTimeRange"
-                  }
-                ]
+                "argumentDefinitions": []
               }
             ],
             "storageKey": null
@@ -623,12 +540,12 @@ return {
                   (v6/*:: as any*/),
                   (v7/*:: as any*/),
                   (v4/*:: as any*/),
-                  (v22/*:: as any*/),
+                  (v19/*:: as any*/),
                   (v16/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v23/*:: as any*/),
+                      (v20/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -650,8 +567,8 @@ return {
                         "name": "promptVersion",
                         "plural": false,
                         "selections": [
-                          (v24/*:: as any*/),
-                          (v25/*:: as any*/),
+                          (v21/*:: as any*/),
+                          (v22/*:: as any*/),
                           (v3/*:: as any*/)
                         ],
                         "storageKey": null
@@ -663,7 +580,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v26/*:: as any*/),
+                      (v23/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -682,7 +599,7 @@ return {
                             "name": "provider",
                             "plural": false,
                             "selections": [
-                              (v27/*:: as any*/),
+                              (v24/*:: as any*/),
                               (v3/*:: as any*/)
                             ],
                             "storageKey": null
@@ -735,35 +652,6 @@ return {
                   (v3/*:: as any*/)
                 ],
                 "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Project",
-                "kind": "LinkedField",
-                "name": "project",
-                "plural": false,
-                "selections": [
-                  (v3/*:: as any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "traceCount",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "SpanCostSummary",
-                    "kind": "LinkedField",
-                    "name": "costSummary",
-                    "plural": false,
-                    "selections": (v21/*:: as any*/),
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
               }
             ],
             "storageKey": null
@@ -795,12 +683,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8f7c0f6924928ea5476da82eb60a625a",
+    "cacheID": "ee7683788fb1d0122205ddf5022ca8a4",
     "id": null,
     "metadata": {},
     "name": "CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  project {\n    id\n    traceCount\n    costSummary {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
+    "text": "mutation CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation(\n  $input: CreateDatasetBuiltinEvaluatorInput!\n) {\n  createDatasetBuiltinEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })();

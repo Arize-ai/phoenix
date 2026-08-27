@@ -1,17 +1,12 @@
 import type { Environment } from "react-relay";
 import { fetchQuery, graphql } from "react-relay";
 
-import { getEvaluatorCostTimeRange } from "@phoenix/pages/evaluators/evaluatorCostUtils";
 import type { refetchProjectEvaluatorsQuery } from "@phoenix/pages/project/evaluators/__generated__/refetchProjectEvaluatorsQuery.graphql";
 
 const PAGE_SIZE = 30;
 
 const query = graphql`
-  query refetchProjectEvaluatorsQuery(
-    $projectId: ID!
-    $first: Int!
-    $costTimeRange: TimeRange
-  ) {
+  query refetchProjectEvaluatorsQuery($projectId: ID!, $first: Int!) {
     project: node(id: $projectId) {
       ... on Project {
         evaluatorCount
@@ -20,7 +15,6 @@ const query = graphql`
           edges {
             node {
               ...ProjectEvaluatorsTable_row
-                @arguments(costTimeRange: $costTimeRange)
             }
           }
           pageInfo {
@@ -46,7 +40,6 @@ export async function refetchProjectEvaluators({
     {
       projectId,
       first: PAGE_SIZE,
-      costTimeRange: getEvaluatorCostTimeRange(),
     },
     { fetchPolicy: "network-only" }
   ).toPromise();

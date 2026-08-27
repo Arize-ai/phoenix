@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3e1c5d7d5c42626ee80bb934191add13>>
+ * @generated SignedSource<<3a122b10c85f5315587b50cbc7627731>>
  * @lightSyntaxTransform
  */
 
@@ -55,21 +55,6 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly samplingRate: number;
   readonly schedulabilityReason: ProjectEvaluatorSchedulabilityReason | null;
   readonly schedulabilityStatus: ProjectEvaluatorSchedulabilityStatus;
-  readonly traceProject: {
-    readonly costSummary: {
-      readonly completion: {
-        readonly cost: number | null;
-      };
-      readonly prompt: {
-        readonly cost: number | null;
-      };
-      readonly total: {
-        readonly cost: number | null;
-      };
-    };
-    readonly id: string;
-    readonly traceCount: number;
-  };
   readonly updatedAt: string;
   readonly " $fragmentType": "ProjectEvaluatorsTable_row";
 };
@@ -83,6 +68,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "3ff73da20af07772af89a8a41f2ab853";
+(node as any).hash = "23584063f4ee4332cc6f4ee85b256554";
 
 export default node;
