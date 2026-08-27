@@ -16,7 +16,6 @@ export const projectEvaluatorTemplatesQuery = graphql`
       choices
       optimizationDirection
       scope
-      recommended
       category
       details
       messages {
