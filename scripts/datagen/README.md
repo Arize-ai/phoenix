@@ -166,6 +166,11 @@ library unless their dependency is declared in every importing script.
 Each JSONL line in `traces.jsonl` is one protobuf-JSON `ExportTraceServiceRequest`. A single trace
 may span multiple rows.
 
+Tests for the recorders and the packaging pipeline live in `tests/` next to this file and run with
+`uv run pytest scripts/datagen/tests`. They are separate from the Phoenix unit test suite: CI runs
+them in the Datagen Tooling Tests job when files under `scripts/datagen/` or `src/phoenix/datagen/`
+change.
+
 ## Package a corpus
 
 After all selected fixtures and conditions have been recorded into one directory, package the

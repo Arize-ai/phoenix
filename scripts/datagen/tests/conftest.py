@@ -1,4 +1,8 @@
-"""Datagen unit test configuration."""
+"""Datagen tooling test configuration.
+
+Puts the repository root on ``sys.path`` so tests can import the recorder
+scripts as ``scripts.datagen.*`` without installing them as a package.
+"""
 
 from __future__ import annotations
 
