@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 
@@ -38,6 +39,12 @@ def test_plain_chat_fixture_records_a_fragment(tmp_path: Path) -> None:
 
 def test_live_plain_chat_simulates_later_user_turns(tmp_path: Path) -> None:
     fixture = fixtures_for("plain_chat")[0]
+    # Pin the authored opening: live runs otherwise pick a random phrasing
+    # from the fixture's opening_variants.
+    fixture = replace(
+        fixture,
+        inputs={key: value for key, value in fixture.inputs.items() if key != "opening_variants"},
+    )
     turns = fixture.inputs["turns"]
     assert isinstance(turns, list)
     simulated_users = (
