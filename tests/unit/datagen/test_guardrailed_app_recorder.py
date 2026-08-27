@@ -1,6 +1,10 @@
 import inspect
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("guardrails")
+
 from scripts.datagen.guardrailed_app import record
 from scripts.datagen.recording import fixtures_for
 
