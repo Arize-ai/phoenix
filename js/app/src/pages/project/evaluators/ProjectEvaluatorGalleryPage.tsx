@@ -316,6 +316,11 @@ function EvaluatorGallery() {
                 setSelectedTemplate(templateName);
               }
             }}
+            onAction={(key) => {
+              if (typeof key === "string") {
+                navigate(paths.galleryNewLlmFromTemplate(key));
+              }
+            }}
           >
             {(template) => (
               <EvaluatorTemplateCard
