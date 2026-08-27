@@ -21,13 +21,11 @@ from phoenix.server.mcp.skills import Skill
 
 
 def _make_skill(name: str) -> Skill:
-    body = f"# {name}\n\nbody for {name}"
     return Skill(
         name=name,
         description=f"{name} description",
         summary=f"{name} summary",
-        text=f"---\nname: {name}\n---\n\n{body}\n",
-        body=body,
+        text=f"---\nname: {name}\n---\n\n# {name}\n\nbody for {name}\n",
         path=Path("/tmp/unused"),
     )
 

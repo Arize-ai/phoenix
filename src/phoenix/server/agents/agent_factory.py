@@ -25,6 +25,7 @@ from phoenix.server.agents.capabilities import (
     SubagentCapability,
     UIContextsCapability,
     build_anthropic_prompt_cache_capability,
+    handshake_instructions,
 )
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
@@ -140,8 +141,7 @@ def build_agent(
         )
     if phoenix_mcp_server is not None:
         # Per agent: the toolset carries this request's principal and this run's
-        # tool-group reveals. Skills arrive here too: the server's tools load
-        # them and its handshake instructions advertise them.
+        # tool-group reveals.
         capabilities.append(
             PhoenixMCPCapability[AgentDependencies](
                 mcp_server=PhoenixMCPToolset[AgentDependencies](
@@ -150,7 +150,7 @@ def build_agent(
                     id="phoenix_rest_api",
                 ),
                 instructions=resolved_prompts.phoenix_mcp_tools,
-                server_instructions=phoenix_mcp_server.instructions,
+                server_instructions=handshake_instructions(phoenix_mcp_server),
             )
         )
     if enable_web_access:

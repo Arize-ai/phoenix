@@ -36,23 +36,15 @@ from pydantic import Field
 
 _SERVER_DIR = Path(__file__).resolve().parents[2]
 
-#: Skills every consumer receives.
 GENERAL_SKILLS_ROOT = Path(__file__).resolve().parent / "general"
-
-#: Skills only the in-process PXI agent receives.
 PXI_SKILLS_ROOT = _SERVER_DIR / "agents" / "prompts" / "skills"
-
-#: Roots the in-process PXI server is built from, and so the catalog PXI's
-#: skill picker and forced loads draw on.
 PXI_SKILLS_ROOTS: tuple[Path, ...] = (GENERAL_SKILLS_ROOT, PXI_SKILLS_ROOT)
 
-#: Tag on the skill tools. Code mode keeps tools carrying it on ``tools/list``.
 SKILL_TOOLS_TAG = "phoenix-mcp-skills"
 
 _SKILL_FILE = "SKILL.md"
 _RESOURCES_DIR = "resources"
 
-# Both tools only read files shipped with Phoenix, so a client may auto-approve them.
 _READ_ONLY = ToolAnnotations(
     readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False
 )
@@ -74,10 +66,7 @@ class Skill:
     name: str
     description: str
     summary: str
-    #: ``SKILL.md`` verbatim, frontmatter included.
     text: str
-    #: The instructions below the frontmatter.
-    body: str
     path: Path
     resources: tuple[SkillResource, ...] = ()
 
@@ -85,7 +74,7 @@ class Skill:
     def from_directory(cls, directory: Path) -> Skill:
         skill_file = directory / _SKILL_FILE
         text = skill_file.read_text(encoding="utf-8")
-        frontmatter, body = _split_frontmatter(text, skill_file)
+        frontmatter = _parse_frontmatter(text, skill_file)
         name = _required_string(frontmatter, "name", skill_file)
         if name != directory.name:
             raise ValueError(
@@ -96,7 +85,6 @@ class Skill:
             description=" ".join(_required_string(frontmatter, "description", skill_file).split()),
             summary=_required_string(frontmatter, "summary", skill_file).strip(),
             text=text,
-            body=body,
             path=directory,
             resources=_scan_resources(directory / _RESOURCES_DIR),
         )
@@ -105,7 +93,6 @@ class Skill:
         return next((r for r in self.resources if r.name == name), None)
 
     def render(self) -> str:
-        """What ``load_skill`` returns: the file, then the resources it may read next."""
         if not self.resources:
             return self.text
         listing = "\n".join(f"- {resource.name}" for resource in self.resources)
@@ -116,7 +103,7 @@ class Skill:
         )
 
 
-def _split_frontmatter(text: str, source: Path) -> tuple[dict[str, Any], str]:
+def _parse_frontmatter(text: str, source: Path) -> dict[str, Any]:
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         raise ValueError(f"{source}: must open with a '---' frontmatter fence")
@@ -126,7 +113,7 @@ def _split_frontmatter(text: str, source: Path) -> tuple[dict[str, Any], str]:
     frontmatter = yaml.safe_load("\n".join(lines[1:closing])) or {}
     if not isinstance(frontmatter, dict):
         raise ValueError(f"{source}: frontmatter must be a mapping")
-    return frontmatter, "\n".join(lines[closing + 1 :]).strip()
+    return frontmatter
 
 
 def _required_string(frontmatter: dict[str, Any], key: str, source: Path) -> str:
@@ -148,11 +135,7 @@ def _scan_resources(directory: Path) -> tuple[SkillResource, ...]:
 
 @lru_cache(maxsize=None)
 def load_skills(roots: tuple[Path, ...]) -> tuple[Skill, ...]:
-    """Every skill under ``roots``: root order first, name order within a root.
-
-    Read once per process, so the handshake, the forced-load path and the skill
-    picker all serve the same catalog.
-    """
+    """Every skill under ``roots``: root order first, name order within a root."""
     skills: dict[str, Skill] = {}
     for root in roots:
         for directory in sorted(p for p in root.iterdir() if (p / _SKILL_FILE).is_file()):
@@ -163,6 +146,8 @@ def load_skills(roots: tuple[Path, ...]) -> tuple[Skill, ...]:
                     f"{skills[skill.name].path} and {directory}"
                 )
             skills[skill.name] = skill
+    if not skills:
+        raise ValueError(f"No skills found under {', '.join(str(root) for root in roots)}")
     return tuple(skills.values())
 
 
@@ -217,8 +202,7 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
             )
         return resource.read()
 
-    # `output_schema=None` drops the structured mirror of a prose result; see the
-    # analytics SQL tools for the reasoning.
+    # `output_schema=None`: see `register_analytics_sql_tools` for the reasoning.
     load = Tool.from_function(
         load_skill,
         description=(
@@ -229,8 +213,8 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
         annotations=_READ_ONLY,
         output_schema=None,
     )
-    # The catalog lives in the schema rather than the description: a client can
-    # validate the name before the call, and nothing is restated per request.
+    # An enum rather than a listing in the description: a client can validate
+    # the name before the call.
     load.parameters["properties"]["skill_name"]["enum"] = list(by_name)
     mcp.add_tool(load)
     mcp.add_tool(

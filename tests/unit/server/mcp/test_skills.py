@@ -179,6 +179,12 @@ class TestLoadSkills:
 
         assert [skill.name for skill in load_skills((tmp_path,))] == ["a-skill"]
 
+    def test_roots_with_no_skills_are_refused(self, tmp_path: Path) -> None:
+        (tmp_path / "notes").mkdir()
+
+        with pytest.raises(ValueError, match="No skills found under"):
+            load_skills((tmp_path,))
+
     def test_a_name_defined_in_two_roots_is_refused(self, tmp_path: Path) -> None:
         _write_skill(tmp_path / "one" / "a-skill")
         _write_skill(tmp_path / "two" / "a-skill")
@@ -226,7 +232,6 @@ class TestLoadSkills:
         skill = Skill.from_directory(directory)
 
         assert skill.description == "first line second line"
-        assert skill.body == "body"
         assert skill.render() == skill.text
 
 

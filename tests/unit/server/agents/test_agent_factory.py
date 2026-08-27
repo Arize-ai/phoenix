@@ -143,8 +143,7 @@ def _get_capabilities(agent: Any, capability_type: type[Any]) -> list[Any]:
 
 
 def _pxi_mcp_server() -> Any:
-    """The agent's own MCP server as production builds it: code mode over a
-    read-only surface, serving the general and PXI skill roots."""
+    """The agent's MCP server as production builds it."""
     from fastapi import FastAPI
 
     from phoenix.server.mcp_server import build_phoenix_mcp_server

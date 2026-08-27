@@ -340,11 +340,10 @@ def _read_only(
 class _CodeModeWithSkillTools(CodeMode):
     """Code mode that leaves the skill tools on ``tools/list``.
 
-    Collapsing the catalog into discovery tools plus ``execute`` suits the REST
-    surface, where calls compose, but not skills: a skill is loaded once and
-    read, and the in-process agent renders each ``load_skill`` call in its
-    transcript. So the skill tools stay direct, and leave the catalog
-    ``execute`` reaches so that each is callable one way only.
+    Folding the catalog behind ``execute`` suits REST calls, which compose, but
+    not skills: a skill is loaded once and read, and the in-process agent
+    renders each ``load_skill`` call in its transcript. The skill tools stay
+    direct and leave the ``execute`` catalog, so each is callable one way only.
     """
 
     async def transform_tools(self, tools: "Sequence[Tool]") -> "Sequence[Tool]":
@@ -510,8 +509,6 @@ def build_phoenix_mcp_server(
         read_only: Derive tools from GET routes only.
         db: Session factory for the analytics SQL tools.
         skills_roots: Directories whose skill folders this consumer receives.
-            Defaults to the general skills alone; the in-process agent adds its
-            own root.
 
     Returns:
         The server, and — when code mode is enabled — the sandbox adapter backed
@@ -535,9 +532,7 @@ def build_phoenix_mcp_server(
         # Without this the handshake advertises the FastMCP library version, which
         # tells a client nothing about the Phoenix it is talking to.
         version=phoenix_version,
-        # The handshake is the one message a client folds into the model's
-        # system prompt before any tool is called, so it carries the skill catalog.
-        instructions=skills_instructions(skills) if skills else None,
+        instructions=skills_instructions(skills),
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not

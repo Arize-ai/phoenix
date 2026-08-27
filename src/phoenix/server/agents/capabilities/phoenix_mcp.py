@@ -82,23 +82,28 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
                     del self._principal_bindings[key]
 
 
+def handshake_instructions(server: "FastMCP") -> str:
+    """The instructions ``server`` sends in its ``initialize`` handshake.
+
+    Phoenix's server always sets them — they carry the skills catalog — so
+    their absence means the server was built some other way.
+    """
+    if server.instructions is None:
+        raise ValueError(f"MCP server {server.name!r} sends no instructions in its handshake")
+    return server.instructions
+
+
 @dataclass
 class PhoenixMCPCapability(AbstractCapability[AgentDepsT]):
-    """Pairs the Phoenix MCP toolset with its guidance text.
-
-    ``server_instructions`` is what the server sends in its ``initialize``
-    handshake — the skills catalog. It follows the static guidance so the agent
-    reads the same catalog a coding-agent client does.
-    """
+    """Pairs the Phoenix MCP toolset with its guidance text and the server's
+    own ``initialize`` instructions."""
 
     mcp_server: MCPToolset[AgentDepsT]
     instructions: str
-    server_instructions: Optional[str] = None
+    server_instructions: str
 
     def get_toolset(self) -> AgentToolset[AgentDepsT] | None:
         return self.mcp_server
 
     def get_instructions(self) -> str:
-        if not self.server_instructions:
-            return self.instructions
         return f"{self.instructions}\n{self.server_instructions}"
