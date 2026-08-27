@@ -1521,9 +1521,12 @@ function BindingPreviewRow({
   const isTextValue = typeof row.value === "string";
   const isExpandable = children != null || isExpandableBindingValue(row.value);
   const display = toBoundValueDisplay(row.value);
-  const annotation = row.path ? (
-    <code className="binding-row__path">← {row.path}</code>
-  ) : null;
+  // A row bound to the key it is already labeled with — a slot left on its
+  // default — has no origin to point at, so the value stands alone.
+  const annotation =
+    row.path && row.path !== row.keyword ? (
+      <code className="binding-row__path">← {row.path}</code>
+    ) : null;
   const head = (
     <>
       <code className="binding-row__keyword" title={row.description}>

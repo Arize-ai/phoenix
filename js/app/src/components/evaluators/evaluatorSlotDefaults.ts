@@ -21,17 +21,21 @@ export type EvaluatorSlotDefault = { path: string };
  * Each slot's default, as the field's ghost text shows it.
  *
  * An unmapped slot stores nothing and binds the context key of the same name,
- * so this is the only place the record field behind that key is written down.
+ * so every default is that key itself. `input` and `output` are independent
+ * bindings the context carries at its top level, not shorthand for a record
+ * field, and the ghost says so rather than naming a `metadata.…` path that
+ * happens to hold the same value. Which record field each one came from is
+ * taught by the sampled value beside the row, not by the default.
  */
 const SLOT_DEFAULTS: BySlot<EvaluatorSlotDefault> = {
   span: {
-    input: { path: "metadata.span.input_value" },
-    output: { path: "metadata.span.output_value" },
+    input: { path: "input" },
+    output: { path: "output" },
     metadata: { path: "metadata" },
   },
   session: {
-    input: { path: "metadata.first_input" },
-    output: { path: "metadata.last_output" },
+    input: { path: "input" },
+    output: { path: "output" },
     metadata: { path: "metadata" },
   },
 };

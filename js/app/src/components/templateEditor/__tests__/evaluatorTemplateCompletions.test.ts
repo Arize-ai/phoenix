@@ -157,19 +157,22 @@ describe("getEvaluatorTemplateCompletions", () => {
         section: option.section,
       }))
     ).toEqual([
+      // Every slot here is unmapped, so each binds the context key it is
+      // already named after; the sampled value is what the row has left to
+      // teach, and an origin repeating the label is dropped.
       {
         label: "input",
-        detail: "← metadata.span.input_value",
+        detail: "Why?",
         section: { name: "Evaluator input", rank: 1 },
       },
       {
         label: "output",
-        detail: "← metadata.span.output_value",
+        detail: "Because.",
         section: { name: "Evaluator input", rank: 1 },
       },
       {
         label: "metadata",
-        detail: "← metadata",
+        detail: "object",
         section: { name: "Evaluator input", rank: 1 },
       },
     ]);

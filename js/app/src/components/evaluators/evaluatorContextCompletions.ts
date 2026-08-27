@@ -179,8 +179,10 @@ function getEvaluatorInputDetail({
 }): string {
   const provenance = entry.provenance;
   // An evaluator input's origin is what its row has to teach, so it owns the
-  // detail column; a value preview beside it only crowds out the path.
-  return provenance.kind === "path"
+  // detail column; a value preview beside it only crowds out the path. A slot
+  // left on its default reads its own key, and `← input` under a row labeled
+  // `input` teaches nothing — there the value is the only thing left to show.
+  return provenance.kind === "path" && provenance.path !== entry.name
     ? `← ${provenance.path}`
     : entry.status === "resolved" && evaluationContext.hasSampledRecord
       ? toMemberPreview(entry.value)

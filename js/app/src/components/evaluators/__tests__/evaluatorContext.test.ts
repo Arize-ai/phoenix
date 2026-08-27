@@ -56,7 +56,7 @@ describe("materializeEvaluatorContext", () => {
         name: "output",
         status: "resolved",
         value: "Because.",
-        provenance: { kind: "path", path: "metadata.span.output_value" },
+        provenance: { kind: "path", path: "output" },
       },
       {
         name: "metadata",
@@ -91,15 +91,18 @@ describe("materializeEvaluatorContext", () => {
       slotDefaults: getEvaluatorSlotDefaults("session"),
     });
 
+    // An unmapped slot binds the context key of its own name, so its
+    // provenance is that name rather than the record field holding the same
+    // value.
     expect(sessionContext?.evaluatorInputs[0]).toMatchObject({
       name: "input",
       value: "Hello",
-      provenance: { kind: "path", path: "metadata.first_input" },
+      provenance: { kind: "path", path: "input" },
     });
     expect(sessionContext?.evaluatorInputs[1]).toMatchObject({
       name: "output",
       value: "Goodbye",
-      provenance: { kind: "path", path: "metadata.last_output" },
+      provenance: { kind: "path", path: "output" },
     });
   });
 

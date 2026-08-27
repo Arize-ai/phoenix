@@ -51,16 +51,13 @@ describe("the binding preview", () => {
       "output",
       "metadata",
     ]);
-    // The set path leads its slot; the untouched slots fall back to their own
-    // defaults rather than to anything this component writes down.
+    // Only the set path is annotated: the untouched slots fall back to the
+    // context key they are already labeled with, and `← output` under a row
+    // labeled `output` is noise where the value belongs.
     expect(
       [...container.querySelectorAll(".binding-row__path")].map(
         (node) => node.textContent
       )
-    ).toEqual([
-      "← metadata.span.name",
-      "← metadata.span.output_value",
-      "← metadata",
-    ]);
+    ).toEqual(["← metadata.span.name"]);
   });
 });
