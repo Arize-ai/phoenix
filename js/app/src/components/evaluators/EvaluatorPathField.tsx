@@ -120,7 +120,7 @@ export function EvaluatorPathField({
               section: candidate.section,
               boost: candidate.boost,
               type: candidate.type,
-              description: candidate.info,
+              ...(candidate.info ? { description: candidate.info } : {}),
             })
           ),
     [evaluationContext]
@@ -214,7 +214,7 @@ function createEvaluatorPathCompletionSource({
         ...(completion.preview ? { detail: completion.preview } : {}),
         // What a row reaches, shown beside the highlighted one — the same slot
         // the filter box's suggestion hints render through.
-        info: completion.description,
+        ...(completion.description ? { info: completion.description } : {}),
         type: completion.type ?? "property",
         // Suggestions keep their configured order — the plain narrowing
         // first, the deeper cuts after — instead of sorting alphabetically.

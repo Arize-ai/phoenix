@@ -81,8 +81,7 @@ const ProjectEvaluatorInputMappingSection = ({
             Evaluator Inputs
           </Heading>
           <Text color="text-500" size="S">
-            Every evaluator receives an input, an output, and metadata, and each
-            can be pointed at any field of the {recordNoun}.
+            Each input reads a path on the {recordNoun}.
           </Text>
         </Flex>
         <View

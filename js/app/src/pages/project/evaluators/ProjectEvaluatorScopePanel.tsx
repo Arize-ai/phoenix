@@ -801,7 +801,6 @@ type RecordedRunListRow = {
   unavailableReason?: string;
 };
 
-
 const SAMPLE_ROW_KEY = "__sample__";
 
 const SPAN_LIST_PAGE_SIZE = 5;
@@ -1366,7 +1365,7 @@ export function BindingPreview({
     <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
         <Alert variant="info" title={`Standard ${grain} fields`}>
-          Values fill in once this project has a {grain} that matches.
+          No matching {grain} yet; values are empty.
         </Alert>
       ) : null}
       {[...slotRows, ...mappedRows].map((row) =>
@@ -1397,8 +1396,8 @@ export function BindingPreview({
             title={`${variable} would fail on this ${grain}`}
           >
             {source === "path"
-              ? `Nothing matches ${path}, so the evaluation stops with an error instead of writing an annotation.`
-              : `This ${grain} offers no ${variable}, so the evaluation stops with an error instead of writing an annotation.`}
+              ? `Nothing matches ${path}. No annotation is written.`
+              : `This ${grain} has no ${variable}. No annotation is written.`}
           </Alert>
         ) : status === "unverified" ? (
           <Alert
@@ -1406,7 +1405,7 @@ export function BindingPreview({
             variant="warning"
             title={`${variable} is unverified`}
           >
-            {path} is checked by the server when the evaluator runs.
+            {path} is checked when the evaluator runs.
           </Alert>
         ) : null
       )}
@@ -1440,14 +1439,14 @@ function MetadataBindingTree({
   const rows: BindingRow[] = buildEvaluatorContextCandidates(evaluationContext)
     .filter((candidate) => candidate.isNested)
     .map((candidate) => {
-      const keyword = candidate.label.slice(
-        EVALUATOR_METADATA_SLOT.length + 1
-      );
+      const keyword = candidate.label.slice(EVALUATOR_METADATA_SLOT.length + 1);
       const definition = definitionByName.get(keyword);
       return {
         keyword,
         ...(definition ? { description: definition.description } : {}),
-        ...(definition && !hasSampledRecord ? { typeHint: definition.type } : {}),
+        ...(definition && !hasSampledRecord
+          ? { typeHint: definition.type }
+          : {}),
         value: candidate.value,
       };
     });

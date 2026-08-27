@@ -18,22 +18,23 @@ import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/
 export type EvaluatorBoundVariable = {
   name: string;
   type: "text" | "number";
-  description: string;
+  /** Omitted where the name already says it. */
+  description?: string;
 };
 
 const SPAN_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
-  { name: "span_id", type: "text", description: "The span's identifier." },
+  { name: "span_id", type: "text" },
   {
     name: "trace_id",
     type: "text",
-    description: "The identifier of the trace the span belongs to.",
+    description: "The trace the span belongs to.",
   },
   {
     name: "parent_id",
     type: "text",
-    description: "The identifier of the span's parent, if it has one.",
+    description: "The parent span, if it has one.",
   },
-  { name: "name", type: "text", description: "The span's name." },
+  { name: "name", type: "text" },
   {
     name: "span_kind",
     type: "text",
@@ -48,7 +49,7 @@ const SPAN_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
   {
     name: "latency_ms",
     type: "number",
-    description: "How long the span took, in milliseconds.",
+    description: "Span duration, in milliseconds.",
   },
   {
     name: "cumulative_llm_token_count_prompt",
@@ -68,11 +69,7 @@ const SPAN_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
 ];
 
 const SESSION_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
-  {
-    name: "session_id",
-    type: "text",
-    description: "The session's identifier.",
-  },
+  { name: "session_id", type: "text" },
   {
     name: "user_id",
     type: "text",
@@ -91,27 +88,27 @@ const SESSION_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
   {
     name: "duration_ms",
     type: "number",
-    description: "How long the session lasted, in milliseconds.",
+    description: "Session duration, in milliseconds.",
   },
   {
     name: "num_traces",
     type: "number",
-    description: "How many traces the session contains.",
+    description: "Traces in the session.",
   },
   {
     name: "num_traces_with_error",
     type: "number",
-    description: "How many of those traces ended in an error.",
+    description: "Traces that ended in an error.",
   },
   {
     name: "llm_span_count",
     type: "number",
-    description: "How many LLM spans the session contains.",
+    description: "LLM spans in the session.",
   },
   {
     name: "tool_span_count",
     type: "number",
-    description: "How many tool spans the session contains.",
+    description: "Tool spans in the session.",
   },
   {
     name: "token_count_prompt",

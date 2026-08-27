@@ -106,7 +106,8 @@ export function buildEvaluatorContextCandidates(
         : entry.status === "unresolved"
           ? "not set"
           : "",
-    info: entry.description ?? "No setup needed.",
+    // A name that needs no explaining shows no info pane.
+    info: entry.description ?? "",
     section: recordSection,
     boost: 100 - index,
   }));

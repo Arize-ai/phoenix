@@ -210,7 +210,7 @@ function getRootOptions({
     label: candidate.label,
     type: candidate.type,
     ...(candidate.detail ? { detail: candidate.detail } : {}),
-    info: candidate.info,
+    ...(candidate.info ? { info: candidate.info } : {}),
     section: candidate.section,
     boost: candidate.boost,
     apply: applyTemplateInsertion(candidate.label, closingBrackets),
