@@ -71,20 +71,11 @@ class TestHandshake:
 
 
 class TestTools:
-    async def test_load_skill_returns_the_file_and_names_its_references(self) -> None:
+    async def test_load_skill_returns_the_file_verbatim(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
             loaded = await _text(client, "load_skill", skill_name="phoenix-graphql")
 
-        skill_md = (_GRAPHQL_SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
-        assert loaded.startswith(skill_md.rstrip())
-        assert 'load_skill_reference(skill_name="phoenix-graphql"' in loaded
-        assert "- references/datasets.md" in loaded
-
-    async def test_load_skill_returns_a_skill_without_references_verbatim(self) -> None:
-        async with Client(_server(PXI_SKILLS_ROOT)) as client:
-            loaded = await _text(client, "load_skill", skill_name="datasets")
-
-        assert loaded == (PXI_SKILLS_ROOT / "datasets" / "SKILL.md").read_text(encoding="utf-8")
+        assert loaded == (_GRAPHQL_SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
 
     async def test_load_skill_reference_returns_the_file(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
@@ -188,8 +179,8 @@ class TestLoadSkills:
             "references/nested/deep.md",
             "references/top.md",
         ]
-        assert skill.reference("references/nested/deep.md") is not None
-        assert skill.reference("references/nested/deep.md").read() == "deep"  # type: ignore[union-attr]
+        assert skill.get_reference("references/nested/deep.md") is not None
+        assert skill.get_reference("references/nested/deep.md").read() == "deep"  # type: ignore[union-attr]
 
     def test_a_directory_without_a_skill_file_is_not_a_skill(self, tmp_path: Path) -> None:
         _write_skill(tmp_path / "a-skill")
@@ -285,7 +276,6 @@ class TestLoadSkills:
         skill = Skill.from_directory(directory)
 
         assert skill.description == "first line second line"
-        assert skill.render() == skill.text
 
 
 def _write_skill(directory: Path) -> None:

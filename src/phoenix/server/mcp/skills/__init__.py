@@ -79,18 +79,8 @@ class Skill:
             references=_scan_references(directory),
         )
 
-    def reference(self, name: str) -> Optional[SkillReference]:
+    def get_reference(self, name: str) -> Optional[SkillReference]:
         return next((r for r in self.references if r.name == name), None)
-
-    def render(self) -> str:
-        if not self.references:
-            return self.text
-        listing = "\n".join(f"- {reference.name}" for reference in self.references)
-        return (
-            f"{self.text.rstrip()}\n\n## References\n\n"
-            f'Load one with `load_skill_reference(skill_name="{self.name}", reference_name=...)`:\n'
-            f"{listing}\n"
-        )
 
 
 @dataclass(frozen=True)
@@ -221,7 +211,7 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
     async def load_skill(
         skill_name: Annotated[str, Field(description="Exact name of the skill to load.")],
     ) -> str:
-        return _skill(skill_name).render()
+        return _skill(skill_name).text
 
     async def load_skill_reference(
         skill_name: Annotated[str, Field(description="Skill the reference belongs to.")],
@@ -230,7 +220,7 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
         ],
     ) -> str:
         skill = _skill(skill_name)
-        reference = skill.reference(reference_name)
+        reference = skill.get_reference(reference_name)
         if reference is None:
             available = ", ".join(r.name for r in skill.references) or "none"
             raise ToolError(

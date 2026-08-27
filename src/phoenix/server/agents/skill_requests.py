@@ -134,7 +134,7 @@ def _build_synthetic_load_skill_message(
         tool_call_id=tool_call_id,
         state="output-available",
         input={"skill_name": skill.name},
-        output=skill.render(),
+        output=skill.text,
     )
     return message_factory(id=f"requested-skill-{uuid.uuid4().hex}", role="assistant", parts=[part])
 
@@ -208,6 +208,6 @@ def iter_requested_skill_response_chunks(
         )
         yield ToolOutputAvailableChunk(
             tool_call_id=tool_call_id,
-            output=skill.render(),
+            output=skill.text,
         )
         yield FinishStepChunk()
