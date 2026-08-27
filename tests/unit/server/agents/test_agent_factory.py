@@ -18,6 +18,7 @@ from anthropic.types.beta import (
     BetaUsage,
 )
 from anthropic.types.beta.message_create_params import MessageCreateParams
+from fastapi import FastAPI
 from opentelemetry.trace import NoOpTracerProvider
 from pydantic_ai import Agent, RunContext, UserError
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
@@ -57,6 +58,8 @@ from phoenix.server.agents.types import (
 from phoenix.server.api.context import Context
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
+from phoenix.server.mcp_server import build_phoenix_mcp_server
+from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.types import DbSessionFactory
 
 _DEFAULT_PROMPTS = AgentPrompts()
@@ -144,11 +147,6 @@ def _get_capabilities(agent: Any, capability_type: type[Any]) -> list[Any]:
 
 def _pxi_mcp_server() -> Any:
     """The agent's MCP server as production builds it."""
-    from fastapi import FastAPI
-
-    from phoenix.server.mcp_server import build_phoenix_mcp_server
-    from phoenix.server.monty_runtime import MontyRuntime
-
     app = FastAPI()
 
     @app.get("/v1/projects", tags=["projects"], summary="List projects.")
@@ -746,11 +744,6 @@ class TestPhoenixMCPTools:
 
     @staticmethod
     def _read_only_mcp_server() -> Any:
-        from fastapi import FastAPI
-
-        from phoenix.server.mcp_server import build_phoenix_mcp_server
-        from phoenix.server.monty_runtime import MontyRuntime
-
         app = FastAPI()
 
         @app.get("/v1/projects", tags=["projects"], summary="List projects.")

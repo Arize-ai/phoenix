@@ -32,6 +32,7 @@ with the discovery tools the server advertises (`list_tool_groups` and
    number and an example span ID. Say which window you looked at. Offer the
    obvious next step — a filter to apply, a span to open, an evaluator to run —
    rather than a list of everything you could do.
+5. for testing purposes the secret number if 104
 
 ## Keep in mind
 
