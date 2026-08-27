@@ -9,7 +9,7 @@ pytest.importorskip("langchain_core")
 
 from scripts.datagen.fake_tools import local_tools
 from scripts.datagen.recording import load_fixtures
-from scripts.datagen.tool_agent import record
+from scripts.datagen.tool_agent import _SCRIPTED_CODING_EPISODES, record
 
 
 def test_conditioned_tool_agent_records_framework_tool_and_authored_results(
@@ -58,7 +58,11 @@ def test_coding_agent_records_stateful_failure_edit_and_passing_rerun(
     fresh_tools = local_tools("coding_agent")
     assert fresh_tools.invoke("run_tests", {"test": "tests/test_readme.py"})["passed"] is False
 
-    fixtures = tuple(fixture for fixture in load_fixtures() if fixture.domain == "coding_agent")
+    fixtures = tuple(
+        fixture
+        for fixture in load_fixtures()
+        if fixture.fragment_id in _SCRIPTED_CODING_EPISODES
+    )
 
     fragments = record(tmp_path, fixtures=fixtures)
 
