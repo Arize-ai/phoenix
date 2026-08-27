@@ -129,6 +129,61 @@ describe("materializeEvaluatorContext", () => {
     ).toBe(true);
   });
 
+  // The server resolves every path it was given before a literal overwrites
+  // anything, and a path that matches nothing raises there — so the pair has
+  // to read as a failure here rather than as the literal that never runs.
+  it("fails a slot whose set path matches nothing, literal or not", () => {
+    const context = materializeEvaluatorContext({
+      grain: "span",
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: "Why?",
+          output: "Because.",
+          metadata: { latency_ms: 1, span: { input_value: "Why?" } },
+        },
+      },
+      inputMapping: {
+        pathMapping: { input: "metadata.span.nonexistent" },
+        literalMapping: { input: "pinned" },
+      },
+      slotDefaults: getEvaluatorSlotDefaults("span"),
+    });
+
+    expect(context?.evaluatorInputs[0]).toMatchObject({
+      name: "input",
+      status: "unresolved",
+      provenance: { kind: "path", path: "metadata.span.nonexistent" },
+    });
+    expect(context?.evaluatorInputs[0]).not.toHaveProperty("value");
+  });
+
+  it("lets a literal overwrite the path it sits beside once that path resolves", () => {
+    const context = materializeEvaluatorContext({
+      grain: "span",
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: "Why?",
+          output: "Because.",
+          metadata: { latency_ms: 1, span: { input_value: "Why?" } },
+        },
+      },
+      inputMapping: {
+        pathMapping: { input: "metadata.span.input_value" },
+        literalMapping: { input: "pinned" },
+      },
+      slotDefaults: getEvaluatorSlotDefaults("span"),
+    });
+
+    expect(context?.evaluatorInputs[0]).toMatchObject({
+      name: "input",
+      status: "resolved",
+      value: "pinned",
+      provenance: { kind: "literal" },
+    });
+  });
+
   it("materializes nothing for a source built for the other grain", () => {
     expect(
       materializeEvaluatorContext({

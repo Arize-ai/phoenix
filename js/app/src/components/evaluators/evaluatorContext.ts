@@ -135,6 +135,22 @@ function materializeEvaluatorInput({
   slotDefault: EvaluatorSlotDefault;
   hasSampledRecord: boolean;
 }): MaterializedEvaluatorContextEntry {
+  // The server resolves paths before a literal overwrites them, and a path
+  // that matches nothing fails the whole evaluation. So a path the author set
+  // and the record cannot answer is what the slot has to show, literal or not.
+  const mappedPath = inputMapping.pathMapping[slotName];
+  const mapped = mappedPath
+    ? materializePath({
+        name: slotName,
+        source,
+        path: mappedPath,
+        hasSampledRecord,
+      })
+    : null;
+  if (mapped?.status === "unresolved") {
+    return mapped;
+  }
+
   if (Object.hasOwn(inputMapping.literalMapping, slotName)) {
     return {
       name: slotName,
@@ -144,12 +160,15 @@ function materializeEvaluatorInput({
     };
   }
 
-  return materializePath({
-    name: slotName,
-    source,
-    path: inputMapping.pathMapping[slotName] || slotDefault.path,
-    hasSampledRecord,
-  });
+  return (
+    mapped ??
+    materializePath({
+      name: slotName,
+      source,
+      path: slotDefault.path,
+      hasSampledRecord,
+    })
+  );
 }
 
 function materializePath({
