@@ -1,5 +1,9 @@
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("openinference.instrumentation.llama_index")
+
 from scripts.datagen.llama_index_rag import record
 from scripts.datagen.recording import fixtures_for
 
