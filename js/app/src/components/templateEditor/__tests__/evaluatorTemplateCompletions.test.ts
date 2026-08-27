@@ -6,7 +6,10 @@ import { materializeEvaluatorContext } from "@phoenix/components/evaluators/eval
 import { getEvaluatorSlotDefaults } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
-import { findOpenTemplateVariable } from "../autocomplete";
+import {
+  findOpenTemplateVariable,
+  isAtEmptyTemplateVariable,
+} from "../autocomplete";
 import { TemplateFormats } from "../constants";
 import { getEvaluatorTemplateCompletions } from "../evaluatorTemplateCompletions";
 import type { TemplateFormat } from "../types";
@@ -104,6 +107,44 @@ function applyCompletion({
   );
   return state.doc.toString();
 }
+
+// CodeMirror only queries the source as characters arrive, so a variable site
+// the author left empty has to be recognized and the menu opened for it.
+describe("isAtEmptyTemplateVariable", () => {
+  it("recognizes a variable site with nothing typed into it", () => {
+    const cases: [string, TemplateFormat, boolean][] = [
+      ["Rate this: {{", TemplateFormats.Mustache, true],
+      ["", TemplateFormats.Mustache, false],
+      ["Rate this: {{metadata", TemplateFormats.Mustache, false],
+      ["Rate this: {{metadata.span}} ", TemplateFormats.Mustache, false],
+      ["Rate this: {", TemplateFormats.FString, true],
+      ["Rate this: {input} ", TemplateFormats.FString, false],
+    ];
+
+    expect(
+      cases.map(([beforeCursor, templateFormat]) =>
+        isAtEmptyTemplateVariable({ beforeCursor, templateFormat })
+      )
+    ).toEqual(cases.map(([, , expected]) => expected));
+  });
+
+  it("offers the whole root set at an empty site inside existing text", () => {
+    const mustache = complete({ doc: "Rate this: {{" });
+
+    expect(mustache?.options.slice(0, 3).map((option) => option.label)).toEqual(
+      ["input", "output", "metadata"]
+    );
+    expect(mustache?.options.map((option) => option.label)).toContain(
+      "metadata.latency_ms"
+    );
+    expect(
+      complete({
+        doc: "Rate this: {",
+        templateFormat: TemplateFormats.FString,
+      })?.options.map((option) => option.label)
+    ).toEqual(["input", "output", "metadata"]);
+  });
+});
 
 describe("getEvaluatorTemplateCompletions", () => {
   it("offers the evaluator's inputs and then the record's own names", () => {
