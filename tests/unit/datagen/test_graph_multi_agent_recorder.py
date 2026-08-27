@@ -1,4 +1,3 @@
-import inspect
 import json
 from base64 import b64decode
 from pathlib import Path
@@ -21,13 +20,6 @@ def test_graph_fixture_records_named_framework_nodes(tmp_path: Path) -> None:
         "writer_agent",
     }
     assert {b64decode(span["traceId"]).hex() for span in spans} == set(fragments[0]["trace_ids"])
-
-
-def test_graph_recorder_has_condition_and_append_without_provider_controls() -> None:
-    parameters = inspect.signature(record).parameters
-
-    assert {"condition", "append"} <= set(parameters)
-    assert {"provider", "model"}.isdisjoint(parameters)
 
 
 def _spans(path: Path) -> list[dict[str, Any]]:

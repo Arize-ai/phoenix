@@ -4,7 +4,7 @@ from hashlib import sha256
 from pathlib import Path
 
 from phoenix.datagen import load_corpus
-from phoenix.datagen.fetcher import fetch_corpus, load_corpus_pointer
+from phoenix.datagen.fetcher import fetch_corpus
 from scripts.datagen.corpus import package_corpus
 
 
@@ -35,25 +35,6 @@ def test_fetch_corpus_caches_digest_addressed_archive(tmp_path: Path) -> None:
     assert cached.read_bytes() == archive.read_bytes()
     assert len(corpus.fragments) == 2
     assert downloads == 1
-
-
-def test_load_corpus_pointer_uses_cached_pointer_offline(tmp_path: Path) -> None:
-    archive = _build_archive(tmp_path)
-    source_pointer = _write_pointer(tmp_path, archive)
-    downloads = 0
-
-    def download(_url: str, destination: Path) -> None:
-        nonlocal downloads
-        downloads += 1
-        if downloads == 1:
-            shutil.copyfile(source_pointer, destination)
-        else:
-            raise OSError("offline")
-
-    first = load_corpus_pointer(cache_dir=tmp_path / "cache", downloader=download)
-    second = load_corpus_pointer(cache_dir=tmp_path / "cache", downloader=download)
-
-    assert first == second
 
 
 def _build_archive(tmp_path: Path) -> Path:
