@@ -136,28 +136,21 @@ function toRecordCandidate(
 }
 
 /**
- * The members one step inside `containerPath`, read off the materialized
- * context by the same walk the path field uses.
+ * The members one step inside `containerPath`, by the same walk the path field
+ * uses. `source` is what the path is read against: the evaluator's own values,
+ * or the item a template section repeats over.
  */
 export function getEvaluatorContextMembers({
-  evaluationContext,
+  source,
   containerPath,
 }: {
-  evaluationContext: MaterializedEvaluatorContext;
+  source: Record<string, unknown>;
   containerPath: string;
 }): EvaluatorPathMember[] {
-  const resolution = resolveEvaluatorPath({
-    source: evaluationContext.values,
-    path: containerPath,
-  });
+  const resolution = resolveEvaluatorPath({ source, path: containerPath });
   return resolution.status === "resolved"
     ? getEvaluatorPathMembers(resolution.value, containerPath)
     : [];
-}
-
-/** A drill level is headed by the path that reaches it. */
-export function toMemberSection(containerPath: string): CompletionSection {
-  return { name: containerPath, rank: 1 };
 }
 
 /**

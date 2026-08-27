@@ -2,10 +2,14 @@ import type { CompletionSection } from "@codemirror/autocomplete";
 
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
-import { toBracketSegment } from "@phoenix/utils/jsonUtils";
-import { parsePathSegmentRanges } from "@phoenix/utils/objectUtils";
-
-const BARE_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+import {
+  BARE_IDENTIFIER_PATTERN,
+  toBracketSegment,
+} from "@phoenix/utils/jsonUtils";
+import {
+  parsePathSegmentRanges,
+  unescapeQuotedPathKey,
+} from "@phoenix/utils/objectUtils";
 
 /** A member name being typed, up to and including the empty one. */
 const PARTIAL_MEMBER_PATTERN = /^(?:[A-Za-z_][A-Za-z0-9_]*)?$/;
@@ -20,6 +24,20 @@ const PARTIAL_SUBSCRIPT_PATTERN = /^\[(?:'((?:[^'\\]|\\.)*)|(\d*))?$/;
  * member, not just these.
  */
 export const MAX_BROWSE_MEMBERS = 30;
+
+/**
+ * The members a level offers: capped while the user is browsing it with
+ * nothing typed, whole once they start narrowing.
+ */
+export function capBrowsedMembers<T>({
+  members,
+  isBrowsing,
+}: {
+  members: T[];
+  isBrowsing: boolean;
+}): T[] {
+  return isBrowsing ? members.slice(0, MAX_BROWSE_MEMBERS) : members;
+}
 
 /**
  * Extends a path by one key, in the notation the server parses.
@@ -113,7 +131,10 @@ export function getEvaluatorPathCursor(
       }
       const [, quotedKey, index] = subscript;
       containerEnd = splitAt;
-      partial = quotedKey?.replace(/\\(.)/g, "$1") ?? index ?? "";
+      partial =
+        quotedKey === undefined
+          ? (index ?? "")
+          : unescapeQuotedPathKey(quotedKey);
       from = splitAt + (quotedKey === undefined ? 1 : 2);
     } else if (PARTIAL_MEMBER_PATTERN.test(fragment)) {
       const isRoot = splitAt === 0;
@@ -194,10 +215,19 @@ export const SUGGESTED_PATH_SECTION: CompletionSection = {
   rank: 0,
 };
 
-/** A drill level is headed by the path that reaches it. */
-export const toPathMemberSection = (
-  containerPath: string
-): CompletionSection => ({ name: containerPath, rank: 3 });
+/**
+ * A drill level is headed by the path that reaches it. The rank places that
+ * heading among whatever else the surface offers alongside it.
+ */
+export function toMemberSection(
+  containerPath: string,
+  rank: number
+): CompletionSection {
+  return { name: containerPath, rank };
+}
+
+/** Where a drill level sits among the path field's own groups. */
+export const PATH_MEMBER_SECTION_RANK = 3;
 
 /** What a pinned suggestion supplies: the path and its one-line description. */
 export type EvaluatorSlotSuggestedPathLike = {
@@ -268,9 +298,11 @@ export function getEvaluatorPathCompletions({
     return null;
   }
 
-  const section = toPathMemberSection(containerPath);
-  const shown =
-    cursor.partial === "" ? members.slice(0, MAX_BROWSE_MEMBERS) : members;
+  const section = toMemberSection(containerPath, PATH_MEMBER_SECTION_RANK);
+  const shown = capBrowsedMembers({
+    members,
+    isBrowsing: cursor.partial === "",
+  });
   return {
     from: cursor.from,
     containerPath,

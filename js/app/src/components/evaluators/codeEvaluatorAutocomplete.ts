@@ -22,17 +22,20 @@ import {
   getEvaluatorContextMembers,
   toEvaluatorCompletionClass,
   toMemberDetail,
-  toMemberSection,
 } from "@phoenix/components/evaluators/evaluatorContextCompletions";
 import {
-  MAX_BROWSE_MEMBERS,
+  capBrowsedMembers,
   toMemberPreview,
+  toMemberSection,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import type {
   CodeEvaluatorLanguage,
   EvaluatorMappingSource,
 } from "@phoenix/types";
 import { flattenObject } from "@phoenix/utils/jsonUtils";
+
+/** The body's drill menu offers nothing beside the level it opened. */
+const CODE_MEMBER_SECTION_RANK = 1;
 
 /** Generates a human-readable type description for a value. */
 function getTypeDescription(value: unknown): string {
@@ -392,14 +395,17 @@ function createMemberDrillResult({
     return null;
   }
   const members = getEvaluatorContextMembers({
-    evaluationContext,
+    source: evaluationContext.values,
     containerPath: cursor.containerPath,
   });
   if (members.length === 0) {
     return null;
   }
 
-  const section = toMemberSection(cursor.containerPath);
+  const section = toMemberSection(
+    cursor.containerPath,
+    CODE_MEMBER_SECTION_RANK
+  );
   const accessorFrom = lineStart + cursor.accessorFrom;
   // The container as the author wrote it, so the info card shows the whole
   // expression the row commits to rather than the accessor alone.
@@ -407,8 +413,10 @@ function createMemberDrillResult({
     lineStart + cursor.expressionFrom,
     accessorFrom
   );
-  const browsed =
-    cursor.partial === "" ? members.slice(0, MAX_BROWSE_MEMBERS) : members;
+  const browsed = capBrowsedMembers({
+    members,
+    isBrowsing: cursor.partial === "",
+  });
   const options: Completion[] = browsed.map((member, index) => {
     const detail = toMemberDetail({ member, evaluationContext });
     const accessor = toCodeEvaluatorAccessor({

@@ -37,6 +37,15 @@ const IDENTIFIER_SEGMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*/;
 const BRACKET_SEGMENT_PATTERN = /^\[(?:'((?:[^'\\]|\\.)*)'|(\d+))\]/;
 
 /**
+ * Reads a quoted bracket key back out of the notation it was written in: the
+ * resolver on both sides treats a backslash as escaping the character after
+ * it, so `a\'b` is the key `a'b`.
+ */
+export function unescapeQuotedPathKey(quotedKey: string): string {
+  return quotedKey.replace(/\\(.)/g, "$1");
+}
+
+/**
  * One key of a parsed JSONPath expression, with where it sits in the
  * expression — so a caller that finds a key unresolvable can point at the
  * text that named it rather than at the whole path.
@@ -75,7 +84,8 @@ export function parsePathSegmentRanges(
     if (bracket) {
       const [matched, quotedKey, index] = bracket;
       segments.push({
-        key: quotedKey?.replace(/\\(.)/g, "$1") ?? index,
+        key:
+          quotedKey === undefined ? index : unescapeQuotedPathKey(quotedKey),
         from: offset,
         to: offset + matched.length,
       });

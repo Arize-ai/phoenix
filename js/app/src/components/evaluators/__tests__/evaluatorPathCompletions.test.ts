@@ -8,7 +8,8 @@ import {
   MAX_BROWSE_MEMBERS,
   resolveEvaluatorPath,
   SUGGESTED_PATH_SECTION,
-  toPathMemberSection,
+  PATH_MEMBER_SECTION_RANK,
+  toMemberSection,
 } from "../evaluatorPathCompletions";
 
 const SPAN_RECORD: Record<string, unknown> = {
@@ -152,7 +153,7 @@ describe("getEvaluatorPathCompletions", () => {
       "metadata.span.attributes['llm.deprecated']",
     ]);
     expect(result?.completions[0]?.section).toEqual(
-      toPathMemberSection("metadata.span.attributes")
+      toMemberSection("metadata.span.attributes", PATH_MEMBER_SECTION_RANK)
     );
   });
 

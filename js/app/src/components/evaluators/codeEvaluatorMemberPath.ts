@@ -1,8 +1,14 @@
 import { appendPathSegment } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
+import { unescapeQuotedPathKey } from "@phoenix/utils/objectUtils";
 
+/**
+ * A JavaScript identifier, which admits `$` where a JSONPath segment does not.
+ * These read and write source code, so they must stay the language's rule
+ * rather than the path notation's.
+ */
 const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*/;
-const BARE_IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+const WHOLE_IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 /** Everything a member expression can be written with, in either language. */
 const EXPRESSION_CHARS = /[A-Za-z0-9_$."'?[\]\\]/;
 const COMPLETE_SUBSCRIPT_PATTERN =
@@ -79,7 +85,7 @@ export function getCodeEvaluatorMemberCursor(
       const complete = COMPLETE_SUBSCRIPT_PATTERN.exec(rest);
       if (complete) {
         const [matched, doubleQuoted, singleQuoted, index] = complete;
-        const key = unescape(doubleQuoted ?? singleQuoted ?? index);
+        const key = unescapeQuotedPathKey(doubleQuoted ?? singleQuoted ?? index);
         path = appendPathSegment(path, key, index !== undefined);
         offset += matched.length;
         continue;
@@ -92,7 +98,7 @@ export function getCodeEvaluatorMemberCursor(
       const quoted = doubleQuoted ?? singleQuoted;
       return {
         containerPath: path,
-        partial: unescape(quoted ?? index ?? ""),
+        partial: unescapeQuotedPathKey(quoted ?? index ?? ""),
         // The typeahead matches the key alone, so it starts inside the quote.
         from: start + offset + (quoted === undefined ? 1 : 2),
         accessorFrom: start + offset,
@@ -134,11 +140,8 @@ export function toCodeEvaluatorAccessor({
     return `[${JSON.stringify(key)}]`;
   }
   const optional = isAbsent ? "?." : "";
-  return BARE_IDENTIFIER_PATTERN.test(key)
+  return WHOLE_IDENTIFIER_PATTERN.test(key)
     ? `${isAbsent ? "?." : "."}${key}`
     : `${optional}[${JSON.stringify(key)}]`;
 }
 
-function unescape(value: string): string {
-  return value.replace(/\\(.)/g, "$1");
-}

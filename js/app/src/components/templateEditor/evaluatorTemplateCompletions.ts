@@ -11,17 +11,18 @@ import {
   getEvaluatorContextMembers,
   HINT_COMPLETION_TYPE,
   toMemberDetail,
-  toMemberSection,
 } from "@phoenix/components/evaluators/evaluatorContextCompletions";
 import type { EvaluatorPathMember } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import {
+  capBrowsedMembers,
   EVALUATOR_ROOT_PATH_PATTERN,
   getEvaluatorPathCursor,
   getEvaluatorPathMembers,
-  MAX_BROWSE_MEMBERS,
   resolveEvaluatorPath,
+  toMemberSection,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { BARE_IDENTIFIER_PATTERN } from "@phoenix/utils/jsonUtils";
 
 import { TemplateFormats } from "./constants";
 import type { TemplateFormat } from "./types";
@@ -29,8 +30,8 @@ import type { TemplateFormat } from "./types";
 /** The repeat and empty-case wrappers a Mustache template can open. */
 const BLOCK_SECTION: CompletionSection = { name: "Blocks", rank: 3 };
 
-/** A name Mustache can reach with a dot. */
-const BARE_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+/** A drill level leads the menu it opened; blocks follow it. */
+const TEMPLATE_MEMBER_SECTION_RANK = 1;
 
 /** What the typeahead keeps matching against as the member name grows. */
 const MEMBER_NAME_PATTERN = /^\w*$/;
@@ -105,7 +106,10 @@ export function getEvaluatorTemplateCompletions({
           options: toMemberOptions({
             members: getEvaluatorPathMembers(section.item, ""),
             evaluationContext,
-            section: toMemberSection(section.path),
+            section: toMemberSection(
+              section.path,
+              TEMPLATE_MEMBER_SECTION_RANK
+            ),
             closingBrackets,
             isBrowsing: cursor.partial === "",
           }),
@@ -113,22 +117,21 @@ export function getEvaluatorTemplateCompletions({
         });
   }
 
-  const members =
-    section === null
-      ? getEvaluatorContextMembers({
-          evaluationContext,
-          containerPath: cursor.containerPath,
-        })
-      : getMembersWithin({
-          value: section.item,
-          path: cursor.containerPath,
-        });
+  const members = getEvaluatorContextMembers({
+    // Inside a section the path is read against the item the block repeats
+    // over, not against the evaluator's own values.
+    source: section === null ? evaluationContext.values : section.item,
+    containerPath: cursor.containerPath,
+  });
   return toResult({
     from,
     options: toMemberOptions({
       members,
       evaluationContext,
-      section: toMemberSection(cursor.containerPath),
+      section: toMemberSection(
+        cursor.containerPath,
+        TEMPLATE_MEMBER_SECTION_RANK
+      ),
       closingBrackets,
       isBrowsing: cursor.partial === "",
     }),
@@ -200,9 +203,7 @@ function toMemberOptions({
   const addressable = members.filter(
     (member) => !member.isIndex && BARE_IDENTIFIER_PATTERN.test(member.key)
   );
-  const shown = isBrowsing
-    ? addressable.slice(0, MAX_BROWSE_MEMBERS)
-    : addressable;
+  const shown = capBrowsedMembers({ members: addressable, isBrowsing });
   return shown.map((member, index) => {
     const detail = toMemberDetail({ member, evaluationContext });
     return {
@@ -244,7 +245,7 @@ function getBlockCompletions({
     }
   } else {
     for (const member of getEvaluatorContextMembers({
-      evaluationContext,
+      source: evaluationContext.values,
       containerPath: cursor.containerPath,
     })) {
       // Mustache names a block with a dotted path or not at all.
@@ -326,19 +327,6 @@ function getSectionItem({
     ? resolution.value[0]
     : resolution.value;
   return isStringKeyedObject(item) ? { path: sectionPath, item } : null;
-}
-
-function getMembersWithin({
-  value,
-  path,
-}: {
-  value: Record<string, unknown>;
-  path: string;
-}): EvaluatorPathMember[] {
-  const resolution = resolveEvaluatorPath({ source: value, path });
-  return resolution.status === "resolved"
-    ? getEvaluatorPathMembers(resolution.value, path)
-    : [];
 }
 
 /** Writes a name into the variable, closing it if the braces are not there. */
