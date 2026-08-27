@@ -498,7 +498,7 @@ test.describe("PXI playground prompt smoke", () => {
     ).toBeVisible();
 
     await page.getByRole("link", { name: /tracing/i }).click();
-    await page.waitForURL("**/projects");
+    await page.waitForURL(/\/projects(\?|$)/);
 
     const openChatButton = page.getByRole("button", {
       name: "Open agent chat",

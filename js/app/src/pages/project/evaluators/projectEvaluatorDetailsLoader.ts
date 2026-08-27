@@ -14,8 +14,6 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         id
         name
         enabled
-        schedulabilityStatus
-        schedulabilityReason
         evaluator {
           kind
           description
@@ -26,7 +24,7 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         runSummary {
           status
         }
-        ...ProjectEvaluatorStatsCard_projectEvaluator
+        ...ProjectEvaluatorStats_projectEvaluator
         ...ProjectEvaluatorScopeDetails_projectEvaluator
         ...LLMProjectEvaluatorDetails_projectEvaluator
         ...CodeProjectEvaluatorDetails_projectEvaluator
