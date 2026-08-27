@@ -8,6 +8,7 @@ import {
   Badge,
   Button,
   Counter,
+  ExpandableContent,
   Flex,
   Heading,
   List,
@@ -43,6 +44,7 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 import {
   getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
+  getProjectEvaluatorTemplateMessages,
   type ProjectEvaluatorTemplate,
   projectEvaluatorTemplatesQuery,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
@@ -430,6 +432,7 @@ function EvaluatorTemplateDetails({
     optimizationDirection: template.optimizationDirection,
     values: choices,
   });
+  const messages = getProjectEvaluatorTemplateMessages(template);
   return (
     <Flex direction="column" gap="size-200" height="100%">
       <Flex direction="column" gap="size-100">
@@ -504,12 +507,71 @@ function EvaluatorTemplateDetails({
           ))}
         </List>
       </Flex>
-      <Button variant="primary" onPress={onUseTemplate}>
-        Customize this evaluator
-      </Button>
+      {messages.length > 0 ? (
+        <Flex direction="column" gap="size-75">
+          <Text elementType="h3" size="S" weight="heavy">
+            Prompt
+          </Text>
+          <div css={promptPreviewWellCSS}>
+            <ExpandableContent
+              height={PROMPT_PREVIEW_COLLAPSED_HEIGHT}
+              expandedBehavior="grow"
+              overlayBackgroundColor="var(--global-background-color-100)"
+            >
+              <Flex direction="column" gap="size-150">
+                {messages.map((message) => (
+                  <Flex key={message.id} direction="column" gap="size-25">
+                    <Text size="XS" color="text-500" weight="heavy">
+                      {capitalize(message.role)}
+                    </Text>
+                    <Text size="S" css={promptPreviewMessageCSS}>
+                      {message.content}
+                    </Text>
+                  </Flex>
+                ))}
+              </Flex>
+            </ExpandableContent>
+          </div>
+        </Flex>
+      ) : null}
+      <Flex direction="column" css={stickyUseTemplateFooterCSS}>
+        <Button variant="primary" onPress={onUseTemplate}>
+          Customize this evaluator
+        </Button>
+      </Flex>
     </Flex>
   );
 }
+
+// Bleeds out to the edges of the details column's own padding/gap (both
+// `var(--global-dimension-size-200)`) and re-adds that same space as padding
+// inside this element's own background, so nothing scrolls behind it.
+const stickyUseTemplateFooterCSS = css`
+  position: sticky;
+  bottom: calc(-1 * var(--project-evaluator-gallery-column-padding));
+  z-index: 1;
+  margin: calc(-1 * var(--global-dimension-size-200))
+    calc(-1 * var(--project-evaluator-gallery-column-padding))
+    calc(-1 * var(--project-evaluator-gallery-column-padding));
+  padding: var(--global-dimension-size-200)
+    var(--project-evaluator-gallery-column-padding)
+    var(--project-evaluator-gallery-column-padding);
+  background-color: var(--global-background-color-default);
+`;
+
+const PROMPT_PREVIEW_COLLAPSED_HEIGHT = 160;
+
+const promptPreviewWellCSS = css`
+  background-color: var(--global-background-color-100);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+  padding: var(--global-dimension-size-150);
+`;
+
+const promptPreviewMessageCSS = css`
+  white-space: pre-wrap;
+`;
 
 function capitalize(value: string): string {
   return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;

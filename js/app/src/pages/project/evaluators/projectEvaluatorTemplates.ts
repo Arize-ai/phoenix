@@ -78,6 +78,14 @@ export function getProjectEvaluatorTemplateChoices(config: {
   return Object.entries(choices).map(([label, score]) => ({ label, score }));
 }
 
+export function getProjectEvaluatorTemplateMessages(
+  config: ProjectEvaluatorTemplate
+) {
+  return convertPromptVersionMessagesToPlaygroundInstanceMessages({
+    promptMessagesRefs: config.messages,
+  });
+}
+
 export function buildTemplateCreationMode(
   config: ProjectEvaluatorTemplate
 ): ProjectEvaluatorCreationMode {
@@ -94,11 +102,7 @@ export function buildTemplateCreationMode(
           values: getProjectEvaluatorTemplateChoices(config),
         },
       ],
-      defaultMessages: convertPromptVersionMessagesToPlaygroundInstanceMessages(
-        {
-          promptMessagesRefs: config.messages,
-        }
-      ),
+      defaultMessages: getProjectEvaluatorTemplateMessages(config),
       templateFormat: "MUSTACHE",
       includeExplanation: true,
     },
