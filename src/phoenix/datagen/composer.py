@@ -31,7 +31,7 @@ class _SessionLengthProfile(NamedTuple):
 # traces.
 _SESSION_LENGTH_PROFILES: Mapping[Archetype, _SessionLengthProfile] = {
     "tool_agent": _SessionLengthProfile(median=6.0, sigma=0.8, maximum=30),
-    "plain_chat": _SessionLengthProfile(median=1.0, sigma=0.6, maximum=3),
+    "plain_chat": _SessionLengthProfile(median=2.0, sigma=0.7, maximum=4),
     "rag": _SessionLengthProfile(median=2.0, sigma=0.8, maximum=6),
     "structured_extraction": _SessionLengthProfile(median=4.0, sigma=1.0, maximum=16),
     "graph_multi_agent": _SessionLengthProfile(median=2.0, sigma=0.8, maximum=6),
