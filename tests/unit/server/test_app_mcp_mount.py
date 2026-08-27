@@ -139,7 +139,7 @@ async def test_the_mount_serves_no_skills(
         tool_names = {tool.name for tool in await client.list_tools()}
 
     assert instructions is None
-    assert tool_names.isdisjoint({"load_skill", "read_skill_resource"})
+    assert tool_names.isdisjoint({"load_skill", "read_skill_reference"})
 
 
 async def test_the_agents_own_server_adds_the_pxi_skills(

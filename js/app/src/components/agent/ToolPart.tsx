@@ -116,10 +116,10 @@ import {
   PatchExperimentToolDetails,
 } from "./PatchExperimentToolDetails";
 import {
-  getReadSkillResourceToolPreview,
-  READ_SKILL_RESOURCE_TOOL_NAME,
-  ReadSkillResourceToolDetails,
-} from "./ReadSkillResourceToolDetails";
+  getReadSkillReferenceToolPreview,
+  READ_SKILL_REFERENCE_TOOL_NAME,
+  ReadSkillReferenceToolDetails,
+} from "./ReadSkillReferenceToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
 import {
   getSearchUIToolPreview,
@@ -1229,12 +1229,12 @@ function getToolPresentation(
         quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
       };
     }
-    case READ_SKILL_RESOURCE_TOOL_NAME:
+    case READ_SKILL_REFERENCE_TOOL_NAME:
       return {
-        preview: getReadSkillResourceToolPreview(part),
+        preview: getReadSkillReferenceToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        details: <ReadSkillResourceToolDetails part={part} />,
+        details: <ReadSkillReferenceToolDetails part={part} />,
       };
     case NATIVE_WEB_SEARCH_TOOL_NAME:
     case NATIVE_WEB_FETCH_TOOL_NAME:

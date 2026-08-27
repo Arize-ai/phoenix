@@ -249,12 +249,12 @@ describe("getToolPresentation", () => {
     });
   });
 
-  describe("read_skill_resource", () => {
-    it("previews the skill and resource while running, without quieting", () => {
+  describe("read_skill_reference", () => {
+    it("previews the skill and reference while running, without quieting", () => {
       const presentation = getToolPresentation({
-        toolName: "read_skill_resource",
+        toolName: "read_skill_reference",
         state: "input-available",
-        input: { skill_name: "datasets", resource_name: "query-guide" },
+        input: { skill_name: "datasets", reference_name: "query-guide" },
         output: undefined,
       });
       expect(presentation.icon).toBe("✦");
@@ -262,9 +262,9 @@ describe("getToolPresentation", () => {
       expect(presentation.isQuiet).toBe(false);
     });
 
-    it("previews the skill name alone while the resource is still streaming", () => {
+    it("previews the skill name alone while the reference is still streaming", () => {
       const presentation = getToolPresentation({
-        toolName: "read_skill_resource",
+        toolName: "read_skill_reference",
         state: "input-streaming",
         input: { skill_name: "datasets" },
         output: undefined,
@@ -274,25 +274,25 @@ describe("getToolPresentation", () => {
 
     it("collapses to a quiet labeled line once complete", () => {
       const presentation = getToolPresentation({
-        toolName: "read_skill_resource",
+        toolName: "read_skill_reference",
         state: "output-available",
-        input: { skill_name: "datasets", resource_name: "query-guide" },
+        input: { skill_name: "datasets", reference_name: "query-guide" },
         output: { content: "…" },
       });
       expect(presentation.isQuiet).toBe(true);
       expect(presentation.quietLabel).toBe(
-        "Read skill resource datasets/query-guide"
+        "Read skill reference datasets/query-guide"
       );
     });
 
     it("uses a generic quiet label when the input is unavailable", () => {
       const presentation = getToolPresentation({
-        toolName: "read_skill_resource",
+        toolName: "read_skill_reference",
         state: "output-available",
         input: undefined,
         output: { content: "…" },
       });
-      expect(presentation.quietLabel).toBe("Read skill resource");
+      expect(presentation.quietLabel).toBe("Read skill reference");
     });
   });
 });

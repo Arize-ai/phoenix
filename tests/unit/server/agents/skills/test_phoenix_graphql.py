@@ -19,12 +19,12 @@ PHOENIX_GRAPHQL_SKILL = Skill.from_directory(PXI_SKILLS_ROOT / "phoenix-graphql"
 def _iter_graphql_examples() -> list[GraphQLExample]:
     """Yield (source_label, query_text) for every ```graphql block in the skill.
 
-    Covers the skill body and every resource so a renamed schema field fails the
+    Covers the skill body and every reference so a renamed schema field fails the
     suite instead of silently rotting the documented examples.
     """
     sources: list[SkillContentSource] = [("SKILL.md body", PHOENIX_GRAPHQL_SKILL.text)]
-    for resource in PHOENIX_GRAPHQL_SKILL.resources:
-        sources.append((f"resource:{resource.name}", resource.read()))
+    for reference in PHOENIX_GRAPHQL_SKILL.references:
+        sources.append((f"reference:{reference.name}", reference.read()))
 
     examples: list[GraphQLExample] = []
     for label, text in sources:

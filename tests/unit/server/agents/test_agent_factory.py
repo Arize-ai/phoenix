@@ -381,7 +381,7 @@ def _get_skills_catalog(body: MessageCreateParams) -> str:
     return text[start:end]
 
 
-_SKILL_TOOL_NAMES = ("load_skill", "read_skill_resource")
+_SKILL_TOOL_NAMES = ("load_skill", "read_skill_reference")
 _RENDERED_UI_STATE_MARKER = "<edit_permission>"
 
 
@@ -626,7 +626,7 @@ class TestPrefixStabilityAcrossNavigation:
 
         bare, mounted = (_get_skill_tool_definitions(body) for body in captured_request.bodies)
         assert bare == mounted
-        assert [tool["name"] for tool in bare] == ["load_skill", "read_skill_resource"]
+        assert [tool["name"] for tool in bare] == ["load_skill", "read_skill_reference"]
 
     async def test_identical_inputs_produce_identical_tool_arrays(
         self,
@@ -1133,7 +1133,7 @@ class TestSkills:
         tool_names = _get_tool_names(captured_request.body)
         assert "execute" in tool_names
         assert "load_skill" in tool_names
-        assert "read_skill_resource" in tool_names
+        assert "read_skill_reference" in tool_names
         assert "write_span_note" in tool_names
 
     async def test_absent_without_a_server(

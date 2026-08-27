@@ -57,7 +57,7 @@ class TestHandshake:
         for skill in load_skills(PXI_SKILLS_ROOTS):
             assert f"- {skill.name}: {skill.description}" in instructions
         assert "`load_skill`" in instructions
-        assert "`read_skill_resource`" in instructions
+        assert "`read_skill_reference`" in instructions
 
     async def test_no_roots_means_no_skills(self) -> None:
         mcp, _ = build_phoenix_mcp_server(
@@ -67,45 +67,45 @@ class TestHandshake:
             assert client.initialize_result is not None
             assert client.initialize_result.instructions is None
             names = {tool.name for tool in await client.list_tools()}
-            assert names.isdisjoint({"load_skill", "read_skill_resource"})
+            assert names.isdisjoint({"load_skill", "read_skill_reference"})
 
 
 class TestTools:
-    async def test_load_skill_returns_the_file_and_names_its_resources(self) -> None:
+    async def test_load_skill_returns_the_file_and_names_its_references(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
             loaded = await _text(client, "load_skill", skill_name="phoenix-graphql")
 
         skill_md = (_GRAPHQL_SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
         assert loaded.startswith(skill_md.rstrip())
-        assert 'read_skill_resource(skill_name="phoenix-graphql"' in loaded
-        assert "- datasets.md" in loaded
+        assert 'read_skill_reference(skill_name="phoenix-graphql"' in loaded
+        assert "- references/datasets.md" in loaded
 
-    async def test_load_skill_returns_a_resourceless_skill_verbatim(self) -> None:
+    async def test_load_skill_returns_a_skill_without_references_verbatim(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
             loaded = await _text(client, "load_skill", skill_name="datasets")
 
         assert loaded == (PXI_SKILLS_ROOT / "datasets" / "SKILL.md").read_text(encoding="utf-8")
 
-    async def test_read_skill_resource_returns_the_file(self) -> None:
+    async def test_read_skill_reference_returns_the_file(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
             content = await _text(
                 client,
-                "read_skill_resource",
+                "read_skill_reference",
                 skill_name="phoenix-graphql",
-                resource_name="datasets.md",
+                reference_name="references/datasets.md",
             )
 
-        expected = (_GRAPHQL_SKILL_DIR / "resources" / "datasets.md").read_text(encoding="utf-8")
+        expected = (_GRAPHQL_SKILL_DIR / "references" / "datasets.md").read_text(encoding="utf-8")
         assert content == expected
 
     async def test_unknown_names_are_errors_that_say_what_exists(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
             with pytest.raises(ToolError, match="phoenix-graphql"):
                 await client.call_tool("load_skill", {"skill_name": "nope"})
-            with pytest.raises(ToolError, match="datasets.md"):
+            with pytest.raises(ToolError, match="references/datasets.md"):
                 await client.call_tool(
-                    "read_skill_resource",
-                    {"skill_name": "phoenix-graphql", "resource_name": "nope"},
+                    "read_skill_reference",
+                    {"skill_name": "phoenix-graphql", "reference_name": "nope"},
                 )
 
     async def test_the_skill_name_schema_enumerates_the_catalog(self) -> None:
@@ -118,8 +118,8 @@ class TestTools:
         ]
         assert load_skill.annotations is not None
         assert load_skill.annotations.readOnlyHint is True
-        assert tools["read_skill_resource"].annotations is not None
-        assert tools["read_skill_resource"].annotations.readOnlyHint is True
+        assert tools["read_skill_reference"].annotations is not None
+        assert tools["read_skill_reference"].annotations.readOnlyHint is True
 
     async def test_the_skill_tools_stay_direct_under_code_mode(self) -> None:
         """Code mode folds the catalog behind ``execute``; the skill tools are
@@ -141,9 +141,9 @@ class TestTools:
         finally:
             await runtime.aclose()
 
-        assert {"execute", "search", "load_skill", "read_skill_resource"} <= names
+        assert {"execute", "search", "load_skill", "read_skill_reference"} <= names
         assert "load_skill" not in catalog
-        assert "read_skill_resource" not in catalog
+        assert "read_skill_reference" not in catalog
         assert loaded.startswith("---\nname: datasets")
 
 
@@ -158,17 +158,22 @@ class TestLoadSkills:
         assert pxi == sorted(pxi)
         assert {"phoenix-graphql", "datasets"} <= set(pxi)
 
-    def test_resources_are_named_by_their_path_under_resources(self, tmp_path: Path) -> None:
+    def test_references_are_named_by_their_path_from_the_skill_root(self, tmp_path: Path) -> None:
         _write_skill(tmp_path / "a-skill")
-        (tmp_path / "a-skill" / "resources" / "nested").mkdir(parents=True)
-        (tmp_path / "a-skill" / "resources" / "top.md").write_text("top")
-        (tmp_path / "a-skill" / "resources" / "nested" / "deep.md").write_text("deep")
+        (tmp_path / "a-skill" / "references" / "nested").mkdir(parents=True)
+        (tmp_path / "a-skill" / "references" / "top.md").write_text("top")
+        (tmp_path / "a-skill" / "references" / "nested" / "deep.md").write_text("deep")
+        (tmp_path / "a-skill" / "scripts").mkdir()
+        (tmp_path / "a-skill" / "scripts" / "run.py").write_text("print()")
 
         skill = Skill.from_directory(tmp_path / "a-skill")
 
-        assert [resource.name for resource in skill.resources] == ["nested/deep.md", "top.md"]
-        assert skill.resource("nested/deep.md") is not None
-        assert skill.resource("nested/deep.md").read() == "deep"  # type: ignore[union-attr]
+        assert [reference.name for reference in skill.references] == [
+            "references/nested/deep.md",
+            "references/top.md",
+        ]
+        assert skill.reference("references/nested/deep.md") is not None
+        assert skill.reference("references/nested/deep.md").read() == "deep"  # type: ignore[union-attr]
 
     def test_a_directory_without_a_skill_file_is_not_a_skill(self, tmp_path: Path) -> None:
         _write_skill(tmp_path / "a-skill")

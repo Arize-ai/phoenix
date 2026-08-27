@@ -17,7 +17,7 @@ summary: Answer data questions with efficient GraphQL queries, or get working Gr
 
 ### Entrypoints
 
-Top-level `Query` entrypoints get you to a starting entity; per-entity schema details live in the resources listed under "Schema map" below.
+Top-level `Query` entrypoints get you to a starting entity; per-entity schema details live in the reference files listed under "Schema map" below.
 
 - `node(id: ID!)` — global lookup for **any** entity by its Relay global id; resolve with an inline fragment, e.g. `node(id: $id) { ... on Dataset { name } }`. This is the primary way to fetch datasets, prompts, experiments, sessions, and annotations, which have **no** by-name/by-id helpers.
 - `projects(...)`, `datasets(...)`, `prompts(...)`, `evaluators(...)` → Relay connections, each with `filter`/`sort` inputs to find an entity when you only have a name.
@@ -27,14 +27,14 @@ Top-level `Query` entrypoints get you to a starting entity; per-entity schema de
 
 ### Schema map
 
-Per-entity field references and examples are split into resources. Read **only** the one(s) you need with `read_skill_resource`, after loading this skill:
+Per-entity field references and examples are split into reference files. Read **only** the one(s) you need with `read_skill_reference`, after loading this skill:
 
-- `project-spans-traces.md` — Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
-- `sessions.md` — ProjectSession: multi-turn session metrics, token/cost, session traces.
-- `datasets.md` — Dataset and DatasetExample: examples, versions, splits, labels.
-- `experiments.md` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
-- `prompts.md` — Prompt and PromptVersion: versions, templates, tags.
-- `annotations.md` — Span/Trace/ExperimentRun annotation fields and how to read them.
+- `references/project-spans-traces.md` — Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
+- `references/sessions.md` — ProjectSession: multi-turn session metrics, token/cost, session traces.
+- `references/datasets.md` — Dataset and DatasetExample: examples, versions, splits, labels.
+- `references/experiments.md` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
+- `references/prompts.md` — Prompt and PromptVersion: versions, templates, tags.
+- `references/annotations.md` — Span/Trace/ExperimentRun annotation fields and how to read them.
 
 ### Conventions
 

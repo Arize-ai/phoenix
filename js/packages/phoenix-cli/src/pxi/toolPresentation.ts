@@ -339,11 +339,11 @@ function getLoadSkillPresentation({
 }
 
 /**
- * Skill resource reads are routine bookkeeping, like skill loads: once
- * complete they collapse to a single dim `Read skill resource
- * <skill>/<resource>` line instead of a full tool row.
+ * Skill reference reads are routine bookkeeping, like skill loads: once
+ * complete they collapse to a single dim `Read skill reference
+ * <skill>/<reference>` line instead of a full tool row.
  */
-function getReadSkillResourcePresentation({
+function getReadSkillReferencePresentation({
   state,
   input,
 }: ToolPresenterOptions): Partial<ToolPresentation> {
@@ -351,21 +351,21 @@ function getReadSkillResourcePresentation({
   const skillName = record
     ? getStringField({ record, field: "skill_name" })
     : "";
-  const resourceName = record
-    ? getStringField({ record, field: "resource_name" })
+  const referenceName = record
+    ? getStringField({ record, field: "reference_name" })
     : "";
-  const resourceLabel = toSingleLine({
-    text: [skillName, resourceName].filter(Boolean).join("/"),
+  const referenceLabel = toSingleLine({
+    text: [skillName, referenceName].filter(Boolean).join("/"),
   });
   const presentation: Partial<ToolPresentation> = {
     icon: "✦",
-    previewText: resourceLabel,
+    previewText: referenceLabel,
   };
   if (state === "output-available") {
     presentation.isQuiet = true;
-    presentation.quietLabel = resourceLabel
-      ? `Read skill resource ${resourceLabel}`
-      : "Read skill resource";
+    presentation.quietLabel = referenceLabel
+      ? `Read skill reference ${referenceLabel}`
+      : "Read skill reference";
   }
   return presentation;
 }
@@ -376,7 +376,7 @@ const TOOL_PRESENTERS: Record<string, ToolPresenter> = {
   web_fetch: getWebFetchPresentation,
   call_subagent: getCallSubagentPresentation,
   load_skill: getLoadSkillPresentation,
-  read_skill_resource: getReadSkillResourcePresentation,
+  read_skill_reference: getReadSkillReferencePresentation,
 };
 
 /**

@@ -46,7 +46,7 @@ describe("PXI tool icon configuration", () => {
       ).toBe(iconKey);
       expect(
         getToolIconKey({
-          toolName: "read_skill_resource",
+          toolName: "read_skill_reference",
           input: { skill_name: skillName },
         })
       ).toBe(iconKey);

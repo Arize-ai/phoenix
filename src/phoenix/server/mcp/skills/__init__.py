@@ -1,3 +1,11 @@
+"""Skills the Phoenix MCP server serves.
+
+Skill directories follow https://agentskills.io/specification in part: a
+``SKILL.md`` whose frontmatter names the skill and describes when to use it,
+plus an optional ``references/`` directory of files read on demand. Phoenix
+also requires a ``summary`` field, and does not read ``scripts/`` or ``assets/``.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -22,7 +30,7 @@ PXI_SKILLS_ROOTS: tuple[Path, ...] = (GENERAL_SKILLS_ROOT, PXI_SKILLS_ROOT)
 SKILL_TOOLS_TAG = "phoenix-mcp-skills"
 
 _SKILL_FILE = "SKILL.md"
-_RESOURCES_DIR = "resources"
+_REFERENCES_DIR = "references"
 
 _READ_ONLY = ToolAnnotations(
     readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False
@@ -30,8 +38,8 @@ _READ_ONLY = ToolAnnotations(
 
 
 @dataclass(frozen=True)
-class SkillResource:
-    """A supporting file, named by its path under the skill's ``resources/``."""
+class SkillReference:
+    """A file read on demand, named by its path from the skill root (``references/...``)."""
 
     name: str
     path: Path
@@ -47,7 +55,7 @@ class Skill:
     summary: str
     text: str
     path: Path
-    resources: tuple[SkillResource, ...] = ()
+    references: tuple[SkillReference, ...] = ()
 
     @classmethod
     def from_directory(cls, directory: Path) -> Skill:
@@ -65,19 +73,19 @@ class Skill:
             summary=_required_string(frontmatter, "summary", skill_file).strip(),
             text=text,
             path=directory,
-            resources=_scan_resources(directory / _RESOURCES_DIR),
+            references=_scan_references(directory),
         )
 
-    def resource(self, name: str) -> Optional[SkillResource]:
-        return next((r for r in self.resources if r.name == name), None)
+    def reference(self, name: str) -> Optional[SkillReference]:
+        return next((r for r in self.references if r.name == name), None)
 
     def render(self) -> str:
-        if not self.resources:
+        if not self.references:
             return self.text
-        listing = "\n".join(f"- {resource.name}" for resource in self.resources)
+        listing = "\n".join(f"- {reference.name}" for reference in self.references)
         return (
-            f"{self.text.rstrip()}\n\n## Resources\n\n"
-            f'Read one with `read_skill_resource(skill_name="{self.name}", resource_name=...)`:\n'
+            f"{self.text.rstrip()}\n\n## References\n\n"
+            f'Read one with `read_skill_reference(skill_name="{self.name}", reference_name=...)`:\n'
             f"{listing}\n"
         )
 
@@ -102,11 +110,12 @@ def _required_string(frontmatter: dict[str, Any], key: str, source: Path) -> str
     return value
 
 
-def _scan_resources(directory: Path) -> tuple[SkillResource, ...]:
+def _scan_references(skill_dir: Path) -> tuple[SkillReference, ...]:
+    directory = skill_dir / _REFERENCES_DIR
     if not directory.is_dir():
         return ()
     return tuple(
-        SkillResource(name=path.relative_to(directory).as_posix(), path=path)
+        SkillReference(name=path.relative_to(skill_dir).as_posix(), path=path)
         for path in sorted(directory.rglob("*"))
         if path.is_file()
     )
@@ -143,13 +152,13 @@ def get_skill_instructions(skills: Sequence[Skill]) -> str:
         "skill's domain, call `load_skill` with its name and follow what it returns.\n\n"
         f"Available skills:\n{listing}\n\n"
         "Load each skill at most once per conversation: if a successful load already "
-        "appears in the conversation, reuse it. A loaded skill may list resources; read "
-        "one with `read_skill_resource`, using the exact names the skill lists."
+        "appears in the conversation, reuse it. A loaded skill may list reference files; "
+        "read one with `read_skill_reference`, using the exact names the skill lists."
     )
 
 
 def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
-    """Add ``load_skill`` and ``read_skill_resource`` over ``skills`` to ``mcp``."""
+    """Add ``load_skill`` and ``read_skill_reference`` over ``skills`` to ``mcp``."""
     by_name = {skill.name: skill for skill in skills}
 
     def _skill(skill_name: str) -> Skill:
@@ -165,21 +174,21 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
     ) -> str:
         return _skill(skill_name).render()
 
-    async def read_skill_resource(
-        skill_name: Annotated[str, Field(description="Skill the resource belongs to.")],
-        resource_name: Annotated[
-            str, Field(description="Resource name exactly as listed by `load_skill`.")
+    async def read_skill_reference(
+        skill_name: Annotated[str, Field(description="Skill the reference belongs to.")],
+        reference_name: Annotated[
+            str, Field(description="Reference name exactly as listed by `load_skill`.")
         ],
     ) -> str:
         skill = _skill(skill_name)
-        resource = skill.resource(resource_name)
-        if resource is None:
-            available = ", ".join(r.name for r in skill.resources) or "none"
+        reference = skill.reference(reference_name)
+        if reference is None:
+            available = ", ".join(r.name for r in skill.references) or "none"
             raise ToolError(
-                f"Skill {skill.name!r} has no resource {resource_name!r}. "
-                f"Available resources: {available}."
+                f"Skill {skill.name!r} has no reference {reference_name!r}. "
+                f"Available references: {available}."
             )
-        return resource.read()
+        return reference.read()
 
     # `output_schema=None`: see `register_analytics_sql_tools` for the reasoning.
     load = Tool.from_function(
@@ -198,10 +207,10 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
     mcp.add_tool(load)
     mcp.add_tool(
         Tool.from_function(
-            read_skill_resource,
+            read_skill_reference,
             description=(
-                "Read a supporting file of a skill already loaded with `load_skill`, "
-                "using the exact skill and resource names that load listed."
+                "Read a reference file of a skill already loaded with `load_skill`, "
+                "using the exact skill and reference names that load listed."
             ),
             tags={SKILL_TOOLS_TAG},
             annotations=_READ_ONLY,
@@ -216,7 +225,7 @@ __all__ = [
     "PXI_SKILLS_ROOTS",
     "SKILL_TOOLS_TAG",
     "Skill",
-    "SkillResource",
+    "SkillReference",
     "load_skills",
     "register_skill_tools",
     "get_skill_instructions",
