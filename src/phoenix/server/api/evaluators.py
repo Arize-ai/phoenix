@@ -2480,9 +2480,11 @@ def _make_object_input_schema(
     }
 
 
-# Schema inference has no grain, so a code evaluator may declare any bound
-# variable name; one that does not exist at the grain it is attached to is
-# reported when the evaluation runs.
+# Schema inference has no grain, so this gate only rejects names no grain could
+# ever supply. It is not a binding promise: at either project grain the context
+# is exactly {input, output, metadata}, so a vocabulary name here is satisfied
+# only by an explicit `metadata.<name>` path mapping, and an unmapped one fails
+# when the evaluation runs.
 _SUPPORTED_CODE_EVALUATOR_INPUT_NAMES = (
     "output",
     "reference",
