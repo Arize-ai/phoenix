@@ -9,6 +9,7 @@ import operator
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from hashlib import sha256
 from pathlib import Path
 from types import MappingProxyType
@@ -16,13 +17,91 @@ from typing import Any, TypeAlias, cast
 
 JSON: TypeAlias = None | bool | int | float | str | list["JSON"] | dict[str, "JSON"]
 ToolResult: TypeAlias = dict[str, JSON]
-ToolHandler: TypeAlias = Callable[[Mapping[str, Any], Mapping[str, Any]], ToolResult]
 
 _WORD = re.compile(r"[a-z0-9]+")
 
 
 class ToolError(ValueError):
     """Raised when local tool data or arguments are invalid."""
+
+
+@dataclass
+class CodingRepository:
+    files: dict[str, str]
+    search_page_size: int
+    read_chunk_lines: int
+    transient_failures: dict[str, int]
+    tests: dict[str, tuple[str, str]]
+    search_cursors: dict[str, int] = dataclass_field(default_factory=dict)
+    read_cursors: dict[str, int] = dataclass_field(default_factory=dict)
+    test_runs: dict[str, int] = dataclass_field(default_factory=dict)
+
+    @classmethod
+    def from_fixture_set(cls, fixture_set: Mapping[str, Any]) -> CodingRepository | None:
+        if fixture_set.get("name") != "coding_agent":
+            return None
+        repository = fixture_set.get("repository")
+        if not isinstance(repository, Mapping):
+            raise ToolError("coding_agent fixtures must define a repository")
+        raw_files = repository.get("files")
+        raw_failures = repository.get("transient_failures")
+        raw_tests = repository.get("tests")
+        if not isinstance(raw_files, list) or not raw_files:
+            raise ToolError("coding_agent repository files must be a non-empty array")
+        if not isinstance(raw_failures, Mapping):
+            raise ToolError("coding_agent transient_failures must be an object")
+        if not isinstance(raw_tests, list) or not raw_tests:
+            raise ToolError("coding_agent repository tests must be a non-empty array")
+
+        files: dict[str, str] = {}
+        for item in raw_files:
+            if not isinstance(item, Mapping):
+                raise ToolError("coding_agent repository files must be objects")
+            path = item.get("path")
+            content = item.get("content")
+            if not isinstance(path, str) or not path or not isinstance(content, str):
+                raise ToolError("coding_agent repository files require path and content strings")
+            if path in files:
+                raise ToolError(f"duplicate coding_agent repository path {path!r}")
+            files[path] = content
+
+        failures: dict[str, int] = {}
+        for operation, count in raw_failures.items():
+            if not isinstance(operation, str) or not isinstance(count, int) or count < 0:
+                raise ToolError("coding_agent transient failures require non-negative counts")
+            failures[operation] = count
+
+        tests: dict[str, tuple[str, str]] = {}
+        for item in raw_tests:
+            if not isinstance(item, Mapping):
+                raise ToolError("coding_agent repository tests must be objects")
+            name = item.get("name")
+            path = item.get("path")
+            contains = item.get("contains")
+            if not all(isinstance(value, str) and value for value in (name, path, contains)):
+                raise ToolError("coding_agent repository tests require name, path, and contains")
+            if cast(str, path) not in files:
+                raise ToolError(f"coding_agent test path {path!r} does not exist")
+            tests[cast(str, name)] = (cast(str, path), cast(str, contains))
+
+        search_page_size = repository.get("search_page_size", 2)
+        read_chunk_lines = repository.get("read_chunk_lines", 2)
+        if not isinstance(search_page_size, int) or search_page_size < 1:
+            raise ToolError("coding_agent search_page_size must be a positive integer")
+        if not isinstance(read_chunk_lines, int) or read_chunk_lines < 1:
+            raise ToolError("coding_agent read_chunk_lines must be a positive integer")
+        return cls(files, search_page_size, read_chunk_lines, failures, tests)
+
+    def consume_failure(self, operation: str) -> None:
+        remaining = self.transient_failures.get(operation, 0)
+        if remaining:
+            self.transient_failures[operation] = remaining - 1
+            raise ToolError(f"transient repository failure during {operation}; retry the call")
+
+
+ToolHandler: TypeAlias = Callable[
+    [Mapping[str, Any], Mapping[str, Any], CodingRepository | None], ToolResult
+]
 
 
 _MISSING = object()
@@ -71,6 +150,7 @@ class ToolSpec:
     description: str
     parameters: Mapping[str, Any]
     handler: ToolHandler
+    coding_only: bool = False
 
     def model_schema(self) -> dict[str, JSON]:
         return {
@@ -90,8 +170,12 @@ class ToolRegistry:
             raise ToolError("tool names must be unique")
         self._specs = MappingProxyType(by_name)
 
-    def model_schemas(self) -> tuple[dict[str, JSON], ...]:
-        return tuple(spec.model_schema() for spec in self._specs.values())
+    def model_schemas(self, *, include_coding: bool) -> tuple[dict[str, JSON], ...]:
+        return tuple(
+            spec.model_schema()
+            for spec in self._specs.values()
+            if include_coding or not spec.coding_only
+        )
 
     def invoke(
         self,
@@ -99,13 +183,14 @@ class ToolRegistry:
         arguments: Mapping[str, Any],
         fixture_set: Mapping[str, Any],
         result_overlays: Sequence[ToolResultOverlay] = (),
+        repository: CodingRepository | None = None,
     ) -> ToolResult:
         try:
             spec = self._specs[name]
         except KeyError as error:
             raise ToolError(f"unknown tool {name!r}") from error
         validated = _validate_arguments(spec, arguments)
-        result = spec.handler(validated, fixture_set)
+        result = spec.handler(validated, fixture_set, repository)
         return _apply_result_overlays(name, validated, result, result_overlays)
 
 
@@ -114,13 +199,20 @@ class LocalTools:
     fixture_set: Mapping[str, Any]
     registry: ToolRegistry
     result_overlays: tuple[ToolResultOverlay, ...] = ()
+    repository: CodingRepository | None = None
 
     @property
     def schemas(self) -> tuple[dict[str, JSON], ...]:
-        return self.registry.model_schemas()
+        return self.registry.model_schemas(include_coding=self.repository is not None)
 
     def invoke(self, name: str, arguments: Mapping[str, Any]) -> ToolResult:
-        return self.registry.invoke(name, arguments, self.fixture_set, self.result_overlays)
+        return self.registry.invoke(
+            name,
+            arguments,
+            self.fixture_set,
+            self.result_overlays,
+            self.repository,
+        )
 
 
 def load_fixture_sets(path: Path | None = None) -> Mapping[str, Mapping[str, Any]]:
@@ -159,7 +251,8 @@ def local_tools(
         raise ToolError(f"tool fixture set must be named {name!r}")
     overlays = tuple(result_overlays)
     validate_result_overlays(fixture_set, overlays)
-    return LocalTools(fixture_set, DEFAULT_REGISTRY, overlays)
+    repository = CodingRepository.from_fixture_set(fixture_set)
+    return LocalTools(fixture_set, DEFAULT_REGISTRY, overlays, repository)
 
 
 def validate_result_overlays(
@@ -185,7 +278,10 @@ def validate_result_overlays(
                     )
             occupied_paths.append((overlay.tool_name, overlay.match_arguments, operation.path))
         for arguments in matching_arguments:
-            result = spec.handler(arguments, fixture_set)
+            repository = CodingRepository.from_fixture_set(fixture_set)
+            if repository is not None:
+                repository.transient_failures.clear()
+            result = spec.handler(arguments, fixture_set, repository)
             for operation in overlay.operations:
                 _apply_json_pointer_operation(result, operation)
 
@@ -245,6 +341,50 @@ def build_registry() -> ToolRegistry:
                 ),
                 handler=_ticket_creation,
             ),
+            ToolSpec(
+                name="repository_search",
+                description="Search repository paths and contents, continuing from the last page.",
+                parameters=_object_schema(
+                    {"query": {"type": "string", "minLength": 1}},
+                    required=("query",),
+                ),
+                handler=_repository_search,
+                coding_only=True,
+            ),
+            ToolSpec(
+                name="read_file",
+                description="Read the next chunk of a repository file.",
+                parameters=_object_schema(
+                    {"path": {"type": "string", "minLength": 1}},
+                    required=("path",),
+                ),
+                handler=_read_file,
+                coding_only=True,
+            ),
+            ToolSpec(
+                name="edit_file",
+                description="Replace one exact string in a repository file.",
+                parameters=_object_schema(
+                    {
+                        "path": {"type": "string", "minLength": 1},
+                        "old": {"type": "string", "minLength": 1},
+                        "new": {"type": "string", "minLength": 1},
+                    },
+                    required=("path", "old", "new"),
+                ),
+                handler=_edit_file,
+                coding_only=True,
+            ),
+            ToolSpec(
+                name="run_tests",
+                description="Run one focused repository test against the current files.",
+                parameters=_object_schema(
+                    {"test": {"type": "string", "minLength": 1}},
+                    required=("test",),
+                ),
+                handler=_run_tests,
+                coding_only=True,
+            ),
         )
     )
 
@@ -289,6 +429,21 @@ def _validation_arguments(
         ]
     elif spec.name == "safe_arithmetic":
         candidates = [{"expression": "0"}]
+    elif spec.name == "repository_search":
+        candidates = [{"query": "repository"}]
+    elif spec.name == "read_file":
+        candidates = [{"path": str(item["path"])} for item in fixture_set["repository"]["files"]]
+    elif spec.name == "edit_file":
+        candidates = [
+            {
+                "path": str(item["path"]),
+                "old": str(item["content"]),
+                "new": str(item["content"]),
+            }
+            for item in fixture_set["repository"]["files"]
+        ]
+    elif spec.name == "run_tests":
+        candidates = [{"test": str(item["name"])} for item in fixture_set["repository"]["tests"]]
     else:
         candidates = [
             {
@@ -342,7 +497,9 @@ def _validate_value(tool: str, name: str, value: Any, schema: Mapping[str, Any])
 def _document_search(
     arguments: Mapping[str, Any],
     fixture_set: Mapping[str, Any],
+    repository: CodingRepository | None,
 ) -> ToolResult:
+    del repository
     query_terms = set(_WORD.findall(str(arguments["query"]).lower()))
     documents = fixture_set["documents"]
     ranked = sorted(
@@ -358,7 +515,9 @@ def _document_search(
 def _record_lookup(
     arguments: Mapping[str, Any],
     fixture_set: Mapping[str, Any],
+    repository: CodingRepository | None,
 ) -> ToolResult:
+    del repository
     record = next(
         (value for value in fixture_set["records"] if value["id"] == str(arguments["record_id"])),
         None,
@@ -372,7 +531,9 @@ def _record_lookup(
 def _status_lookup(
     arguments: Mapping[str, Any],
     fixture_set: Mapping[str, Any],
+    repository: CodingRepository | None,
 ) -> ToolResult:
+    del repository
     status = next(
         (value for value in fixture_set["statuses"] if value["id"] == str(arguments["status_id"])),
         None,
@@ -386,8 +547,9 @@ def _status_lookup(
 def _safe_arithmetic(
     arguments: Mapping[str, Any],
     fixture_set: Mapping[str, Any],
+    repository: CodingRepository | None,
 ) -> ToolResult:
-    del fixture_set
+    del fixture_set, repository
     expression = str(arguments["expression"])
     try:
         result = _evaluate_arithmetic(ast.parse(expression, mode="eval").body)
@@ -401,14 +563,123 @@ def _safe_arithmetic(
 def _ticket_creation(
     arguments: Mapping[str, Any],
     fixture_set: Mapping[str, Any],
+    repository: CodingRepository | None,
 ) -> ToolResult:
-    del fixture_set
+    del fixture_set, repository
     encoded = json.dumps(arguments, sort_keys=True, separators=(",", ":")).encode()
     return {
         "ticket_id": f"TKT-{sha256(encoded).hexdigest()[:12].upper()}",
         "state": "created",
         "priority": str(arguments["priority"]),
     }
+
+
+def _repository_search(
+    arguments: Mapping[str, Any],
+    fixture_set: Mapping[str, Any],
+    repository: CodingRepository | None,
+) -> ToolResult:
+    del fixture_set
+    state = _require_repository(repository)
+    query = str(arguments["query"])
+    query_terms = set(_WORD.findall(query.lower()))
+    matches = []
+    for path, content in sorted(state.files.items()):
+        for line_number, line in enumerate(content.splitlines(), start=1):
+            searchable = set(_WORD.findall(f"{path} {line}".lower()))
+            if query_terms & searchable:
+                matches.append({"path": path, "line": line_number, "text": line})
+    cursor_key = " ".join(sorted(query_terms))
+    start = state.search_cursors.get(cursor_key, 0)
+    end = min(start + state.search_page_size, len(matches))
+    state.search_cursors[cursor_key] = end
+    has_more = end < len(matches)
+    return {
+        "matches": cast(JSON, matches[start:end]),
+        "cursor": end,
+        "has_more": has_more,
+    }
+
+
+def _read_file(
+    arguments: Mapping[str, Any],
+    fixture_set: Mapping[str, Any],
+    repository: CodingRepository | None,
+) -> ToolResult:
+    del fixture_set
+    state = _require_repository(repository)
+    path = str(arguments["path"])
+    try:
+        content = state.files[path]
+    except KeyError as error:
+        raise ToolError(f"repository path {path!r} does not exist") from error
+    state.consume_failure(f"read_file:{path}")
+    lines = content.splitlines()
+    start = state.read_cursors.get(path, 0)
+    end = min(start + state.read_chunk_lines, len(lines))
+    state.read_cursors[path] = end
+    return {
+        "path": path,
+        "start_line": start + 1,
+        "end_line": end,
+        "content": "\n".join(lines[start:end]),
+        "cursor": end,
+        "has_more": end < len(lines),
+    }
+
+
+def _edit_file(
+    arguments: Mapping[str, Any],
+    fixture_set: Mapping[str, Any],
+    repository: CodingRepository | None,
+) -> ToolResult:
+    del fixture_set
+    state = _require_repository(repository)
+    path = str(arguments["path"])
+    old = str(arguments["old"])
+    new = str(arguments["new"])
+    try:
+        content = state.files[path]
+    except KeyError as error:
+        raise ToolError(f"repository path {path!r} does not exist") from error
+    occurrences = content.count(old)
+    if occurrences != 1:
+        raise ToolError(
+            f"edit_file expected one occurrence of {old!r} in {path!r}, found {occurrences}"
+        )
+    state.files[path] = content.replace(old, new, 1)
+    state.read_cursors[path] = 0
+    return {"path": path, "changed": True, "replacements": 1}
+
+
+def _run_tests(
+    arguments: Mapping[str, Any],
+    fixture_set: Mapping[str, Any],
+    repository: CodingRepository | None,
+) -> ToolResult:
+    del fixture_set
+    state = _require_repository(repository)
+    test = str(arguments["test"])
+    try:
+        path, expected = state.tests[test]
+    except KeyError as error:
+        raise ToolError(f"unknown repository test {test!r}") from error
+    run = state.test_runs.get(test, 0) + 1
+    state.test_runs[test] = run
+    passed = expected in state.files[path]
+    return {
+        "test": test,
+        "run": run,
+        "passed": passed,
+        "summary": "1 passed" if passed else "1 failed",
+        "failure": None if passed else f"{path} does not contain {expected!r}",
+    }
+
+
+def _require_repository(repository: CodingRepository | None) -> CodingRepository:
+    if repository is None:
+        raise ToolError("repository tools require the coding_agent fixture set")
+    return repository
 
 
 _BINARY_OPERATORS: Mapping[type[ast.operator], Callable[[float, float], float]] = {

@@ -61,7 +61,7 @@ else:
         trace_ids,
     )
 
-MAX_TOOL_CALLS = 3
+MAX_TOOL_CALLS = 24
 Provider = Literal["scripted", "live"]
 
 
@@ -264,21 +264,90 @@ def _responses_for(fixture: RecorderFixture) -> tuple[dict[str, Any], ...]:
             {"name": "document_search", "arguments": {"query": prompt, "limit": 1}},
             {"name": "safe_arithmetic", "arguments": {"expression": expression}},
         )
-    elif fixture.domain == "coding_agent":
-        identifier = "issue-204" if "issue-204" in prompt else "issue-219"
+    elif fixture.fragment_id == "coding-router-api-tools":
         calls = (
-            {"name": "document_search", "arguments": {"query": prompt, "limit": 1}},
-            {"name": "record_lookup", "arguments": {"record_id": identifier}},
+            {"name": "repository_search", "arguments": {"query": "Router"}},
+            {"name": "repository_search", "arguments": {"query": "Router"}},
+            {"name": "record_lookup", "arguments": {"record_id": "issue-204"}},
+            {"name": "read_file", "arguments": {"path": "README.md"}},
+            {"name": "read_file", "arguments": {"path": "README.md"}},
+            {"name": "read_file", "arguments": {"path": "README.md"}},
+            {
+                "name": "read_file",
+                "arguments": {"path": "src/relaycache/router.py"},
+            },
+            {
+                "name": "read_file",
+                "arguments": {"path": "src/relaycache/router.py"},
+            },
+            {"name": "run_tests", "arguments": {"test": "tests/test_readme.py"}},
+            {
+                "name": "edit_file",
+                "arguments": {
+                    "path": "README.md",
+                    "old": "Router.dispatch",
+                    "new": "Router.route",
+                },
+            },
+            {"name": "read_file", "arguments": {"path": "README.md"}},
+            {"name": "run_tests", "arguments": {"test": "tests/test_readme.py"}},
         )
+    elif fixture.fragment_id == "coding-retry-policy-tools":
+        calls = (
+            {"name": "repository_search", "arguments": {"query": "retry"}},
+            {"name": "repository_search", "arguments": {"query": "retry"}},
+            {"name": "record_lookup", "arguments": {"record_id": "issue-219"}},
+            {
+                "name": "read_file",
+                "arguments": {"path": "src/relaycache/scheduler.py"},
+            },
+            {
+                "name": "read_file",
+                "arguments": {"path": "src/relaycache/scheduler.py"},
+            },
+            {
+                "name": "read_file",
+                "arguments": {"path": "src/relaycache/scheduler.py"},
+            },
+            {
+                "name": "read_file",
+                "arguments": {"path": "src/relaycache/retry.py"},
+            },
+            {
+                "name": "read_file",
+                "arguments": {"path": "src/relaycache/retry.py"},
+            },
+            {"name": "run_tests", "arguments": {"test": "tests/test_retry.py"}},
+            {
+                "name": "edit_file",
+                "arguments": {
+                    "path": "src/relaycache/retry.py",
+                    "old": "return attempt + 1",
+                    "new": "return attempt",
+                },
+            },
+            {
+                "name": "read_file",
+                "arguments": {"path": "src/relaycache/retry.py"},
+            },
+            {"name": "run_tests", "arguments": {"test": "tests/test_retry.py"}},
+        )
+    elif fixture.domain == "coding_agent":
+        raise ValueError(f"fixture {fixture.fragment_id!r} has no scripted coding episode")
     else:
         identifier = next(value for value in ("order-1001", "warehouse-east") if value in prompt)
         calls = (
             {"name": "record_lookup", "arguments": {"record_id": identifier}},
             {"name": "status_lookup", "arguments": {"status_id": identifier}},
         )
-    return tuple({"tool_call": call} for call in calls) + (
-        {"content": "The local records and policy data support the requested next step."},
-    )
+    if fixture.domain == "coding_agent":
+        answer = (
+            "I reproduced the failure, updated the affected file, and confirmed the focused test "
+            "passes on the rerun."
+        )
+    else:
+        answer = "The local records and policy data support the requested next step."
+    return tuple({"tool_call": call} for call in calls) + ({"content": answer},)
 
 
 def main() -> None:

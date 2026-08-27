@@ -116,6 +116,44 @@
         "state": "investigating",
         "detail": "Focused scheduler test is failing"
       }
-    ]
+    ],
+    "repository": {
+      "search_page_size": 2,
+      "read_chunk_lines": 2,
+      "files": [
+        {
+          "path": "README.md",
+          "content": "# RelayCache\n\nRoute requests with `await Router.dispatch(request)`.\nThe scheduler owns retry timing and broker acknowledgements stay in adapters.\nSee `src/relaycache/router.py` for the public routing API."
+        },
+        {
+          "path": "src/relaycache/router.py",
+          "content": "class Router:\n    async def route(self, request):\n        return await self._send(request)\n\n    async def dispatch(self, request):\n        return await self.route(request)"
+        },
+        {
+          "path": "src/relaycache/retry.py",
+          "content": "def retry_index(attempt: int) -> int:\n    if attempt < 0:\n        raise ValueError(\"attempt must be non-negative\")\n    return attempt + 1\n\ndef retry_delay(attempt: int) -> float:\n    return 0.25 * (2 ** retry_index(attempt))"
+        },
+        {
+          "path": "src/relaycache/scheduler.py",
+          "content": "from .retry import retry_delay\n\nasync def schedule_retry(job, attempt):\n    delay = retry_delay(attempt)\n    await job.defer(delay)\n    return delay"
+        }
+      ],
+      "transient_failures": {
+        "read_file:README.md": 1,
+        "read_file:src/relaycache/scheduler.py": 1
+      },
+      "tests": [
+        {
+          "name": "tests/test_readme.py",
+          "path": "README.md",
+          "contains": "Router.route"
+        },
+        {
+          "name": "tests/test_retry.py",
+          "path": "src/relaycache/retry.py",
+          "contains": "return attempt\n"
+        }
+      ]
+    }
   }
 }
