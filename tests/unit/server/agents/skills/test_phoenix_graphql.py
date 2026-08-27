@@ -22,7 +22,7 @@ def _iter_graphql_examples() -> list[GraphQLExample]:
     Covers the skill body and every resource so a renamed schema field fails the
     suite instead of silently rotting the documented examples.
     """
-    sources: list[SkillContentSource] = [("SKILL.md body", PHOENIX_GRAPHQL_SKILL.body)]
+    sources: list[SkillContentSource] = [("SKILL.md body", PHOENIX_GRAPHQL_SKILL.text)]
     for resource in PHOENIX_GRAPHQL_SKILL.resources:
         sources.append((f"resource:{resource.name}", resource.read()))
 
