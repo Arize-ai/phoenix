@@ -8,7 +8,11 @@ from phoenix.datagen.loader import load_corpus  # noqa: E402
 from scripts.datagen.corpus import package_corpus  # noqa: E402
 from scripts.datagen.graph_multi_agent import record as record_graph  # noqa: E402
 from scripts.datagen.openai_chat_sessions import record as record_chat  # noqa: E402
-from scripts.datagen.recording import fixtures_for, live_model_options, resolve_live_model  # noqa: E402
+from scripts.datagen.recording import (  # noqa: E402
+    fixtures_for,
+    live_model_options,
+    resolve_live_model,
+)
 
 
 def test_live_model_alias() -> None:

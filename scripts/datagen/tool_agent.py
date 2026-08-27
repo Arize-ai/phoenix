@@ -337,9 +337,7 @@ def record(
 
 # Coding fixtures with a deterministic scripted episode; the rest are
 # recorded live, where the model chooses its own tool calls.
-_SCRIPTED_CODING_EPISODES = frozenset(
-    {"coding-router-api-tools", "coding-retry-policy-tools"}
-)
+_SCRIPTED_CODING_EPISODES = frozenset({"coding-router-api-tools", "coding-retry-policy-tools"})
 
 
 def _responses_for(fixture: RecorderFixture) -> tuple[dict[str, Any], ...]:
