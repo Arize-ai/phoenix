@@ -337,22 +337,22 @@ def _read_only(
     return build
 
 
-class _CodeModeWithSkillTools(CodeMode):
-    """Code mode that leaves the skill tools on ``tools/list``.
+class _CodeModeWithDirectSkillTools(CodeMode):
+    """Code mode that leaves the skill tools on ``tools/list`` but hides them from inside code mode.
 
-    Folding the catalog behind ``execute`` suits REST calls, which compose, but
-    not skills: a skill is loaded once and read, and the in-process agent
-    renders each ``load_skill`` call in its transcript. The skill tools stay
-    direct and leave the ``execute`` catalog, so each is callable one way only.
+    Upstream has no affordance for this; see
+    https://github.com/PrefectHQ/fastmcp/issues/4925.
     """
 
     async def transform_tools(self, tools: "Sequence[Tool]") -> "Sequence[Tool]":
+        """The ``tools/list`` response."""
         direct = [tool for tool in tools if SKILL_TOOLS_TAG in tool.tags]
         return [*await super().transform_tools(tools), *direct]
 
     async def get_tool_catalog(
         self, ctx: Context, *, run_middleware: bool = True
     ) -> "Sequence[Tool]":
+        """The catalog ``search``/``list_tools``/``execute`` see."""
         catalog = await super().get_tool_catalog(ctx, run_middleware=run_middleware)
         return [tool for tool in catalog if SKILL_TOOLS_TAG not in tool.tags]
 
@@ -381,7 +381,7 @@ def _build_code_mode(
     """
     sandbox_provider = MontyPoolSandboxProvider(runtime=runtime, consumer=consumer)
     return (
-        _CodeModeWithSkillTools(
+        _CodeModeWithDirectSkillTools(
             discovery_tools=[
                 _read_only(Search()),
                 _read_only(GetSchemas()),
