@@ -87,6 +87,8 @@ const readRow = (row: ProjectEvaluatorsTable_row$key) => {
           evaluatedCount
           failedCount
         }
+        # TODO: These aggregate scans may become expensive as evaluator projects grow.
+        # Move them onto ProjectEvaluator so CODE evaluators can skip them, and consider @defer.
         traceProject {
           id
           traceCount(timeRange: $costTimeRange)

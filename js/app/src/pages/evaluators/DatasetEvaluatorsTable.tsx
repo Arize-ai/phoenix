@@ -220,6 +220,8 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
           username
           profilePictureUrl
         }
+        # TODO: These aggregate scans may become expensive as evaluator projects grow.
+        # Move them onto DatasetEvaluator so CODE evaluators can skip them, and consider @defer.
         project {
           id
           traceCount(timeRange: $costTimeRange)
