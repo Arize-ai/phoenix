@@ -398,7 +398,11 @@ function EvaluatorTemplateCardFooter({
         wrap
       >
         {evaluationTargets.map((target) => (
-          <Badge key={target} size="S">
+          <Badge
+            key={target}
+            size="S"
+            title={`Evaluates ${formatEvaluationTargetPlural(target)}`}
+          >
             {capitalize(formatEvaluationTargetPlural(target))}
           </Badge>
         ))}
