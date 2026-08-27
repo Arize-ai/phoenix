@@ -56,13 +56,19 @@ function EvaluatorCostValue({
 
   const totalCost = costSummary?.total.cost;
   if (totalCost == null) {
-    return <TokenCosts size="S">{totalCost}</TokenCosts>;
+    return (
+      <TokenCosts size="S" style={{ justifyContent: "flex-end" }}>
+        {totalCost}
+      </TokenCosts>
+    );
   }
 
   return (
     <TooltipTrigger delay={0}>
       <TriggerWrap>
-        <TokenCosts size="S">{totalCost}</TokenCosts>
+        <TokenCosts size="S" style={{ justifyContent: "flex-end" }}>
+          {totalCost}
+        </TokenCosts>
       </TriggerWrap>
       <RichTooltip placement="bottom">
         <TooltipArrow />

@@ -280,7 +280,7 @@ export function ProjectEvaluatorsTable({
       {
         id: "cost",
         header: "total cost (7d)",
-        size: 110,
+        size: 165,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
           <EvaluatorCost
@@ -292,7 +292,7 @@ export function ProjectEvaluatorsTable({
       {
         id: "averageCost",
         header: "avg cost / run (7d)",
-        size: 130,
+        size: 230,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
           <EvaluatorAverageCost

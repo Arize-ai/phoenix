@@ -456,7 +456,7 @@ export const DatasetEvaluatorsTable = ({
       {
         id: "cost",
         header: "total cost (7d)",
-        size: 110,
+        size: 165,
         enableSorting: false,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
@@ -469,7 +469,7 @@ export const DatasetEvaluatorsTable = ({
       {
         id: "averageCost",
         header: "avg cost / run (7d)",
-        size: 130,
+        size: 230,
         enableSorting: false,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
