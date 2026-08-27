@@ -79,26 +79,26 @@ export function createCompletionOptions({
     {
       name: "output",
       data: mappingSource.output,
-      info: "The output from the task being evaluated",
+      info: "The task's output.",
     },
     ...("reference" in mappingSource
       ? [
           {
             name: "reference",
             data: mappingSource.reference,
-            info: "The expected/reference output from the dataset",
+            info: "The dataset's reference output.",
           },
         ]
       : []),
     {
       name: "input",
       data: mappingSource.input,
-      info: "The input provided to the task",
+      info: "The task's input.",
     },
     {
       name: "metadata",
       data: mappingSource.metadata,
-      info: "Additional metadata from the evaluation source",
+      info: "Everything else the source carries.",
     },
   ];
 
@@ -127,14 +127,14 @@ export function createCompletionOptions({
       {
         label: ".get(",
         type: "method",
-        info: "Safely get a dict value with optional default",
+        info: "Reads a dict key, with a default.",
         apply: '.get("key", "")',
         boost: 3,
       },
       {
         label: "isinstance(",
         type: "function",
-        info: "Check if value is an instance of a type",
+        info: "Whether a value is an instance of a type.",
         apply: "isinstance(output, dict)",
         boost: 2,
       }
@@ -150,7 +150,7 @@ export function createCompletionOptions({
       {
         label: "typeof",
         type: "keyword",
-        info: "Check the type of a value",
+        info: "A value's type.",
         apply: 'typeof output?.field === "string"',
         boost: 2,
       }
