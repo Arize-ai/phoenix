@@ -4,7 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, PageHeader, Skeleton, View } from "@phoenix/components";
+import { Flex, Skeleton, Text, View } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
 import type { ProjectEvaluatorsPageQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsPageQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
@@ -85,12 +85,25 @@ function ProjectEvaluatorsPageContent({
   return (
     <>
       {isEmptyState ? (
-        <View borderBottomWidth="thin" borderBottomColor="default" flex="none">
-          <PageHeader
-            title="Evaluators"
-            subTitle="Evaluators read span inputs, outputs, retrieved documents, and tool calls, then return labels or scores you can filter, chart, and alert on."
-            extra={<AddProjectEvaluatorMenu size="M" />}
-          />
+        <View
+          padding="size-100"
+          borderBottomWidth="thin"
+          borderBottomColor="default"
+          flex="none"
+        >
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            gap="size-100"
+          >
+            <Text size="S" color="text-700">
+              Evaluators read span inputs, outputs, retrieved documents, and
+              tool calls, then return labels or scores you can filter, chart,
+              and alert on.
+            </Text>
+            <AddProjectEvaluatorMenu size="M" />
+          </Flex>
         </View>
       ) : (
         <ProjectEvaluatorsToolbar

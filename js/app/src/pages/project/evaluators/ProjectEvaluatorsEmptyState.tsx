@@ -253,7 +253,7 @@ function CategoryCarouselControls({
 const emptyStateContentCSS = css`
   box-sizing: border-box;
   margin-inline: auto;
-  padding: var(--global-dimension-size-400) 0 var(--global-dimension-size-600);
+  padding: var(--global-dimension-size-700) 0 var(--global-dimension-size-600);
 `;
 
 const categoryCarouselControlCSS = css`
