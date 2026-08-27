@@ -3,9 +3,9 @@ import type {
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
-import { autocompletion } from "@codemirror/autocomplete";
+import { autocompletion, startCompletion } from "@codemirror/autocomplete";
 import type { EditorState, Extension } from "@codemirror/state";
-import type { EditorView } from "@uiw/react-codemirror";
+import { EditorView } from "@uiw/react-codemirror";
 
 import {
   getCodeEvaluatorMemberCursor,
@@ -605,6 +605,7 @@ export function createEvaluatorAutocompletion({
 }): Extension {
   return [
     typeaheadTooltips(),
+    openEmptySignatureMenu(language),
     autocompletion({
       override: [
         createEvaluatorCompletions({
@@ -620,4 +621,56 @@ export function createEvaluatorAutocompletion({
       optionClass: toEvaluatorCompletionClass,
     }),
   ];
+}
+
+/**
+ * Opens the menu whenever the cursor lands in a parameter with nothing typed
+ * into it yet.
+ *
+ * An empty `evaluate()` is a question the author has already asked, but
+ * CodeMirror only queries the source as characters arrive — so opening the
+ * editor, or clicking into the parentheses, would otherwise leave the
+ * signature offering nothing until a character is typed.
+ */
+function openEmptySignatureMenu(language: CodeEvaluatorLanguage): Extension {
+  return EditorView.updateListener.of((update) => {
+    if (!update.view.hasFocus) {
+      return;
+    }
+    if (!update.selectionSet && !update.docChanged && !update.focusChanged) {
+      return;
+    }
+    const cursor = update.state.selection.main;
+    if (!cursor.empty) {
+      return;
+    }
+    if (
+      !isAtEmptySignatureName({
+        language,
+        state: update.state,
+        pos: cursor.head,
+      })
+    ) {
+      return;
+    }
+    startCompletion(update.view);
+  });
+}
+
+/**
+ * Whether the cursor sits in a parameter with nothing typed into it.
+ *
+ * @internal Exported for testing
+ */
+export function isAtEmptySignatureName({
+  language,
+  state,
+  pos,
+}: {
+  language: CodeEvaluatorLanguage;
+  state: EditorState;
+  pos: number;
+}): boolean {
+  const slot = getCodeEvaluatorSignatureNameSlot({ language, state, pos });
+  return slot !== null && slot.from === slot.to;
 }

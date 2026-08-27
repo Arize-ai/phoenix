@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   createCompletionOptions,
   createEvaluatorCompletions,
+  isAtEmptySignatureName,
 } from "../codeEvaluatorAutocomplete";
 import { materializeEvaluatorContext } from "../evaluatorContext";
 import { getEvaluatorSlotDefaults } from "../evaluatorSlotDefaults";
@@ -351,5 +352,49 @@ describe("code evaluator signature completions", () => {
       "input",
       "metadata",
     ]);
+  });
+});
+
+// CodeMirror only queries the source as characters arrive, so a parameter the
+// author has not typed into has to be recognized and the menu opened for it.
+describe("isAtEmptySignatureName", () => {
+  it("recognizes a parameter with nothing typed into it", () => {
+    const cases: [string, "PYTHON" | "TYPESCRIPT", boolean][] = [
+      ["def evaluate(|):\n    return 1\n", "PYTHON", true],
+      ["def evaluate(in|):\n    return 1\n", "PYTHON", false],
+      ["def evaluate(input, |):\n    return 1\n", "PYTHON", true],
+      ["def evaluate(input=|):\n    return 1\n", "PYTHON", false],
+      ["def evaluate(input):\n    return |\n", "PYTHON", false],
+      ["function evaluate({|}) {\n  return 1;\n}\n", "TYPESCRIPT", true],
+      [
+        "function evaluate({ input, | }) {\n  return 1;\n}\n",
+        "TYPESCRIPT",
+        true,
+      ],
+      [
+        "function evaluate({ inp|ut }) {\n  return 1;\n}\n",
+        "TYPESCRIPT",
+        false,
+      ],
+      // A list with no destructure is a signature the menu can still fill.
+      ["function evaluate(|) {\n  return 1;\n}\n", "TYPESCRIPT", true],
+    ];
+
+    expect(
+      cases.map(([source, language]) =>
+        isAtEmptySignatureName({
+          language,
+          state: EditorState.create({
+            doc: source.replace("|", ""),
+            extensions: [
+              language === "PYTHON"
+                ? python()
+                : javascript({ typescript: true }),
+            ],
+          }),
+          pos: source.indexOf("|"),
+        })
+      )
+    ).toEqual(cases.map(([, , expected]) => expected));
   });
 });
