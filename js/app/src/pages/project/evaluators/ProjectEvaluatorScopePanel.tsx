@@ -40,9 +40,15 @@ import {
   AnnotationPreviewPopoverButton,
   AnnotationPreviewSkeletonCard,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
+import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
+import {
+  EVALUATOR_METADATA_SLOT,
+  materializeEvaluatorContext,
+} from "@phoenix/components/evaluators/evaluatorContext";
+import { buildEvaluatorContextCandidates } from "@phoenix/components/evaluators/evaluatorContextCompletions";
 import {
   EVALUATOR_SLOT_NAMES,
-  getEvaluatorSlotDefault,
+  getEvaluatorSlotDefaults,
   type EvaluatorSlotName,
 } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import {
@@ -74,7 +80,6 @@ import {
   dropOtherGrainEntityPathMappings,
   getProjectEvaluatorMappingDiagnostics,
   toEvaluatorMappingSourceGrain,
-  type ProjectEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
@@ -87,6 +92,7 @@ import {
 } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import type {
   CodeEvaluatorLanguage,
+  EvaluatorInputMapping,
   EvaluatorMappingSource,
 } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
@@ -967,8 +973,8 @@ function RecordedRunList({
         : (rows[0]?.key ?? null);
   const activeRow = rows.find(({ key }) => key === expandedRowKey) ?? rows[0];
   const evaluatorStore = useEvaluatorStoreInstance();
-  const pathMapping = useEvaluatorStore(
-    (state) => state.evaluator.inputMapping.pathMapping
+  const inputMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping
   );
   // The row object is rebuilt every render, and a session keeps its key while
   // its context changes under it — a refresh, a preview-window change, or a
@@ -1035,7 +1041,7 @@ function RecordedRunList({
             run={runs[row.key]}
             isRunnable={isRunnable}
             onRun={() => runOnContext(row.key, row.context)}
-            pathMapping={pathMapping}
+            inputMapping={inputMapping}
             requiredVariables={requiredVariables}
           />
         ))}
@@ -1074,7 +1080,7 @@ function RecordedRunRow({
   run,
   isRunnable,
   onRun,
-  pathMapping,
+  inputMapping,
   requiredVariables,
 }: {
   row: RecordedRunListRow;
@@ -1084,7 +1090,7 @@ function RecordedRunRow({
   run: RecordedRun | undefined;
   isRunnable: boolean;
   onRun: () => void;
-  pathMapping: Record<string, string>;
+  inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
 }) {
   const isRunning = run?.status === "running";
@@ -1161,7 +1167,7 @@ function RecordedRunRow({
                       <BindingPreview
                         context={row.mappingContext ?? row.context}
                         recordNoun={recordNoun}
-                        pathMapping={pathMapping}
+                        inputMapping={inputMapping}
                         requiredVariables={requiredVariables}
                         isSampleContext={row.isSample}
                       />
@@ -1288,16 +1294,21 @@ type BindingRow = {
   value: unknown;
 };
 
-function BindingPreview({
+/**
+ * What one record binds, read off the shared materialization.
+ *
+ * @internal Exported for testing
+ */
+export function BindingPreview({
   context,
   recordNoun,
-  pathMapping,
+  inputMapping,
   requiredVariables,
   isSampleContext,
 }: {
   context: unknown;
   recordNoun: RecordedRunNoun;
-  pathMapping: Record<string, string>;
+  inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
   isSampleContext: boolean;
 }) {
@@ -1308,18 +1319,30 @@ function BindingPreview({
       : declaredVariables;
   const diagnostics = getProjectEvaluatorMappingDiagnostics({
     context,
-    pathMapping,
+    pathMapping: inputMapping.pathMapping,
     variables,
     requiredVariables,
   });
   const grain = recordNoun === "session" ? "session" : "span";
-  // The canonical slots always lead, each reflecting the mapping in force: an
-  // explicit path when one is set, the slot's default otherwise.
-  const slotRows: BindingRow[] = EVALUATOR_SLOT_NAMES.map((slotName) => {
-    const path =
-      pathMapping[slotName] || getEvaluatorSlotDefault(grain, slotName).path;
-    return { keyword: slotName, path, value: getValueAtPath(context, path) };
-  });
+  // The preview binds what a live run binds because it is the same
+  // materialization the authoring tools read — the slot fallbacks, the
+  // `metadata` key, and the path resolver all live there, not here.
+  const evaluationContext = hasEvaluatorMappingSourceShape(context)
+    ? materializeEvaluatorContext({
+        grain,
+        evaluatorMappingSource: { grain, source: context },
+        inputMapping,
+        slotDefaults: getEvaluatorSlotDefaults(grain),
+      })
+    : null;
+  const slotRows: BindingRow[] =
+    evaluationContext?.evaluatorInputs.map((entry) => ({
+      keyword: entry.name,
+      ...(entry.provenance.kind === "path"
+        ? { path: entry.provenance.path }
+        : {}),
+      value: entry.value,
+    })) ?? [];
   const mappedRows: BindingRow[] = diagnostics
     .filter(
       ({ status, source, variable }) =>
@@ -1343,14 +1366,14 @@ function BindingPreview({
         </Alert>
       ) : null}
       {[...slotRows, ...mappedRows].map((row) =>
-        row.keyword === METADATA_SLOT_NAME ? (
+        row.keyword === EVALUATOR_METADATA_SLOT && evaluationContext ? (
           <BindingPreviewRow
             key={row.keyword}
             row={row}
             isExpanded={expandedKeyword === row.keyword}
             onToggleExpanded={() => toggle(row.keyword)}
           >
-            <MetadataBindingTree value={row.value} grain={grain} />
+            <MetadataBindingTree evaluationContext={evaluationContext} />
           </BindingPreviewRow>
         ) : (
           <BindingPreviewRow
@@ -1387,36 +1410,46 @@ function BindingPreview({
   );
 }
 
-const METADATA_SLOT_NAME = "metadata";
-
 /**
  * What `metadata` holds, in reading order: the record's own names first — the
  * ones a filter condition already uses — then the whole record, collapsed,
  * because it is the one branch nobody reads top to bottom.
+ *
+ * The rows are the shared candidate tree's nested rows, so what the preview
+ * lists under `metadata` is exactly what the authoring surfaces offer there.
+ * Only the type hint and the one-line description are read off the vocabulary
+ * definition — presentation the candidate does not carry.
  */
 function MetadataBindingTree({
-  value,
-  grain,
+  evaluationContext,
 }: {
-  value: unknown;
-  grain: ProjectEvaluatorMappingSourceGrain;
+  evaluationContext: MaterializedEvaluatorContext;
 }) {
-  const metadata = isStringKeyedObject(value) ? value : {};
-  const hasRecordValues = Object.values(metadata).some(
-    (entry) => entry != null && !isStringKeyedObject(entry)
+  const { grain, hasSampledRecord } = evaluationContext;
+  const definitionByName = new Map(
+    getEvaluatorBoundVariables(grain).map((variable) => [
+      variable.name,
+      variable,
+    ])
   );
   const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
-  const rows: BindingRow[] = getEvaluatorBoundVariables(grain).map(
-    ({ name, type, description }) => ({
-      keyword: name,
-      description,
-      typeHint: hasRecordValues ? undefined : type,
-      value: metadata[name],
-    })
-  );
+  const rows: BindingRow[] = buildEvaluatorContextCandidates(evaluationContext)
+    .filter((candidate) => candidate.isNested)
+    .map((candidate) => {
+      const keyword = candidate.label.slice(
+        EVALUATOR_METADATA_SLOT.length + 1
+      );
+      const definition = definitionByName.get(keyword);
+      return {
+        keyword,
+        ...(definition ? { description: definition.description } : {}),
+        ...(definition && !hasSampledRecord ? { typeHint: definition.type } : {}),
+        value: candidate.value,
+      };
+    });
   return (
     <Flex direction="column" gap="size-50">
-      {[...rows, { keyword: grain, value: metadata[grain] }].map((row) => (
+      {rows.map((row) => (
         <BindingPreviewRow
           key={row.keyword}
           row={row}
