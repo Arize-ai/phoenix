@@ -30,6 +30,7 @@ import {
   reachEvaluatorContainerPath,
   toMemberPreview,
   toMemberSection,
+  toWholePathValidFor,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import type {
   CodeEvaluatorLanguage,
@@ -242,7 +243,12 @@ export function createEvaluatorCompletions({
     return {
       from: word.from,
       options: filteredOptions,
-      validFor: /^[\w.?]*$/,
+      // A name row carries the whole path it reaches, so a dot stays inside
+      // this result only while it still leads into one of them.
+      validFor: toWholePathValidFor({
+        pattern: /^[\w.?]*$/,
+        labels: filteredOptions.map((option) => option.label),
+      }),
     };
   };
 }

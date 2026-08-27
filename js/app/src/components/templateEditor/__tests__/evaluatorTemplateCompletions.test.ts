@@ -196,10 +196,20 @@ describe("getEvaluatorTemplateCompletions", () => {
   it("finds a record name from the name alone, and writes its whole path", () => {
     const result = complete({ doc: "{{latency" });
 
-    expect(result?.validFor?.toString()).toBe(String(/^\w*(?:\.\w*)?$/));
     expect(result?.options.map((option) => option.label)).toContain(
       "metadata.latency_ms"
     );
+    // The dot in `metadata.lat` is still on its way into a row on offer, so
+    // the menu keeps filtering; the one in `span.` is not, so it re-queries.
+    const staysOpen = result?.validFor;
+    if (typeof staysOpen !== "function") {
+      throw new Error("expected the root menu to decide when it stays open");
+    }
+    expect(
+      ["metadata", "metadata.lat", "span.", "metadata.span.a"].map((text) =>
+        staysOpen(text, 0, text.length, EditorState.create({ doc: text }))
+      )
+    ).toEqual([true, true, false, false]);
     expect(
       applyCompletion({ before: "{{latency", label: "metadata.latency_ms" })
     ).toBe("{{metadata.latency_ms}}");

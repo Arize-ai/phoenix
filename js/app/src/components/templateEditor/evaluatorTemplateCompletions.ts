@@ -21,6 +21,7 @@ import {
   reachEvaluatorContainerPath,
   resolveEvaluatorPath,
   toMemberSection,
+  toWholePathValidFor,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { BARE_IDENTIFIER_PATTERN } from "@phoenix/utils/jsonUtils";
@@ -93,14 +94,13 @@ export function getEvaluatorTemplateCompletions({
     // Inside a section the names are the item's own — `messages[0].role`
     // reads as `role` while the block repeats it.
     return section === null
-      ? toResult({
+      ? toRootResult({
           from,
           options: getRootOptions({
             evaluationContext,
             closingBrackets,
             templateFormat,
           }),
-          validFor: EVALUATOR_ROOT_PATH_PATTERN,
         })
       : toResult({
           from,
@@ -147,8 +147,28 @@ export function getEvaluatorTemplateCompletions({
       isBrowsing: cursor.partial === "",
       writesWholePath: reached !== null,
     }),
+    // A whole-path row is matched against the whole path, which the written
+    // name and its dot sit inside; a second dot leaves that level.
     validFor:
       reached === null ? MEMBER_NAME_PATTERN : EVALUATOR_ROOT_PATH_PATTERN,
+  });
+}
+
+/** The top level's menu, which stays open only while a dot still leads into it. */
+function toRootResult({
+  from,
+  options,
+}: {
+  from: number;
+  options: Completion[];
+}): CompletionResult | null {
+  return toResult({
+    from,
+    options,
+    validFor: toWholePathValidFor({
+      pattern: EVALUATOR_ROOT_PATH_PATTERN,
+      labels: options.map((option) => option.label),
+    }),
   });
 }
 
@@ -159,7 +179,7 @@ function toResult({
 }: {
   from: number;
   options: Completion[];
-  validFor: RegExp;
+  validFor: CompletionResult["validFor"];
 }): CompletionResult | null {
   return options.length === 0 ? null : { from, options, validFor };
 }

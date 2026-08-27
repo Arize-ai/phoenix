@@ -21,6 +21,7 @@ import {
   getEvaluatorPathCompletions,
   resolveEvaluatorPath,
   SUGGESTED_PATH_SECTION,
+  toWholePathValidFor,
 } from "./evaluatorPathCompletions";
 import type { EvaluatorSlotName } from "./evaluatorSlotDefaults";
 import {
@@ -236,7 +237,12 @@ function createEvaluatorPathCompletionSource({
         },
       })),
       ...(result.containerPath === ""
-        ? { validFor: EVALUATOR_ROOT_PATH_PATTERN }
+        ? {
+            validFor: toWholePathValidFor({
+              pattern: EVALUATOR_ROOT_PATH_PATTERN,
+              labels: result.completions.map((completion) => completion.key),
+            }),
+          }
         : {}),
     };
   };

@@ -254,6 +254,35 @@ export type EvaluatorPathCompletion = {
  */
 export const EVALUATOR_ROOT_PATH_PATTERN = /^\w*(?:\.\w*)?$/;
 
+/**
+ * Whether a menu of whole paths stays open as the typed text grows.
+ *
+ * A dot keeps the result only while it still leads into one of the paths on
+ * offer — `metadata.lat` is on its way to `metadata.latency_ms`, so re-querying
+ * there would drop the row the moment it starts to match. A dot that leads
+ * anywhere else re-queries instead, which is what opens the level below a name
+ * the list only ever named in full.
+ */
+export function toWholePathValidFor({
+  pattern,
+  labels,
+}: {
+  pattern: RegExp;
+  labels: readonly string[];
+}): (text: string) => boolean {
+  const offered = labels.map((label) => label.toLowerCase());
+  return (text: string) => {
+    if (!pattern.test(text)) {
+      return false;
+    }
+    if (!text.includes(".")) {
+      return true;
+    }
+    const typed = text.toLowerCase();
+    return offered.some((label) => label.startsWith(typed));
+  };
+}
+
 /** Pinned examples lead the root list; everything else follows in its group. */
 export const SUGGESTED_PATH_SECTION: CompletionSection = {
   name: "Suggestions",
