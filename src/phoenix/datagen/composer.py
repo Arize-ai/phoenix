@@ -66,16 +66,22 @@ class SessionComposer:
             }
             for archetype, applications in fragments_by_application.items()
         }
-        self._archetypes = tuple(sorted(self._fragments_by_application))
+        cells = tuple(
+            (archetype, domain)
+            for archetype in sorted(self._fragments_by_application)
+            for domain in self._fragments_by_application[archetype]
+        )
+        counts = np.array(
+            [len(self._fragments_by_application[archetype][domain]) for archetype, domain in cells],
+            dtype=np.float64,
+        )
+        self._cells = cells
+        self._cell_probabilities = counts / counts.sum()
 
     def compose(self, *, now_ns: int) -> ComposedSession:
         """Materialize one backdated session ending at ``now_ns``."""
-        archetype = cast(
-            Archetype,
-            self._random.choice(self._archetypes),
-        )
-        applications = tuple(self._fragments_by_application[archetype])
-        domain = str(self._random.choice(applications))
+        cell_index = int(self._random.choice(len(self._cells), p=self._cell_probabilities))
+        archetype, domain = cast(tuple[Archetype, str], self._cells[cell_index])
         fragments = self._sample_fragments(archetype, domain, self._draw_fragment_count())
         traces: list[ComposedTrace] = []
         cursor_ns = 0
