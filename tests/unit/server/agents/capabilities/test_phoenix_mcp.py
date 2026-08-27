@@ -329,17 +329,7 @@ class TestCodeMode:
         finally:
             await runtime.aclose()
 
-        # The skill tools stay direct: a skill is loaded once and read, not
-        # composed inside ``execute``.
-        assert names == {
-            "execute",
-            "search",
-            "get_schema",
-            "tags",
-            "list_tools",
-            "load_skill",
-            "read_skill_resource",
-        }
+        assert names == {"execute", "search", "get_schema", "tags", "list_tools"}
 
     async def test_principal_reaches_v1_through_guest_code(self) -> None:
         """Guest code calls back into the host to reach a tool, so the binding has

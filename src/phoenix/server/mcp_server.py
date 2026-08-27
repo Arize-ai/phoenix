@@ -60,7 +60,6 @@ from phoenix.server.bearer_auth import (
     token_audience_permits,
 )
 from phoenix.server.mcp.skills import (
-    GENERAL_SKILLS_ROOT,
     SKILL_TOOLS_TAG,
     get_skill_instructions,
     load_skills,
@@ -490,7 +489,7 @@ def build_phoenix_mcp_server(
     monty_consumer: "MontyConsumer" = "mcp",
     read_only: bool = False,
     db: "DbSessionFactory",
-    skills_roots: Sequence[Path] = (GENERAL_SKILLS_ROOT,),
+    skills_roots: Sequence[Path] = (),
 ) -> tuple[FastMCP, Optional[MontyPoolSandboxProvider]]:
     """Derive an MCP server from ``app``'s REST API.
 
@@ -509,6 +508,8 @@ def build_phoenix_mcp_server(
         read_only: Derive tools from GET routes only.
         db: Session factory for the analytics SQL tools.
         skills_roots: Directories whose skill folders this consumer receives.
+            Empty by default: no skill tools, and no skill instructions in the
+            handshake.
 
     Returns:
         The server, and — when code mode is enabled — the sandbox adapter backed
@@ -532,7 +533,7 @@ def build_phoenix_mcp_server(
         # Without this the handshake advertises the FastMCP library version, which
         # tells a client nothing about the Phoenix it is talking to.
         version=phoenix_version,
-        instructions=get_skill_instructions(skills),
+        instructions=get_skill_instructions(skills) if skills else None,
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not
@@ -567,7 +568,8 @@ def build_phoenix_mcp_server(
     from phoenix.server.mcp.sql.tools import register_analytics_sql_tools
 
     register_analytics_sql_tools(mcp, db=db)
-    register_skill_tools(mcp, skills)
+    if skills:
+        register_skill_tools(mcp, skills)
     return mcp, sandbox_provider
 
 

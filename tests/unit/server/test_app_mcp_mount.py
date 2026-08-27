@@ -108,11 +108,11 @@ async def test_mcp_server_advertises_the_phoenix_version(
         assert client.initialize_result.serverInfo.version == phoenix_version
 
 
-async def test_the_mount_advertises_only_the_general_skills(
+async def test_the_mount_serves_no_skills(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A coding agent at ``/mcp`` gets the skills that assume nothing beyond the
-    MCP surface; PXI's own skills lean on affordances it does not have."""
+    """Skills are PXI-only for now: the ``/mcp`` mount neither advertises them in
+    the handshake nor mounts the tools that load them."""
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
     from fastmcp import Client
     from fastmcp.client.transports import StreamableHttpTransport
@@ -135,12 +135,11 @@ async def test_the_mount_advertises_only_the_general_skills(
     transport = StreamableHttpTransport(url="http://testserver/", httpx_client_factory=_factory)
     async with LifespanManager(mcp_app), Client(transport) as client:
         assert client.initialize_result is not None
-        instructions = client.initialize_result.instructions or ""
+        instructions = client.initialize_result.instructions
         tool_names = {tool.name for tool in await client.list_tools()}
 
-    assert "- project-overview: " in instructions
-    assert "phoenix-graphql" not in instructions
-    assert {"load_skill", "read_skill_resource"} <= tool_names
+    assert instructions is None
+    assert tool_names.isdisjoint({"load_skill", "read_skill_resource"})
 
 
 async def test_the_agents_own_server_adds_the_pxi_skills(
@@ -413,17 +412,7 @@ async def test_mcp_code_mode_replaces_tool_surface(
         )
         async with Client(transport) as client:
             tools = {t.name: t for t in await client.list_tools()}
-            # The skill tools are the one exception to the fold: a skill is
-            # loaded once and read, not composed inside ``execute``.
-            assert set(tools) == {
-                "search",
-                "get_schema",
-                "tags",
-                "list_tools",
-                "execute",
-                "load_skill",
-                "read_skill_resource",
-            }
+            assert set(tools) == {"search", "get_schema", "tags", "list_tools", "execute"}
 
             # Discovery tools are reads and say so; execute can invoke mutating
             # tools, so it stays unannotated (treated as possibly destructive).

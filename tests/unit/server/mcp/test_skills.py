@@ -59,17 +59,15 @@ class TestHandshake:
         assert "`load_skill`" in instructions
         assert "`read_skill_resource`" in instructions
 
-    async def test_the_default_roots_withhold_pxi_skills(self) -> None:
+    async def test_no_roots_means_no_skills(self) -> None:
         mcp, _ = build_phoenix_mcp_server(
             FastAPI(), code_mode=False, read_only=True, db=_unused_db()
         )
         async with Client(mcp) as client:
             assert client.initialize_result is not None
-            instructions = client.initialize_result.instructions or ""
-            assert "- project-overview: " in instructions
-            assert "phoenix-graphql" not in instructions
-            with pytest.raises(ToolError, match="Unknown skill 'phoenix-graphql'"):
-                await client.call_tool("load_skill", {"skill_name": "phoenix-graphql"})
+            assert client.initialize_result.instructions is None
+            names = {tool.name for tool in await client.list_tools()}
+            assert names.isdisjoint({"load_skill", "read_skill_resource"})
 
 
 class TestTools:

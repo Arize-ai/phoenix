@@ -125,7 +125,7 @@ def load_skills(roots: tuple[Path, ...]) -> tuple[Skill, ...]:
                     f"{skills[skill.name].path} and {directory}"
                 )
             skills[skill.name] = skill
-    if not skills:
+    if roots and not skills:
         raise ValueError(f"No skills found under {', '.join(str(root) for root in roots)}")
     return tuple(skills.values())
 
