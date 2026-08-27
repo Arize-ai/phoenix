@@ -168,21 +168,18 @@ class ProjectSession(Node):
         )
         from phoenix.server.online_eval.session_policy import SessionEvalPolicy
 
-        if self.db_record:
-            project_rowid = self.db_record.project_id
-            content_complete = self.db_record.content_complete
-        else:
-            project_rowid = await info.context.data_loaders.project_session_fields.load(
-                (self.id, models.ProjectSession.project_id),
-            )
-            content_complete = await info.context.data_loaders.project_session_fields.load(
-                (self.id, models.ProjectSession.content_complete),
-            )
-        # The sweeper only claims content-complete sessions, so a preview of a
-        # trimmed one would bind against turns no live evaluation reads.
-        if not content_complete:
-            return None
         async with info.context.db.read() as session:
+            project_session = await session.get(models.ProjectSession, self.id)
+            # One unevaluable session must not fail the whole list it is read in;
+            # the null row says why on its own. The row is read here rather than
+            # carried from the list because it can be deleted or trimmed in
+            # between, and the loader below raises on a session that is gone.
+            if project_session is None:
+                return None
+            # The sweeper only claims content-complete sessions, so a preview of a
+            # trimmed one would bind against turns no live evaluation reads.
+            if not project_session.content_complete:
+                return None
             vocabularies = await load_session_bound_variables(
                 session,
                 project_session_rowids=[self.id],
@@ -191,7 +188,7 @@ class ProjectSession(Node):
             loaded = await load_session_eval_context(
                 session,
                 project_session_rowid=self.id,
-                project_id=project_rowid,
+                project_id=project_session.project_id,
                 policy=SessionEvalPolicy(),
                 vocabulary=vocabularies[self.id],
             )

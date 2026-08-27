@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, NamedTuple
+from types import SimpleNamespace
+from typing import Any, NamedTuple, cast
 
 import httpx
 import pytest
@@ -338,6 +339,49 @@ class TestProjectSession:
         # The sweeper never claims a trimmed session, so its remaining turns are
         # not a context any live evaluation would read.
         assert await self._node("sessionEvaluationContext", trimmed_session, httpx_client) is None
+
+    async def test_session_evaluation_context_is_null_for_a_raced_away_session(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        # The sessions connection reads its page first and resolves this field
+        # afterwards, so a session deleted in between reaches the field as a
+        # live-looking record. That one row must read null rather than fail the
+        # whole list.
+        async with db() as session:
+            project = await _add_project(session)
+            rowids = []
+            for value in ("raced", "live"):
+                project_session = await _add_project_session(session, project)
+                trace = await _add_trace(session, project, project_session)
+                await _add_span(
+                    session,
+                    trace,
+                    attributes={"input": {"value": value}, "output": {"value": value}},
+                )
+                rowids.append(project_session.id)
+            project_rowid = project.id
+        raced_rowid, live_rowid = rowids
+        async with db() as session:
+            await session.delete(await session.get(models.ProjectSession, raced_rowid))
+        info = cast(Any, SimpleNamespace(context=SimpleNamespace(db=db)))
+        listed = [
+            ProjectSession(
+                id=rowid,
+                db_record=models.ProjectSession(
+                    id=rowid,
+                    project_id=project_rowid,
+                    content_complete=True,
+                ),
+            )
+            for rowid in (raced_rowid, live_rowid)
+        ]
+        raced_context, live_context = [
+            await project_session.session_evaluation_context(info) for project_session in listed
+        ]
+        assert raced_context is None
+        assert live_context is not None
+        assert live_context["input"] == "live"
 
     async def test_session_evaluation_context_is_null_without_eligible_root_turns(
         self,
