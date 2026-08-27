@@ -87,10 +87,11 @@ def session_project_evaluator_is_schedulable(
 class SessionEvalPolicy:
     """What a session evaluation loads, and under which version of that rule.
 
-    Both fields enter the config fingerprint, so results published under one
-    annotation identifier were read under the same policy and are comparable to
-    each other. Changing either expires pending session work rather than letting
-    old and new results share an identifier.
+    Both fields come from module constants and no deployment setting overrides
+    them, so every process in a deployment runs the same policy and two replicas
+    cannot disagree about what a session evaluation loads. Bumping ``version``
+    is what expires pending session work, so old and new results never share an
+    annotation identifier.
     """
 
     max_turns: int = MAX_SESSION_EVAL_TURNS
@@ -98,7 +99,13 @@ class SessionEvalPolicy:
 
     @property
     def fingerprint(self) -> str:
-        """Identity of the session policy in force, for the config fingerprint."""
+        """Identity of the session policy in force, for the config fingerprint.
+
+        Fixed for a given build, since both inputs are constants. It stays a
+        derived hash rather than the version string because the config
+        fingerprint keys on it, so a field that does vary can be added here
+        without changing either end.
+        """
         payload = {
             "policy_version": self.version,
             "max_turns": self.max_turns,
