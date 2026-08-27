@@ -59,9 +59,7 @@ def test_coding_agent_records_stateful_failure_edit_and_passing_rerun(
     assert fresh_tools.invoke("run_tests", {"test": "tests/test_readme.py"})["passed"] is False
 
     fixtures = tuple(
-        fixture
-        for fixture in load_fixtures()
-        if fixture.fragment_id in _SCRIPTED_CODING_EPISODES
+        fixture for fixture in load_fixtures() if fixture.fragment_id in _SCRIPTED_CODING_EPISODES
     )
 
     fragments = record(tmp_path, fixtures=fixtures)
