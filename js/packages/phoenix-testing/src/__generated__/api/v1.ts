@@ -1744,7 +1744,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Run Server Agent
+         * Run Headless Agent
          * @deprecated
          */
         post: operations["legacyServerAgentChat"];

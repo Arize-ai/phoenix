@@ -1,4 +1,4 @@
-# Phoenix ServerAgent Harbor evaluation
+# Phoenix headless agent Harbor evaluation
 
 ## Run
 
@@ -20,7 +20,7 @@ Validate with the bundled oracle:
 make harbor-oracle
 ```
 
-Run the real ServerAgent adapter:
+Run the real headless-agent adapter:
 
 ```bash
 make harbor-run

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Phoenix's production ServerAgent against a local Phoenix database."""
+"""Run Phoenix's production headless agent against a local Phoenix database."""
 
 import argparse
 import asyncio
@@ -14,14 +14,17 @@ from asgi_lifespan import LifespanManager
 from openinference.instrumentation import OITracer, TraceConfig, get_span_kind_attributes
 from opentelemetry.sdk.trace import TracerProvider
 from phoenix.otel import register, using_attributes
+from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.test import TestModel
 
 from phoenix.db.engines import create_engine
-from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
-from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
-from phoenix.server.agents.server_agents import build_server_agent
+from phoenix.db.types.data_stream_protocol import EditPermission
+from phoenix.server.agents.agent_factory import build_agent
+from phoenix.server.agents.context import ResolvedContexts
+from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper, OpenInferenceModelWrapper
+from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.app import _db, create_app
 from phoenix.server.types import DbSessionFactory
 
@@ -91,19 +94,23 @@ async def run(args: argparse.Namespace) -> None:
     try:
         # App startup takes ~6s in the eval container; asgi-lifespan defaults to 5s.
         async with LifespanManager(app, startup_timeout=120, shutdown_timeout=120):
-            agent = build_server_agent(
+            graphql_mutations_enabled = _resolve_allow_mutations(args)
+            edit_permission: EditPermission = "bypass" if graphql_mutations_enabled else "manual"
+            agent: AbstractAgent[AgentDependencies, AgentOutput] = build_agent(
+                name="PXIAgent",
+                headless=True,
                 model=model,
                 schema=app.state.graphql_schema,
                 build_graphql_context=lambda: app.state.build_graphql_context(None),
                 db=db,
                 event_queue=app.state.build_graphql_context(None).event_queue,
-                # Mirror the /agents route so the eval exercises the same base
-                # prompt production serves, not build_server_agent's default.
-                prompts=ServerAgentPrompts(base=AgentPrompts().base),
                 phoenix_mcp_server=app.state.pxi_mcp_server,
-                allow_mutations=_resolve_allow_mutations(args),
+                edit_permission=edit_permission,
+                graphql_mutations_enabled=graphql_mutations_enabled,
                 tracer_provider=tracer_provider,
             )
+            if tracer is not None:
+                agent = OpenInferenceAgentWrapper(agent, tracer=tracer)
             trace_context = (
                 tracer.start_as_current_span(
                     "harbor.trajectory.step",
@@ -119,13 +126,21 @@ async def run(args: argparse.Namespace) -> None:
                 ),
                 trace_context,
             ):
-                result = await agent.run(args.instruction_file.read_text(), message_history=history)
+                result = await agent.run(
+                    args.instruction_file.read_text(),
+                    deps=AgentDependencies(
+                        contexts=ResolvedContexts(),
+                        edit_permission=edit_permission,
+                    ),
+                    message_history=history,
+                )
     finally:
         if tracer_provider is not None:
             tracer_provider.force_flush()
             tracer_provider.shutdown()
     args.out_dir.mkdir(parents=True, exist_ok=True)
     answer = result.output
+    assert isinstance(answer, str), "headless agents cannot return deferred tool requests"
     blocks = re.findall(r"```json\s*(.*?)```", answer, flags=re.DOTALL | re.IGNORECASE)
     parsed = json.loads(blocks[-1]) if blocks else {}
     args.out_dir.joinpath("answer.md").write_text(answer)
