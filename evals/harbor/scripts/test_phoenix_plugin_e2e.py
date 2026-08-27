@@ -24,6 +24,7 @@ TASKS_DIR = REPO_ROOT / "evals" / "harbor" / "tasks"
 DIRECT_TASK = TASKS_DIR / "regression-triage"
 HARBOR_VERSION = os.environ.get("HARBOR_VERSION", "0.21.0")
 HARBOR_PYTHON = os.environ.get("HARBOR_PYTHON", "3.13")
+HARBOR_ATIF_MODEL = os.environ.get("HARBOR_ATIF_MODEL", "openai/gpt-5-mini")
 
 
 def _check(condition: bool, message: str) -> None:
@@ -113,6 +114,12 @@ def _run_numbers(client: Client, experiment_id: str) -> list[int]:
 def _run_ids(client: Client, experiment_id: str) -> set[str]:
     detail = client.experiments.get_experiment(experiment_id=experiment_id)
     return {run["id"] for run in detail["task_runs"]}
+
+
+def _runs(client: Client, experiment_id: str) -> list[v1.ExperimentRun]:
+    return client.experiments._get_all_experiment_runs(  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+        experiment_id=experiment_id
+    )
 
 
 def _experiment_records(endpoint: str, experiment_id: str) -> list[dict[str, Any]]:
@@ -205,6 +212,8 @@ def _harbor_command(
     endpoint: str,
     jobs_dir: Path,
     arguments: Iterable[str],
+    *,
+    trace_mode: str = "none",
 ) -> list[str]:
     return [
         "uvx",
@@ -225,9 +234,118 @@ def _harbor_command(
         "--plugin-kwarg",
         f"endpoint={endpoint}",
         "--plugin-kwarg",
-        "trace_mode=none",
+        f"trace_mode={trace_mode}",
         "--yes",
     ]
+
+
+def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
+    _check(bool(os.environ.get("OPENAI_API_KEY")), "OPENAI_API_KEY is required")
+    jobs_dir = root / "jobs"
+    jobs_dir.mkdir()
+    client = Client(base_url=endpoint)
+    job_name = "plugin-e2e-atif-backfill"
+    arguments = [
+        "-p",
+        str(DIRECT_TASK),
+        "-a",
+        "terminus-2",
+        "-m",
+        HARBOR_ATIF_MODEL,
+        "--ae",
+        "OPENAI_API_KEY=${OPENAI_API_KEY}",
+        "--ak",
+        "max_turns=12",
+        "-e",
+        "docker",
+        "-n",
+        "1",
+        "-r",
+        "0",
+        "--job-name",
+        job_name,
+    ]
+    untraced_command = _harbor_command(
+        wheel,
+        endpoint,
+        jobs_dir,
+        arguments,
+        trace_mode="none",
+    )
+    traced_command = _harbor_command(
+        wheel,
+        endpoint,
+        jobs_dir,
+        arguments,
+        trace_mode="atif",
+    )
+
+    _run(untraced_command, description="Terminus-2 writes ATIF and records an untraced run")
+    canonical_roots = sorted((jobs_dir / job_name).rglob("trajectory.json"))
+    _check(bool(canonical_roots), "Terminus-2 wrote no canonical trajectory.json")
+    for path in canonical_roots:
+        payload = json.loads(path.read_text())
+        _check(str(payload.get("schema_version", "")).startswith("ATIF-v1."), str(path))
+
+    dataset = _find_dataset(client, "harbor-task/arize/phoenix-regression-triage")
+    experiments = _job_experiments(client, dataset["id"], job_name)
+    _check(len(experiments) == 1, repr(experiments))
+    experiment = experiments[0]
+    initial_runs = _runs(client, experiment["id"])
+    _check(len(initial_runs) == 1, repr(initial_runs))
+    _check(initial_runs[0].get("trace_id") is None, repr(initial_runs[0]))
+    evaluations_before = _evaluation_state(endpoint, experiment["id"])
+
+    _run(traced_command, description="completed job resume backfills its ATIF trace")
+    backfilled_runs = _runs(client, experiment["id"])
+    _check(len(backfilled_runs) == 1, repr(backfilled_runs))
+    trace_id = backfilled_runs[0].get("trace_id")
+    _check(isinstance(trace_id, str) and len(trace_id) == 32, repr(backfilled_runs[0]))
+    project_name = experiment.get("project_name")
+    _check(bool(project_name), repr(experiment))
+    spans = client.spans.get_spans(
+        project_identifier=str(project_name),
+        trace_ids=[str(trace_id)],
+        limit=10_000,
+    )
+    _check(bool(spans), "Backfilled trace has no spans")
+    roots = [span for span in spans if span.get("parent_id") is None]
+    _check(len(roots) == 1 and roots[0]["name"] == "harbor.trial", repr(roots))
+    span_ids = {span["context"]["span_id"] for span in spans}
+    _check(
+        all(span.get("parent_id") in span_ids for span in spans if span.get("parent_id")),
+        "Backfilled trace contains an unresolved parent",
+    )
+    agent_roots = [span for span in spans if span["span_kind"] == "AGENT"]
+    _check(len(agent_roots) >= len(canonical_roots), repr(agent_roots))
+    _check(
+        all(
+            str(span["attributes"].get("session.id", "")).startswith(f"harbor:{trace_id}:")
+            for span in agent_roots
+        ),
+        "Backfilled trace exposed an unnamespaced producer session",
+    )
+    _check(_evaluation_state(endpoint, experiment["id"]) == evaluations_before, "Evals changed")
+
+    span_ids_before = span_ids
+    _run(traced_command, description="second ATIF resume is idempotent")
+    replayed_experiments = _job_experiments(client, dataset["id"], job_name)
+    replayed_runs = _runs(client, experiment["id"])
+    replayed_spans = client.spans.get_spans(
+        project_identifier=str(project_name),
+        trace_ids=[str(trace_id)],
+        limit=10_000,
+    )
+    _check(
+        [item["id"] for item in replayed_experiments] == [experiment["id"]],
+        repr(replayed_experiments),
+    )
+    _check([item["id"] for item in replayed_runs] == [initial_runs[0]["id"]], repr(replayed_runs))
+    _check(
+        {span["context"]["span_id"] for span in replayed_spans} == span_ids_before,
+        "Second resume changed the trace span set",
+    )
+    _check(_evaluation_state(endpoint, experiment["id"]) == evaluations_before, "Evals changed")
 
 
 def _run_matrix(root: Path, wheel: Path, endpoint: str) -> None:
@@ -604,7 +722,10 @@ def main() -> int:
         _wait_for_phoenix(endpoint, phoenix_process, log_path)
         print(f"PASS  isolated Phoenix is healthy at {endpoint}")
 
-        _run_matrix(root, wheel, endpoint)
+        if os.environ.get("HARBOR_E2E_ATIF") == "1":
+            _run_atif_matrix(root, wheel, endpoint)
+        else:
+            _run_matrix(root, wheel, endpoint)
         succeeded = True
         print("PASS  Phoenix Harbor plugin E2E matrix")
         return 0

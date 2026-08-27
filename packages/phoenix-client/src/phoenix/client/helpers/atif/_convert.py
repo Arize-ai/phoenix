@@ -289,7 +289,7 @@ def _stringify_message(
         return ""
     if isinstance(message, str):
         return message
-    # list[ContentPart] — concatenate text parts, placeholder for images
+    # list[ContentPart] — concatenate text parts and media placeholders
     parts: list[str] = []
     for part in message:
         if isinstance(part, str):
@@ -301,6 +301,9 @@ def _stringify_message(
             elif part.get("type") == "image" and isinstance(part.get("source"), dict):
                 path = part["source"].get("path", "unknown")
                 parts.append(f"[image: {path}]")
+            elif part.get("type") == "audio" and isinstance(part.get("source"), dict):
+                path = part["source"].get("path", "unknown")
+                parts.append(f"[audio: {path}]")
     return "\n".join(parts) if parts else ""
 
 
@@ -364,6 +367,26 @@ def _build_content_part_attributes(prefix: str, parts: list[Any]) -> Dict[str, A
                 if path:
                     attrs[f"{cp}.image.image.url"] = path
     return attrs
+
+
+def _audio_content_metadata(parts: object) -> list[dict[str, Any]]:
+    """Return ATIF audio references without inventing OpenInference fields."""
+    if not isinstance(parts, list):
+        return []
+    audio: list[dict[str, Any]] = []
+    for index, part in enumerate(parts):
+        if not isinstance(part, dict) or part.get("type") != "audio":
+            continue
+        source = part.get("source")
+        if not isinstance(source, dict):
+            continue
+        item: dict[str, Any] = {"content_index": index}
+        for key in ("path", "media_type", "duration_seconds", "duration_ms", "duration"):
+            value = source.get(key, part.get(key))
+            if value is not None:
+                item[key] = value
+        audio.append(item)
+    return audio
 
 
 def _serialize_input_messages(
@@ -599,12 +622,19 @@ def _build_message_attributes(
                         }
                     )
 
+    audio_contents: list[dict[str, Any]] = []
+    has_multimodal_content = False
     for idx, msg_dict in enumerate(input_messages):
         prefix = f"llm.input_messages.{idx}"
         attrs[f"{prefix}.message.role"] = msg_dict["role"]
         if "_raw_parts" in msg_dict:
             # Multimodal content — write message.contents array
             attrs.update(_build_content_part_attributes(prefix, msg_dict["_raw_parts"]))
+            has_multimodal_content = has_multimodal_content or _has_multimodal_content(
+                msg_dict["_raw_parts"]
+            )
+            for item in _audio_content_metadata(msg_dict["_raw_parts"]):
+                audio_contents.append({"direction": "input", "message_index": idx, **item})
         elif "content" in msg_dict:
             attrs[f"{prefix}.message.content"] = msg_dict["content"]
         if "tool_call_id" in msg_dict:
@@ -634,6 +664,9 @@ def _build_message_attributes(
         attrs["llm.output_messages.0.message.role"] = "assistant"
         if isinstance(raw_output, list):
             attrs.update(_build_content_part_attributes("llm.output_messages.0", raw_output))
+            has_multimodal_content = has_multimodal_content or _has_multimodal_content(raw_output)
+            for item in _audio_content_metadata(raw_output):
+                audio_contents.append({"direction": "output", "message_index": 0, **item})
         else:
             attrs["llm.output_messages.0.message.content"] = agent_message
 
@@ -649,6 +682,13 @@ def _build_message_attributes(
         if arguments is not None:
             attrs[f"{tc_prefix}.tool_call.function.arguments"] = json.dumps(arguments)
 
+    metadata: dict[str, Any] = {}
+    if has_multimodal_content:
+        metadata["has_multimodal_content"] = True
+    if audio_contents:
+        metadata["atif_audio_contents"] = audio_contents
+    if metadata:
+        attrs["metadata"] = metadata
     return attrs
 
 
@@ -965,7 +1005,11 @@ def _convert_atif_trajectory_to_spans(
                 llm_attrs = _build_llm_attributes(step, agent)
                 llm_attrs["openinference.span.kind"] = "LLM"
                 llm_attrs["session.id"] = session_id
-                llm_attrs.update(_build_message_attributes(steps, i))
+                message_attrs = _build_message_attributes(steps, i)
+                message_metadata = message_attrs.pop("metadata", None)
+                llm_attrs.update(message_attrs)
+                if isinstance(message_metadata, Mapping):
+                    llm_attrs.setdefault("metadata", {}).update(message_metadata)
                 llm_attrs.update(llm_tool_attrs)
 
                 # Flag LLM spans whose input includes copied context

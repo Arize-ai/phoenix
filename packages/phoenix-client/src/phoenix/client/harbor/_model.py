@@ -22,6 +22,7 @@ __all__ = [
     "JobPlan",
     "StepRecord",
     "TaskRecord",
+    "TraceMode",
     "TrialSlot",
     "canonical_digest",
     "short_digest",
@@ -29,6 +30,8 @@ __all__ = [
 
 _DIGEST_PREFIX = "sha256:"
 _SHORT_DIGEST_LENGTH = 12
+
+TraceMode = Literal["none", "atif"]
 
 
 def canonical_digest(payload: Any) -> str:

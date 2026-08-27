@@ -1,4 +1,4 @@
-"""TypedDict definitions for the ATIF (Agent Trajectory Interchange Format) schema v1.0–v1.7.
+"""TypedDict definitions for supported ATIF v1.x fields.
 
 Based on the Harbor reference implementation at laude-institute/harbor.
 """
@@ -20,16 +20,17 @@ class ATIFToolCall(TypedDict):
 
 
 class ATIFContentPartSource(TypedDict, total=False):
-    """Source object for image content parts (ATIF v1.6+)."""
+    """Source object for image and audio content parts (ATIF v1.6+)."""
 
-    media_type: str  # e.g. "image/png"
+    media_type: str  # e.g. "image/png" or "audio/wav"
     path: str  # URL or file path
+    duration_seconds: float
 
 
 class ATIFContentPart(TypedDict, total=False):
     """A multimodal content part (v1.6+). All fields optional by convention."""
 
-    type: str  # "text" | "image"
+    type: str  # "text" | "image" | "audio"
     text: str
     source: ATIFContentPartSource
 

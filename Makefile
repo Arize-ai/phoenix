@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets gen-otel-models \
 	gh-comment-watch \
-	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
+	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-plugin-e2e-atif harbor-oracle harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -109,6 +109,7 @@ help: ## Show this help message
 	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
 	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Run the isolated Phoenix Harbor plugin E2E matrix"
+	@echo -e "  $(YELLOW)harbor-plugin-e2e-atif$(NC)  - Run the credentialed Terminus-2 ATIF backfill E2E"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real headless-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -482,6 +483,8 @@ HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
 # Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
 HARBOR_ENV ?= docker
 HARBOR_VERSION ?= 0.21.0
+HARBOR_ATIF_VERSION ?= 0.22.0
+HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 # harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
 # repo's .python-version (3.10).
 HARBOR_PYTHON ?= 3.13
@@ -515,6 +518,12 @@ harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud stor
 
 harbor-plugin-e2e: ## Run the isolated Phoenix Harbor plugin E2E matrix
 	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
+		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py
+
+harbor-plugin-e2e-atif: ## Run the credentialed Terminus-2 ATIF backfill E2E
+	OPENAI_API_KEY="$${OPENAI_API_KEY:-$$(security find-generic-password -a "$$USER" -s OPENAI_API_KEY -w)}" \
+	HARBOR_VERSION=$(HARBOR_ATIF_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
+	HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_E2E_ATIF=1 \
 		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py
 
 harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)

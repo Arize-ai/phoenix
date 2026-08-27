@@ -9,7 +9,7 @@ from typing import Any, Literal, Protocol
 
 from phoenix.client.harbor._errors import HarborPluginError
 
-__all__ = ["ExtractedEvaluation", "extract_evaluations"]
+__all__ = ["ExtractedEvaluation", "extract_evaluations", "infrastructure_failures"]
 
 
 class _ExceptionInfo(Protocol):
@@ -117,7 +117,7 @@ def extract_evaluations(
             )
             _append_unique(records, origins, record, origin=origin)
 
-    failures = _infrastructure_failures(trial_result)
+    failures = infrastructure_failures(trial_result)
     _append_unique(
         records,
         origins,
@@ -174,7 +174,7 @@ def _evaluation_times(
     return timing.started_at or timing.finished_at or fallback, timing.finished_at or fallback
 
 
-def _infrastructure_failures(trial_result: _TrialResult) -> list[str]:
+def infrastructure_failures(trial_result: _TrialResult) -> list[str]:
     failures: list[str] = []
     if trial_result.exception_info is not None:
         failures.append(_format_exception("trial", trial_result.exception_info))

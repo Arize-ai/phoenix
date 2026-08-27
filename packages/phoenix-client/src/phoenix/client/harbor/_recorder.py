@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import ExperimentSlice, JobPlan, canonical_digest
 from phoenix.client.harbor._naming import experiment_names, validate_experiment_naming
 from phoenix.client.harbor._scores import ExtractedEvaluation
+from phoenix.client.harbor._traces import HarborTrace
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +29,11 @@ __all__ = [
     "DatasetSnapshot",
     "ExperimentHandle",
     "PhoenixRecorder",
+    "trial_output",
 ]
 
 _INTEGRATION = "harbor"
+_TRACE_PERSISTENCE_TIMEOUT_SECONDS = 30.0
 
 RunKey = tuple[str, str, int]
 
@@ -47,6 +51,7 @@ class ExperimentHandle:
     experiment_id: str
     name: str
     created: bool
+    project_name: str | None = None
 
 
 class PhoenixRecorder:
@@ -173,15 +178,13 @@ class PhoenixRecorder:
         if run.get("error"):
             return False
 
-        expected_output = _trial_output(trial_result)
+        expected_output = trial_output(trial_result)
         expected_error = _trial_error(trial_result)
         mismatches: list[str] = []
         if run.get("output") != expected_output:
             mismatches.append("output")
         if expected_error is not None:
             mismatches.append("error")
-        if run.get("trace_id") is not None:
-            mismatches.append("trace")
         if mismatches:
             trial_name = str(trial_result.trial_name)
             fields = ", ".join(mismatches)
@@ -226,6 +229,8 @@ class PhoenixRecorder:
         snapshot: DatasetSnapshot,
         experiments: Mapping[str, ExperimentHandle],
         trial_result: TrialResult,
+        existing_run: v1.ExperimentRun | None = None,
+        trace_id: str | None = None,
     ) -> v1.ExperimentRun:
         """Record one terminal Harbor trial as a Phoenix experiment run."""
         trial_name = str(trial_result.trial_name)
@@ -244,24 +249,52 @@ class PhoenixRecorder:
                 f"Harbor trial {trial_name!r} has no complete start and end timestamps."
             )
 
+        if existing_run is not None and self.can_reuse_run(existing_run, trial_result=trial_result):
+            stored_trace_id = existing_run.get("trace_id")
+            if trace_id is None or stored_trace_id == trace_id:
+                return existing_run
+            if stored_trace_id is not None:
+                logger.warning(
+                    "Phoenix run %s is already linked to trace %s; keeping it instead of %s.",
+                    existing_run["id"],
+                    stored_trace_id,
+                    trace_id,
+                )
+                return existing_run
+
         try:
             return await self._client.experiments.log_run(
                 experiment_id=experiment.experiment_id,
                 dataset_example_id=example_id,
-                output=_trial_output(trial_result),
+                output=trial_output(trial_result),
                 start_time=start_time,
                 end_time=end_time,
                 repetition_number=slot.repetition,
+                trace_id=trace_id,
                 error=_trial_error(trial_result),
             )
         except httpx.HTTPStatusError as error:
             if error.response.status_code == 409:
-                return await self._recover_conflicting_run(
+                recovered = await self._recover_conflicting_run(
                     experiment=experiment,
                     dataset_example_id=example_id,
                     repetition=slot.repetition,
                     trial_result=trial_result,
                 )
+                if trace_id is not None and recovered.get("trace_id") is None:
+                    logger.warning(
+                        "Phoenix kept Harbor run %s untraced after rejecting trace attachment. "
+                        "Upgrade the Phoenix server to a version that supports one-time trace "
+                        "backfill.",
+                        recovered["id"],
+                    )
+                elif trace_id is not None and recovered.get("trace_id") != trace_id:
+                    logger.warning(
+                        "Phoenix run %s already has trace %s; keeping the first link.",
+                        recovered["id"],
+                        recovered.get("trace_id"),
+                    )
+                return recovered
             raise HarborPluginError(
                 f"Could not record Harbor trial {trial_name!r} in Phoenix experiment "
                 f"{experiment.name!r}: {error}"
@@ -271,6 +304,127 @@ class PhoenixRecorder:
                 f"Could not record Harbor trial {trial_name!r} in Phoenix experiment "
                 f"{experiment.name!r}: {error}"
             ) from error
+
+    async def confirm_trace(
+        self,
+        *,
+        experiment: ExperimentHandle,
+        trace: HarborTrace,
+    ) -> str | None:
+        """Upload missing spans and return the trace ID after exact persistence."""
+        try:
+            project_name = await self._project_name(experiment)
+            if project_name is None:
+                logger.warning(
+                    "Phoenix experiment %r has no trace project; recording the Harbor run "
+                    "without a trace.",
+                    experiment.name,
+                )
+                return None
+
+            expected = {span["context"]["span_id"] for span in trace.spans}
+            stored = await self._trace_span_ids(
+                project_name=project_name,
+                trace_id=trace.trace_id,
+                expected_count=len(expected),
+            )
+            unexpected = stored - expected
+            if unexpected:
+                logger.warning(
+                    "Phoenix trace %s in project %r contains unexpected span IDs; "
+                    "refusing to attach it to the Harbor run.",
+                    trace.trace_id,
+                    project_name,
+                )
+                return None
+
+            missing = expected - stored
+            if missing:
+                spans = [span for span in trace.spans if span["context"]["span_id"] in missing]
+                try:
+                    result = await self._client.spans.log_spans(
+                        project_identifier=project_name,
+                        spans=spans,
+                    )
+                    received = int(result.get("total_received", -1))
+                    queued = int(result.get("total_queued", -1))
+                    if received != len(spans) or queued != len(spans):
+                        logger.warning(
+                            "Phoenix accepted %d of %d Harbor trace spans for trace %s; "
+                            "leaving the run untraced until replay.",
+                            queued,
+                            len(spans),
+                            trace.trace_id,
+                        )
+                        return None
+                except Exception:
+                    # A prior async request can become visible between preflight and POST.
+                    stored = await self._trace_span_ids(
+                        project_name=project_name,
+                        trace_id=trace.trace_id,
+                        expected_count=len(expected),
+                    )
+                    if stored != expected:
+                        raise
+
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + _TRACE_PERSISTENCE_TIMEOUT_SECONDS
+            delay = 0.05
+            while True:
+                stored = await self._trace_span_ids(
+                    project_name=project_name,
+                    trace_id=trace.trace_id,
+                    expected_count=len(expected),
+                )
+                if stored == expected:
+                    return trace.trace_id
+                if stored - expected:
+                    logger.warning(
+                        "Phoenix trace %s changed shape while being stored; leaving the Harbor "
+                        "run untraced.",
+                        trace.trace_id,
+                    )
+                    return None
+                remaining = deadline - loop.time()
+                if remaining <= 0:
+                    logger.warning(
+                        "Phoenix did not persist all spans for Harbor trace %s within %.0f "
+                        "seconds; completed-job replay will retry.",
+                        trace.trace_id,
+                        _TRACE_PERSISTENCE_TIMEOUT_SECONDS,
+                    )
+                    return None
+                await asyncio.sleep(min(delay, remaining))
+                delay = min(delay * 2, 2.0)
+        except Exception as error:
+            logger.warning(
+                "Could not store Harbor trace %s for Phoenix experiment %r: %s",
+                trace.trace_id,
+                experiment.name,
+                error,
+            )
+            return None
+
+    async def _project_name(self, experiment: ExperimentHandle) -> str | None:
+        if experiment.project_name:
+            return experiment.project_name
+        detail = await self._client.experiments.get(experiment_id=experiment.experiment_id)
+        project_name = detail.get("project_name")
+        return str(project_name) if project_name else None
+
+    async def _trace_span_ids(
+        self,
+        *,
+        project_name: str,
+        trace_id: str,
+        expected_count: int,
+    ) -> set[str]:
+        spans = await self._client.spans.get_spans(
+            project_identifier=project_name,
+            trace_ids=[trace_id],
+            limit=expected_count + 1,
+        )
+        return {span["context"]["span_id"] for span in spans}
 
     async def record_evaluations(
         self,
@@ -343,6 +497,9 @@ class PhoenixRecorder:
             experiment_id=str(experiment["id"]),
             name=str(experiment.get("name") or name),
             created=created,
+            project_name=(
+                str(experiment["project_name"]) if experiment.get("project_name") else None
+            ),
         )
 
 
@@ -434,7 +591,7 @@ def _run_key(identity: str, run: v1.ExperimentRun) -> RunKey:
     )
 
 
-def _trial_output(trial_result: TrialResult) -> dict[str, Any]:
+def trial_output(trial_result: TrialResult) -> dict[str, Any]:
     n_input, n_cache, n_output, cost = trial_result.compute_token_cost_totals()
     output: dict[str, Any] = {
         "harbor_trial_id": str(trial_result.id),

@@ -623,6 +623,66 @@ class TestMultimodalContent:
             meta = attrs.get("metadata", {})
             assert "has_multimodal_content" not in meta
 
+    def test_atif_v18_audio_is_stringified_and_preserved_as_metadata(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.8",
+            "session_id": "audio-session",
+            "trajectory_id": "audio-trajectory",
+            "agent": {"name": "audio-agent", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "timestamp": "2026-08-26T12:00:00Z",
+                    "source": "user",
+                    "message": [
+                        {"type": "text", "text": "Transcribe this"},
+                        {
+                            "type": "audio",
+                            "source": {
+                                "path": "audio/prompt.wav",
+                                "media_type": "audio/wav",
+                                "duration_seconds": 1.25,
+                            },
+                        },
+                    ],
+                },
+                {
+                    "step_id": 2,
+                    "timestamp": "2026-08-26T12:00:01Z",
+                    "source": "agent",
+                    "message": "hello",
+                },
+            ],
+        }
+
+        spans = _convert_atif_trajectories_to_spans([trajectory])
+
+        llm_span = next(span for span in spans if span["span_kind"] == "LLM")
+        attrs = llm_span.get("attributes", {})
+        input_messages = json.loads(attrs["input.value"])
+        assert input_messages[0]["content"][1] == {
+            "type": "audio",
+            "source": {
+                "path": "audio/prompt.wav",
+                "media_type": "audio/wav",
+                "duration_seconds": 1.25,
+            },
+        }
+        assert attrs["metadata"]["has_multimodal_content"] is True
+        assert attrs["metadata"]["atif_audio_contents"] == [
+            {
+                "direction": "input",
+                "message_index": 0,
+                "content_index": 1,
+                "path": "audio/prompt.wav",
+                "media_type": "audio/wav",
+                "duration_seconds": 1.25,
+            }
+        ]
+        assert _stringify_message(trajectory["steps"][0]["message"]) == (
+            "Transcribe this\n[audio: audio/prompt.wav]"
+        )
+
 
 class TestParallelToolsMixedResults:
     """Tests for parallel tool calls with success, error, and empty results.
