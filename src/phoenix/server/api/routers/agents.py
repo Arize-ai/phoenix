@@ -125,7 +125,6 @@ from phoenix.db.types.data_stream_protocol import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.agents.agent_factory import build_agent, build_agent_tracer
 from phoenix.server.agents.capabilities import get_external_tool_definition
-from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.context import (
     AppContext,
     ChatContext,
@@ -148,7 +147,6 @@ from phoenix.server.agents.skill_requests import (
     iter_requested_skill_response_chunks,
     resolve_requested_skills,
 )
-from phoenix.server.agents.skills import get_skills
 from phoenix.server.agents.summarization import (
     summarize_messages,
     summarize_messages_for_compaction,
@@ -196,6 +194,7 @@ from phoenix.server.authorization import (
 )
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
+from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, Skill, load_skills
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import (
     Tracer,
@@ -3321,7 +3320,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     model_transcript_messages
                 )
                 if body.requested_skills:
-                    available_skills = get_skills()
+                    available_skills = load_skills(PXI_SKILLS_ROOTS)
                     forced_skills = resolve_requested_skills(
                         messages=model_transcript_messages,
                         requested_skill_names=body.requested_skills,
@@ -3332,7 +3331,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             messages=model_transcript_messages,
                             requested_skill_names=body.requested_skills,
                             available_skills=available_skills,
-                            load_skill_template=agent_prompts.load_skill,
                             message_factory=PhoenixUIMessage,
                         )
             adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
@@ -3600,7 +3598,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                         forced_skill_message_chunks = (
                                             iter_requested_skill_response_chunks(
                                                 skills=forced_skills,
-                                                load_skill_template=agent_prompts.load_skill,
                                             )
                                         )
                                         for (
