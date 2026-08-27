@@ -158,10 +158,7 @@ class ProjectSession(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[JSON]:
-        from phoenix.server.online_eval.bound_variables import (
-            SESSION_BOUND_VARIABLE_NAMES,
-            load_session_bound_variables,
-        )
+        from phoenix.server.online_eval.bound_variables import load_session_bound_variables
         from phoenix.server.online_eval.executor import (
             has_eligible_root_turns,
             load_session_eval_context,
@@ -183,7 +180,6 @@ class ProjectSession(Node):
             vocabularies = await load_session_bound_variables(
                 session,
                 project_session_rowids=[self.id],
-                names=SESSION_BOUND_VARIABLE_NAMES,
             )
             loaded = await load_session_eval_context(
                 session,

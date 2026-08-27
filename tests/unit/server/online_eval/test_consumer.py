@@ -912,7 +912,6 @@ async def test_load_session_bound_variables_reads_filter_language_values(
         resolved = await load_session_bound_variables(
             session,
             project_session_rowids=[project_session.id, empty_session.id],
-            names=SESSION_BOUND_VARIABLE_NAMES,
         )
 
     populated = resolved[project_session.id]

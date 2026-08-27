@@ -48,7 +48,6 @@ from phoenix.server.dml_event import (
     SpanAnnotationInsertEvent,
 )
 from phoenix.server.online_eval.bound_variables import (
-    SESSION_BOUND_VARIABLE_NAMES,
     SPAN_BOUND_VARIABLE_NAMES,
     load_session_bound_variables,
     session_duration_ms,
@@ -565,7 +564,6 @@ class OnlineEvalExecutor:
                         project_session_rowids={
                             units[index].target_rowid for index in session_indices
                         },
-                        names=SESSION_BOUND_VARIABLE_NAMES,
                     )
             except Exception as error:
                 for index in session_indices:
