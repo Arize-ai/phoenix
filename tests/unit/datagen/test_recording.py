@@ -1,10 +1,14 @@
 from pathlib import Path
 
-from phoenix.datagen.loader import load_corpus
-from scripts.datagen.corpus import package_corpus
-from scripts.datagen.graph_multi_agent import record as record_graph
-from scripts.datagen.openai_chat_sessions import record as record_chat
-from scripts.datagen.recording import fixtures_for, live_model_options, resolve_live_model
+import pytest
+
+pytest.importorskip("langchain_core")
+
+from phoenix.datagen.loader import load_corpus  # noqa: E402
+from scripts.datagen.corpus import package_corpus  # noqa: E402
+from scripts.datagen.graph_multi_agent import record as record_graph  # noqa: E402
+from scripts.datagen.openai_chat_sessions import record as record_chat  # noqa: E402
+from scripts.datagen.recording import fixtures_for, live_model_options, resolve_live_model  # noqa: E402
 
 
 def test_live_model_alias() -> None:

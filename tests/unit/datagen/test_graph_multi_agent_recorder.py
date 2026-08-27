@@ -4,7 +4,11 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from scripts.datagen.graph_multi_agent import record
+import pytest
+
+pytest.importorskip("langchain_core")
+
+from scripts.datagen.graph_multi_agent import record  # noqa: E402
 from scripts.datagen.recording import fixtures_for
 
 

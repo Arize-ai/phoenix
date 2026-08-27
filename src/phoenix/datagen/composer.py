@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import log
-from typing import Sequence, cast
+from typing import Sequence
 
 import numpy as np
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
@@ -66,22 +66,23 @@ class SessionComposer:
             }
             for archetype, applications in fragments_by_application.items()
         }
-        cells = tuple(
+        cells: list[tuple[Archetype, str]] = [
             (archetype, domain)
-            for archetype in sorted(self._fragments_by_application)
-            for domain in self._fragments_by_application[archetype]
-        )
+            for archetype, domains in self._fragments_by_application.items()
+            for domain in domains
+        ]
+        cells.sort()
         counts = np.array(
             [len(self._fragments_by_application[archetype][domain]) for archetype, domain in cells],
             dtype=np.float64,
         )
-        self._cells = cells
+        self._cells = tuple(cells)
         self._cell_probabilities = counts / counts.sum()
 
     def compose(self, *, now_ns: int) -> ComposedSession:
         """Materialize one backdated session ending at ``now_ns``."""
         cell_index = int(self._random.choice(len(self._cells), p=self._cell_probabilities))
-        archetype, domain = cast(tuple[Archetype, str], self._cells[cell_index])
+        archetype, domain = self._cells[cell_index]
         fragments = self._sample_fragments(archetype, domain, self._draw_fragment_count())
         traces: list[ComposedTrace] = []
         cursor_ns = 0

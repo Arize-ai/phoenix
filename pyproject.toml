@@ -374,6 +374,15 @@ module = "evals.harbor.agents.*"
 disallow_subclassing_any = false
 
 [[tool.mypy.overrides]]
+# The datagen recorders are PEP 723 scripts run via `uv run --script`; their
+# directory is not a package on the mypy path and their dependencies are not
+# installed in the development environment, so the unit tests that import them
+# cannot be followed by the root mypy run.
+module = "scripts.datagen.*"
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
 # e2b_code_interpreter and its e2b base ship without a top-level py.typed marker,
 # so opt mypy into following the untyped sources directly — preserves real
 # type-checking of SDK call sites in src/phoenix/server/sandbox/e2b_backend.py.

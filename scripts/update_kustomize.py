@@ -21,9 +21,7 @@ KUSTOMIZE_PATHS = (
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description=(
-            "Update the Kustomize template with a new Phoenix Docker image version."
-        ),
+        description=("Update the Kustomize template with a new Phoenix Docker image version."),
     )
     parser.add_argument(
         "version",
@@ -32,9 +30,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if not re.match(r"^\d+\.\d+\.\d+$", args.version):
-        parser.error(
-            f"Invalid version format: {args.version!r} (expected MAJOR.MINOR.PATCH)"
-        )
+        parser.error(f"Invalid version format: {args.version!r} (expected MAJOR.MINOR.PATCH)")
 
     for path in KUSTOMIZE_PATHS:
         text = path.read_text()
