@@ -1,7 +1,5 @@
 import { css, keyframes } from "@emotion/react";
 
-import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
-
 /**
  * The popover surface shared by every floating element the filter field
  * shows — the typeahead menu, its info panel, and the error popover — so
@@ -14,20 +12,28 @@ export const popoverSurfaceCSS = css`
   box-shadow: 0 8px 16px var(--global-overlay-shadow-color);
 `;
 
-/** Shared CodeMirror autocomplete menu and info-panel chrome. */
+/**
+ * Shared CodeMirror autocomplete menu and info-panel chrome.
+ *
+ * Applied globally, because `typeaheadTooltips` renders the menu into
+ * `document.body` rather than under any of its editors' wrappers. Every rule
+ * is scoped to the `dsl-filter-typeahead` class the typeahead surfaces ask
+ * for, so other editors' menus are untouched.
+ */
 export const typeaheadMenuCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
     padding: var(--global-dimension-size-50);
-    z-index: ${APP_FLOATING_Z_INDEX};
     /* CodeMirror anchors the tooltip to the text line inside the field, so
        the offset must clear the field's inner padding and border before it
        reads as a gap below the input itself. A transform (rather than
-       margin) keeps CodeMirror's own tooltip measurement and positioning
-       math untouched. */
-    transform: translateY(var(--global-dimension-size-200));
+       margin) keeps CodeMirror's own positioning math untouched;
+       typeaheadTooltips insets the space it measures against by the same
+       amount so a menu at the viewport edge still fits. */
+    --menu-gap: var(--typeahead-menu-gap, var(--global-dimension-size-200));
+    transform: translateY(var(--menu-gap));
     &.cm-tooltip-above {
-      transform: translateY(calc(-1 * var(--global-dimension-size-200)));
+      transform: translateY(calc(-1 * var(--menu-gap)));
     }
     & > ul {
       font-family: var(--global-font-family-sans);
@@ -122,15 +128,15 @@ export const typeaheadMenuCSS = css`
       max-width: 60%;
       flex: 0 1 auto;
     }
-  }
-  /* The info panel shown beside the highlighted completion */
-  .cm-tooltip.cm-completionInfo {
-    ${popoverSurfaceCSS}
-    font-family: var(--global-font-family-sans);
-    font-size: var(--global-font-size-s);
-    padding: var(--global-dimension-size-100);
-    color: var(--global-text-color-700);
-    max-width: 300px;
+    /* The info panel shown beside the highlighted completion */
+    & .cm-tooltip.cm-completionInfo {
+      ${popoverSurfaceCSS}
+      font-family: var(--global-font-family-sans);
+      font-size: var(--global-font-size-s);
+      padding: var(--global-dimension-size-100);
+      color: var(--global-text-color-700);
+      max-width: 300px;
+    }
   }
 `;
 
@@ -164,7 +170,6 @@ export const dslFilterCodeMirrorCSS = css`
   .cm-selectionLayer .cm-selectionBackground {
     background: var(--global-color-cyan-400) !important;
   }
-  ${typeaheadMenuCSS}
   /* The tab-through blanks an inserted snippet leaves behind — CodeMirror's
      default marking is a near-invisible gray, so tint them with the primary
      color to read as "fill me in": the active one is selected for overtyping,

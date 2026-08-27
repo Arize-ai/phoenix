@@ -4,7 +4,7 @@ import type {
   CompletionResult,
 } from "@codemirror/autocomplete";
 import { autocompletion } from "@codemirror/autocomplete";
-import type { EditorState } from "@codemirror/state";
+import type { EditorState, Extension } from "@codemirror/state";
 import type { EditorView } from "@uiw/react-codemirror";
 
 import {
@@ -32,6 +32,7 @@ import {
   toMemberSection,
   toWholePathValidFor,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import { typeaheadTooltips } from "@phoenix/components/filter/typeaheadTooltip";
 import type {
   CodeEvaluatorLanguage,
   EvaluatorMappingSource,
@@ -525,19 +526,22 @@ export function createEvaluatorAutocompletion({
   mappingSource: EvaluatorMappingSource;
   language: CodeEvaluatorLanguage;
   evaluationContext?: MaterializedEvaluatorContext | null;
-}) {
-  return autocompletion({
-    override: [
-      createEvaluatorCompletions({
-        mappingSource,
-        language,
-        evaluationContext,
-      }),
-    ],
-    activateOnTyping: true,
-    maxRenderedOptions: 50,
-    icons: false,
-    tooltipClass: () => "dsl-filter-typeahead",
-    optionClass: toEvaluatorCompletionClass,
-  });
+}): Extension {
+  return [
+    typeaheadTooltips(),
+    autocompletion({
+      override: [
+        createEvaluatorCompletions({
+          mappingSource,
+          language,
+          evaluationContext,
+        }),
+      ],
+      activateOnTyping: true,
+      maxRenderedOptions: 50,
+      icons: false,
+      tooltipClass: () => "dsl-filter-typeahead",
+      optionClass: toEvaluatorCompletionClass,
+    }),
+  ];
 }

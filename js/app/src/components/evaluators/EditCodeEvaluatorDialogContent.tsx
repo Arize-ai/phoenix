@@ -89,7 +89,6 @@ import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluat
 import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
 import { getEvaluatorSlotDefaults } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import { OptimizationDirectionField } from "@phoenix/components/evaluators/OptimizationDirectionField";
-import { typeaheadMenuCSS } from "@phoenix/components/filter/styles";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -1012,7 +1011,7 @@ export const CodeEvaluatorSourceEditor = ({
           {/* Editable code editor panel */}
           <Panel defaultSize="75%" minSize="30%" style={editorPanelStyle}>
             <div
-              css={[editorWrapCSS, cmLineNumberGutterCSS, typeaheadMenuCSS]}
+              css={[editorWrapCSS, cmLineNumberGutterCSS]}
               onKeyDown={(e) => {
                 if (e.key === "Escape" || e.key === "Tab") {
                   e.stopPropagation();

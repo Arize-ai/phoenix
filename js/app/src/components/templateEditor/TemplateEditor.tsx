@@ -9,7 +9,6 @@ import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
-import { typeaheadMenuCSS } from "@phoenix/components/filter/styles";
 import { useTheme } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -172,11 +171,6 @@ export const TemplateEditorWrap = ({
         & .cm-cursor {
           display: ${!readOnly ? "auto" : "none !important"};
         }
-        // Ensure autocomplete tooltip appears above other elements (e.g., chat message cards)
-        & .cm-tooltip-autocomplete {
-          z-index: 100;
-        }
-        ${typeaheadMenuCSS}
       `}
     >
       {children}

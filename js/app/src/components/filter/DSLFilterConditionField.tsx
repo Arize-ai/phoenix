@@ -16,14 +16,13 @@ import {
   StateEffect,
   StateField,
 } from "@codemirror/state";
-import { css, Global } from "@emotion/react";
+import { css } from "@emotion/react";
 import CodeMirror, {
   type BasicSetupOptions,
   Decoration,
   type DecorationSet,
   EditorView,
   keymap,
-  tooltips,
 } from "@uiw/react-codemirror";
 import type { ReactNode, Ref } from "react";
 import {
@@ -60,8 +59,8 @@ import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
   dslFilterFieldCSS,
-  portaledTypeaheadMenuCSS,
 } from "./styles";
+import { typeaheadTooltips } from "./typeaheadTooltip";
 
 /**
  * The result of validating a DSL filter condition expression, typically
@@ -585,16 +584,6 @@ export function DSLFilterConditionField<
     [ariaLabel]
   );
 
-  // A centered modal transforms and overflow-clips its dialog. That makes
-  // CodeMirror's fixed tooltip relative to the dialog and hides the
-  // completion menu outside the input's row. Reparent all editor tooltips to
-  // the modal overlay: they stay in the modal's interaction subtree while
-  // escaping the dialog's clip. The parent is discovered once the editor
-  // mounts (see onCreateEditor) and lives in the extensions array — an
-  // appended config would be silently dropped by the root reconfigure that
-  // any extensions change dispatches.
-  const [tooltipParent, setTooltipParent] = useState<HTMLElement | null>(null);
-
   // The extensions must be referentially stable across renders — a new
   // array causes a CodeMirror reconfigure, which resets the in-flight
   // completion state (e.g. the dropdown opened by focusing the field).
@@ -604,16 +593,8 @@ export function DSLFilterConditionField<
   // while the variant is on (a variant flip reconfigures the editor either
   // way).
   const extensions = useMemo(() => {
-    const tooltipReparent = tooltipParent
-      ? [tooltips({ parent: tooltipParent })]
-      : [];
     if (variant === "prose") {
-      return [
-        ...composedExtensions,
-        singleLineKeymap,
-        contentAttributes,
-        ...tooltipReparent,
-      ];
+      return [...composedExtensions, singleLineKeymap, contentAttributes];
     }
     // Fetch loaded completions at most once per focus, retrying on failure
     // the next time the dropdown opens
@@ -673,7 +654,7 @@ export function DSLFilterConditionField<
         }
       }),
       contentAttributes,
-      ...tooltipReparent,
+      typeaheadTooltips(),
       autocompletion({
         override: [
           ...completionSources,
@@ -702,7 +683,6 @@ export function DSLFilterConditionField<
     completionSources,
     getContextualCompletions,
     contentAttributes,
-    tooltipParent,
   ]);
 
   // Completion data can arrive after the user has already focused the empty
@@ -878,7 +858,6 @@ export function DSLFilterConditionField<
       className={classNames("dsl-filter-condition-field", className)}
       css={dslFilterFieldCSS}
     >
-      <Global styles={portaledTypeaheadMenuCSS} />
       <Flex direction="row" alignItems="center">
         {leadingVisual === undefined ? (
           <Icon svg={<Icons.ListFilter />} className="filter-icon" />
@@ -892,13 +871,6 @@ export function DSLFilterConditionField<
           readOnly={isReadOnly}
           onCreateEditor={(editorView) => {
             editorViewRef.current = editorView;
-            const overlay = editorView.dom.closest<HTMLElement>(
-              '[data-overlay-container="modal"]'
-            );
-            if (overlay) {
-              overlay.classList.add("dsl-filter-tooltip-root");
-              setTooltipParent(overlay);
-            }
           }}
           onFocus={() => {
             // Refresh the loaded completions each time the user returns to

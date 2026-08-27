@@ -5,10 +5,11 @@ import type {
 } from "@codemirror/autocomplete";
 import { autocompletion, startCompletion } from "@codemirror/autocomplete";
 import type { Extension } from "@codemirror/state";
-import { EditorView } from "@uiw/react-codemirror";
+import { EditorView } from "@codemirror/view";
 
 import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import { toEvaluatorCompletionClass } from "@phoenix/components/evaluators/evaluatorContextCompletions";
+import { typeaheadTooltips } from "@phoenix/components/filter/typeaheadTooltip";
 
 import { TemplateFormats } from "./constants";
 import { getEvaluatorTemplateCompletions } from "./evaluatorTemplateCompletions";
@@ -248,6 +249,7 @@ export function createTemplateAutocomplete(
 
   return [
     openEmptyVariableMenu(templateFormat),
+    typeaheadTooltips(),
     autocompletion({
       override: [completionFn],
       defaultKeymap: true,
