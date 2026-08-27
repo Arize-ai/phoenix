@@ -21,7 +21,10 @@ _SERVER_DIR = Path(__file__).resolve().parents[2]
 
 GENERAL_SKILLS_ROOT = Path(__file__).resolve().parent / "general"
 PXI_SKILLS_ROOT = _SERVER_DIR / "agents" / "prompts" / "skills"
-PXI_SKILLS_ROOTS: tuple[Path, ...] = (GENERAL_SKILLS_ROOT, PXI_SKILLS_ROOT)
+PXI_SKILLS_ROOTS: tuple[Path, ...] = (
+    # GENERAL_SKILLS_ROOT,  # uncomment once it holds real skills, not a placeholder
+    PXI_SKILLS_ROOT,
+)
 
 SKILL_TOOLS_TAG = "phoenix-mcp-skills"
 

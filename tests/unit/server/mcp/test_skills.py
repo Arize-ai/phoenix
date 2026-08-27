@@ -156,15 +156,16 @@ class TestTools:
 
 
 class TestLoadSkills:
-    def test_general_skills_precede_pxi_skills_and_each_root_is_by_name(self) -> None:
+    def test_pxi_skills_are_by_name_and_exclude_the_general_root(self) -> None:
         names = [skill.name for skill in load_skills(PXI_SKILLS_ROOTS)]
         general = [skill.name for skill in load_skills((GENERAL_SKILLS_ROOT,))]
         pxi = [skill.name for skill in load_skills((PXI_SKILLS_ROOT,))]
 
-        assert names == general + pxi
-        assert general == sorted(general)
-        assert pxi == sorted(pxi)
-        assert {"phoenix-graphql", "datasets"} <= set(pxi)
+        assert names == pxi
+        assert names == sorted(names)
+        assert {"phoenix-graphql", "datasets"} <= set(names)
+        assert general == ["project-overview"]
+        assert not set(general) & set(names)
 
     def test_references_are_named_by_their_path_from_the_skill_root(self, tmp_path: Path) -> None:
         _write_skill(tmp_path / "a-skill")
