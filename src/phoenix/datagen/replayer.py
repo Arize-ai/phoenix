@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict, deque
+from math import log
 from typing import Sequence, cast
 
 import numpy as np
@@ -23,6 +24,9 @@ _TOTAL_TOKENS = "llm.token_count.total"
 _COST_PREFIX = "llm.cost."
 _PARENT_END_MARGIN_NS = 1
 _JITTER_SIGMA = 0.1
+_SLOW_TAIL_PROBABILITY = 0.05
+_SLOW_TAIL_MEDIAN = 4.0
+_SLOW_TAIL_SIGMA = 0.75
 
 
 class Replayer:
@@ -170,6 +174,16 @@ def _jitter_numerics(
             duration,
             random=random,
         )
+
+    # Occasionally stretch one span into a genuine slow outlier so latency
+    # distributions carry a fat tail instead of hugging the recorded durations.
+    if spans and random.random() < _SLOW_TAIL_PROBABILITY:
+        parent_ids = {span.parent_span_id for span in spans}
+        leaves = [span for span in spans if span.span_id not in parent_ids] or list(spans)
+        span = max(leaves, key=lambda s: s.end_time_unix_nano - s.start_time_unix_nano)
+        duration = max(1, span.end_time_unix_nano - span.start_time_unix_nano)
+        factor = float(random.lognormal(mean=log(_SLOW_TAIL_MEDIAN), sigma=_SLOW_TAIL_SIGMA))
+        span.end_time_unix_nano = span.start_time_unix_nano + max(1, round(duration * factor))
 
 
 def _jitter_positive_int(value: int, *, random: np.random.Generator) -> int:
