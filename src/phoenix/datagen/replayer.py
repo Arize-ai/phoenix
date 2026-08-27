@@ -68,7 +68,8 @@ class Replayer:
 
     def _begin_composed_session(self, *, now_ns: int) -> None:
         session = self._composer.compose(now_ns=now_ns)
-        session_id = f"datagen-{self._fresh_id(16).hex()}"
+        domain = session.fragments[0].domain
+        session_id = f"{domain}-{self._fresh_id(16).hex()}"
         emissions = [
             self._rewrite(
                 trace.request,
