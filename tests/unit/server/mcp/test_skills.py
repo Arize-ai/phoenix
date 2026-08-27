@@ -226,7 +226,9 @@ class TestLoadSkills:
                 "---\nname: a-skill\nsummary: s\n---\n", "non-empty 'description'", id="no-desc"
             ),
             pytest.param(
-                "---\nname: a-skill\ndescription: d\n---\n", "non-empty 'summary'", id="no-summary"
+                "---\nname: a-skill\ndescription: d\nsummary: ''\n---\n",
+                "'summary' must be a non-empty string",
+                id="blank-summary",
             ),
         ],
     )
@@ -239,6 +241,38 @@ class TestLoadSkills:
 
         with pytest.raises(ValueError, match=message):
             Skill.from_directory(directory)
+
+    def test_summary_is_the_description_when_it_fits(self, tmp_path: Path) -> None:
+        directory = tmp_path / "a-skill"
+        directory.mkdir()
+        (directory / "SKILL.md").write_text(
+            "---\nname: a-skill\ndescription: Short enough to stand as its own summary.\n---\n"
+        )
+
+        skill = Skill.from_directory(directory)
+
+        assert skill.summary == "Short enough to stand as its own summary."
+
+    def test_summary_truncates_a_long_description_at_a_word(self, tmp_path: Path) -> None:
+        directory = tmp_path / "a-skill"
+        directory.mkdir()
+        description = " ".join(f"word{i}," for i in range(40))
+        (directory / "SKILL.md").write_text(
+            f"---\nname: a-skill\ndescription: {description}\n---\n"
+        )
+
+        skill = Skill.from_directory(directory)
+
+        assert len(skill.summary) <= 140
+        assert skill.summary.endswith("…")
+        assert not skill.summary.endswith(",…")
+        assert skill.summary[:-1] in description
+        assert skill.description == description
+
+    def test_an_explicit_summary_wins_over_the_derived_one(self, tmp_path: Path) -> None:
+        _write_skill(tmp_path / "a-skill")
+
+        assert Skill.from_directory(tmp_path / "a-skill").summary == "s"
 
     def test_a_folded_description_collapses_to_one_line(self, tmp_path: Path) -> None:
         directory = tmp_path / "a-skill"

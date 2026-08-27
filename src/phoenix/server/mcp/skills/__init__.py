@@ -1,10 +1,4 @@
-"""Skills the Phoenix MCP server serves.
-
-Skill directories follow https://agentskills.io/specification in part: a
-``SKILL.md`` whose frontmatter names the skill and describes when to use it,
-plus an optional ``references/`` directory of files read on demand. Phoenix
-also requires a ``summary`` field, and does not read ``scripts/`` or ``assets/``.
-"""
+"""Skills the Phoenix MCP server serves."""
 
 from __future__ import annotations
 
@@ -31,6 +25,7 @@ SKILL_TOOLS_TAG = "phoenix-mcp-skills"
 
 _SKILL_FILE = "SKILL.md"
 _REFERENCES_DIR = "references"
+_SUMMARY_MAX_CHARS = 140
 
 _READ_ONLY = ToolAnnotations(
     readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False
@@ -59,6 +54,14 @@ class Skill:
 
     @classmethod
     def from_directory(cls, directory: Path) -> Skill:
+        """Read a skill laid out per https://agentskills.io/specification.
+
+        A ``SKILL.md`` whose frontmatter names the skill and describes when to
+        use it, plus an optional ``references/`` directory of files read on
+        demand. Phoenix also reads an optional ``summary`` field, deriving one
+        from the description when it is absent, and does not read ``scripts/``
+        or ``assets/``.
+        """
         skill_file = directory / _SKILL_FILE
         text = skill_file.read_text(encoding="utf-8")
         frontmatter = _parse_frontmatter(text, skill_file)
@@ -67,10 +70,12 @@ class Skill:
             raise ValueError(
                 f"{skill_file}: name {name!r} does not match its directory {directory.name!r}"
             )
+        description = " ".join(_required_string(frontmatter, "description", skill_file).split())
+        summary = _get_frontmatter_value_if_exists_and_is_string(frontmatter, "summary", skill_file)
         return cls(
             name=name,
-            description=" ".join(_required_string(frontmatter, "description", skill_file).split()),
-            summary=_required_string(frontmatter, "summary", skill_file).strip(),
+            description=description,
+            summary=summary.strip() if summary else _truncate(description, _SUMMARY_MAX_CHARS),
             text=text,
             path=directory,
             references=_scan_references(directory),
@@ -108,6 +113,29 @@ def _required_string(frontmatter: dict[str, Any], key: str, source: Path) -> str
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{source}: frontmatter needs a non-empty {key!r}")
     return value
+
+
+def _get_frontmatter_value_if_exists_and_is_string(
+    frontmatter: dict[str, Any],
+    key: str,
+    source: Path,
+) -> Optional[str]:
+    value = frontmatter.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{source}: frontmatter {key!r} must be a non-empty string if given")
+    return value
+
+
+def _truncate(text: str, max_chars: int) -> str:
+    """``text`` cut to ``max_chars`` at a word boundary, ending in an ellipsis."""
+    if len(text) <= max_chars:
+        return text
+    cut = text.rfind(" ", 0, max_chars)
+    if cut <= 0:
+        cut = max_chars - 1
+    return text[:cut].rstrip(" ,;:.—-") + "…"
 
 
 def _scan_references(skill_dir: Path) -> tuple[SkillReference, ...]:
