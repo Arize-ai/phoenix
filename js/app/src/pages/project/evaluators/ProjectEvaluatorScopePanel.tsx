@@ -401,9 +401,9 @@ function SessionInputNote() {
     <Flex direction="column" gap="size-25">
       <Heading level={2}>Session input</Heading>
       <Text color="text-500" size="S">
-        Your evaluator receives the transcript as <code>input</code>, the last
-        response as <code>output</code>, and the turns under{" "}
-        <code>metadata.turns</code>.
+        The session's first input as <code>input</code>, its last output as{" "}
+        <code>output</code>, and every turn under{" "}
+        <code>metadata.session.turns</code>.
       </Text>
     </Flex>
   );
