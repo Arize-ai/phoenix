@@ -144,7 +144,7 @@ const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
 
   // Skills
   load_skill: "skill",
-  read_skill_reference: "skill",
+  load_skill_reference: "skill",
 
   // Time
   get_current_datetime: "time",
@@ -170,7 +170,7 @@ export function getToolIconKey({
   toolName: string;
   input?: unknown;
 }): IconKey {
-  if (toolName === "load_skill" || toolName === "read_skill_reference") {
+  if (toolName === "load_skill" || toolName === "load_skill_reference") {
     const skillName = getSkillName(input);
     const skillIcon = skillName ? SKILL_ICON_BY_NAME[skillName] : undefined;
     if (skillIcon) {

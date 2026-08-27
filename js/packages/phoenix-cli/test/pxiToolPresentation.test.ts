@@ -249,10 +249,10 @@ describe("getToolPresentation", () => {
     });
   });
 
-  describe("read_skill_reference", () => {
+  describe("load_skill_reference", () => {
     it("previews the skill and reference while running, without quieting", () => {
       const presentation = getToolPresentation({
-        toolName: "read_skill_reference",
+        toolName: "load_skill_reference",
         state: "input-available",
         input: { skill_name: "datasets", reference_name: "query-guide" },
         output: undefined,
@@ -264,7 +264,7 @@ describe("getToolPresentation", () => {
 
     it("previews the skill name alone while the reference is still streaming", () => {
       const presentation = getToolPresentation({
-        toolName: "read_skill_reference",
+        toolName: "load_skill_reference",
         state: "input-streaming",
         input: { skill_name: "datasets" },
         output: undefined,
@@ -274,25 +274,25 @@ describe("getToolPresentation", () => {
 
     it("collapses to a quiet labeled line once complete", () => {
       const presentation = getToolPresentation({
-        toolName: "read_skill_reference",
+        toolName: "load_skill_reference",
         state: "output-available",
         input: { skill_name: "datasets", reference_name: "query-guide" },
         output: { content: "…" },
       });
       expect(presentation.isQuiet).toBe(true);
       expect(presentation.quietLabel).toBe(
-        "Read skill reference datasets/query-guide"
+        "Loaded skill reference datasets/query-guide"
       );
     });
 
     it("uses a generic quiet label when the input is unavailable", () => {
       const presentation = getToolPresentation({
-        toolName: "read_skill_reference",
+        toolName: "load_skill_reference",
         state: "output-available",
         input: undefined,
         output: { content: "…" },
       });
-      expect(presentation.quietLabel).toBe("Read skill reference");
+      expect(presentation.quietLabel).toBe("Loaded skill reference");
     });
   });
 });

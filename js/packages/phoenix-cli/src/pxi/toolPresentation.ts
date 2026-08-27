@@ -339,11 +339,11 @@ function getLoadSkillPresentation({
 }
 
 /**
- * Skill reference reads are routine bookkeeping, like skill loads: once
- * complete they collapse to a single dim `Read skill reference
+ * Skill reference loads are routine bookkeeping, like skill loads: once
+ * complete they collapse to a single dim `Loaded skill reference
  * <skill>/<reference>` line instead of a full tool row.
  */
-function getReadSkillReferencePresentation({
+function getLoadSkillReferencePresentation({
   state,
   input,
 }: ToolPresenterOptions): Partial<ToolPresentation> {
@@ -364,8 +364,8 @@ function getReadSkillReferencePresentation({
   if (state === "output-available") {
     presentation.isQuiet = true;
     presentation.quietLabel = referenceLabel
-      ? `Read skill reference ${referenceLabel}`
-      : "Read skill reference";
+      ? `Loaded skill reference ${referenceLabel}`
+      : "Loaded skill reference";
   }
   return presentation;
 }
@@ -376,7 +376,7 @@ const TOOL_PRESENTERS: Record<string, ToolPresenter> = {
   web_fetch: getWebFetchPresentation,
   call_subagent: getCallSubagentPresentation,
   load_skill: getLoadSkillPresentation,
-  read_skill_reference: getReadSkillReferencePresentation,
+  load_skill_reference: getLoadSkillReferencePresentation,
 };
 
 /**

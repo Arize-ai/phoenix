@@ -6,17 +6,17 @@ import {
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { stringifyToolValue } from "./toolPartTypes";
 
-export const READ_SKILL_REFERENCE_TOOL_NAME = "read_skill_reference";
+export const LOAD_SKILL_REFERENCE_TOOL_NAME = "load_skill_reference";
 
-interface ReadSkillReferenceInput {
+interface LoadSkillReferenceInput {
   skillName: string;
   referenceName: string;
   args?: unknown;
 }
 
-function getReadSkillReferenceInput(
+function getLoadSkillReferenceInput(
   input: unknown
-): ReadSkillReferenceInput | null {
+): LoadSkillReferenceInput | null {
   if (typeof input === "object" && input !== null && !Array.isArray(input)) {
     const record = input as Record<string, unknown>;
     return {
@@ -30,25 +30,25 @@ function getReadSkillReferenceInput(
 }
 
 /**
- * Returns the preview text for the collapsed read_skill_reference tool summary.
+ * Returns the preview text for the collapsed load_skill_reference tool summary.
  */
-export function getReadSkillReferenceToolPreview(
+export function getLoadSkillReferenceToolPreview(
   part: ToolInvocationPart
 ): string {
-  const input = getReadSkillReferenceInput(part.input);
+  const input = getLoadSkillReferenceInput(part.input);
   return input?.referenceName ?? "";
 }
 
 /**
- * Expanded detail view for a read_skill_reference invocation showing the skill,
+ * Expanded detail view for a load_skill_reference invocation showing the skill,
  * reference, optional args, and returned reference content.
  */
-export function ReadSkillReferenceToolDetails({
+export function LoadSkillReferenceToolDetails({
   part,
 }: {
   part: ToolInvocationPart;
 }) {
-  const input = getReadSkillReferenceInput(part.input);
+  const input = getLoadSkillReferenceInput(part.input);
   const skillName = input?.skillName ?? "";
   const referenceName = input?.referenceName || stringifyToolValue(part.input);
   const args = input?.args == null ? "" : stringifyToolValue(input.args);

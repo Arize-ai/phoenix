@@ -57,7 +57,7 @@ class TestHandshake:
         for skill in load_skills(PXI_SKILLS_ROOTS):
             assert f"- {skill.name}: {skill.description}" in instructions
         assert "`load_skill`" in instructions
-        assert "`read_skill_reference`" in instructions
+        assert "`load_skill_reference`" in instructions
 
     async def test_no_roots_means_no_skills(self) -> None:
         mcp, _ = build_phoenix_mcp_server(
@@ -67,7 +67,7 @@ class TestHandshake:
             assert client.initialize_result is not None
             assert client.initialize_result.instructions is None
             names = {tool.name for tool in await client.list_tools()}
-            assert names.isdisjoint({"load_skill", "read_skill_reference"})
+            assert names.isdisjoint({"load_skill", "load_skill_reference"})
 
 
 class TestTools:
@@ -77,7 +77,7 @@ class TestTools:
 
         skill_md = (_GRAPHQL_SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
         assert loaded.startswith(skill_md.rstrip())
-        assert 'read_skill_reference(skill_name="phoenix-graphql"' in loaded
+        assert 'load_skill_reference(skill_name="phoenix-graphql"' in loaded
         assert "- references/datasets.md" in loaded
 
     async def test_load_skill_returns_a_skill_without_references_verbatim(self) -> None:
@@ -86,11 +86,11 @@ class TestTools:
 
         assert loaded == (PXI_SKILLS_ROOT / "datasets" / "SKILL.md").read_text(encoding="utf-8")
 
-    async def test_read_skill_reference_returns_the_file(self) -> None:
+    async def test_load_skill_reference_returns_the_file(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
             content = await _text(
                 client,
-                "read_skill_reference",
+                "load_skill_reference",
                 skill_name="phoenix-graphql",
                 reference_name="references/datasets.md",
             )
@@ -104,22 +104,38 @@ class TestTools:
                 await client.call_tool("load_skill", {"skill_name": "nope"})
             with pytest.raises(ToolError, match="references/datasets.md"):
                 await client.call_tool(
-                    "read_skill_reference",
+                    "load_skill_reference",
                     {"skill_name": "phoenix-graphql", "reference_name": "nope"},
                 )
 
-    async def test_the_skill_name_schema_enumerates_the_catalog(self) -> None:
+    async def test_the_parameter_schemas_enumerate_the_catalog(self) -> None:
         async with Client(_server(*PXI_SKILLS_ROOTS)) as client:
             tools = {tool.name: tool for tool in await client.list_tools()}
 
-        load_skill = tools["load_skill"]
-        assert load_skill.inputSchema["properties"]["skill_name"]["enum"] == [
-            skill.name for skill in load_skills(PXI_SKILLS_ROOTS)
-        ]
-        assert load_skill.annotations is not None
-        assert load_skill.annotations.readOnlyHint is True
-        assert tools["read_skill_reference"].annotations is not None
-        assert tools["read_skill_reference"].annotations.readOnlyHint is True
+        skills = load_skills(PXI_SKILLS_ROOTS)
+        skill_names = [skill.name for skill in skills]
+        load_params = tools["load_skill"].inputSchema["properties"]
+        read_params = tools["load_skill_reference"].inputSchema["properties"]
+        assert load_params["skill_name"]["enum"] == skill_names
+        assert read_params["skill_name"]["enum"] == skill_names
+        assert read_params["reference_name"]["enum"] == sorted(
+            {r.name for skill in skills for r in skill.references}
+        )
+        assert "references/datasets.md" in read_params["reference_name"]["enum"]
+        for tool in ("load_skill", "load_skill_reference"):
+            assert tools[tool].annotations is not None
+            assert tools[tool].annotations.readOnlyHint is True
+
+    async def test_a_catalog_without_references_leaves_the_reference_name_open(
+        self, tmp_path: Path
+    ) -> None:
+        _write_skill(tmp_path / "a-skill")
+        async with Client(_server(tmp_path)) as client:
+            tools = {tool.name: tool for tool in await client.list_tools()}
+
+        read_params = tools["load_skill_reference"].inputSchema["properties"]
+        assert read_params["skill_name"]["enum"] == ["a-skill"]
+        assert "enum" not in read_params["reference_name"]
 
     async def test_the_skill_tools_stay_direct_under_code_mode(self) -> None:
         """Code mode folds the catalog behind ``execute``; the skill tools are
@@ -141,9 +157,9 @@ class TestTools:
         finally:
             await runtime.aclose()
 
-        assert {"execute", "search", "load_skill", "read_skill_reference"} <= names
+        assert {"execute", "search", "load_skill", "load_skill_reference"} <= names
         assert "load_skill" not in catalog
-        assert "read_skill_reference" not in catalog
+        assert "load_skill_reference" not in catalog
         assert loaded.startswith("---\nname: datasets")
 
 

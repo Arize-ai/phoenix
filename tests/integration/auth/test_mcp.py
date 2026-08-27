@@ -499,7 +499,7 @@ class TestMcpCodeMode:
                 "list_tools",
                 "execute",
                 "load_skill",
-                "read_skill_reference",
+                "load_skill_reference",
             }
 
             result = await mcp_client.call_tool(

@@ -27,7 +27,7 @@ Top-level `Query` entrypoints get you to a starting entity; per-entity schema de
 
 ### Schema map
 
-Per-entity field references and examples are split into reference files. Read **only** the one(s) you need with `read_skill_reference`, after loading this skill:
+Per-entity field references and examples are split into reference files. Load **only** the one(s) you need with `load_skill_reference`, after loading this skill:
 
 - `references/project-spans-traces.md` — Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
 - `references/sessions.md` — ProjectSession: multi-turn session metrics, token/cost, session traces.

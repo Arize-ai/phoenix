@@ -85,7 +85,7 @@ class Skill:
         listing = "\n".join(f"- {reference.name}" for reference in self.references)
         return (
             f"{self.text.rstrip()}\n\n## References\n\n"
-            f'Read one with `read_skill_reference(skill_name="{self.name}", reference_name=...)`:\n'
+            f'Load one with `load_skill_reference(skill_name="{self.name}", reference_name=...)`:\n'
             f"{listing}\n"
         )
 
@@ -153,13 +153,21 @@ def get_skill_instructions(skills: Sequence[Skill]) -> str:
         f"Available skills:\n{listing}\n\n"
         "Load each skill at most once per conversation: if a successful load already "
         "appears in the conversation, reuse it. A loaded skill may list reference files; "
-        "read one with `read_skill_reference`, using the exact names the skill lists."
+        "load one with `load_skill_reference`, using the exact names the skill lists."
     )
 
 
 def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
-    """Add ``load_skill`` and ``read_skill_reference`` over ``skills`` to ``mcp``."""
+    """Add ``load_skill`` and ``load_skill_reference`` over ``skills`` to ``mcp``.
+
+    Both tools enumerate their parameters in the schema rather than listing
+    them in a description, so a client can validate a call before making it.
+    ``reference_name`` enumerates every skill's references at once: a
+    per-skill conditional schema is not portable across the model providers
+    clients hand tool schemas to, so a mismatched pair is caught at call time.
+    """
     by_name = {skill.name: skill for skill in skills}
+    reference_names = sorted({r.name for skill in skills for r in skill.references})
 
     def _skill(skill_name: str) -> Skill:
         skill = by_name.get(skill_name)
@@ -174,7 +182,7 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
     ) -> str:
         return _skill(skill_name).render()
 
-    async def read_skill_reference(
+    async def load_skill_reference(
         skill_name: Annotated[str, Field(description="Skill the reference belongs to.")],
         reference_name: Annotated[
             str, Field(description="Reference name exactly as listed by `load_skill`.")
@@ -201,22 +209,29 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
         annotations=_READ_ONLY,
         output_schema=None,
     )
-    # An enum rather than a listing in the description: a client can validate
-    # the name before the call.
-    load.parameters["properties"]["skill_name"]["enum"] = list(by_name)
-    mcp.add_tool(load)
-    mcp.add_tool(
-        Tool.from_function(
-            read_skill_reference,
-            description=(
-                "Read a reference file of a skill already loaded with `load_skill`, "
-                "using the exact skill and reference names that load listed."
-            ),
-            tags={SKILL_TOOLS_TAG},
-            annotations=_READ_ONLY,
-            output_schema=None,
-        )
+    read = Tool.from_function(
+        load_skill_reference,
+        description=(
+            "Load a reference file of a skill already loaded with `load_skill`, "
+            "using the exact skill and reference names that load listed."
+        ),
+        tags={SKILL_TOOLS_TAG},
+        annotations=_READ_ONLY,
+        output_schema=None,
     )
+    mcp.add_tool(_enumerate(load, skill_name=list(by_name)))
+    mcp.add_tool(_enumerate(read, skill_name=list(by_name), reference_name=reference_names))
+
+
+def _enumerate(tool: Tool, **values: Sequence[str]) -> Tool:
+    """Constrain ``tool``'s named string parameters to ``values`` in its schema.
+
+    A parameter with no values is left open: an empty ``enum`` is invalid.
+    """
+    for name, allowed in values.items():
+        if allowed:
+            tool.parameters["properties"][name]["enum"] = list(allowed)
+    return tool
 
 
 __all__ = [
