@@ -62,9 +62,9 @@ from phoenix.server.bearer_auth import (
 from phoenix.server.mcp.skills import (
     GENERAL_SKILLS_ROOT,
     SKILL_TOOLS_TAG,
+    get_skill_instructions,
     load_skills,
     register_skill_tools,
-    skills_instructions,
 )
 from phoenix.server.mcp_code_mode import MontyPoolSandboxProvider
 from phoenix.server.oauth2_authorization_server import public_origin
@@ -532,7 +532,7 @@ def build_phoenix_mcp_server(
         # Without this the handshake advertises the FastMCP library version, which
         # tells a client nothing about the Phoenix it is talking to.
         version=phoenix_version,
-        instructions=skills_instructions(skills),
+        instructions=get_skill_instructions(skills),
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not

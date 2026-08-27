@@ -151,7 +151,7 @@ def load_skills(roots: tuple[Path, ...]) -> tuple[Skill, ...]:
     return tuple(skills.values())
 
 
-def skills_instructions(skills: Sequence[Skill]) -> str:
+def get_skill_instructions(skills: Sequence[Skill]) -> str:
     """The ``initialize`` instructions: what exists, and how to use it.
 
     A client that honors instructions folds them into the model's system prompt,
@@ -240,5 +240,5 @@ __all__ = [
     "SkillResource",
     "load_skills",
     "register_skill_tools",
-    "skills_instructions",
+    "get_skill_instructions",
 ]
