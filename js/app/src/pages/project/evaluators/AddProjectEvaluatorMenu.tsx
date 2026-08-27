@@ -28,15 +28,19 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 
 export const AddProjectEvaluatorMenu = ({
   size,
+  buttonClassName,
+  buttonLabel = "Add evaluator",
+  shouldShowGalleryLink = true,
   ...props
 }: ProjectEvaluatorMenuTriggerProps) => {
   return (
     <ProjectEvaluatorMenu
       size={size}
-      buttonLabel="Add evaluator"
+      buttonClassName={buttonClassName}
+      buttonLabel={buttonLabel}
       buttonVariant="primary"
       buttonLeadingVisual={<Icon svg={<Icons.Plus />} />}
-      shouldShowGalleryLink
+      shouldShowGalleryLink={shouldShowGalleryLink}
       {...props}
     />
   );
@@ -59,10 +63,15 @@ export const BuildProjectEvaluatorMenu = ({
 
 type ProjectEvaluatorMenuTriggerProps = {
   size: ButtonProps["size"];
+  buttonClassName?: string;
+  buttonLabel?: string;
+  /** Hide the "Browse the whole library" item, e.g. when already on the gallery page. */
+  shouldShowGalleryLink?: boolean;
 } & Omit<MenuTriggerProps, "children">;
 
 function ProjectEvaluatorMenu({
   size,
+  buttonClassName,
   buttonLabel,
   buttonVariant,
   buttonLeadingVisual,
@@ -77,6 +86,7 @@ function ProjectEvaluatorMenu({
   return (
     <MenuTrigger {...props}>
       <Button
+        className={buttonClassName}
         variant={buttonVariant}
         size={size}
         leadingVisual={buttonLeadingVisual}
