@@ -65,17 +65,15 @@ class Skill:
         skill_file = directory / _SKILL_FILE
         text = skill_file.read_text(encoding="utf-8")
         frontmatter = _parse_frontmatter(text, skill_file)
-        name = _required_string(frontmatter, "name", skill_file)
-        if name != directory.name:
+        if frontmatter.name != directory.name:
             raise ValueError(
-                f"{skill_file}: name {name!r} does not match its directory {directory.name!r}"
+                f"{skill_file}: name {frontmatter.name!r} does not match "
+                f"its directory {directory.name!r}"
             )
-        description = " ".join(_required_string(frontmatter, "description", skill_file).split())
-        summary = _get_frontmatter_value_if_exists_and_is_string(frontmatter, "summary", skill_file)
         return cls(
-            name=name,
-            description=description,
-            summary=summary.strip() if summary else _truncate(description, _SUMMARY_MAX_CHARS),
+            name=frontmatter.name,
+            description=frontmatter.description,
+            summary=frontmatter.summary,
             text=text,
             path=directory,
             references=_scan_references(directory),
@@ -95,17 +93,32 @@ class Skill:
         )
 
 
-def _parse_frontmatter(text: str, source: Path) -> dict[str, Any]:
+@dataclass(frozen=True)
+class _Frontmatter:
+    """A ``SKILL.md`` frontmatter, validated and normalized."""
+
+    name: str
+    description: str
+    summary: str
+
+
+def _parse_frontmatter(text: str, source: Path) -> _Frontmatter:
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         raise ValueError(f"{source}: must open with a '---' frontmatter fence")
     closing = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
     if closing is None:
         raise ValueError(f"{source}: frontmatter fence is never closed")
-    frontmatter = yaml.safe_load("\n".join(lines[1:closing])) or {}
-    if not isinstance(frontmatter, dict):
+    mapping = yaml.safe_load("\n".join(lines[1:closing])) or {}
+    if not isinstance(mapping, dict):
         raise ValueError(f"{source}: frontmatter must be a mapping")
-    return frontmatter
+    description = " ".join(_required_string(mapping, "description", source).split())
+    summary = _get_frontmatter_value_if_exists_and_is_string(mapping, "summary", source)
+    return _Frontmatter(
+        name=_required_string(mapping, "name", source),
+        description=description,
+        summary=summary.strip() if summary else _truncate(description, _SUMMARY_MAX_CHARS),
+    )
 
 
 def _required_string(frontmatter: dict[str, Any], key: str, source: Path) -> str:
