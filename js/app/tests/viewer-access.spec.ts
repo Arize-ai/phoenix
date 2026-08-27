@@ -29,7 +29,7 @@ test("can create user key", async ({ page }) => {
 
 test("should not be able to create a new project", async ({ page }) => {
   await page.goto("/projects");
-  await page.waitForURL("**/projects");
+  await page.waitForURL(/\/projects(\?|$)/);
 
   // Wait for the page to be loaded
   await expect(
@@ -45,7 +45,7 @@ test("projects table renders for viewers and allows filtering input", async ({
   page,
 }) => {
   await page.goto("/projects");
-  await page.waitForURL("**/projects");
+  await page.waitForURL(/\/projects(\?|$)/);
 
   const search = page.getByRole("searchbox", {
     name: "Search projects by name",
