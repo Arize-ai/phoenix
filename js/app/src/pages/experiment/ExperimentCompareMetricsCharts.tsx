@@ -1,6 +1,6 @@
 import { Suspense, useCallback } from "react";
 
-import { Loading } from "@phoenix/components";
+import { Loading, View } from "@phoenix/components";
 import {
   ChartPanelStrip,
   getMetricChartsViewSetting,
@@ -172,17 +172,26 @@ function CompareChartsStrip({
 }: CompareChartsProps & { keys: ExperimentMetricChartKey[] }) {
   const charts = getExperimentMetricCharts(keys);
   return (
-    <ChartPanelStrip chartCount={charts.length}>
-      {charts.map((chart) => (
-        <DeferredExperimentMetricPanel
-          key={chart.key}
-          chart={chart}
-          datasetId={datasetId}
-          experimentSelection={experimentSelection}
-          fillHeight
-        />
-      ))}
-    </ChartPanelStrip>
+    // The strip owns no outer spacing, so this edge-to-edge placement above
+    // the compare grid supplies its own gutters.
+    <View
+      paddingStart="size-200"
+      paddingEnd="size-200"
+      paddingTop="size-100"
+      height="100%"
+    >
+      <ChartPanelStrip chartCount={charts.length}>
+        {charts.map((chart) => (
+          <DeferredExperimentMetricPanel
+            key={chart.key}
+            chart={chart}
+            datasetId={datasetId}
+            experimentSelection={experimentSelection}
+            fillHeight
+          />
+        ))}
+      </ChartPanelStrip>
+    </View>
   );
 }
 

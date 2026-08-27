@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { Group, Panel } from "react-resizable-panels";
 
-import { useTimeRange } from "@phoenix/components";
+import { useTimeRange, View } from "@phoenix/components";
 import {
   ChartPanelStrip,
   METRIC_CHARTS_CONTENT_PANEL_ID,
@@ -42,21 +42,30 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
   const timeRange = useClosedTimeRange();
   const charts = getProjectMetricCharts(selectedChartKeys);
   return (
-    <ChartPanelStrip chartCount={charts.length}>
-      {/* Re-fetch the charts on each stream refresh so they stay live */}
-      <MetricFetchKeyProvider value={fetchKey}>
-        {charts.map((chart) => (
-          <DeferredProjectMetricPanel
-            key={chart.key}
-            chart={chart}
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={setCustomTimeRange}
-            fillHeight
-          />
-        ))}
-      </MetricFetchKeyProvider>
-    </ChartPanelStrip>
+    // The strip owns no outer spacing, so this edge-to-edge placement above
+    // the table supplies its own gutters.
+    <View
+      paddingStart="size-200"
+      paddingEnd="size-200"
+      paddingTop="size-100"
+      height="100%"
+    >
+      <ChartPanelStrip chartCount={charts.length}>
+        {/* Re-fetch the charts on each stream refresh so they stay live */}
+        <MetricFetchKeyProvider value={fetchKey}>
+          {charts.map((chart) => (
+            <DeferredProjectMetricPanel
+              key={chart.key}
+              chart={chart}
+              projectId={projectId}
+              timeRange={timeRange}
+              onTimeRangeSelected={setCustomTimeRange}
+              fillHeight
+            />
+          ))}
+        </MetricFetchKeyProvider>
+      </ChartPanelStrip>
+    </View>
   );
 });
 
