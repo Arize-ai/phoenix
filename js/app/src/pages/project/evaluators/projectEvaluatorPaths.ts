@@ -74,12 +74,10 @@ export function useProjectEvaluatorPaths() {
         })}`,
       newLlm: withCurrentSearch(newLlmProjectEvaluatorPath(rootPath)),
       newCode: withCurrentSearch(newCodeProjectEvaluatorPath(rootPath)),
-      galleryNewLlm: withCurrentSearch(`${gallery}/new/llm`),
       galleryNewLlmFromTemplate: (templateName: string) =>
         withCurrentSearch(
           `${gallery}/new/template/${encodeURIComponent(templateName)}`
         ),
-      galleryNewCode: withCurrentSearch(`${gallery}/new/code`),
       copyLlm: (evaluatorId: string) =>
         withCurrentSearch(
           `${list}/new/copy/${encodeURIComponent(evaluatorId)}`

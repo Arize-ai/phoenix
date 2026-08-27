@@ -84,35 +84,9 @@ export function NewLlmProjectEvaluatorPage() {
   );
 }
 
-export function NewGalleryLlmProjectEvaluatorPage() {
-  const projectId = useRouteProjectId();
-  const onOpenChange = useCloseGallerySlideover();
-  return (
-    <CreateProjectEvaluatorSlideover
-      isOpen
-      onOpenChange={onOpenChange}
-      projectId={projectId}
-      creationMode={{ kind: "scratch" }}
-    />
-  );
-}
-
 export function NewCodeProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
   const onOpenChange = useCloseSlideover();
-  return (
-    <CreateProjectEvaluatorSlideover
-      isOpen
-      onOpenChange={onOpenChange}
-      projectId={projectId}
-      creationMode={{ kind: "newCode" }}
-    />
-  );
-}
-
-export function NewGalleryCodeProjectEvaluatorPage() {
-  const projectId = useRouteProjectId();
-  const onOpenChange = useCloseGallerySlideover();
   return (
     <CreateProjectEvaluatorSlideover
       isOpen
