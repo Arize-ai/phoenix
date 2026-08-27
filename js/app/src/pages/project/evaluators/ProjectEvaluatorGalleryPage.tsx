@@ -119,6 +119,8 @@ function EvaluatorGallery() {
   }));
   const categoryItems = [...quickStartItems, ...useCaseItems];
   const requestedCategory = searchParams.get(PROJECT_EVALUATOR_CATEGORY_PARAM);
+  // Shared or stale URLs can contain an unknown category; Recommended is the
+  // gallery's stable fallback.
   const activeCategoryItem = categoryItems.find(
     ({ id }) => id === requestedCategory
   );
@@ -137,6 +139,8 @@ function EvaluatorGallery() {
   const requestedTemplateName = searchParams.get(
     PROJECT_EVALUATOR_TEMPLATE_PARAM
   );
+  // Fall back to the first visible template if a saved selection is no longer
+  // part of the active category.
   const selectedTemplate =
     visibleTemplates.find(({ name }) => name === requestedTemplateName) ??
     visibleTemplates[0];
@@ -163,6 +167,13 @@ function EvaluatorGallery() {
         nextSearchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
       }
       nextSearchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
+      return nextSearchParams;
+    });
+  };
+  const setSelectedTemplate = (templateName: string) => {
+    setSearchParams((currentSearchParams) => {
+      const nextSearchParams = new URLSearchParams(currentSearchParams);
+      nextSearchParams.set(PROJECT_EVALUATOR_TEMPLATE_PARAM, templateName);
       return nextSearchParams;
     });
   };
@@ -283,16 +294,7 @@ function EvaluatorGallery() {
             if (selection === "all") return;
             const templateName = selection.keys().next().value;
             if (typeof templateName === "string") {
-              setSearchParams((currentSearchParams) => {
-                const nextSearchParams = new URLSearchParams(
-                  currentSearchParams
-                );
-                nextSearchParams.set(
-                  PROJECT_EVALUATOR_TEMPLATE_PARAM,
-                  templateName
-                );
-                return nextSearchParams;
-              });
+              setSelectedTemplate(templateName);
             }
           }}
         >

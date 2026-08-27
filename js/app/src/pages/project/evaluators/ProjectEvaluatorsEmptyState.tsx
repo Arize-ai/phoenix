@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useLazyLoadQuery } from "react-relay";
 
 import {
@@ -23,7 +23,7 @@ import {
 
 const MAX_CATEGORY_TEMPLATES = 3;
 const CATEGORY_CARDS_PER_VIEW = 3;
-const CATEGORY_CARD_SKELETON_HEIGHT = 250;
+const CATEGORY_CARD_MIN_HEIGHT = 250;
 const CATEGORY_CAROUSEL_ID = "project-evaluator-category-carousel";
 
 export function ProjectEvaluatorsEmptyState() {
@@ -31,21 +31,20 @@ export function ProjectEvaluatorsEmptyState() {
   return (
     <Flex
       direction="column"
+      gap="size-200"
       width="100%"
       maxWidth="var(--global-text-content-max-width)"
       css={emptyStateContentCSS}
     >
-      <Flex direction="column" gap="size-200" width="100%">
-        <ErrorBoundary fallback={EvaluatorCategoryCardsError}>
-          <Suspense fallback={<EvaluatorCategoryCardsSkeleton />}>
-            <EvaluatorCategoryCards />
-          </Suspense>
-        </ErrorBoundary>
-        <Flex justifyContent="start">
-          <LinkButton size="S" variant="primary" to={paths.gallery}>
-            Browse the library
-          </LinkButton>
-        </Flex>
+      <ErrorBoundary fallback={EvaluatorCategoryCardsError}>
+        <Suspense fallback={<EvaluatorCategoryCardsSkeleton />}>
+          <EvaluatorCategoryCards />
+        </Suspense>
+      </ErrorBoundary>
+      <Flex justifyContent="start">
+        <LinkButton size="S" variant="primary" to={paths.gallery}>
+          Browse the library
+        </LinkButton>
       </Flex>
     </Flex>
   );
@@ -66,27 +65,42 @@ function CategoryCards({
   templates: readonly ProjectEvaluatorTemplate[];
 }) {
   const paths = useProjectEvaluatorPaths();
+  // Keep the full track mounted so native scrolling can animate continuously
+  // between neighboring groups of cards.
+  const categoryCardListRef = useRef<HTMLUListElement>(null);
   const [firstVisibleCategoryIndex, setFirstVisibleCategoryIndex] = useState(0);
   const lastFirstVisibleCategoryIndex = Math.max(
     PROJECT_EVALUATOR_CATEGORIES.length - CATEGORY_CARDS_PER_VIEW,
     0
   );
-  const visibleCategories = PROJECT_EVALUATOR_CATEGORIES.slice(
-    firstVisibleCategoryIndex,
-    firstVisibleCategoryIndex + CATEGORY_CARDS_PER_VIEW
-  );
   const hasPreviousCategories = firstVisibleCategoryIndex > 0;
   const hasNextCategories =
     firstVisibleCategoryIndex < lastFirstVisibleCategoryIndex;
 
+  const showCategoryAtIndex = (categoryIndex: number) => {
+    const categoryCardList = categoryCardListRef.current;
+    const firstCategoryCard = categoryCardList?.children.item(0);
+    const targetCategoryCard = categoryCardList?.children.item(categoryIndex);
+    if (
+      categoryCardList &&
+      firstCategoryCard instanceof HTMLElement &&
+      targetCategoryCard instanceof HTMLElement
+    ) {
+      // Measure actual offsets so the scroll target stays aligned if card or
+      // gap tokens change.
+      categoryCardList.scrollTo({
+        left: targetCategoryCard.offsetLeft - firstCategoryCard.offsetLeft,
+      });
+    }
+    setFirstVisibleCategoryIndex(categoryIndex);
+  };
+
   const showPreviousCategories = () => {
-    setFirstVisibleCategoryIndex((currentIndex) =>
-      Math.max(currentIndex - 1, 0)
-    );
+    showCategoryAtIndex(Math.max(firstVisibleCategoryIndex - 1, 0));
   };
   const showNextCategories = () => {
-    setFirstVisibleCategoryIndex((currentIndex) =>
-      Math.min(currentIndex + 1, lastFirstVisibleCategoryIndex)
+    showCategoryAtIndex(
+      Math.min(firstVisibleCategoryIndex + 1, lastFirstVisibleCategoryIndex)
     );
   };
 
@@ -104,49 +118,63 @@ function CategoryCards({
           onNext={showNextCategories}
         />
         <ul
+          ref={categoryCardListRef}
           id={CATEGORY_CAROUSEL_ID}
           css={categoryCardListCSS}
           aria-live="polite"
         >
-          {visibleCategories.map(({ value, label, description }) => {
-            const categoryTemplates = templates
-              .filter(({ category }) => category === value)
-              .slice(0, MAX_CATEGORY_TEMPLATES);
-            return (
-              <li key={value} css={categoryCardCSS}>
-                <Link
-                  to={paths.galleryCategory(value)}
-                  css={categorySummaryLinkCSS}
+          {PROJECT_EVALUATOR_CATEGORIES.map(
+            ({ value, label, description }, categoryIndex) => {
+              const categoryTemplates = templates
+                .filter(({ category }) => category === value)
+                .slice(0, MAX_CATEGORY_TEMPLATES);
+              const isCategoryVisible =
+                categoryIndex >= firstVisibleCategoryIndex &&
+                categoryIndex <
+                  firstVisibleCategoryIndex + CATEGORY_CARDS_PER_VIEW;
+              return (
+                <li
+                  key={value}
+                  css={categoryCardCSS}
+                  // Offscreen cards remain mounted for motion, so exclude
+                  // their links from the accessibility tree and tab order.
+                  aria-hidden={isCategoryVisible ? undefined : true}
+                  inert={isCategoryVisible ? undefined : true}
                 >
-                  <Text weight="heavy" color="inherit">
-                    {label}
-                  </Text>
-                  <Text size="S" color="text-700">
-                    {description}
-                  </Text>
-                </Link>
-                {categoryTemplates.length > 0 ? (
-                  <ul css={templateLinkListCSS}>
-                    {categoryTemplates.map((template) => (
-                      <li key={template.name}>
-                        <Link
-                          to={paths.galleryTemplate({
-                            category: value,
-                            templateName: template.name,
-                          })}
-                          css={templateLinkCSS}
-                        >
-                          <Text size="XS" color="inherit">
-                            {template.name}
-                          </Text>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </li>
-            );
-          })}
+                  <Link
+                    to={paths.galleryCategory(value)}
+                    css={categorySummaryLinkCSS}
+                  >
+                    <Text weight="heavy" color="inherit">
+                      {label}
+                    </Text>
+                    <Text size="S" color="text-700">
+                      {description}
+                    </Text>
+                  </Link>
+                  {categoryTemplates.length > 0 ? (
+                    <ul css={templateLinkListCSS}>
+                      {categoryTemplates.map((template) => (
+                        <li key={template.name}>
+                          <Link
+                            to={paths.galleryTemplate({
+                              category: value,
+                              templateName: template.name,
+                            })}
+                            css={templateLinkCSS}
+                          >
+                            <Text size="XS" color="inherit">
+                              {template.name}
+                            </Text>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              );
+            }
+          )}
         </ul>
       </Flex>
     </section>
@@ -161,7 +189,7 @@ function EvaluatorCategoryCardsSkeleton() {
         {PROJECT_EVALUATOR_CATEGORIES.slice(0, CATEGORY_CARDS_PER_VIEW).map(
           ({ value }) => (
             <li key={value}>
-              <Skeleton height={CATEGORY_CARD_SKELETON_HEIGHT} />
+              <Skeleton height={CATEGORY_CARD_MIN_HEIGHT} />
             </li>
           )
         )}
@@ -233,22 +261,34 @@ const emptyStateContentCSS = css`
 `;
 
 const categoryCardListCSS = css`
-  display: grid;
-  grid-template-columns: repeat(${CATEGORY_CARDS_PER_VIEW}, minmax(0, 1fr));
-  gap: var(--global-dimension-size-125);
+  --category-card-gap: var(--global-dimension-size-125);
+
+  display: flex;
+  gap: var(--category-card-gap);
+  overflow: hidden;
   margin: 0;
   padding: 0;
   list-style: none;
+  scroll-behavior: smooth;
 
   > li {
     display: flex;
+    flex: 0 0
+      calc(
+        (100% - var(--category-card-gap) - var(--category-card-gap)) /
+          ${CATEGORY_CARDS_PER_VIEW}
+      );
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    scroll-behavior: auto;
   }
 `;
 
 const categoryCardCSS = css`
   box-sizing: border-box;
   flex-direction: column;
-  min-height: ${CATEGORY_CARD_SKELETON_HEIGHT}px;
+  min-height: ${CATEGORY_CARD_MIN_HEIGHT}px;
   min-width: 0;
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);

@@ -26,6 +26,7 @@ function TestProjectEvaluatorPaths() {
   return (
     <output
       data-gallery={paths.gallery}
+      data-gallery-return={paths.galleryReturn}
       data-response-quality-gallery={paths.galleryCategory("RESPONSE_QUALITY")}
       data-template-gallery={paths.galleryTemplate({
         category: "RESPONSE_QUALITY",
@@ -36,7 +37,7 @@ function TestProjectEvaluatorPaths() {
 }
 
 describe("useProjectEvaluatorPaths", () => {
-  it("builds default and category gallery links without dropping URL state", () => {
+  it("separates the default gallery entry and slideover return destinations", () => {
     act(() => {
       root.render(
         <MemoryRouter
@@ -55,6 +56,9 @@ describe("useProjectEvaluatorPaths", () => {
     });
 
     const output = container.querySelector("output");
+    expect(output?.getAttribute("data-gallery-return")).toBe(
+      "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
+    );
     expect(output?.getAttribute("data-gallery")).toBe(
       "/projects/project-1/evaluator-gallery?timeRangeKey=7d&proof=preserved"
     );
