@@ -10,6 +10,7 @@ import {
   getRerankerAttributes,
   getRetrieverAttributes,
   getToolAttributes,
+  getToolSchemaName,
   groupDocumentEvaluationsByPosition,
   parseSpanAttributes,
 } from "../utils";
@@ -379,6 +380,36 @@ describe("getToolAttributes", () => {
       parameters:
         '{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}',
     });
+  });
+});
+
+describe("getToolSchemaName", () => {
+  it("reads the name of an openai style tool definition", () => {
+    expect(
+      getToolSchemaName(
+        '{"type":"function","function":{"name":"get_weather","parameters":{"type":"object"}}}'
+      )
+    ).toBe("get_weather");
+  });
+
+  it("reads the name of an anthropic style tool definition", () => {
+    expect(
+      getToolSchemaName(
+        '{"name":"get_weather","input_schema":{"type":"object"}}'
+      )
+    ).toBe("get_weather");
+  });
+
+  it("falls back to the title of a bare parameter schema", () => {
+    expect(getToolSchemaName('{"title":"get_weather","type":"object"}')).toBe(
+      "get_weather"
+    );
+  });
+
+  it("returns undefined when the schema names no tool", () => {
+    expect(getToolSchemaName('{"type":"object"}')).toBeUndefined();
+    expect(getToolSchemaName('{"name":""}')).toBeUndefined();
+    expect(getToolSchemaName("not json")).toBeUndefined();
   });
 });
 

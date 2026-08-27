@@ -23,7 +23,10 @@ import {
   toRecordPreview,
   toToolCallsPreview,
 } from "@phoenix/utils/contentPreviewUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import {
+  safelyParseJSON,
+  safelyParseJSONObjectString,
+} from "@phoenix/utils/jsonUtils";
 
 import type {
   AttributeObject,
@@ -288,6 +291,27 @@ export function getEmbeddingAttributes(spanAttributes: AttributeObject): {
       ?.map((obj) => obj[SemanticAttributePrefixes.embedding])
       .filter(Boolean) || []) as AttributeEmbeddingEmbedding[],
   };
+}
+
+/**
+ * The name of the tool a JSON schema recorded on an LLM span describes.
+ *
+ * The schema is the tool definition as the model provider's SDK received it,
+ * so where the name sits depends on the provider: nested under `function` for
+ * OpenAI-style definitions, at the top level for Anthropic-style ones, and in
+ * the JSON Schema `title` when an instrumentation recorded only the parameter
+ * schema.
+ */
+export function getToolSchemaName(toolSchema: string): string | undefined {
+  const schema = safelyParseJSONObjectString(toolSchema) as
+    | Record<string, unknown>
+    | undefined;
+  if (schema == null) {
+    return undefined;
+  }
+  const fn = (schema.function ?? {}) as Record<string, unknown>;
+  const name = fn.name ?? schema.name ?? schema.title;
+  return typeof name === "string" && name !== "" ? name : undefined;
 }
 
 /**

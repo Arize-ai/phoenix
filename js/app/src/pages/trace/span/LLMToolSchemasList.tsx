@@ -11,6 +11,7 @@ import { SpanKindIcon } from "@phoenix/components/trace";
 
 import { defaultCardProps } from "./constants";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
+import { getToolSchemaName } from "./utils";
 
 /**
  * A card displaying a single tool JSON schema available to the LLM.
@@ -22,10 +23,11 @@ function LLMToolSchema({
   toolSchema: string;
   index: number;
 }) {
+  const name = getToolSchemaName(toolSchema);
   const titleEl = (
     <Flex direction="row" gap="size-100" alignItems="center">
       <SpanKindIcon spanKind="tool" />
-      <Text weight="heavy">Tool</Text>
+      <Text weight="heavy">{name == null ? "Tool" : `Tool: ${name}`}</Text>
     </Flex>
   );
 

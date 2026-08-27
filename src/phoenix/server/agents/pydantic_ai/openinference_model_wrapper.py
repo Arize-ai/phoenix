@@ -258,11 +258,11 @@ def _response_to_oi_message(msg: ModelResponse) -> Message:
 def _to_oi_tools(params: ModelRequestParameters) -> list[Tool]:
     tools: list[Tool] = []
     for tool_def in params.function_tools or []:
-        schema: dict[str, Any] = {**tool_def.parameters_json_schema}
-        schema.setdefault("title", tool_def.name)
+        function: dict[str, Any] = {"name": tool_def.name}
         if tool_def.description:
-            schema.setdefault("description", tool_def.description)
-        tools.append({"json_schema": schema})
+            function["description"] = tool_def.description
+        function["parameters"] = tool_def.parameters_json_schema
+        tools.append({"json_schema": {"type": "function", "function": function}})
     return tools
 
 
