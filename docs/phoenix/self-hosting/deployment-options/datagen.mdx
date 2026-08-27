@@ -48,7 +48,8 @@ docker compose --profile datagen up --build
 
 Running `docker compose up` without the profile does not start the generator. Adjust the rate or
 burstiness by adding flags to the service's command in `docker-compose.yml`, for example
-`phoenix datagen --rate 30`; override the project with `PHOENIX_PROJECT_NAME`.
+`command: ["-m", "phoenix.server.main", "datagen", "--rate", "30"]`; override the project
+with `PHOENIX_PROJECT_NAME`.
 
 ## Helm
 
@@ -97,12 +98,15 @@ the prompted `PHOENIX_API_KEY` to a Phoenix system API key.
 In a non-production Railway environment, add a second service beside the Phoenix service:
 
 1. Use the same Phoenix image and version as the server service.
-2. Set the start command to `phoenix datagen`.
+2. Set the start command to `python3 -m phoenix.server.main datagen`. The image's
+   `phoenix` console script does not work when the start command is overridden, because
+   the image has no shell and the script's interpreter path is not valid in the final image.
 3. Set `PHOENIX_COLLECTOR_ENDPOINT` to
    `http://${{phoenix.RAILWAY_PRIVATE_DOMAIN}}:6006`, replacing `phoenix` with the server service's
    Railway name.
 4. Adjust the rate or burstiness with flags on the start command (for example
-   `phoenix datagen --rate 30`); override the project with `PHOENIX_PROJECT_NAME`.
+   `python3 -m phoenix.server.main datagen --rate 30`); override the project with
+   `PHOENIX_PROJECT_NAME`.
 5. If the Phoenix service has authentication enabled, add `PHOENIX_API_KEY` as a sealed variable.
 
 Railway private service addresses use HTTP and remain inside the project environment. Do not add a
@@ -111,7 +115,8 @@ public domain to the generator service.
 ## Google Cloud Run
 
 Create a second Cloud Run job from the same image as the Phoenix service. Override the container
-command to `phoenix`, set the arguments to `datagen` plus any rate or burstiness flags, and
+command to `python3` and set the arguments to `-m phoenix.server.main datagen` plus any rate
+or burstiness flags, and
 configure `PHOENIX_COLLECTOR_ENDPOINT` with the Phoenix service URL. If the Phoenix service
 requires authentication, also configure a Phoenix API key and ensure
 the job can reach its ingress.

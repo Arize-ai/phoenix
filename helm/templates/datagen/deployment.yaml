@@ -26,8 +26,12 @@ spec:
         - name: datagen
           image: {{ .Values.image.registry }}/{{ .Values.image.repository | default "arizephoenix/phoenix" }}:{{ .Values.image.tag | default "latest" }}
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
-          command: ["phoenix", "datagen"]
+          # The image ENTRYPOINT is the Python interpreter; args replaces the
+          # image CMD while keeping that ENTRYPOINT.
           args:
+            - -m
+            - phoenix.server.main
+            - datagen
             - --rate={{ .Values.datagen.rate }}
             {{- with .Values.datagen.args }}
             {{- toYaml . | nindent 12 }}

@@ -14,7 +14,9 @@ services:
     build:
       dockerfile: ./Dockerfile
       context: .
-    command: phoenix datagen
+    # The image ENTRYPOINT is the Python interpreter, so override CMD with
+    # module arguments rather than a console-script name.
+    command: ["-m", "phoenix.server.main", "datagen"]
     profiles: ["datagen"]
     depends_on:
       - phoenix

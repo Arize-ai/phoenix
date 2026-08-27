@@ -79,7 +79,8 @@ Use `--rate` and `--burstiness` to vary the traffic cadence. The collector defau
 Phoenix deployment. Run `phoenix datagen --help` for project, corpus, and authentication options.
 
 On Railway, use the same Phoenix image for a second service whose start command is
-`phoenix datagen`. Configure its collector endpoint and API key as environment variables so
+`python3 -m phoenix.server.main datagen` (an overridden start command bypasses the image
+entrypoint, so the `phoenix` console script is not usable there). Configure its collector endpoint and API key as environment variables so
 the generator and server stay on the same Phoenix release.
 
 ## Setting Up Your macOS Development Environment

@@ -16,9 +16,12 @@ spec:
     spec:
       containers:
         - name: datagen
-          image: arizephoenix/phoenix:version-20.3.0
-          command:
-            - phoenix
+          image: arizephoenix/phoenix:version-20.4.0
+          # The image ENTRYPOINT is the Python interpreter; args replaces the
+          # image CMD while keeping that ENTRYPOINT.
+          args:
+            - -m
+            - phoenix.server.main
             - datagen
           env:
             - name: PHOENIX_COLLECTOR_ENDPOINT
