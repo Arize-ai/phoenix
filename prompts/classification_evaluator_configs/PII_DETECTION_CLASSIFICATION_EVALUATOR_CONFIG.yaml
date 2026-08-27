@@ -84,7 +84,7 @@ messages:
       - Fully redacted or tokenized fields such as "[NAME]", "[REDACTED]", "[PERSON_1]", "***", or "<email>" (see rule 7). Judge the text as it appears now.
       - Aggregate or statistical information about a group, with no individual singled out.
       - Organization-, system-, or product-level identifiers that are not tied to a specific human, including role/function inboxes such as support@, info@, billing@, sales@, hello@, and noreply@.
-      - Hypothetical or instructional discussion of PII categories or formats in the abstract, with no actual instance of someone's data (see rule 13).
+      - Hypothetical or instructional discussion of PII categories or formats in the abstract, with no actual instance of someone's data (see rule 12).
       - Publicly generic information that does not narrow to an individual (a city, a country, a common first name used generically, a general date).
       </rubric>
 
