@@ -75,7 +75,7 @@ pxi.turn (AGENT, root)        input.value = "can you save this trace to a datase
 │   └── PXISubagent.iter (AGENT)
 │       ├── model (LLM)
 │       ├── query_phoenix (TOOL)
-│       └── read_skill_resource (TOOL)
+│       └── load_skill_reference (TOOL)
 └── ... (last LLM span carries the complete transcript)
 ```
 

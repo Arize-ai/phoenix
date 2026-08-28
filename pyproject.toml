@@ -63,7 +63,7 @@ dependencies = [
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose ==0.0.17 pin conflicts and would ship in wheel metadata.
   "pydantic-monty==0.0.19",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.33.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.34.0,<3",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
   # here so the major version is chosen deliberately rather than by resolution.
   "anthropic>=1,<2",
@@ -270,6 +270,7 @@ artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
+  "src/phoenix/server/mcp/skills",
   "src/phoenix/db/migrations",
   "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
@@ -294,6 +295,7 @@ artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
+  "src/phoenix/server/mcp/skills",
   "src/phoenix/db/migrations",
   "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
@@ -443,7 +445,7 @@ line-ending = "native"
 script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
-required-version = "==0.12.1"  # When updating this version, also update ARG UV_IMAGE in the Dockerfile
+required-version = "==0.12.5"  # When updating this version, also update ARG UV_IMAGE in the Dockerfile
 exclude-newer = "3 days"
 # Exempt our own packages from the `exclude-newer` window so freshly published
 # versions are immediately resolvable. arize-phoenix-sqlean is not a workspace

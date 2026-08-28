@@ -28,6 +28,8 @@ notification is emitted to that session automatically.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import httpx
@@ -56,6 +58,12 @@ from phoenix.server.bearer_auth import (
     authenticated_claims,
     get_bound_principal,
     token_audience_permits,
+)
+from phoenix.server.mcp.skills import (
+    SKILL_TOOLS_TAG,
+    get_skill_instructions,
+    load_skills,
+    register_skill_tools,
 )
 from phoenix.server.mcp_code_mode import MontyPoolSandboxProvider
 from phoenix.server.oauth2_authorization_server import public_origin
@@ -328,6 +336,26 @@ def _read_only(
     return build
 
 
+class _CodeModeWithDirectSkillTools(CodeMode):
+    """Code mode that leaves the skill tools on ``tools/list`` but hides them from inside code mode.
+
+    Upstream has no affordance for this; see
+    https://github.com/PrefectHQ/fastmcp/issues/4925.
+    """
+
+    async def transform_tools(self, tools: "Sequence[Tool]") -> "Sequence[Tool]":
+        """The ``tools/list`` response."""
+        direct = [tool for tool in tools if SKILL_TOOLS_TAG in tool.tags]
+        return [*await super().transform_tools(tools), *direct]
+
+    async def get_tool_catalog(
+        self, ctx: Context, *, run_middleware: bool = True
+    ) -> "Sequence[Tool]":
+        """The catalog ``search``/``list_tools``/``execute`` see."""
+        catalog = await super().get_tool_catalog(ctx, run_middleware=run_middleware)
+        return [tool for tool in catalog if SKILL_TOOLS_TAG not in tool.tags]
+
+
 def _build_code_mode(
     runtime: "MontyRuntime", consumer: "MontyConsumer"
 ) -> tuple[CodeMode, MontyPoolSandboxProvider]:
@@ -352,7 +380,7 @@ def _build_code_mode(
     """
     sandbox_provider = MontyPoolSandboxProvider(runtime=runtime, consumer=consumer)
     return (
-        CodeMode(
+        _CodeModeWithDirectSkillTools(
             discovery_tools=[
                 _read_only(Search()),
                 _read_only(GetSchemas()),
@@ -461,6 +489,7 @@ def build_phoenix_mcp_server(
     monty_consumer: "MontyConsumer" = "mcp",
     read_only: bool = False,
     db: "DbSessionFactory",
+    skills_roots: Sequence[Path] = (),
 ) -> tuple[FastMCP, Optional[MontyPoolSandboxProvider]]:
     """Derive an MCP server from ``app``'s REST API.
 
@@ -478,6 +507,9 @@ def build_phoenix_mcp_server(
             mode. Ignored when code mode is off.
         read_only: Derive tools from GET routes only.
         db: Session factory for the analytics SQL tools.
+        skills_roots: Directories whose skill folders this consumer receives.
+            Empty by default: no skill tools, and no skill instructions in the
+            handshake.
 
     Returns:
         The server, and — when code mode is enabled — the sandbox adapter backed
@@ -493,6 +525,7 @@ def build_phoenix_mcp_server(
         base_url=_INTERNAL_BASE_URL,
     )
     openapi_spec = app.openapi()
+    skills = load_skills(tuple(skills_roots))
     mcp: FastMCP = FastMCP.from_openapi(
         openapi_spec=openapi_spec,
         client=client,
@@ -500,6 +533,7 @@ def build_phoenix_mcp_server(
         # Without this the handshake advertises the FastMCP library version, which
         # tells a client nothing about the Phoenix it is talking to.
         version=phoenix_version,
+        instructions=get_skill_instructions(skills) if skills else None,
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not
@@ -534,6 +568,8 @@ def build_phoenix_mcp_server(
     from phoenix.server.mcp.sql.tools import register_analytics_sql_tools
 
     register_analytics_sql_tools(mcp, db=db)
+    if skills:
+        register_skill_tools(mcp, skills)
     return mcp, sandbox_provider
 
 

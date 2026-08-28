@@ -9,6 +9,8 @@ import pytest
 
 from phoenix.evals.rate_limiters import (
     AdaptiveTokenBucket,
+    RateLimiter,
+    RateLimitError,
     UnavailableTokensError,
 )
 
@@ -362,3 +364,70 @@ def test_token_bucket_decreases_rate_once_per_cooldown_period():
     with warp_time(start + 6):
         bucket.on_rate_limit_error(request_start_time=time.time())
         assert isclose(bucket.rate, 6.25)
+
+
+async def test_token_bucket_async_decreases_rate_once_per_cooldown_period():
+    start = time.time()
+    rate = 100
+
+    with freeze_time(start):
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=0.25,
+            rate_increase_factor=0.01,
+            cooldown_seconds=5,
+        )
+
+    with async_warp_time(start):
+        request_start_time = time.time()
+        await bucket.async_on_rate_limit_error(request_start_time=request_start_time)
+        await bucket.async_on_rate_limit_error(request_start_time=request_start_time)
+
+    assert isclose(bucket.rate, 25)
+
+
+async def test_alimit_cooldown_never_blocks_the_event_loop():
+    class _RateLimitError(Exception):
+        pass
+
+    limiter = RateLimiter(
+        rate_limit_error=_RateLimitError,
+        max_rate_limit_retries=1,
+        initial_per_second_request_rate=1000,
+        cooldown_seconds=5,
+    )
+
+    @limiter.alimit
+    async def always_rate_limited():
+        raise _RateLimitError
+
+    with async_warp_time(time.time()):
+        with mock.patch("time.sleep") as mock_sync_sleep:
+            with pytest.raises(RateLimitError):
+                await always_rate_limited()
+            assert not mock_sync_sleep.called, "async path must not block with time.sleep"
+
+
+async def test_alimit_cancellation_during_cooldown_unblocks_waiters():
+    class _RateLimitError(Exception):
+        pass
+
+    limiter = RateLimiter(
+        rate_limit_error=_RateLimitError,
+        max_rate_limit_retries=0,
+        initial_per_second_request_rate=1000,
+        cooldown_seconds=5,
+    )
+
+    @limiter.alimit
+    async def always_rate_limited():
+        raise _RateLimitError
+
+    with mock.patch("asyncio.sleep", side_effect=asyncio.CancelledError):
+        with pytest.raises(asyncio.CancelledError):
+            await always_rate_limited()
+
+    assert limiter._rate_limit_handling is not None
+    assert limiter._rate_limit_handling.is_set()

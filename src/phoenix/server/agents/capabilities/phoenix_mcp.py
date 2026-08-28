@@ -84,13 +84,17 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
 
 @dataclass
 class PhoenixMCPCapability(AbstractCapability[AgentDepsT]):
-    """Pairs the Phoenix MCP toolset with its guidance text."""
+    """Pairs the Phoenix MCP toolset with its guidance text and the server's
+    own ``initialize`` instructions."""
 
     mcp_server: MCPToolset[AgentDepsT]
     instructions: str
+    initialize_instructions: Optional[str] = None
 
     def get_toolset(self) -> AgentToolset[AgentDepsT] | None:
         return self.mcp_server
 
     def get_instructions(self) -> str:
-        return self.instructions
+        if not self.initialize_instructions:
+            return self.instructions
+        return f"{self.instructions}\n{self.initialize_instructions}"
