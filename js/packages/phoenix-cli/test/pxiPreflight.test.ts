@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
-import { runPxiModelPreflight } from "../src/pxi/preflight";
+import {
+  getRecommendedPxiModels,
+  isSameModelSelection,
+  resolveRestoredPxiModelSelection,
+  runPxiModelPreflight,
+  runPxiServerVersionPreflight,
+} from "../src/pxi/preflight";
 
 type FetchCall = {
   url: string;
@@ -99,7 +105,259 @@ function createFetch({
   return { fetchImpl, calls };
 }
 
+describe("isSameModelSelection", () => {
+  // The session poll uses this to decide whether the model actually moved.
+  // A false negative would put a catalog round trip on every poll tick.
+  it("matches built-in selections on provider and model name", () => {
+    expect(
+      isSameModelSelection(
+        { providerType: "builtin", provider: "OPENAI", modelName: "gpt-5.4" },
+        { providerType: "builtin", provider: "OPENAI", modelName: "gpt-5.4" }
+      )
+    ).toBe(true);
+  });
+
+  it("distinguishes provider and model name", () => {
+    expect(
+      isSameModelSelection(
+        { providerType: "builtin", provider: "OPENAI", modelName: "gpt-5.4" },
+        { providerType: "builtin", provider: "GOOGLE", modelName: "gpt-5.4" }
+      )
+    ).toBe(false);
+    expect(
+      isSameModelSelection(
+        { providerType: "builtin", provider: "OPENAI", modelName: "gpt-5.4" },
+        { providerType: "builtin", provider: "OPENAI", modelName: "gpt-5.5" }
+      )
+    ).toBe(false);
+  });
+
+  it("compares custom selections by provider id and never matches a built-in", () => {
+    expect(
+      isSameModelSelection(
+        { providerType: "custom", providerId: "p1", modelName: "m" },
+        { providerType: "custom", providerId: "p1", modelName: "m" }
+      )
+    ).toBe(true);
+    expect(
+      isSameModelSelection(
+        { providerType: "custom", providerId: "p1", modelName: "m" },
+        { providerType: "custom", providerId: "p2", modelName: "m" }
+      )
+    ).toBe(false);
+    expect(
+      isSameModelSelection(
+        { providerType: "custom", providerId: "p1", modelName: "m" },
+        { providerType: "builtin", provider: "OPENAI", modelName: "m" }
+      )
+    ).toBe(false);
+  });
+});
+
 describe("PXI model preflight", () => {
+  it("uses a valid persisted model when no model flags were provided", async () => {
+    const options = createRuntimeOptions({
+      provider: undefined,
+      model: undefined,
+    });
+    const persistedModel = {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+    } as const;
+    const { fetchImpl } = createFetch({
+      body: { data: createPreflightData() },
+    });
+
+    await expect(
+      resolveRestoredPxiModelSelection({
+        options,
+        persistedModelSelection: persistedModel,
+        fetchImpl,
+      })
+    ).resolves.toEqual(persistedModel);
+  });
+
+  it("ignores explicit model flags in favour of the persisted selection", async () => {
+    // The flags express an intent to *move* the session, applied once as a
+    // write when it is restored. Honouring them here as well would make every
+    // poll re-assert them and mask model changes from other clients.
+    // Flags say gpt-5.4; the session is persisted on a different, still-valid
+    // model.
+    const options = createRuntimeOptions();
+    const persistedModel = {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.5",
+    } as const;
+    const { fetchImpl } = createFetch({
+      body: {
+        data: createPreflightData({
+          playgroundModels: [
+            { providerKey: "OPENAI", name: "gpt-5.4" },
+            { providerKey: "OPENAI", name: "gpt-5.5" },
+          ],
+        }),
+      },
+    });
+
+    await expect(
+      resolveRestoredPxiModelSelection({
+        options,
+        persistedModelSelection: persistedModel,
+        fetchImpl,
+      })
+    ).resolves.toEqual(persistedModel);
+  });
+
+  it("keeps an invalid persisted model and surfaces the validation error", async () => {
+    // The persisted selection is the source of truth: every send asserts the
+    // displayed model, so falling back to the CLI default would make the
+    // server reject each send with agent_session_model_stale. The user is
+    // warned instead.
+    const options = createRuntimeOptions({
+      provider: undefined,
+      model: undefined,
+    });
+    const persistedModel = {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "missing-model",
+    } as const;
+    const { fetchImpl } = createFetch({
+      body: { data: createPreflightData() },
+    });
+    const onInvalidModel = vi.fn();
+
+    await expect(
+      resolveRestoredPxiModelSelection({
+        options,
+        persistedModelSelection: persistedModel,
+        onInvalidModel,
+        fetchImpl,
+      })
+    ).resolves.toEqual(persistedModel);
+
+    expect(onInvalidModel).toHaveBeenCalledTimes(1);
+    expect(onInvalidModel.mock.calls[0]?.[0]?.error?.message).toContain(
+      "Invalid model for OpenAI (OPENAI): missing-model"
+    );
+  });
+
+  it("keeps the persisted model without warning when the catalog fetch fails", async () => {
+    // A transient network/500 failure says nothing about the model's
+    // validity; treating it as invalid used to swap in the CLI default and
+    // put every send into a 409 loop until the preflight recovered.
+    const options = createRuntimeOptions({
+      provider: undefined,
+      model: undefined,
+    });
+    const persistedModel = {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+    } as const;
+    const fetchImpl: typeof globalThis.fetch = async () => {
+      throw new TypeError("fetch failed");
+    };
+    const onInvalidModel = vi.fn();
+
+    await expect(
+      resolveRestoredPxiModelSelection({
+        options,
+        persistedModelSelection: persistedModel,
+        onInvalidModel,
+        fetchImpl,
+      })
+    ).resolves.toEqual(persistedModel);
+
+    expect(onInvalidModel).not.toHaveBeenCalled();
+  });
+
+  it("keeps the persisted model without warning on catalog HTTP errors", async () => {
+    const options = createRuntimeOptions({
+      provider: undefined,
+      model: undefined,
+    });
+    const persistedModel = {
+      providerType: "builtin",
+      provider: "OPENAI",
+      modelName: "gpt-5.4",
+    } as const;
+    const { fetchImpl } = createFetch({
+      body: { detail: "boom" },
+      status: 500,
+      statusText: "Internal Server Error",
+    });
+    const onInvalidModel = vi.fn();
+
+    await expect(
+      resolveRestoredPxiModelSelection({
+        options,
+        persistedModelSelection: persistedModel,
+        onInvalidModel,
+        fetchImpl,
+      })
+    ).resolves.toEqual(persistedModel);
+
+    expect(onInvalidModel).not.toHaveBeenCalled();
+  });
+
+  it("validates an explicitly passed selection instead of the launch selection", async () => {
+    // The restored-session path reuses runPxiModelPreflight by passing the
+    // persisted selection; the launch selection must not shadow it.
+    const options = createRuntimeOptions();
+    const { fetchImpl } = createFetch({
+      body: { data: createPreflightData() },
+    });
+
+    await expect(
+      runPxiModelPreflight({
+        options,
+        modelSelection: {
+          providerType: "builtin",
+          provider: "OPENAI",
+          modelName: "missing-model",
+        },
+        fetchImpl,
+      })
+    ).rejects.toThrow("Invalid model for OpenAI (OPENAI): missing-model");
+  });
+
+  it("returns available recommended models in the main app's curated order", () => {
+    const models = getRecommendedPxiModels({
+      data: createPreflightData({
+        playgroundModels: [
+          { providerKey: "GOOGLE", name: "gemini-3.7-flash" },
+          // Still offered by the server, but superseded: it must not come back
+          // as a recommendation just because it is installed.
+          { providerKey: "GOOGLE", name: "gemini-3.5-flash" },
+          { providerKey: "OPENAI", name: "unrecommended-model" },
+          { providerKey: "OPENAI", name: "gpt-5.4" },
+          { providerKey: "ANTHROPIC", name: "claude-opus-4-8" },
+        ],
+      }),
+    });
+
+    expect(models).toEqual([
+      {
+        providerType: "builtin",
+        provider: "ANTHROPIC",
+        modelName: "claude-opus-4-8",
+      },
+      {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      },
+      {
+        providerType: "builtin",
+        provider: "GOOGLE",
+        modelName: "gemini-3.7-flash",
+      },
+    ]);
+  });
+
   it("uses configured endpoint, API key, and custom headers", async () => {
     const options = createRuntimeOptions({ apiKey: "secret" });
     options.config.headers = { "X-Phoenix": "pxi" };
@@ -285,5 +543,54 @@ describe("PXI model preflight", () => {
     expect(message).toContain("Cause: connect ECONNREFUSED 127.0.0.1:6006");
     expect(message).toContain("pass --endpoint <url> or set PHOENIX_ENDPOINT");
     expect(message).toContain("pass --skip-model-preflight");
+  });
+});
+
+describe("PXI server version preflight", () => {
+  function createVersionFetch({
+    body,
+    status = 200,
+  }: {
+    body: string;
+    status?: number;
+  }) {
+    const calls: string[] = [];
+    const fetchImpl: typeof globalThis.fetch = async (input) => {
+      calls.push(input instanceof Request ? input.url : String(input));
+      return new Response(body, { status });
+    };
+    return { fetchImpl, calls };
+  }
+
+  it("passes when the server meets the agent-session contract version, checking every capability with a single version request", async () => {
+    const options = createRuntimeOptions();
+    const { fetchImpl, calls } = createVersionFetch({ body: "20.0.0" });
+
+    await runPxiServerVersionPreflight({ options, fetchImpl });
+
+    expect(calls).toEqual(["http://localhost:6006/arize_phoenix_version"]);
+  });
+
+  it("rejects a server that predates the agent-session contract with an upgrade message", async () => {
+    const options = createRuntimeOptions();
+    const { fetchImpl } = createVersionFetch({ body: "19.21.0" });
+
+    await expect(
+      runPxiServerVersionPreflight({ options, fetchImpl })
+    ).rejects.toThrow(
+      /requires Phoenix server >= 20\.0\.0, but connected to server 19\.21\.0/
+    );
+  });
+
+  it("rejects when the server version cannot be determined", async () => {
+    const options = createRuntimeOptions();
+    const { fetchImpl } = createVersionFetch({
+      body: "Not Found",
+      status: 404,
+    });
+
+    await expect(
+      runPxiServerVersionPreflight({ options, fetchImpl })
+    ).rejects.toThrow(/version could not be determined/i);
   });
 });

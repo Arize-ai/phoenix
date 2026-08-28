@@ -72,7 +72,7 @@ This is the **canonical list** of supported integrations. Use these tables to ma
 |---|---|---|
 | `openai` | OpenAI | https://arize.com/docs/phoenix/integrations/llm-providers/openai |
 | `anthropic` | Anthropic | https://arize.com/docs/phoenix/integrations/llm-providers/anthropic |
-| `google.generativeai` or `@google/generative-ai` | Google Gen AI | https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai |
+| `google.genai` or `@google/genai` | Google Gen AI | https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai |
 | `groq` | Groq | https://arize.com/docs/phoenix/integrations/llm-providers/groq |
 | `boto3` + `bedrock` | Amazon Bedrock | https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock |
 | `litellm` | LiteLLM | https://arize.com/docs/phoenix/integrations/llm-providers/litellm |

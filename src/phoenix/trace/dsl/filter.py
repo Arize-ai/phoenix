@@ -2,7 +2,7 @@ import ast
 import math
 import re
 import typing
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from itertools import chain
@@ -26,19 +26,23 @@ _VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation")
 
 AnnotationAttribute: TypeAlias = typing.Literal["explanation", "label", "score"]
 AnnotationName: TypeAlias = str
+AnnotationRelationKind: TypeAlias = typing.Literal["span", "trace"]
+
+_ANNOTATION_ACCESSORS: tuple[str, ...] = ("trace_annotations", "annotations", "evals")
 
 
 @dataclass(frozen=True)
 class AliasedAnnotationRelation:
     """
-    Represents an aliased annotation relation (i.e., SQL table). Used to
-    perform joins on annotations during filtering. An alias is required
-    because the annotation table may be joined multiple times for different
-    annotation names.
+    Represents an aliased annotation relation (i.e., SQL table). Used to perform
+    joins on span-, trace-, or session-level annotations during filtering. An
+    alias is required because an annotation table may be joined multiple times
+    for different annotation names.
     """
 
     index: int
     name: str
+    kind: AnnotationRelationKind = "span"
     annotation_model: type[typing.Any] = models.SpanAnnotation
     table_prefix: str = "span_annotation"
     table: AliasedClass[typing.Any] = field(init=False, repr=False)
@@ -166,6 +170,7 @@ COMPREHENSION_NAMES: frozenset[str] = QUANTIFIER_NAMES | REDUCTION_NAMES
 
 _QUANTIFIER_RESULT_PREFIX = "__quantifier_"
 _REDUCTION_RESULT_PREFIX = "__reduction_"
+_DATETIME_REDUCTION_RESULT_PREFIX = "__datetime_reduction_"
 
 # The two string-containment lowerings `in` can translate to, named in the compiled expression so
 # the rendered tree states which polarity a grain got.
@@ -204,13 +209,16 @@ class _FilterBindings:
     entity_id: "sqlalchemy.SQLColumnExpression[typing.Any]"
     annotation_table_prefix: str
     reject_unbound_names: bool
+    caller_bound_string_names: frozenset[str] = frozenset()
     boolean_names: NameMap = MappingProxyType({})
     quantifiers: frozenset[str] = frozenset()
     exists_names: frozenset[str] = frozenset()
     supports_parent_keyword: bool = False
     iterables: typing.Mapping[str, "_IterableGrammar"] = MappingProxyType({})
+    annotation_accessors: frozenset[str] = frozenset(_ANNOTATION_ACCESSORS)
+    annotation_accessor_errors: typing.Mapping[str, str] = MappingProxyType({})
     # The iterable that reads this grain's annotations element-wise, named when an
-    # `annotations[...]` expression is rejected for being out of scope.
+    # annotation accessor is rejected for being out of scope.
     annotation_iterable: typing.Optional[str] = None
     # Whether `in` against a string haystack ignores case. Every grain shipped so far sets it,
     # so the family answers text search the same way; `==` stays exact everywhere.
@@ -222,6 +230,8 @@ class _FilterBindings:
     # Dotted spellings accepted as shorthands for a root-span attribute key, e.g. `user.id`.
     # Under `strict_semantics` every other dotted root is rejected.
     attribute_proxies: frozenset[str] = frozenset()
+    allow_outer_element_references: bool = False
+    allow_datetime_reductions: bool = False
 
     @property
     def names(self) -> NameMap:
@@ -247,6 +257,7 @@ class _FilterBindings:
                 self.boolean_names,
                 self.aggregate_names,
                 self.exists_names,
+                self.caller_bound_string_names,
             )
         )
 
@@ -262,6 +273,17 @@ class _IterableGrammar(typing.NamedTuple):
 
     element_bindings: _FilterBindings
     nested: typing.Mapping[str, str] = MappingProxyType({})
+    related: typing.Mapping[str, _FilterBindings] = MappingProxyType({})
+
+
+class ElementFieldReference(typing.NamedTuple):
+    """An element field retained for the SQL subquery builder."""
+
+    scope_depth: int
+    source_iterable: str
+    path: tuple[str, ...]
+    kind: typing.Literal["string", "float", "datetime", "boolean"]
+    uppercase: bool
 
 
 SPAN_BINDINGS = _FilterBindings(
@@ -306,6 +328,7 @@ class ComprehensionSpec(typing.NamedTuple):
     condition: typing.Any
     children: tuple["ComprehensionSpec", ...]
     literal_bindings: typing.Mapping[str, typing.Any]
+    element_references: typing.Mapping[str, ElementFieldReference]
     """Safe values bound while compiling ``predicate`` / ``condition`` (e.g.
     datetime literals); the caller merges them into the element eval globals."""
 
@@ -367,6 +390,28 @@ def _scope_of(name: str, scopes: typing.Sequence[_ElementScope]) -> typing.Optio
     return None
 
 
+def _scope_index(name: str, scopes: typing.Sequence[_ElementScope]) -> typing.Optional[int]:
+    for index in range(len(scopes) - 1, -1, -1):
+        if scopes[index].variable == name:
+            return index
+    return None
+
+
+def _binding_kind(
+    name: str,
+    bindings: _FilterBindings,
+) -> typing.Optional[typing.Literal["string", "float", "datetime", "boolean"]]:
+    if name in bindings.string_names or name in bindings.caller_bound_string_names:
+        return "string"
+    if name in bindings.float_names or name in bindings.aggregate_names:
+        return "float"
+    if name in bindings.datetime_names:
+        return "datetime"
+    if name in bindings.boolean_names:
+        return "boolean"
+    return None
+
+
 def _nested_iterable_error(iterable: str, scope: _ElementScope) -> SyntaxError:
     nested = _disjunction(
         sorted(f"`{scope.variable}.{attribute}`" for attribute in scope.grammar.nested)
@@ -391,10 +436,12 @@ def _resolve_iterable(
     if isinstance(node, ast.Name):
         if node.id in bindings.iterables:
             if scopes:
-                # A top-level collection named inside a comprehension has no correlation to the
-                # element being iterated, so the subquery builder has nothing to key it on.
-                # Only the nesting an element declares is reachable from one scope down.
-                raise _nested_iterable_error(node.id, scopes[-1])
+                if (
+                    not bindings.allow_outer_element_references
+                    or len(scopes) > 1
+                    or node.id != scopes[-1].iterable
+                ):
+                    raise _nested_iterable_error(node.id, scopes[-1])
             return node.id, None
         choice, score = _find_best_match(node.id, bindings.iterables)
         suggestion = (
@@ -405,6 +452,8 @@ def _resolve_iterable(
         raise SyntaxError(f"invalid iterable `{node.id}`{suggestion}")
     if isinstance(node, ast.Attribute) and isinstance(value := node.value, ast.Name):
         if (scope := _scope_of(value.id, scopes)) is not None:
+            if len(scopes) > 1:
+                raise _nested_iterable_error(ast.unparse(node), scopes[-1])
             if (nested := scope.grammar.nested.get(node.attr)) is not None:
                 return nested, node.attr
             expected = _disjunction(sorted(scope.grammar.nested))
@@ -481,25 +530,50 @@ def _validate_element_expression(
 def _validate_element_access(
     node: ast.expr,
     scopes: typing.Sequence[_ElementScope],
+    bindings: _FilterBindings,
 ) -> None:
     root, steps = _element_access_path(node)
-    if root is None or (scope := _scope_of(root, scopes)) is None:
+    if root is None or (scope_index := _scope_index(root, scopes)) is None:
         return
+    scope = scopes[scope_index]
+    if scope_index != len(scopes) - 1 and not bindings.allow_outer_element_references:
+        raise SyntaxError(f"`{root}` is outside the current comprehension")
     fields = scope.grammar.element_bindings.binding_names
-    if len(steps) != 1 or (attribute := steps[0]) is None:
-        raise SyntaxError(
-            f"`{ast.unparse(node)}` is not a {scope.iterable} field; "
-            f"a {scope.iterable} element exposes {_disjunction(sorted(fields))}"
+    if len(steps) == 1 and (attribute := steps[0]) is not None:
+        if attribute in fields:
+            return
+        if attribute in scope.grammar.related:
+            return
+        choice, score = _find_best_match(attribute, fields)
+        suggestion = (
+            f', did you mean "{choice}"?'
+            if choice and score > 0.75
+            else f", expected {_disjunction(sorted(fields))}"
         )
-    if attribute in fields:
-        return
-    choice, score = _find_best_match(attribute, fields)
-    suggestion = (
-        f', did you mean "{choice}"?'
-        if choice and score > 0.75
-        else f", expected {_disjunction(sorted(fields))}"
+        raise SyntaxError(f"invalid field `{root}.{attribute}`{suggestion}")
+    if (
+        len(steps) == 2
+        and (relationship := steps[0]) is not None
+        and (attribute := steps[1]) is not None
+        and (related := scope.grammar.related.get(relationship)) is not None
+    ):
+        if attribute in related.binding_names:
+            return
+        choice, score = _find_best_match(attribute, related.binding_names)
+        suggestion = (
+            f', did you mean "{choice}"?'
+            if choice and score > 0.75
+            else f", expected {_disjunction(sorted(related.binding_names))}"
+        )
+        raise SyntaxError(f"invalid field `{root}.{relationship}.{attribute}`{suggestion}")
+    exposed = [*fields]
+    exposed.extend(f"{relationship}.<field>" for relationship in sorted(scope.grammar.related))
+    if not exposed:
+        exposed = ["no fields"]
+    raise SyntaxError(
+        f"`{ast.unparse(node)}` is not a {scope.iterable} field; "
+        f"a {scope.iterable} element exposes {_disjunction(sorted(exposed))}"
     )
-    raise SyntaxError(f"invalid field `{root}.{attribute}`{suggestion}")
 
 
 def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindings) -> None:
@@ -513,6 +587,9 @@ def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindin
     if not bindings.iterables:
         return
     iterable_slots: set[int] = set()
+    annotation_accessor_slots = {
+        id(node.value) for node in ast.walk(expression.body) if _is_annotation(node, bindings)
+    }
 
     def check(node: ast.AST, scopes: tuple[_ElementScope, ...]) -> None:
         if (comprehension := _comprehension_argument(node, bindings)) is not None:
@@ -545,7 +622,7 @@ def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindin
                 f"argument of {_disjunction(sorted(COMPREHENSION_NAMES & bindings.quantifiers))}"
             )
         if isinstance(node, (ast.Attribute, ast.Subscript)):
-            _validate_element_access(typing.cast(ast.expr, node), scopes)
+            _validate_element_access(typing.cast(ast.expr, node), scopes, bindings)
         for child in ast.iter_child_nodes(node):
             check(child, scopes)
 
@@ -555,6 +632,7 @@ def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindin
             isinstance(node, ast.Name)
             and node.id in bindings.iterables
             and id(node) not in iterable_slots
+            and id(node) not in annotation_accessor_slots
         ):
             raise SyntaxError(
                 f"`{node.id}` is a collection and can only be iterated, "
@@ -579,8 +657,9 @@ class _ComprehensionExtractor(ast.NodeTransformer):
         self._bindings = bindings
         self._scopes: list[_ElementScope] = []
         self._collected: list[list[ComprehensionSpec]] = [[]]
+        self._reference_collected: list[dict[str, ElementFieldReference]] = [{}]
         self._count = 0
-        # Session-scope annotation reads are aliased before extraction runs, so
+        # Top-level annotation reads are aliased before extraction runs, so
         # inside a comprehension they surface as opaque alias names. Map them
         # back to their source spelling for the rejection message below.
         self._annotation_aliases: dict[str, tuple[str, typing.Optional[str]]] = {}
@@ -597,7 +676,8 @@ class _ComprehensionExtractor(ast.NodeTransformer):
         for child in ast.walk(node):
             if isinstance(child, ast.Name) and (read := self._annotation_aliases.get(child.id)):
                 annotation_name, attribute = read
-                reference = f"annotations[{annotation_name!r}]" + (
+                accessor = next(iter(self._bindings.annotation_accessors), "annotations")
+                reference = f"{accessor}[{annotation_name!r}]" + (
                     f".{attribute}" if attribute else ""
                 )
                 hint = (
@@ -606,7 +686,7 @@ class _ComprehensionExtractor(ast.NodeTransformer):
                     else ""
                 )
                 raise SyntaxError(
-                    f"`{reference}` is joined at session scope and cannot be read"
+                    f"`{reference}` is joined at top-level scope and cannot be read"
                     f" inside a comprehension{hint}"
                 )
 
@@ -624,20 +704,35 @@ class _ComprehensionExtractor(ast.NodeTransformer):
         variable = typing.cast(ast.Name, generator.target).id
         self._scopes.append(_ElementScope(variable, iterable, grammar))
         self._collected.append([])
+        self._reference_collected.append({})
         try:
             condition = self.visit(_conjoin(generator.ifs)) if generator.ifs else None
             element = None if kind == "len" else self.visit(comprehension.elt)
         finally:
+            element_references = self._reference_collected.pop()
             children = tuple(self._collected.pop())
             self._scopes.pop()
         reserved = tuple(child.name for child in children)
-        prefix = _QUANTIFIER_RESULT_PREFIX if kind in QUANTIFIER_NAMES else _REDUCTION_RESULT_PREFIX
-        name = f"{prefix}{self._count}__"
-        self._count += 1
         for part in (element, condition):
             if part is not None:
                 self._reject_annotation_alias_reads(part)
         literal_bindings: dict[str, typing.Any] = {}
+        if kind in QUANTIFIER_NAMES:
+            result_kind: typing.Literal["boolean", "float", "datetime"] = "boolean"
+        elif kind in ("max", "min"):
+            assert element is not None
+            result_kind = _element_expression_kind(element, grammar, element_references)
+        else:
+            result_kind = "float"
+        prefix = (
+            _QUANTIFIER_RESULT_PREFIX
+            if result_kind == "boolean"
+            else _DATETIME_REDUCTION_RESULT_PREFIX
+            if result_kind == "datetime"
+            else _REDUCTION_RESULT_PREFIX
+        )
+        name = f"{prefix}{self._count}__"
+        self._count += 1
         spec = ComprehensionSpec(
             name=name,
             kind=kind,
@@ -645,22 +740,64 @@ class _ComprehensionExtractor(ast.NodeTransformer):
             nested_attribute=nested_attribute,
             predicate=None
             if element is None
-            else _compile_element(element, grammar, reserved, literal_bindings),
+            else _compile_element(element, grammar, reserved, literal_bindings, element_references),
             condition=None
             if condition is None
-            else _compile_element(condition, grammar, reserved, literal_bindings),
+            else _compile_element(
+                condition, grammar, reserved, literal_bindings, element_references
+            ),
             children=children,
             literal_bindings=literal_bindings,
+            element_references=element_references,
         )
         self._collected[-1].append(spec)
         return ast.Name(id=name, ctx=ast.Load())
 
     def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
-        if (
-            isinstance(value := node.value, ast.Name)
-            and _scope_of(value.id, self._scopes) is not None
-        ):
-            return ast.Name(id=node.attr, ctx=ast.Load())
+        root, steps = _element_access_path(node)
+        if root is not None and (scope_index := _scope_index(root, self._scopes)) is not None:
+            scope = self._scopes[scope_index]
+            if (
+                scope_index == len(self._scopes) - 1
+                and len(steps) == 1
+                and steps[0] not in scope.grammar.related
+            ):
+                return ast.Name(id=typing.cast(str, steps[0]), ctx=ast.Load())
+            if (
+                scope_index != len(self._scopes) - 1
+                and not self._bindings.allow_outer_element_references
+            ):
+                raise SyntaxError(f"`{root}` is outside the current comprehension")
+            field_bindings = scope.grammar.element_bindings
+            if len(steps) == 1:
+                attribute = typing.cast(str, steps[0])
+                if attribute in scope.grammar.related:
+                    kind: typing.Optional[
+                        typing.Literal["string", "float", "datetime", "boolean"]
+                    ] = "boolean"
+                    uppercase = False
+                else:
+                    kind = _binding_kind(attribute, field_bindings)
+                    uppercase = attribute in field_bindings.uppercase_names
+            elif len(steps) == 2:
+                relationship = typing.cast(str, steps[0])
+                attribute = typing.cast(str, steps[1])
+                field_bindings = scope.grammar.related[relationship]
+                kind = _binding_kind(attribute, field_bindings)
+                uppercase = attribute in field_bindings.uppercase_names
+            else:
+                raise SyntaxError(f"invalid field `{ast.unparse(node)}`")
+            assert kind is not None
+            references = self._reference_collected[-1]
+            name = f"__element_reference_{len(references)}__"
+            references[name] = ElementFieldReference(
+                len(self._scopes) - 1 - scope_index,
+                scope.iterable,
+                typing.cast(tuple[str, ...], tuple(steps)),
+                kind,
+                uppercase,
+            )
+            return ast.Name(id=name, ctx=ast.Load())
         return self.generic_visit(node)
 
     def visit_Name(self, node: ast.Name) -> typing.Any:
@@ -676,10 +813,29 @@ def _compile_element(
     grammar: _IterableGrammar,
     reserved_keywords: typing.Sequence[str],
     literal_bindings: dict[str, typing.Any],
+    element_references: typing.Mapping[str, ElementFieldReference],
 ) -> typing.Any:
+    reference_bindings = _reference_bindings(element_references)
     translator = _FilterTranslator(
-        bindings=grammar.element_bindings,
-        reserved_keywords=reserved_keywords,
+        bindings=replace(
+            grammar.element_bindings,
+            string_names=MappingProxyType(
+                {**grammar.element_bindings.string_names, **reference_bindings.string_names}
+            ),
+            float_names=MappingProxyType(
+                {**grammar.element_bindings.float_names, **reference_bindings.float_names}
+            ),
+            datetime_names=MappingProxyType(
+                {**grammar.element_bindings.datetime_names, **reference_bindings.datetime_names}
+            ),
+            boolean_names=MappingProxyType(
+                {**grammar.element_bindings.boolean_names, **reference_bindings.boolean_names}
+            ),
+            uppercase_names=frozenset(
+                {*grammar.element_bindings.uppercase_names, *reference_bindings.uppercase_names}
+            ),
+        ),
+        reserved_keywords=chain(reserved_keywords, element_references),
     )
     # Share one bindings dict across the predicate and the `if` clause so the
     # generated literal names stay unique within the spec's eval globals.
@@ -687,6 +843,50 @@ def _compile_element(
     translated = translator.visit(ast.Expression(body=node))
     ast.fix_missing_locations(translated)
     return compile(translated, filename="", mode="eval")
+
+
+def _reference_bindings(
+    references: typing.Mapping[str, ElementFieldReference],
+) -> _FilterBindings:
+    def names(kind: str) -> NameMap:
+        return MappingProxyType(
+            {
+                name: literal(None)
+                for name, reference in references.items()
+                if reference.kind == kind
+            }
+        )
+
+    return _FilterBindings(
+        string_names=names("string"),
+        float_names=names("float"),
+        datetime_names=names("datetime"),
+        boolean_names=names("boolean"),
+        extra_names=MappingProxyType({}),
+        aggregate_names=frozenset(),
+        legacy_replacements=MappingProxyType({}),
+        uppercase_names=frozenset(
+            name for name, reference in references.items() if reference.uppercase
+        ),
+        annotation_model=models.SpanAnnotation,
+        annotation_fk="span_rowid",
+        entity_id=models.Span.id,
+        annotation_table_prefix="span_annotation",
+        reject_unbound_names=True,
+    )
+
+
+def _element_expression_kind(
+    node: ast.expr,
+    grammar: _IterableGrammar,
+    references: typing.Mapping[str, ElementFieldReference],
+) -> typing.Literal["float", "datetime"]:
+    if isinstance(node, ast.Name):
+        if node.id in grammar.element_bindings.datetime_names:
+            return "datetime"
+        if (reference := references.get(node.id)) is not None and reference.kind == "datetime":
+            return "datetime"
+    return "float"
 
 
 def _extract_comprehensions(
@@ -727,9 +927,19 @@ def _compile_condition(
             validated = ast.parse(source, mode="eval")
         except ValueError:
             # A NUL in the source, which CPython 3.10 reports as `ValueError`
-            # rather than `SyntaxError` (3.11+ raises the latter, normalized by
-            # `_format_syntax_error` at the boundary).
+            # rather than `SyntaxError`.
             raise SyntaxError("condition cannot contain a NUL character") from None
+        except SyntaxError as error:
+            # From 3.11 on the same NUL arrives as a `SyntaxError` carrying the
+            # tokenizer's wording ("source code string cannot contain null
+            # bytes"), which describes source code the user never wrote. The
+            # rewrite has to happen here rather than at a caller's boundary:
+            # `SessionFilter` raises out of this function directly, so nothing
+            # downstream would reword it. Every other syntax error is the
+            # parser describing the user's own text and passes through raw.
+            if "null bytes" in (error.msg or ""):
+                raise SyntaxError("condition cannot contain a NUL character") from None
+            raise
         _validate_expression(validated, source, bindings, valid_eval_names=valid_annotation_names)
         _validate_semantics(validated, source, bindings)
         source, aliased_annotation_relations = _apply_eval_aliasing(source, bindings)
@@ -785,18 +995,28 @@ def _join_annotations(
     bindings: _FilterBindings,
     aliased_annotation_relations: typing.Iterable[AliasedAnnotationRelation],
 ) -> Select[typing.Any]:
-    """Outer-join each aliased annotation relation on ``<fk> == entity_id`` and matching name.
+    """Outer-join each aliased annotation relation to its entity and matching name.
 
     E.g. for ``evals["Hallucination"].score > 0.5`` an alias ``A`` is generated and
     ``select(Span)`` becomes
     ``select(Span).outerjoin(A, and_(A.span_rowid == Span.id, A.name == "Hallucination"))``.
+
+    Trace annotations are the exception to the grain's default relation: they
+    join a span through its trace row ID.
     """
     for annotation_relation in aliased_annotation_relations:
         aliased_annotation = annotation_relation.table
+        entity_id: sqlalchemy.SQLColumnExpression[typing.Any]
+        if annotation_relation.kind == "trace":
+            annotation_foreign_key = aliased_annotation.trace_rowid
+            entity_id = models.Span.trace_rowid
+        else:
+            annotation_foreign_key = getattr(aliased_annotation, bindings.annotation_fk)
+            entity_id = bindings.entity_id
         stmt = stmt.outerjoin(
             aliased_annotation,
             onclause=sqlalchemy.and_(
-                getattr(aliased_annotation, bindings.annotation_fk) == bindings.entity_id,
+                annotation_foreign_key == entity_id,
                 aliased_annotation.name == annotation_relation.name,
             ),
         )
@@ -879,9 +1099,11 @@ class SpanFilter:
         try:
             root = ast.parse(source, mode="eval")
         except ValueError as error:
-            # A NUL anywhere in the source, which `ast.parse` reports as a
+            # A NUL anywhere in the source, which CPython 3.10 reports as a
             # `ValueError` rather than a `SyntaxError`. Callers catch only the
-            # latter, so it would escape as a server error.
+            # latter, so it would escape as a server error. From 3.11 on the
+            # same NUL is already a `SyntaxError`, reworded by the
+            # `_format_syntax_error` boundary in `__post_init__`.
             raise SyntaxError("condition cannot contain a NUL character") from error
         _validate_expression(root, source)
         # Derived from the tree parsed just above rather than from the source
@@ -934,21 +1156,45 @@ class SpanFilter:
         parent_exists = (
             sqlalchemy.select(1).where(parent_span.span_id == models.Span.parent_id).exists()
         )
-        stmt = _join_annotations(select, SPAN_BINDINGS, self._aliased_annotation_relations)
-        return stmt.where(
-            eval(
-                self.compiled,
-                _eval_globals(
-                    SPAN_BINDINGS,
-                    self._aliased_annotation_attributes,
-                    {
-                        **self._literal_bindings,
-                        _PARENT_IS_NULL: ~parent_exists,
-                        _PARENT_IS_NOT_NULL: parent_exists,
-                    },
+        predicate = eval(
+            self.compiled,
+            _eval_globals(
+                SPAN_BINDINGS,
+                self._aliased_annotation_attributes,
+                {
+                    **self._literal_bindings,
+                    _PARENT_IS_NULL: ~parent_exists,
+                    _PARENT_IS_NOT_NULL: parent_exists,
+                },
+            ),
+        )
+        if not self._aliased_annotation_relations:
+            return select.where(predicate)
+        return select.where(self._annotation_predicate_exists(predicate))
+
+    def _annotation_predicate_exists(self, predicate: ColumnElement[bool]) -> ColumnElement[bool]:
+        """Evaluate annotation predicates without duplicating spans.
+
+        The one-row seed preserves outer-join semantics for missing annotations.
+        The correlated ``EXISTS`` prevents annotations with multiple identifiers
+        from duplicating spans in the outer query.
+        """
+        seed = sqlalchemy.select(literal(True).label("seed")).subquery()
+        statement = sqlalchemy.select(literal(True)).select_from(seed)
+        for annotation_relation in self._aliased_annotation_relations:
+            aliased_annotation = annotation_relation.table
+            if annotation_relation.kind == "trace":
+                foreign_key_clause = aliased_annotation.trace_rowid == models.Span.trace_rowid
+            else:
+                foreign_key_clause = aliased_annotation.span_rowid == models.Span.id
+            statement = statement.outerjoin(
+                aliased_annotation,
+                onclause=sqlalchemy.and_(
+                    foreign_key_clause,
+                    aliased_annotation.name == annotation_relation.name,
                 ),
             )
-        )
+        return statement.where(predicate).correlate(models.Span).exists()
 
     def to_dict(self) -> dict[str, typing.Any]:
         return {"condition": self.condition}
@@ -1213,7 +1459,9 @@ def _parse_datetime_literal(value: str) -> datetime:
 
 
 def _is_datetime_name(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Name]:
-    return isinstance(node, ast.Name) and node.id in bindings.datetime_names
+    return isinstance(node, ast.Name) and (
+        node.id in bindings.datetime_names or node.id.startswith(_DATETIME_REDUCTION_RESULT_PREFIX)
+    )
 
 
 def _as_datetime_literal(node: ast.Constant) -> ast.Call:
@@ -1337,7 +1585,9 @@ def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
         left_type = _get_filter_value_type(node.left)
         right_type = _get_filter_value_type(node.right)
         if isinstance(node.op, ast.Add):
-            known_types = {value_type for value_type in (left_type, right_type) if value_type}
+            known_types: set[FilterValueType] = {
+                value_type for value_type in (left_type, right_type) if value_type
+            }
             if not known_types:
                 return "string"
             if len(known_types) == 1 and known_types <= {"number", "string"}:
@@ -1885,7 +2135,7 @@ def _is_string(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Cal
     # inference stays as it is for the grain whose accepted surface it already defines.
     return (
         isinstance(node, ast.Name)
-        and node.id in bindings.string_names
+        and (node.id in bindings.string_names or node.id in bindings.caller_bound_string_names)
         or _is_cast(node, "String")
         or _is_string_constant(node)
         or _is_string_attribute(node)
@@ -1938,6 +2188,7 @@ class _ProjectionTranslator(ast.NodeTransformer):
                 bindings.boolean_names.keys(),
                 bindings.aggregate_names,
                 bindings.exists_names,
+                bindings.caller_bound_string_names,
             )
         )
 
@@ -2152,6 +2403,7 @@ class _FilterTranslator(_ProjectionTranslator):
                 or ast.unparse(right) in self._bindings.names
                 or isinstance(right, ast.Name)
                 and right.id in self._string_keywords
+                or ast.unparse(right) in self._bindings.caller_bound_string_names
             ):
                 call = ast.Call(
                     func=ast.Name(id=self._containment_function, ctx=ast.Load()),
@@ -2422,7 +2674,9 @@ def _validate_literal(node: ast.Constant) -> None:
     raise SyntaxError(f"unsupported literal: {ast.unparse(node)}")
 
 
-_Kind: TypeAlias = typing.Literal["string", "float", "datetime", "boolean", "json", "none", "text"]
+_Kind: TypeAlias = typing.Literal[
+    "string", "float", "datetime", "boolean", "json", "none", "text", "relation"
+]
 """What a sub-expression denotes under the semantic policy.
 
 ``json`` is a root-span attribute read, whose stored type is not known until the row is read, so
@@ -2439,6 +2693,7 @@ _KIND_NOUNS: typing.Mapping[str, str] = MappingProxyType(
         "json": "an attribute value",
         "none": "None",
         "text": "a containment term",
+        "relation": "a related row",
     }
 )
 
@@ -2614,14 +2869,14 @@ class _SemanticPolicy:
             if name in self._bindings.binding_names:
                 fields = scope.grammar.element_bindings.binding_names
                 raise SyntaxError(
-                    f"`{name}` is a session-level term, not a {scope.iterable} element field; "
+                    f"`{name}` is a top-level term, not a {scope.iterable} element field; "
                     f"a {scope.iterable} element exposes {_disjunction(sorted(fields))}"
                 )
             _raise_invalid_name(name, scope.grammar.element_bindings)
         return self._binding(name, self._bindings)
 
     def _binding(self, name: str, bindings: _FilterBindings) -> _Kind:
-        if name in bindings.string_names:
+        if name in bindings.string_names or name in bindings.caller_bound_string_names:
             return "string"
         if name in bindings.float_names or name in bindings.aggregate_names:
             return "float"
@@ -2634,12 +2889,22 @@ class _SemanticPolicy:
         _raise_invalid_name(name, bindings)
 
     def _attribute(self, node: ast.Attribute, scopes: tuple[_ElementScope, ...]) -> _Kind:
-        if (
-            isinstance(value := node.value, ast.Name)
-            and (scope := _scope_of(value.id, scopes)) is not None
-        ):
-            return self._binding(node.attr, scope.grammar.element_bindings)
-        if _is_annotation(node.value):
+        root, steps = _element_access_path(node)
+        if root is not None and (scope_index := _scope_index(root, scopes)) is not None:
+            scope = scopes[scope_index]
+            if scope_index != len(scopes) - 1 and not self._bindings.allow_outer_element_references:
+                raise SyntaxError(f"`{root}` is outside the current comprehension")
+            if len(steps) == 1:
+                attribute = typing.cast(str, steps[0])
+                if attribute in scope.grammar.related:
+                    return "relation"
+                return self._binding(attribute, scope.grammar.element_bindings)
+            if (
+                len(steps) == 2
+                and (related := scope.grammar.related.get(typing.cast(str, steps[0]))) is not None
+            ):
+                return self._binding(typing.cast(str, steps[1]), related)
+        if _is_annotation(node.value, self._bindings):
             return "float" if node.attr == "score" else "string"
         source = ast.unparse(node)
         if replacement := self._bindings.legacy_replacements.get(source):
@@ -2658,7 +2923,7 @@ class _SemanticPolicy:
             if _get_attribute_keys_list(node) is None:
                 raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
             return "json"
-        if _is_annotation(node):
+        if _is_annotation(node, self._bindings):
             # A bare annotation reference is the existence check `annotations["q"]`.
             return "boolean"
         raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
@@ -2809,7 +3074,7 @@ class _SemanticPolicy:
                 "float": "number",
                 "string": "string",
             }
-            present_kinds = [kind for kind in ordered_kinds if kind in element_kinds]
+            present_kinds: list[_Kind] = [kind for kind in ordered_kinds if kind in element_kinds]
             first_kind, second_kind = present_kinds[0], present_kinds[1]
             raise SyntaxError(
                 f"cannot compare {kind_names[first_kind]} and {kind_names[second_kind]}"
@@ -2876,9 +3141,18 @@ class _SemanticPolicy:
             return "boolean"
         if kind == "len":
             return "float"
-        if (element := self._kind(comprehension.elt, inner)) != "float":
+        element = self._kind(comprehension.elt, inner)
+        if kind in ("max", "min") and element == "datetime":
+            if self._bindings.allow_datetime_reductions:
+                return "datetime"
+            raise SyntaxError(
+                f"`{kind}(...)` reduces numbers, and `{ast.unparse(comprehension.elt)}` "
+                "is a timestamp; text and timestamp ordering have no cross-dialect "
+                "definition here"
+            )
+        if element != "float":
             remedy = (
-                "text and timestamp ordering have no cross-dialect definition here"
+                "text ordering has no cross-dialect definition here"
                 if kind in ("max", "min")
                 else f"count matching elements with "
                 f"`len([{variable} for {variable} in {iterable} if ...])`"
@@ -2918,6 +3192,7 @@ def _validate_expression(
     if not isinstance(expression, ast.Expression):
         raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
     _validate_python_surface(expression.body, source)
+    _validate_annotation_accessors(expression, bindings)
     _validate_exists_name_usage(expression, bindings)
     _validate_comprehensions(expression, bindings)
     for i, node in enumerate(ast.walk(expression.body)):
@@ -2926,7 +3201,7 @@ def _validate_expression(
                 isinstance(node, (ast.BoolOp, ast.Compare))
                 or isinstance(node, ast.UnaryOp)
                 and isinstance(node.op, ast.Not)
-                or _is_annotation(node)
+                or _is_annotation(node, bindings)
                 or _comprehension_argument(node, bindings) is not None
             ):
                 continue
@@ -2961,7 +3236,7 @@ def _validate_expression(
             _is_subscript(node, "metadata") or _is_subscript(node, "attributes")
         ) and _get_attribute_keys_list(node) is not None:
             continue
-        elif _is_annotation(node) and _get_subscript_key(node) is not None:
+        elif _is_annotation(node, bindings) and _get_subscript_key(node) is not None:
             # e.g. `evals["name"]`. The name itself is not checked for
             # existence (see the docstring); only the empty name is rejected,
             # since it can never match an annotation and previously fell to
@@ -2972,8 +3247,8 @@ def _validate_expression(
         elif (
             isinstance(node, ast.Attribute)
             and isinstance(node.value, ast.Attribute)
-            and _is_annotation(node.value.value)
-        ) or (isinstance(node, ast.Subscript) and _is_annotation(node.value)):
+            and _is_annotation(node.value.value, bindings)
+        ) or (isinstance(node, ast.Subscript) and _is_annotation(node.value, bindings)):
             # e.g. `annotations["q"].score.label` or `annotations["q"]["k"]`:
             # traversal past an annotation reads as a reference to something an
             # annotation does not expose; reject it by name instead of letting
@@ -2984,7 +3259,7 @@ def _validate_expression(
                 f"invalid expression: {_ellipsize(ast.unparse(node), 80)}"
                 f"; an annotation exposes only {expected}"
             )
-        elif isinstance(node, ast.Attribute) and _is_annotation(node.value):
+        elif isinstance(node, ast.Attribute) and _is_annotation(node.value, bindings):
             # e.g. `evals["name"].score`
             if (attr := node.attr) not in valid_eval_attributes:
                 attr = _ellipsize(attr, 80)
@@ -3057,22 +3332,39 @@ def _as_attribute(
     )
 
 
-def _is_annotation(node: typing.Any) -> TypeGuard[ast.Subscript]:
-    # e.g. `evals["name"]`
+def _is_annotation(
+    node: typing.Any,
+    bindings: _FilterBindings = SPAN_BINDINGS,
+) -> TypeGuard[ast.Subscript]:
+    # e.g. `evals["name"]`, `annotations["name"]`, `trace_annotations["name"]`
     return (
         isinstance(node, ast.Subscript)
         and isinstance(value := node.value, ast.Name)
-        and value.id in ["evals", "annotations"]
+        and value.id in bindings.annotation_accessors
     )
 
 
-def _is_annotation_rooted(node: typing.Any) -> bool:
+def _is_annotation_rooted(
+    node: typing.Any,
+    bindings: _FilterBindings = SPAN_BINDINGS,
+) -> bool:
     # e.g. `evals["name"]`, `evals["name"].score`, `evals["name"]["key"]`
     while isinstance(node, (ast.Attribute, ast.Subscript)):
-        if _is_annotation(node):
+        if _is_annotation(node, bindings):
             return True
         node = node.value
     return False
+
+
+def _validate_annotation_accessors(
+    expression: ast.Expression,
+    bindings: _FilterBindings,
+) -> None:
+    for node in ast.walk(expression.body):
+        if not isinstance(node, ast.Subscript) or not isinstance(node.value, ast.Name):
+            continue
+        if error := bindings.annotation_accessor_errors.get(node.value.id):
+            raise SyntaxError(error)
 
 
 def _annotation_attribute_error(
@@ -3208,9 +3500,10 @@ def _apply_eval_aliasing(
     tuple[AliasedAnnotationRelation, ...],
 ]:
     """
-    Substitutes `evals[<eval-name>].<attribute>` with aliases. Returns the
-    updated source code in addition to the aliased relations. ``bindings`` selects
-    the annotation model and alias prefix (span vs. session grain).
+    Substitutes annotation attributes with aliases. Returns the updated source
+    code in addition to the aliased relations. ``bindings`` selects the default
+    annotation model and alias prefix (span vs. session grain), while
+    ``trace_annotations`` explicitly selects trace annotations for span filters.
 
     Example:
 
@@ -3253,15 +3546,17 @@ class _AnnotationExpressionAliaser(ast.NodeVisitor):
             # +1 for the "\n" that `split` consumed. A trailing "\r" of a CRLF
             # pair stays in `line`, so its byte is already counted.
             self._line_offsets.append(self._line_offsets[-1] + len(line.encode()) + 1)
-        self._relations_by_name: dict[AnnotationName, AliasedAnnotationRelation] = {}
+        self._relations_by_key: dict[
+            tuple[AnnotationRelationKind, AnnotationName], AliasedAnnotationRelation
+        ] = {}
         self.replacements: list[tuple[int, int, str]] = []
 
     @property
     def relations(self) -> tuple[AliasedAnnotationRelation, ...]:
-        return tuple(self._relations_by_name.values())
+        return tuple(self._relations_by_key.values())
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
-        if not _is_annotation(node.value):
+        if not _is_annotation(node.value, self._bindings):
             self.generic_visit(node)
             return
         if node.attr not in _VALID_EVAL_ATTRIBUTES:
@@ -3269,29 +3564,45 @@ class _AnnotationExpressionAliaser(ast.NodeVisitor):
         annotation_name = _get_subscript_key(node.value)
         if annotation_name is None:
             return
-        relation = self._get_relation(annotation_name)
+        relation = self._get_relation(node.value, annotation_name)
         attribute = typing.cast(AnnotationAttribute, node.attr)
         self._add_replacement(node, relation.attribute_alias(attribute))
 
     def visit_Subscript(self, node: ast.Subscript) -> None:
-        if not _is_annotation(node):
+        if not _is_annotation(node, self._bindings):
             self.generic_visit(node)
             return
         annotation_name = _get_subscript_key(node)
         if annotation_name is None:
             return
-        relation = self._get_relation(annotation_name)
+        relation = self._get_relation(node, annotation_name)
         self._add_replacement(node, relation._exists_attribute_alias)
 
-    def _get_relation(self, annotation_name: str) -> AliasedAnnotationRelation:
-        if (relation := self._relations_by_name.get(annotation_name)) is None:
+    def _get_relation(self, node: ast.Subscript, annotation_name: str) -> AliasedAnnotationRelation:
+        annotation_accessor = typing.cast(ast.Name, node.value).id
+        kind: AnnotationRelationKind = (
+            "trace"
+            if self._bindings is SPAN_BINDINGS and annotation_accessor == "trace_annotations"
+            else "span"
+        )
+        key = (kind, annotation_name)
+        if (relation := self._relations_by_key.get(key)) is None:
+            if kind == "trace":
+                if self._bindings is not SPAN_BINDINGS:
+                    raise SyntaxError("`trace_annotations` is only available when filtering spans")
+                annotation_model = models.TraceAnnotation
+                table_prefix = "trace_annotation"
+            else:
+                annotation_model = self._bindings.annotation_model
+                table_prefix = self._bindings.annotation_table_prefix
             relation = AliasedAnnotationRelation(
-                index=len(self._relations_by_name),
+                index=len(self._relations_by_key),
                 name=annotation_name,
-                annotation_model=self._bindings.annotation_model,
-                table_prefix=self._bindings.annotation_table_prefix,
+                kind=kind,
+                annotation_model=annotation_model,
+                table_prefix=table_prefix,
             )
-            self._relations_by_name[annotation_name] = relation
+            self._relations_by_key[key] = relation
         return relation
 
     def _add_replacement(self, node: ast.expr, alias: str) -> None:

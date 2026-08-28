@@ -1,0 +1,9 @@
+The following summarizes the conversation with the user so far. Use it as historical context, not as a new user request. Use the latest state described below when responding to subsequent user messages.
+
+{% for key, items in checkpoint.items() if items %}
+<{{ key }}>
+{% for item in items %}
+- {{ item }}
+{% endfor %}
+</{{ key }}>
+{% endfor %}

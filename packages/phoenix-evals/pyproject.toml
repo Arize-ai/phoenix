@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-version = "3.4.0"
+version = "3.5.1"
 dependencies = [
   "pandas",
   "tqdm",
@@ -36,7 +36,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "anthropic>0.18.0",
+  "anthropic>=1,<2",
   "boto3",
   "litellm>=1.83.14; python_version < '3.14'",  # excluded on 3.14 until upstream restores support (https://github.com/BerriAI/litellm/issues/26343)
   "openai>=1.0.0",
@@ -48,7 +48,7 @@ test = [
   "pandas",
   "tqdm",
   "typing-extensions>=4.5, <5",
-  "anthropic>=0.18.0",
+  "anthropic>=1,<2",
   "boto3",
   "litellm>=1.83.14; python_version < '3.14'",  # excluded on 3.14 until upstream restores support (https://github.com/BerriAI/litellm/issues/26343)
   "openai>=1.0.0",

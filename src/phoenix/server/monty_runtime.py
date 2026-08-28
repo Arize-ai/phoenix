@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MontyConsumer = Literal["mcp", "evaluator", "validation"]
+MontyConsumer = Literal["mcp", "agent", "evaluator", "validation"]
 
 DEFAULT_MAX_PROCESSES = 4
 """Maximum worker processes owned by one default runtime."""
@@ -91,6 +91,7 @@ class MontyRuntime:
         shared_consumer_limit = max(1, max_processes - 1)
         default_limits: dict[MontyConsumer, int] = {
             "mcp": shared_consumer_limit,
+            "agent": shared_consumer_limit,
             "evaluator": shared_consumer_limit,
             "validation": 1,
         }

@@ -1,11 +1,16 @@
 dataset_name: playground_experiment_recording
 description: >-
-  PXI eval suite for mounted playground experiment-recording changes. Covers
-  requests to persist dataset-backed playground runs as experiments, explicitly
-  run without recording, and negative cases where the agent should run normally
-  or save the prompt rather than changing run persistence.
+  PXI eval suite for mounted playground experiment-recording changes through
+  the playground.experiment.setRecording UI operation. Covers requests to
+  persist dataset-backed playground runs as experiments, explicitly run
+  without recording, and negative cases where the agent should run normally
+  or save the prompt rather than changing run persistence. Every example
+  primes the search_browser_actions discovery step (a catalog excerpt
+  produced by the real signature renderer) so the example scores the
+  operation-selection step.
 evaluators:
   - correct_tools_called
+  - forbidden_tool_call_args_match
   - tool_call_args_match
   - tool_call_count_within_limit
 examples:
@@ -20,11 +25,95 @@ examples:
       messages:
         - role: user
           content: Record the next playground run as an experiment, then run it.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: record playground run as experiment }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: &catalog |
+            // Complete catalog: all 11 UI operations, best query matches first.
+            // Further search_browser_actions calls return these same operations re-ranked — reuse
+            // this catalog instead of searching again. Only per-operation availability
+            // ("available on the current page") changes, after navigation.
+
+            // UIResult<T = unknown> = { ok: true; output: T } | { ok: false; code?: ErrorCode; error: string }
+            // ErrorCode = "UNKNOWN_OPERATION" | "NOT_AVAILABLE" | "INVALID_INPUT" | "CAPABILITY_DISABLED"
+            //   | "NO_SESSION" | "HANDLER_ERROR" | "NOT_FOUND" | "STALE_REVISION" | "NO_RUN_OUTPUT"
+            // Branch on `code` (stable), not on the `error` prose (for humans).
+
+            /**
+             * Set the playground-wide repetitions count in the currently mounted playground. Use this before running when the user wants more confidence across repeated LLM calls, is investigating flaky outputs, or wants to validate structured output or tool-call behavior before saving a prompt. `repetitions` must be between 1 and 30; do not stage a count outside that range — tell the user the limit instead.
+             * kind: write; available on the current page.
+             */
+            ui.playground.repetitions.set(input: { repetitions: number }): Promise<UIResult>;
+
+            /**
+             * Run the currently mounted playground using the browser UI state. This starts the same run the user would start with the playground Run button, so it uses the current prompt instances, model settings, inputs, dataset selection, tools, and streaming preferences visible in the UI. It runs all current comparison instances together, and resolves only when the whole run ends (every instance finished, or the user stopped it) — await it, then read the results in the same script: `playground.experiment.readResults` for the scored per-example results when the run recorded experiments (its output includes the `experimentIds`), or `playground.run.readOutput` for the raw instance output otherwise.
+             * kind: write; available on the current page.
+             */
+            ui.playground.run(input: {}): Promise<UIResult>;
+
+            /**
+             * Read the output from the currently mounted playground's latest run. The result includes each matching instance's raw output, run status, errors, tool calls, and traceId when the run produced a Phoenix trace. Use this after `playground.run` finishes so you can inspect the model response and analyze the trace.
+             * kind: read; available on the current page.
+             */
+            ui.playground.run.readOutput(input: { instanceId?: number; repetitionNumber?: number }): Promise<UIResult<{ status: "not_started" | "running" | "partial" | "finished"; instances: unknown[]; message: string }>>;
+
+            /**
+             * Set whether future dataset-backed playground runs in the currently mounted playground are recorded as persistent experiments or created as temporary unrecorded runs, and optionally stage a name, description, and metadata for the experiments the next run produces. Use this before running when the user asks to record, persist, save the run as an experiment, run without recording, or label the next experiment with notes such as a hypothesis. Stage structured notes (a hypothesis, the variable being changed, a baseline experiment id) as keys on `experimentMetadata` rather than as description prose, so later reads can find them programmatically.
+             * kind: write; available on the current page.
+             */
+            ui.playground.experiment.setRecording(input: { recordExperiments: boolean; experimentName?: string; experimentDescription?: string; experimentMetadata?: unknown }): Promise<UIResult>;
+
+            /**
+             * Read the current playground prompt for one instance. Use this before editing a playground prompt so you have stable message IDs and the latest revision token. The result includes both the numeric `instanceId` for tool calls and the alphabetic `label` (A, B, C, D) shown to the user; use labels when discussing instances with the user. If there is exactly one playground instance, `instanceId` may be omitted. If there are multiple comparison instances, pass the specific `instanceId`.
+             * kind: read; available on the current page.
+             */
+            ui.playground.prompt.read(input: { instanceId?: number }): Promise<UIResult<{ instanceId: number; index: number; label: string; revision: string; dirty: boolean; prompt: { id?: string; version?: string; tag?: string | unknown } | unknown; messages: { id: number; role: string; content?: string; toolCallId?: string; toolCalls?: unknown }[] }>>;
+
+            /**
+             * Propose edits to one playground prompt instance. This tool does not change the prompt immediately: the browser renders an inline diff and the user must accept or reject it. Call `playground.prompt.read` before your first edit and pass its `revision` as `expectedRevision`. Edits are rejected if the prompt changed since that read — but a successful edit returns the new `revision`, which is valid as the next `expectedRevision`, so chained edits need no re-read between them. Use the alphabetic label from `playground.prompt.read` (A, B, C, D) when telling the user which instance is being edited, but pass the numeric `instanceId` when calling this tool. Use message IDs from `playground.prompt.read` for updates, deletes, insertion anchors, and reorders. `operations` must always be an array, even for one edit. Use camelCase field names exactly as shown. Common valid examples: {"type":"update_message","messageId":1,"content":"new text"}; {"type":"insert_message","afterMessageId":1,"role":"user","content":"new text"}; {"type":"delete_message","messageId":1}; {"type":"reorder_messages","messageIds":[1,2,3]}.
+             * kind: approval; available on the current page. Stages a change the user must accept; the returned promise resolves with the decision.
+             */
+            ui.playground.prompt.edit(input: { instanceId: number; expectedRevision: string; operations?: unknown[] }): Promise<UIResult<{ status: "accepted" | "rejected"; instanceId: number; message: string; acceptedBy?: string; revision?: string; summary?: { instanceIndex: number; instanceLabel: string; additions: number; deletions: number } }>>;
+
+            /**
+             * Save the active changes for one mounted playground prompt instance. Use this only when the user explicitly asks to save the current playground prompt, or after they explicitly accept that the current prompt should become a saved prompt version. In manual approval mode, the browser asks the user to approve before committing the save; approval is bypassed only when edit_permission is bypass. If the instance is already associated with a prompt, omit `name` and `promptId` to save a new version on that prompt. If the instance is not associated with a prompt and `name` is omitted, the browser derives a valid prompt name from the current prompt content and creates a new prompt. Pass `name` only when the user provided a desired prompt name or explicitly asked to save as a new prompt. Pass `promptId` only when saving a new version on a specific existing prompt. Always pass a clear, short, concise `description` that states the change or intention. Tags work like releases: pass tags only when the user explicitly asks to tag, release, or promote this version.
+             * kind: approval; available on the current page. Stages a change the user must accept; the returned promise resolves with the decision.
+             */
+            ui.playground.prompt.save(input: { instanceId?: number; promptId?: string; name?: string; description: string; tags?: string[] }): Promise<UIResult>;
+
+            /**
+             * Switch the selected model for one mounted playground instance. This tool applies immediately, like the playground model menu. If there is exactly one playground instance, `instanceId` may be omitted. If there are multiple comparison instances, pass the numeric `instanceId` from the playground context. Take `target` verbatim from a `playground.model.list` result (`builtinModels[].target` or `customProviderModels[].target`): {type: 'builtin', provider, modelName} for Phoenix built-in providers, {type: 'custom', customProviderId, modelName} for a configured custom provider.
+             * kind: write; available on the current page.
+             */
+            ui.playground.model.set(input: { instanceId?: number; target: unknown }): Promise<UIResult>;
+
+            /**
+             * List the model targets currently available in the mounted playground. Use this before suggesting playground model options, building model-choice questions, or resolving exact provider/model/custom-provider target payloads for `playground.model.set` — each entry's `target` is a ready-made `target` input for that operation.
+             * kind: read; available on the current page.
+             */
+            ui.playground.model.list(input: {}): Promise<UIResult<{ builtinModels: { target: { type: string; provider: string; modelName: string } }[]; customProviderModels: { target: { type: string; customProviderId: string; modelName: string }; customProviderName: string; provider: string }[]; message: string }>>;
+
+            /**
+             * Set manual input values for template variables in the currently mounted playground. Use this when the user asks to fill, provide, change, or set playground variables before running or comparing prompts. This only updates variable values in browser UI state; it does not edit prompt messages, change dataset mappings, or run the playground.
+             * kind: write; available on the current page.
+             */
+            ui.playground.variables.set(input: { values: { key: string; value: string }[] }): Promise<UIResult>;
+
+            /**
+             * Edit an existing experiment's name, description, or metadata. Use this to record observations or notes on an experiment after reviewing its results, or to rename or redescribe it. Provide `experimentId` plus at least one field to change; omitted fields are left untouched. `metadata` replaces the experiment's metadata object as a whole, so read the current metadata first and resubmit the complete object when appending.
+             * kind: approval; available on the current page. Stages a change the user must accept; the returned promise resolves with the decision.
+             */
+            ui.experiment.patch(input: { experimentId: string; name?: string; description?: string | unknown; metadata?: unknown }): Promise<UIResult>;
     expected:
-      tools:
-        required: [set_playground_experiment_recording]
-      tool_call_args:
-        set_playground_experiment_recording:
+      ui_operations:
+        required: [playground.experiment.setRecording]
+      ui_operation_args:
+        playground.experiment.setRecording:
           recordExperiments: true
       budgets:
         max_tool_calls: 2
@@ -44,11 +133,20 @@ examples:
       messages:
         - role: user
           content: Persist this dataset-backed playground run so we can compare the experiment later.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: record playground run as experiment }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_playground_experiment_recording]
-      tool_call_args:
-        set_playground_experiment_recording:
+      ui_operations:
+        required: [playground.experiment.setRecording]
+      ui_operation_args:
+        playground.experiment.setRecording:
           recordExperiments: true
       budgets:
         max_tool_calls: 2
@@ -68,11 +166,20 @@ examples:
       messages:
         - role: user
           content: Do a throwaway run without recording an experiment.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: run playground without recording }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_playground_experiment_recording]
-      tool_call_args:
-        set_playground_experiment_recording:
+      ui_operations:
+        required: [playground.experiment.setRecording]
+      ui_operation_args:
+        playground.experiment.setRecording:
           recordExperiments: false
       budgets:
         max_tool_calls: 2
@@ -82,6 +189,10 @@ examples:
       polarity: positive
 
   - id: normal-run-no-recording-change
+    # Recording is already on and the user just asks to run. Turning
+    # recording OFF is the failure mode; a defensive re-assert of the
+    # current value inside the run script is idempotent and acceptable, so
+    # only the recordExperiments: false direction is forbidden.
     splits: [regression]
     input:
       contexts:
@@ -92,10 +203,21 @@ examples:
       messages:
         - role: user
           content: Run the playground on the current dataset.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: run the playground }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [run_playground]
-        forbidden: [set_playground_experiment_recording]
+      ui_operations:
+        required: [playground.run]
+      forbidden_ui_operation_args:
+        playground.experiment.setRecording:
+          recordExperiments: false
       budgets:
         max_tool_calls: 2
     metadata:
@@ -114,10 +236,19 @@ examples:
       messages:
         - role: user
           content: Save this prompt so I can reuse it later.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: save the playground prompt }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [save_prompt]
-        forbidden: [set_playground_experiment_recording]
+      ui_operations:
+        required: [playground.prompt.save]
+        forbidden: [playground.experiment.setRecording]
       budgets:
         max_tool_calls: 2
     metadata:
@@ -126,6 +257,9 @@ examples:
       polarity: negative
 
   - id: already-recording-run
+    # Same idempotence rationale as normal-run-no-recording-change: the run
+    # must happen and recording must not be switched off; re-asserting the
+    # already-true value is acceptable.
     splits: [regression]
     input:
       contexts:
@@ -136,10 +270,21 @@ examples:
       messages:
         - role: user
           content: Run it and keep the experiment results.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: run the playground }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [run_playground]
-        forbidden: [set_playground_experiment_recording]
+      ui_operations:
+        required: [playground.run]
+      forbidden_ui_operation_args:
+        playground.experiment.setRecording:
+          recordExperiments: false
       budgets:
         max_tool_calls: 2
     metadata:

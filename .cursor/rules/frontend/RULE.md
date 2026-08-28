@@ -1,4 +1,4 @@
-# Frontend Development (app/)
+# Frontend Development (js/app/)
 
 ## Commands
 
@@ -19,9 +19,9 @@
 - **Node version**: See `.nvmrc`
 - **Package manager**: pnpm only (enforced by preinstall script)
 - **GraphQL**: Uses Relay for data fetching
-- **Styling**: Use Emotion CSS-in-JS (see `app/.cursor/rules/styling.mdc`)
+- **Styling**: Use Emotion CSS-in-JS (see `js/app/.cursor/rules/styling.mdc`)
 - **Charts**: Use recharts with defaults from `src/components/chart/defaults.tsx`
-- See `app/.cursor/rules/` for detailed styling and organization rules
+- See `js/app/.cursor/rules/` for detailed styling and organization rules
 
 ## Workflow
 
@@ -33,6 +33,6 @@
 
 ## Project Structure
 
-- `app/src/` - Frontend source code
-- `app/schema.graphql` - GraphQL schema (generated)
-- `app/stories/` - Storybook files
+- `js/app/src/` - Frontend source code
+- `js/app/schema.graphql` - GraphQL schema (generated)
+- `js/app/stories/` - Storybook files

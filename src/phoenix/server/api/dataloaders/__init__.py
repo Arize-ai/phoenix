@@ -8,6 +8,7 @@ from phoenix.server.api.dataloaders.span_cost_detail_summary_entries_by_project_
 )
 from phoenix.server.types import DbSessionFactory
 
+from .agent_session_message_text import AgentSessionMessageTextDataLoader
 from .annotation_configs_by_project import AnnotationConfigsByProjectDataLoader
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_repeated_run_group_latency import (
@@ -152,6 +153,9 @@ class CacheForDataLoaders:
 
 @dataclass
 class DataLoaders:
+    agent_session_fields: TableFieldsDataLoader
+    agent_session_first_inputs: AgentSessionMessageTextDataLoader
+    agent_session_latest_outputs: AgentSessionMessageTextDataLoader
     annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
     annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_repeated_run_group_latency: (
@@ -197,6 +201,7 @@ class DataLoaders:
     experiment_expected_run_counts: ExperimentExpectedRunCountsDataLoader
     last_experiment_errors: LastExperimentErrorsDataLoader
     experiment_fields: TableFieldsDataLoader
+    experiment_tag_fields: TableFieldsDataLoader
     experiment_repeated_run_group_annotation_summaries: (
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
     )
@@ -299,6 +304,9 @@ def build_data_loaders(
     cache_for_dataloaders: CacheForDataLoaders | None = None,
 ) -> DataLoaders:
     return DataLoaders(
+        agent_session_fields=TableFieldsDataLoader(db, models.AgentSession),
+        agent_session_first_inputs=AgentSessionMessageTextDataLoader(db, "first_input"),
+        agent_session_latest_outputs=AgentSessionMessageTextDataLoader(db, "latest_output"),
         annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
         average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
             db
@@ -358,6 +366,7 @@ def build_data_loaders(
         experiment_expected_run_counts=ExperimentExpectedRunCountsDataLoader(db),
         last_experiment_errors=LastExperimentErrorsDataLoader(db),
         experiment_fields=TableFieldsDataLoader(db, models.Experiment),
+        experiment_tag_fields=TableFieldsDataLoader(db, models.ExperimentTag),
         experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
             db
         ),

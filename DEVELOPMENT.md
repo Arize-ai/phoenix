@@ -36,22 +36,23 @@ The fastest path from a fresh clone to a running Phoenix dev server. See the sec
 # 1. Install Python dependencies (installs Phoenix and all sub-packages in editable mode)
 uv sync --all-extras
 
-# 2. Install the pinned Node.js version (reads .nvmrc) and pnpm
+# 2. Install the pinned Node.js and pnpm versions
 nvm install
 npm i -g pnpm@11.11.0
 
-# 3. Install and build the web app
-cd app
-cp .env.example .env
-# edit .env and change PHOENIX_AUTH to `false` if you do not want to manage API keys during development
+# 3. Install the JavaScript workspace and build the web app
+cd js
 pnpm install
-pnpm run build
+pnpm build
+cp app/.env.example app/.env
+# Set PHOENIX_ENABLE_AUTH=False in app/.env to disable authentication locally
 
 # 4. Start the dev server (Python API + frontend with hot reload)
+cd app
 pnpm dev
 ```
 
-Open [http://localhost:6006](http://localhost:6006). If authentication is enabled, log in with **`admin@localhost`** / **`admin`**, or set `PHOENIX_ENABLE_AUTH=False` in `app/.env` to bypass it.
+Open [http://localhost:6006](http://localhost:6006). If authentication is enabled, log in with **`admin@localhost`** / **`admin`**, or set `PHOENIX_ENABLE_AUTH=False` in `js/app/.env` to bypass it.
 
 > **💡 Tip:** Optionally use an in-memory database for a fresh Phoenix on every restart:
 >
@@ -80,7 +81,7 @@ The sub-packages (`phoenix.evals`, `phoenix.otel`, and `phoenix.client`) located
 **Next**, install the web build dependencies.
 
 We recommend installing [nodejs via nvm](https://github.com/nvm-sh/nvm) and then
-installing `pnpm` globally to manage the web frontend dependencies.
+installing `pnpm` globally to manage the JavaScript workspace dependencies.
 
 ```bash
 # install nvm
@@ -90,26 +91,20 @@ installing `pnpm` globally to manage the web frontend dependencies.
 nvm install
 # set it as default (optional)
 nvm alias default <version-that-was-installed>
-# install pnpm globally for v22
-npm i -g pnpm@9.15.5
+# install pnpm globally
+npm i -g pnpm@11.11.0
 ```
 
-Then we will build the web app.
-
-Change directory to `app`:
+Then install the JavaScript workspace from its root and build the web app:
 
 ```bash
-cd app
-```
-
-and run:
-
-```bash
+cd js
 pnpm install
-pnpm run build
+pnpm build
+cp app/.env.example app/.env
 ```
 
-Check out the `README.md` file in the `app` directory for more information on developing the web application.
+Check out the `README.md` file in the `js/app` directory for more information on developing the web application.
 
 ## Testing and Linting
 
@@ -220,7 +215,7 @@ For more details on Mintlify's features, including formatting, components, and d
 
 To build Phoenix, you must build the `app` and the python package.
 
-To build the `app`, navigate to the `app` directory and run
+To build the `app`, navigate to the `js/app` directory and run
 
 ```bash
 pnpm run build
@@ -338,16 +333,16 @@ After doing so, consider pasting the following settings into your workspace sett
       "source.fixAll.oxlint": "always"
     }
   },
-  "mypy-type-checker.ignorePatterns": [".tox,.venv,app"],
+  "mypy-type-checker.ignorePatterns": [".tox,.venv,js/app"],
   "javascript.preferences.importModuleSpecifier": "shortest",
   "typescript.preferences.importModuleSpecifier": "non-relative",
   "oxc.fmt.configPath": ".oxfmtrc.jsonc",
-  "oxc.path.oxfmt": "app/node_modules/oxfmt/bin/oxfmt",
-  "oxc.path.oxlint": "app/node_modules/oxlint/bin/oxlint",
+  "oxc.path.oxfmt": "js/app/node_modules/oxfmt/bin/oxfmt",
+  "oxc.path.oxlint": "js/app/node_modules/oxlint/bin/oxlint",
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
-  "relay.rootDirectory": "app",
-  "relay.pathToConfig": "app/relay.config.js",
+  "relay.rootDirectory": "js/app",
+  "relay.pathToConfig": "js/app/relay.config.js",
   "relay.autoStartCompiler": true
 }
 ```
@@ -359,7 +354,7 @@ After doing so, consider pasting the following settings into your workspace sett
 > extension; otherwise VS Code's built-in TypeScript language service works fine for
 > editing. Tools that still need the JS compiler API (openapi-typescript, typedoc,
 > Storybook docgen) resolve the `@typescript/typescript6` bridge via `.pnpmfile.cjs`
-> in `app/` and `js/`.
+> in `js/`.
 
 ### Debugging the Python Server
 
@@ -387,7 +382,7 @@ The dev server runs with `debugpy` enabled, allowing you to attach a debugger fr
 
 > **Note:** The default debugpy port is 5678. If you customize it via the `DEBUGPY_PORT` environment variable, update the `port` value in the launch configuration to match.
 
-2. **Start the dev environment** from the `app` directory:
+2. **Start the dev environment** from the `js/app` directory:
 
 ```bash
  pnpm dev
@@ -407,7 +402,7 @@ This launches both the Python server and the frontend UI simultaneously using `m
 > VITE_PORT=3000 DEBUGPY_PORT=5679 pnpm dev
 > ```
 >
-> Or add to `app/.env`:
+> Or add to `js/app/.env`:
 >
 > ```
 > VITE_PORT=3000

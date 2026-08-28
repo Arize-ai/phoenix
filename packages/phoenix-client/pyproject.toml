@@ -21,7 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-version = "2.13.0"
+version = "3.3.0"
 dependencies = [
   "httpx",
   "tqdm",
@@ -44,9 +44,16 @@ pytest = [
 evals = [
   "arize-phoenix-evals",
 ]
+harbor = [
+  "harbor>=0.21.0; python_version >= '3.12'",
+]
 
 [project.entry-points.pytest11]
 phoenix = "phoenix.client.pytest.plugin"
+
+# Harbor is opt-in and only imported when selected with ``--plugin arize-phoenix``.
+[project.entry-points."harbor.plugins"]
+arize-phoenix = "phoenix.client.harbor:PhoenixJobPlugin"
 
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"
@@ -96,6 +103,20 @@ exclude = [
   "scripts/",
   "src/phoenix/client/helpers/sdk/",
 ]
+
+# Harbor does not yet ship a py.typed marker. Follow its inline annotations so changes to
+# the plugin ABC and the models consumed by phoenix.client.harbor fail type checking.
+[[tool.mypy.overrides]]
+module = ["harbor.*"]
+follow_untyped_imports = true
+ignore_missing_imports = true
+
+# Harbor requires Python 3.12. On the client's 3.10 and 3.11 CI jobs its types resolve to Any;
+# supported Python jobs install Harbor and check the concrete types above.
+[[tool.mypy.overrides]]
+module = ["phoenix.client.harbor.*", "src.phoenix.client.harbor.*", "tests.client.harbor.*"]
+allow_subclassing_any = true
+warn_return_any = false
 
 [tool.pyright]
 typeCheckingMode = "strict"

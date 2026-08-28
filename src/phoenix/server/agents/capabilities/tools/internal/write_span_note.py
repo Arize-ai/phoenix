@@ -5,6 +5,7 @@ from typing import Annotated
 
 from pydantic import Field, StringConstraints
 from pydantic_ai import ModelRetry, Tool
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from sqlalchemy import select
@@ -13,7 +14,6 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.dml_event import DmlEvent, SpanAnnotationInsertEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 
@@ -24,8 +24,14 @@ _SPAN_ID_PATTERN = "^[0-9a-fA-F]{16}$"
 
 _WRITE_SPAN_NOTE_DESCRIPTION = (
     "Write a PXI-owned open-coding note to a Phoenix span. The tool targets a span by "
-    "`spanId`, writes the note immediately with identifier `pxi`, and updates the existing "
-    "PXI note on that span when called repeatedly."
+    "`spanId`, writes the note immediately on the server with identifier `pxi`, and "
+    "updates the existing PXI note on that span when called repeatedly instead of "
+    "appending a second one. The identifier is always `pxi`; do not supply or ask for "
+    "another one. "
+    "Use it once you have inspected the span and observed a concrete failure or "
+    "noteworthy behavior, and keep the note text a grounded observation rather than a "
+    'taxonomy label — for example "Tool returned a 404 and the agent retried the same '
+    'invalid id twice."'
 )
 
 
@@ -94,12 +100,11 @@ class WriteSpanNoteToolset(FunctionToolset[AgentDepsT]):
 
 
 @dataclass
-class WriteSpanNoteCapability(AbstractStaticCapability[AgentDepsT]):
+class WriteSpanNoteCapability(AbstractCapability[AgentDepsT]):
     """Capability that adds the PXI span-note writer."""
 
     db: DbSessionFactory
     event_queue: CanPutItem[DmlEvent]
-    instructions: str
     read_only: bool = False
     auth_enabled: bool = False
     user_id: int | None = None
@@ -114,9 +119,6 @@ class WriteSpanNoteCapability(AbstractStaticCapability[AgentDepsT]):
             user_id=self.user_id,
             is_viewer=self.is_viewer,
         )
-
-    def get_static_instructions(self) -> str:
-        return self.instructions
 
 
 def _ensure_can_write_span_note(

@@ -1,11 +1,11 @@
 {
-  "$schema": "./app/node_modules/oxfmt/configuration_schema.json",
+  "$schema": "./js/app/node_modules/oxfmt/configuration_schema.json",
   "printWidth": 80,
   "trailingComma": "es5",
   "ignorePatterns": [
     "docs/**",
     "**/pnpm-lock.yaml",
-    "app/schema.graphql",
+    "js/app/schema.graphql",
     "**/__generated__/**",
     "**/*.grammar",
     "js/**/dist/**",

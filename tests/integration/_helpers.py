@@ -2201,6 +2201,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/experiments/fake-id-{}/incomplete-evaluations"),
     (422, "GET", "v1/experiments/fake-id-{}/json"),
     (422, "GET", "v1/experiments/fake-id-{}/csv"),
+    (422, "GET", "v1/experiments/fake-id-{}/tags"),
     # Prompts
     (200, "GET", "v1/prompts"),
     (200, "GET", "v1/prompts/fake-id-{}/versions"),
@@ -2227,6 +2228,9 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/sessions/fake-id-{}"),
     # Traces (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/traces"),
+    # Model providers
+    (200, "GET", "v1/model_providers"),
+    (200, "GET", "v1/custom_model_providers"),
     # Viewer (authenticated user profile)
     (200, "GET", "v1/user"),
     # API keys (the authenticated user's own personal keys)
@@ -2241,6 +2245,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "POST", "v1/users"),
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
+    (422, "PATCH", "v1/projects/fake-id-{}/retention"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
     (422, "PUT", "v1/secrets"),
     (200, "GET", "v1/system/api_keys"),
@@ -2260,9 +2265,11 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/document_annotations"),
     (422, "POST", "v1/experiment_evaluations"),
     (422, "POST", "v1/experiments/fake-id-{}/runs"),
+    (422, "POST", "v1/experiments/fake-id-{}/tags"),
     (422, "POST", "v1/projects"),
     (422, "POST", "v1/projects/fake-id-{}/spans"),
     (422, "POST", "v1/prompts"),
+    (422, "POST", "v1/prompts/fake-id-{}/versions"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
     (422, "POST", "v1/session_annotations"),
     (422, "POST", "v1/session_notes"),
@@ -2272,6 +2279,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/trace_annotations"),
     (422, "POST", "v1/trace_notes"),
     (415, "POST", "v1/traces"),
+    (422, "POST", "v1/traces/transfer"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
     (404, "PUT", "v1/projects/{0}/annotation_configs/{0}"),
@@ -2291,6 +2299,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "DELETE", "v1/datasets/fake-id-{}"),
     (422, "DELETE", "v1/datasets/fake-id-{}/splits/test-split"),
     (422, "DELETE", "v1/experiments/fake-id-{}"),
+    (422, "DELETE", "v1/experiments/fake-id-{}/tags/test-tag"),
     (404, "DELETE", "v1/sessions/fake-id-{}"),
     (404, "DELETE", "v1/spans/fake-id-{}"),
     (404, "DELETE", "v1/prompts/fake-id-{}"),

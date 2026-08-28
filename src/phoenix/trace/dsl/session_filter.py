@@ -310,6 +310,26 @@ SESSION_BINDINGS = _FilterBindings(
     quantifiers=frozenset(COMPREHENSION_NAMES),
     exists_names=frozenset(_EXISTS_ATTRIBUTE_PATHS),
     iterables=_SESSION_ITERABLES,
+    annotation_accessors=frozenset({"session_annotations"}),
+    annotation_accessor_errors=MappingProxyType(
+        {
+            "annotations": (
+                "`annotations[...]` is not available in the session filter; use "
+                "`session_annotations[...]` for session annotations, or iterate "
+                "`span_annotations` for span-level annotations"
+            ),
+            "evals": (
+                "`evals[...]` is not available in the session filter; use "
+                "`session_annotations[...]` for session annotations, or iterate "
+                "`span_annotations` for span-level annotations"
+            ),
+            "trace_annotations": (
+                "`trace_annotations[...]` is not available in the session filter; sessions "
+                "do not expose a trace-annotation accessor; use `session_annotations[...]` "
+                "for session annotations, or iterate `span_annotations` for span-level annotations"
+            ),
+        }
+    ),
     annotation_iterable="session_annotations",
     case_insensitive_containment=True,
     strict_semantics=True,
@@ -325,15 +345,15 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             "Session start timestamp (earliest trace) — a point comparison against the "
             "session's own bound, unlike the view's time range, which selects sessions that "
             "overlap a window. Compare against ISO 8601 strings, e.g. "
-            "start_time > '2026-07-01T00:00:00+00:00'; values without a timezone are read as "
-            "UTC, so prefer an offset-bearing literal."
+            "start_time > '2026-07-01T00:00:00+00:00'; a literal without a timezone offset is "
+            "rejected, so include one (e.g. a trailing 'Z')."
         ),
         "end_time": (
             "Session end timestamp (latest trace) — a point comparison against the session's "
             "own bound, unlike the view's time range, which selects sessions that overlap a "
             "window. Compare against ISO 8601 strings, e.g. "
-            "end_time < '2026-07-04T12:00:00+00:00'; values without a timezone are read as "
-            "UTC, so prefer an offset-bearing literal."
+            "end_time < '2026-07-04T12:00:00+00:00'; a literal without a timezone offset is "
+            "rejected, so include one (e.g. a trailing 'Z')."
         ),
         "duration_ms": "Session wall-clock duration in milliseconds (end_time - start_time).",
         "num_traces": (

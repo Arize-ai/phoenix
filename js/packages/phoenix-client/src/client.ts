@@ -158,9 +158,10 @@ export const createClient = (
         const headers = mergedOptions.headers
           ? { ...(mergedOptions.headers as Record<string, string>) }
           : {};
-        const resp = await fetch(`${baseUrl}/arize_phoenix_version`, {
-          headers,
-        });
+        const fetchImpl = mergedOptions.fetch ?? globalThis.fetch;
+        const resp = await fetchImpl(
+          new Request(`${baseUrl}/arize_phoenix_version`, { headers })
+        );
         if (resp.ok) {
           const text = await resp.text();
           const parsed = parseSemanticVersion(text);
