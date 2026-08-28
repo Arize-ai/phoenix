@@ -4,6 +4,7 @@ models, refresh ``_EXPECTED_UI_MESSAGES``, and shim any renamed key for existing
 rows."""
 
 from collections.abc import AsyncIterator, Sequence
+from itertools import count
 from typing import Any, get_args
 
 from pydantic_ai.messages import (
@@ -41,6 +42,7 @@ _EXPECTED_UI_MESSAGES: list[dict[str, Any]] = [
         "parts": [
             {
                 "type": "reasoning",
+                "id": "part-1",
                 "text": "I should search the web and the toolbox.",
                 "state": "done",
                 "providerMetadata": {
@@ -179,10 +181,22 @@ _UNRESOLVED_CALL = ToolCallPart(
 )
 
 
+class _SequentialIdEventStream(VercelAIEventStream):
+    """pydantic-ai assigns each UI part a random UUID; make them stable for comparison."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._part_ids = count(1)
+
+    def new_message_id(self) -> str:
+        self.message_id = f"part-{next(self._part_ids)}"
+        return self.message_id
+
+
 async def _persist_turn() -> PhoenixUIMessage:
     """Persist a turn as production does: installed event stream -> reducer ->
     validation -> repair (the final call is left unresolved to exercise it)."""
-    event_stream = VercelAIEventStream(run_input=SubmitMessage(id="run", messages=[]))
+    event_stream = _SequentialIdEventStream(run_input=SubmitMessage(id="run", messages=[]))
 
     async def collect(chunk_iterator: AsyncIterator[BaseChunk]) -> list[BaseChunk]:
         return [chunk async for chunk in chunk_iterator]
