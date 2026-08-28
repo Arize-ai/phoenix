@@ -1153,8 +1153,19 @@ class SpanFilter:
         # a measured PostgreSQL regression (see `query.py`). An `OR ... parent_id IS
         # NULL` form is intentionally NOT used here.
         parent_span = aliased(models.Span)
+        # `Span` is named explicitly rather than left to auto-correlation, which omits
+        # only a relation the immediately enclosing query selects from. This subquery
+        # sits one level deeper than that whenever the same condition also reads an
+        # annotation, because the whole predicate is then evaluated inside a correlated
+        # `EXISTS`. Re-rendered there, `spans` is an unconstrained cross join and the
+        # test collapses to "no span anywhere has a parent" -- false for any non-empty
+        # project, so `parent_span is None and <annotation>` matched nothing at all and
+        # the `is not None` form matched everything.
         parent_exists = (
-            sqlalchemy.select(1).where(parent_span.span_id == models.Span.parent_id).exists()
+            sqlalchemy.select(1)
+            .where(parent_span.span_id == models.Span.parent_id)
+            .correlate(models.Span)
+            .exists()
         )
         predicate = eval(
             self.compiled,
