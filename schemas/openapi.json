@@ -18574,6 +18574,17 @@
             "title": "Type",
             "default": "reasoning"
           },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
           "text": {
             "type": "string",
             "title": "Text"
