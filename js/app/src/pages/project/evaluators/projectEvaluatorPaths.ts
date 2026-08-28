@@ -1,7 +1,13 @@
 import { useMemo } from "react";
 import { useLocation } from "react-router";
 
+import {
+  PROJECT_EVALUATOR_CATEGORY_PARAM,
+  PROJECT_EVALUATOR_TEMPLATE_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
+import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 const projectEvaluatorsPath = (projectRootPath: string) =>
   `${projectRootPath}/evaluators`;
@@ -39,9 +45,33 @@ export function useProjectEvaluatorPaths() {
     const list = projectEvaluatorsPath(rootPath);
     const gallery = projectEvaluatorGalleryPath(rootPath);
     const withCurrentSearch = (path: string) => `${path}${search}`;
+    // A fresh gallery entry clears stale selection while preserving unrelated
+    // project-page state in the query string.
+    const defaultGallerySearch = withSearchParams(search, (searchParams) => {
+      searchParams.delete(PROJECT_EVALUATOR_CATEGORY_PARAM);
+      searchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
+    });
     return {
       list: withCurrentSearch(list),
-      gallery: withCurrentSearch(gallery),
+      gallery: `${gallery}${defaultGallerySearch}`,
+      // Nested gallery routes use this exact return URL when they close.
+      galleryReturn: withCurrentSearch(gallery),
+      galleryCategory: (category: EvaluatorCategory) =>
+        `${gallery}${withSearchParams(search, (searchParams) => {
+          searchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
+          searchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
+        })}`,
+      galleryTemplate: ({
+        category,
+        templateName,
+      }: {
+        category: EvaluatorCategory;
+        templateName: string;
+      }) =>
+        `${gallery}${withSearchParams(search, (searchParams) => {
+          searchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
+          searchParams.set(PROJECT_EVALUATOR_TEMPLATE_PARAM, templateName);
+        })}`,
       newLlm: withCurrentSearch(newLlmProjectEvaluatorPath(rootPath)),
       newCode: withCurrentSearch(newCodeProjectEvaluatorPath(rootPath)),
       galleryNewLlm: withCurrentSearch(`${gallery}/new/llm`),

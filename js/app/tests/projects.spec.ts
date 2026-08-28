@@ -212,14 +212,26 @@ test.describe.serial("Projects", () => {
     await expect(page).toHaveURL(EVALUATORS_URL);
 
     await expect(
-      page.getByText("No evaluators for this project")
+      page.getByRole("heading", { name: "Evaluators", exact: true })
     ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Browse the library" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Build from scratch" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("searchbox", { name: "Search evaluators by name" })
+    ).toHaveCount(0);
     await expect(
       page.getByRole("table", { name: "Project evaluators" })
     ).toHaveCount(0);
     await expect(evaluatorsTab).toContainText("0");
 
-    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page.getByRole("button", { name: "Build from scratch" }).click();
+    await expect(
+      page.getByRole("menuitem", { name: "Browse the whole library" })
+    ).toHaveCount(0);
     await page
       .getByRole("menuitem", { name: "Create new LLM evaluator" })
       .click();
@@ -248,6 +260,9 @@ test.describe.serial("Projects", () => {
     await expect(createDialog).not.toBeVisible();
 
     const table = page.getByRole("table", { name: "Project evaluators" });
+    await expect(
+      page.getByRole("searchbox", { name: "Search evaluators by name" })
+    ).toBeVisible();
     const evaluatorRow = table
       .getByRole("row")
       .filter({ hasText: evaluatorName });
@@ -314,6 +329,12 @@ test.describe.serial("Projects", () => {
     await expect(deleteDialog).not.toBeVisible();
     await expect(updatedRow).not.toBeVisible();
     await expect(evaluatorsTab).toContainText("0");
+    await expect(
+      page.getByRole("button", { name: "Build from scratch" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("searchbox", { name: "Search evaluators by name" })
+    ).toHaveCount(0);
   });
 
   test("project table remains usable after mutation workflows", async ({
