@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 import { ListBoxItem } from "@phoenix/components";
 import { classNames } from "@phoenix/utils/classNames";
@@ -8,15 +8,18 @@ type EvaluatorTemplateCardProps = {
   id: string;
   textValue: string;
   children: ReactNode;
+  ref?: Ref<HTMLDivElement>;
 };
 
 export function EvaluatorTemplateCard({
   id,
   textValue,
   children,
+  ref,
 }: EvaluatorTemplateCardProps) {
   return (
     <ListBoxItem
+      ref={ref}
       css={evaluatorTemplateCardCSS}
       id={id}
       textValue={textValue}

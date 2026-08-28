@@ -62,7 +62,7 @@ const GALLERY_SKELETON_HEIGHT = 440;
 /** The combined minimum width of the category, template, and details columns. */
 const GALLERY_EXPANDED_MIN_WIDTH = 960;
 /**
- * Once a use-case heading crosses into the top 30% of the scroll region, treat
+ * Once a category heading crosses into the top 30% of the scroll region, treat
  * it as the section the user is currently reading.
  */
 const SCROLL_SPY_ROOT_MARGIN = "0px 0px -70% 0px";
@@ -127,7 +127,7 @@ function EvaluatorGallery() {
       ),
     [categories, templates]
   );
-  const useCaseItems = categories.map((category) => ({
+  const categoryItems = categories.map((category) => ({
     id: category,
     name: getProjectEvaluatorTemplateCategoryLabel(
       category === OTHER_CATEGORY ? null : category
@@ -137,45 +137,67 @@ function EvaluatorGallery() {
   const requestedTemplateName = searchParams.get(
     PROJECT_EVALUATOR_TEMPLATE_PARAM
   );
+  const requestedCategoryParam = searchParams.get(
+    PROJECT_EVALUATOR_CATEGORY_PARAM
+  ) as TemplateCategory | null;
+  const requestedCategory =
+    requestedCategoryParam && categories.includes(requestedCategoryParam)
+      ? requestedCategoryParam
+      : undefined;
+  const requestedTemplate = templates.find(
+    ({ name }) => name === requestedTemplateName
+  );
+  const requestedTemplateNameToScroll = requestedTemplate?.name;
+  const requestedTemplateCategory = requestedTemplate
+    ? getGalleryCategory(requestedTemplate.category)
+    : undefined;
+  const requestedCategoryToScroll =
+    requestedTemplateCategory ?? requestedCategory;
   const selectedTemplate =
-    templates.find(({ name }) => name === requestedTemplateName) ??
-    templatesByCategory.get(categories[0])?.[0];
+    requestedTemplate ?? templatesByCategory.get(categories[0])?.[0];
 
   // Section headings double as scroll-spy targets, so the sidebar can track
-  // whichever use case is currently in view.
+  // whichever category is currently in view.
   const headingRefs = useRef(new Map<TemplateCategory, HTMLElement>());
+  const templateCardRefs = useRef(new Map<string, HTMLDivElement>());
   const templateScrollRegionRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState<
     TemplateCategory | undefined
-  >(() => {
-    const requestedCategory = searchParams.get(
-      PROJECT_EVALUATOR_CATEGORY_PARAM
-    ) as TemplateCategory | null;
-    return requestedCategory && categories.includes(requestedCategory)
-      ? requestedCategory
-      : categories[0];
-  });
+  >(() => requestedCategory ?? categories[0]);
 
   const scrollToCategory = (category: TemplateCategory) => {
     headingRefs.current.get(category)?.scrollIntoView({ block: "start" });
     setActiveCategory(category);
   };
 
-  // Deep links (e.g. from the empty state) land on a specific use case; jump
-  // there once the headings have mounted.
-  const didScrollToInitialCategoryRef = useRef(false);
+  // Keep the scroll position synchronized with gallery deep links. Prefer the
+  // requested template and fall back to its category when no card is available.
   useEffect(() => {
-    if (didScrollToInitialCategoryRef.current || !activeCategory) return;
-    didScrollToInitialCategoryRef.current = true;
-    headingRefs.current.get(activeCategory)?.scrollIntoView({ block: "start" });
-    // Only ever run for the initial deep link; scroll position afterward is
-    // driven entirely by the user and the scroll-spy observer below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Wait for the route commit and React Aria collection layout before moving
+    // the scroll port; otherwise router scroll restoration can win this race.
+    const animationFrameId = requestAnimationFrame(() => {
+      const requestedTemplateCard = requestedTemplateNameToScroll
+        ? templateCardRefs.current.get(requestedTemplateNameToScroll)
+        : undefined;
+      const requestedCategoryHeading = requestedCategoryToScroll
+        ? headingRefs.current.get(requestedCategoryToScroll)
+        : undefined;
+      const scrollTarget = requestedTemplateCard ?? requestedCategoryHeading;
+      scrollTarget?.scrollIntoView({
+        block: requestedTemplateCard ? "nearest" : "start",
+      });
+      if (requestedCategoryToScroll) {
+        setActiveCategory(requestedCategoryToScroll);
+      }
+    });
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [requestedCategoryToScroll, requestedTemplateNameToScroll]);
 
   useEffect(() => {
     const scrollRegion = templateScrollRegionRef.current;
     if (!scrollRegion) return undefined;
+    // Snapshot the mounted headings so observer entries can be mapped back to
+    // the category selection used by the sidebar and compact picker.
     const headingsByElement = new Map<Element, TemplateCategory>(
       categories
         .map(
@@ -188,19 +210,30 @@ function EvaluatorGallery() {
     if (headingsByElement.size === 0) return undefined;
     const observer = new IntersectionObserver(
       (entries) => {
+        // More than one heading can occupy the active top band. The uppermost
+        // one represents the category the user is currently reading.
         const topmostVisibleEntry = entries
           .filter((entry) => entry.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
           .at(0);
-        const category = topmostVisibleEntry
-          ? headingsByElement.get(topmostVisibleEntry.target)
-          : undefined;
+        // The final heading cannot reach the top band when the scroll port is
+        // at its limit, so treat the bottom as belonging to the last category.
+        const isAtScrollEnd =
+          scrollRegion.scrollTop + scrollRegion.clientHeight >=
+          scrollRegion.scrollHeight - 1;
+        const category = isAtScrollEnd
+          ? categories.at(-1)
+          : topmostVisibleEntry
+            ? headingsByElement.get(topmostVisibleEntry.target)
+            : undefined;
         if (category) {
           setActiveCategory(category);
         }
       },
       { root: scrollRegion, rootMargin: SCROLL_SPY_ROOT_MARGIN }
     );
+    // Observe every mounted category heading and release them together when
+    // the category collection changes or the gallery unmounts.
     headingsByElement.forEach((_category, heading) =>
       observer.observe(heading)
     );
@@ -238,7 +271,7 @@ function EvaluatorGallery() {
         <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
         <div className="project-evaluator-gallery__category-scroll-region">
           <ListBox
-            aria-label="Use cases"
+            aria-label="Categories"
             className="project-evaluator-gallery__category-list"
             selectionMode="single"
             selectionBehavior="replace"
@@ -252,7 +285,7 @@ function EvaluatorGallery() {
               }
             }}
           >
-            <ListBoxSection id="use-cases">
+            <ListBoxSection id="categories">
               <Header className="project-evaluator-gallery__category-section-heading">
                 <Text
                   elementType="h2"
@@ -260,10 +293,10 @@ function EvaluatorGallery() {
                   weight="heavy"
                   color="text-500"
                 >
-                  Use cases
+                  Categories
                 </Text>
               </Header>
-              {useCaseItems.map(renderCategoryItem)}
+              {categoryItems.map(renderCategoryItem)}
             </ListBoxSection>
           </ListBox>
         </div>
@@ -277,7 +310,7 @@ function EvaluatorGallery() {
           <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
         </div>
         <Select
-          aria-label="Evaluator use case"
+          aria-label="Evaluator category"
           className="project-evaluator-gallery__compact-category-select"
           value={activeCategory}
           onChange={(category) => {
@@ -292,7 +325,7 @@ function EvaluatorGallery() {
           </Button>
           <Popover isNonModal closeOnInteractOutside>
             <ListBox css={compactCategoryListCSS}>
-              <ListBoxSection id="compact-use-cases">
+              <ListBoxSection id="compact-categories">
                 <Header className="project-evaluator-gallery__category-section-heading">
                   <Text
                     elementType="h2"
@@ -300,10 +333,10 @@ function EvaluatorGallery() {
                     weight="heavy"
                     color="text-500"
                   >
-                    Use cases
+                    Categories
                   </Text>
                 </Header>
-                {useCaseItems.map(renderCategoryItem)}
+                {categoryItems.map(renderCategoryItem)}
               </ListBoxSection>
             </ListBox>
           </Popover>
@@ -364,6 +397,16 @@ function EvaluatorGallery() {
                     {(template) => (
                       <EvaluatorTemplateCard
                         key={template.name}
+                        ref={(element) => {
+                          if (element) {
+                            templateCardRefs.current.set(
+                              template.name,
+                              element
+                            );
+                          } else {
+                            templateCardRefs.current.delete(template.name);
+                          }
+                        }}
                         id={template.name}
                         textValue={template.name}
                       >
@@ -779,6 +822,11 @@ const galleryCSS = css`
     gap: var(--global-dimension-size-400);
     margin-top: var(--global-dimension-size-100);
     overflow-y: auto;
+    scroll-behavior: smooth;
+
+    @media (prefers-reduced-motion: reduce) {
+      scroll-behavior: auto;
+    }
   }
 
   .project-evaluator-gallery__template-category-section {
@@ -788,7 +836,7 @@ const galleryCSS = css`
   }
 
   .project-evaluator-gallery__template-category-heading {
-    /* Anchor target for the use-cases nav; offset so scrollIntoView doesn't
+    /* Anchor target for the category nav; offset so scrollIntoView doesn't
        tuck it flush against the scroll region's top edge. */
     scroll-margin-top: var(--global-dimension-size-100);
   }
