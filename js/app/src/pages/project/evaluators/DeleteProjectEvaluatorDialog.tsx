@@ -1,5 +1,6 @@
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 
+import { useTimeRange } from "@phoenix/components/datetime";
 import { DeleteEvaluatorDialog } from "@phoenix/components/evaluators/DeleteEvaluatorDialog";
 import type { DeleteProjectEvaluatorDialogMutation } from "@phoenix/pages/project/evaluators/__generated__/DeleteProjectEvaluatorDialogMutation.graphql";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
@@ -21,6 +22,7 @@ export function DeleteProjectEvaluatorDialog({
   onOpenChange: (isOpen: boolean) => void;
 }) {
   const environment = useRelayEnvironment();
+  const { timeRangeISOStrings } = useTimeRange();
   const [commitDelete, isDeleting] =
     useMutation<DeleteProjectEvaluatorDialogMutation>(graphql`
       mutation DeleteProjectEvaluatorDialogMutation(
@@ -55,10 +57,11 @@ export function DeleteProjectEvaluatorDialog({
                 );
                 return;
               }
-              void refetchProjectEvaluators({ environment, projectId }).then(
-                () => resolve(),
-                reject
-              );
+              void refetchProjectEvaluators({
+                environment,
+                projectId,
+                timeRange: timeRangeISOStrings,
+              }).then(() => resolve(), reject);
             },
             onError: (mutationError) =>
               reject(
