@@ -25,6 +25,13 @@ export const newLlmProjectEvaluatorPath = (projectRootPath: string) =>
 export const newCodeProjectEvaluatorPath = (projectRootPath: string) =>
   `${projectEvaluatorsPath(projectRootPath)}/new/code`;
 
+export type ProjectEvaluatorCreationPaths = {
+  newLlm: string;
+  newCode: string;
+  copyLlm: (evaluatorId: string) => string;
+  attachCode: (evaluatorId: string) => string;
+};
+
 /**
  * The evaluator slideover paths for the project currently in the URL.
  *
@@ -45,6 +52,20 @@ export function useProjectEvaluatorPaths() {
     const list = projectEvaluatorsPath(rootPath);
     const gallery = projectEvaluatorGalleryPath(rootPath);
     const withCurrentSearch = (path: string) => `${path}${search}`;
+    const buildCreationPaths = (
+      parentPath: string
+    ): ProjectEvaluatorCreationPaths => ({
+      newLlm: withCurrentSearch(`${parentPath}/new/llm`),
+      newCode: withCurrentSearch(`${parentPath}/new/code`),
+      copyLlm: (evaluatorId: string) =>
+        withCurrentSearch(
+          `${parentPath}/new/copy/${encodeURIComponent(evaluatorId)}`
+        ),
+      attachCode: (evaluatorId: string) =>
+        withCurrentSearch(
+          `${parentPath}/new/attach/${encodeURIComponent(evaluatorId)}`
+        ),
+    });
     // A fresh gallery entry clears stale selection while preserving unrelated
     // project-page state in the query string.
     const defaultGallerySearch = withSearchParams(search, (searchParams) => {
@@ -54,8 +75,6 @@ export function useProjectEvaluatorPaths() {
     return {
       list: withCurrentSearch(list),
       gallery: `${gallery}${defaultGallerySearch}`,
-      // Nested gallery routes use this exact return URL when they close.
-      galleryReturn: withCurrentSearch(gallery),
       galleryCategory: (category: EvaluatorCategory) =>
         `${gallery}${withSearchParams(search, (searchParams) => {
           searchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
@@ -72,21 +91,11 @@ export function useProjectEvaluatorPaths() {
           searchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
           searchParams.set(PROJECT_EVALUATOR_TEMPLATE_PARAM, templateName);
         })}`,
-      newLlm: withCurrentSearch(newLlmProjectEvaluatorPath(rootPath)),
-      newCode: withCurrentSearch(newCodeProjectEvaluatorPath(rootPath)),
-      galleryNewLlm: withCurrentSearch(`${gallery}/new/llm`),
+      listCreation: buildCreationPaths(list),
+      galleryCreation: buildCreationPaths(gallery),
       galleryNewLlmFromTemplate: (templateName: string) =>
         withCurrentSearch(
           `${gallery}/new/template/${encodeURIComponent(templateName)}`
-        ),
-      galleryNewCode: withCurrentSearch(`${gallery}/new/code`),
-      copyLlm: (evaluatorId: string) =>
-        withCurrentSearch(
-          `${list}/new/copy/${encodeURIComponent(evaluatorId)}`
-        ),
-      attachCode: (evaluatorId: string) =>
-        withCurrentSearch(
-          `${list}/new/attach/${encodeURIComponent(evaluatorId)}`
         ),
       details: (projectEvaluatorId: string) =>
         withCurrentSearch(`${list}/${encodeURIComponent(projectEvaluatorId)}`),

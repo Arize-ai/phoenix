@@ -24,19 +24,28 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { View } from "@phoenix/components/core/view";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
 import { projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
+  type ProjectEvaluatorCreationPaths,
+  useProjectEvaluatorPaths,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 
 export const AddProjectEvaluatorMenu = ({
   size,
+  buttonClassName,
+  buttonLabel = "Add evaluator",
+  shouldShowGalleryLink = true,
+  creationPaths,
   ...props
 }: ProjectEvaluatorMenuTriggerProps) => {
   return (
     <ProjectEvaluatorMenu
       size={size}
-      buttonLabel="Add evaluator"
+      buttonClassName={buttonClassName}
+      buttonLabel={buttonLabel}
       buttonVariant="primary"
       buttonLeadingVisual={<Icon svg={<Icons.Plus />} />}
-      shouldShowGalleryLink
+      shouldShowGalleryLink={shouldShowGalleryLink}
+      creationPaths={creationPaths}
       {...props}
     />
   );
@@ -59,14 +68,22 @@ export const BuildProjectEvaluatorMenu = ({
 
 type ProjectEvaluatorMenuTriggerProps = {
   size: ButtonProps["size"];
+  buttonClassName?: string;
+  buttonLabel?: string;
+  /** Hide the "Browse eval gallery" item, e.g. when already on the gallery page. */
+  shouldShowGalleryLink?: boolean;
+  /** The routes to use for every evaluator-creation action in this menu. */
+  creationPaths: ProjectEvaluatorCreationPaths;
 } & Omit<MenuTriggerProps, "children">;
 
 function ProjectEvaluatorMenu({
   size,
+  buttonClassName,
   buttonLabel,
   buttonVariant,
   buttonLeadingVisual,
   shouldShowGalleryLink,
+  creationPaths,
   ...props
 }: ProjectEvaluatorMenuTriggerProps & {
   buttonLabel: string;
@@ -77,6 +94,7 @@ function ProjectEvaluatorMenu({
   return (
     <MenuTrigger {...props}>
       <Button
+        className={buttonClassName}
         variant={buttonVariant}
         size={size}
         leadingVisual={buttonLeadingVisual}
@@ -90,6 +108,7 @@ function ProjectEvaluatorMenu({
           <ProjectEvaluatorMenuItems
             menuLabel={buttonLabel}
             shouldShowGalleryLink={shouldShowGalleryLink}
+            creationPaths={creationPaths}
           />
         </Suspense>
       </MenuContainer>
@@ -100,9 +119,11 @@ function ProjectEvaluatorMenu({
 function ProjectEvaluatorMenuItems({
   menuLabel,
   shouldShowGalleryLink,
+  creationPaths,
 }: {
   menuLabel: string;
   shouldShowGalleryLink: boolean;
+  creationPaths: ProjectEvaluatorCreationPaths;
 }) {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
@@ -126,9 +147,9 @@ function ProjectEvaluatorMenuItems({
         aria-label={menuLabel}
         onAction={(action) => {
           if (action === "createEvaluator") {
-            navigate(paths.newLlm);
+            navigate(creationPaths.newLlm);
           } else if (action === "createCodeEvaluator") {
-            navigate(paths.newCode);
+            navigate(creationPaths.newCode);
           }
         }}
       >
@@ -139,7 +160,7 @@ function ProjectEvaluatorMenuItems({
               id="browseGallery"
               href={galleryHref}
             >
-              Browse the whole library
+              Browse eval gallery
             </MenuItem>
           </MenuSection>
         ) : null}
@@ -152,10 +173,12 @@ function ProjectEvaluatorMenuItems({
             Create new LLM evaluator
           </MenuItem>
           <EvaluatorSubmenu
-            label="Copy existing LLM evaluator"
+            label="Duplicate existing LLM evaluator"
             icon={<Icons.LLMOutput />}
             evaluators={llmEvaluators}
-            onAction={(evaluatorId) => navigate(paths.copyLlm(evaluatorId))}
+            onAction={(evaluatorId) =>
+              navigate(creationPaths.copyLlm(evaluatorId))
+            }
           />
         </MenuSection>
         <MenuSection>
@@ -167,10 +190,12 @@ function ProjectEvaluatorMenuItems({
             Create new code evaluator
           </MenuItem>
           <EvaluatorSubmenu
-            label="Attach existing code evaluator"
+            label="Use existing code evaluator"
             icon={<Icons.Code />}
             evaluators={codeEvaluators}
-            onAction={(evaluatorId) => navigate(paths.attachCode(evaluatorId))}
+            onAction={(evaluatorId) =>
+              navigate(creationPaths.attachCode(evaluatorId))
+            }
           />
         </MenuSection>
       </Menu>
