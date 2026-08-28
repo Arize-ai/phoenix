@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<75e9e4793a0890bda8dbff59b26b3743>>
+ * @generated SignedSource<<ec16a1660b9d692641d8dd6337607bf2>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,6 @@
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type Language = "PYTHON" | "TYPESCRIPT";
 export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
 export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TRACE_TARGET_UNSUPPORTED";
 export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
@@ -20,7 +19,6 @@ export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly evaluationTarget: EvaluationTarget;
   readonly evaluator: {
     readonly kind: EvaluatorKind;
-    readonly language?: Language;
   };
   readonly project: {
     readonly id: string;
@@ -177,20 +175,6 @@ return {
           "kind": "ScalarField",
           "name": "kind",
           "storageKey": null
-        },
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "language",
-              "storageKey": null
-            }
-          ],
-          "type": "CodeEvaluator",
-          "abstractKey": null
         }
       ],
       "storageKey": null
@@ -206,6 +190,6 @@ return {
 };
 })();
 
-(node as any).hash = "dadb92512086a6fb8d5eb07943aea04c";
+(node as any).hash = "561b2258c8a7fdd10968eaa94f9d1fdc";
 
 export default node;
