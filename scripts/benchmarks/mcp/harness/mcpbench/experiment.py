@@ -57,6 +57,7 @@ def _cell_record(row: dict[str, Any]) -> dict[str, Any]:
         "total_cost_usd": row.get("total_cost_usd"),
         "peak_context_tokens": row.get("peak_context_tokens"),
         "n_tool_calls": row.get("n_tool_calls"),
+        "duration_ms": row.get("duration_ms"),
         "tool_sequence": row.get("tool_sequence"),
         "trace_url": row.get("trace_url"),
     }
@@ -103,6 +104,14 @@ def _numeric_from_cell(cell: dict[str, Any], key: str, *, explanation_key: str |
     return result
 
 
+def _agent_latency(cell: dict[str, Any]) -> dict[str, Any]:
+    """Wall time for the original Claude run, in seconds (not Phoenix replay latency)."""
+    duration_ms = cell.get("duration_ms")
+    if duration_ms is None:
+        return {"score": 0.0, "label": "missing"}
+    return {"score": float(duration_ms) / 1000.0}
+
+
 def _experiment_metadata(
     run_id: str, meta: dict[str, Any], rows: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -128,6 +137,7 @@ def _evaluators(stored: dict[tuple[str, str, int], dict[str, Any]]) -> dict[str,
         "tool_calls": lambda example: _numeric_from_cell(
             cell_for(example), "n_tool_calls", explanation_key="tool_sequence"
         ),
+        "agent_latency": lambda example: _agent_latency(cell_for(example)),
     }
 
 
