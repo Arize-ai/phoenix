@@ -1966,11 +1966,11 @@ def _parenthesize_setop_operands(root: exp.Expression, ctx: RewriteContext) -> e
     """Make set-op operands that carry ORDER BY / LIMIT executable on this backend.
 
     ``SELECT ... LIMIT 1 UNION SELECT ...`` is a syntax error in PostgreSQL
-    unless the limited select is parenthesised, and SQLGlot does not emit those
-    parentheses. SQLite rejects the parentheses and the LIMIT-on-a-member
-    spelling; those members are lifted into FROM subqueries instead.
-
-    Workaround for an unfiled sqlglot defect.
+    unless the limited select is parenthesised. The parser accepts the
+    unparenthesised spelling, so the operand arrives bare and the parenthesised
+    form is what the engine runs. SQLite rejects the parentheses and the
+    LIMIT-on-a-member spelling; those members are lifted into FROM subqueries
+    instead.
     """
     if ctx.dialect == "sqlite":
         return _rewrite_sqlite_setop_operands(root, ctx)

@@ -383,18 +383,15 @@ def _promote_lateral_table_references(
 ) -> exp.Expression:
     """Turn ``LATERAL traces t`` into a plain table join.
 
-    SQLGlot stores the relation as an Identifier inside Lateral and emits
-    ``LATERAL traces AS t`` or ``LATERAL schema.traces AS t``. PostgreSQL
-    rejects that ``AS``: LATERAL is for subqueries and set-returning
-    functions, not base tables. A LATERAL table join is the same request as
-    an ordinary join, which schema qualification already knows how to emit.
+    PostgreSQL rejects ``LATERAL traces t`` outright: LATERAL is for
+    subqueries and set-returning functions, not base tables. The parser
+    accepts it, and a LATERAL table join is the same request as an ordinary
+    join, which schema qualification already knows how to emit.
 
     SQLite has no LATERAL. ``json_each`` does not need it -- a table-valued
     function there may refer to earlier FROM items -- so ``LATERAL json_each``
     is the same request as a plain ``json_each``. Remaining LATERAL nodes
     (subqueries, other SRFs) are refused at admission.
-
-    Workaround for an unfiled sqlglot defect.
     """
     for lateral in list(root.find_all(exp.Lateral)):
         inner = lateral.this
