@@ -2815,10 +2815,13 @@ async def test_available_agent_skills_returns_the_whole_catalog(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    # Every skill, in catalog order by name. The field takes no arguments: there
-    # is no UI state that can narrow this list, because `load_skill` will load
-    # any of them from any page.
+    # Every skill, in catalog order: the shared root first, then the agent's own,
+    # by name within each. The field takes no arguments: there is no UI state
+    # that can narrow this list, because `load_skill` will load any of them from
+    # any page.
     assert names == [
+        "phoenix-axial-coding",
+        "phoenix-open-coding",
         "annotate-spans",
         "datasets",
         "debug-trace",
