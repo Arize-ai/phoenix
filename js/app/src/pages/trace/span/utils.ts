@@ -296,11 +296,7 @@ export function getEmbeddingAttributes(spanAttributes: AttributeObject): {
 /**
  * The name of the tool a JSON schema recorded on an LLM span describes.
  *
- * The schema is the tool definition as the model provider's SDK received it,
- * so where the name sits depends on the provider: nested under `function` for
- * OpenAI-style definitions, at the top level for Anthropic-style ones, and in
- * the JSON Schema `title` when an instrumentation recorded only the parameter
- * schema.
+ * Makes a best-effort attempt to parse the name out of the schema.
  */
 export function getToolSchemaName(toolSchema: string): string | undefined {
   const schema = safelyParseJSONObjectString(toolSchema) as
