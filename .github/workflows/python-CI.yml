@@ -86,7 +86,7 @@ jobs:
               - "scripts/ci/check_filter_dsl_snippets.py"
             datagen_tooling:
               - "scripts/datagen/**"
-              - "src/phoenix/datagen/**"
+              - "src/phoenix/experimental/datagen/**"
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}

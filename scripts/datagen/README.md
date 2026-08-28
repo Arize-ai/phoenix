@@ -169,7 +169,7 @@ may span multiple rows.
 Tests for the packaging pipeline (conditions, packer, fetcher roundtrip) live in `tests/` next to
 this file and run with `uv run pytest scripts/datagen/tests`. They are separate from the Phoenix
 unit test suite: CI runs them in the Datagen Tooling Tests job when files under `scripts/datagen/`
-or `src/phoenix/datagen/` change. Recorder behavior has no unit tests; verify recorders by
+or `src/phoenix/experimental/datagen/` change. Recorder behavior has no unit tests; verify recorders by
 generating a corpus.
 
 ## Package a corpus

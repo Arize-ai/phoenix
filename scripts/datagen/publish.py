@@ -13,8 +13,8 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, Mapping, Sequence, TextIO
 
-from phoenix.datagen.fetcher import CorpusFetchError, fetch_corpus
-from phoenix.datagen.loader import CorpusError, load_corpus
+from phoenix.experimental.datagen.fetcher import CorpusFetchError, fetch_corpus
+from phoenix.experimental.datagen.loader import CorpusError, load_corpus
 
 _ARCHIVE_NAME = "corpus.tar.gz"
 _BUCKET = "arize-phoenix-assets"

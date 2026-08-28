@@ -3,7 +3,7 @@ import json
 import tarfile
 from pathlib import Path
 
-from phoenix.datagen import load_corpus
+from phoenix.experimental.datagen import load_corpus
 from scripts.datagen.corpus import command as corpus_command
 from scripts.datagen.publish import command as publish_command
 

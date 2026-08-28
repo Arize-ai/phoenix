@@ -22,7 +22,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
-from phoenix.datagen.loader import Corpus, CorpusError, load_corpus
+from phoenix.experimental.datagen.loader import Corpus, CorpusError, load_corpus
 
 _ARCHIVE_MEMBERS = ("fragments.jsonl", "traces.jsonl")
 _FRAGMENT_FIELDS = ("fragment_id", "archetype", "domain", "trace_ids")

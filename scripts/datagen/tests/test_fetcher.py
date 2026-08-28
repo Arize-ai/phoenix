@@ -3,8 +3,8 @@ import shutil
 from hashlib import sha256
 from pathlib import Path
 
-from phoenix.datagen import load_corpus
-from phoenix.datagen.fetcher import fetch_corpus
+from phoenix.experimental.datagen import load_corpus
+from phoenix.experimental.datagen.fetcher import fetch_corpus
 from scripts.datagen.corpus import package_corpus
 
 
