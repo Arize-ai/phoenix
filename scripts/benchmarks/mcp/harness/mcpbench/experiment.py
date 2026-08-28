@@ -103,6 +103,20 @@ def _numeric_from_cell(cell: dict[str, Any], key: str, *, explanation_key: str |
     return result
 
 
+def _experiment_metadata(
+    run_id: str, meta: dict[str, Any], rows: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Overview JSON: which model, MCP URL, and arm produced this upload."""
+    labels = sorted({str(row["label"]) for row in rows})
+    return {
+        "run_id": run_id,
+        "source": "mcpbench",
+        "model": meta.get("model"),
+        "target": meta.get("target"),
+        "label": labels[0] if len(labels) == 1 else labels,
+    }
+
+
 def _evaluators(stored: dict[tuple[str, str, int], dict[str, Any]]) -> dict[str, Any]:
     def cell_for(example: Any) -> dict[str, Any]:
         return stored[_example_key(example)]
@@ -183,7 +197,7 @@ def upload_run(
         evaluators=_evaluators(stored),
         experiment_name=out_dir.name,
         experiment_description="Stored mcpbench answers; Claude was not re-run.",
-        experiment_metadata={"run_id": out_dir.name, "source": "mcpbench"},
+        experiment_metadata=_experiment_metadata(out_dir.name, meta, rows),
         client=client,
         print_summary=True,
     )
