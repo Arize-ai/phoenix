@@ -85,11 +85,21 @@ function CategoryCards({
   const showCategoryAtIndex = (categoryIndex: number) => {
     const categoryCardList = categoryCardListRef.current;
     const targetCategoryCard = categoryCardList?.children.item(categoryIndex);
-    if (targetCategoryCard instanceof HTMLElement) {
-      // The scroll port's padding keeps adjacent cards peeking at the edges.
-      targetCategoryCard.scrollIntoView({
-        block: "nearest",
-        inline: "start",
+    if (categoryCardList && targetCategoryCard instanceof HTMLElement) {
+      const categoryCardListRect = categoryCardList.getBoundingClientRect();
+      const targetCategoryCardRect = targetCategoryCard.getBoundingClientRect();
+      const scrollPaddingInlineStart =
+        Number.parseFloat(
+          getComputedStyle(categoryCardList).scrollPaddingInlineStart
+        ) || 0;
+      // Move only the carousel. scrollIntoView would also move the table's
+      // shared horizontal scroll container when the table overflows.
+      categoryCardList.scrollTo({
+        left:
+          categoryCardList.scrollLeft +
+          targetCategoryCardRect.left -
+          categoryCardListRect.left -
+          scrollPaddingInlineStart,
       });
     }
     setFirstVisibleCategoryIndex(categoryIndex);
