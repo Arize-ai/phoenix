@@ -24,6 +24,7 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
             kind
             description
             ... on CodeEvaluator {
+              id
               versionCount
             }
           }
@@ -35,13 +36,6 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
           ...LLMDatasetEvaluatorDetails_datasetEvaluator
         }
       }
-    }
-    sandboxBackends {
-      backendType
-      displayName
-      supportsEnvVars
-      internetAccess
-      supportsDependencies
     }
   }
 `;
