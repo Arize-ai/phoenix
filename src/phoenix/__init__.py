@@ -44,105 +44,123 @@ __all__ = [
 ]
 
 
-class PhoenixClientFinder(MetaPathFinder):
+_INSTALL_PHOENIX_CLIENT = (
+    "Please use the `arize-phoenix-client` package instead:\n\npip install arize-phoenix-client\n"
+)
+
+_REMOVED_MODULES: dict[str, str] = {
+    "phoenix.session.client": (
+        "The legacy `phoenix.session.client.Client` class has been removed.\n"
+        f"{_INSTALL_PHOENIX_CLIENT}\n"
+        "```python\n"
+        "from phoenix.client import Client\n"
+        "```\n"
+    ),
+    "phoenix.trace.openai": (
+        "The legacy `phoenix.trace.openai` instrumentor module has been removed.\n"
+        "Please use OpenInference to instrument the OpenAI SDK. Additionally, the "
+        "`phoenix.otel` module can be used to quickly configure OpenTelemetry:\n\n"
+        "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai"
+        "\n\n"
+        "Example usage:\n\n"
+        "pip install openinference-instrumentation-openai\n\n"
+        "```python\n"
+        "from phoenix.otel import register\n"
+        "from openinference.instrumentation.openai import OpenAIInstrumentor\n\n"
+        "tracer_provider = register()\n"
+        "OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)\n"
+        "```\n"
+    ),
+    "phoenix.trace.langchain": (
+        "The legacy `phoenix.trace.langchain` instrumentor module has been removed.\n"
+        "Please use OpenInference to instrument the LangChain SDK. Additionally, the "
+        "`phoenix.otel` module can be used to quickly configure OpenTelemetry:\n\n"
+        "https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain"
+        "\n\n"
+        "Example usage:\n\n"
+        "```python\n"
+        "from phoenix.otel import register\n"
+        "from openinference.instrumentation.langchain import LangChainInstrumentor\n\n"
+        "tracer_provider = register()\n"
+        "LangChainInstrumentor().instrument(tracer_provider=tracer_provider)\n"
+        "```\n"
+    ),
+    "phoenix.trace.llama_index": (
+        "The legacy `phoenix.trace.llama_index` instrumentor module has been removed.\n"
+        "Please use OpenInference to instrument the LlamaIndex SDK. Additionally, the "
+        "`phoenix.otel` module can be used to quickly configure OpenTelemetry:\n\n"
+        "https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex"
+        "\n\n"
+        "Example usage:\n\n"
+        "```python\n"
+        "from phoenix.otel import register\n"
+        "from openinference.instrumentation.llama_index import LlamaIndexInstrumentor\n\n"
+        "tracer_provider = register()\n"
+        "LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)\n"
+        "```\n"
+    ),
+}
+"""Modules removed from Phoenix, mapped to the guidance shown when they are imported."""
+
+_REMOVED_ATTRIBUTES: dict[str, str] = {
+    "Client": (
+        "The legacy `px.Client` class has been removed.\n"
+        f"{_INSTALL_PHOENIX_CLIENT}\n"
+        "```python\n"
+        "from phoenix.client import Client\n\n"
+        'client = Client(base_url="http://localhost:6006")\n'
+        "```\n"
+    ),
+    "log_evaluations": (
+        "The legacy `px.log_evaluations` function has been removed, "
+        "and evaluations are now annotations.\n"
+        f"{_INSTALL_PHOENIX_CLIENT}\n"
+        "```python\n"
+        "from phoenix.client import Client\n\n"
+        "Client().spans.log_span_annotations_dataframe(\n"
+        "    dataframe=dataframe,\n"
+        '    annotation_name="Hallucination",\n'
+        '    annotator_kind="LLM",\n'
+        ")\n"
+        "```\n"
+    ),
+}
+"""Top-level `phoenix` attributes removed, mapped to the guidance shown on access."""
+
+
+class _RemovedModuleLoader(Loader):
+    """Loader that raises `ImportError` with migration guidance for a removed module."""
+
+    def __init__(self, message: str) -> None:
+        self._message = message
+
+    def create_module(self, spec: ModuleSpec) -> None:
+        # Defer to default module-creation semantics, as the previous loaders did.
+        return None
+
+    def exec_module(self, module: ModuleType) -> None:
+        raise ImportError(self._message)
+
+
+class _RemovedModuleFinder(MetaPathFinder):
+    """Meta path finder that intercepts imports of modules removed from Phoenix.
+
+    It is appended to `sys.meta_path` so that it only runs after the standard import
+    machinery has failed to locate the module, turning an opaque `ModuleNotFoundError`
+    into an `ImportError` that points at the replacement API.
+    """
+
     def find_spec(self, fullname: Any, path: Any, target: Any = None) -> Optional[ModuleSpec]:
-        if fullname == "phoenix.session.client":
-            return ModuleSpec(fullname, PhoenixClientLoader())
-        return None
+        if (message := _REMOVED_MODULES.get(fullname)) is None:
+            return None
+        return ModuleSpec(fullname, _RemovedModuleLoader(message))
 
 
-class PhoenixClientLoader(Loader):
-    def create_module(self, spec: ModuleSpec) -> None:
-        return None
-
-    def exec_module(self, module: ModuleType) -> None:
-        raise ImportError(
-            "The legacy `phoenix.session.client.Client` class has been removed.\n"
-            "Please use the `arize-phoenix-client` package instead:\n\n"
-            "pip install arize-phoenix-client\n\n"
-            "```python\n"
-            "from phoenix.client import Client\n"
-            "```\n"
-        )
+def __getattr__(name: str) -> Any:
+    """Raise `AttributeError` with migration guidance for removed top-level attributes."""
+    if (message := _REMOVED_ATTRIBUTES.get(name)) is not None:
+        raise AttributeError(message)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-class PhoenixTraceFinder(MetaPathFinder):
-    def find_spec(self, fullname: Any, path: Any, target: Any = None) -> Optional[ModuleSpec]:
-        if fullname == "phoenix.trace.openai":
-            return ModuleSpec(fullname, PhoenixTraceOpenAILoader())
-        if fullname == "phoenix.trace.langchain":
-            return ModuleSpec(fullname, PhoenixTraceLangchainLoader())
-        if fullname == "phoenix.trace.llama_index":
-            return ModuleSpec(fullname, PhoenixTraceLlamaIndexLoader())
-        return None
-
-
-class PhoenixTraceOpenAILoader(Loader):
-    def create_module(self, spec: ModuleSpec) -> None:
-        return None
-
-    def exec_module(self, module: ModuleType) -> None:
-        raise ImportError(
-            "The legacy `phoenix.trace.openai` instrumentor module has been removed.\n"
-            "Please use OpenInference to instrument the OpenAI SDK. Additionally, the "
-            "`phoenix.otel` module can be used to quickly configure OpenTelemetry:\n\n"
-            "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai"
-            "\n\n"
-            "Example usage:\n\n"
-            "pip install openinference-instrumentation-openai\n\n"
-            "```python\n"
-            "from phoenix.otel import register\n"
-            "from openinference.instrumentation.openai import OpenAIInstrumentor\n\n"
-            "tracer_provider = register()\n"
-            "OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)\n"
-            "```\n"
-        )
-
-
-class PhoenixTraceLangchainLoader(Loader):
-    def create_module(self, spec: ModuleSpec) -> None:
-        return None
-
-    "Please use OpenInference to instrument the Langchain SDK. Additionally, the `phoenix.otel` "
-    "module can be used to quickly configure OpenTelemetry:\n\n"
-
-    def exec_module(self, module: ModuleType) -> None:
-        raise ImportError(
-            "The legacy `phoenix.trace.langchain` instrumentor module has been removed.\n"
-            "Please use OpenInference to instrument the LangChain SDK. Additionally, the "
-            "`phoenix.otel` module can be used to quickly configure OpenTelemetry:\n\n"
-            "https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain"
-            "\n\n"
-            "Example usage:\n\n"
-            "```python\n"
-            "from phoenix.otel import register\n"
-            "from openinference.instrumentation.langchain import LangChainInstrumentor\n\n"
-            "tracer_provider = register()\n"
-            "LangChainInstrumentor().instrument(tracer_provider=tracer_provider)\n"
-            "```\n"
-        )
-
-
-class PhoenixTraceLlamaIndexLoader(Loader):
-    def create_module(self, spec: ModuleSpec) -> None:
-        return None
-
-    def exec_module(self, module: ModuleType) -> None:
-        raise ImportError(
-            "The legacy `phoenix.trace.llama_index` instrumentor module has been removed.\n"
-            "Please use OpenInference to instrument the LlamaIndex SDK. Additionally, the "
-            "`phoenix.otel` module can be used to quickly configure OpenTelemetry:\n\n"
-            "https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex"
-            "\n\n"
-            "Example usage:\n\n"
-            "```python\n"
-            "from phoenix.otel import register\n"
-            "from openinference.instrumentation.llama_index import LlamaIndexInstrumentor\n\n"
-            "tracer_provider = register()\n"
-            "LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)\n"
-            "```\n"
-        )
-
-
-sys.meta_path.append(PhoenixClientFinder())
-sys.meta_path.append(PhoenixTraceFinder())
+sys.meta_path.append(_RemovedModuleFinder())

@@ -55,7 +55,7 @@ from phoenix.utilities.re import parse_env_headers
         ),
     ],
 )
-def test_get_env_client_headers(
+def test_parse_env_headers(
     headers: str, expected: list[tuple[str, str]], warn: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
     if warn:
