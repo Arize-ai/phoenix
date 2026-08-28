@@ -148,7 +148,12 @@ those files on demand, so there is no index that can fall out of step with them.
 
 ```bash
 mcpbench report                    # self-contained results/<run-id>/report.html
+mcpbench experiment                # same run, as a Phoenix dataset + experiment
 ```
+
+`experiment` does not re-run Claude. It uploads the stored answers to Phoenix
+(default `http://localhost:6006`, or `--endpoint` / `$PHOENIX_ENDPOINT`) so you
+can open the experiment in the UI. Requires `phoenix.client` (Phoenix's venv).
 
 `run` also rewrites the report after every cell, so a run in progress can be watched by
 opening the page and refreshing. `runs.csv` lands beside it for spreadsheets.

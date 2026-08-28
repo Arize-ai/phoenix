@@ -1,4 +1,4 @@
-"""Command line: ``preflight``, ``run``, ``analyze``.
+"""Command line: ``preflight``, ``run``, ``analyze``, ``report``, ``experiment``.
 
 ``run`` preflights first by default, because both failure modes it catches are
 silent: a server that connects with zero tools still produces an answer, and the
@@ -25,6 +25,7 @@ from .analyze import (
     write_csv,
 )
 from .config import BenchConfig, ConfigError, apply_overrides, load_config, load_tasks
+from .experiment import phoenix_base_url, upload_run
 from .export import (
     DEFAULT_ENDPOINT,
     DEFAULT_PROJECT,
@@ -266,6 +267,33 @@ def cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_experiment(args: argparse.Namespace) -> int:
+    """Replay a stored run as a Phoenix dataset and experiment."""
+    config = _resolve(load_config(Path(args.config)), args)
+    tasks = load_tasks(config)
+    root = _results_root(config, args)
+    out_dir = (root / args.run_id) if args.run_id else _latest_run(root)
+    if not (out_dir / "raw").is_dir():
+        print(f"No run directory at {out_dir}.", file=sys.stderr)
+        return 1
+    endpoint = (
+        args.endpoint
+        or os.environ.get("PHOENIX_ENDPOINT")
+        or os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
+        or DEFAULT_ENDPOINT
+    )
+    info = upload_run(
+        config,
+        tasks,
+        out_dir,
+        base_url=phoenix_base_url(endpoint),
+    )
+    print(f"dataset:    {info['dataset_name']} ({info['dataset_url']})")
+    print(f"experiment: {info['experiment_id']}")
+    print(info["experiment_url"])
+    return 0
+
+
 def cmd_annotate(args: argparse.Namespace) -> int:
     """Label a run after the fact, so what it meant is recorded where the data is."""
     config = _resolve(load_config(Path(args.config)), args)
@@ -385,6 +413,18 @@ def build_parser() -> argparse.ArgumentParser:
     report = sub.add_parser("report", help="Write a self-contained HTML report.")
     report.add_argument("--run-id", help="Which run (default: most recent).")
     report.set_defaults(func=cmd_report)
+
+    experiment = sub.add_parser(
+        "experiment",
+        help="Replay a stored run as a Phoenix dataset and experiment.",
+    )
+    experiment.add_argument("--run-id", help="Which run (default: most recent).")
+    experiment.add_argument(
+        "--endpoint",
+        default=None,
+        help="Phoenix base URL (not the MCP target). Default: $PHOENIX_ENDPOINT or localhost.",
+    )
+    experiment.set_defaults(func=cmd_experiment)
 
     annotate = sub.add_parser("annotate", help="Set or change a stored run's label and note.")
     annotate.add_argument("--run-id", required=True)
