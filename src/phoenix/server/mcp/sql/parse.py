@@ -89,9 +89,9 @@ _RECURSIVE_CTE_MESSAGE = (
 
 
 def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
-    # Workaround for an unfiled sqlglot defect: it folds quoted `"char"` to CHAR
-    # (bpchar). PostgreSQL's `"char"` is a 1-byte type; CAST(65 AS "char") is 'A'
-    # and CAST(65 AS CHAR) is '6'.
+    # Workaround for https://github.com/tobymao/sqlglot/issues/8280, open
+    # upstream: quoted `"char"` folds to CHAR (bpchar). PostgreSQL's `"char"` is
+    # a 1-byte type; CAST(65 AS "char") is 'A' and CAST(65 AS CHAR) is '6'.
     if dialect == "postgresql" and _QUOTED_CHAR_TYPE.search(sql):
         raise AnalyticsSqlError(
             code=ErrorCode.UNSUPPORTED_SYNTAX,
