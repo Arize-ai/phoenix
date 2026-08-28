@@ -366,42 +366,45 @@ def test_token_bucket_decreases_rate_once_per_cooldown_period():
         assert isclose(bucket.rate, 6.25)
 
 
-async def test_alimit_does_not_block_event_loop_during_cooldown():
+async def test_token_bucket_async_decreases_rate_once_per_cooldown_period():
+    start = time.time()
+    rate = 100
+
+    with freeze_time(start):
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=0.25,
+            rate_increase_factor=0.01,
+            cooldown_seconds=5,
+        )
+
+    with async_warp_time(start):
+        request_start_time = time.time()
+        await bucket.async_on_rate_limit_error(request_start_time=request_start_time)
+        await bucket.async_on_rate_limit_error(request_start_time=request_start_time)
+
+    assert isclose(bucket.rate, 25)
+
+
+async def test_alimit_cooldown_never_blocks_the_event_loop():
     class _RateLimitError(Exception):
         pass
 
-    cooldown = 0.3
     limiter = RateLimiter(
         rate_limit_error=_RateLimitError,
-        max_rate_limit_retries=0,
+        max_rate_limit_retries=1,
         initial_per_second_request_rate=1000,
-        cooldown_seconds=cooldown,
+        cooldown_seconds=5,
     )
 
     @limiter.alimit
     async def always_rate_limited():
         raise _RateLimitError
 
-    ticks = 0
-    stop = asyncio.Event()
-
-    async def ticker():
-        nonlocal ticks
-        while not stop.is_set():
-            await asyncio.sleep(0.01)
-            ticks += 1
-
-    async def run_limited():
-        try:
-            await always_rate_limited()
-        except RateLimitError:
-            pass
-        finally:
-            stop.set()
-
-    await asyncio.gather(ticker(), run_limited())
-
-    # A blocking time.sleep in the cooldown would freeze the event loop and starve
-    # the ticker. With a non-blocking await asyncio.sleep, the ticker keeps running
-    # concurrently through the ~0.3s cooldown.
-    assert ticks >= 5
+    with async_warp_time(time.time()):
+        with mock.patch("time.sleep") as mock_sync_sleep:
+            with pytest.raises(RateLimitError):
+                await always_rate_limited()
+            assert not mock_sync_sleep.called, "async path must not block with time.sleep"
