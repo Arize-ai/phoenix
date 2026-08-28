@@ -8,6 +8,7 @@ import { Flex, Skeleton, Text, View } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
 import type { ProjectEvaluatorsPageQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsPageQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
 
@@ -80,6 +81,7 @@ function ProjectEvaluatorsPageContent({
     { fetchPolicy: "store-and-network" }
   );
   invariant(data.project, "project is required");
+  const paths = useProjectEvaluatorPaths();
   const isEmptyState =
     (data.project.evaluatorCount ?? 0) === 0 && filter.trim().length === 0;
   return (
@@ -102,7 +104,10 @@ function ProjectEvaluatorsPageContent({
               tool calls, then return labels or scores you can filter, chart,
               and alert on.
             </Text>
-            <AddProjectEvaluatorMenu size="M" />
+            <AddProjectEvaluatorMenu
+              size="M"
+              creationPaths={paths.listCreation}
+            />
           </Flex>
         </View>
       ) : (

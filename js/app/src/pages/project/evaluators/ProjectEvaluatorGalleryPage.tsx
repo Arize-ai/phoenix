@@ -40,7 +40,10 @@ import type {
 } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
+  type ProjectEvaluatorCreationPaths,
+  useProjectEvaluatorPaths,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
@@ -232,7 +235,7 @@ function EvaluatorGallery() {
         className="project-evaluator-gallery__categories"
         aria-label="Evaluator gallery navigation"
       >
-        <EvaluatorGalleryAddMenu />
+        <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
         <div className="project-evaluator-gallery__category-scroll-region">
           <ListBox
             aria-label="Use cases"
@@ -271,7 +274,7 @@ function EvaluatorGallery() {
         aria-label="Evaluator templates"
       >
         <div className="project-evaluator-gallery__compact-add-evaluator-menu">
-          <EvaluatorGalleryAddMenu />
+          <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
         </div>
         <Select
           aria-label="Evaluator use case"
@@ -404,14 +407,18 @@ function EvaluatorGallery() {
   );
 }
 
-function EvaluatorGalleryAddMenu() {
+function EvaluatorGalleryAddMenu({
+  creationPaths,
+}: {
+  creationPaths: ProjectEvaluatorCreationPaths;
+}) {
   return (
     <AddProjectEvaluatorMenu
       size="M"
       buttonClassName="project-evaluator-gallery__add-evaluator-button"
       buttonLabel="Add Custom Evaluator"
       shouldShowGalleryLink={false}
-      isInGallery
+      creationPaths={creationPaths}
     />
   );
 }

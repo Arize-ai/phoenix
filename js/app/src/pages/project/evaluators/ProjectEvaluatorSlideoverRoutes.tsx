@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useLazyLoadQuery } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
@@ -18,7 +18,6 @@ import {
   projectEvaluatorDetailsQueryNode,
   UNSUPPORTED_PROMPT_TEMPLATE_ERROR,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorSlideoverError } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideoverError";
 import {
   buildTemplateCreationMode,
@@ -26,27 +25,22 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
 /**
- * Closes the slideover by leaving its route — to the evaluators list unless
- * the caller names another destination. Replaces rather than pushes, so a
- * slideover the user has dismissed does not sit one step back in history
- * waiting to be reopened.
+ * Closes the slideover by leaving its nested route for its parent page.
+ * Replaces rather than pushes, so a dismissed slideover does not sit one step
+ * back in history waiting to be reopened. The current search is retained so
+ * the parent page restores the view state the slideover was opened over.
  */
-function useCloseSlideover(to?: string) {
+function useCloseSlideover() {
   const navigate = useNavigate();
-  const { list } = useProjectEvaluatorPaths();
-  const destination = to ?? list;
+  const { search } = useLocation();
   return (isOpen: boolean) => {
     if (!isOpen) {
-      navigate(destination, { replace: true });
+      navigate(
+        { pathname: "..", search },
+        { relative: "route", replace: true }
+      );
     }
   };
-}
-
-function useCloseGallerySlideover() {
-  // Gallery slideovers close over the selected category and template rather
-  // than resetting the gallery to its default view.
-  const { galleryReturn } = useProjectEvaluatorPaths();
-  return useCloseSlideover(galleryReturn);
 }
 
 function useRouteProjectId() {
@@ -97,37 +91,11 @@ export function NewCodeProjectEvaluatorPage() {
   );
 }
 
-export function NewGalleryLlmProjectEvaluatorPage() {
-  const projectId = useRouteProjectId();
-  const onOpenChange = useCloseGallerySlideover();
-  return (
-    <CreateProjectEvaluatorSlideover
-      isOpen
-      onOpenChange={onOpenChange}
-      projectId={projectId}
-      creationMode={{ kind: "scratch" }}
-    />
-  );
-}
-
-export function NewGalleryCodeProjectEvaluatorPage() {
-  const projectId = useRouteProjectId();
-  const onOpenChange = useCloseGallerySlideover();
-  return (
-    <CreateProjectEvaluatorSlideover
-      isOpen
-      onOpenChange={onOpenChange}
-      projectId={projectId}
-      creationMode={{ kind: "newCode" }}
-    />
-  );
-}
-
 export function NewGalleryLlmFromTemplateProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
   const { templateName } = useParams();
   invariant(templateName, "templateName is required");
-  const onOpenChange = useCloseGallerySlideover();
+  const onOpenChange = useCloseSlideover();
   const data = useLazyLoadQuery<ProjectEvaluatorTemplatesQueryType>(
     projectEvaluatorTemplatesQuery,
     {},
@@ -233,10 +201,7 @@ export function AttachCodeProjectEvaluatorPage() {
 export function EditProjectEvaluatorPage() {
   const { projectEvaluatorId } = useParams();
   invariant(projectEvaluatorId, "projectEvaluatorId is required");
-  // The edit route nests under the evaluator's details page, so closing lands
-  // on the details view it was opened over rather than the list.
-  const { details } = useProjectEvaluatorPaths();
-  const onOpenChange = useCloseSlideover(details(projectEvaluatorId));
+  const onOpenChange = useCloseSlideover();
   const { evaluator, sandboxConfigs } = useProjectEvaluator(projectEvaluatorId);
   if (
     evaluator.evaluator.kind !== "LLM" &&

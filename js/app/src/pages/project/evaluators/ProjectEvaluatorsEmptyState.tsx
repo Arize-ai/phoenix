@@ -43,7 +43,10 @@ export function ProjectEvaluatorsEmptyState() {
         </Suspense>
       </ErrorBoundary>
       <Flex direction="row" gap="size-100" wrap="wrap" justifyContent="center">
-        <BuildProjectEvaluatorMenu size="S" />
+        <BuildProjectEvaluatorMenu
+          size="S"
+          creationPaths={paths.listCreation}
+        />
         <LinkButton size="S" variant="primary" to={paths.gallery}>
           Browse eval gallery
         </LinkButton>

@@ -24,14 +24,17 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { View } from "@phoenix/components/core/view";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
 import { projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
+  type ProjectEvaluatorCreationPaths,
+  useProjectEvaluatorPaths,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 
 export const AddProjectEvaluatorMenu = ({
   size,
   buttonClassName,
   buttonLabel = "Add evaluator",
   shouldShowGalleryLink = true,
-  isInGallery = false,
+  creationPaths,
   ...props
 }: ProjectEvaluatorMenuTriggerProps) => {
   return (
@@ -42,7 +45,7 @@ export const AddProjectEvaluatorMenu = ({
       buttonVariant="primary"
       buttonLeadingVisual={<Icon svg={<Icons.Plus />} />}
       shouldShowGalleryLink={shouldShowGalleryLink}
-      isInGallery={isInGallery}
+      creationPaths={creationPaths}
       {...props}
     />
   );
@@ -69,13 +72,8 @@ type ProjectEvaluatorMenuTriggerProps = {
   buttonLabel?: string;
   /** Hide the "Browse eval gallery" item, e.g. when already on the gallery page. */
   shouldShowGalleryLink?: boolean;
-  /**
-   * Route the scratch-creation items to routes nested under the gallery page
-   * rather than the plain evaluators list, so closing the slideover returns
-   * to the gallery it was opened from instead of dropping the user on the
-   * (possibly empty) evaluators table.
-   */
-  isInGallery?: boolean;
+  /** The routes to use for every evaluator-creation action in this menu. */
+  creationPaths: ProjectEvaluatorCreationPaths;
 } & Omit<MenuTriggerProps, "children">;
 
 function ProjectEvaluatorMenu({
@@ -85,7 +83,7 @@ function ProjectEvaluatorMenu({
   buttonVariant,
   buttonLeadingVisual,
   shouldShowGalleryLink,
-  isInGallery,
+  creationPaths,
   ...props
 }: ProjectEvaluatorMenuTriggerProps & {
   buttonLabel: string;
@@ -110,7 +108,7 @@ function ProjectEvaluatorMenu({
           <ProjectEvaluatorMenuItems
             menuLabel={buttonLabel}
             shouldShowGalleryLink={shouldShowGalleryLink}
-            isInGallery={isInGallery ?? false}
+            creationPaths={creationPaths}
           />
         </Suspense>
       </MenuContainer>
@@ -121,11 +119,11 @@ function ProjectEvaluatorMenu({
 function ProjectEvaluatorMenuItems({
   menuLabel,
   shouldShowGalleryLink,
-  isInGallery,
+  creationPaths,
 }: {
   menuLabel: string;
   shouldShowGalleryLink: boolean;
-  isInGallery: boolean;
+  creationPaths: ProjectEvaluatorCreationPaths;
 }) {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
@@ -149,9 +147,9 @@ function ProjectEvaluatorMenuItems({
         aria-label={menuLabel}
         onAction={(action) => {
           if (action === "createEvaluator") {
-            navigate(isInGallery ? paths.galleryNewLlm : paths.newLlm);
+            navigate(creationPaths.newLlm);
           } else if (action === "createCodeEvaluator") {
-            navigate(isInGallery ? paths.galleryNewCode : paths.newCode);
+            navigate(creationPaths.newCode);
           }
         }}
       >
@@ -178,7 +176,9 @@ function ProjectEvaluatorMenuItems({
             label="Duplicate existing LLM evaluator"
             icon={<Icons.LLMOutput />}
             evaluators={llmEvaluators}
-            onAction={(evaluatorId) => navigate(paths.copyLlm(evaluatorId))}
+            onAction={(evaluatorId) =>
+              navigate(creationPaths.copyLlm(evaluatorId))
+            }
           />
         </MenuSection>
         <MenuSection>
@@ -193,7 +193,9 @@ function ProjectEvaluatorMenuItems({
             label="Use existing code evaluator"
             icon={<Icons.Code />}
             evaluators={codeEvaluators}
-            onAction={(evaluatorId) => navigate(paths.attachCode(evaluatorId))}
+            onAction={(evaluatorId) =>
+              navigate(creationPaths.attachCode(evaluatorId))
+            }
           />
         </MenuSection>
       </Menu>
