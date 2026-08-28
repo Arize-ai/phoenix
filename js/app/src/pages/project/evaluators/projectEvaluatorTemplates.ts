@@ -29,18 +29,43 @@ export const projectEvaluatorTemplatesQuery = graphql`
 export type ProjectEvaluatorTemplate =
   projectEvaluatorTemplatesQuery$data["evaluatorGalleryConfigs"][number];
 
-const EVALUATOR_CATEGORY_LABELS: Record<EvaluatorCategory, string> = {
-  GROUNDING_AND_RETRIEVAL: "Grounding & retrieval",
-  AGENTS: "Agents",
-  RESPONSE_QUALITY: "Response quality",
-  SAFETY_AND_SECURITY: "Safety & security",
-  USER_EXPERIENCE: "User experience",
+const EVALUATOR_CATEGORY_DETAILS: Record<
+  EvaluatorCategory,
+  { label: string; description: string }
+> = {
+  GROUNDING_AND_RETRIEVAL: {
+    label: "Grounding & retrieval",
+    description: "Check whether responses are supported by retrieved context.",
+  },
+  AGENTS: {
+    label: "Agents",
+    description: "Evaluate tool use, task completion, and agent behavior.",
+  },
+  RESPONSE_QUALITY: {
+    label: "Response quality",
+    description: "Assess correctness, relevance, and response quality.",
+  },
+  SAFETY_AND_SECURITY: {
+    label: "Safety & security",
+    description: "Detect harmful, insecure, or sensitive behavior.",
+  },
+  USER_EXPERIENCE: {
+    label: "User experience",
+    description: "Measure tone, clarity, and the user experience.",
+  },
 };
+
+export const PROJECT_EVALUATOR_CATEGORIES = Object.entries(
+  EVALUATOR_CATEGORY_DETAILS
+).map(([value, details]) => ({
+  value: value as EvaluatorCategory,
+  ...details,
+}));
 
 export function getProjectEvaluatorTemplateCategoryLabel(
   category: EvaluatorCategory | null
 ): string {
-  return category ? EVALUATOR_CATEGORY_LABELS[category] : "Other";
+  return category ? EVALUATOR_CATEGORY_DETAILS[category].label : "Other";
 }
 
 export function getProjectEvaluatorTemplateChoices(config: {
