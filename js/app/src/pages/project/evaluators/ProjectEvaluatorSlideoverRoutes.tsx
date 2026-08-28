@@ -42,6 +42,13 @@ function useCloseSlideover(to?: string) {
   };
 }
 
+function useCloseGallerySlideover() {
+  // Gallery slideovers close over the selected category and template rather
+  // than resetting the gallery to its default view.
+  const { galleryReturn } = useProjectEvaluatorPaths();
+  return useCloseSlideover(galleryReturn);
+}
+
 function useRouteProjectId() {
   const { projectId } = useParams();
   invariant(projectId, "projectId is required");
@@ -79,8 +86,7 @@ export function NewLlmProjectEvaluatorPage() {
 
 export function NewGalleryLlmProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
-  const { gallery } = useProjectEvaluatorPaths();
-  const onOpenChange = useCloseSlideover(gallery);
+  const onOpenChange = useCloseGallerySlideover();
   return (
     <CreateProjectEvaluatorSlideover
       isOpen
@@ -106,8 +112,7 @@ export function NewCodeProjectEvaluatorPage() {
 
 export function NewGalleryCodeProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
-  const { gallery } = useProjectEvaluatorPaths();
-  const onOpenChange = useCloseSlideover(gallery);
+  const onOpenChange = useCloseGallerySlideover();
   return (
     <CreateProjectEvaluatorSlideover
       isOpen
@@ -122,8 +127,7 @@ export function NewGalleryLlmFromTemplateProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
   const { templateName } = useParams();
   invariant(templateName, "templateName is required");
-  const { gallery } = useProjectEvaluatorPaths();
-  const onOpenChange = useCloseSlideover(gallery);
+  const onOpenChange = useCloseGallerySlideover();
   const data = useLazyLoadQuery<ProjectEvaluatorTemplatesQueryType>(
     projectEvaluatorTemplatesQuery,
     {},
