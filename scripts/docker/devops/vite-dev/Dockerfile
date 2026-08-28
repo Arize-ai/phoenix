@@ -5,7 +5,7 @@ FROM node:22-slim
 
 WORKDIR /phoenix/js/app
 
-# Skip pnpm 11's auto deps-status check before every script run. The CMD
+# Skip pnpm's auto deps-status check before every script run. The CMD
 # invokes `pnpm run` / `pnpm exec`, which would otherwise re-run
 # `pnpm install --production` on every container start — wasted work in a
 # dev container where node_modules is already populated at build time

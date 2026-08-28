@@ -38,7 +38,7 @@ uv sync --all-extras
 
 # 2. Install the pinned Node.js and pnpm versions
 nvm install
-npm i -g pnpm@11.11.0
+npm i -g pnpm@12.0.0
 
 # 3. Install the JavaScript workspace and build the web app
 cd js
@@ -92,7 +92,7 @@ nvm install
 # set it as default (optional)
 nvm alias default <version-that-was-installed>
 # install pnpm globally
-npm i -g pnpm@11.11.0
+npm i -g pnpm@12.0.0
 ```
 
 Then install the JavaScript workspace from its root and build the web app:

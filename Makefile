@@ -134,7 +134,7 @@ check-tools: ## Verify required tools are installed
 	@echo -e "$(CYAN)Checking required tools...$(NC)"
 	@command -v $(UV) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: uv is not installed. Install from https://github.com/astral-sh/uv$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) uv found: $$($(UV) --version)"
-	@command -v $(PNPM) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: pnpm is not installed. Run: npm install -g pnpm$(NC)"; exit 1; }
+	@command -v $(PNPM) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: pnpm is not installed. Run: npm install -g pnpm@12.0.0$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) pnpm found: $$($(PNPM) --version)"
 	@command -v $(TOX) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: tox is not installed. Run: pip install tox$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) tox found: $$($(TOX) --version)"
