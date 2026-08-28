@@ -60,6 +60,11 @@ import {
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;
+/**
+ * Below this many evaluators, the gallery promo stays visible beneath the
+ * table so a project that's just getting started keeps seeing it.
+ */
+const GALLERY_PROMO_MAX_EVALUATOR_COUNT = 15;
 
 const scrollableAreaCSS = css`
   flex: 1 1 auto;
@@ -498,6 +503,10 @@ export function ProjectEvaluatorsTable({
       </div>
     );
   }
+  // hasNext means more evaluators exist beyond this page, so rows.length is
+  // only the true total once the full connection has loaded.
+  const showGalleryPromo =
+    !isFiltered && !hasNext && rows.length < GALLERY_PROMO_MAX_EVALUATOR_COUNT;
   return (
     <div css={scrollableAreaCSS}>
       <table
@@ -606,6 +615,11 @@ export function ProjectEvaluatorsTable({
               onLoadMore={loadNext}
             />
           </Flex>
+        </View>
+      ) : null}
+      {showGalleryPromo ? (
+        <View borderTopWidth="thin" borderTopColor="default">
+          <ProjectEvaluatorsEmptyState />
         </View>
       ) : null}
     </div>
