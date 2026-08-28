@@ -65,10 +65,37 @@ def _cell_output(row: dict[str, Any]) -> dict[str, Any]:
 def _correct(output: Any) -> dict[str, Any]:
     passed = output.get("passed") if isinstance(output, dict) else None
     if passed is True:
-        return {"score": 1.0, "label": "pass"}
-    if passed is False:
-        return {"score": 0.0, "label": "fail"}
-    return {"score": 0.0, "label": "ungraded"}
+        result: dict[str, Any] = {"score": 1.0, "label": "pass"}
+    elif passed is False:
+        result = {"score": 0.0, "label": "fail"}
+    else:
+        result = {"score": 0.0, "label": "ungraded"}
+    if isinstance(output, dict) and output.get("invalid_reason"):
+        result["explanation"] = str(output["invalid_reason"])
+    return result
+
+
+def _numeric_from_output(key: str, *, explanation_key: str | None = None):
+    """Read a stored number off the replayed cell so Phoenix can show it as a column."""
+
+    def evaluate(output: Any) -> dict[str, Any]:
+        value = output.get(key) if isinstance(output, dict) else None
+        result: dict[str, Any] = (
+            {"score": float(value)} if value is not None else {"score": 0.0, "label": "missing"}
+        )
+        if explanation_key and isinstance(output, dict) and (text := output.get(explanation_key)):
+            result["explanation"] = str(text)
+        return result
+
+    return evaluate
+
+
+_EVALUATORS = {
+    "correct": _correct,
+    "cost": _numeric_from_output("total_cost_usd"),
+    "peak_tokens": _numeric_from_output("peak_context_tokens"),
+    "tool_calls": _numeric_from_output("n_tool_calls", explanation_key="tool_sequence"),
+}
 
 
 def upload_run(
@@ -139,7 +166,7 @@ def upload_run(
     experiment = run_experiment(
         dataset=dataset,
         task=replay,
-        evaluators={"correct": _correct},
+        evaluators=_EVALUATORS,
         experiment_name=out_dir.name,
         experiment_description="Stored mcpbench answers; Claude was not re-run.",
         experiment_metadata={"run_id": out_dir.name, "source": "mcpbench"},
