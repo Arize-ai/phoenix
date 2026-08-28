@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { Header, ListBoxSection } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
-import { Outlet, useNavigate } from "react-router";
+import { Outlet, useNavigate, useSearchParams } from "react-router";
 
 import {
   Badge,
@@ -28,7 +28,14 @@ import {
 } from "@phoenix/components/annotation/optimizationUtils";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { ErrorBoundary } from "@phoenix/components/exception";
-import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
+import {
+  PROJECT_EVALUATOR_CATEGORY_PARAM,
+  PROJECT_EVALUATOR_TEMPLATE_PARAM,
+} from "@phoenix/constants/searchParams";
+import type {
+  EvaluatorCategory,
+  projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType,
+} from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   getProjectEvaluatorTemplateCategoryLabel,
@@ -37,11 +44,24 @@ import {
   projectEvaluatorTemplatesQuery,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
-const ALL_EVALUATORS_CATEGORY = "All evaluators";
-const RECOMMENDED_CATEGORY = "Recommended";
+const ALL_EVALUATORS_CATEGORY = "all" as const;
+const RECOMMENDED_CATEGORY = "recommended" as const;
+const OTHER_CATEGORY = "other" as const;
 const GALLERY_SKELETON_HEIGHT = 440;
 /** The combined minimum width of the category, template, and details columns. */
 const GALLERY_EXPANDED_MIN_WIDTH = 960;
+
+type TemplateCategory = EvaluatorCategory | typeof OTHER_CATEGORY;
+type GalleryCategory =
+  | TemplateCategory
+  | typeof ALL_EVALUATORS_CATEGORY
+  | typeof RECOMMENDED_CATEGORY;
+
+function getGalleryCategory(
+  category: EvaluatorCategory | null
+): TemplateCategory {
+  return category ?? OTHER_CATEGORY;
+}
 
 export function ProjectEvaluatorGalleryPage() {
   return (
@@ -61,11 +81,7 @@ export function ProjectEvaluatorGalleryPage() {
 function EvaluatorGallery() {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
-  const [selectedCategory, setSelectedCategory] =
-    useState(RECOMMENDED_CATEGORY);
-  const [selectedTemplateName, setSelectedTemplateName] = useState<
-    string | null
-  >(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<ProjectEvaluatorTemplatesQueryType>(
     projectEvaluatorTemplatesQuery,
     {},
@@ -73,38 +89,44 @@ function EvaluatorGallery() {
   );
   const templates = data.evaluatorGalleryConfigs;
   const categories = Array.from(
-    new Set(
-      templates.map(({ category }) =>
-        getProjectEvaluatorTemplateCategoryLabel(category)
-      )
-    )
+    new Set(templates.map(({ category }) => getGalleryCategory(category)))
   );
   const recommendedTemplateCount = templates.filter(
     ({ recommended }) => recommended
   ).length;
   const quickStartItems = [
     {
-      name: ALL_EVALUATORS_CATEGORY,
+      id: ALL_EVALUATORS_CATEGORY,
+      name: "All evaluators",
       count: templates.length,
     },
     {
-      name: RECOMMENDED_CATEGORY,
+      id: RECOMMENDED_CATEGORY,
+      name: "Recommended",
       count: recommendedTemplateCount,
     },
   ];
   const useCaseItems = categories.map((category) => ({
-    name: category,
+    id: category,
+    name:
+      category === OTHER_CATEGORY
+        ? "Other"
+        : getProjectEvaluatorTemplateCategoryLabel(category),
     count: templates.filter(
       ({ category: templateCategory }) =>
-        getProjectEvaluatorTemplateCategoryLabel(templateCategory) === category
+        getGalleryCategory(templateCategory) === category
     ).length,
   }));
   const categoryItems = [...quickStartItems, ...useCaseItems];
-  const activeCategory = categoryItems.some(
-    ({ name }) => name === selectedCategory
-  )
-    ? selectedCategory
-    : ALL_EVALUATORS_CATEGORY;
+  const requestedCategory = searchParams.get(PROJECT_EVALUATOR_CATEGORY_PARAM);
+  // Shared or stale URLs can contain an unknown category; Recommended is the
+  // gallery's stable fallback.
+  const activeCategoryItem = categoryItems.find(
+    ({ id }) => id === requestedCategory
+  );
+  const activeCategory: GalleryCategory =
+    activeCategoryItem?.id ?? RECOMMENDED_CATEGORY;
+  const activeCategoryLabel = activeCategoryItem?.name ?? "Recommended";
   const visibleTemplates = templates.filter(({ recommended, category }) => {
     if (activeCategory === ALL_EVALUATORS_CATEGORY) {
       return true;
@@ -112,25 +134,49 @@ function EvaluatorGallery() {
     if (activeCategory === RECOMMENDED_CATEGORY) {
       return recommended;
     }
-    return (
-      getProjectEvaluatorTemplateCategoryLabel(category) === activeCategory
-    );
+    return getGalleryCategory(category) === activeCategory;
   });
+  const requestedTemplateName = searchParams.get(
+    PROJECT_EVALUATOR_TEMPLATE_PARAM
+  );
+  // Fall back to the first visible template if a saved selection is no longer
+  // part of the active category.
   const selectedTemplate =
-    visibleTemplates.find(({ name }) => name === selectedTemplateName) ??
+    visibleTemplates.find(({ name }) => name === requestedTemplateName) ??
     visibleTemplates[0];
   const renderCategoryItem = ({
+    id,
     name,
     count,
   }: {
+    id: GalleryCategory;
     name: string;
     count: number;
   }) => (
-    <ListBoxItem key={name} id={name} textValue={name}>
+    <ListBoxItem key={id} id={id} textValue={name}>
       <Text size="S">{name}</Text>
       <Counter variant="quiet">{count}</Counter>
     </ListBoxItem>
   );
+  const setSelectedCategory = (category: string) => {
+    setSearchParams((currentSearchParams) => {
+      const nextSearchParams = new URLSearchParams(currentSearchParams);
+      if (category === RECOMMENDED_CATEGORY) {
+        nextSearchParams.delete(PROJECT_EVALUATOR_CATEGORY_PARAM);
+      } else {
+        nextSearchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
+      }
+      nextSearchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
+      return nextSearchParams;
+    });
+  };
+  const setSelectedTemplate = (templateName: string) => {
+    setSearchParams((currentSearchParams) => {
+      const nextSearchParams = new URLSearchParams(currentSearchParams);
+      nextSearchParams.set(PROJECT_EVALUATOR_TEMPLATE_PARAM, templateName);
+      return nextSearchParams;
+    });
+  };
 
   return (
     <div css={galleryCSS} className="project-evaluator-gallery">
@@ -233,7 +279,7 @@ function EvaluatorGallery() {
           size="S"
           weight="heavy"
         >
-          {activeCategory}
+          {activeCategoryLabel}
         </Text>
         <ListBox
           aria-labelledby="evaluator-template-list-title"
@@ -248,7 +294,7 @@ function EvaluatorGallery() {
             if (selection === "all") return;
             const templateName = selection.keys().next().value;
             if (typeof templateName === "string") {
-              setSelectedTemplateName(templateName);
+              setSelectedTemplate(templateName);
             }
           }}
         >
