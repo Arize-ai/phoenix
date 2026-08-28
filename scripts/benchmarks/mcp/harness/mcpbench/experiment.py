@@ -48,11 +48,11 @@ def _reference_output(task: Task | None, *, gold_from: Task | None) -> dict[str,
     return output
 
 
-def _cell_output(row: dict[str, Any]) -> dict[str, Any]:
+def _cell_record(row: dict[str, Any]) -> dict[str, Any]:
+    """Internal copy of one cell. Evaluators read this; Phoenix output does not."""
     return {
         "answer": row.get("answer") or "",
         "passed": row.get("passed"),
-        "graded": row.get("graded"),
         "invalid_reason": row.get("invalid_reason"),
         "total_cost_usd": row.get("total_cost_usd"),
         "peak_context_tokens": row.get("peak_context_tokens"),
@@ -62,40 +62,59 @@ def _cell_output(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _correct(output: Any) -> dict[str, Any]:
-    passed = output.get("passed") if isinstance(output, dict) else None
+def _run_output(cell: dict[str, Any]) -> dict[str, Any]:
+    """What Phoenix stores as the experiment-run output (the last table column)."""
+    output: dict[str, Any] = {"answer": cell.get("answer") or ""}
+    if cell.get("tool_sequence"):
+        output["tool_sequence"] = cell["tool_sequence"]
+    if cell.get("trace_url"):
+        output["trace_url"] = cell["trace_url"]
+    return output
+
+
+def _example_key(example: Any) -> tuple[str, str, int]:
+    return (
+        str(example.metadata["label"]),
+        str(example.input["task"]),
+        int(example.metadata["trial"]),
+    )
+
+
+def _correct(cell: dict[str, Any]) -> dict[str, Any]:
+    passed = cell.get("passed")
     if passed is True:
         result: dict[str, Any] = {"score": 1.0, "label": "pass"}
     elif passed is False:
         result = {"score": 0.0, "label": "fail"}
     else:
         result = {"score": 0.0, "label": "ungraded"}
-    if isinstance(output, dict) and output.get("invalid_reason"):
-        result["explanation"] = str(output["invalid_reason"])
+    if cell.get("invalid_reason"):
+        result["explanation"] = str(cell["invalid_reason"])
     return result
 
 
-def _numeric_from_output(key: str, *, explanation_key: str | None = None):
-    """Read a stored number off the replayed cell so Phoenix can show it as a column."""
-
-    def evaluate(output: Any) -> dict[str, Any]:
-        value = output.get(key) if isinstance(output, dict) else None
-        result: dict[str, Any] = (
-            {"score": float(value)} if value is not None else {"score": 0.0, "label": "missing"}
-        )
-        if explanation_key and isinstance(output, dict) and (text := output.get(explanation_key)):
-            result["explanation"] = str(text)
-        return result
-
-    return evaluate
+def _numeric_from_cell(cell: dict[str, Any], key: str, *, explanation_key: str | None = None):
+    value = cell.get(key)
+    result: dict[str, Any] = (
+        {"score": float(value)} if value is not None else {"score": 0.0, "label": "missing"}
+    )
+    if explanation_key and (text := cell.get(explanation_key)):
+        result["explanation"] = str(text)
+    return result
 
 
-_EVALUATORS = {
-    "correct": _correct,
-    "cost": _numeric_from_output("total_cost_usd"),
-    "peak_tokens": _numeric_from_output("peak_context_tokens"),
-    "tool_calls": _numeric_from_output("n_tool_calls", explanation_key="tool_sequence"),
-}
+def _evaluators(stored: dict[tuple[str, str, int], dict[str, Any]]) -> dict[str, Any]:
+    def cell_for(example: Any) -> dict[str, Any]:
+        return stored[_example_key(example)]
+
+    return {
+        "correct": lambda example: _correct(cell_for(example)),
+        "cost": lambda example: _numeric_from_cell(cell_for(example), "total_cost_usd"),
+        "peak_tokens": lambda example: _numeric_from_cell(cell_for(example), "peak_context_tokens"),
+        "tool_calls": lambda example: _numeric_from_cell(
+            cell_for(example), "n_tool_calls", explanation_key="tool_sequence"
+        ),
+    }
 
 
 def upload_run(
@@ -146,15 +165,10 @@ def upload_run(
                 },
             }
         )
-        stored[(label, task_name, trial)] = _cell_output(row)
+        stored[(label, task_name, trial)] = _cell_record(row)
 
     def replay(example: Any) -> dict[str, Any]:
-        key = (
-            str(example.metadata["label"]),
-            str(example.input["task"]),
-            int(example.metadata["trial"]),
-        )
-        return stored[key]
+        return _run_output(stored[_example_key(example)])
 
     client = Client(base_url=base_url)
     dataset_name = f"{DATASET_PREFIX}-{out_dir.name}"
@@ -166,7 +180,7 @@ def upload_run(
     experiment = run_experiment(
         dataset=dataset,
         task=replay,
-        evaluators=_EVALUATORS,
+        evaluators=_evaluators(stored),
         experiment_name=out_dir.name,
         experiment_description="Stored mcpbench answers; Claude was not re-run.",
         experiment_metadata={"run_id": out_dir.name, "source": "mcpbench"},
