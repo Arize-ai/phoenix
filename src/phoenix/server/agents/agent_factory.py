@@ -22,12 +22,10 @@ from phoenix.server.agents.capabilities import (
     NativeToolRetryCapability,
     PhoenixMCPCapability,
     PhoenixMCPToolset,
-    SkillsCapability,
     SubagentCapability,
     UIContextsCapability,
     build_anthropic_prompt_cache_capability,
 )
-from phoenix.server.agents.capabilities.skills import SkillsToolset
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
 )
@@ -43,7 +41,6 @@ from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceCapabilityWrapper,
 )
-from phoenix.server.agents.skills import get_skills
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.agents.web_access import (
     build_web_fetch_capability,
@@ -57,16 +54,6 @@ if TYPE_CHECKING:
     from fastmcp import FastMCP
 
     from phoenix.server.bearer_auth import PhoenixUser
-
-
-def build_skills_capability(*, prompts: AgentPrompts) -> SkillsCapability[AgentDependencies]:
-    return SkillsCapability(
-        toolset=SkillsToolset[AgentDependencies](
-            skills=get_skills(),
-            load_skill_template=prompts.load_skill,
-        ),
-        instructions=prompts.skills,
-    )
 
 
 def build_agent_tracer(tracer_provider: TracerProvider | None) -> Tracer:
@@ -131,7 +118,6 @@ def build_agent(
                 UIContextsCapability(instructions=resolved_prompts.ui_contexts),
             ]
         )
-    capabilities.append(build_skills_capability(prompts=resolved_prompts))
     if schema is not None and build_graphql_context is not None:
         capabilities.append(
             BashCapability[AgentDependencies](
@@ -163,6 +149,7 @@ def build_agent(
                     id="phoenix_rest_api",
                 ),
                 instructions=resolved_prompts.phoenix_mcp_tools,
+                initialize_instructions=phoenix_mcp_server.instructions,
             )
         )
     if enable_web_access:

@@ -108,6 +108,58 @@ async def test_mcp_server_advertises_the_phoenix_version(
         assert client.initialize_result.serverInfo.version == phoenix_version
 
 
+async def test_the_mount_serves_no_skills(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Skills are PXI-only for now: the ``/mcp`` mount neither advertises them in
+    the handshake nor mounts the tools that load them."""
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
+    from fastmcp import Client
+    from fastmcp.client.transports import StreamableHttpTransport
+
+    mcp_app, _ = create_phoenix_mcp_app(FastAPI(), db=_unused_db())
+
+    def _factory(
+        headers: dict[str, str] | None = None,
+        timeout: httpx.Timeout | None = None,
+        auth: httpx.Auth | None = None,
+        follow_redirects: bool = True,
+    ) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=mcp_app),
+            base_url="http://testserver",
+            headers=headers,
+            follow_redirects=follow_redirects,
+        )
+
+    transport = StreamableHttpTransport(url="http://testserver/", httpx_client_factory=_factory)
+    async with LifespanManager(mcp_app), Client(transport) as client:
+        assert client.initialize_result is not None
+        instructions = client.initialize_result.instructions
+        tool_names = {tool.name for tool in await client.list_tools()}
+
+    assert instructions is None
+    assert tool_names.isdisjoint({"load_skill", "load_skill_reference"})
+
+
+async def test_the_agents_own_server_adds_the_pxi_skills(
+    db: DbSessionFactory,
+) -> None:
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=db,
+            authentication_enabled=False,
+            serve_ui=False,
+            bulk_inserter_factory=TestBulkInserter,
+        )
+
+    instructions = app.state.pxi_mcp_server.instructions
+    assert "<name>phoenix-graphql</name>" in instructions
+    assert "<name>project-overview</name>" not in instructions
+
+
 def test_code_mode_requires_a_monty_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
 

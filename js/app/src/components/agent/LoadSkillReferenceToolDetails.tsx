@@ -6,23 +6,23 @@ import {
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { stringifyToolValue } from "./toolPartTypes";
 
-export const READ_SKILL_RESOURCE_TOOL_NAME = "read_skill_resource";
+export const LOAD_SKILL_REFERENCE_TOOL_NAME = "load_skill_reference";
 
-interface ReadSkillResourceInput {
+interface LoadSkillReferenceInput {
   skillName: string;
-  resourceName: string;
+  referenceName: string;
   args?: unknown;
 }
 
-function getReadSkillResourceInput(
+function getLoadSkillReferenceInput(
   input: unknown
-): ReadSkillResourceInput | null {
+): LoadSkillReferenceInput | null {
   if (typeof input === "object" && input !== null && !Array.isArray(input)) {
     const record = input as Record<string, unknown>;
     return {
       skillName: typeof record.skill_name === "string" ? record.skill_name : "",
-      resourceName:
-        typeof record.resource_name === "string" ? record.resource_name : "",
+      referenceName:
+        typeof record.reference_name === "string" ? record.reference_name : "",
       args: record.args,
     };
   }
@@ -30,27 +30,27 @@ function getReadSkillResourceInput(
 }
 
 /**
- * Returns the preview text for the collapsed read_skill_resource tool summary.
+ * Returns the preview text for the collapsed load_skill_reference tool summary.
  */
-export function getReadSkillResourceToolPreview(
+export function getLoadSkillReferenceToolPreview(
   part: ToolInvocationPart
 ): string {
-  const input = getReadSkillResourceInput(part.input);
-  return input?.resourceName ?? "";
+  const input = getLoadSkillReferenceInput(part.input);
+  return input?.referenceName ?? "";
 }
 
 /**
- * Expanded detail view for a read_skill_resource invocation showing the skill,
- * resource, optional args, and returned resource content.
+ * Expanded detail view for a load_skill_reference invocation showing the skill,
+ * reference, optional args, and returned reference content.
  */
-export function ReadSkillResourceToolDetails({
+export function LoadSkillReferenceToolDetails({
   part,
 }: {
   part: ToolInvocationPart;
 }) {
-  const input = getReadSkillResourceInput(part.input);
+  const input = getLoadSkillReferenceInput(part.input);
   const skillName = input?.skillName ?? "";
-  const resourceName = input?.resourceName || stringifyToolValue(part.input);
+  const referenceName = input?.referenceName || stringifyToolValue(part.input);
   const args = input?.args == null ? "" : stringifyToolValue(input.args);
   const output =
     part.state === "output-available" ? stringifyToolValue(part.output) : "";
@@ -59,8 +59,8 @@ export function ReadSkillResourceToolDetails({
     <div className="tool-part__body">
       <ToolPartLabel>Skill</ToolPartLabel>
       <ToolPartCodeBlock>{skillName}</ToolPartCodeBlock>
-      <ToolPartLabel>Resource</ToolPartLabel>
-      <ToolPartCodeBlock>{resourceName}</ToolPartCodeBlock>
+      <ToolPartLabel>Reference</ToolPartLabel>
+      <ToolPartCodeBlock>{referenceName}</ToolPartCodeBlock>
       {args ? (
         <>
           <ToolPartLabel>Args</ToolPartLabel>

@@ -14,7 +14,6 @@ from phoenix.server.agents.capabilities.phoenix_mcp import (
     PhoenixMCPCapability,
     PhoenixMCPToolset,
 )
-from phoenix.server.agents.capabilities.skills import SkillsCapability
 from phoenix.server.agents.capabilities.subagent import SubagentCapability
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
@@ -29,7 +28,6 @@ __all__ = [
     "NativeToolRetryCapability",
     "PhoenixMCPCapability",
     "PhoenixMCPToolset",
-    "SkillsCapability",
     "SubagentCapability",
     "UIContextsCapability",
     "get_external_tool_capability_function",
