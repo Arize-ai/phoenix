@@ -103,7 +103,7 @@ helm/charts/*.tgz
 /evals/harbor/tasks/**/environment/fetch_fixtures.py
 
 # WebAssembly binaries
-wasm/*.wasm
+**/wasm/*.wasm
 
 # Harbor run artifacts
 /jobs/
