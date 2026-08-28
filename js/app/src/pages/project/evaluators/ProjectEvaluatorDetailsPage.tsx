@@ -18,6 +18,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { Counter } from "@phoenix/components/core/counter";
 import { Empty } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
@@ -25,6 +26,7 @@ import {
   TimeRangeProvider,
   useTimeRange,
 } from "@phoenix/components/datetime";
+import { CodeEvaluatorVersions } from "@phoenix/components/evaluators/CodeEvaluatorVersions";
 import {
   evaluatorSplitContainerCSS,
   evaluatorSplitLayoutCSS,
@@ -34,6 +36,7 @@ import type { OwnedPreloadedQueryRef } from "@phoenix/hooks";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorDetailsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsLoaderQuery.graphql";
 import { AnnotationConfigurationCard } from "@phoenix/pages/project/evaluators/AnnotationConfigurationCard";
+import { CodeProjectEvaluatorConfigCards } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorConfigCards";
 import { CodeProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorDetails";
 import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
@@ -130,8 +133,11 @@ function ProjectEvaluatorDetailsPageContent({
     return <ProjectEvaluatorNotFound />;
   }
   const evaluator = projectEvaluator.evaluator;
-  const isLLMEvaluator = evaluator.kind === "LLM";
-  const canEdit = evaluator.kind === "LLM" || evaluator.kind === "CODE";
+  const isLLMEvaluator = evaluator.__typename === "LLMEvaluator";
+  const isCodeEvaluator = evaluator.__typename === "CodeEvaluator";
+  const canEdit = isLLMEvaluator || isCodeEvaluator;
+  const codeEvaluatorId = isCodeEvaluator ? evaluator.id : undefined;
+  const versionCount = isCodeEvaluator ? evaluator.versionCount : 0;
 
   return (
     <main css={mainCSS}>
@@ -177,6 +183,11 @@ function ProjectEvaluatorDetailsPageContent({
           {/* The key stays `configuration` -- it is the tab's identity, not its
               label, and a Traces deep link selects by it. */}
           <Tab id="configuration">Overview</Tab>
+          {codeEvaluatorId != null && (
+            <Tab id="versions">
+              Versions <Counter variant="quiet">{versionCount}</Counter>
+            </Tab>
+          )}
           <Tab id="traces">Traces</Tab>
           <Tab id="metrics">Metrics</Tab>
         </TabList>
@@ -196,7 +207,7 @@ function ProjectEvaluatorDetailsPageContent({
                         projectEvaluatorRef={projectEvaluator}
                       />
                     )}
-                    {evaluator.kind === "CODE" && (
+                    {isCodeEvaluator && (
                       <CodeProjectEvaluatorDetails
                         projectEvaluatorRef={projectEvaluator}
                       />
@@ -206,8 +217,11 @@ function ProjectEvaluatorDetailsPageContent({
                     <ProjectEvaluatorScopeDetails
                       projectEvaluatorRef={projectEvaluator}
                     />
-                    {isLLMEvaluator && (
-                      <AnnotationConfigurationCard
+                    <AnnotationConfigurationCard
+                      projectEvaluatorRef={projectEvaluator}
+                    />
+                    {isCodeEvaluator && (
+                      <CodeProjectEvaluatorConfigCards
                         projectEvaluatorRef={projectEvaluator}
                       />
                     )}
@@ -217,6 +231,13 @@ function ProjectEvaluatorDetailsPageContent({
             </View>
           </View>
         </LazyTabPanel>
+        {codeEvaluatorId != null && (
+          <LazyTabPanel id="versions">
+            <Suspense fallback={<Loading />}>
+              <CodeEvaluatorVersions codeEvaluatorId={codeEvaluatorId} />
+            </Suspense>
+          </LazyTabPanel>
+        )}
         <LazyTabPanel id="traces">
           <Suspense fallback={<Loading />}>
             <ProjectEvaluatorTraces
