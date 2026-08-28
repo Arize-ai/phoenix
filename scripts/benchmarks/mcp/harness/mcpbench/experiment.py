@@ -29,6 +29,25 @@ def _ui_host(base_url: str) -> str:
     return f"{parts.scheme}://{parts.netloc}"
 
 
+def _reference_output(task: Task | None, *, gold_from: Task | None) -> dict[str, Any]:
+    """Dataset expected output: the matcher, plus one passing wording when we have one.
+
+    Phoenix shows this as the experiment table's reference-output column. The
+    matcher is what actually graded the cell; ``accept[0]`` is a readable gold
+    answer from the task file (``tasks_as_run`` does not carry those examples).
+    """
+    expect = (task.expect if task else None) or (gold_from.expect if gold_from else None) or {}
+    gold = (gold_from.accept[0] if gold_from and gold_from.accept else None) or (
+        task.accept[0] if task and task.accept else None
+    )
+    output: dict[str, Any] = {}
+    if expect:
+        output["expect"] = expect
+    if gold:
+        output["gold"] = gold
+    return output
+
+
 def _cell_output(row: dict[str, Any]) -> dict[str, Any]:
     return {
         "answer": row.get("answer") or "",
@@ -78,6 +97,7 @@ def upload_run(
     if (manifest := out_dir / "manifest.json").is_file():
         meta = json.loads(manifest.read_text())
     by_task = tasks_as_run(meta, tasks)
+    current_by_name = {task.name: task for task in tasks}
 
     stored: dict[tuple[str, str, int], dict[str, Any]] = {}
     examples: list[dict[str, Any]] = []
@@ -91,7 +111,7 @@ def upload_run(
             {
                 "id": stem,
                 "input": {"prompt": task.prompt if task else "", "task": task_name},
-                "output": {},
+                "output": _reference_output(task, gold_from=current_by_name.get(task_name)),
                 "metadata": {
                     "task_class": row.get("task_class"),
                     "trial": trial,
