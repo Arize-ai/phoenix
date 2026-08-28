@@ -4,6 +4,7 @@ import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
@@ -338,6 +339,7 @@ function AttachCodeProjectEvaluatorDialog({
 }) {
   const store = useEvaluatorStoreInstance();
   const environment = useRelayEnvironment();
+  const { timeRangeISOStrings } = useTimeRange();
   const [error, setError] = useState<string>();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
@@ -397,7 +399,11 @@ function AttachCodeProjectEvaluatorDialog({
               setError(errors.map(({ message }) => message).join("\n"));
               return;
             }
-            void refetchProjectEvaluators({ environment, projectId })
+            void refetchProjectEvaluators({
+              environment,
+              projectId,
+              timeRange: timeRangeISOStrings,
+            })
               .then(onSuccess)
               .catch((refetchError: unknown) =>
                 setError(
@@ -433,6 +439,7 @@ function CreateLlmProjectEvaluatorDialog({
 }) {
   const store = useEvaluatorStoreInstance();
   const environment = useRelayEnvironment();
+  const { timeRangeISOStrings } = useTimeRange();
   const playgroundStore = usePlaygroundStore();
   const instanceId = usePlaygroundContext((state) => state.instances[0].id);
   invariant(instanceId != null, "instanceId is required");
@@ -483,7 +490,11 @@ function CreateLlmProjectEvaluatorDialog({
           enabled: true,
         },
       });
-      await refetchProjectEvaluators({ environment, projectId });
+      await refetchProjectEvaluators({
+        environment,
+        projectId,
+        timeRange: timeRangeISOStrings,
+      });
       onSuccess();
       return { ok: true, acceptedBy: "user", evaluator };
     } catch (submissionError) {
