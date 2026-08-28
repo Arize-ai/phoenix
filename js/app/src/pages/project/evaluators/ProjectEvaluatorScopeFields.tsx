@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 
 import {
@@ -11,11 +12,9 @@ import {
   SliderNumberField,
   Text,
 } from "@phoenix/components";
-import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import {
   isProjectEvaluatorTarget,
   MIN_EVALUATION_DELAY_SECONDS,
-  toEvaluatorMappingSourceGrain,
   toProjectEvaluatorSamplingFraction,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
@@ -31,35 +30,36 @@ import {
   type SpanFilterValidConditionArgs,
 } from "@phoenix/pages/project/SpanFilterConditionField";
 
-/** The target, sampling, delay, and filter fields wired to a scope object. */
+/**
+ * The target, sampling, delay, and filter fields wired to a scope object.
+ * `children` renders additional fields at the end of the first row, after
+ * every setting the scope persists.
+ */
 export const ProjectEvaluatorScopeFieldGroup = ({
   projectId,
   scope,
   onScopeChange,
   onFilterValidityChange,
   isTargetDisabled = false,
+  fillSampling = false,
+  children,
 }: {
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   onFilterValidityChange?: (isValid: boolean) => void;
   isTargetDisabled?: boolean;
+  /** Grow the sampling slider to fill the row. */
+  fillSampling?: boolean;
+  children?: ReactNode;
 }) => {
   const isSessionTarget = scope.targetType === "SESSION";
-  const evaluatorStore = useEvaluatorStoreInstance();
   // Spans and sessions are filtered in different languages, so a condition
   // written for one target cannot carry over to the other.
   const handleTargetChange = (targetType: ProjectEvaluatorTarget) => {
     if (targetType === scope.targetType) {
       return;
     }
-    // Span and session contexts are structurally identical, so the store
-    // cannot infer the grain from one; changing the target has to say so.
-    evaluatorStore
-      .getState()
-      .setEvaluatorMappingSourceGrain(
-        toEvaluatorMappingSourceGrain(targetType)
-      );
     onScopeChange({ ...scope, targetType, filterCondition: "" });
   };
   return (
@@ -73,7 +73,7 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         <ProjectEvaluatorSamplingField
           // A filled slider takes the whole row, which would wrap the delay
           // field onto a line of its own.
-          fill={!isSessionTarget}
+          fill={fillSampling && !isSessionTarget}
           value={scope.samplingRate}
           onChange={(samplingRate) => onScopeChange({ ...scope, samplingRate })}
         />
@@ -85,6 +85,7 @@ export const ProjectEvaluatorScopeFieldGroup = ({
             }
           />
         ) : null}
+        {children}
       </Flex>
       {isSessionTarget ? (
         <Text size="XS" color="text-500">

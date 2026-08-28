@@ -1,12 +1,8 @@
-import { css } from "@emotion/react";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Alert, Card, Text, View } from "@phoenix/components";
-import {
-  EvaluatorDetailList,
-  EvaluatorDetailRow,
-} from "@phoenix/components/evaluators/EvaluatorDetailsSection";
+import { Alert, Flex, Heading, Text } from "@phoenix/components";
+import { evaluatorDetailsCardCSS } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
 import type {
   ProjectEvaluatorScopeDetails_projectEvaluator$data,
   ProjectEvaluatorScopeDetails_projectEvaluator$key,
@@ -17,16 +13,6 @@ import {
   formatEvaluationTargetPlural,
   formatSamplingRate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-
-/**
- * A filter expression is one long unbreakable mono token more often than not
- * (quoted IDs, bracketed attribute paths), and the Scope card lives in a
- * ~300px aside — let it wrap anywhere rather than paint over the row label.
- */
-const filterValueCSS = css`
-  min-width: 0;
-  overflow-wrap: anywhere;
-`;
 
 /**
  * Read-only view of the policy a project evaluator runs under: what it
@@ -54,53 +40,46 @@ export function ProjectEvaluatorScopeDetails({
   const isSessionTarget = projectEvaluator.evaluationTarget === "SESSION";
 
   return (
-    <Card title="Scope">
-      <EvaluatorDetailList>
-        <EvaluatorDetailRow label="Target">
+    <Flex direction="column" gap="size-100">
+      <Heading level={2}>Scope</Heading>
+      <div css={evaluatorDetailsCardCSS}>
+        <Flex direction="column" gap="size-100">
           <Text size="S">
+            <Text weight="heavy">Target:</Text>{" "}
             {formatEvaluationTarget(projectEvaluator.evaluationTarget)}
           </Text>
-        </EvaluatorDetailRow>
-        <EvaluatorDetailRow label="Filter">
-          {projectEvaluator.filterCondition ? (
-            <div css={filterValueCSS}>
+          <Text size="S">
+            <Text weight="heavy">Filter:</Text>{" "}
+            {projectEvaluator.filterCondition ? (
               <Text size="S" fontFamily="mono">
                 {projectEvaluator.filterCondition}
               </Text>
-            </div>
-          ) : (
-            <Text size="S">
-              {`All ${formatEvaluationTargetPlural(projectEvaluator.evaluationTarget)}`}
-            </Text>
-          )}
-        </EvaluatorDetailRow>
-        <EvaluatorDetailRow label="Sampling rate">
+            ) : (
+              `All ${formatEvaluationTargetPlural(
+                projectEvaluator.evaluationTarget
+              )}`
+            )}
+          </Text>
           <Text size="S">
+            <Text weight="heavy">Sampling Rate:</Text>{" "}
             {formatSamplingRate(projectEvaluator.samplingRate)}
           </Text>
-        </EvaluatorDetailRow>
-        {isSessionTarget ? (
-          <EvaluatorDetailRow label="Evaluation delay">
+          {isSessionTarget ? (
             <Text size="S">
+              <Text weight="heavy">Evaluation Delay:</Text>{" "}
               {formatEvaluationDelay(projectEvaluator.evaluationDelaySeconds)}
             </Text>
-          </EvaluatorDetailRow>
-        ) : null}
-      </EvaluatorDetailList>
-      {projectEvaluator.schedulabilityStatus === "NOT_SCHEDULABLE" ? (
-        <View
-          paddingX="size-200"
-          paddingBottom="size-200"
-          paddingTop="size-100"
-        >
-          <Alert variant="warning" title="This evaluator is not scheduled">
-            {getSchedulabilityExplanation(
-              projectEvaluator.schedulabilityReason
-            )}
-          </Alert>
-        </View>
-      ) : null}
-    </Card>
+          ) : null}
+          {projectEvaluator.schedulabilityStatus === "NOT_SCHEDULABLE" ? (
+            <Alert variant="warning" title="This evaluator is not scheduled">
+              {getSchedulabilityExplanation(
+                projectEvaluator.schedulabilityReason
+              )}
+            </Alert>
+          ) : null}
+        </Flex>
+      </div>
+    </Flex>
   );
 }
 

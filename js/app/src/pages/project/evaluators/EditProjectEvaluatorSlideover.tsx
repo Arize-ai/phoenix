@@ -5,7 +5,6 @@ import { useRevalidator } from "react-router";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { CodeAuthoringFields } from "@phoenix/components/evaluators/CodeAuthoringFields";
 import type { SandboxConfigOption } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
@@ -29,6 +28,7 @@ import {
 import type { EditProjectEvaluatorSlideoverQuery } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverQuery.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateCodeMutation.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
+import { CodeAuthoringFields } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
@@ -458,6 +458,7 @@ function EditLlmProjectEvaluatorContent({
               <ProjectEvaluatorScopePanel
                 projectId={evaluator.project.id}
                 scope={scope}
+                showScopeFields={false}
               />
             }
           />
@@ -582,7 +583,6 @@ function EditCodeProjectEvaluator({
             onScopeChange={setScope}
             isSubmitting={isUpdating}
             error={error}
-            onFieldChange={() => setError(undefined)}
             onSubmit={() => {
               setError(undefined);
               const state = store.getState();
@@ -605,10 +605,10 @@ function EditCodeProjectEvaluator({
                 sourceCode.trim().length === 0
                   ? "Source code is required."
                   : sandboxConfigId == null
-                    ? "Sandbox configuration is required."
-                    : outputConfigErrors.length
-                      ? outputConfigErrors.join("\n")
-                      : undefined;
+                  ? "Sandbox configuration is required."
+                  : outputConfigErrors.length
+                  ? outputConfigErrors.join("\n")
+                  : undefined;
               if (validationError) {
                 setError(validationError);
                 return;

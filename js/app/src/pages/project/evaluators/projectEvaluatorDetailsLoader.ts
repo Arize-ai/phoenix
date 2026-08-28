@@ -15,12 +15,8 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         name
         enabled
         evaluator {
-          __typename
+          kind
           description
-          ... on CodeEvaluator {
-            id
-            versionCount
-          }
         }
         traceProject {
           id
@@ -28,13 +24,10 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         runSummary {
           status
         }
-        ...ProjectEvaluatorStats_projectEvaluator
+        ...ProjectEvaluatorRunDetails_projectEvaluator
         ...ProjectEvaluatorScopeDetails_projectEvaluator
         ...LLMProjectEvaluatorDetails_projectEvaluator
-        ...CodeProjectEvaluatorDetails_projectEvaluator
-        ...CodeProjectEvaluatorConfigCards_projectEvaluator
         ...ProjectEvaluatorMetrics_projectEvaluator
-        ...AnnotationConfigurationCard_projectEvaluator
       }
     }
   }

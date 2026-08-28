@@ -8,25 +8,13 @@ import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorName
  */
 export const EvaluatorNameAndDescriptionFields = ({
   onValueChange,
-  isNameRequired = false,
-  descriptionPlaceholder,
 }: {
   onValueChange?: () => void;
-  /** Marks the name input as required for form submission. */
-  isNameRequired?: boolean;
-  /** Overrides the description input's default example placeholder. */
-  descriptionPlaceholder?: string;
 } = {}) => (
   <View marginBottom="size-200" flex="none">
     <Flex direction="row" alignItems="baseline" width="100%" gap="size-100">
-      <EvaluatorNameInput
-        onValueChange={onValueChange}
-        isRequired={isNameRequired}
-      />
-      <EvaluatorDescriptionInput
-        onValueChange={onValueChange}
-        placeholder={descriptionPlaceholder}
-      />
+      <EvaluatorNameInput onValueChange={onValueChange} />
+      <EvaluatorDescriptionInput onValueChange={onValueChange} />
     </Flex>
   </View>
 );
