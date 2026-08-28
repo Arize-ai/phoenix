@@ -5,7 +5,7 @@ import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
@@ -378,6 +378,7 @@ function AttachCodeProjectEvaluatorDialog({
       onScopeChange={onScopeChange}
       isSubmitting={isAddingCodeEvaluator}
       error={error}
+      onFieldChange={() => setError(undefined)}
       onSubmit={() => {
         setError(undefined);
         addCodeEvaluator({
@@ -568,11 +569,7 @@ const ScratchLlmDialogContent = ({
         />
       }
       formRightPanel={
-        <ProjectEvaluatorScopePanel
-          projectId={projectId}
-          scope={scope}
-          showScopeFields={false}
-        />
+        <ProjectEvaluatorScopePanel projectId={projectId} scope={scope} />
       }
     />
   );
