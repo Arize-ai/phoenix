@@ -215,7 +215,7 @@ test.describe.serial("Projects", () => {
       page.getByRole("heading", { name: "Evaluators", exact: true })
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Browse the library" })
+      page.getByRole("link", { name: "Browse eval gallery" })
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Build from scratch" })
@@ -230,7 +230,7 @@ test.describe.serial("Projects", () => {
 
     await page.getByRole("button", { name: "Build from scratch" }).click();
     await expect(
-      page.getByRole("menuitem", { name: "Browse the whole library" })
+      page.getByRole("menuitem", { name: "Browse eval gallery" })
     ).toHaveCount(0);
     await page
       .getByRole("menuitem", { name: "Create new LLM evaluator" })

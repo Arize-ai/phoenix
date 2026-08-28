@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Header, ListBoxSection } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
 import { Outlet, useNavigate, useSearchParams } from "react-router";
@@ -8,6 +8,7 @@ import {
   Badge,
   Button,
   Counter,
+  ExpandableContent,
   Flex,
   Heading,
   List,
@@ -27,6 +28,7 @@ import {
   getPositiveOptimization,
 } from "@phoenix/components/annotation/optimizationUtils";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
+import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import {
   PROJECT_EVALUATOR_CATEGORY_PARAM,
@@ -36,31 +38,45 @@ import type {
   EvaluatorCategory,
   projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType,
 } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
+import {
+  type ProjectEvaluatorCreationPaths,
+  useProjectEvaluatorPaths,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
+  getProjectEvaluatorTemplateMessages,
+  PROJECT_EVALUATOR_CATEGORIES,
   type ProjectEvaluatorTemplate,
   projectEvaluatorTemplatesQuery,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
+import {
+  formatEvaluationTargetPlural,
+  type ProjectEvaluatorTarget,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
-const ALL_EVALUATORS_CATEGORY = "all" as const;
-const RECOMMENDED_CATEGORY = "recommended" as const;
 const OTHER_CATEGORY = "other" as const;
 const GALLERY_SKELETON_HEIGHT = 440;
 /** The combined minimum width of the category, template, and details columns. */
 const GALLERY_EXPANDED_MIN_WIDTH = 960;
+/**
+ * Once a category heading crosses into the top 30% of the scroll region, treat
+ * it as the section the user is currently reading.
+ */
+const SCROLL_SPY_ROOT_MARGIN = "0px 0px -70% 0px";
 
 type TemplateCategory = EvaluatorCategory | typeof OTHER_CATEGORY;
-type GalleryCategory =
-  | TemplateCategory
-  | typeof ALL_EVALUATORS_CATEGORY
-  | typeof RECOMMENDED_CATEGORY;
 
 function getGalleryCategory(
   category: EvaluatorCategory | null
 ): TemplateCategory {
   return category ?? OTHER_CATEGORY;
+}
+
+function getCategoryHeadingId(category: TemplateCategory): string {
+  return `project-evaluator-gallery-category-${category.toLowerCase()}`;
 }
 
 export function ProjectEvaluatorGalleryPage() {
@@ -88,68 +104,156 @@ function EvaluatorGallery() {
     { fetchPolicy: "store-and-network" }
   );
   const templates = data.evaluatorGalleryConfigs;
-  const categories = Array.from(
-    new Set(templates.map(({ category }) => getGalleryCategory(category)))
+  const categories = useMemo(() => {
+    const orderedCategories: TemplateCategory[] = [
+      ...PROJECT_EVALUATOR_CATEGORIES.map(({ value }) => value),
+      OTHER_CATEGORY,
+    ];
+    return orderedCategories.filter((category) =>
+      templates.some(
+        (template) => getGalleryCategory(template.category) === category
+      )
+    );
+  }, [templates]);
+  const templatesByCategory = useMemo(
+    () =>
+      new Map(
+        categories.map((category) => [
+          category,
+          templates.filter(
+            (template) => getGalleryCategory(template.category) === category
+          ),
+        ])
+      ),
+    [categories, templates]
   );
-  const recommendedTemplateCount = templates.filter(
-    ({ recommended }) => recommended
-  ).length;
-  const quickStartItems = [
-    {
-      id: ALL_EVALUATORS_CATEGORY,
-      name: "All evaluators",
-      count: templates.length,
-    },
-    {
-      id: RECOMMENDED_CATEGORY,
-      name: "Recommended",
-      count: recommendedTemplateCount,
-    },
-  ];
-  const useCaseItems = categories.map((category) => ({
+  const categoryItems = categories.map((category) => ({
     id: category,
-    name:
-      category === OTHER_CATEGORY
-        ? "Other"
-        : getProjectEvaluatorTemplateCategoryLabel(category),
-    count: templates.filter(
-      ({ category: templateCategory }) =>
-        getGalleryCategory(templateCategory) === category
-    ).length,
+    name: getProjectEvaluatorTemplateCategoryLabel(
+      category === OTHER_CATEGORY ? null : category
+    ),
+    count: templatesByCategory.get(category)?.length ?? 0,
   }));
-  const categoryItems = [...quickStartItems, ...useCaseItems];
-  const requestedCategory = searchParams.get(PROJECT_EVALUATOR_CATEGORY_PARAM);
-  // Shared or stale URLs can contain an unknown category; Recommended is the
-  // gallery's stable fallback.
-  const activeCategoryItem = categoryItems.find(
-    ({ id }) => id === requestedCategory
-  );
-  const activeCategory: GalleryCategory =
-    activeCategoryItem?.id ?? RECOMMENDED_CATEGORY;
-  const activeCategoryLabel = activeCategoryItem?.name ?? "Recommended";
-  const visibleTemplates = templates.filter(({ recommended, category }) => {
-    if (activeCategory === ALL_EVALUATORS_CATEGORY) {
-      return true;
-    }
-    if (activeCategory === RECOMMENDED_CATEGORY) {
-      return recommended;
-    }
-    return getGalleryCategory(category) === activeCategory;
-  });
   const requestedTemplateName = searchParams.get(
     PROJECT_EVALUATOR_TEMPLATE_PARAM
   );
-  // Fall back to the first visible template if a saved selection is no longer
-  // part of the active category.
+  const requestedCategoryParam = searchParams.get(
+    PROJECT_EVALUATOR_CATEGORY_PARAM
+  ) as TemplateCategory | null;
+  const requestedCategory =
+    requestedCategoryParam && categories.includes(requestedCategoryParam)
+      ? requestedCategoryParam
+      : undefined;
+  const requestedTemplate = templates.find(
+    ({ name }) => name === requestedTemplateName
+  );
+  const requestedTemplateNameToScroll = requestedTemplate?.name;
+  const requestedTemplateCategory = requestedTemplate
+    ? getGalleryCategory(requestedTemplate.category)
+    : undefined;
+  const requestedCategoryToScroll =
+    requestedTemplateCategory ?? requestedCategory;
   const selectedTemplate =
-    visibleTemplates.find(({ name }) => name === requestedTemplateName) ??
-    visibleTemplates[0];
+    requestedTemplate ??
+    templatesByCategory.get(requestedCategory ?? categories[0])?.[0];
+
+  // Section headings double as scroll-spy targets, so the sidebar can track
+  // whichever category is currently in view.
+  const headingRefs = useRef(new Map<TemplateCategory, HTMLElement>());
+  const templateCardRefs = useRef(new Map<string, HTMLDivElement>());
+  const templateScrollRegionRef = useRef<HTMLDivElement>(null);
+  const [activeCategory, setActiveCategory] = useState<
+    TemplateCategory | undefined
+  >(() => requestedCategory ?? categories[0]);
+
+  const scrollToCategory = (category: TemplateCategory) => {
+    headingRefs.current.get(category)?.scrollIntoView({ block: "start" });
+    setActiveCategory(category);
+  };
+
+  // Keep the scroll position synchronized with gallery deep links. Prefer the
+  // requested template and fall back to its category when no card is available.
+  useEffect(() => {
+    // Wait for the route commit and React Aria collection layout before moving
+    // the scroll port; otherwise router scroll restoration can win this race.
+    const animationFrameId = requestAnimationFrame(() => {
+      const requestedTemplateCard = requestedTemplateNameToScroll
+        ? templateCardRefs.current.get(requestedTemplateNameToScroll)
+        : undefined;
+      const requestedCategoryHeading = requestedCategoryToScroll
+        ? headingRefs.current.get(requestedCategoryToScroll)
+        : undefined;
+      const scrollTarget = requestedTemplateCard ?? requestedCategoryHeading;
+      scrollTarget?.scrollIntoView({
+        block: requestedTemplateCard ? "nearest" : "start",
+      });
+      if (requestedCategoryToScroll) {
+        setActiveCategory(requestedCategoryToScroll);
+      }
+    });
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [requestedCategoryToScroll, requestedTemplateNameToScroll]);
+
+  useEffect(() => {
+    const scrollRegion = templateScrollRegionRef.current;
+    if (!scrollRegion) return undefined;
+    // Snapshot the mounted headings so observer entries can be mapped back to
+    // the category selection used by the sidebar and compact picker.
+    const headingsByElement = new Map<Element, TemplateCategory>(
+      categories
+        .map(
+          (category) => [headingRefs.current.get(category), category] as const
+        )
+        .filter(
+          (entry): entry is [HTMLElement, TemplateCategory] => entry[0] != null
+        )
+    );
+    if (headingsByElement.size === 0) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // More than one heading can occupy the active top band. The uppermost
+        // one represents the category the user is currently reading.
+        const topmostVisibleEntry = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+          .at(0);
+        // The final heading cannot reach the top band when the scroll port is
+        // at its limit, so treat the bottom as belonging to the last category.
+        const isAtScrollEnd =
+          scrollRegion.scrollTop + scrollRegion.clientHeight >=
+          scrollRegion.scrollHeight - 1;
+        const category = isAtScrollEnd
+          ? categories.at(-1)
+          : topmostVisibleEntry
+            ? headingsByElement.get(topmostVisibleEntry.target)
+            : undefined;
+        if (category) {
+          setActiveCategory(category);
+        }
+      },
+      { root: scrollRegion, rootMargin: SCROLL_SPY_ROOT_MARGIN }
+    );
+    // Observe every mounted category heading and release them together when
+    // the category collection changes or the gallery unmounts.
+    headingsByElement.forEach((_category, heading) =>
+      observer.observe(heading)
+    );
+    return () => observer.disconnect();
+  }, [categories]);
+
+  const setSelectedTemplate = (templateName: string) => {
+    setSearchParams((currentSearchParams) => {
+      const nextSearchParams = new URLSearchParams(currentSearchParams);
+      nextSearchParams.set(PROJECT_EVALUATOR_TEMPLATE_PARAM, templateName);
+      return nextSearchParams;
+    });
+  };
   const renderCategoryItem = ({
     id,
     name,
     count,
   }: {
-    id: GalleryCategory;
+    id: TemplateCategory;
     name: string;
     count: number;
   }) => (
@@ -158,82 +262,61 @@ function EvaluatorGallery() {
       <Counter variant="quiet">{count}</Counter>
     </ListBoxItem>
   );
-  const setSelectedCategory = (category: string) => {
-    setSearchParams((currentSearchParams) => {
-      const nextSearchParams = new URLSearchParams(currentSearchParams);
-      if (category === RECOMMENDED_CATEGORY) {
-        nextSearchParams.delete(PROJECT_EVALUATOR_CATEGORY_PARAM);
-      } else {
-        nextSearchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
-      }
-      nextSearchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
-      return nextSearchParams;
-    });
-  };
-  const setSelectedTemplate = (templateName: string) => {
-    setSearchParams((currentSearchParams) => {
-      const nextSearchParams = new URLSearchParams(currentSearchParams);
-      nextSearchParams.set(PROJECT_EVALUATOR_TEMPLATE_PARAM, templateName);
-      return nextSearchParams;
-    });
-  };
 
   return (
     <div css={galleryCSS} className="project-evaluator-gallery">
       <nav
         className="project-evaluator-gallery__categories"
-        aria-label="Evaluator template categories"
+        aria-label="Evaluator gallery navigation"
       >
-        <ListBox
-          aria-label="Evaluator template categories"
-          className="project-evaluator-gallery__category-list"
-          selectionMode="single"
-          selectionBehavior="replace"
-          disallowEmptySelection
-          selectedKeys={[activeCategory]}
-          onSelectionChange={(selection) => {
-            if (selection === "all") return;
-            const category = selection.keys().next().value;
-            if (typeof category === "string") {
-              setSelectedCategory(category);
-            }
-          }}
-        >
-          <ListBoxSection id="quick-start">
-            <Header className="project-evaluator-gallery__category-section-heading">
-              <Text elementType="h2" size="XS" weight="heavy" color="text-500">
-                Quick start
-              </Text>
-            </Header>
-            {quickStartItems.map(renderCategoryItem)}
-          </ListBoxSection>
-          <ListBoxSection id="use-cases">
-            <Header className="project-evaluator-gallery__category-section-heading">
-              <Text elementType="h2" size="XS" weight="heavy" color="text-500">
-                Use cases
-              </Text>
-            </Header>
-            {useCaseItems.map(renderCategoryItem)}
-          </ListBoxSection>
-        </ListBox>
-        <EvaluatorScratchActions
-          className="project-evaluator-gallery__scratch-actions"
-          onCreateLlmEvaluator={() => navigate(paths.galleryNewLlm)}
-          onCreateCodeEvaluator={() => navigate(paths.galleryNewCode)}
-        />
+        <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
+        <div className="project-evaluator-gallery__category-scroll-region">
+          <ListBox
+            aria-label="Categories"
+            className="project-evaluator-gallery__category-list"
+            selectionMode="single"
+            selectionBehavior="replace"
+            disallowEmptySelection
+            selectedKeys={activeCategory ? [activeCategory] : []}
+            onSelectionChange={(selection) => {
+              if (selection === "all") return;
+              const category = selection.keys().next().value;
+              if (typeof category === "string") {
+                scrollToCategory(category as TemplateCategory);
+              }
+            }}
+          >
+            <ListBoxSection id="categories">
+              <Header className="project-evaluator-gallery__category-section-heading">
+                <Text
+                  elementType="h2"
+                  size="XS"
+                  weight="heavy"
+                  color="text-500"
+                >
+                  Categories
+                </Text>
+              </Header>
+              {categoryItems.map(renderCategoryItem)}
+            </ListBoxSection>
+          </ListBox>
+        </div>
       </nav>
 
       <section
         className="project-evaluator-gallery__templates"
-        aria-labelledby="evaluator-template-list-title"
+        aria-label="Evaluator templates"
       >
+        <div className="project-evaluator-gallery__compact-add-evaluator-menu">
+          <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
+        </div>
         <Select
-          aria-label="Evaluator template category"
+          aria-label="Evaluator category"
           className="project-evaluator-gallery__compact-category-select"
           value={activeCategory}
           onChange={(category) => {
             if (typeof category === "string") {
-              setSelectedCategory(category);
+              scrollToCategory(category as TemplateCategory);
             }
           }}
         >
@@ -243,7 +326,7 @@ function EvaluatorGallery() {
           </Button>
           <Popover isNonModal closeOnInteractOutside>
             <ListBox css={compactCategoryListCSS}>
-              <ListBoxSection id="compact-quick-start">
+              <ListBoxSection id="compact-categories">
                 <Header className="project-evaluator-gallery__category-section-heading">
                   <Text
                     elementType="h2"
@@ -251,44 +334,21 @@ function EvaluatorGallery() {
                     weight="heavy"
                     color="text-500"
                   >
-                    Quick start
+                    Categories
                   </Text>
                 </Header>
-                {quickStartItems.map(renderCategoryItem)}
-              </ListBoxSection>
-              <ListBoxSection id="compact-use-cases">
-                <Header className="project-evaluator-gallery__category-section-heading">
-                  <Text
-                    elementType="h2"
-                    size="XS"
-                    weight="heavy"
-                    color="text-500"
-                  >
-                    Use cases
-                  </Text>
-                </Header>
-                {useCaseItems.map(renderCategoryItem)}
+                {categoryItems.map(renderCategoryItem)}
               </ListBoxSection>
             </ListBox>
           </Popover>
         </Select>
-        <Text
-          id="evaluator-template-list-title"
-          className="project-evaluator-gallery__template-list-title"
-          elementType="h2"
-          size="S"
-          weight="heavy"
-        >
-          {activeCategoryLabel}
-        </Text>
         <ListBox
-          aria-labelledby="evaluator-template-list-title"
-          className="project-evaluator-gallery__template-list"
-          items={visibleTemplates}
+          ref={templateScrollRegionRef}
+          aria-label="Evaluator templates"
+          className="project-evaluator-gallery__template-card-scroll-region"
           layout="grid"
           selectionMode="single"
           selectionBehavior="replace"
-          disallowEmptySelection
           selectedKeys={selectedTemplate ? [selectedTemplate.name] : []}
           onSelectionChange={(selection) => {
             if (selection === "all") return;
@@ -297,32 +357,71 @@ function EvaluatorGallery() {
               setSelectedTemplate(templateName);
             }
           }}
+          onAction={(key) => {
+            if (typeof key === "string") {
+              navigate(paths.galleryNewLlmFromTemplate(key));
+            }
+          }}
         >
-          {(template) => (
-            <ListBoxItem
-              key={template.name}
-              id={template.name}
-              textValue={template.name}
-            >
-              <Flex direction="row" justifyContent="space-between">
-                <Text size="S" weight="heavy">
-                  {template.name}
-                </Text>
-                <Badge size="S">LLM</Badge>
-              </Flex>
-              <LineClamp lines={3}>
-                <Text size="XS" color="text-700">
-                  {template.description}
-                </Text>
-              </LineClamp>
-            </ListBoxItem>
-          )}
+          {categories.map((category) => {
+            const headingId = getCategoryHeadingId(category);
+            return (
+              <ListBoxSection
+                key={category}
+                id={category}
+                className="project-evaluator-gallery__template-category-section"
+              >
+                <Header className="project-evaluator-gallery__template-category-header">
+                  <Text
+                    ref={(element) => {
+                      if (element) {
+                        headingRefs.current.set(category, element);
+                      } else {
+                        headingRefs.current.delete(category);
+                      }
+                    }}
+                    id={headingId}
+                    className="project-evaluator-gallery__template-category-heading"
+                    elementType="h2"
+                    size="M"
+                    weight="heavy"
+                  >
+                    {getProjectEvaluatorTemplateCategoryLabel(
+                      category === OTHER_CATEGORY ? null : category
+                    )}
+                  </Text>
+                </Header>
+                {(templatesByCategory.get(category) ?? []).map((template) => (
+                  <EvaluatorTemplateCard
+                    key={template.name}
+                    ref={(element) => {
+                      if (element) {
+                        templateCardRefs.current.set(template.name, element);
+                      } else {
+                        templateCardRefs.current.delete(template.name);
+                      }
+                    }}
+                    id={template.name}
+                    textValue={template.name}
+                  >
+                    <Text size="S" weight="heavy">
+                      {template.name}
+                    </Text>
+                    <LineClamp lines={3}>
+                      <Text size="XS" color="text-700">
+                        {template.description}
+                      </Text>
+                    </LineClamp>
+                    <EvaluatorTemplateCardFooter
+                      evaluatorKind="LLM"
+                      evaluationTargets={[template.scope ?? "SPAN"]}
+                    />
+                  </EvaluatorTemplateCard>
+                ))}
+              </ListBoxSection>
+            );
+          })}
         </ListBox>
-        <EvaluatorScratchActions
-          className="project-evaluator-gallery__compact-scratch-actions"
-          onCreateLlmEvaluator={() => navigate(paths.galleryNewLlm)}
-          onCreateCodeEvaluator={() => navigate(paths.galleryNewCode)}
-        />
       </section>
 
       <aside className="project-evaluator-gallery__details" aria-live="polite">
@@ -335,7 +434,7 @@ function EvaluatorGallery() {
           />
         ) : (
           <Text size="S" color="text-500">
-            No templates are available in this category.
+            No templates are available in the gallery.
           </Text>
         )}
       </aside>
@@ -343,23 +442,59 @@ function EvaluatorGallery() {
   );
 }
 
-function EvaluatorScratchActions({
-  className,
-  onCreateLlmEvaluator,
-  onCreateCodeEvaluator,
+function EvaluatorGalleryAddMenu({
+  creationPaths,
 }: {
-  className: string;
-  onCreateLlmEvaluator: () => void;
-  onCreateCodeEvaluator: () => void;
+  creationPaths: ProjectEvaluatorCreationPaths;
 }) {
   return (
-    <Flex direction="column" gap="size-50" className={className}>
-      <Button size="S" variant="quiet" onPress={onCreateLlmEvaluator}>
-        Start from a blank prompt
-      </Button>
-      <Button size="S" variant="quiet" onPress={onCreateCodeEvaluator}>
-        Create a code evaluator
-      </Button>
+    <AddProjectEvaluatorMenu
+      size="M"
+      buttonClassName="project-evaluator-gallery__add-evaluator-button"
+      buttonLabel="Add Custom Evaluator"
+      shouldShowGalleryLink={false}
+      creationPaths={creationPaths}
+    />
+  );
+}
+
+function EvaluatorTemplateCardFooter({
+  evaluatorKind,
+  evaluationTargets,
+}: {
+  evaluatorKind: "CODE" | "LLM";
+  evaluationTargets: readonly [
+    ProjectEvaluatorTarget,
+    ...ProjectEvaluatorTarget[],
+  ];
+}) {
+  return (
+    <Flex
+      className="project-evaluator-gallery__template-card-footer"
+      direction="row"
+      alignItems="center"
+      gap="size-100"
+      wrap
+    >
+      <Flex className="project-evaluator-gallery__template-kind">
+        <EvaluatorKindToken kind={evaluatorKind} size="S" />
+      </Flex>
+      <Flex
+        className="project-evaluator-gallery__template-targets"
+        direction="row"
+        gap="size-50"
+        wrap
+      >
+        {evaluationTargets.map((target) => (
+          <Badge
+            key={target}
+            size="S"
+            title={`Evaluates ${formatEvaluationTargetPlural(target)}`}
+          >
+            {capitalize(formatEvaluationTargetPlural(target))}
+          </Badge>
+        ))}
+      </Flex>
     </Flex>
   );
 }
@@ -377,19 +512,17 @@ function EvaluatorTemplateDetails({
     optimizationDirection: template.optimizationDirection,
     values: choices,
   });
+  const messages = getProjectEvaluatorTemplateMessages(template);
   return (
     <Flex direction="column" gap="size-200" height="100%">
       <Flex direction="column" gap="size-100">
         <Heading level={2}>{template.name}</Heading>
         <Flex direction="row" gap="size-75" wrap>
-          <Badge size="S">LLM</Badge>
+          <EvaluatorKindToken kind="LLM" size="S" />
           <Badge size="S">
             {getProjectEvaluatorTemplateCategoryLabel(template.category)}
           </Badge>
         </Flex>
-        <Text size="S" color="text-700">
-          {template.description}
-        </Text>
         {template.details ? (
           <Text size="S" color="text-700">
             {template.details}
@@ -400,7 +533,7 @@ function EvaluatorTemplateDetails({
         <div>
           <dt>
             <Text size="XS" color="text-500">
-              Scope
+              Target
             </Text>
           </dt>
           <dd>
@@ -424,7 +557,7 @@ function EvaluatorTemplateDetails({
       </dl>
       <Flex direction="column" gap="size-75">
         <Text elementType="h3" size="S" weight="heavy">
-          Output choices
+          Annotation values
         </Text>
         <List size="S">
           {choices.map(({ label, score }) => (
@@ -454,12 +587,71 @@ function EvaluatorTemplateDetails({
           ))}
         </List>
       </Flex>
-      <Button variant="primary" onPress={onUseTemplate}>
-        Customize this evaluator
-      </Button>
+      {messages.length > 0 ? (
+        <Flex direction="column" gap="size-75">
+          <Text elementType="h3" size="S" weight="heavy">
+            Prompt
+          </Text>
+          <div css={promptPreviewWellCSS}>
+            <ExpandableContent
+              height={PROMPT_PREVIEW_COLLAPSED_HEIGHT}
+              expandedBehavior="grow"
+              overlayBackgroundColor="var(--global-background-color-100)"
+            >
+              <Flex direction="column" gap="size-150">
+                {messages.map((message) => (
+                  <Flex key={message.id} direction="column" gap="size-25">
+                    <Text size="XS" color="text-500" weight="heavy">
+                      {capitalize(message.role)}
+                    </Text>
+                    <Text size="S" css={promptPreviewMessageCSS}>
+                      {message.content}
+                    </Text>
+                  </Flex>
+                ))}
+              </Flex>
+            </ExpandableContent>
+          </div>
+        </Flex>
+      ) : null}
+      <Flex direction="column" css={stickyUseTemplateFooterCSS}>
+        <Button variant="primary" onPress={onUseTemplate}>
+          Customize this evaluator
+        </Button>
+      </Flex>
     </Flex>
   );
 }
+
+// Bleeds out to the edges of the details column's own padding/gap (both
+// `var(--global-dimension-size-200)`) and re-adds that same space as padding
+// inside this element's own background, so nothing scrolls behind it.
+const stickyUseTemplateFooterCSS = css`
+  position: sticky;
+  bottom: calc(-1 * var(--project-evaluator-gallery-column-padding));
+  z-index: 1;
+  margin: calc(-1 * var(--global-dimension-size-200))
+    calc(-1 * var(--project-evaluator-gallery-column-padding))
+    calc(-1 * var(--project-evaluator-gallery-column-padding));
+  padding: var(--global-dimension-size-200)
+    var(--project-evaluator-gallery-column-padding)
+    var(--project-evaluator-gallery-column-padding);
+  background-color: var(--global-background-color-default);
+`;
+
+const PROMPT_PREVIEW_COLLAPSED_HEIGHT = 160;
+
+const promptPreviewWellCSS = css`
+  background-color: var(--global-background-color-100);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+  padding: var(--global-dimension-size-150);
+`;
+
+const promptPreviewMessageCSS = css`
+  white-space: pre-wrap;
+`;
 
 function capitalize(value: string): string {
   return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
@@ -517,7 +709,7 @@ const galleryCSS = css`
   );
   --project-evaluator-gallery-column-padding: var(--global-dimension-size-200);
   --project-evaluator-gallery-template-card-min-width: var(
-    --global-dimension-size-3000
+    --global-dimension-size-4600
   );
   --project-evaluator-gallery-template-column-min-width: calc(
     var(--project-evaluator-gallery-template-card-min-width) +
@@ -567,9 +759,9 @@ const galleryCSS = css`
   }
 
   .project-evaluator-gallery__category-list {
-    flex: 1 1 auto;
-    min-height: 0;
+    flex: none;
     gap: var(--global-dimension-size-100);
+    overflow: visible;
 
     .react-aria-ListBoxSection {
       display: flex;
@@ -584,28 +776,52 @@ const galleryCSS = css`
     }
   }
 
+  .project-evaluator-gallery__category-scroll-region {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    overflow-y: auto;
+  }
+
   .project-evaluator-gallery__category-section-heading {
     padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
 
-  .project-evaluator-gallery__scratch-actions,
-  .project-evaluator-gallery__compact-scratch-actions {
+  .project-evaluator-gallery__add-evaluator-button {
     flex: none;
-    padding-top: var(--global-dimension-size-200);
-    border-top: var(--global-border-size-thin) solid
-      var(--global-border-color-default);
+    align-self: stretch;
+    width: 100%;
+    margin-bottom: var(--global-dimension-size-200);
   }
 
-  .project-evaluator-gallery__compact-category-select,
-  .project-evaluator-gallery__compact-scratch-actions {
+  .project-evaluator-gallery__compact-category-select {
     display: none;
   }
 
-  .project-evaluator-gallery__template-list {
+  .project-evaluator-gallery__compact-add-evaluator-menu {
+    display: none;
+  }
+
+  .project-evaluator-gallery__template-card-scroll-region {
     flex: 1 1 auto;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-400);
+    margin-top: var(--global-dimension-size-100);
+    overflow-y: auto;
+    scroll-behavior: smooth;
+
+    @media (prefers-reduced-motion: reduce) {
+      scroll-behavior: auto;
+    }
+  }
+
+  .project-evaluator-gallery__template-category-section {
     display: grid;
     grid-template-columns: repeat(
       auto-fit,
@@ -613,16 +829,29 @@ const galleryCSS = css`
     );
     align-content: start;
     gap: var(--global-dimension-size-100);
-    margin-top: var(--global-dimension-size-100);
+  }
 
-    .react-aria-ListBoxItem {
-      min-height: var(--global-dimension-size-1400);
-      gap: var(--global-dimension-size-100);
-      margin: 0;
-      padding: var(--global-dimension-size-150);
-      border: var(--global-border-size-thin) solid
-        var(--global-border-color-default);
-    }
+  .project-evaluator-gallery__template-category-header {
+    grid-column: 1 / -1;
+  }
+
+  .project-evaluator-gallery__template-category-heading {
+    /* Anchor target for the category nav; offset so scrollIntoView doesn't
+       tuck it flush against the scroll region's top edge. */
+    scroll-margin-top: var(--global-dimension-size-100);
+  }
+
+  .project-evaluator-gallery__template-card-footer {
+    width: 100%;
+    margin-top: auto;
+  }
+
+  .project-evaluator-gallery__template-kind {
+    flex: none;
+  }
+
+  .project-evaluator-gallery__template-targets {
+    min-width: 0;
   }
 
   .project-evaluator-gallery__definition-list {
@@ -662,25 +891,15 @@ const galleryCSS = css`
       width: 100%;
     }
 
+    .project-evaluator-gallery__compact-add-evaluator-menu {
+      display: flex;
+      flex: none;
+      justify-content: flex-start;
+    }
+
     .project-evaluator-gallery__templates {
       grid-column: 1;
       grid-row: 1;
-    }
-
-    .project-evaluator-gallery__template-list-title {
-      display: none;
-    }
-
-    .project-evaluator-gallery__template-list {
-      grid-template-columns: minmax(
-        var(--project-evaluator-gallery-template-card-min-width),
-        1fr
-      );
-    }
-
-    .project-evaluator-gallery__compact-scratch-actions {
-      display: flex;
-      margin-top: var(--global-dimension-size-200);
     }
 
     .project-evaluator-gallery__details {
