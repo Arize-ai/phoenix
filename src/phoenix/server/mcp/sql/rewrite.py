@@ -458,8 +458,7 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     which coerces, and decisive for ``MIN``, ``MAX``, ``ORDER BY`` and every
     comparison, which compare text character by character -- so 1017066 sorts
     below 149740 and the answer is confidently wrong with no error anywhere.
-    Left alone the generator emits ``->`` for a caller's ``json_extract``,
-    silently exchanging one accessor for another.
+    So the accessor a caller wrote cannot be exchanged for another one.
 
     The second is whether an expression index can be used at all. SQLite matches
     such an index on the parsed expression, so a query reaches it only by
@@ -492,8 +491,7 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
         # `->` returns JSON text; `json_extract` and `->>` return the SQL value.
         # Rewriting the operator would therefore change both the value and the
-        # type of every JSON scalar, so only the function form is canonicalised
-        # -- which is also what stops the generator emitting it back as `->`.
+        # type of every JSON scalar, so only the function form is canonicalised.
         # `only_json_types` marks the operator spelling. It decides rather than
         # the node class, which is not stable across parser versions.
         if isinstance(node, exp.JSONExtract) and node.args.get("only_json_types") is not None:
@@ -555,6 +553,9 @@ def _repair_quoted_json_path(root: exp.Expression, ctx: RewriteContext) -> exp.E
     A plain string literal in the same position is escaped correctly, and keeps
     the accessor the caller wrote -- which matters on SQLite, where `->` and
     `json_extract` return different types.
+
+    Workaround for https://github.com/tobymao/sqlglot/issues/8251, open
+    upstream.
     """
     changed = False
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
@@ -637,6 +638,8 @@ def _canonicalize_postgres_json_extract_function(
             # adds the comparison forms that are neither, such as BETWEEN and
             # IN. exp.Paren is itself a Unary, and an already-parenthesised
             # operand renders unambiguously.
+            # Workaround for https://github.com/tobymao/sqlglot/issues/8211,
+            # fixed upstream but unreleased at the pinned version.
             if isinstance(operand, (exp.Binary, exp.Unary, exp.Predicate)) and not isinstance(
                 operand, exp.Paren
             ):
@@ -649,6 +652,8 @@ def _canonicalize_postgres_json_extract_function(
         # and `json_extract_path(doc)` is not a signature PostgreSQL defines,
         # so the path operators express it instead: `#> '{}'` is the document,
         # `#>> '{}'` is the document as text.
+        # Workaround for https://github.com/tobymao/sqlglot/issues/8232, fixed
+        # upstream but unreleased at the pinned version.
         if _json_path_is_root_only(inner):
             whole = (
                 exp.JSONBExtractScalar
@@ -1842,6 +1847,9 @@ def _rewrite_sqlite_median(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     generator emits ``PERCENTILE_CONT``, which this engine does not have.
     sqlean stats registers ``median``; rewriting to a generic call is the
     spelling that actually runs.
+
+    Workaround for https://github.com/tobymao/sqlglot/issues/8079, which
+    upstream closed as not planned.
     """
     if ctx.dialect != "sqlite":
         return root
@@ -1961,6 +1969,8 @@ def _parenthesize_setop_operands(root: exp.Expression, ctx: RewriteContext) -> e
     unless the limited select is parenthesised, and SQLGlot does not emit those
     parentheses. SQLite rejects the parentheses and the LIMIT-on-a-member
     spelling; those members are lifted into FROM subqueries instead.
+
+    Workaround for an unfiled sqlglot defect.
     """
     if ctx.dialect == "sqlite":
         return _rewrite_sqlite_setop_operands(root, ctx)

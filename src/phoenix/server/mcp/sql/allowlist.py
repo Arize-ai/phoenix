@@ -142,8 +142,8 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # After parse, `jsonb_contains(x, y)` and `x ? y` are the same node,
             # so we emit `?`. Do not rewrite this class to `@>` — that would
             # change real `?` queries. `@>` is ArrayContainsAll.
-            # Write-up:
-            # .scratch/pending_issues/sglglot/ISSUE-postgres-jsonb-contains-emits-key-exists.md
+            # Workaround for https://github.com/tobymao/sqlglot/issues/8152,
+            # fixed upstream but unreleased at the pinned version.
             exp.JSONBContains,
             exp.JSONBContainsAnyTopKeys,
             exp.JSONBContainsAllTopKeys,

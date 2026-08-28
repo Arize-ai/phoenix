@@ -89,8 +89,9 @@ _RECURSIVE_CTE_MESSAGE = (
 
 
 def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
-    # SQLGlot folds quoted `"char"` to CHAR (bpchar). PostgreSQL's `"char"` is
-    # a 1-byte type; CAST(65 AS "char") is 'A' and CAST(65 AS CHAR) is '6'.
+    # Workaround for an unfiled sqlglot defect: it folds quoted `"char"` to CHAR
+    # (bpchar). PostgreSQL's `"char"` is a 1-byte type; CAST(65 AS "char") is 'A'
+    # and CAST(65 AS CHAR) is '6'.
     if dialect == "postgresql" and _QUOTED_CHAR_TYPE.search(sql):
         raise AnalyticsSqlError(
             code=ErrorCode.UNSUPPORTED_SYNTAX,
@@ -176,6 +177,8 @@ def _grouping_limit_parse_message(sql: str) -> Optional[str]:
     postgres parser does not; ``FETCH FIRST n ROWS ONLY`` and wrapping the
     aggregation in a subquery both parse. The generic parse error names a
     token the caller cannot act on.
+
+    Workaround for an unfiled sqlglot defect.
     """
     folded = sql.casefold()
     if "limit" not in folded and "offset" not in folded:
@@ -223,6 +226,8 @@ def _recover_grouping_limit_parse(
     trailing clause, parsing the rest, and putting Limit/Offset back preserves
     the statement the caller wrote rather than refusing a query the engine
     would run.
+
+    Workaround for an unfiled sqlglot defect.
     """
     if _grouping_limit_parse_message(sql) is None:
         return None
@@ -348,6 +353,9 @@ def _repair_lambda_json_accessor(
     ``->`` outside a call. SQLite's ``->`` returns JSON text; ``json_extract``
     and ``->>`` return the SQL value, so rebuilding as the function changes
     what MIN/MAX compares.
+
+    Workaround for https://github.com/tobymao/sqlglot/issues/8074, which
+    upstream closed as not planned.
     """
     # Innermost first: a three-hop chain nests JSONExtract inside JSONExtract.
     for node in reversed(list(root.find_all(exp.Lambda))):
@@ -385,6 +393,8 @@ def _promote_lateral_table_references(
     function there may refer to earlier FROM items -- so ``LATERAL json_each``
     is the same request as a plain ``json_each``. Remaining LATERAL nodes
     (subqueries, other SRFs) are refused at admission.
+
+    Workaround for an unfiled sqlglot defect.
     """
     for lateral in list(root.find_all(exp.Lateral)):
         inner = lateral.this
@@ -1116,6 +1126,8 @@ def _check_lossy_shapes(
         # Carried on the options node under `FETCH`, not on `Limit`. Rendered as
         # a plain LIMIT on SQLite, which drops the ties and returns an arbitrary
         # subset of the tied rows -- a different answer, silently.
+        # Workaround for https://github.com/tobymao/sqlglot/issues/8077, which
+        # upstream closed as not planned.
         if options.args.get("with_ties"):
             return AdmissionResult(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
@@ -1258,6 +1270,8 @@ def _check_lossy_shapes(
         # this refuses the blob spelling too, which is the price of not
         # answering an integer comparison with a blob. Withdrawable once the
         # tokenizer records which was written.
+        # Workaround for https://github.com/tobymao/sqlglot/issues/8075, which
+        # upstream closed as not planned.
         del literal
         return AdmissionResult(
             AdmissionOutcome.UNSUPPORTED_SYNTAX,
@@ -2716,6 +2730,7 @@ _RESERVED_IMPLICIT_NAMES: dict[SupportedSQLDialectName, frozenset[str]] = {
 #: the function allowlist never sees them. They are reserved words: unquoted is
 #: always the keyword, and quoted is an ordinary column reference. They bind to
 #: the session, so no relation has to be in scope for one to resolve.
+#: Workaround for an unfiled sqlglot defect.
 _SESSION_IDENTITY_NAMES: dict[SupportedSQLDialectName, frozenset[str]] = {
     "postgresql": frozenset({"user", "current_role", "system_user"}),
     "sqlite": frozenset(),
