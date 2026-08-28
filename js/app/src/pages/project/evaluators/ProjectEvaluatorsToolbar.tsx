@@ -1,5 +1,6 @@
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 
 /**
  * The evaluators tab's own header: search on the left, creation on the right.
@@ -13,6 +14,7 @@ export function ProjectEvaluatorsToolbar({
   filter: string;
   onFilterChange: (filter: string) => void;
 }) {
+  const paths = useProjectEvaluatorPaths();
   return (
     <View
       padding="size-100"
@@ -33,7 +35,10 @@ export function ProjectEvaluatorsToolbar({
           onChange={onFilterChange}
         />
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
-          <AddProjectEvaluatorMenu size="M" />
+          <AddProjectEvaluatorMenu
+            size="M"
+            creationPaths={paths.listCreation}
+          />
         </Flex>
       </Flex>
     </View>
