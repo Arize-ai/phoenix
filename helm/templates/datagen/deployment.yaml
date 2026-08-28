@@ -1,0 +1,94 @@
+{{- if .Values.datagen.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "phoenix.datagen" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "phoenix.datagenLabels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "phoenix.datagenSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "phoenix.datagenSelectorLabels" . | nindent 8 }}
+    spec:
+      {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default (include "phoenix.fullname" .) }}
+      {{- end }}
+      {{- if .Values.securityContext.pod.enabled }}
+      securityContext: {{- omit .Values.securityContext.pod "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: datagen
+          image: {{ .Values.image.registry }}/{{ .Values.image.repository | default "arizephoenix/phoenix" }}:{{ .Values.image.tag | default "latest" }}
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          # The image ENTRYPOINT is the Python interpreter; args replaces the
+          # image CMD while keeping that ENTRYPOINT.
+          args:
+            - -m
+            - phoenix.server.main
+            - datagen
+            - --rate={{ .Values.datagen.rate }}
+            {{- with .Values.datagen.args }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .Values.securityContext.container.enabled }}
+          securityContext: {{- omit .Values.securityContext.container "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.datagen.resources | nindent 12 }}
+          env:
+            - name: PHOENIX_COLLECTOR_ENDPOINT
+              value: {{ .Values.datagen.endpoint | default (printf "http://%s:%v" (include "phoenix.service" .) (.Values.server.port | default 6006)) | quote }}
+            {{- with .Values.datagen.projectName }}
+            - name: PHOENIX_PROJECT_NAME
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.datagen.additionalEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+            - name: var-tmp-volume
+              mountPath: /var/tmp
+            - name: var-log-volume
+              mountPath: /var/log
+            - name: home-volume
+              mountPath: /home/phoenix
+          {{- end }}
+      {{- if and .Values.securityContext.container.enabled .Values.securityContext.container.readOnlyRootFilesystem }}
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+        - name: var-tmp-volume
+          emptyDir: {}
+        - name: var-log-volume
+          emptyDir: {}
+        - name: home-volume
+          emptyDir: {}
+      {{- end }}
+      {{- if .Values.serviceAccount.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.serviceAccount.imagePullSecrets }}
+        - name: {{ . | quote }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.deployment.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.deployment.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -103,6 +103,13 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | database.postgres.user | string | `"postgres"` | PostgreSQL username (PHOENIX_POSTGRES_USER) |
 | database.readReplicaUrl | string | `""` | Optional PostgreSQL read replica URL for read-only query routing (PHOENIX_SQL_DATABASE_READ_REPLICA_URL) When set, Phoenix routes read-only queries to this replica while keeping writes on the primary. Ignored for SQLite deployments. |
 | database.url | string | `""` | Full database connection URL (overrides postgres settings if provided) IMPORTANT: Only set this for external databases (Strategy 3) - When using SQLite (Strategy 1): MUST be empty - SQLite auto-uses persistent volume - When using built-in PostgreSQL (Strategy 2): MUST be empty - auto-configured - When using external database (Strategy 3): MUST be configured with full connection string  Examples for external databases: PostgreSQL: "postgresql://username:password@your-rds-endpoint.region.rds.amazonaws.com:5432/phoenix" SQLite: "sqlite:///path/to/database.db" (only for external SQLite files, not recommended)  WARNING: Setting this will override all database.postgres.* settings and disable built-in PostgreSQL validation |
+| datagen.additionalEnv | list | `[]` | Additional environment variables for the datagen container, such as a secret-backed PHOENIX_API_KEY |
+| datagen.args | list | `[]` | Additional arguments passed to phoenix datagen |
+| datagen.enabled | bool | `false` | Enable the optional synthetic trace generator deployment |
+| datagen.endpoint | string | `""` | Phoenix collector endpoint. When empty, defaults to the Phoenix service DNS name |
+| datagen.projectName | string | `""` | Destination project (PHOENIX_PROJECT_NAME). When empty, defaults to phoenix-datagen |
+| datagen.rate | int | `12` | Mean traces per minute |
+| datagen.resources | object | `{"limits":{"cpu":"1000m","memory":"2Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}` | Resource configuration for the datagen container |
 | deployment.affinity | object | `{}` |  |
 | deployment.nodeSelector | object | `{}` |  |
 | deployment.podLabels | object | `{}` | Extra labels for the Phoenix pods Required by admission webhooks that select on pod labels, e.g. `azure.workload.identity/use: "true"` for OAuth2 workload identity. |
