@@ -36,7 +36,7 @@
     "typecheck": "pnpm run -r typecheck"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.31.1",
+    "@changesets/cli": "^3.0.1",
     "oxfmt": "^0.58.0",
     "oxlint": "~1.79.0",
     "oxlint-tsgolint": "~7.0.2001",
