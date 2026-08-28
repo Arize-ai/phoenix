@@ -160,9 +160,9 @@ def _jitter_numerics(
         if completion is not None:
             completion = _jitter_positive_int(completion, random=random)
             _set_int_attribute(span, _COMPLETION_TOKENS, completion)
-        if prompt is not None and completion is not None:
+        if prompt is not None or completion is not None:
             if total is not None:
-                _set_int_attribute(span, _TOTAL_TOKENS, prompt + completion)
+                _set_int_attribute(span, _TOTAL_TOKENS, (prompt or 0) + (completion or 0))
         elif total is not None:
             _set_int_attribute(
                 span,

@@ -763,6 +763,7 @@ class PydanticAIMessageMetadata(TypedDict):
 class ReasoningUIPart(TypedDict):
     type: Literal["reasoning"]
     text: str
+    id: NotRequired[str]
     state: NotRequired[Literal["streaming", "done"]]
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
 

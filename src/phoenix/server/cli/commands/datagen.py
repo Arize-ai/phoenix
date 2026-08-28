@@ -95,9 +95,24 @@ def run(args: Namespace) -> None:
         return
 
 
-def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
-    from phoenix.utilities.re import parse_env_headers
+def _parse_env_headers(value: str | None) -> dict[str, str]:
+    """Parse W3C Baggage-style ``k=v,k2=v2`` headers with URL-encoded parts.
 
+    Same format as ``PHOENIX_CLIENT_HEADERS`` elsewhere in the Phoenix
+    ecosystem; entries that do not parse are skipped.
+    """
+    from urllib.parse import unquote
+
+    headers: dict[str, str] = {}
+    for entry in (value or "").split(","):
+        name, separator, encoded = entry.strip().partition("=")
+        if not separator or not name.strip():
+            continue
+        headers[unquote(name).strip().lower()] = unquote(encoded).strip()
+    return headers
+
+
+def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
     return _Config(
         endpoint=_setting(
             args.endpoint,
@@ -107,7 +122,7 @@ def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
             str,
         ),
         api_key=args.api_key or environ.get("PHOENIX_API_KEY"),
-        headers=parse_env_headers(environ.get("PHOENIX_CLIENT_HEADERS")),
+        headers=_parse_env_headers(environ.get("PHOENIX_CLIENT_HEADERS")),
         corpus=args.corpus,
         project=args.project or environ.get("PHOENIX_PROJECT_NAME"),
         rate=args.rate if args.rate is not None else _DEFAULT_RATE,

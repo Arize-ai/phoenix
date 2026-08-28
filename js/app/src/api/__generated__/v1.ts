@@ -5344,6 +5344,8 @@ export interface components {
              * @constant
              */
             type?: "reasoning";
+            /** Id */
+            id?: string | null;
             /** Text */
             text: string;
             /** State */
