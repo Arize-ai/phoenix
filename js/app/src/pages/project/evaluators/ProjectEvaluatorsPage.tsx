@@ -45,24 +45,31 @@ function ProjectEvaluatorsPageContent({
   filter: string;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
-  // The owner query supplies the initial range. Subsequent live or user-selected
-  // range changes refetch the pagination fragment in ProjectEvaluatorsTable,
-  // matching the spans and traces table pattern without reloading this query.
+  // The owner query supplies the initial filter and range. Subsequent toolbar,
+  // live, or user-selected changes refetch the pagination fragment in
+  // ProjectEvaluatorsTable without reloading this query.
+  const [initialFilter] = useState(() => filter.trim());
   const [initialTimeRange] = useState(() => timeRangeISOStrings);
   const data = useLazyLoadQuery<ProjectEvaluatorsPageQuery>(
     graphql`
       query ProjectEvaluatorsPageQuery(
         $projectId: ID!
+        $filter: ProjectEvaluatorFilter
         $timeRange: TimeRange!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            ...ProjectEvaluatorsTable_project @arguments(timeRange: $timeRange)
+            ...ProjectEvaluatorsTable_project
+              @arguments(filter: $filter, timeRange: $timeRange)
           }
         }
       }
     `,
-    { projectId, timeRange: initialTimeRange },
+    {
+      projectId,
+      filter: initialFilter ? { col: "name", value: initialFilter } : null,
+      timeRange: initialTimeRange,
+    },
     { fetchPolicy: "store-and-network" }
   );
   invariant(data.project, "project is required");
@@ -72,6 +79,8 @@ function ProjectEvaluatorsPageContent({
       projectId={projectId}
       filter={filter}
       timeRange={timeRangeISOStrings}
+      initialFilter={initialFilter}
+      initialTimeRange={initialTimeRange}
     />
   );
 }

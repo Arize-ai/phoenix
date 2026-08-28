@@ -156,6 +156,8 @@ export function ProjectEvaluatorsTable({
   projectId,
   filter,
   timeRange,
+  initialFilter,
+  initialTimeRange,
 }: {
   project: ProjectEvaluatorsTable_project$key;
   projectId: string;
@@ -163,6 +165,10 @@ export function ProjectEvaluatorsTable({
   filter: string;
   /** Selected project time range used by the cost aggregates. */
   timeRange: TimeRangeISOStrings;
+  /** Normalized filter used to fetch the rows supplied by the owner query. */
+  initialFilter: string;
+  /** Time range used to fetch the rows supplied by the owner query. */
+  initialTimeRange: TimeRangeISOStrings;
 }) {
   "use no memo";
   const {
@@ -195,14 +201,20 @@ export function ProjectEvaluatorsTable({
     project
   );
   const trimmedFilter = filter.trim();
-  const isFirstRender = useRef(true);
+  const hasComparedInitialQueryInputs = useRef(false);
   // Filtered server-side; a client-side filter would only see the loaded page.
   useEffect(() => {
-    // The parent query already carries the initial filter and selected range.
-    // Refetch only after the filter or live selected range changes.
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
+    if (!hasComparedInitialQueryInputs.current) {
+      hasComparedInitialQueryInputs.current = true;
+      const hasInitialFilter = trimmedFilter === initialFilter;
+      const hasInitialTimeRange =
+        timeRange.start === initialTimeRange.start &&
+        timeRange.end === initialTimeRange.end;
+      // Avoid a duplicate request only when the rows supplied by the owner
+      // query already answer the table's current filter and selected range.
+      if (hasInitialFilter && hasInitialTimeRange) {
+        return;
+      }
     }
     startTransition(() => {
       refetch(
@@ -215,7 +227,7 @@ export function ProjectEvaluatorsTable({
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [trimmedFilter, refetch, timeRange]);
+  }, [initialFilter, initialTimeRange, trimmedFilter, refetch, timeRange]);
   const loadNext = useCallback(() => {
     _loadNext(PAGE_SIZE, {
       UNSTABLE_extraVariables: {
