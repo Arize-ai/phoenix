@@ -1044,11 +1044,12 @@ async def test_a_cancelled_call_keeps_its_permit_until_the_parse_thread_exits(
     cancellations put more of it in flight than the width allows.
     """
     from phoenix.server.mcp.sql import execute as execute_module
+    from phoenix.server.mcp.sql.parse import parse_sql
 
     db, db_path = analytics_sqlite_db
     entered = threading.Event()
     finish = threading.Event()
-    original = execute_module.parse_sql
+    original = parse_sql
 
     def blocking(*args: Any, **kwargs: Any) -> Any:
         entered.set()
