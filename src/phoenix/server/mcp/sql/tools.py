@@ -21,6 +21,7 @@ from phoenix.server.mcp.sql.execute import (
     DEFAULT_ROW_LIMIT,
     MAX_RESPONSE_BYTES,
     MAX_ROW_LIMIT,
+    MAX_SQL_BYTES,
     ExecuteParams,
     execute_analytics_sql,
 )
@@ -91,7 +92,8 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         )
     backstop = "statement_timeout" if dialect == "postgresql" else "sqlite_progress_handler"
     lines.append(
-        f"-- read-only. {DEFAULT_ROW_LIMIT} rows by default, {MAX_ROW_LIMIT} max; "
+        f"-- read-only. {MAX_SQL_BYTES // 1024} KiB of SQL per call; "
+        f"{DEFAULT_ROW_LIMIT} rows by default, {MAX_ROW_LIMIT} max; "
         f"{BYTE_LIMIT} bytes per row; {MAX_RESPONSE_BYTES} per response; {backstop} deadline."
     )
     lines.append("-- Not snapshot-isolated: identical SQL may differ under concurrent ingestion.")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import itertools
 import json
 import logging
@@ -144,10 +145,15 @@ _SQLITE_CATALOG_TABLES = frozenset(
 )
 
 
+#: Statements each backend runs at once. The thread pool for the CPU-bound
+#: phases is sized from the same table, so the two cannot drift apart.
+SQL_CONCURRENCY: dict[SupportedSQLDialectName, int] = {"postgresql": 4, "sqlite": 1}
+
+
 @dataclass
 class ExecutionSemaphore:
     _width_by_dialect: dict[SupportedSQLDialectName, int] = field(
-        default_factory=lambda: {"postgresql": 4, "sqlite": 1}
+        default_factory=lambda: dict(SQL_CONCURRENCY)
     )
     _queue_size: int = 8
     _locks: dict[SupportedSQLDialectName, asyncio.Semaphore] = field(default_factory=dict)
@@ -612,7 +618,10 @@ async def execute_analytics_sql(
     await semaphore.acquire(dialect)
     release_semaphore = True
     try:
-        if len(params.sql.encode("utf-8")) > MAX_SQL_BYTES:
+        # Characters first. UTF-8 never encodes to fewer bytes than characters,
+        # so an over-long string is refused without encoding it -- measuring by
+        # encoding would do work proportional to the input this cap bounds.
+        if len(params.sql) > MAX_SQL_BYTES or len(params.sql.encode("utf-8")) > MAX_SQL_BYTES:
             raise AnalyticsSqlError(
                 code=ErrorCode.UNSUPPORTED_SYNTAX,
                 message=f"SQL text exceeds the {MAX_SQL_BYTES // 1024} KiB input limit.",
@@ -632,11 +641,12 @@ async def execute_analytics_sql(
             schema = await resolve_pg_schema(db)
             allowlist = replace(allowlist, pg_schema=schema)
 
-        # Parsing, admission and rewriting are CPU-bound. Run on the event
-        # loop they starve the whole process -- every other request, ingestion
-        # included -- for as long as they take, and no execution guard -- row
-        # limit, byte caps, deadline -- applies before the backend is reached.
-        # SQLite execution is offloaded for the same reason.
+        # Parsing, admission and rewriting are CPU-bound, and no execution
+        # guard -- row limit, byte caps, deadline -- applies before the backend
+        # is reached. Run on the event loop the whole phase is one uninterrupted
+        # block, so every concurrent request waits it out; run in a thread the
+        # loop is scheduled throughout. SQLite execution is offloaded for the
+        # same reason.
         def _admitted() -> Any:
             parsed = parse_sql(params.sql, dialect=dialect)
             return admit(parsed, allowlist=allowlist, dialect=dialect)
@@ -727,7 +737,7 @@ async def execute_analytics_sql(
                 # cancellation for the caller.
                 release_semaphore = False
                 exc.worker.add_done_callback(
-                    lambda worker: _release_after_worker(worker, semaphore, "sqlite")
+                    lambda worker: _release_after_worker(worker, semaphore, "sqlite", call_id)
                 )
                 raise
         if params.validate_only:
@@ -746,7 +756,7 @@ async def execute_analytics_sql(
         # work actually running rather than by the callers still waiting.
         release_semaphore = False
         exc.worker.add_done_callback(
-            lambda worker: _release_after_worker(worker, semaphore, dialect)
+            lambda worker: _release_after_worker(worker, semaphore, dialect, call_id)
         )
         raise
     finally:
@@ -1077,45 +1087,91 @@ class _SQLiteWorkerCancellation(asyncio.CancelledError):
 
 
 def _release_after_worker(
-    worker: asyncio.Task[Any],
+    worker: asyncio.Future[Any],
     semaphore: ExecutionSemaphore,
     dialect: SupportedSQLDialectName,
+    call_id: str,
 ) -> None:
-    """Consume an abandoned worker result, then return its capacity."""
+    """Consume an abandoned worker result, then return its capacity.
+
+    The result cannot reach the caller, but a failure that is not a refusal is
+    a defect in this pipeline, and discarding it hides exactly the concurrency
+    faults that are hardest to reproduce.
+    """
     try:
         worker.result()
-    except BaseException:
-        # The caller has already been cancelled. Its eventual result cannot be
-        # delivered, but must be consumed so asyncio does not report it later.
+    except (asyncio.CancelledError, AnalyticsSqlError):
         pass
+    except BaseException:
+        logger.exception("analytics sql: %s abandoned worker failed", call_id)
     finally:
         semaphore.release(dialect)
 
 
 class _OffloadedWorkerCancellation(asyncio.CancelledError):
-    """A cancelled caller whose CPU-bound worker is still running.
+    """A cancelled caller whose CPU-bound worker had already started.
 
-    Parsing and rewriting are uninterruptible, so the thread runs to completion
-    however the caller ends.
+    Parsing and rewriting are uninterruptible, so a thread that has begun runs
+    to completion however the caller ends. A call cancelled before its thread
+    starts raises plain `CancelledError` instead, because no work escapes.
     """
 
-    def __init__(self, worker: asyncio.Task[Any]) -> None:
+    def __init__(self, worker: asyncio.Future[Any]) -> None:
         self.worker = worker
 
 
-async def _offloaded(func: Callable[[], _T]) -> _T:
-    """Run a CPU-bound step off the event loop, naming a worker that outlives its caller.
+#: Threads for the CPU-bound phases. Sized to the concurrency the semaphore
+#: already permits across both dialects, and separate from the default executor
+#: so caller SQL cannot occupy the pool the rest of the server shares. A permit
+#: is held before any work is submitted, so this should never queue; the
+#: queued-cancellation branch in `_offloaded` is the backstop if it ever does.
+_EXECUTOR_WIDTH = sum(SQL_CONCURRENCY.values())
+_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+_executor_guard = threading.Lock()
 
-    Awaiting `to_thread` directly reports cancellation while leaving the thread
-    running, so the permit goes back before the work stops and the next
-    statement starts beside it. Shielding keeps the worker reachable, so the
-    permit can follow the thread rather than the await.
+
+def _sql_executor() -> concurrent.futures.ThreadPoolExecutor:
+    global _executor
+    with _executor_guard:
+        if _executor is None:
+            _executor = concurrent.futures.ThreadPoolExecutor(
+                max_workers=_EXECUTOR_WIDTH, thread_name_prefix="analytics-sql"
+            )
+        return _executor
+
+
+def shutdown_sql_executor(*, wait: bool = True) -> None:
+    """Stop the analytics SQL threads. Idempotent; the pool is rebuilt on demand."""
+    global _executor
+    with _executor_guard:
+        pool, _executor = _executor, None
+    if pool is not None:
+        pool.shutdown(wait=wait)
+
+
+async def _offloaded(func: Callable[[], _T]) -> _T:
+    """Run a CPU-bound step off the event loop, distinguishing queued work from started work.
+
+    The event loop cannot preempt this work, but it can interleave with it: run
+    inline, the loop gets a single scheduling opportunity for the whole phase,
+    so every concurrent request waits it out. Threaded, the loop is scheduled
+    throughout. The work is pure Python, so the GIL still admits latency spikes
+    -- this buys preemptibility, not isolation.
+
+    Cancelling the await alone reports success while the thread runs on, so the
+    permit would go back before the work stops. Owning the submitted future
+    separates the two cases the permit must respect: a future cancelled before
+    a thread claims it does no work at all and its permit is free immediately,
+    while one already running must keep the permit until it exits.
     """
-    worker = asyncio.create_task(asyncio.to_thread(func))
+    future = _sql_executor().submit(func)
+    wrapped = asyncio.wrap_future(future)
     try:
-        return await asyncio.shield(worker)
+        return await asyncio.shield(wrapped)
     except asyncio.CancelledError:
-        raise _OffloadedWorkerCancellation(worker) from None
+        if future.cancel():
+            raise
+        raise _OffloadedWorkerCancellation(wrapped) from None
 
 
 async def _execute_sqlite_file(

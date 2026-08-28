@@ -17,6 +17,7 @@ from phoenix.server.mcp.sql.allowlist import load_allowlist
 from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
 from phoenix.server.mcp.sql.execute import (
     MAX_RESPONSE_BYTES,
+    MAX_SQL_BYTES,
     ExecuteParams,
     _consume_stream,
     _estimated_rows,
@@ -1057,7 +1058,10 @@ async def test_a_cancelled_call_keeps_its_permit_until_the_parse_thread_exits(
         return original(*args, **kwargs)
 
     monkeypatch.setattr(execute_module, "parse_sql", blocking)
-    semaphore = execute_module.EXECUTION_SEMAPHORE
+    # A private semaphore, so a regression that leaks the width-one permit
+    # fails this test alone instead of stalling every later execute test.
+    semaphore = execute_module.ExecutionSemaphore()
+    monkeypatch.setattr(execute_module, "EXECUTION_SEMAPHORE", semaphore)
 
     call = asyncio.create_task(
         execute_analytics_sql(db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path)
@@ -1070,9 +1074,120 @@ async def test_a_cancelled_call_keeps_its_permit_until_the_parse_thread_exits(
     # SQLite runs one statement at a time, so a second acquire completing here
     # would mean the permit came back while the thread still held it.
     second = asyncio.create_task(semaphore.acquire("sqlite"))
-    with pytest.raises(asyncio.TimeoutError):
-        await asyncio.wait_for(asyncio.shield(second), 0.25)
+    try:
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(asyncio.shield(second), 0.25)
+        finish.set()
+        await asyncio.wait_for(second, 10)
+    finally:
+        # Released in a finally so a regression fails this test alone. Leaking
+        # SQLite's width-one permit would stall every later execute test and
+        # bury the failure that caused it.
+        finish.set()
+        if second.done() and not second.cancelled():
+            semaphore.release("sqlite")
+        else:
+            second.cancel()
 
-    finish.set()
-    await asyncio.wait_for(second, 10)
-    semaphore.release("sqlite")
+
+async def test_a_call_cancelled_before_its_thread_starts_returns_its_permit_at_once(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Work that never began holds nothing.
+
+    A permit tracks work in flight. A call cancelled while its job is still
+    queued releases no thread and produces no result, so holding its permit
+    until the queue drains would refuse live callers on behalf of work that is
+    never going to run.
+    """
+    from phoenix.server.mcp.sql import execute as execute_module
+    from phoenix.server.mcp.sql.parse import parse_sql
+
+    db, db_path = analytics_sqlite_db
+    parsed: list[str] = []
+    occupied = threading.Event()
+    release_pool = threading.Event()
+
+    def watched(*args: Any, **kwargs: Any) -> Any:
+        parsed.append("ran")
+        return parse_sql(*args, **kwargs)
+
+    monkeypatch.setattr(execute_module, "parse_sql", watched)
+    semaphore = execute_module.ExecutionSemaphore()
+    monkeypatch.setattr(execute_module, "EXECUTION_SEMAPHORE", semaphore)
+
+    # One thread, held by an unrelated job, so the call's parse can only queue.
+    execute_module.shutdown_sql_executor()
+    monkeypatch.setattr(execute_module, "_EXECUTOR_WIDTH", 1)
+    pool = execute_module._sql_executor()
+    try:
+
+        def hold_the_only_thread() -> None:
+            occupied.set()
+            release_pool.wait(10)
+
+        pool.submit(hold_the_only_thread)
+        await asyncio.to_thread(occupied.wait, 10)
+
+        call = asyncio.create_task(
+            execute_analytics_sql(
+                db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path
+            )
+        )
+        await asyncio.sleep(0.1)
+        call.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await call
+
+        # The permit is free while the pool is still occupied, which it could
+        # not be if release waited on the queue rather than on started work.
+        await asyncio.wait_for(semaphore.acquire("sqlite"), 1)
+        semaphore.release("sqlite")
+    finally:
+        release_pool.set()
+        execute_module.shutdown_sql_executor()
+
+    assert parsed == [], "a cancelled call ran its parse after the queue drained"
+
+
+@pytest.mark.parametrize(
+    "size,refused",
+    [(MAX_SQL_BYTES, False), (MAX_SQL_BYTES + 1, True)],
+    ids=["at the cap", "one byte over"],
+)
+async def test_the_input_cap_is_measured_in_bytes(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+    size: int,
+    refused: bool,
+) -> None:
+    """The cap admits its own boundary and refuses the byte past it."""
+    db, db_path = analytics_sqlite_db
+    # Padding rides in a comment so only the length varies with `size`.
+    head = "SELECT id FROM spans -- "
+    sql = head + "a" * (size - len(head))
+    assert len(sql.encode("utf-8")) == size
+
+    if not refused:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+        return
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    assert "input limit" in caught.value.message
+
+
+async def test_a_multibyte_statement_is_measured_in_bytes_not_characters(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """A character is up to four bytes, and the cap bounds the work, which scales with bytes."""
+    db, db_path = analytics_sqlite_db
+    head = "SELECT id FROM spans -- "
+    # Three bytes per character, so this is under the cap by character count
+    # and over it by byte count.
+    padding = "\u4e2d" * (((MAX_SQL_BYTES - len(head)) // 3) + 1)
+    sql = head + padding
+    assert len(sql) < MAX_SQL_BYTES < len(sql.encode("utf-8"))
+
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    assert "input limit" in caught.value.message
