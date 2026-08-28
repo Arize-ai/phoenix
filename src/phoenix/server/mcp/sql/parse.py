@@ -178,7 +178,8 @@ def _grouping_limit_parse_message(sql: str) -> Optional[str]:
     aggregation in a subquery both parse. The generic parse error names a
     token the caller cannot act on.
 
-    Workaround for an unfiled sqlglot defect.
+    Workaround for https://github.com/tobymao/sqlglot/issues/8279, open
+    upstream.
     """
     folded = sql.casefold()
     if "limit" not in folded and "offset" not in folded:
@@ -227,7 +228,8 @@ def _recover_grouping_limit_parse(
     the statement the caller wrote rather than refusing a query the engine
     would run.
 
-    Workaround for an unfiled sqlglot defect.
+    Workaround for https://github.com/tobymao/sqlglot/issues/8279, open
+    upstream.
     """
     if _grouping_limit_parse_message(sql) is None:
         return None
