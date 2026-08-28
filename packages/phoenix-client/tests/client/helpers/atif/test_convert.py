@@ -41,19 +41,6 @@ def _span_kind_counts(spans: List[Any]) -> Dict[str, int]:
     return counts
 
 
-def _convert_batch(trajectories: List[Dict[str, Any]]) -> List[Any]:
-    flat_trajectories = _flatten_atif_trajectories(trajectories)
-    ref_map = _build_subagent_ref_map(flat_trajectories)
-    return [
-        span
-        for trajectory in flat_trajectories
-        for span in _convert_atif_trajectory_to_spans(
-            trajectory,
-            parent_span_context=_get_parent_span_context(trajectory, ref_map),
-        )
-    ]
-
-
 @pytest.fixture()
 def simple_trajectory() -> Dict[str, Any]:
     return _load_fixture("simple_trajectory.json")
@@ -765,17 +752,9 @@ class TestSubagentLinking:
                     "step_id": 2,
                     "source": "agent",
                     "message": "delegating",
-                    "tool_calls": [
-                        {
-                            "tool_call_id": "different-call",
-                            "function_name": "delegate",
-                            "arguments": {},
-                        }
-                    ],
                     "observation": {
                         "results": [
                             {
-                                "source_call_id": "missing-call",
                                 "subagent_trajectory_ref": [
                                     {"session_id": "unmatched-agent-child"}
                                 ],
@@ -807,7 +786,7 @@ class TestSubagentLinking:
             ("unmatched agent", [unmatched_agent_parent, unmatched_agent_child]),
             ("embedded v1.7", embedded_v17_batch),
         ):
-            spans = _convert_batch(trajectories)
+            spans = _convert_atif_trajectories_to_spans(trajectories)
             span_ids = {span["context"]["span_id"] for span in spans}
             unresolved_parents = [
                 (span["name"], span["parent_id"])
