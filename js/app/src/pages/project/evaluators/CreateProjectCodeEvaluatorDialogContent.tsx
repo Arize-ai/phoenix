@@ -7,6 +7,7 @@ import {
 } from "react-relay";
 
 import { Alert, LinkButton } from "@phoenix/components";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { CodeAuthoringFields } from "@phoenix/components/evaluators/CodeAuthoringFields";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
@@ -48,6 +49,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
 }) => {
   const store = useEvaluatorStoreInstance();
   const environment = useRelayEnvironment();
+  const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<CreateProjectCodeEvaluatorDialogContentQuery>(
     graphql`
       query CreateProjectCodeEvaluatorDialogContentQuery {
@@ -194,7 +196,11 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           setError(errors.map(({ message }) => message).join("\n"));
           return;
         }
-        void refetchProjectEvaluators({ environment, projectId })
+        void refetchProjectEvaluators({
+          environment,
+          projectId,
+          timeRange: timeRangeISOStrings,
+        })
           .then(onSuccess)
           .catch((refetchError: unknown) =>
             setError(

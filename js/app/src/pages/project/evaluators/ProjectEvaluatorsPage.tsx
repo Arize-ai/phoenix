@@ -5,6 +5,7 @@ import { Outlet, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Skeleton, View } from "@phoenix/components";
+import { useTimeRange } from "@phoenix/components/datetime";
 import type { ProjectEvaluatorsPageQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsPageQuery.graphql";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
@@ -43,17 +44,32 @@ function ProjectEvaluatorsPageContent({
   projectId: string;
   filter: string;
 }) {
+  const { timeRangeISOStrings } = useTimeRange();
+  // The owner query supplies the initial filter and range. Subsequent toolbar,
+  // live, or user-selected changes refetch the pagination fragment in
+  // ProjectEvaluatorsTable without reloading this query.
+  const [initialFilter] = useState(() => filter.trim());
+  const [initialTimeRange] = useState(() => timeRangeISOStrings);
   const data = useLazyLoadQuery<ProjectEvaluatorsPageQuery>(
     graphql`
-      query ProjectEvaluatorsPageQuery($projectId: ID!) {
+      query ProjectEvaluatorsPageQuery(
+        $projectId: ID!
+        $filter: ProjectEvaluatorFilter
+        $timeRange: TimeRange!
+      ) {
         project: node(id: $projectId) {
           ... on Project {
             ...ProjectEvaluatorsTable_project
+              @arguments(filter: $filter, timeRange: $timeRange)
           }
         }
       }
     `,
-    { projectId },
+    {
+      projectId,
+      filter: initialFilter ? { col: "name", value: initialFilter } : null,
+      timeRange: initialTimeRange,
+    },
     { fetchPolicy: "store-and-network" }
   );
   invariant(data.project, "project is required");
@@ -62,6 +78,9 @@ function ProjectEvaluatorsPageContent({
       project={data.project}
       projectId={projectId}
       filter={filter}
+      timeRange={timeRangeISOStrings}
+      initialFilter={initialFilter}
+      initialTimeRange={initialTimeRange}
     />
   );
 }
