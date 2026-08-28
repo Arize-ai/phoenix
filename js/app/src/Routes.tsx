@@ -500,7 +500,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Evaluators",
                     description:
-                      "Create and manage project evaluators — online evals that automatically run against live spans.",
+                      "Browse templates, create, and manage project evaluators — online evals that automatically run against live spans.",
                   },
                 }}
               >

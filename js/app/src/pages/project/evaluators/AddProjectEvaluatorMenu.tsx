@@ -20,6 +20,7 @@ import {
   MenuSectionTitle,
   MenuTrigger,
 } from "@phoenix/components/core/menu";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { View } from "@phoenix/components/core/view";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
 import { projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
@@ -28,30 +29,81 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 export const AddProjectEvaluatorMenu = ({
   size,
   ...props
-}: {
+}: ProjectEvaluatorMenuTriggerProps) => {
+  return (
+    <ProjectEvaluatorMenu
+      size={size}
+      buttonLabel="Add evaluator"
+      buttonVariant="primary"
+      buttonLeadingVisual={<Icon svg={<Icons.Plus />} />}
+      shouldShowGalleryLink
+      {...props}
+    />
+  );
+};
+
+export const BuildProjectEvaluatorMenu = ({
+  size,
+  ...props
+}: ProjectEvaluatorMenuTriggerProps) => {
+  return (
+    <ProjectEvaluatorMenu
+      size={size}
+      buttonLabel="Build from scratch"
+      buttonVariant="default"
+      shouldShowGalleryLink={false}
+      {...props}
+    />
+  );
+};
+
+type ProjectEvaluatorMenuTriggerProps = {
   size: ButtonProps["size"];
-} & Omit<MenuTriggerProps, "children">) => {
+} & Omit<MenuTriggerProps, "children">;
+
+function ProjectEvaluatorMenu({
+  size,
+  buttonLabel,
+  buttonVariant,
+  buttonLeadingVisual,
+  shouldShowGalleryLink,
+  ...props
+}: ProjectEvaluatorMenuTriggerProps & {
+  buttonLabel: string;
+  buttonVariant: ButtonProps["variant"];
+  buttonLeadingVisual?: ButtonProps["leadingVisual"];
+  shouldShowGalleryLink: boolean;
+}) {
   return (
     <MenuTrigger {...props}>
       <Button
-        variant="primary"
+        variant={buttonVariant}
         size={size}
-        leadingVisual={<Icon svg={<Icons.Plus />} />}
+        leadingVisual={buttonLeadingVisual}
       >
-        Add evaluator
+        {buttonLabel}
       </Button>
       {/* Keep the query inside the popover so the evaluator list is fetched
           only when the menu opens. */}
       <MenuContainer minHeight="auto">
         <Suspense fallback={<Loading />}>
-          <AddProjectEvaluatorMenuItems />
+          <ProjectEvaluatorMenuItems
+            menuLabel={buttonLabel}
+            shouldShowGalleryLink={shouldShowGalleryLink}
+          />
         </Suspense>
       </MenuContainer>
     </MenuTrigger>
   );
-};
+}
 
-function AddProjectEvaluatorMenuItems() {
+function ProjectEvaluatorMenuItems({
+  menuLabel,
+  shouldShowGalleryLink,
+}: {
+  menuLabel: string;
+  shouldShowGalleryLink: boolean;
+}) {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
   const galleryHref = useHref(paths.gallery);
@@ -71,7 +123,7 @@ function AddProjectEvaluatorMenuItems() {
   return (
     <>
       <Menu
-        aria-label="Add evaluator"
+        aria-label={menuLabel}
         onAction={(action) => {
           if (action === "createEvaluator") {
             navigate(paths.newLlm);
@@ -80,15 +132,17 @@ function AddProjectEvaluatorMenuItems() {
           }
         }}
       >
-        <MenuSection>
-          <MenuItem
-            leadingContent={<Icon svg={<Icons.Grid />} />}
-            id="browseGallery"
-            href={galleryHref}
-          >
-            Browse the whole library
-          </MenuItem>
-        </MenuSection>
+        {shouldShowGalleryLink ? (
+          <MenuSection>
+            <MenuItem
+              leadingContent={<Icon svg={<Icons.Grid />} />}
+              id="browseGallery"
+              href={galleryHref}
+            >
+              Browse the whole library
+            </MenuItem>
+          </MenuSection>
+        ) : null}
         <MenuSection>
           <MenuSectionTitle title="LLM evaluator" />
           <MenuItem
@@ -167,10 +221,16 @@ function EvaluatorSubmenu({
               <Flex direction="column" gap="size-50">
                 <Text weight="heavy">{evaluator.name}</Text>
                 {evaluator.description ? (
-                  <Text size="S" color="text-700">
-                    {evaluator.description}
+                  <Truncate maxLines={3} title={evaluator.description}>
+                    <Text size="S" color="text-700">
+                      {evaluator.description}
+                    </Text>
+                  </Truncate>
+                ) : (
+                  <Text size="S" color="text-500" fontStyle="italic">
+                    No description
                   </Text>
-                ) : null}
+                )}
               </Flex>
             </MenuItem>
           )}

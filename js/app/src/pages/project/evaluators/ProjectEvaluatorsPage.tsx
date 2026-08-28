@@ -4,9 +4,10 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Skeleton, View } from "@phoenix/components";
+import { Flex, PageHeader, Skeleton, View } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
 import type { ProjectEvaluatorsPageQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsPageQuery.graphql";
+import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
 
@@ -23,9 +24,12 @@ export function ProjectEvaluatorsPage() {
         min-height: 0;
       `}
     >
-      <ProjectEvaluatorsToolbar filter={filter} onFilterChange={setFilter} />
       <Suspense fallback={<ProjectEvaluatorsPageSkeleton />}>
-        <ProjectEvaluatorsPageContent projectId={projectId} filter={filter} />
+        <ProjectEvaluatorsPageContent
+          projectId={projectId}
+          filter={filter}
+          onFilterChange={setFilter}
+        />
       </Suspense>
       {/* The create and edit slideovers, each on its own nested route. The
           copy and attach routes suspend while loading the evaluator they are
@@ -40,9 +44,11 @@ export function ProjectEvaluatorsPage() {
 function ProjectEvaluatorsPageContent({
   projectId,
   filter,
+  onFilterChange,
 }: {
   projectId: string;
   filter: string;
+  onFilterChange: (filter: string) => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
   // The owner query supplies the initial filter and range. Subsequent toolbar,
@@ -59,6 +65,7 @@ function ProjectEvaluatorsPageContent({
       ) {
         project: node(id: $projectId) {
           ... on Project {
+            evaluatorCount
             ...ProjectEvaluatorsTable_project
               @arguments(filter: $filter, timeRange: $timeRange)
           }
@@ -73,21 +80,49 @@ function ProjectEvaluatorsPageContent({
     { fetchPolicy: "store-and-network" }
   );
   invariant(data.project, "project is required");
+  const isEmptyState =
+    (data.project.evaluatorCount ?? 0) === 0 && filter.trim().length === 0;
   return (
-    <ProjectEvaluatorsTable
-      project={data.project}
-      projectId={projectId}
-      filter={filter}
-      timeRange={timeRangeISOStrings}
-      initialFilter={initialFilter}
-      initialTimeRange={initialTimeRange}
-    />
+    <>
+      {isEmptyState ? (
+        <View borderBottomWidth="thin" borderBottomColor="default" flex="none">
+          <PageHeader
+            title="Evaluators"
+            subTitle="Evaluators read span inputs, outputs, retrieved documents, and tool calls, then return labels or scores you can filter, chart, and alert on."
+            extra={<AddProjectEvaluatorMenu size="M" />}
+          />
+        </View>
+      ) : (
+        <ProjectEvaluatorsToolbar
+          filter={filter}
+          onFilterChange={onFilterChange}
+        />
+      )}
+      <ProjectEvaluatorsTable
+        project={data.project}
+        projectId={projectId}
+        filter={filter}
+        timeRange={timeRangeISOStrings}
+        initialFilter={initialFilter}
+        initialTimeRange={initialTimeRange}
+      />
+    </>
   );
 }
 
 function ProjectEvaluatorsPageSkeleton() {
   return (
     <>
+      <View
+        padding="size-100"
+        borderBottomWidth="thin"
+        borderBottomColor="default"
+        flex="none"
+      >
+        <Flex justifyContent="end">
+          <Skeleton width={140} height={40} animation="wave" />
+        </Flex>
+      </View>
       <View padding="size-100">
         <Skeleton width="100%" height={180} animation="wave" />
       </View>
