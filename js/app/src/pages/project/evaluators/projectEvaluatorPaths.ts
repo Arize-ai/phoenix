@@ -75,8 +75,6 @@ export function useProjectEvaluatorPaths() {
     return {
       list: withCurrentSearch(list),
       gallery: `${gallery}${defaultGallerySearch}`,
-      // Nested gallery routes use this exact return URL when they close.
-      galleryReturn: withCurrentSearch(gallery),
       galleryCategory: (category: EvaluatorCategory) =>
         `${gallery}${withSearchParams(search, (searchParams) => {
           searchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);

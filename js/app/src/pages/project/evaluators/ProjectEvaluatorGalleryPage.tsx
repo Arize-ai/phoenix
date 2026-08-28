@@ -154,7 +154,8 @@ function EvaluatorGallery() {
   const requestedCategoryToScroll =
     requestedTemplateCategory ?? requestedCategory;
   const selectedTemplate =
-    requestedTemplate ?? templatesByCategory.get(categories[0])?.[0];
+    requestedTemplate ??
+    templatesByCategory.get(requestedCategory ?? categories[0])?.[0];
 
   // Section headings double as scroll-spy targets, so the sidebar can track
   // whichever category is currently in view.
@@ -341,95 +342,86 @@ function EvaluatorGallery() {
             </ListBox>
           </Popover>
         </Select>
-        <div
+        <ListBox
           ref={templateScrollRegionRef}
+          aria-label="Evaluator templates"
           className="project-evaluator-gallery__template-card-scroll-region"
+          layout="grid"
+          selectionMode="single"
+          selectionBehavior="replace"
+          selectedKeys={selectedTemplate ? [selectedTemplate.name] : []}
+          onSelectionChange={(selection) => {
+            if (selection === "all") return;
+            const templateName = selection.keys().next().value;
+            if (typeof templateName === "string") {
+              setSelectedTemplate(templateName);
+            }
+          }}
+          onAction={(key) => {
+            if (typeof key === "string") {
+              navigate(paths.galleryNewLlmFromTemplate(key));
+            }
+          }}
         >
           {categories.map((category) => {
             const headingId = getCategoryHeadingId(category);
             return (
-              <section
+              <ListBoxSection
                 key={category}
+                id={category}
                 className="project-evaluator-gallery__template-category-section"
               >
-                <Text
-                  ref={(element) => {
-                    if (element) {
-                      headingRefs.current.set(category, element);
-                    } else {
-                      headingRefs.current.delete(category);
-                    }
-                  }}
-                  id={headingId}
-                  className="project-evaluator-gallery__template-category-heading"
-                  elementType="h2"
-                  size="M"
-                  weight="heavy"
-                >
-                  {getProjectEvaluatorTemplateCategoryLabel(
-                    category === OTHER_CATEGORY ? null : category
-                  )}
-                </Text>
-                <div className="project-evaluator-gallery__template-category-grid">
-                  <ListBox
-                    aria-labelledby={headingId}
-                    className="project-evaluator-gallery__template-list"
-                    items={templatesByCategory.get(category) ?? []}
-                    layout="grid"
-                    selectionMode="single"
-                    selectionBehavior="replace"
-                    selectedKeys={
-                      selectedTemplate ? [selectedTemplate.name] : []
-                    }
-                    onSelectionChange={(selection) => {
-                      if (selection === "all") return;
-                      const templateName = selection.keys().next().value;
-                      if (typeof templateName === "string") {
-                        setSelectedTemplate(templateName);
+                <Header className="project-evaluator-gallery__template-category-header">
+                  <Text
+                    ref={(element) => {
+                      if (element) {
+                        headingRefs.current.set(category, element);
+                      } else {
+                        headingRefs.current.delete(category);
                       }
                     }}
-                    onAction={(key) => {
-                      if (typeof key === "string") {
-                        navigate(paths.galleryNewLlmFromTemplate(key));
-                      }
-                    }}
+                    id={headingId}
+                    className="project-evaluator-gallery__template-category-heading"
+                    elementType="h2"
+                    size="M"
+                    weight="heavy"
                   >
-                    {(template) => (
-                      <EvaluatorTemplateCard
-                        key={template.name}
-                        ref={(element) => {
-                          if (element) {
-                            templateCardRefs.current.set(
-                              template.name,
-                              element
-                            );
-                          } else {
-                            templateCardRefs.current.delete(template.name);
-                          }
-                        }}
-                        id={template.name}
-                        textValue={template.name}
-                      >
-                        <Text size="S" weight="heavy">
-                          {template.name}
-                        </Text>
-                        <LineClamp lines={3}>
-                          <Text size="XS" color="text-700">
-                            {template.description}
-                          </Text>
-                        </LineClamp>
-                        <EvaluatorTemplateCardFooter
-                          evaluatorKind="LLM"
-                          evaluationTargets={[template.scope ?? "SPAN"]}
-                        />
-                      </EvaluatorTemplateCard>
+                    {getProjectEvaluatorTemplateCategoryLabel(
+                      category === OTHER_CATEGORY ? null : category
                     )}
-                  </ListBox>
-                </div>
-              </section>
+                  </Text>
+                </Header>
+                {(templatesByCategory.get(category) ?? []).map((template) => (
+                  <EvaluatorTemplateCard
+                    key={template.name}
+                    ref={(element) => {
+                      if (element) {
+                        templateCardRefs.current.set(template.name, element);
+                      } else {
+                        templateCardRefs.current.delete(template.name);
+                      }
+                    }}
+                    id={template.name}
+                    textValue={template.name}
+                  >
+                    <Text size="S" weight="heavy">
+                      {template.name}
+                    </Text>
+                    <LineClamp lines={3}>
+                      <Text size="XS" color="text-700">
+                        {template.description}
+                      </Text>
+                    </LineClamp>
+                    <EvaluatorTemplateCardFooter
+                      evaluatorKind="LLM"
+                      evaluationTargets={[template.scope ?? "SPAN"]}
+                    />
+                  </EvaluatorTemplateCard>
+                ))}
+              </ListBoxSection>
             );
           })}
-        </div>
+        </ListBox>
       </section>
 
       <aside className="project-evaluator-gallery__details" aria-live="polite">
@@ -830,18 +822,6 @@ const galleryCSS = css`
   }
 
   .project-evaluator-gallery__template-category-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
-  }
-
-  .project-evaluator-gallery__template-category-heading {
-    /* Anchor target for the category nav; offset so scrollIntoView doesn't
-       tuck it flush against the scroll region's top edge. */
-    scroll-margin-top: var(--global-dimension-size-100);
-  }
-
-  .project-evaluator-gallery__template-category-grid {
     display: grid;
     grid-template-columns: repeat(
       auto-fit,
@@ -851,8 +831,14 @@ const galleryCSS = css`
     gap: var(--global-dimension-size-100);
   }
 
-  .project-evaluator-gallery__template-list {
-    display: contents;
+  .project-evaluator-gallery__template-category-header {
+    grid-column: 1 / -1;
+  }
+
+  .project-evaluator-gallery__template-category-heading {
+    /* Anchor target for the category nav; offset so scrollIntoView doesn't
+       tuck it flush against the scroll region's top edge. */
+    scroll-margin-top: var(--global-dimension-size-100);
   }
 
   .project-evaluator-gallery__template-card-footer {

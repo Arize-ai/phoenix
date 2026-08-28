@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { type ReactNode, Suspense, useRef, useState } from "react";
-import { useLazyLoadQuery } from "react-relay";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   Flex,
@@ -13,19 +13,30 @@ import {
   Text,
 } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
-import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
+import type {
+  projectEvaluatorCategoryCardsQuery as ProjectEvaluatorCategoryCardsQueryType,
+  projectEvaluatorCategoryCardsQuery$data,
+} from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorCategoryCardsQuery.graphql";
 import { BuildProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
-import {
-  PROJECT_EVALUATOR_CATEGORIES,
-  type ProjectEvaluatorTemplate,
-  projectEvaluatorTemplatesQuery,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
+import { PROJECT_EVALUATOR_CATEGORIES } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
 const MAX_CATEGORY_TEMPLATES = 3;
 const CATEGORY_CARDS_PER_VIEW = 3;
 const CATEGORY_CARD_MIN_HEIGHT = 250;
 const CATEGORY_CAROUSEL_ID = "project-evaluator-category-carousel";
+
+const projectEvaluatorCategoryCardsQuery = graphql`
+  query projectEvaluatorCategoryCardsQuery {
+    evaluatorGalleryConfigs {
+      name
+      category
+    }
+  }
+`;
+
+type ProjectEvaluatorCategoryCardTemplate =
+  projectEvaluatorCategoryCardsQuery$data["evaluatorGalleryConfigs"][number];
 
 export function ProjectEvaluatorsEmptyState() {
   const paths = useProjectEvaluatorPaths();
@@ -56,8 +67,8 @@ export function ProjectEvaluatorsEmptyState() {
 }
 
 function EvaluatorCategoryCards() {
-  const data = useLazyLoadQuery<ProjectEvaluatorTemplatesQueryType>(
-    projectEvaluatorTemplatesQuery,
+  const data = useLazyLoadQuery<ProjectEvaluatorCategoryCardsQueryType>(
+    projectEvaluatorCategoryCardsQuery,
     {},
     { fetchPolicy: "store-and-network" }
   );
@@ -67,7 +78,7 @@ function EvaluatorCategoryCards() {
 function CategoryCards({
   templates,
 }: {
-  templates: readonly ProjectEvaluatorTemplate[];
+  templates: readonly ProjectEvaluatorCategoryCardTemplate[];
 }) {
   const paths = useProjectEvaluatorPaths();
   // Keep the full track mounted so native scrolling can animate continuously

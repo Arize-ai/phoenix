@@ -26,7 +26,6 @@ function TestProjectEvaluatorPaths() {
   return (
     <output
       data-gallery={paths.gallery}
-      data-gallery-return={paths.galleryReturn}
       data-list-new-llm={paths.listCreation.newLlm}
       data-list-new-code={paths.listCreation.newCode}
       data-list-copy-llm={paths.listCreation.copyLlm("Evaluator:llm/source")}
@@ -51,7 +50,7 @@ function TestProjectEvaluatorPaths() {
 }
 
 describe("useProjectEvaluatorPaths", () => {
-  it("separates the default gallery entry and slideover return destinations", () => {
+  it("builds list and gallery destinations while preserving view state", () => {
     act(() => {
       root.render(
         <MemoryRouter
@@ -70,9 +69,6 @@ describe("useProjectEvaluatorPaths", () => {
     });
 
     const output = container.querySelector("output");
-    expect(output?.getAttribute("data-gallery-return")).toBe(
-      "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
-    );
     expect(output?.getAttribute("data-gallery")).toBe(
       "/projects/project-1/evaluator-gallery?timeRangeKey=7d&proof=preserved"
     );
