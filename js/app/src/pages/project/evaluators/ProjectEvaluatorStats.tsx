@@ -33,7 +33,6 @@ import {
   getProjectEvaluatorStatus,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { useProjectEvaluatorResultAnnotations } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
-import { languageLabel } from "@phoenix/pages/settings/sandboxes/utils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 /** Matches the height of the metric chart strips above the tables. */
@@ -80,9 +79,6 @@ export function ProjectEvaluatorStats({
         }
         evaluator {
           kind
-          ... on CodeEvaluator {
-            language
-          }
         }
         ...useProjectEvaluatorResultAnnotationsFragment
       }
@@ -200,7 +196,7 @@ function ProjectEvaluatorActivityPanel({
 }: {
   projectEvaluator: ProjectEvaluatorStats_projectEvaluator$data;
 }) {
-  const { runSummary, evaluator } = projectEvaluator;
+  const { runSummary } = projectEvaluator;
   const status = getProjectEvaluatorStatus({
     schedulabilityStatus: projectEvaluator.schedulabilityStatus,
     schedulabilityReason: projectEvaluator.schedulabilityReason,
@@ -262,11 +258,6 @@ function ProjectEvaluatorActivityPanel({
             </time>
           </Text>
         </ActivityField>
-        {evaluator.language ? (
-          <ActivityField label="language">
-            <Text size="S">{languageLabel(evaluator.language)}</Text>
-          </ActivityField>
-        ) : null}
       </dl>
     </ChartPanel>
   );

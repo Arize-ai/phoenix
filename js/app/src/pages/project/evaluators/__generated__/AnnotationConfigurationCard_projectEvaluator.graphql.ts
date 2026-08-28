@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7b373368b1c1ce13ee05515bf7ce89fb>>
+ * @generated SignedSource<<9c214c3adfffbe4f003eba0a15cb9a2f>>
  * @lightSyntaxTransform
  */
 
@@ -8,11 +8,13 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationConfigurationCard_projectEvaluator$data = {
   readonly evaluator: {
-    readonly outputConfigs?: ReadonlyArray<{
+    readonly kind: EvaluatorKind;
+    readonly outputConfigs: ReadonlyArray<{
       readonly __typename: "CategoricalAnnotationConfig";
       readonly name: string;
       readonly optimizationDirection: OptimizationDirection;
@@ -95,6 +97,98 @@ return {
       "plural": false,
       "selections": [
         {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "kind",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": null,
+          "kind": "LinkedField",
+          "name": "outputConfigs",
+          "plural": true,
+          "selections": [
+            (v0/*:: as any*/),
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                (v1/*:: as any*/),
+                (v2/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "CategoricalAnnotationValue",
+                  "kind": "LinkedField",
+                  "name": "values",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "label",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "score",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "type": "CategoricalAnnotationConfig",
+              "abstractKey": null
+            },
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                (v1/*:: as any*/),
+                (v2/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "lowerBound",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "upperBound",
+                  "storageKey": null
+                }
+              ],
+              "type": "ContinuousAnnotationConfig",
+              "abstractKey": null
+            },
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                (v1/*:: as any*/),
+                (v2/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "threshold",
+                  "storageKey": null
+                }
+              ],
+              "type": "FreeformAnnotationConfig",
+              "abstractKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
           "kind": "InlineFragment",
           "selections": [
             {
@@ -155,91 +249,6 @@ return {
                 }
               ],
               "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": null,
-              "kind": "LinkedField",
-              "name": "outputConfigs",
-              "plural": true,
-              "selections": [
-                (v0/*:: as any*/),
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    (v1/*:: as any*/),
-                    (v2/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "CategoricalAnnotationValue",
-                      "kind": "LinkedField",
-                      "name": "values",
-                      "plural": true,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "label",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "score",
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "CategoricalAnnotationConfig",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    (v1/*:: as any*/),
-                    (v2/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "lowerBound",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "upperBound",
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "ContinuousAnnotationConfig",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    (v1/*:: as any*/),
-                    (v2/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "threshold",
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "FreeformAnnotationConfig",
-                  "abstractKey": null
-                }
-              ],
-              "storageKey": null
             }
           ],
           "type": "LLMEvaluator",
@@ -254,6 +263,6 @@ return {
 };
 })();
 
-(node as any).hash = "629659f781522006665d9408cc83e957";
+(node as any).hash = "70f512adaea5f4891477ce43f47e5346";
 
 export default node;
