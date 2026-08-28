@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import time
-from argparse import Namespace
+from argparse import SUPPRESS, Namespace
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Mapping, TypeVar
 
@@ -30,7 +30,13 @@ class _Config:
 def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     parser = subparsers.add_parser(
         "datagen",
-        help="Continuously replay recorded OpenInference traces.",
+        help=SUPPRESS,
+        description=(
+            "Internal Phoenix development tool. Not a supported feature: "
+            "these flags, the default project name, and the corpus format "
+            "may change or be removed in any release, and such changes are "
+            "not recorded in MIGRATION.md."
+        ),
     )
     parser.set_defaults(func=run)
     commands = parser.add_subparsers(dest="datagen_command")
@@ -62,13 +68,13 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
 
 
 def pull(args: Namespace) -> None:
-    from phoenix.datagen.fetcher import fetch_corpus
+    from phoenix.experimental.datagen.fetcher import fetch_corpus
 
     print(fetch_corpus())
 
 
 def run(args: Namespace) -> None:
-    from phoenix.datagen import OTLPHTTPExporter, Replayer, load_corpus
+    from phoenix.experimental.datagen import OTLPHTTPExporter, Replayer, load_corpus
 
     config = _resolve_config(args, os.environ)
     corpus = load_corpus(config.corpus)

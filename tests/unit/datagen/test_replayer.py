@@ -10,7 +10,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
-from phoenix.datagen import Corpus, Replayer, load_corpus
+from phoenix.experimental.datagen import Corpus, Replayer, load_corpus
 
 _PROMPT_TOKENS = "llm.token_count.prompt"
 _COMPLETION_TOKENS = "llm.token_count.completion"

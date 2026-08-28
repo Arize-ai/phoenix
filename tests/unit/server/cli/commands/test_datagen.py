@@ -44,9 +44,9 @@ def test_datagen_run_loop_applies_cli_flags_over_environment(
         events.append(("sleep", seconds))
         raise KeyboardInterrupt
 
-    monkeypatch.setattr("phoenix.datagen.load_corpus", lambda corpus: corpus)
-    monkeypatch.setattr("phoenix.datagen.Replayer", FakeReplayer)
-    monkeypatch.setattr("phoenix.datagen.OTLPHTTPExporter", FakeExporter)
+    monkeypatch.setattr("phoenix.experimental.datagen.load_corpus", lambda corpus: corpus)
+    monkeypatch.setattr("phoenix.experimental.datagen.Replayer", FakeReplayer)
+    monkeypatch.setattr("phoenix.experimental.datagen.OTLPHTTPExporter", FakeExporter)
     monkeypatch.setattr(time, "sleep", sleep)
     monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "https://env.example")
     monkeypatch.setenv("PHOENIX_API_KEY", "env-key")
@@ -99,7 +99,7 @@ def test_datagen_pull_prints_the_cached_corpus_path(
     subparsers = parser.add_subparsers(dest="command", required=True)
     datagen.register(subparsers)
     cached_path = Path("/tmp/phoenix/datagen/corpus/digest")
-    monkeypatch.setattr("phoenix.datagen.fetcher.fetch_corpus", lambda: cached_path)
+    monkeypatch.setattr("phoenix.experimental.datagen.fetcher.fetch_corpus", lambda: cached_path)
 
     args = parser.parse_args(["datagen", "pull"])
     args.func(args)

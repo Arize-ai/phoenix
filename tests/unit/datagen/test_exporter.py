@@ -6,7 +6,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 
-from phoenix.datagen import OTLPHTTPExporter
+from phoenix.experimental.datagen import OTLPHTTPExporter
 
 
 def test_exporter_posts_with_headers_and_continues_after_failure(
@@ -29,11 +29,11 @@ def test_exporter_posts_with_headers_and_continues_after_failure(
     transport = httpx.MockTransport(handle)
     client_type = httpx.Client
     monkeypatch.setattr(
-        "phoenix.datagen.exporter.httpx.Client",
+        "phoenix.experimental.datagen.exporter.httpx.Client",
         lambda **kwargs: client_type(transport=transport, **kwargs),
     )
 
-    with caplog.at_level(logging.WARNING, logger="phoenix.datagen.exporter"):
+    with caplog.at_level(logging.WARNING, logger="phoenix.experimental.datagen.exporter"):
         with OTLPHTTPExporter(
             "https://collector.example/prefix",
             api_key="test-key",

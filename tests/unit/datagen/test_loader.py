@@ -2,7 +2,7 @@ import json
 import tarfile
 from pathlib import Path
 
-from phoenix.datagen import load_corpus
+from phoenix.experimental.datagen import load_corpus
 
 
 def test_load_corpus_reads_fragment_and_trace_members(tmp_path: Path) -> None:
