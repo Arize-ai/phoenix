@@ -58,6 +58,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: discover-branches
     if: ${{ needs.discover-branches.outputs.branches != '[]' }}
+    env:
+      PHOENIX_UPGRADE_TEST_DEPENDENCIES: "-U"
     strategy:
       fail-fast: false
       matrix:
@@ -150,6 +152,7 @@ jobs:
             db: postgresql
     env:
       CI_TEST_DB_BACKEND: ${{ matrix.db }}
+      PHOENIX_UPGRADE_TEST_DEPENDENCIES: "-U"
     services:
       postgres:
         # Applying this workaround: https://github.com/actions/runner/issues/822
