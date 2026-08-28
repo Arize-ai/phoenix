@@ -478,7 +478,7 @@ Picking the wrong accessor fails silently rather than erroring: filtering with
 `annotations[...]` for an annotation that was written at the trace level joins
 against span annotations and matches nothing.
 
-Each filter accepts only the accessors for its level, and only the span filter accepts more than one:
+Which accessors a filter accepts depends on the filter, and only the span filter accepts more than one:
 
 | Filter | Accepted annotation accessors |
 | ------ | ----------------------------- |
