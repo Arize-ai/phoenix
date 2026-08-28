@@ -17,25 +17,21 @@ import {
   View,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import type {
+  CodeEvaluatorVersionsQuery,
+  CodeEvaluatorVersionsQuery$data,
+} from "@phoenix/components/evaluators/__generated__/CodeEvaluatorVersionsQuery.graphql";
 import { CodeEvaluatorSourceCodeBlock } from "@phoenix/components/evaluators/CodeEvaluatorSourceCodeBlock";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useTheme } from "@phoenix/contexts";
 import { useCurrentTime } from "@phoenix/hooks";
-import type {
-  CodeDatasetEvaluatorVersionsQuery,
-  CodeDatasetEvaluatorVersionsQuery$data,
-} from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorVersionsQuery.graphql";
 
 type CodeEvaluator = Extract<
-  Extract<
-    CodeDatasetEvaluatorVersionsQuery$data["node"],
-    { readonly __typename: "DatasetEvaluator" }
-  >["evaluator"],
+  CodeEvaluatorVersionsQuery$data["node"],
   { readonly __typename: "CodeEvaluator" }
 >;
 
-type VersionEdge = NonNullable<CodeEvaluator>["versions"]["edges"][number];
-type Version = VersionEdge["node"];
+type Version = CodeEvaluator["versions"]["edges"][number]["node"];
 
 const VERSIONS_LIST_WIDTH = 360;
 
@@ -82,13 +78,14 @@ const versionItemCSS = css`
 function VersionListItem({
   version,
   active,
+  nowEpochMs,
   onSelect,
 }: {
   version: Version;
   active: boolean;
+  nowEpochMs: number;
   onSelect: (id: string) => void;
 }) {
-  const { nowEpochMs } = useCurrentTime();
   return (
     <button
       type="button"
@@ -224,39 +221,40 @@ function VersionDetail({
   );
 }
 
-export function CodeDatasetEvaluatorVersions({
-  datasetEvaluatorId,
+/**
+ * The version history browser for a code evaluator: a list of versions with
+ * who saved each one and when, and the selected version's source (or its diff
+ * against the previous version). Shared by the dataset and project evaluator
+ * details pages.
+ */
+export function CodeEvaluatorVersions({
+  codeEvaluatorId,
 }: {
-  datasetEvaluatorId: string;
+  /** The CodeEvaluator node id (not the dataset/project evaluator binding id). */
+  codeEvaluatorId: string;
 }) {
-  const data = useLazyLoadQuery<CodeDatasetEvaluatorVersionsQuery>(
+  const data = useLazyLoadQuery<CodeEvaluatorVersionsQuery>(
     graphql`
-      query CodeDatasetEvaluatorVersionsQuery($datasetEvaluatorId: ID!) {
-        node(id: $datasetEvaluatorId) {
+      query CodeEvaluatorVersionsQuery($codeEvaluatorId: ID!) {
+        node(id: $codeEvaluatorId) {
           __typename
-          ... on DatasetEvaluator {
-            evaluator {
-              __typename
-              ... on CodeEvaluator {
-                id
-                language
-                versions(first: 50) {
-                  edges {
-                    node {
-                      id
-                      sequenceNumber
-                      sourceCode
-                      createdAt
-                      user {
-                        id
-                        username
-                        profilePictureUrl
-                      }
-                      previousVersion {
-                        id
-                        sourceCode
-                      }
-                    }
+          ... on CodeEvaluator {
+            language
+            versions(first: 50) {
+              edges {
+                node {
+                  id
+                  sequenceNumber
+                  sourceCode
+                  createdAt
+                  user {
+                    id
+                    username
+                    profilePictureUrl
+                  }
+                  previousVersion {
+                    id
+                    sourceCode
                   }
                 }
               }
@@ -265,24 +263,22 @@ export function CodeDatasetEvaluatorVersions({
         }
       }
     `,
-    { datasetEvaluatorId }
+    { codeEvaluatorId }
   );
   invariant(
-    data.node.__typename === "DatasetEvaluator",
-    "Invalid node for CodeDatasetEvaluatorVersions"
+    data.node.__typename === "CodeEvaluator",
+    "Invalid node for CodeEvaluatorVersions"
   );
-  const evaluator = data.node.evaluator;
-  invariant(
-    evaluator.__typename === "CodeEvaluator",
-    "Invalid evaluator for CodeDatasetEvaluatorVersions"
-  );
+  const evaluator = data.node;
   const versions = useMemo(
     () => evaluator.versions.edges.map((edge) => edge.node),
     [evaluator.versions.edges]
   );
+  // null selects the newest version via the `?? versions[0]` fallback below.
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(
-    versions[0]?.id ?? null
+    null
   );
+  const { nowEpochMs } = useCurrentTime();
 
   if (versions.length === 0) {
     return (
@@ -304,6 +300,7 @@ export function CodeDatasetEvaluatorVersions({
               key={version.id}
               version={version}
               active={selectedVersion.id === version.id}
+              nowEpochMs={nowEpochMs}
               onSelect={setSelectedVersionId}
             />
           ))}
@@ -311,7 +308,7 @@ export function CodeDatasetEvaluatorVersions({
       </div>
       <div css={detailColCSS}>
         <VersionDetail
-          language={evaluator.language!}
+          language={evaluator.language}
           version={selectedVersion}
         />
       </div>
