@@ -38,6 +38,26 @@ export function getAllGeneratedSources(
   return [getDefaultCodeEvaluatorSource(language)];
 }
 
+/**
+ * The source code a language switch should land on: the default placeholder
+ * for the next language when the current source is still a generated
+ * placeholder, otherwise the current source untouched — never overwrite
+ * user-authored code.
+ */
+export function getNextCodeEvaluatorSource({
+  sourceCode,
+  language,
+  nextLanguage,
+}: {
+  sourceCode: string;
+  language: CodeEvaluatorLanguage;
+  nextLanguage: CodeEvaluatorLanguage;
+}): string {
+  return getAllGeneratedSources(language).includes(sourceCode)
+    ? getDefaultCodeEvaluatorSource(nextLanguage)
+    : sourceCode;
+}
+
 export const extractCodeEvaluatorVariables = ({
   language,
   sourceCode,
