@@ -49,6 +49,12 @@ export type CodeEvaluatorLanguageFieldProps = {
   onChange: (language: CodeEvaluatorLanguage) => void;
   isDisabled?: boolean;
   isRequired?: boolean;
+  /**
+   * Replaces the visible label with an aria-label, for compact placements
+   * such as a section header. Note the required indicator renders inside the
+   * visible label, so hiding it also hides that indicator.
+   */
+  hideLabel?: boolean;
 };
 
 /**
@@ -59,15 +65,17 @@ export const CodeEvaluatorLanguageField = ({
   onChange,
   isDisabled,
   isRequired,
+  hideLabel = false,
 }: CodeEvaluatorLanguageFieldProps) => {
   return (
     <Select
       value={language}
       isDisabled={isDisabled}
       isRequired={isRequired}
+      aria-label={hideLabel ? "Language" : undefined}
       onChange={(value) => onChange(value as CodeEvaluatorLanguage)}
     >
-      <Label>Language</Label>
+      {hideLabel ? null : <Label>Language</Label>}
       <Button>
         <SelectValue />
         <SelectChevronUpDownIcon />
@@ -105,6 +113,12 @@ export type CodeEvaluatorSandboxFieldProps = {
   size?: "M" | "L";
   /** Whether the selection is required for form submission. */
   isRequired?: boolean;
+  /**
+   * Replaces the visible label with an aria-label, for compact placements
+   * such as a section header. Note the required indicator renders inside the
+   * visible label, so hiding it also hides that indicator.
+   */
+  hideLabel?: boolean;
 };
 
 /**
@@ -118,6 +132,7 @@ export const CodeEvaluatorSandboxField = ({
   onSelectionChange,
   size = "M",
   isRequired,
+  hideLabel = false,
 }: CodeEvaluatorSandboxFieldProps) => {
   // Filter configs to only show those matching the current language
   const compatibleConfigs = useMemo(
@@ -144,6 +159,7 @@ export const CodeEvaluatorSandboxField = ({
         onSelectionChange(typeof key === "string" ? key : null);
       }}
       isDisabled={hasNoCompatibleConfigs}
+      aria-label={hideLabel ? "Sandbox" : undefined}
       placeholder={
         hasNoProviders
           ? "No sandboxes configured"
@@ -152,7 +168,7 @@ export const CodeEvaluatorSandboxField = ({
             : "Select a sandbox..."
       }
     >
-      <Label>Sandbox</Label>
+      {hideLabel ? null : <Label>Sandbox</Label>}
       <Button>
         <SelectValue />
         <SelectChevronUpDownIcon />

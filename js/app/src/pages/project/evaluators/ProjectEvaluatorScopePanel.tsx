@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
-import type { ComponentProps } from "react";
 import {
   Suspense,
+  useDeferredValue,
   useEffect,
   useEffectEvent,
   useMemo,
@@ -40,6 +40,7 @@ import {
   AnnotationPreviewPopoverButton,
   AnnotationPreviewSkeletonCard,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
+import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import {
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,
@@ -62,10 +63,8 @@ import type {
 import type { ProjectEvaluatorScopePanelSessionCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionCountQuery.graphql";
 import type { ProjectEvaluatorScopePanelSessionsQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionsQuery.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
-import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
   getProjectEvaluatorMappingDiagnostics,
-  toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
@@ -141,45 +140,37 @@ function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
   };
 }
 
-type ProjectEvaluatorScopePanelScopeFieldsProps =
-  | {
-      /** Target, sampling, and the span filter render in this panel. */
-      showScopeFields?: true;
-      onScopeChange: (scope: ProjectEvaluatorScope) => void;
-      onFilterValidityChange?: (isValid: boolean) => void;
-      isTargetDisabled?: boolean;
-    }
-  | {
-      /**
-       * The scope fields render in the definition panel instead; the panel
-       * starts at the matching-span preview and edits no scope.
-       */
-      showScopeFields: false;
-    };
-
-/** Scope is committed by the form's create/save action, not by this panel. */
-export const ProjectEvaluatorScopePanel = (
-  props: {
-    projectId: string;
-    scope: ProjectEvaluatorScope;
-    codeEvaluatorId?: string;
-    inlineCode?: ProjectEvaluatorInlineCode;
-    requiredVariables?: string[];
-  } & ProjectEvaluatorScopePanelScopeFieldsProps
-) => {
-  const { projectId, scope, codeEvaluatorId, inlineCode, requiredVariables } =
-    props;
+/**
+ * The scope fields render in the definition panel; this panel previews the
+ * matching records and tests the evaluator against them.
+ */
+export const ProjectEvaluatorScopePanel = ({
+  projectId,
+  scope,
+  codeEvaluatorId,
+  inlineCode,
+  requiredVariables,
+}: {
+  projectId: string;
+  scope: ProjectEvaluatorScope;
+  codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
+  requiredVariables?: string[];
+}) => {
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
   const isSessionTarget = scope.targetType === "SESSION";
-  // Span and session contexts are structurally identical, so the store cannot
-  // infer the grain from one; changing the target has to say so.
-  const evaluatorStore = useEvaluatorStoreInstance();
-  const mappingSourceGrain = toEvaluatorMappingSourceGrain(scope.targetType);
-  useEffect(() => {
-    evaluatorStore
-      .getState()
-      .setEvaluatorMappingSourceGrain(mappingSourceGrain);
-  }, [evaluatorStore, mappingSourceGrain]);
+  const recordNoun: RecordedRunNoun = isSessionTarget ? "session" : "span";
+  // A keystroke in the span filter commits a new condition per valid draft;
+  // deferring it keeps the current count and rows visible while the queries
+  // for the newer condition load, instead of collapsing to the fallbacks.
+  const filterCondition = useDeferredValue(scope.filterCondition);
+  // The span and session variants of each block are structurally identical;
+  // the target picks which components fill the shared layout below.
+  const MatchedCountLine = isSessionTarget
+    ? MatchedSessionCountLine
+    : MatchedSpanCountLine;
+  const CodeRunList = isSessionTarget ? SessionRunList : SpanRunList;
+  const LlmRunList = isSessionTarget ? LlmSessionRunList : LlmSpanRunList;
   // The run list below the Suspense boundary owns the records and the run
   // machinery; it hands the header's Test All button the latest run-all
   // closure through this ref and reports readiness through the state.
@@ -199,182 +190,58 @@ export const ProjectEvaluatorScopePanel = (
   return (
     <div css={panelCSS}>
       <div css={panelScrollCSS}>
-        {props.showScopeFields !== false ? (
-          <>
-            <Flex direction="column" gap="size-25">
-              <Heading level={2}>Scope</Heading>
-              <Text color="text-500" size="S">
-                {isSessionTarget
-                  ? "Select which sessions this evaluator runs on and how often."
-                  : "Select which spans this evaluator runs on and how often."}
+        {isSessionTarget ? <SessionInputNote /> : null}
+        <Flex direction="column" gap="size-25">
+          <EvaluatorSectionHeader
+            title={isSessionTarget ? "Test with a Session" : "Test with a Span"}
+            description={`Test your evaluator on recent ${recordNoun}s that match your scope.`}
+            extra={
+              <Flex direction="row" alignItems="center" gap="size-100">
+                <TimeWindowSegmentedControl
+                  value={timeWindow.presetId}
+                  onChange={setTimeWindow}
+                />
+                {testAllButton}
+              </Flex>
+            }
+          />
+          <Suspense
+            fallback={
+              <Text size="S" color="text-500">
+                Counting matching {recordNoun}s…
               </Text>
-            </Flex>
-            <ScopeEditorCard
+            }
+          >
+            <MatchedCountLine
               projectId={projectId}
-              scope={scope}
-              onScopeChange={props.onScopeChange}
-              onFilterValidityChange={props.onFilterValidityChange}
+              filterCondition={filterCondition}
               timeWindow={timeWindow}
-              onTimeWindowChange={setTimeWindow}
-              isTargetDisabled={props.isTargetDisabled ?? false}
             />
-          </>
-        ) : null}
-        {isSessionTarget ? (
-          <>
-            <SessionInputNote />
-            <Flex direction="column" gap="size-25">
-              {props.showScopeFields !== false ? (
-                <Flex
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  gap="size-200"
-                >
-                  <Heading level={2}>Matching sessions</Heading>
-                  {testAllButton}
-                </Flex>
-              ) : (
-                <>
-                  <Flex
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    gap="size-200"
-                  >
-                    <Heading level={2} weight="heavy">
-                      Test with a Session
-                    </Heading>
-                    <Flex direction="row" alignItems="center" gap="size-100">
-                      <TimeWindowSegmentedControl
-                        size="S"
-                        value={timeWindow.presetId}
-                        onChange={setTimeWindow}
-                      />
-                      {testAllButton}
-                    </Flex>
-                  </Flex>
-                  <Text color="text-500">
-                    Test your evaluator on recent sessions that match your
-                    scope.
-                  </Text>
-                </>
-              )}
-              <Suspense
-                fallback={
-                  <Text size="S" color="text-500">
-                    Counting matching sessions…
-                  </Text>
-                }
-              >
-                <MatchedSessionCountLine
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                />
-              </Suspense>
-            </Flex>
-            <Suspense fallback={<Loading />}>
-              {codeEvaluatorId || inlineCode ? (
-                <SessionRunList
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                  codeEvaluatorId={codeEvaluatorId}
-                  inlineCode={inlineCode}
-                  requiredVariables={requiredVariables}
-                  runAllRecordsRef={runAllRecordsRef}
-                  onCanRunAllChange={setCanRunAllRecords}
-                />
-              ) : (
-                <LlmSessionRunList
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                  requiredVariables={requiredVariables}
-                  runAllRecordsRef={runAllRecordsRef}
-                  onCanRunAllChange={setCanRunAllRecords}
-                />
-              )}
-            </Suspense>
-          </>
-        ) : (
-          <>
-            <Flex direction="column" gap="size-25">
-              {props.showScopeFields !== false ? (
-                <Flex
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  gap="size-200"
-                >
-                  <Heading level={2}>Matching spans</Heading>
-                  {testAllButton}
-                </Flex>
-              ) : (
-                <>
-                  <Flex
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    gap="size-200"
-                  >
-                    <Heading level={2} weight="heavy">
-                      Test with a Span
-                    </Heading>
-                    <Flex direction="row" alignItems="center" gap="size-100">
-                      <TimeWindowSegmentedControl
-                        size="S"
-                        value={timeWindow.presetId}
-                        onChange={setTimeWindow}
-                      />
-                      {testAllButton}
-                    </Flex>
-                  </Flex>
-                  <Text color="text-500">
-                    Test your evaluator on recent spans that match your scope.
-                  </Text>
-                </>
-              )}
-              <Suspense
-                fallback={
-                  <Text size="S" color="text-500">
-                    Counting matching spans…
-                  </Text>
-                }
-              >
-                <MatchedSpanCountLine
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                />
-              </Suspense>
-            </Flex>
-            <Suspense fallback={<Loading />}>
-              {codeEvaluatorId || inlineCode ? (
-                <SpanRunList
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                  codeEvaluatorId={codeEvaluatorId}
-                  inlineCode={inlineCode}
-                  requiredVariables={requiredVariables}
-                  runAllRecordsRef={runAllRecordsRef}
-                  onCanRunAllChange={setCanRunAllRecords}
-                />
-              ) : (
-                <LlmSpanRunList
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                  requiredVariables={requiredVariables}
-                  runAllRecordsRef={runAllRecordsRef}
-                  onCanRunAllChange={setCanRunAllRecords}
-                />
-              )}
-            </Suspense>
-          </>
-        )}
+          </Suspense>
+        </Flex>
+        <Suspense fallback={<Loading />}>
+          {codeEvaluatorId || inlineCode ? (
+            <CodeRunList
+              projectId={projectId}
+              filterCondition={filterCondition}
+              timeWindow={timeWindow}
+              codeEvaluatorId={codeEvaluatorId}
+              inlineCode={inlineCode}
+              requiredVariables={requiredVariables}
+              runAllRecordsRef={runAllRecordsRef}
+              onCanRunAllChange={setCanRunAllRecords}
+            />
+          ) : (
+            <LlmRunList
+              projectId={projectId}
+              filterCondition={filterCondition}
+              timeWindow={timeWindow}
+              requiredVariables={requiredVariables}
+              runAllRecordsRef={runAllRecordsRef}
+              onCanRunAllChange={setCanRunAllRecords}
+            />
+          )}
+        </Suspense>
       </div>
     </div>
   );
@@ -456,16 +323,14 @@ function useMatchedSpanCount({
 function TimeWindowSegmentedControl({
   value,
   onChange,
-  size,
 }: {
   value: TimeWindowPresetId;
   onChange: (timeWindow: TimeWindow) => void;
-  size?: ComponentProps<typeof SegmentedControl>["size"];
 }) {
   return (
     <SegmentedControl
       aria-label="Preview window"
-      size={size}
+      size="S"
       selectedKey={value}
       onSelectionChange={(key) => {
         if (typeof key === "string" && isTimeWindowPresetId(key)) {
@@ -483,46 +348,6 @@ function TimeWindowSegmentedControl({
         </SegmentedControlItem>
       ))}
     </SegmentedControl>
-  );
-}
-
-function ScopeEditorCard({
-  projectId,
-  scope,
-  onScopeChange,
-  onFilterValidityChange,
-  timeWindow,
-  onTimeWindowChange,
-  isTargetDisabled,
-}: {
-  projectId: string;
-  scope: ProjectEvaluatorScope;
-  onScopeChange: (scope: ProjectEvaluatorScope) => void;
-  onFilterValidityChange?: (isValid: boolean) => void;
-  timeWindow: TimeWindow;
-  onTimeWindowChange: (timeWindow: TimeWindow) => void;
-  isTargetDisabled: boolean;
-}) {
-  return (
-    <div css={scopeEditorCardCSS}>
-      <ProjectEvaluatorScopeFieldGroup
-        projectId={projectId}
-        scope={scope}
-        onScopeChange={onScopeChange}
-        onFilterValidityChange={onFilterValidityChange}
-        isTargetDisabled={isTargetDisabled}
-      >
-        <Flex direction="column" gap="size-50">
-          <Text size="XS" weight="heavy" color="text-700">
-            Preview window
-          </Text>
-          <TimeWindowSegmentedControl
-            value={timeWindow.presetId}
-            onChange={onTimeWindowChange}
-          />
-        </Flex>
-      </ProjectEvaluatorScopeFieldGroup>
-    </div>
   );
 }
 
@@ -723,12 +548,6 @@ function SessionRunList({
     />
   );
 }
-
-const scopeEditorCardCSS = css`
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-medium);
-  padding: var(--global-dimension-size-200);
-`;
 
 type RecordedRunResult = {
   readonly evaluatorName: string;
