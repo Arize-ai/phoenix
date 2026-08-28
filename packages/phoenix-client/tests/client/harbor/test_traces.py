@@ -434,12 +434,16 @@ def test_missing_trial_timestamps_return_no_trace(
     assert "no complete start and end timestamps" in caplog.text
 
 
-def test_step_failure_without_verifier_marks_root_error(tmp_path: Path) -> None:
+def test_scored_step_failure_marks_root_error(tmp_path: Path) -> None:
     write(tmp_path / "task-a__1/steps/solve/agent/trajectory.json", trajectory())
     plan, slot, task, result = context(tmp_path, step_names=("solve",))
     error = SimpleNamespace(exception_type="RuntimeError", exception_message="boom")
     cast(Any, result).step_results = [
-        SimpleNamespace(step_name="solve", exception_info=error, verifier_result=None)
+        SimpleNamespace(
+            step_name="solve",
+            exception_info=error,
+            verifier_result=SimpleNamespace(rewards={"reward": 0.0}),
+        )
     ]
 
     trace = build_harbor_trace(plan=plan, slot=slot, task=task, trial_result=result, run_output={})

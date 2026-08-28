@@ -354,7 +354,7 @@ def _resolve_file_references(
             reference = ref.get("trajectory_path") if isinstance(ref, MutableMapping) else None
             if isinstance(ref, MutableMapping) and isinstance(reference, str) and reference:
                 target = _local_reference(loader, reference=reference, referring_path=physical_path)
-                child = (
+                loaded_child = (
                     _load_file(
                         loader,
                         path=target,
@@ -366,8 +366,8 @@ def _resolve_file_references(
                     if target is not None
                     else None
                 )
-                if child is not None:
-                    ref["trajectory_id"] = child["trajectory_id"]
+                if loaded_child is not None:
+                    ref["trajectory_id"] = loaded_child["trajectory_id"]
                 elif not ref.get("trajectory_id"):
                     continue
             retained.append(ref)

@@ -582,17 +582,13 @@ class TestRecordExperimentRun:
         assert "reward" not in logged["output"]
 
     @pytest.mark.parametrize(
-        ("has_verifier_result", "expected_error"),
-        [
-            (False, "build: StepError: failed"),
-            (True, None),
-        ],
-        ids=["fatal-step-error", "non-fatal-step-error"],
+        "has_verifier_result",
+        [False, True],
+        ids=["unscored-step-error", "scored-step-error"],
     )
-    async def test_only_fatal_step_errors_mark_the_experiment_run_failed(
+    async def test_any_step_error_marks_the_experiment_run_failed(
         self,
         has_verifier_result: bool,
-        expected_error: str | None,
     ) -> None:
         experiments = FakeExperiments()
         job = plan(
@@ -629,7 +625,7 @@ class TestRecordExperimentRun:
             trial_result=trial_result(steps=[step_result]),
         )
 
-        assert experiments.logged_runs[0]["error"] == expected_error
+        assert experiments.logged_runs[0]["error"] == "build: StepError: failed"
 
     async def test_duplicate_conflict_reuses_matching_successful_run(self) -> None:
         request = httpx.Request("POST", "https://phoenix.example/v1/experiments/1/runs")

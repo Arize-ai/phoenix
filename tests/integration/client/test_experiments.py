@@ -9,12 +9,11 @@ from unittest.mock import patch
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
-from strawberry.relay import GlobalID
-
 from phoenix.client import AsyncClient
 from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
+from strawberry.relay import GlobalID
 
 from .._helpers import (  # pyright: ignore[reportPrivateUsage]
     _AppInfo,
