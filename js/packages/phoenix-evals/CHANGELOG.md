@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 2.4.0
+
+### Minor Changes
+
+- 0e3b2c2: Add a built-in PII detection evaluator (`createPiiDetectionEvaluator`) that screens a conversation record for personally identifiable information, including system instructions, tool calls and results, and retrieved content the end user may never have seen.
+
 ## 2.3.0
 
 ### Minor Changes
