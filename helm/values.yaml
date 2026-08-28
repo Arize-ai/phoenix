@@ -41,35 +41,6 @@ additionalEnv: []
   #       name: mysecret
   #       key: somekey
 
-# Synthetic trace generation
-datagen:
-  # -- Enable the optional synthetic trace generator deployment
-  enabled: false
-
-  # -- Phoenix collector endpoint. When empty, defaults to the Phoenix service DNS name
-  endpoint: ""
-
-  # -- Destination project (PHOENIX_PROJECT_NAME). When empty, defaults to phoenix-datagen
-  projectName: ""
-
-  # -- Mean traces per minute
-  rate: 12
-
-  # -- Additional arguments passed to phoenix datagen
-  args: []
-
-  # -- Additional environment variables for the datagen container, such as a secret-backed PHOENIX_API_KEY
-  additionalEnv: []
-
-  # -- Resource configuration for the datagen container
-  resources:
-    limits:
-      cpu: "1000m"
-      memory: "2Gi"
-    requests:
-      cpu: "500m"
-      memory: "1Gi"
-
 # ADDONS
 # - Ingress
 # - Postgres

@@ -362,11 +362,6 @@ module = [
   "mistralai.*",
   "jsonpath_ng",
   "wasmtime",
-  # Standalone datagen recorders declare these dependencies in their PEP 723
-  # metadata rather than adding them to the Phoenix development environment.
-  "langchain_core.*",
-  "langchain_openai.*",
-  "openinference.instrumentation.langchain.*",
 ]
 ignore_missing_imports = true
 

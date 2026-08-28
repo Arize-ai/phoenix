@@ -1216,7 +1216,6 @@
             "icon": "rocket",
             "pages": [
               "docs/phoenix/self-hosting/deployment-options/terminal",
-              "docs/phoenix/self-hosting/deployment-options/datagen",
               "docs/phoenix/self-hosting/deployment-options/docker",
               "docs/phoenix/self-hosting/deployment-options/kubernetes",
               "docs/phoenix/self-hosting/deployment-options/kubernetes-helm",

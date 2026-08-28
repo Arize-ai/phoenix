@@ -10,18 +10,6 @@ services:
       - 4317:4317
     environment:
       - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
-  datagen:
-    build:
-      dockerfile: ./Dockerfile
-      context: .
-    # The image ENTRYPOINT is the Python interpreter, so override CMD with
-    # module arguments rather than a console-script name.
-    command: ["-m", "phoenix.server.main", "datagen"]
-    profiles: ["datagen"]
-    depends_on:
-      - phoenix
-    environment:
-      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
   db:
     image: postgres:16
     restart: always

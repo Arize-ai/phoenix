@@ -46,22 +46,6 @@ services:
           name: phoenix-db
           property: connectionString
 
-  # This optional worker continuously sends synthetic traces to Phoenix.
-  # Uncomment it only for development or demo instances.
-  # - type: worker
-  #   name: phoenix-datagen
-  #   runtime: image
-  #   image:
-  #     url: docker.io/arizephoenix/phoenix:latest
-  #   # The image has no shell and its console scripts have dangling
-  #   # interpreter paths; invoke the module through the system Python.
-  #   dockerCommand: python3 -m phoenix.server.main datagen
-  #   envVars:
-  #     - key: PHOENIX_COLLECTOR_ENDPOINT
-  #       value: http://phoenix:6006
-  #     - key: PHOENIX_API_KEY
-  #       sync: false
-
 databases:
   - name: phoenix-db
     plan: basic-1gb

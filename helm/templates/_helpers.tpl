@@ -34,9 +34,6 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
 {{- define "phoenix.ingress" -}}
   {{- printf "%s-ingress" (include "phoenix.fullname" .) -}}
 {{- end -}}
-{{- define "phoenix.datagen" -}}
-  {{- printf "%s-datagen" (include "phoenix.fullname" .) | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
 
 {{- define "phoenix.tlsCoreSecretForIngress" -}}
   {{- if eq .Values.ingress.tls.certSource "none" -}}
@@ -75,17 +72,6 @@ app.kubernetes.io/name: {{ include "phoenix.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end -}}
-
-{{- define "phoenix.datagenSelectorLabels" -}}
-app.kubernetes.io/name: {{ include "phoenix.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/component: datagen
-{{- end -}}
-
-{{- define "phoenix.datagenLabels" -}}
-{{ include "phoenix.labels" . }}
-app.kubernetes.io/component: datagen
 {{- end -}}
 
 {{/*

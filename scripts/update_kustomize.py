@@ -13,15 +13,12 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-KUSTOMIZE_PATHS = (
-    REPO_ROOT / "kustomize" / "base" / "phoenix.yaml",
-    REPO_ROOT / "kustomize" / "datagen" / "deployment.yaml",
-)
+KUSTOMIZE_PATH = REPO_ROOT / "kustomize" / "base" / "phoenix.yaml"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description=("Update the Kustomize template with a new Phoenix Docker image version."),
+        description="Update the Kustomize template with a new Phoenix Docker image version.",
     )
     parser.add_argument(
         "version",
@@ -32,15 +29,14 @@ def main() -> None:
     if not re.match(r"^\d+\.\d+\.\d+$", args.version):
         parser.error(f"Invalid version format: {args.version!r} (expected MAJOR.MINOR.PATCH)")
 
-    for path in KUSTOMIZE_PATHS:
-        text = path.read_text()
-        updated = re.sub(
-            r"arizephoenix/phoenix:version-\S+",
-            f"arizephoenix/phoenix:version-{args.version}",
-            text,
-        )
-        path.write_text(updated)
-        print(f"Updated {path}")
+    text = KUSTOMIZE_PATH.read_text()
+    updated = re.sub(
+        r"arizephoenix/phoenix:version-\S+",
+        f"arizephoenix/phoenix:version-{args.version}",
+        text,
+    )
+    KUSTOMIZE_PATH.write_text(updated)
+    print(f"Updated {KUSTOMIZE_PATH}")
 
 
 if __name__ == "__main__":
