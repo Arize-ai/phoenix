@@ -208,7 +208,7 @@ Set `trace_mode` explicitly to `atif`, `otlp`, or `none`. The plugin does not au
 
 ATIF mode uses the existing package-internal pure conversion and common-parent helpers. The plugin
 needs the spans before upload so it can check deterministic IDs, repair partial uploads, and link
-the run only after every expected span is queryable.
+the run only once Phoenix has accepted every missing span.
 
 The package-internal pure conversion helpers:
 
@@ -220,12 +220,12 @@ The package-internal pure conversion helpers:
 The conversion layer does not use a client. Harbor-specific discovery, normalization, deterministic
 identity, and upload-repair behavior stay private to the plugin.
 
-The plugin creates one deterministic trial-level AGENT root. It converts saved trajectories under that root and sends all spans to the experiment's Phoenix project. Harbor-specific identity and replay logic stay in the plugin.
+The plugin creates one deterministic trial-level CHAIN root named `harbor.trial`. It converts saved trajectories under that root and sends all spans to the experiment's Phoenix project. Harbor-specific identity and replay logic stay in the plugin. The root's status is `ERROR` only for the same infrastructure failures that set the experiment run's error and drive `infra_ok`; a step exception that still reached the verifier, such as an agent timeout, is a scored task outcome, not an error.
 
 For each in-memory trajectory, the plugin:
 
-- sets `trajectory_id` from the logical trial identity and step number; and
-- prefixes `session_id` with the same trial identity while keeping the original value as a suffix.
+- sets `trajectory_id` from the logical trial identity, role, step, file, and embedding index; and
+- sets `session_id` to one value per trial (`harbor:<trace_id>`), so a trial appears as one Phoenix session containing one trace. The producer's original `trajectory_id` and `session_id` are kept in the agent metadata of the trajectory's root span.
 
 It does not change the source file.
 
@@ -246,7 +246,7 @@ Deterministic IDs do not make span upload idempotent. Phoenix has two important 
 - If **any** span ID already exists, Phoenix rejects the full request. Do not send an existing span again.
 - Phoenix does not report duplicate span IDs **within one request**. It silently drops them. Validate that all IDs in a request are unique.
 
-On replay, query the expected span IDs and send only missing spans. Wait until every span is queryable before writing the run and trace link. This query requires Phoenix server `>=19.6` in `atif` mode.
+On replay, query the expected span IDs and send only missing spans. Link the run as soon as Phoenix reports every missing span queued; spans become queryable within Phoenix's bulk-insert interval. Experiment runs are immutable, so a run recorded without a trace keeps no trace on later replays. This query requires Phoenix server `>=19.6` in `atif` mode.
 
 ### OTLP mode
 

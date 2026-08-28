@@ -483,7 +483,6 @@ HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
 # Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
 HARBOR_ENV ?= docker
 HARBOR_VERSION ?= 0.21.0
-HARBOR_ATIF_VERSION ?= 0.22.0
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 # harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
 # repo's .python-version (3.10).
@@ -521,7 +520,7 @@ harbor-plugin-e2e: ## Run the isolated Phoenix Harbor plugin E2E matrix
 		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py
 
 harbor-plugin-e2e-atif: ## Run the credentialed Terminus-2 ATIF E2E
-	HARBOR_VERSION=$(HARBOR_ATIF_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
+	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
 	HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_E2E_ATIF=1 \
 		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py
 

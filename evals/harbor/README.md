@@ -108,10 +108,13 @@ make harbor-plugin-e2e-atif
 ```
 
 The target runs Terminus-2 with ATIF tracing enabled, then resumes it to check idempotency. It
-defaults to Harbor 0.22.0 and
-`openai/gpt-5-mini`; override them with `HARBOR_ATIF_VERSION` and `HARBOR_ATIF_MODEL`. Like the
-credential-free matrix, it uses a disposable Phoenix working directory and does not touch the
-shared `~/.phoenix/phoenix.db`.
+uses the same `HARBOR_VERSION` as the credential-free matrix and defaults to `openai/gpt-5-mini`;
+override the model with `HARBOR_ATIF_MODEL`. Like the credential-free matrix, it uses a disposable
+Phoenix working directory and does not touch the shared `~/.phoenix/phoenix.db`.
+
+Both targets accept `HARBOR_E2E_ENDPOINT=http://127.0.0.1:6006` to run against an already-running
+Phoenix instead of starting an isolated one, and `HARBOR_E2E_JOB_NAME` to pick a job name that does
+not collide with earlier runs in that database.
 
 Browse job results in a local web viewer:
 

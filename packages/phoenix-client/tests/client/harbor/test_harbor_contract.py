@@ -212,3 +212,21 @@ def test_trial_reward_names_match_harbors_verifier_output(
 
     extracted = {record.name: record.score for record in extract_evaluations(trial)}
     assert set(extracted) == expected_names
+
+
+def test_trace_discovery_reads_supported_harbor_attributes() -> None:
+    """Pin the Harbor attributes the ATIF trace loader reads.
+
+    ``TrialConfig.user_agent`` and ``TrialPaths.user_agent_dir`` arrived in Harbor
+    0.22 and are read defensively; everything else must exist at the minimum version.
+    """
+    from harbor.models.trial.config import AgentConfig, TrialConfig
+    from harbor.models.trial.paths import TrialPaths
+    from harbor.models.trial.result import StepResult, TrialResult
+
+    assert "resume_trajectory" in AgentConfig.model_fields
+    assert "trials_dir" in TrialConfig.model_fields
+    assert "step_results" in TrialResult.model_fields
+    assert "step_name" in StepResult.model_fields
+    assert callable(TrialPaths.step_agent_dir)
+    assert isinstance(TrialPaths.agent_dir, property)

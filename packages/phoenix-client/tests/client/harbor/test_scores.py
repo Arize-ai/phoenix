@@ -100,6 +100,15 @@ def by_name(
             {"infra_ok": 0.0},
         ),
         (
+            trial_result(
+                rewards={"reward": 0.0},
+                steps=[
+                    step("step_01", rewards={"reward": 0}, error=exception("AgentTimeoutError"))
+                ],
+            ),
+            {"reward": 0.0, "infra_ok": 1.0, "step_01.reward": 0.0},
+        ),
+        (
             trial_result(error=exception("CancelledError", "cancelled")),
             {"infra_ok": 0.0},
         ),
@@ -110,6 +119,7 @@ def by_name(
         "single-step-failure",
         "multi-step-failure-with-derived-result",
         "multi-step-failure-without-derived-result",
+        "scored-step-timeout-is-not-infra-failure",
         "cancellation",
     ],
 )

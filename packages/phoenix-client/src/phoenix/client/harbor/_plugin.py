@@ -219,7 +219,10 @@ class PhoenixJobPlugin(BaseJobPlugin):
             trace_id: str | None = None
             if self.trace_mode == "atif" and reusable_experiment_run is None:
                 try:
-                    trace = build_harbor_trace(
+                    # Reading and converting trajectories is CPU-bound file work; keep it
+                    # off Harbor's event loop.
+                    trace = await asyncio.to_thread(
+                        build_harbor_trace,
                         plan=plan,
                         slot=slot,
                         task=task,

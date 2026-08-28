@@ -60,6 +60,8 @@ def context(
     step_names: tuple[str, ...] = (),
     resume_trajectory: bool = False,
     simulated_user: bool = False,
+    legacy_config: bool = False,
+    started_at: datetime | None | str = "default",
 ) -> tuple[JobPlan, TrialSlot, TaskRecord, TrialResult]:
     trial_config = TrialConfig(
         task=TASK_CONFIG,
@@ -96,22 +98,24 @@ def context(
     )
     now = datetime.fromisoformat(NOW).astimezone(timezone.utc)
     steps = [SimpleNamespace(step_name=name, exception_info=None) for name in step_names] or None
+    config: Any = trial_config
+    if simulated_user:
+        config = SimpleNamespace(
+            trials_dir=trial_config.trials_dir,
+            agent=trial_config.agent,
+            user_agent=object(),
+        )
+    elif legacy_config:
+        # Harbor 0.21 has no ``user_agent`` field on TrialConfig.
+        config = SimpleNamespace(trials_dir=trial_config.trials_dir, agent=trial_config.agent)
     result = cast(
         TrialResult,
         SimpleNamespace(
             id="trial-id",
-            config=(
-                SimpleNamespace(
-                    trials_dir=trial_config.trials_dir,
-                    agent=trial_config.agent,
-                    user_agent=object(),
-                )
-                if simulated_user
-                else trial_config
-            ),
+            config=config,
             trial_name="task-a__1",
             task_name="task-a",
-            started_at=now,
+            started_at=now if started_at == "default" else started_at,
             finished_at=now,
             exception_info=None,
             step_results=steps,
@@ -136,6 +140,10 @@ def build(tmp_path: Path, **kwargs: Any) -> Any:
     )
 
 
+def agent_roots(trace: Any) -> list[Any]:
+    return [span for span in trace.spans if span["span_kind"] == "AGENT"]
+
+
 def test_single_step_builds_one_stable_chain_root(tmp_path: Path) -> None:
     source = trajectory()
     write(tmp_path / "task-a__1/agent/trajectory.json", source)
@@ -149,12 +157,35 @@ def test_single_step_builds_one_stable_chain_root(tmp_path: Path) -> None:
     assert first.source_paths == ("agent/trajectory.json",)
     assert first.spans[0]["name"] == "harbor.trial"
     assert first.spans[0]["span_kind"] == "CHAIN"
+    assert first.spans[0]["status_code"] == "OK"
     assert all(span["context"]["trace_id"] == first.trace_id for span in first.spans)
     assert all(
         span.get("parent_id") in {item["context"]["span_id"] for item in first.spans}
         for span in first.spans[1:]
     )
     assert json.loads((tmp_path / "task-a__1/agent/trajectory.json").read_text()) == source
+
+
+def test_every_span_shares_one_trial_session(tmp_path: Path) -> None:
+    write(tmp_path / "task-a__1/agent/trajectory.json", trajectory())
+
+    result = build(tmp_path)
+
+    assert result is not None
+    session = f"harbor:{result.trace_id}"
+    assert all(span["attributes"].get("session.id") == session for span in result.spans)
+    metadata = cast(dict[str, Any], agent_roots(result)[0]["attributes"]["metadata"])
+    assert metadata["phoenix.harbor.producer_session_id"] == "producer-session"
+    assert metadata["phoenix.harbor.producer_trajectory_id"] == "producer-trajectory"
+
+
+def test_legacy_trial_config_without_user_agent_field(tmp_path: Path) -> None:
+    write(tmp_path / "task-a__1/agent/trajectory.json", trajectory())
+
+    result = build(tmp_path, legacy_config=True)
+
+    assert result is not None
+    assert result.source_paths == ("agent/trajectory.json",)
 
 
 def test_multi_step_uses_only_attempted_steps_in_result_order(tmp_path: Path) -> None:
@@ -174,6 +205,8 @@ def test_multi_step_uses_only_attempted_steps_in_result_order(tmp_path: Path) ->
     )
     ids = [span["context"]["span_id"] for span in result.spans]
     assert len(ids) == len(set(ids))
+    trial_root_id = result.spans[0]["context"]["span_id"]
+    assert [span["parent_id"] for span in agent_roots(result)] == [trial_root_id] * 2
 
 
 def test_native_resume_uses_last_cumulative_snapshot(tmp_path: Path) -> None:
@@ -191,6 +224,10 @@ def test_native_resume_uses_last_cumulative_snapshot(tmp_path: Path) -> None:
 
 
 def test_simulated_user_and_primary_agent_share_one_trace(tmp_path: Path) -> None:
+    from harbor.models.trial.paths import TrialPaths
+
+    if not hasattr(TrialPaths, "user_agent_dir"):
+        pytest.skip("Simulated-user trials require Harbor >=0.22")
     write(tmp_path / "task-a__1/agent/trajectory.json", trajectory())
     write(
         tmp_path / "task-a__1/user-agent/trajectory.json",
@@ -204,7 +241,7 @@ def test_simulated_user_and_primary_agent_share_one_trace(tmp_path: Path) -> Non
         "agent/trajectory.json",
         "user-agent/trajectory.json",
     )
-    assert len([span for span in result.spans if span["span_kind"] == "AGENT"]) == 2
+    assert len(agent_roots(result)) == 2
 
 
 def test_continuation_chain_is_discovered(tmp_path: Path) -> None:
@@ -221,7 +258,7 @@ def test_continuation_chain_is_discovered(tmp_path: Path) -> None:
         "agent/trajectory.json",
         "agent/trajectory.cont-1.json",
     )
-    assert len([span for span in result.spans if span["span_kind"] == "AGENT"]) == 2
+    assert len(agent_roots(result)) == 2
 
 
 def test_embedded_subagent_remains_linked_after_id_rewrite(tmp_path: Path) -> None:
@@ -247,10 +284,11 @@ def test_embedded_subagent_remains_linked_after_id_rewrite(tmp_path: Path) -> No
     result = build(tmp_path)
 
     assert result is not None
-    agent_roots = [span for span in result.spans if span["span_kind"] == "AGENT"]
-    assert len(agent_roots) == 2
+    roots = agent_roots(result)
+    assert len(roots) == 2
     trial_root_id = result.spans[0]["context"]["span_id"]
-    assert {span.get("parent_id") for span in agent_roots} != {trial_root_id}
+    tool_ids = {span["context"]["span_id"] for span in result.spans if span["span_kind"] == "TOOL"}
+    assert {span["parent_id"] for span in roots} == {trial_root_id, *tool_ids}
 
 
 def test_external_subagent_is_followed_and_rewritten(tmp_path: Path) -> None:
@@ -282,14 +320,38 @@ def test_external_subagent_is_followed_and_rewritten(tmp_path: Path) -> None:
 
     assert result is not None
     assert result.source_paths == ("agent/trajectory.json", "agent/child.json")
-    agent_roots = [span for span in result.spans if span["span_kind"] == "AGENT"]
-    assert len(agent_roots) == 2
+    roots = agent_roots(result)
+    assert len(roots) == 2
     trial_root_id = result.spans[0]["context"]["span_id"]
-    assert {span.get("parent_id") for span in agent_roots} != {trial_root_id}
-    assert all(
-        str(span["attributes"].get("session.id", "")).startswith(f"harbor:{result.trace_id}:")
-        for span in agent_roots
-    )
+    tool_ids = {span["context"]["span_id"] for span in result.spans if span["span_kind"] == "TOOL"}
+    assert {span["parent_id"] for span in roots} == {trial_root_id, *tool_ids}
+    session = f"harbor:{result.trace_id}"
+    assert all(span["attributes"].get("session.id") == session for span in roots)
+
+
+def test_shared_child_file_is_loaded_once(tmp_path: Path) -> None:
+    parent = trajectory()
+    parent["steps"][1]["tool_calls"] = [
+        {"tool_call_id": "call-1", "function_name": "delegate", "arguments": {}},
+        {"tool_call_id": "call-2", "function_name": "delegate", "arguments": {}},
+    ]
+    parent["steps"][1]["observation"] = {
+        "results": [
+            {
+                "source_call_id": call_id,
+                "subagent_trajectory_ref": [{"trajectory_path": "child.json"}],
+            }
+            for call_id in ("call-1", "call-2")
+        ]
+    }
+    write(tmp_path / "task-a__1/agent/trajectory.json", parent)
+    write(tmp_path / "task-a__1/agent/child.json", trajectory(session_id="child-session"))
+
+    result = build(tmp_path)
+
+    assert result is not None
+    assert result.source_paths == ("agent/trajectory.json", "agent/child.json")
+    assert len(agent_roots(result)) == 2
 
 
 def test_escaping_reference_is_not_read(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -310,9 +372,47 @@ def test_escaping_reference_is_not_read(tmp_path: Path, caplog: pytest.LogCaptur
 
     assert result is not None
     assert result.source_paths == ("agent/trajectory.json",)
-    assert "Rejected Harbor ATIF reference" in caplog.text
+    assert "Rejected Harbor ATIF path" in caplog.text
     metadata = cast(dict[str, Any], result.spans[0]["attributes"]["metadata"])
     assert metadata["atif_unresolved_references"] == ["../secret.json"]
+
+
+def test_remote_reference_is_reported_without_its_path(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    parent = trajectory()
+    parent["steps"][1]["observation"] = {
+        "results": [
+            {
+                "subagent_trajectory_ref": [
+                    {"trajectory_path": "s3://bucket/private/child.json?token=x"}
+                ]
+            }
+        ]
+    }
+    write(tmp_path / "task-a__1/agent/trajectory.json", parent)
+
+    result = build(tmp_path)
+
+    assert result is not None
+    assert "Rejected non-local Harbor ATIF reference 's3://bucket'" in caplog.text
+    metadata = cast(dict[str, Any], result.spans[0]["attributes"]["metadata"])
+    assert metadata["atif_unresolved_references"] == ["s3://bucket"]
+
+
+def test_cyclic_continuation_stops(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    first = trajectory()
+    first["continued_trajectory_ref"] = "trajectory.cont-1.json"
+    second = trajectory(session_id="producer-session-cont-1")
+    second["continued_trajectory_ref"] = "trajectory.json"
+    write(tmp_path / "task-a__1/agent/trajectory.json", first)
+    write(tmp_path / "task-a__1/agent/trajectory.cont-1.json", second)
+
+    result = build(tmp_path)
+
+    assert result is not None
+    assert result.source_paths == ("agent/trajectory.json", "agent/trajectory.cont-1.json")
+    assert "Stopped cyclic Harbor ATIF reference" in caplog.text
 
 
 def test_invalid_or_missing_root_returns_no_trace(
@@ -323,6 +423,30 @@ def test_invalid_or_missing_root_returns_no_trace(
     assert build(tmp_path) is None
     assert "no canonical root" in caplog.text
     assert "invalid Harbor ATIF root" in caplog.text
+
+
+def test_missing_trial_timestamps_return_no_trace(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    write(tmp_path / "task-a__1/agent/trajectory.json", trajectory())
+
+    assert build(tmp_path, started_at=None) is None
+    assert "no complete start and end timestamps" in caplog.text
+
+
+def test_step_failure_without_verifier_marks_root_error(tmp_path: Path) -> None:
+    write(tmp_path / "task-a__1/steps/solve/agent/trajectory.json", trajectory())
+    plan, slot, task, result = context(tmp_path, step_names=("solve",))
+    error = SimpleNamespace(exception_type="RuntimeError", exception_message="boom")
+    cast(Any, result).step_results = [
+        SimpleNamespace(step_name="solve", exception_info=error, verifier_result=None)
+    ]
+
+    trace = build_harbor_trace(plan=plan, slot=slot, task=task, trial_result=result, run_output={})
+
+    assert trace is not None
+    assert trace.spans[0]["status_code"] == "ERROR"
+    assert trace.spans[0].get("status_message") == "solve: RuntimeError: boom"
 
 
 def test_different_trials_namespace_reused_producer_ids(tmp_path: Path) -> None:

@@ -7,12 +7,11 @@
 
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 import logging
 from collections.abc import Iterator, Mapping, MutableMapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -34,13 +33,10 @@ __all__ = ["HarborTrace", "build_harbor_trace", "harbor_trace_id"]
 
 _NAMESPACE = "phoenix.harbor.atif.v1"
 _CANONICAL_FILENAME = "trajectory.json"
+_PRODUCER_TRAJECTORY_ID_KEY = "phoenix.harbor.producer_trajectory_id"
+_PRODUCER_SESSION_ID_KEY = "phoenix.harbor.producer_session_id"
 
-
-@dataclass(frozen=True)
-class _TrajectorySource:
-    relative_path: str
-    role: Literal["agent", "user-agent"]
-    step_name: str | None
+_Role = Literal["agent", "user-agent"]
 
 
 @dataclass(frozen=True)
@@ -53,21 +49,25 @@ class HarborTrace:
 @dataclass(frozen=True)
 class _RootLocation:
     directory: Path
-    role: Literal["agent", "user-agent"]
+    role: _Role
     step_name: str | None
 
 
 @dataclass
-class _Graph:
+class _Loader:
+    """Loaded ATIF documents for one trial, in discovery order."""
+
     trial_root: Path
     trial_key: str
+    trace_id: str
     warning_prefix: str
-    sources: list[_TrajectorySource]
-    trajectories: list[MutableMapping[str, Any]]
-    source_paths: list[str]
-    unresolved_references: list[str]
-    loaded: dict[Path, MutableMapping[str, Any]]
-    active: set[Path]
+    documents: dict[Path, MutableMapping[str, Any]] = field(default_factory=dict)
+    unresolved_references: list[str] = field(default_factory=list)
+    active: set[Path] = field(default_factory=set)
+
+    @property
+    def source_paths(self) -> list[str]:
+        return [_display_path(path, self.trial_root) for path in self.documents]
 
     def warn(self, message: str) -> None:
         logger.warning("%s: %s", self.warning_prefix, message)
@@ -84,59 +84,48 @@ def build_harbor_trace(
     """Discover and convert the valid ATIF graph for one terminal trial.
 
     The function reads only Harbor-owned role directories and performs no
-    network calls. Invalid roots and references are reported and salvaged.
+    network calls. Invalid roots and references are reported and skipped.
     """
     trial_name = str(trial_result.trial_name)
-    trial_root = Path(trial_result.config.trials_dir) / trial_name
     trial_key = _trial_key(plan, trial_result)
-    graph = _Graph(
-        trial_root,
-        trial_key,
-        (
+    loader = _Loader(
+        trial_root=Path(trial_result.config.trials_dir) / trial_name,
+        trial_key=trial_key,
+        trace_id=harbor_trace_id(plan, trial_result),
+        warning_prefix=(
             f"Harbor ATIF job={plan.job_id} trial_id={trial_result.id} "
             f"trial={trial_name} task={slot.task_id} repetition={slot.repetition}"
         ),
-        [],
-        [],
-        [],
-        [],
-        {},
-        set(),
     )
 
     missing: list[str] = []
     for location in _root_locations(trial_result):
         root_path = location.directory / _CANONICAL_FILENAME
         if not root_path.is_file():
-            missing.append(_display_path(root_path, trial_root))
+            missing.append(_display_path(root_path, loader.trial_root))
             continue
         _load_file(
-            graph,
+            loader,
             path=root_path,
-            allowed_directory=location.directory,
+            allowed_directory=location.directory.resolve(),
             role=location.role,
             step_name=location.step_name,
-            document_key="root",
-            is_root=True,
         )
 
     if missing:
-        graph.warn(
+        loader.warn(
             f"Harbor ATIF trace has no canonical root at {', '.join(missing)} "
             f"for trial {trial_name!r}; valid role roots, if any, will still be recorded."
         )
-    if not graph.trajectories:
+    if not loader.documents:
         return None
 
-    trace_id = harbor_trace_id(plan, trial_result)
     root_span_id = _hex_id(f"{_NAMESPACE}:{trial_key}:root", length=16)
-    normalized = _normalize_trajectories(graph, trace_id)
     try:
-        converted = _convert_atif_trajectories_to_spans(normalized)
         converted = _reparent_spans_under_common_parent(
-            converted,
+            _convert_atif_trajectories_to_spans(list(loader.documents.values())),
             parent_id=root_span_id,
-            trace_id=trace_id,
+            trace_id=loader.trace_id,
         )
         root = _trial_root_span(
             plan=plan,
@@ -144,18 +133,20 @@ def build_harbor_trace(
             task=task,
             trial_result=trial_result,
             run_output=run_output,
-            trace_id=trace_id,
+            trace_id=loader.trace_id,
             span_id=root_span_id,
             converted=converted,
-            source_paths=graph.source_paths,
-            unresolved_references=graph.unresolved_references,
+            source_paths=loader.source_paths,
+            unresolved_references=loader.unresolved_references,
         )
-        spans = (root, *converted)
-        _validate_span_graph(spans, trace_id=trace_id, root_span_id=root_span_id)
     except Exception as error:
-        graph.warn(f"Could not convert Harbor ATIF for trial {trial_name!r}: {error}")
+        loader.warn(f"Could not convert Harbor ATIF for trial {trial_name!r}: {error}")
         return None
-    return HarborTrace(trace_id=trace_id, spans=spans, source_paths=tuple(graph.source_paths))
+    return HarborTrace(
+        trace_id=loader.trace_id,
+        spans=(root, *converted),
+        source_paths=tuple(loader.source_paths),
+    )
 
 
 def harbor_trace_id(plan: JobPlan, trial_result: TrialResult) -> str:
@@ -169,205 +160,231 @@ def _root_locations(trial_result: TrialResult) -> tuple[_RootLocation, ...]:
     step_results = trial_result.step_results
     if not step_results:
         locations = [_RootLocation(paths.agent_dir, "agent", None)]
-        if config.user_agent is not None and hasattr(paths, "user_agent_dir"):
+        # Simulated-user trials and their user-agent directory arrived in Harbor 0.22.
+        if getattr(config, "user_agent", None) is not None and hasattr(paths, "user_agent_dir"):
             locations.append(_RootLocation(paths.user_agent_dir, "user-agent", None))
         return tuple(locations)
 
+    step_names = [str(step_result.step_name) for step_result in step_results]
     if config.agent.resume_trajectory:
-        for step_result in reversed(step_results):
-            directory = paths.step_agent_dir(str(step_result.step_name))
-            if (directory / _CANONICAL_FILENAME).is_file():
-                return (_RootLocation(directory, "agent", str(step_result.step_name)),)
-        last = step_results[-1]
-        return (
-            _RootLocation(paths.step_agent_dir(str(last.step_name)), "agent", str(last.step_name)),
-        )
-
-    return tuple(
-        _RootLocation(paths.step_agent_dir(str(result.step_name)), "agent", str(result.step_name))
-        for result in step_results
-    )
+        # Native resume carries the session forward, so the last snapshot on disk is cumulative.
+        step_names = [
+            next(
+                (
+                    name
+                    for name in reversed(step_names)
+                    if (paths.step_agent_dir(name) / _CANONICAL_FILENAME).is_file()
+                ),
+                step_names[-1],
+            )
+        ]
+    return tuple(_RootLocation(paths.step_agent_dir(name), "agent", name) for name in step_names)
 
 
 def _load_file(
-    graph: _Graph,
+    loader: _Loader,
     *,
     path: Path,
     allowed_directory: Path,
-    role: Literal["agent", "user-agent"],
+    role: _Role,
     step_name: str | None,
-    document_key: str,
-    is_root: bool,
+    reference: str | None = None,
 ) -> MutableMapping[str, Any] | None:
+    """Load, validate, and normalize one ATIF file and everything it references.
+
+    ``allowed_directory`` must already be canonical. ``reference`` is the raw
+    reference string when this file was reached through one, so rejected
+    references can be reported on the trial root span.
+    """
     try:
-        canonical_directory = allowed_directory.resolve(strict=True)
         canonical_path = path.resolve(strict=True)
-        canonical_path.relative_to(canonical_directory)
+        canonical_path.relative_to(allowed_directory)
         if not canonical_path.is_file() or canonical_path.suffix.lower() != ".json":
             raise ValueError("reference is not a regular JSON file")
     except (OSError, ValueError) as error:
-        graph.warn(f"Rejected Harbor ATIF path {_display_path(path, graph.trial_root)!r}: {error}")
-        return None
-
-    if canonical_path in graph.active:
-        graph.warn(
-            f"Stopped cyclic Harbor ATIF reference at "
-            f"{_display_path(canonical_path, graph.trial_root)!r}."
+        if reference is not None:
+            loader.unresolved_references.append(reference)
+        loader.warn(
+            f"Rejected Harbor ATIF path {_display_path(path, loader.trial_root)!r}: {error}"
         )
         return None
-    if canonical_path in graph.loaded:
-        return graph.loaded[canonical_path]
+
+    if canonical_path in loader.active:
+        loader.warn(
+            f"Stopped cyclic Harbor ATIF reference at "
+            f"{_display_path(canonical_path, loader.trial_root)!r}."
+        )
+        return None
+    if canonical_path in loader.documents:
+        return loader.documents[canonical_path]
 
     try:
         validated = Trajectory.model_validate_json(canonical_path.read_text())
-        raw = cast(
+        document = cast(
             MutableMapping[str, Any],
             validated.model_dump(mode="json", exclude_none=True),
         )
     except Exception as error:
-        kind = "root" if is_root else "referenced trajectory"
-        graph.warn(
+        kind = "referenced trajectory" if reference is not None else "root"
+        loader.warn(
             f"Skipped invalid Harbor ATIF {kind} "
-            f"{_display_path(canonical_path, graph.trial_root)!r}: {error}"
+            f"{_display_path(canonical_path, loader.trial_root)!r}: {error}"
         )
         return None
 
-    relative_path = _display_path(canonical_path, graph.trial_root)
-    graph.sources.append(_TrajectorySource(relative_path, role, step_name))
-    graph.source_paths.append(relative_path)
-    graph.trajectories.append(raw)
-    graph.loaded[canonical_path] = raw
-    graph.active.add(canonical_path)
-
-    _walk_embedded(
-        graph,
-        raw,
-        physical_path=canonical_path,
-        allowed_directory=canonical_directory,
-        role=role,
-        step_name=step_name,
-        document_key=document_key,
-    )
-    _walk_external_references(
-        graph,
-        raw,
-        physical_path=canonical_path,
-        allowed_directory=canonical_directory,
-        role=role,
-        step_name=step_name,
-        document_key=document_key,
-    )
-    continuation = raw.get("continued_trajectory_ref")
-    if isinstance(continuation, str) and continuation:
-        target = _safe_reference_path(
-            graph,
-            reference=continuation,
-            referring_path=canonical_path,
-            allowed_directory=canonical_directory,
+    loader.documents[canonical_path] = document
+    loader.active.add(canonical_path)
+    try:
+        _normalize_document(
+            loader,
+            document,
+            role=role,
+            step_name=step_name,
+            relative_path=_display_path(canonical_path, loader.trial_root),
+            index_path="root",
         )
-        child = (
-            _load_file(
-                graph,
-                path=target,
-                allowed_directory=canonical_directory,
-                role=role,
-                step_name=step_name,
-                document_key=f"{document_key}:continuation",
-                is_root=False,
-            )
-            if target is not None
-            else None
-        )
-        if child is None:
-            raw.pop("continued_trajectory_ref", None)
-    graph.active.remove(canonical_path)
-    return raw
-
-
-def _walk_embedded(
-    graph: _Graph,
-    trajectory: MutableMapping[str, Any],
-    *,
-    physical_path: Path,
-    allowed_directory: Path,
-    role: Literal["agent", "user-agent"],
-    step_name: str | None,
-    document_key: str,
-) -> None:
-    embedded = trajectory.get("subagent_trajectories")
-    if not isinstance(embedded, list):
-        return
-    for index, child in enumerate(embedded):
-        if not isinstance(child, MutableMapping):
-            continue
-        _walk_embedded(
-            graph,
-            child,
-            physical_path=physical_path,
+        _resolve_file_references(
+            loader,
+            document,
+            physical_path=canonical_path,
             allowed_directory=allowed_directory,
             role=role,
             step_name=step_name,
-            document_key=f"{document_key}:embedded:{index}",
         )
-        _walk_external_references(
-            graph,
-            child,
-            physical_path=physical_path,
-            allowed_directory=allowed_directory,
-            role=role,
-            step_name=step_name,
-            document_key=f"{document_key}:embedded:{index}",
-        )
-
-
-def _walk_external_references(
-    graph: _Graph,
-    trajectory: MutableMapping[str, Any],
-    *,
-    physical_path: Path,
-    allowed_directory: Path,
-    role: Literal["agent", "user-agent"],
-    step_name: str | None,
-    document_key: str,
-) -> None:
-    for refs in _subagent_reference_lists(trajectory):
-        retained: list[Any] = []
-        for index, value in enumerate(refs):
-            if not isinstance(value, MutableMapping):
-                retained.append(value)
-                continue
-            reference = value.get("trajectory_path")
-            if not isinstance(reference, str) or not reference:
-                retained.append(value)
-                continue
-            target = _safe_reference_path(
-                graph,
-                reference=reference,
-                referring_path=physical_path,
-                allowed_directory=allowed_directory,
-            )
-            child = (
+        continuation = document.get("continued_trajectory_ref")
+        if isinstance(continuation, str) and continuation:
+            target = _local_reference(loader, reference=continuation, referring_path=canonical_path)
+            if target is not None:
                 _load_file(
-                    graph,
+                    loader,
                     path=target,
                     allowed_directory=allowed_directory,
                     role=role,
                     step_name=step_name,
-                    document_key=f"{document_key}:external:{index}:{reference}",
-                    is_root=False,
+                    reference=continuation,
                 )
-                if target is not None
-                else None
-            )
-            if child is None:
-                continue
-            value["_phoenix_resolved_child"] = child
-            retained.append(value)
+    finally:
+        loader.active.discard(canonical_path)
+    return document
+
+
+def _normalize_document(
+    loader: _Loader,
+    document: MutableMapping[str, Any],
+    *,
+    role: _Role,
+    step_name: str | None,
+    relative_path: str,
+    index_path: str,
+) -> None:
+    """Give a document and its embedded subagents trial-scoped identities.
+
+    Producer IDs move into agent metadata, which the converter writes onto the
+    trajectory's root span. Embedded references are rewritten to the new IDs.
+    """
+    producer_trajectory_id = document.get("trajectory_id")
+    producer_session_id = document.get("session_id")
+    document["trajectory_id"] = _trajectory_id(
+        loader.trial_key,
+        role=role,
+        step_name=step_name,
+        relative_path=relative_path,
+        index_path=index_path,
+    )
+    document["session_id"] = _session_id(loader.trace_id)
+    agent = document.get("agent")
+    if isinstance(agent, MutableMapping):
+        extra = agent.setdefault("extra", {})
+        if isinstance(extra, MutableMapping):
+            if producer_trajectory_id:
+                extra[_PRODUCER_TRAJECTORY_ID_KEY] = producer_trajectory_id
+            if producer_session_id:
+                extra[_PRODUCER_SESSION_ID_KEY] = producer_session_id
+
+    embedded_ids: dict[str, str] = {}
+    for index, child in enumerate(_embedded_subagents(document)):
+        producer_child_id = child.get("trajectory_id")
+        _normalize_document(
+            loader,
+            child,
+            role=role,
+            step_name=step_name,
+            relative_path=relative_path,
+            index_path=f"{index_path}.{index}",
+        )
+        if isinstance(producer_child_id, str):
+            embedded_ids[producer_child_id] = cast(str, child["trajectory_id"])
+
+    for ref in _subagent_references(document):
+        producer_ref_id = ref.get("trajectory_id")
+        if isinstance(producer_ref_id, str) and producer_ref_id in embedded_ids:
+            ref["trajectory_id"] = embedded_ids[producer_ref_id]
+        if ref.get("session_id"):
+            ref["session_id"] = _session_id(loader.trace_id)
+
+
+def _resolve_file_references(
+    loader: _Loader,
+    document: MutableMapping[str, Any],
+    *,
+    physical_path: Path,
+    allowed_directory: Path,
+    role: _Role,
+    step_name: str | None,
+) -> None:
+    """Load ``trajectory_path`` references and point them at the loaded IDs.
+
+    The rejected path of a reference that cannot be loaded is reported on the
+    trial root span. The reference itself stays only when it still names a
+    ``trajectory_id`` (an embedded child, for example); the converter rejects
+    path-only references.
+    """
+    for child in _embedded_subagents(document):
+        _resolve_file_references(
+            loader,
+            child,
+            physical_path=physical_path,
+            allowed_directory=allowed_directory,
+            role=role,
+            step_name=step_name,
+        )
+    for refs in _subagent_reference_lists(document):
+        retained: list[Any] = []
+        for ref in refs:
+            reference = ref.get("trajectory_path") if isinstance(ref, MutableMapping) else None
+            if isinstance(ref, MutableMapping) and isinstance(reference, str) and reference:
+                target = _local_reference(loader, reference=reference, referring_path=physical_path)
+                child = (
+                    _load_file(
+                        loader,
+                        path=target,
+                        allowed_directory=allowed_directory,
+                        role=role,
+                        step_name=step_name,
+                        reference=reference,
+                    )
+                    if target is not None
+                    else None
+                )
+                if child is not None:
+                    ref["trajectory_id"] = child["trajectory_id"]
+                elif not ref.get("trajectory_id"):
+                    continue
+            retained.append(ref)
         refs[:] = retained
 
 
-def _subagent_reference_lists(trajectory: Mapping[str, Any]) -> Iterator[list[Any]]:
-    steps = trajectory.get("steps")
+def _embedded_subagents(document: Mapping[str, Any]) -> Iterator[MutableMapping[str, Any]]:
+    embedded = document.get("subagent_trajectories")
+    if not isinstance(embedded, list):
+        return
+    for child in embedded:
+        if isinstance(child, MutableMapping):
+            yield child
+
+
+def _subagent_reference_lists(document: Mapping[str, Any]) -> Iterator[list[Any]]:
+    steps = document.get("steps")
     if not isinstance(steps, Sequence):
         return
     for step in steps:
@@ -387,119 +404,25 @@ def _subagent_reference_lists(trajectory: Mapping[str, Any]) -> Iterator[list[An
                 yield refs
 
 
-def _safe_reference_path(
-    graph: _Graph,
-    *,
-    reference: str,
-    referring_path: Path,
-    allowed_directory: Path,
-) -> Path | None:
+def _subagent_references(document: Mapping[str, Any]) -> Iterator[MutableMapping[str, Any]]:
+    for refs in _subagent_reference_lists(document):
+        for ref in refs:
+            if isinstance(ref, MutableMapping):
+                yield ref
+
+
+def _local_reference(loader: _Loader, *, reference: str, referring_path: Path) -> Path | None:
+    """Return the on-disk target of a relative reference, or None for non-local ones.
+
+    Containment inside the role directory is enforced when the target loads.
+    """
     parsed = urlparse(reference)
     if parsed.scheme or parsed.netloc or Path(reference).is_absolute():
         sanitized = _sanitized_reference(reference)
-        graph.unresolved_references.append(sanitized)
-        graph.warn(f"Rejected non-local Harbor ATIF reference {sanitized!r}.")
+        loader.unresolved_references.append(sanitized)
+        loader.warn(f"Rejected non-local Harbor ATIF reference {sanitized!r}.")
         return None
-    target = referring_path.parent / reference
-    try:
-        resolved = target.resolve(strict=True)
-        resolved.relative_to(allowed_directory.resolve(strict=True))
-    except (OSError, ValueError):
-        graph.unresolved_references.append(reference)
-        graph.warn(
-            f"Rejected Harbor ATIF reference {reference!r} from "
-            f"{_display_path(referring_path, graph.trial_root)!r}."
-        )
-        return None
-    return resolved
-
-
-def _normalize_trajectories(graph: _Graph, trace_id: str) -> list[Mapping[str, Any]]:
-    normalized = copy.deepcopy(graph.trajectories)
-
-    def normalize_document(
-        document: MutableMapping[str, Any],
-        *,
-        role: str,
-        step_name: str | None,
-        relative_path: str,
-        index_path: str,
-    ) -> None:
-        producer_id = document.get("trajectory_id")
-        synthetic_id = _trajectory_id(
-            graph.trial_key,
-            role=role,
-            step_name=step_name,
-            relative_path=relative_path,
-            index_path=index_path,
-        )
-        document["trajectory_id"] = synthetic_id
-        extra = document.setdefault("extra", {})
-        if isinstance(extra, MutableMapping) and producer_id:
-            extra["phoenix.harbor.producer_trajectory_id"] = producer_id
-        session = document.get("session_id")
-        if isinstance(session, str) and session:
-            document["session_id"] = _session_id(trace_id, session)
-
-        embedded = document.get("subagent_trajectories")
-        embedded_ids: dict[str, str] = {}
-        if isinstance(embedded, list):
-            for index, child in enumerate(embedded):
-                if not isinstance(child, MutableMapping):
-                    continue
-                old_id = child.get("trajectory_id")
-                normalize_document(
-                    child,
-                    role=role,
-                    step_name=step_name,
-                    relative_path=relative_path,
-                    index_path=f"{index_path}.{index}",
-                )
-                if isinstance(old_id, str):
-                    embedded_ids[old_id] = cast(str, child["trajectory_id"])
-
-        for refs in _subagent_reference_lists(document):
-            for ref in refs:
-                if not isinstance(ref, MutableMapping):
-                    continue
-                if "_phoenix_resolved_child" not in ref:
-                    old_id = ref.get("trajectory_id")
-                    if isinstance(old_id, str) and old_id in embedded_ids:
-                        ref["trajectory_id"] = embedded_ids[old_id]
-                ref_session = ref.get("session_id")
-                if isinstance(ref_session, str) and ref_session:
-                    ref["session_id"] = _session_id(trace_id, ref_session)
-
-    for source, document in zip(graph.sources, normalized):
-        normalize_document(
-            document,
-            role=source.role,
-            step_name=source.step_name,
-            relative_path=source.relative_path,
-            index_path="root",
-        )
-
-    external_ids = {id(document): cast(str, document["trajectory_id"]) for document in normalized}
-
-    def rewrite_external_refs(document: MutableMapping[str, Any]) -> None:
-        for refs in _subagent_reference_lists(document):
-            for ref in refs:
-                if not isinstance(ref, MutableMapping):
-                    continue
-                resolved_child = ref.pop("_phoenix_resolved_child", None)
-                if isinstance(resolved_child, MutableMapping):
-                    child_id = external_ids.get(id(resolved_child))
-                    if child_id is not None:
-                        ref["trajectory_id"] = child_id
-        embedded = document.get("subagent_trajectories")
-        if isinstance(embedded, list):
-            for child in embedded:
-                if isinstance(child, MutableMapping):
-                    rewrite_external_refs(child)
-
-    for document in normalized:
-        rewrite_external_refs(document)
-    return cast(list[Mapping[str, Any]], normalized)
+    return referring_path.parent / reference
 
 
 def _trial_root_span(
@@ -515,11 +438,12 @@ def _trial_root_span(
     source_paths: Sequence[str],
     unresolved_references: Sequence[str],
 ) -> v1.Span:
-    starts = [_parse_span_time(span["start_time"]) for span in converted]
-    ends = [_parse_span_time(span["end_time"]) for span in converted]
-    fallback = datetime.now(timezone.utc)
-    starts.append(trial_result.started_at or fallback)
-    ends.append(trial_result.finished_at or trial_result.started_at or fallback)
+    started_at = trial_result.started_at
+    finished_at = trial_result.finished_at
+    if started_at is None or finished_at is None:
+        raise ValueError("Harbor trial has no complete start and end timestamps")
+    starts = [started_at, *(_parse_span_time(span["start_time"]) for span in converted)]
+    ends = [finished_at, *(_parse_span_time(span["end_time"]) for span in converted)]
     failures = infrastructure_failures(trial_result)
     metadata: dict[str, Any] = {
         "integration": "harbor",
@@ -545,28 +469,13 @@ def _trial_root_span(
             "input.mime_type": "application/json",
             "output.value": json.dumps(dict(run_output)),
             "output.mime_type": "application/json",
+            "session.id": _session_id(trace_id),
             "metadata": metadata,
         },
     }
     if failures:
         span["status_message"] = "; ".join(failures)
     return span
-
-
-def _validate_span_graph(spans: Sequence[v1.Span], *, trace_id: str, root_span_id: str) -> None:
-    ids = [span["context"]["span_id"] for span in spans]
-    if len(ids) != len(set(ids)):
-        raise ValueError("converted Harbor ATIF contains duplicate span IDs")
-    if "0" * 16 in ids or trace_id == "0" * 32:
-        raise ValueError("converted Harbor ATIF contains an invalid all-zero ID")
-    id_set = set(ids)
-    for span in spans:
-        if span["context"]["trace_id"] != trace_id:
-            raise ValueError("converted Harbor ATIF contains more than one trace ID")
-        if span["context"]["span_id"] == root_span_id:
-            continue
-        if span.get("parent_id") not in id_set:
-            raise ValueError("converted Harbor ATIF contains an unresolved parent span")
 
 
 def _trajectory_id(
@@ -585,15 +494,13 @@ def _trial_key(plan: JobPlan, trial_result: TrialResult) -> str:
     return f"{plan.job_id}:{trial_result.id}"
 
 
-def _session_id(trace_id: str, producer_session_id: str) -> str:
-    return f"harbor:{trace_id}:{producer_session_id}"
+def _session_id(trace_id: str) -> str:
+    """One Phoenix session per trial; producer sessions are kept in agent metadata."""
+    return f"harbor:{trace_id}"
 
 
 def _hex_id(seed: str, *, length: int) -> str:
-    value = hashlib.sha256(seed.encode()).hexdigest()[:length]
-    if set(value) == {"0"}:
-        return "1" + value[1:]
-    return value
+    return hashlib.sha256(seed.encode()).hexdigest()[:length]
 
 
 def _display_path(path: Path, trial_root: Path) -> str:

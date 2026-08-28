@@ -239,12 +239,19 @@ def _harbor_command(
     ]
 
 
+def _print_plugin_warnings(harbor_output: str) -> None:
+    """Surface plugin warnings, which Harbor otherwise hides inside a passing run."""
+    for line in harbor_output.splitlines():
+        if "Harbor ATIF" in line or "phoenix.client.harbor" in line:
+            print(f"      {line.strip()}")
+
+
 def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     _check(bool(os.environ.get("OPENAI_API_KEY")), "OPENAI_API_KEY is required")
     jobs_dir = root / "jobs"
     jobs_dir.mkdir()
     client = Client(base_url=endpoint)
-    job_name = "plugin-e2e-atif"
+    job_name = os.environ.get("HARBOR_E2E_JOB_NAME", "plugin-e2e-atif")
     arguments = [
         "-p",
         str(DIRECT_TASK),
@@ -273,12 +280,22 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         trace_mode="atif",
     )
 
-    _run(traced_command, description="Terminus-2 records a run with its ATIF trace")
+    _print_plugin_warnings(
+        _run(traced_command, description="Terminus-2 records a run with its ATIF trace")
+    )
     canonical_roots = sorted((jobs_dir / job_name).rglob("trajectory.json"))
     _check(bool(canonical_roots), "Terminus-2 wrote no canonical trajectory.json")
     for path in canonical_roots:
         payload = json.loads(path.read_text())
         _check(str(payload.get("schema_version", "")).startswith("ATIF-v1."), str(path))
+    trial_dirs = [path for path in (jobs_dir / job_name).iterdir() if path.is_dir()]
+    _check(len(trial_dirs) == 1, repr(trial_dirs))
+    trial_result = json.loads((trial_dirs[0] / "result.json").read_text())
+    attempted_steps = [step["step_name"] for step in trial_result.get("step_results") or []]
+    _check(
+        len(canonical_roots) == max(len(attempted_steps), 1),
+        f"attempted steps {attempted_steps!r} but canonical roots {canonical_roots!r}",
+    )
 
     dataset = _find_dataset(client, "harbor-task/arize/phoenix-regression-triage")
     experiments = _job_experiments(client, dataset["id"], job_name)
@@ -304,19 +321,24 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         all(span.get("parent_id") in span_ids for span in spans if span.get("parent_id")),
         "ATIF trace contains an unresolved parent",
     )
-    agent_roots = [span for span in spans if span["span_kind"] == "AGENT"]
-    _check(len(agent_roots) >= len(canonical_roots), repr(agent_roots))
+    trial_root_id = roots[0]["context"]["span_id"]
+    step_roots = [
+        span
+        for span in spans
+        if span["span_kind"] == "AGENT" and span.get("parent_id") == trial_root_id
+    ]
     _check(
-        all(
-            str(span["attributes"].get("session.id", "")).startswith(f"harbor:{trace_id}:")
-            for span in agent_roots
-        ),
-        "ATIF trace exposed an unnamespaced producer session",
+        len(step_roots) >= len(canonical_roots),
+        f"{len(canonical_roots)} canonical roots but {len(step_roots)} step roots",
+    )
+    _check(
+        all(span["attributes"].get("session.id") == f"harbor:{trace_id}" for span in spans),
+        "ATIF trace does not share one trial session",
     )
     _check(_evaluation_state(endpoint, experiment["id"]) == evaluations_before, "Evals changed")
 
     span_ids_before = span_ids
-    _run(traced_command, description="second ATIF resume is idempotent")
+    _print_plugin_warnings(_run(traced_command, description="second ATIF resume is idempotent"))
     replayed_experiments = _job_experiments(client, dataset["id"], job_name)
     replayed_runs = _runs(client, experiment["id"])
     replayed_spans = client.spans.get_spans(
@@ -688,27 +710,35 @@ def main() -> int:
         _check(bool(wheels), "Phoenix client wheel was not created")
         wheel = wheels[-1].resolve()
 
-        port = _free_port()
-        grpc_port = _free_port()
-        endpoint = f"http://127.0.0.1:{port}"
-        phoenix_dir = root / "phoenix"
-        phoenix_dir.mkdir()
-        log_path = root / "phoenix.log"
-        log_file = log_path.open("w")
-        env = os.environ.copy()
-        env["PHOENIX_WORKING_DIR"] = str(phoenix_dir)
-        env["PHOENIX_PORT"] = str(port)
-        env["PHOENIX_GRPC_PORT"] = str(grpc_port)
-        phoenix_process = subprocess.Popen(
-            ["uv", "run", "phoenix", "serve"],
-            cwd=REPO_ROOT,
-            env=env,
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        _wait_for_phoenix(endpoint, phoenix_process, log_path)
-        print(f"PASS  isolated Phoenix is healthy at {endpoint}")
+        external_endpoint = os.environ.get("HARBOR_E2E_ENDPOINT")
+        if external_endpoint:
+            # Target an already-running Phoenix instead of an isolated one.
+            endpoint = external_endpoint.rstrip("/")
+            with urllib.request.urlopen(f"{endpoint}/healthz", timeout=5) as response:
+                _check(response.status == 200, f"Phoenix at {endpoint} is not healthy")
+            print(f"PASS  external Phoenix is healthy at {endpoint}")
+        else:
+            port = _free_port()
+            grpc_port = _free_port()
+            endpoint = f"http://127.0.0.1:{port}"
+            phoenix_dir = root / "phoenix"
+            phoenix_dir.mkdir()
+            log_path = root / "phoenix.log"
+            log_file = log_path.open("w")
+            env = os.environ.copy()
+            env["PHOENIX_WORKING_DIR"] = str(phoenix_dir)
+            env["PHOENIX_PORT"] = str(port)
+            env["PHOENIX_GRPC_PORT"] = str(grpc_port)
+            phoenix_process = subprocess.Popen(
+                ["uv", "run", "phoenix", "serve"],
+                cwd=REPO_ROOT,
+                env=env,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+            _wait_for_phoenix(endpoint, phoenix_process, log_path)
+            print(f"PASS  isolated Phoenix is healthy at {endpoint}")
 
         if os.environ.get("HARBOR_E2E_ATIF") == "1":
             _run_atif_matrix(root, wheel, endpoint)

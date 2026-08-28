@@ -584,7 +584,7 @@ class TestRecordExperimentRun:
     @pytest.mark.parametrize(
         ("has_verifier_result", "expected_error"),
         [
-            (False, "step build: StepError: failed"),
+            (False, "build: StepError: failed"),
             (True, None),
         ],
         ids=["fatal-step-error", "non-fatal-step-error"],
@@ -743,6 +743,21 @@ class TestConfirmTrace:
 
         assert trace_id == "a" * 32
         assert [item["context"]["span_id"] for item in spans.logged[0]["spans"]] == ["2" * 16]
+
+    async def test_rejected_upload_is_fine_when_spans_already_stored(self) -> None:
+        # A concurrent upload can win the race; Phoenix then rejects our duplicate POST.
+        spans = FakeSpans(
+            query_results=[[], [span("1" * 16), span("2" * 16)]],
+            log_error=RuntimeError("duplicate spans"),
+        )
+
+        trace_id = await recorder(FakeClient(spans=spans)).confirm_trace(
+            experiment=ExperimentHandle("experiment-1", "test", False, "project"),
+            trace=harbor_trace(),
+        )
+
+        assert trace_id == "a" * 32
+        assert len(spans.queries) == 2
 
     async def test_missing_list_project_falls_back_to_detail(self) -> None:
         experiments = FakeExperiments(

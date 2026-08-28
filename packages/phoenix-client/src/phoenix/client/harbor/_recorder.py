@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -20,7 +19,7 @@ from phoenix.client.client import AsyncClient
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import ExperimentSlice, JobPlan, canonical_digest
 from phoenix.client.harbor._naming import experiment_names, validate_experiment_naming
-from phoenix.client.harbor._scores import ExtractedEvaluation
+from phoenix.client.harbor._scores import ExtractedEvaluation, infrastructure_failures
 from phoenix.client.harbor._traces import HarborTrace
 
 logger = logging.getLogger(__name__)
@@ -33,7 +32,6 @@ __all__ = [
 ]
 
 _INTEGRATION = "harbor"
-_TRACE_PERSISTENCE_TIMEOUT_SECONDS = 30.0
 
 RunKey = tuple[str, str, int]
 
@@ -287,7 +285,12 @@ class PhoenixRecorder:
         experiment: ExperimentHandle,
         trace: HarborTrace,
     ) -> str | None:
-        """Upload missing spans and return the trace ID after exact persistence."""
+        """Upload missing spans and return the trace ID once Phoenix accepts them all.
+
+        Spans become queryable shortly after Phoenix queues them. A run recorded
+        without a trace keeps no trace: experiment runs are immutable, so replay
+        cannot attach one later.
+        """
         try:
             project_name = await self._project_name(experiment)
             if project_name is None:
@@ -304,8 +307,7 @@ class PhoenixRecorder:
                 trace_id=trace.trace_id,
                 expected_count=len(expected),
             )
-            unexpected = stored - expected
-            if unexpected:
+            if stored - expected:
                 logger.warning(
                     "Phoenix trace %s in project %r contains unexpected span IDs; "
                     "refusing to attach it to the Harbor run.",
@@ -315,66 +317,40 @@ class PhoenixRecorder:
                 return None
 
             missing = expected - stored
-            if missing:
-                spans = [span for span in trace.spans if span["context"]["span_id"] in missing]
-                try:
-                    result = await self._client.spans.log_spans(
-                        project_identifier=project_name,
-                        spans=spans,
-                    )
-                    received = int(result.get("total_received", -1))
-                    queued = int(result.get("total_queued", -1))
-                    if received != len(spans) or queued != len(spans):
-                        logger.warning(
-                            "Phoenix accepted %d of %d Harbor trace spans for trace %s; "
-                            "leaving the run untraced until replay.",
-                            queued,
-                            len(spans),
-                            trace.trace_id,
-                        )
-                        return None
-                except Exception:
-                    # A prior async request can become visible between preflight and POST.
-                    stored = await self._trace_span_ids(
-                        project_name=project_name,
-                        trace_id=trace.trace_id,
-                        expected_count=len(expected),
-                    )
-                    if stored != expected:
-                        raise
-
-            loop = asyncio.get_running_loop()
-            deadline = loop.time() + _TRACE_PERSISTENCE_TIMEOUT_SECONDS
-            delay = 0.05
-            while True:
+            if not missing:
+                return trace.trace_id
+            spans = [span for span in trace.spans if span["context"]["span_id"] in missing]
+            try:
+                result = await self._client.spans.log_spans(
+                    project_identifier=project_name,
+                    spans=spans,
+                )
+            except Exception:
+                # A concurrent upload can store the same spans between the query and the POST.
                 stored = await self._trace_span_ids(
                     project_name=project_name,
                     trace_id=trace.trace_id,
                     expected_count=len(expected),
                 )
-                if stored == expected:
-                    return trace.trace_id
-                if stored - expected:
-                    logger.warning(
-                        "Phoenix trace %s changed shape while being stored; leaving the Harbor "
-                        "run untraced.",
-                        trace.trace_id,
-                    )
-                    return None
-                remaining = deadline - loop.time()
-                if remaining <= 0:
-                    logger.warning(
-                        "Phoenix did not persist all spans for Harbor trace %s within %.0f "
-                        "seconds; completed-job replay will retry.",
-                        trace.trace_id,
-                        _TRACE_PERSISTENCE_TIMEOUT_SECONDS,
-                    )
-                    return None
-                await asyncio.sleep(min(delay, remaining))
-                delay = min(delay * 2, 2.0)
+                if stored != expected:
+                    raise
+                return trace.trace_id
+            received = int(result.get("total_received", -1))
+            queued = int(result.get("total_queued", -1))
+            if received != len(spans) or queued != len(spans):
+                logger.warning(
+                    "Phoenix accepted %d of %d Harbor trace spans for trace %s; recording the "
+                    "run without a trace.",
+                    queued,
+                    len(spans),
+                    trace.trace_id,
+                )
+                return None
+            return trace.trace_id
         except Exception as error:
             logger.warning(
-                "Could not store Harbor trace %s for Phoenix experiment %r: %s",
+                "Could not store Harbor trace %s for Phoenix experiment %r; recording the run "
+                "without a trace: %s",
                 trace.trace_id,
                 experiment.name,
                 error,
@@ -588,14 +564,4 @@ def trial_output(trial_result: TrialResult) -> dict[str, Any]:
 
 
 def _trial_error(trial_result: TrialResult) -> str | None:
-    errors: list[str] = []
-    if error := trial_result.exception_info:
-        errors.append(f"{error.exception_type}: {error.exception_message}")
-    for step_result in trial_result.step_results or ():
-        if (
-            error := step_result.exception_info
-        ) is not None and step_result.verifier_result is None:
-            errors.append(
-                f"step {step_result.step_name}: {error.exception_type}: {error.exception_message}"
-            )
-    return "; ".join(errors) or None
+    return "; ".join(infrastructure_failures(trial_result)) or None

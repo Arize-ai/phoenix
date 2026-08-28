@@ -175,11 +175,18 @@ def _evaluation_times(
 
 
 def infrastructure_failures(trial_result: _TrialResult) -> list[str]:
+    """Return the Harbor failures that prevented a verdict.
+
+    A step exception that still reached the verifier (an agent timeout, for
+    example) is a task outcome the verifier scored, not an infrastructure
+    failure. This is the single source for ``infra_ok``, the experiment run's
+    error, and the trace root's status.
+    """
     failures: list[str] = []
     if trial_result.exception_info is not None:
         failures.append(_format_exception("trial", trial_result.exception_info))
     for step_result in trial_result.step_results or ():
-        if step_result.exception_info is not None:
+        if step_result.exception_info is not None and step_result.verifier_result is None:
             failures.append(
                 _format_exception(str(step_result.step_name), step_result.exception_info)
             )
