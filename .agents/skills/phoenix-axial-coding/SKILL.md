@@ -1,12 +1,24 @@
+---
+name: phoenix-axial-coding
+description: Group open-coding notes on Phoenix traces, spans, or sessions into a MECE failure taxonomy with counts, then pick eval targets and fix priorities. Use whenever the user has observations and needs categories — "what categories of failures do we have", "what should I build evals for", "how do I prioritize fixes", "group these notes". Follows phoenix-open-coding.
+summary: Group open-coding notes into a MECE failure taxonomy with counts, then pick eval targets and fix priorities.
+license: Apache-2.0
+metadata:
+  author: arize-ai
+  version: "1.0.0"
+---
+
 # Axial Coding
 
-Group open-ended observations into structured failure taxonomies. Axial coding turns notes, trace observations, or open-coding output into named categories with counts, supporting downstream work like eval design and fix prioritization. It works well after [open coding](open-coding.md), but can start from any set of open-ended observations.
+Group open-ended observations into structured failure taxonomies. Axial coding turns notes, trace observations, or open-coding output into named categories with counts, supporting downstream work like eval design and fix prioritization. It works well after [open coding](../phoenix-open-coding/SKILL.md), but can start from any set of open-ended observations.
 
 **Reach for this whenever** the user has observations and needs structure — e.g., "what categories of failures do we have", "what should I build evals for", "how do I prioritize fixes", "group these notes", "MECE breakdown", or any framing that asks for categories or counts grounded in real traces rather than invented top-down.
 
+> **Tooling.** The commands below use the [`px` CLI](../phoenix-cli/SKILL.md). When working through the Phoenix MCP server instead — for example from an agent connected to `/mcp` — use its equivalent tools to list traces, spans, or sessions, add notes, and write annotations. The method is the same; only the calls differ.
+
 ## Coding annotation identifier (reuse the open-coding value)
 
-Reuse the **coding annotation identifier** chosen in open coding — every `annotate` call below passes `--identifier "$CODING_ANNOTATION_IDENTIFIER"` explicitly. In a fresh shell or fresh agent invocation, set `CODING_ANNOTATION_IDENTIFIER` to the same value (recoverable from the wrap-up UI URL or by listing `.px/coding/*.jsonl`); don't mint a new id. See [open-coding.md#coding-annotation-identifier-pick-this-first](open-coding.md#coding-annotation-identifier-pick-this-first) for the rationale and the sanitization rule.
+Reuse the **coding annotation identifier** chosen in open coding — every `annotate` call below passes `--identifier "$CODING_ANNOTATION_IDENTIFIER"` explicitly. In a fresh shell or fresh agent invocation, set `CODING_ANNOTATION_IDENTIFIER` to the same value (recoverable from the wrap-up UI URL or by listing `.px/coding/*.jsonl`); don't mint a new id. See [phoenix-open-coding#coding-annotation-identifier-pick-this-first](../phoenix-open-coding/SKILL.md#coding-annotation-identifier-pick-this-first) for the rationale and the sanitization rule.
 
 > **Workflow term vs. server annotation name.** The skill calls this value the **coding annotation identifier**; the server annotation NAME used for the UI filter stays `coding_session_id` for data compatibility. Don't try to rename the server-side key.
 
@@ -19,7 +31,7 @@ AXIAL_SIDECAR=".px/coding/${SLUG}-axial.jsonl"
 
 ## Choosing the unit
 
-Open coding's diagnostic in [open-coding.md#choosing-the-unit-of-analysis](open-coding.md#choosing-the-unit-of-analysis) commits to a unit (trace, span, or session). Axial coding inherits that unit by default — if open coding ran at the session level, axial labels will too; same for trace and span.
+Open coding's diagnostic in [phoenix-open-coding#choosing-the-unit-of-analysis](../phoenix-open-coding/SKILL.md#choosing-the-unit-of-analysis) commits to a unit (trace, span, or session). Axial coding inherits that unit by default — if open coding ran at the session level, axial labels will too; same for trace and span.
 
 **An axial label can live at a different level than the note that informed it** — that's a feature, and it works in every direction:
 
@@ -125,7 +137,7 @@ Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-ki
 
 ### UI-filter annotation
 
-Write a `coding_session_id` annotation at the same level as the axial label — see [open-coding.md#ui-filter-annotation](open-coding.md#ui-filter-annotation) for why the Phoenix UI filter requires a name-based annotation rather than the bare `--identifier`. If open coding already wrote `coding_session_id` on the same entity, this call upserts (idempotent). The annotation NAME `coding_session_id` is unchanged; only the workflow's spoken term is "coding annotation identifier".
+Write a `coding_session_id` annotation at the same level as the axial label — see [phoenix-open-coding#ui-filter-annotation](../phoenix-open-coding/SKILL.md#ui-filter-annotation) for why the Phoenix UI filter requires a name-based annotation rather than the bare `--identifier`. If open coding already wrote `coding_session_id` on the same entity, this call upserts (idempotent). The annotation NAME `coding_session_id` is unchanged; only the workflow's spoken term is "coding annotation identifier".
 
 ```bash
 # Same level as the axial label above
@@ -138,13 +150,13 @@ px trace annotate <trace-id> \
 
 ### Recording discipline
 
-Axial coding categorizes the entities you took notes on during open coding. Use `$NOTES_SIDECAR` as the source of candidate entities and write labels only after reading the note text and surrounding trace/span/session context. Do **not** filter by `--status-code ERROR` — that captures only spans where Python raised, which excludes most failure modes (hallucination, wrong tone, retrieval miss). See [open-coding.md](open-coding.md#inspection) for the full reasoning.
+Axial coding categorizes the entities you took notes on during open coding. Use `$NOTES_SIDECAR` as the source of candidate entities and write labels only after reading the note text and surrounding trace/span/session context. Do **not** filter by `--status-code ERROR` — that captures only spans where Python raised, which excludes most failure modes (hallucination, wrong tone, retrieval miss). See [phoenix-open-coding](../phoenix-open-coding/SKILL.md#inspection) for the full reasoning.
 
 **Fallback paths:** REST `POST /v1/{trace,span,session}_annotations` and `@arizeai/phoenix-client`'s `addSpanAnnotation` / `addSessionAnnotation` (no `addTraceAnnotation` is exported today — use REST or `px trace annotate`). The GraphQL endpoint rejects mutations.
 
 ## Wrapping up
 
-After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's **spans** table filtered by the `coding_session_id` annotation. The search param is `spanFilterCondition`, which only applies on the `/spans` tab — the traces tab compiles a trace filter it keeps in component state, so the same link at `/traces` renders unfiltered behind a "Traces now use trace-level filters" notice. The spans tab compiles a **span** filter, so the accessor must match the level the annotation was written at: `trace_annotations['coding_session_id']` for a trace-level run, `annotations['coding_session_id']` for a span-level run. Both mistakes fail silently (see [open-coding.md](open-coding.md#wrapping-up)). The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
+After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's **spans** table filtered by the `coding_session_id` annotation. The search param is `spanFilterCondition`, which only applies on the `/spans` tab — the traces tab compiles a trace filter it keeps in component state, so the same link at `/traces` renders unfiltered behind a "Traces now use trace-level filters" notice. The spans tab compiles a **span** filter, so the accessor must match the level the annotation was written at: `trace_annotations['coding_session_id']` for a trace-level run, `annotations['coding_session_id']` for a span-level run. Both mistakes fail silently (see [phoenix-open-coding](../phoenix-open-coding/SKILL.md#wrapping-up)). The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
 
 ```bash
 project_id=$(px project get "$PHOENIX_PROJECT" --format raw --no-progress | jq -r '.id')

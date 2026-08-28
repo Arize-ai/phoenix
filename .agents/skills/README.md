@@ -7,6 +7,8 @@ This directory contains [skills](https://docs.anthropic.com/en/docs/claude-code/
 | Skill | Description |
 | ----- | ----------- |
 | [phoenix-cli](phoenix-cli/) | Debug LLM applications using the Phoenix CLI. Fetch traces, annotate spans and traces, analyze errors, inspect datasets, and query the GraphQL API. |
+| [phoenix-open-coding](phoenix-open-coding/) | Write specific, free-form notes on sampled traces, spans, or sessions before any failure taxonomy exists. |
+| [phoenix-axial-coding](phoenix-axial-coding/) | Group open-coding notes into a MECE failure taxonomy with counts, then pick eval targets and fix priorities. |
 | [phoenix-evals](phoenix-evals/) | Build and run evaluators for AI/LLM applications using Phoenix. Code first, LLM for nuance, validate against humans. |
 | [phoenix-tracing](phoenix-tracing/) | OpenInference semantic conventions and instrumentation for tracing LLM applications with Phoenix. Covers setup, span types, and production deployment. |
 
