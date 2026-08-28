@@ -4,8 +4,6 @@ packages:
   - examples/apps/*
   - benchmarks/*
 
-managePackageManagerVersions: true
-
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
   - "@arizeai/*"
