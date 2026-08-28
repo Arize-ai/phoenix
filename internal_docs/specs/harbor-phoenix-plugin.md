@@ -72,7 +72,7 @@ pure ATIF conversion and reparenting helpers.
 | Job × agent × model           | Experiment                  | One experiment for each agent and model                           |
 | Logical trial                 | Experiment run              | One run for each planned task attempt                             |
 | Planned attempt               | Repetition                  | Deterministic repetition number                                   |
-| Trial exception               | Run error                   | Kept separate from behavioral failure                             |
+| Trial or step exception       | Run error                   | Kept separate from verifier rewards                               |
 | Trial `reward`                | Dense evaluation            | Stored on behaviorally completed runs                             |
 | Infrastructure status         | Dense `infra_ok` evaluation | Stored on every attempted run                                     |
 | Step reward                   | Sparse evaluation           | Named `<step_name>.<reward_key>`                                  |
@@ -220,7 +220,7 @@ The package-internal pure conversion helpers:
 The conversion layer does not use a client. Harbor-specific discovery, normalization, deterministic
 identity, and upload-repair behavior stay private to the plugin.
 
-The plugin creates one deterministic trial-level CHAIN root named `harbor.trial`. It converts saved trajectories under that root and sends all spans to the experiment's Phoenix project. Harbor-specific identity and replay logic stay in the plugin. The root's status is `ERROR` only for the same infrastructure failures that set the experiment run's error and drive `infra_ok`; a step exception that still reached the verifier, such as an agent timeout, is a scored task outcome, not an error.
+The plugin creates one deterministic trial-level CHAIN root named `harbor.trial`. It converts saved trajectories under that root and sends all spans to the experiment's Phoenix project. Harbor-specific identity and replay logic stay in the plugin. The root's status is `ERROR` for the same failures that set the experiment run's error and drive `infra_ok`. Any top-level or step exception is a failure, even when Harbor also records verifier rewards for that step or trial.
 
 For each in-memory trajectory, the plugin:
 
@@ -317,16 +317,17 @@ Harbor can use a different verifier for every task, so not every score is meanin
 
 A run is **behaviorally completed** when Harbor produced a verifier result. The plugin records each reward under its exact Harbor key. Only a verifier result with a literal `reward` key produces a Phoenix evaluation named `reward`.
 
-| Harbor terminal state | Top-level exception | Step exceptions | Behaviorally completed | `reward` | `infra_ok` |
-| --- | --- | --- | --- | --- | --- |
-| Success | none | none | Yes | Harbor's aggregate | 1 |
-| Behavioral zero | none | none | Yes | `0` | 1 |
-| Single-step agent or verifier failure | present | n/a | No | not written | 0 |
-| Multi-step failure recorded on a step | usually none | present | Yes, if a final verifier result exists | Harbor's aggregate | 0 |
-| Fatal multi-step failure with no verifier result | none or present | present | No | not written | 0 |
-| Cancellation | `CancelledError` | partial | No | not written | 0 |
+| Harbor terminal state | Top-level exception | Step exceptions | Behaviorally completed | Run error | `reward` | `infra_ok` |
+| --- | --- | --- | --- | --- | --- | --- |
+| Success | none | none | Yes | no | Harbor's aggregate | 1 |
+| Behavioral zero | none | none | Yes | no | `0` | 1 |
+| Single-step agent or verifier failure | present | n/a | No | yes | not written | 0 |
+| Scored multi-step exception | usually none | present | Yes, if a final verifier result exists | yes | Harbor's aggregate | 0 |
+| Multi-step exception with no verifier result | none or present | present | No | yes | not written | 0 |
+| Cancellation | `CancelledError` | partial | No | yes | not written | 0 |
 
-Infrastructure status and behavioral completion are independent. A run can be behaviorally completed and still have `infra_ok = 0`.
+Exception status and behavioral completion are independent. A run can retain verifier rewards
+while also carrying a run error, `infra_ok = 0`, and an `ERROR` trace root.
 
 `reward` is present only when Harbor emits that key. The plugin does not promote a sole differently named value or infer an aggregate from other keys. Consumers must check `reward` coverage before computing cross-task summaries.
 
@@ -340,7 +341,7 @@ Infrastructure status and behavioral completion are independent. A run can be be
 Rules:
 
 - Read scores from `step_results` as well as the final verifier result.
-- Check the top-level result and every step result for infrastructure errors. Any exception sets `infra_ok = 0`. A reward of zero without an exception keeps `infra_ok = 1`.
+- Check the top-level result and every step result for exceptions. Any exception sets the run error and `infra_ok = 0`. A reward of zero without an exception keeps `infra_ok = 1`.
 - Store every final-verifier reward as `<reward_key>` and every step reward as `<step_name>.<reward_key>`. Do not infer `reward` from another key, even when the verifier emits only one value.
 - Add `multi_step_reward_strategy` to each trial-level reward evaluation for a multi-step task. Resolve Harbor's omitted default to `mean`; preserve an explicit `final`. Do not add this metadata to step-level scores, `infra_ok`, or single-step rewards.
 - Reject empty or duplicate step names before writing and detect any remaining generated-name collision during extraction.
@@ -408,7 +409,7 @@ Selecting the Phoenix plugin makes successful Phoenix recording a requirement. T
 - At `on_job_start`, validate dataset identity, Harbor compatibility, trace requirements, the Phoenix connection, and initial writes. Raise a clear error to stop the job before trial compute.
 - The plugin configures HTTPX's built-in retries for `ConnectError` and `ConnectTimeout` while establishing a connection. It does not retry HTTP responses or other transport errors itself. Any run or evaluation write that still fails raises and stops the job, except for the handled run-conflict recovery path. Completed Phoenix records remain available and Harbor persists terminal trial results for resume.
 - Keep one terminal-failure flag. After it is set, make later trial-end callbacks no-ops while Harbor cancels sibling trials.
-- Record a top-level exception or a fatal step exception as a run error and `infra_ok = 0`; do not rewrite it as `reward = 0`. A step exception is fatal when Harbor reports no verifier result for that step. Other step exceptions affect `infra_ok` but not the native run error.
+- Record every top-level and step exception in the run error and set `infra_ok = 0`. Keep any verifier rewards Harbor produced alongside the exception, and do not rewrite the exception as `reward = 0`. Use the same collected exception list for the trace root's `ERROR` status and status message.
 - Do not ingest an attempt that Harbor will retry. Until Harbor exposes a terminal-attempt event, count START events by logical trial name and apply Harbor's retry rules.
 
 The adapter checks capabilities at runtime. Set a minimum Harbor version but no upper bound. Test the minimum version, latest stable release, and Harbor `main`. Add a temporary upper bound only for a known released incompatibility.

@@ -246,6 +246,24 @@ def _print_plugin_warnings(harbor_output: str) -> None:
             print(f"      {line.strip()}")
 
 
+def _expected_atif_source_paths(
+    trial_dir: Path, trial_result: Mapping[str, Any]
+) -> tuple[str, ...]:
+    """Mirror the plugin's selection of canonical trial trajectories."""
+    step_names = [str(step["step_name"]) for step in trial_result.get("step_results") or []]
+    if not step_names:
+        paths = [trial_dir / "agent" / "trajectory.json"]
+        if (trial_result.get("config") or {}).get("user_agent") is not None:
+            paths.append(trial_dir / "user-agent" / "trajectory.json")
+        return tuple(path.relative_to(trial_dir).as_posix() for path in paths if path.is_file())
+
+    paths = [trial_dir / "steps" / name / "agent" / "trajectory.json" for name in step_names]
+    agent_config = (trial_result.get("config") or {}).get("agent") or {}
+    if agent_config.get("resume_trajectory"):
+        paths = [next((path for path in reversed(paths) if path.is_file()), paths[-1])]
+    return tuple(path.relative_to(trial_dir).as_posix() for path in paths if path.is_file())
+
+
 def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     _check(bool(os.environ.get("OPENAI_API_KEY")), "OPENAI_API_KEY is required")
     jobs_dir = root / "jobs"
@@ -283,19 +301,18 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     _print_plugin_warnings(
         _run(traced_command, description="Terminus-2 records a run with its ATIF trace")
     )
-    canonical_roots = sorted((jobs_dir / job_name).rglob("trajectory.json"))
-    _check(bool(canonical_roots), "Terminus-2 wrote no canonical trajectory.json")
-    for path in canonical_roots:
-        payload = json.loads(path.read_text())
-        _check(str(payload.get("schema_version", "")).startswith("ATIF-v1."), str(path))
     trial_dirs = [path for path in (jobs_dir / job_name).iterdir() if path.is_dir()]
     _check(len(trial_dirs) == 1, repr(trial_dirs))
-    trial_result = json.loads((trial_dirs[0] / "result.json").read_text())
-    attempted_steps = [step["step_name"] for step in trial_result.get("step_results") or []]
-    _check(
-        len(canonical_roots) == max(len(attempted_steps), 1),
-        f"attempted steps {attempted_steps!r} but canonical roots {canonical_roots!r}",
-    )
+    trial_dir = trial_dirs[0]
+    trial_result = json.loads((trial_dir / "result.json").read_text())
+    expected_source_paths = _expected_atif_source_paths(trial_dir, trial_result)
+    _check(bool(expected_source_paths), "Terminus-2 wrote no importable trajectory.json")
+    for relative_path in expected_source_paths:
+        payload = json.loads((trial_dir / relative_path).read_text())
+        _check(
+            str(payload.get("schema_version", "")).startswith("ATIF-v1."),
+            relative_path,
+        )
 
     dataset = _find_dataset(client, "harbor-task/arize/phoenix-regression-triage")
     experiments = _job_experiments(client, dataset["id"], job_name)
@@ -316,6 +333,17 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     _check(bool(spans), "ATIF trace has no spans")
     roots = [span for span in spans if span.get("parent_id") is None]
     _check(len(roots) == 1 and roots[0]["name"] == "harbor.trial", repr(roots))
+    _check(roots[0]["span_kind"] == "CHAIN", repr(roots[0]))
+    root_metadata = roots[0]["attributes"].get("metadata") or {}
+    recorded_source_paths = tuple(root_metadata.get("atif_source_paths") or ())
+    _check(
+        set(expected_source_paths) <= set(recorded_source_paths),
+        f"expected ATIF roots {expected_source_paths!r}, got {root_metadata!r}",
+    )
+    _check(
+        all((trial_dir / path).is_file() for path in recorded_source_paths),
+        f"trace lists an ATIF source that is not a trial file: {recorded_source_paths!r}",
+    )
     span_ids = {span["context"]["span_id"] for span in spans}
     _check(
         all(span.get("parent_id") in span_ids for span in spans if span.get("parent_id")),
@@ -328,8 +356,8 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         if span["span_kind"] == "AGENT" and span.get("parent_id") == trial_root_id
     ]
     _check(
-        len(step_roots) >= len(canonical_roots),
-        f"{len(canonical_roots)} canonical roots but {len(step_roots)} step roots",
+        len(step_roots) >= len(expected_source_paths),
+        f"expected an AGENT root per canonical source, got {step_roots!r}",
     )
     _check(
         all(span["attributes"].get("session.id") == f"harbor:{trace_id}" for span in spans),
@@ -712,7 +740,6 @@ def main() -> int:
 
         external_endpoint = os.environ.get("HARBOR_E2E_ENDPOINT")
         if external_endpoint:
-            # Target an already-running Phoenix instead of an isolated one.
             endpoint = external_endpoint.rstrip("/")
             with urllib.request.urlopen(f"{endpoint}/healthz", timeout=5) as response:
                 _check(response.status == 200, f"Phoenix at {endpoint} is not healthy")

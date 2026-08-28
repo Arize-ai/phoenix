@@ -9,6 +9,7 @@ import asyncio
 import contextlib
 import logging
 from collections.abc import AsyncGenerator
+from typing import get_args
 
 import httpx
 from harbor.job import Job
@@ -45,6 +46,8 @@ from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
 logger = logging.getLogger(__name__)
 
+_TRACE_MODES = get_args(TraceMode)
+
 
 class PhoenixJobPlugin(BaseJobPlugin):
     """Record a Harbor job as a Phoenix dataset and experiments."""
@@ -75,8 +78,9 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 ``EXPERIMENT_NAME_TEMPLATE_FIELDS``.
         """
         super().__init__()
-        if trace_mode not in ("none", "atif"):
-            raise ValueError(f"Unsupported trace_mode {trace_mode!r}. Use 'none' or 'atif'.")
+        if trace_mode not in _TRACE_MODES:
+            supported = ", ".join(repr(mode) for mode in _TRACE_MODES)
+            raise ValueError(f"Unsupported trace_mode {trace_mode!r}. Use one of {supported}.")
 
         self.dataset = dataset
         self.trace_mode = trace_mode
@@ -219,8 +223,6 @@ class PhoenixJobPlugin(BaseJobPlugin):
             trace_id: str | None = None
             if self.trace_mode == "atif" and reusable_experiment_run is None:
                 try:
-                    # Reading and converting trajectories is CPU-bound file work; keep it
-                    # off Harbor's event loop.
                     trace = await asyncio.to_thread(
                         build_harbor_trace,
                         plan=plan,

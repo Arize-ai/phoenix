@@ -741,7 +741,6 @@ class TestConfirmTrace:
         assert [item["context"]["span_id"] for item in spans.logged[0]["spans"]] == ["2" * 16]
 
     async def test_rejected_upload_is_fine_when_spans_already_stored(self) -> None:
-        # A concurrent upload can win the race; Phoenix then rejects our duplicate POST.
         spans = FakeSpans(
             query_results=[[], [span("1" * 16), span("2" * 16)]],
             log_error=RuntimeError("duplicate spans"),

@@ -1,5 +1,4 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
-# Harbor cannot be installed on the client's Python 3.10 and 3.11 CI jobs.
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 # pyright: reportPrivateUsage=false
@@ -160,14 +159,12 @@ def _root_locations(trial_result: TrialResult) -> tuple[_RootLocation, ...]:
     step_results = trial_result.step_results
     if not step_results:
         locations = [_RootLocation(paths.agent_dir, "agent", None)]
-        # Simulated-user trials and their user-agent directory arrived in Harbor 0.22.
         if getattr(config, "user_agent", None) is not None and hasattr(paths, "user_agent_dir"):
             locations.append(_RootLocation(paths.user_agent_dir, "user-agent", None))
         return tuple(locations)
 
     step_names = [str(step_result.step_name) for step_result in step_results]
     if config.agent.resume_trajectory:
-        # Native resume carries the session forward, so the last snapshot on disk is cumulative.
         step_names = [
             next(
                 (

@@ -219,7 +219,7 @@ class TestConfiguration:
 
     @pytest.mark.parametrize("trace_mode", ["otlp", "otel", ""])
     def test_unsupported_trace_mode_is_rejected_at_construction(self, trace_mode: str) -> None:
-        with pytest.raises(ValueError, match="Use 'none' or 'atif'"):
+        with pytest.raises(ValueError, match="Use one of 'none', 'atif'"):
             PhoenixJobPlugin(trace_mode=cast(Any, trace_mode))
 
     def test_explicit_endpoint_overrides_the_environment(

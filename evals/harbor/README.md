@@ -45,6 +45,32 @@ A single direct task uses `harbor-task/<declared task name>` as its Phoenix data
 For several direct tasks, pass `--plugin-kwarg dataset=<name>` to name the synthetic
 dataset explicitly.
 
+## ATIF tracing
+
+The plugin uses `trace_mode=atif` by default. At the end of each trial, it reads Harbor's
+persisted `trajectory.json` files and converts them into one Phoenix trace:
+
+```text
+harbor.trial (CHAIN)
+  trajectory (AGENT)
+    LLM and TOOL spans
+```
+
+Every span uses one trial-scoped session ID. The top-level `harbor.trial` span records the Harbor
+job, trial, task, repetition, and imported file paths. Phoenix links the experiment run to this
+trace after it accepts every span for upload.
+
+For a multi-step trial without native trajectory resume, the trace has one direct `AGENT` child
+for each attempted step that wrote a canonical trajectory. With `agent.resume_trajectory=true`,
+the last available step trajectory is the cumulative snapshot, so the plugin imports only that
+file. Referenced continuations and subagent trajectories remain nested below their owning agent.
+
+Tracing is best effort. A missing or invalid trajectory, an unresolved reference, or an upload
+failure produces a warning but does not discard the experiment run or its evaluations. Phoenix
+experiment runs are immutable, so resuming a completed run does not add a trace that was missing
+when the run was first recorded. Use a new Harbor job name to record it again. To disable trace
+loading, pass `--plugin-kwarg trace_mode=none`.
+
 ## Experiment names
 
 When a Harbor job has one agent configuration, give its Phoenix experiment an exact name with:
@@ -107,10 +133,12 @@ Run the explicit Terminus-2 ATIF test with `OPENAI_API_KEY` already set in the e
 make harbor-plugin-e2e-atif
 ```
 
-The target runs Terminus-2 with ATIF tracing enabled, then resumes it to check idempotency. It
-uses the same `HARBOR_VERSION` as the credential-free matrix and defaults to `openai/gpt-5-mini`;
-override the model with `HARBOR_ATIF_MODEL`. Like the credential-free matrix, it uses a disposable
-Phoenix working directory and does not touch the shared `~/.phoenix/phoenix.db`.
+The target runs Terminus-2 with ATIF tracing enabled. It checks the trial-level `CHAIN` root,
+selected trajectory sources, parent links, shared session ID, experiment-run link, and resume
+idempotency. It uses the same `HARBOR_VERSION` as the credential-free matrix and defaults to
+`openai/gpt-5-mini`; override the model with `HARBOR_ATIF_MODEL`. Like the credential-free matrix,
+it uses a disposable Phoenix working directory and does not touch the shared
+`~/.phoenix/phoenix.db`.
 
 Both targets accept `HARBOR_E2E_ENDPOINT=http://127.0.0.1:6006` to run against an already-running
 Phoenix instead of starting an isolated one, and `HARBOR_E2E_JOB_NAME` to pick a job name that does

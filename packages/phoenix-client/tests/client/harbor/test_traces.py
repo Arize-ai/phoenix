@@ -106,7 +106,6 @@ def context(
             user_agent=object(),
         )
     elif legacy_config:
-        # Harbor 0.21 has no ``user_agent`` field on TrialConfig.
         config = SimpleNamespace(trials_dir=trial_config.trials_dir, agent=trial_config.agent)
     result = cast(
         TrialResult,

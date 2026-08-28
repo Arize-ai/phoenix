@@ -326,7 +326,6 @@ class PhoenixRecorder:
                     spans=spans,
                 )
             except Exception:
-                # A concurrent upload can store the same spans between the query and the POST.
                 stored = await self._trace_span_ids(
                     project_name=project_name,
                     trace_id=trace.trace_id,
