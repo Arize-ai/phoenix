@@ -166,10 +166,11 @@ library unless their dependency is declared in every importing script.
 Each JSONL line in `traces.jsonl` is one protobuf-JSON `ExportTraceServiceRequest`. A single trace
 may span multiple rows.
 
-Tests for the recorders and the packaging pipeline live in `tests/` next to this file and run with
-`uv run pytest scripts/datagen/tests`. They are separate from the Phoenix unit test suite: CI runs
-them in the Datagen Tooling Tests job when files under `scripts/datagen/` or `src/phoenix/datagen/`
-change.
+Tests for the packaging pipeline (conditions, packer, fetcher roundtrip) live in `tests/` next to
+this file and run with `uv run pytest scripts/datagen/tests`. They are separate from the Phoenix
+unit test suite: CI runs them in the Datagen Tooling Tests job when files under `scripts/datagen/`
+or `src/phoenix/datagen/` change. Recorder behavior has no unit tests; verify recorders by
+generating a corpus.
 
 ## Package a corpus
 
