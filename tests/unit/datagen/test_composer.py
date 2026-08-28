@@ -9,8 +9,8 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
-from phoenix.datagen import Corpus, load_corpus
-from phoenix.datagen.composer import SessionComposer
+from phoenix.experimental.datagen import Corpus, load_corpus
+from phoenix.experimental.datagen.composer import SessionComposer
 
 
 def test_composer_samples_whole_fragments_from_one_application(tmp_path: Path) -> None:

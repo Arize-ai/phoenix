@@ -11,8 +11,8 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 
-from phoenix.datagen.loader import Corpus
-from phoenix.datagen.schema import Archetype, Fragment
+from phoenix.experimental.datagen.loader import Corpus
+from phoenix.experimental.datagen.schema import Archetype, Fragment
 
 
 class _SessionLengthProfile(NamedTuple):

@@ -14,8 +14,8 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
-from phoenix.datagen.composer import SessionComposer
-from phoenix.datagen.loader import Corpus
+from phoenix.experimental.datagen.composer import SessionComposer
+from phoenix.experimental.datagen.loader import Corpus
 
 _SESSION_ID = "session.id"
 _PROMPT_TOKENS = "llm.token_count.prompt"

@@ -14,7 +14,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, Span
 
-from phoenix.datagen.schema import Fragment, SchemaValidationError, validate_fragment
+from phoenix.experimental.datagen.schema import Fragment, SchemaValidationError, validate_fragment
 
 _ARCHIVE_MEMBERS = ("fragments.jsonl", "traces.jsonl")
 
@@ -48,7 +48,7 @@ def load_corpus(source: str | Path | None = None) -> Corpus:
 
 
 def _resolve_default_corpus() -> Path:
-    from phoenix.datagen.fetcher import CorpusFetchError, fetch_corpus
+    from phoenix.experimental.datagen.fetcher import CorpusFetchError, fetch_corpus
 
     try:
         return fetch_corpus()
