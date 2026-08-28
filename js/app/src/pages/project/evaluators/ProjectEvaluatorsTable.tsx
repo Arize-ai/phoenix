@@ -321,7 +321,7 @@ export function ProjectEvaluatorsTable({
       {
         id: "averageCost",
         header: "avg cost / run",
-        size: 185,
+        size: 200,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
           <EvaluatorAverageCost
