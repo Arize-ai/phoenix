@@ -18,7 +18,7 @@ from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Seq
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, with_polymorphic
+from sqlalchemy.orm import joinedload, selectinload, with_polymorphic
 from strawberry.relay import GlobalID
 
 from phoenix.config import (
@@ -41,17 +41,18 @@ from phoenix.server.api.evaluators import (
     LLMEvaluator,
     get_builtin_evaluator_by_key,
 )
+from phoenix.server.api.helpers.dataset_helpers import (
+    get_dataset_example_input,
+    get_dataset_example_metadata,
+    get_dataset_example_output,
+)
 from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.dml_event import (
     DmlEvent,
     ProjectSessionAnnotationInsertEvent,
     SpanAnnotationInsertEvent,
 )
-from phoenix.server.online_eval.bound_variables import (
-    SPAN_BOUND_VARIABLE_NAMES,
-    load_session_bound_variables,
-    session_duration_ms,
-)
+from phoenix.server.online_eval.bound_variables import load_session_bound_variables
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit, EvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
     STALE_FINGERPRINT_ERROR,
@@ -186,35 +187,24 @@ class SessionEvalContext:
     applied_policy: dict[str, Any]
 
 
-def span_eval_context(span: models.Span, *, trace_id: str) -> dict[str, Any]:
-    """Span context: the span's own input and output, and everything else under
-    ``metadata`` — the filter language's scalar names beside the span record."""
-    entity = {
-        "span_id": span.span_id,
-        "trace_id": trace_id,
-        "parent_id": span.parent_id,
-        "name": span.name,
-        "span_kind": span.span_kind,
-        "status_code": span.status_code,
-        "status_message": span.status_message,
-        "latency_ms": span.latency_ms,
-        "start_time": span.start_time.isoformat(),
-        "end_time": span.end_time.isoformat(),
-        "cumulative_llm_token_count_prompt": span.cumulative_llm_token_count_prompt,
-        "cumulative_llm_token_count_completion": span.cumulative_llm_token_count_completion,
-        "cumulative_llm_token_count_total": span.cumulative_llm_token_count_total,
-        "input_value": span.input_value,
-        "output_value": span.output_value,
-        "attributes": span.attributes,
-        "events": span.events,
-    }
+def _plain_io_value(extracted: dict[str, Any], kind: Literal["input", "output"]) -> Any:
+    if set(extracted) == {kind}:
+        return extracted[kind]
+    return extracted or None
+
+
+def span_eval_context(
+    span: models.Span,
+    *,
+    trace_id: str,
+    annotations: Sequence[models.SpanAnnotation],
+) -> dict[str, Any]:
+    """Span context, sharing the span→dataset-example conversion so an
+    evaluator sees the same values on a span and on the example made from it."""
     return {
-        "input": span.input_value,
-        "output": span.output_value,
-        "metadata": {
-            **{name: entity[name] for name in sorted(SPAN_BOUND_VARIABLE_NAMES)},
-            "span": entity,
-        },
+        "input": _plain_io_value(get_dataset_example_input(span), "input"),
+        "output": _plain_io_value(get_dataset_example_output(span), "output"),
+        "metadata": get_dataset_example_metadata(span, trace_id=trace_id, annotations=annotations),
     }
 
 
@@ -238,16 +228,6 @@ def session_eval_context(
     total_root_count = (
         len(turns) if total_eligible_root_count is None else total_eligible_root_count
     )
-    entity = {
-        "session_id": project_session.session_id,
-        "start_time": project_session.start_time.isoformat(),
-        "end_time": project_session.end_time.isoformat(),
-        "duration_ms": session_duration_ms(
-            project_session.start_time,
-            project_session.end_time,
-        ),
-        "turns": list(turns),
-    }
     applied_policy = {
         "version": policy.version,
         "ordering": "trace_start_time_then_trace_id_with_earliest_root_span",
@@ -262,7 +242,12 @@ def session_eval_context(
         context={
             "input": vocabulary["first_input"],
             "output": vocabulary["last_output"],
-            "metadata": {**vocabulary, "session": entity},
+            "metadata": {
+                **vocabulary,
+                "start_time": project_session.start_time.isoformat(),
+                "end_time": project_session.end_time.isoformat(),
+                "turns": list(turns),
+            },
         },
         applied_policy=applied_policy,
     )
@@ -709,11 +694,23 @@ class OnlineEvalExecutor:
             span = await session.get(
                 models.Span,
                 unit.target_rowid,
-                options=[joinedload(models.Span.trace)],
+                options=[
+                    joinedload(models.Span.trace),
+                    selectinload(models.Span.span_annotations).selectinload(
+                        models.SpanAnnotation.user
+                    ),
+                ],
             )
             if span is None:
                 return HydrationFailure(HydrationFailureReason.SPAN_MISSING)
-            return span_eval_context(span, trace_id=span.trace.trace_id), None
+            return (
+                span_eval_context(
+                    span,
+                    trace_id=span.trace.trace_id,
+                    annotations=span.span_annotations,
+                ),
+                None,
+            )
         project_session = await session.get(models.ProjectSession, unit.target_rowid)
         if project_session is None:
             return HydrationFailure(HydrationFailureReason.SESSION_MISSING)

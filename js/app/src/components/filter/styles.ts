@@ -104,6 +104,11 @@ export const typeaheadMenuCSS = css`
     li.typeahead-completion--unset {
       color: var(--global-text-color-300);
     }
+    /* A container row: the chevron says the row can be drilled with a dot. */
+    li.typeahead-completion--container .cm-completionLabel::after {
+      content: " ›";
+      color: var(--global-text-color-500);
+    }
     /* Details that read as prose rather than as a value */
     li.typeahead-completion--unset .cm-completionDetail,
     li.typeahead-completion--hint .cm-completionDetail {

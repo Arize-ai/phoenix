@@ -51,6 +51,12 @@ SESSION_BOUND_VARIABLE_NAMES = _bindable(
 )
 BOUND_VARIABLE_NAMES = SPAN_BOUND_VARIABLE_NAMES | SESSION_BOUND_VARIABLE_NAMES
 
+# Mirrored by the frontend's SPAN/SESSION_METADATA_FIELDS via test_bound_variables.py.
+SPAN_METADATA_FIELD_NAMES = frozenset(
+    {"start_time", "end_time", "attributes", "events", "annotations"}
+)
+SESSION_METADATA_FIELD_NAMES = frozenset({"start_time", "end_time", "turns"})
+
 
 def session_duration_ms(start_time: datetime, end_time: datetime) -> float:
     """A session's wall-clock duration, rounded the way the filter language rounds it."""

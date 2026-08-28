@@ -20,6 +20,7 @@ import {
   getEvaluatorPathMembers,
   reachEvaluatorContainerPath,
   resolveEvaluatorPath,
+  toMemberCompletionType,
   toMemberSection,
   toWholePathValidFor,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
@@ -248,7 +249,7 @@ function toMemberOptions({
     const name = writesWholePath ? member.path : member.key;
     return {
       label: name,
-      type: "variable",
+      type: toMemberCompletionType(member.value),
       ...(detail ? { detail } : {}),
       section,
       boost: 100 - index,

@@ -30,6 +30,7 @@ import {
   capBrowsedMembers,
   EVALUATOR_ROOT_PATH_PATTERN,
   reachEvaluatorContainerPath,
+  toMemberCompletionType,
   toMemberPreview,
   toMemberSection,
   toWholePathValidFor,
@@ -531,7 +532,7 @@ function createMemberDrillResult({
       // matched and labelled by the path they reach rather than by a member
       // name the written text does not lead with.
       label: reached === null ? member.key : member.path,
-      type: member.isIndex ? "property" : "variable",
+      type: member.isIndex ? "property" : toMemberCompletionType(member.value),
       ...(detail ? { detail } : {}),
       info: `inserts ${expression}`,
       section,

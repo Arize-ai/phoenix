@@ -64,7 +64,7 @@ describe("evaluatorStore mapping source grain", () => {
         source: {
           input: { question: "What is Phoenix?" },
           output: { answer: "An AI observability platform" },
-          metadata: { latency_ms: 12.5, span: { span_id: "abc123" } },
+          metadata: { latency_ms: 12.5, attributes: { llm: {} } },
         },
       },
     });
@@ -72,7 +72,7 @@ describe("evaluatorStore mapping source grain", () => {
     expect(store.getState().evaluatorMappingSource.source).toEqual({
       input: { question: "What is Phoenix?" },
       output: { answer: "An AI observability platform" },
-      metadata: { latency_ms: 12.5, span: { span_id: "abc123" } },
+      metadata: { latency_ms: 12.5, attributes: { llm: {} } },
     });
     expect(store.getState().evaluator.inputMapping).toEqual({
       literalMapping: {},
@@ -91,7 +91,7 @@ describe("evaluatorStore mapping source grain", () => {
     store.getState().setEvaluatorMappingSource({
       input: "hi",
       output: "hello",
-      metadata: { duration_ms: 42, session: { session_id: "s-1" } },
+      metadata: { duration_ms: 42, turns: [{ input: "hi" }] },
     });
 
     // A dataset fallthrough would coerce input/output to objects and add
@@ -101,7 +101,7 @@ describe("evaluatorStore mapping source grain", () => {
       source: {
         input: "hi",
         output: "hello",
-        metadata: { duration_ms: 42, session: { session_id: "s-1" } },
+        metadata: { duration_ms: 42, turns: [{ input: "hi" }] },
       },
     });
   });

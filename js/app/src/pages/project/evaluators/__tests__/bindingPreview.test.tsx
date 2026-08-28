@@ -36,7 +36,7 @@ describe("the binding preview", () => {
             context={getSampleSpanEvaluationContext("").context}
             grain="span"
             inputMapping={{
-              pathMapping: { input: "metadata.span.name" },
+              pathMapping: { input: "metadata.name" },
               literalMapping: {},
             }}
             isSampleContext={false}
@@ -58,6 +58,6 @@ describe("the binding preview", () => {
       [...container.querySelectorAll(".binding-row__path")].map(
         (node) => node.textContent
       )
-    ).toEqual(["← metadata.span.name"]);
+    ).toEqual(["← metadata.name"]);
   });
 });

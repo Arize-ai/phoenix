@@ -1,11 +1,7 @@
-import { getEvaluatorBoundVariableNames } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import type { EvaluatorMappingSource } from "@phoenix/types";
 
-/**
- * Mirrors the server's `span_eval_context()`: `input` and `output` are the
- * span's own values, and `metadata` carries the span filter language's names
- * flat beside the whole span record under `metadata.span`.
- */
+/** Mirrors the server's `span_eval_context()`. */
 export type SampleSpanEvaluationContext = {
   /** OpenInference span kind (e.g. "LLM"). */
   spanKind: string;
@@ -30,8 +26,11 @@ const LLM_OUTPUT_TEXT =
   "services, then revoke the old key once traffic drains. Both keys stay " +
   "active during the overlap, so there is no downtime.";
 
+const LLM_USER_METADATA = { environment: "production" };
+
 const LLM_ATTRIBUTES = {
   openinference: { span: { kind: "LLM" } },
+  metadata: LLM_USER_METADATA,
   llm: {
     provider: "openai",
     model_name: "gpt-4o-mini",
@@ -63,22 +62,35 @@ const LLM_SPAN_VOCABULARY: Record<string, unknown> = {
   cumulative_llm_token_count_total: 100,
 };
 
-const LLM_SPAN_DOCUMENT: Record<string, unknown> = {
-  ...LLM_SPAN_VOCABULARY,
-  start_time: "2026-01-14T18:22:04.118000+00:00",
-  end_time: "2026-01-14T18:22:04.960500+00:00",
-  input_value: LLM_INPUT_VALUE,
-  output_value: LLM_OUTPUT_TEXT,
-  attributes: LLM_ATTRIBUTES,
-  events: [],
+const LLM_ANNOTATIONS = {
+  correctness: [
+    {
+      label: "correct",
+      score: 1.0,
+      explanation: "The steps match the documented key-rotation flow.",
+      metadata: {},
+      annotator_kind: "LLM",
+      user_id: null,
+      username: null,
+      email: null,
+    },
+  ],
 };
 
 const LLM_SAMPLE: SampleSpanEvaluationContext = {
   spanKind: "LLM",
   context: {
-    input: LLM_INPUT_VALUE,
-    output: LLM_OUTPUT_TEXT,
-    metadata: { ...LLM_SPAN_VOCABULARY, span: LLM_SPAN_DOCUMENT },
+    input: { messages: LLM_INPUT_MESSAGES },
+    output: { messages: [{ role: "assistant", content: LLM_OUTPUT_TEXT }] },
+    metadata: {
+      ...LLM_USER_METADATA,
+      ...LLM_SPAN_VOCABULARY,
+      start_time: "2026-01-14T18:22:04.118000+00:00",
+      end_time: "2026-01-14T18:22:04.960500+00:00",
+      attributes: LLM_ATTRIBUTES,
+      events: [],
+      annotations: LLM_ANNOTATIONS,
+    },
   },
 };
 
@@ -96,47 +108,31 @@ export function getSampleSpanEvaluationContext(
 
 /** A grain's shape with no values: what exists, never what it holds. */
 export type GenericEvaluationContext<
-  TGrain extends "span" | "session" = "span" | "session",
+  TGrain extends "span" | "session" = "span" | "session"
 > = {
   context: EvaluatorMappingSource<TGrain>;
 };
 
 /**
- * The span's standard fields with no values. The completion popup and the
- * bindings list build from this skeleton rather than from the sample above, so
- * authoring vocabulary is the schema itself and cannot drift with invented
- * data; the sample exists only as a runnable demo record.
+ * The completion popup and the bindings list build from this valueless
+ * skeleton; the sample above exists only as a runnable demo record.
  */
-const GENERIC_SPAN_DOCUMENT: Record<string, unknown> = {
-  span_id: null,
-  trace_id: null,
-  parent_id: null,
-  name: null,
-  span_kind: null,
-  status_code: null,
-  status_message: null,
-  latency_ms: null,
-  start_time: null,
-  end_time: null,
-  cumulative_llm_token_count_prompt: null,
-  cumulative_llm_token_count_completion: null,
-  cumulative_llm_token_count_total: null,
-  input_value: null,
-  output_value: null,
-  attributes: {},
-  events: [],
-};
+export function genericMetadata(
+  grain: "span" | "session"
+): Record<string, unknown> {
+  return Object.fromEntries(
+    getEvaluatorMetadataEntries(grain).map(({ name, type }) => [
+      name,
+      type === "object" ? {} : type === "list" ? [] : null,
+    ])
+  );
+}
 
 const GENERIC_SPAN_CONTEXT: GenericEvaluationContext<"span"> = {
   context: {
     input: null,
     output: null,
-    metadata: {
-      ...Object.fromEntries(
-        [...getEvaluatorBoundVariableNames("span")].map((name) => [name, null])
-      ),
-      span: GENERIC_SPAN_DOCUMENT,
-    },
+    metadata: genericMetadata("span"),
   },
 };
 

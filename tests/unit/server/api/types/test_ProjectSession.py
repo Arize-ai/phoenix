@@ -10,7 +10,10 @@ from phoenix.db import models
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Trace import Trace
-from phoenix.server.online_eval.bound_variables import SESSION_BOUND_VARIABLE_NAMES
+from phoenix.server.online_eval.bound_variables import (
+    SESSION_BOUND_VARIABLE_NAMES,
+    SESSION_METADATA_FIELD_NAMES,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -299,18 +302,15 @@ class TestProjectSession:
         assert context["input"] == _LONG_FIRST_INPUT
         assert context["output"] == _LONG_LAST_OUTPUT
         metadata = context["metadata"]
-        assert set(metadata) == set(SESSION_BOUND_VARIABLE_NAMES) | {"session"}
-        assert [(turn["input"], turn["output"]) for turn in metadata["session"]["turns"]] == [
+        assert set(metadata) == set(SESSION_BOUND_VARIABLE_NAMES) | SESSION_METADATA_FIELD_NAMES
+        assert [(turn["input"], turn["output"]) for turn in metadata["turns"]] == [
             (_LONG_FIRST_INPUT, "321"),
             ("1234", _LONG_LAST_OUTPUT),
         ]
-        assert metadata["session"] == {
-            "session_id": project_session.session_id,
-            "start_time": project_session.start_time.isoformat(),
-            "end_time": project_session.end_time.isoformat(),
-            "duration_ms": 0.0,
-            "turns": metadata["session"]["turns"],
-        }
+        assert metadata["session_id"] == project_session.session_id
+        assert metadata["start_time"] == project_session.start_time.isoformat()
+        assert metadata["end_time"] == project_session.end_time.isoformat()
+        assert metadata["duration_ms"] == 0.0
         assert metadata["num_traces"] == 2
         assert metadata["num_traces_with_error"] == 1
         assert metadata["token_count_prompt"] == 4

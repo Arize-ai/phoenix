@@ -12,20 +12,18 @@ import {
   toMemberSection,
 } from "../evaluatorPathCompletions";
 
-const SPAN_RECORD: Record<string, unknown> = {
-  span_id: "7f3b1c9a",
-  input_value: "what is the weather?",
-  attributes: {
-    llm: { model_name: "gpt-4o-mini", token_count: { total: 100 } },
-    "llm.deprecated": "legacy",
-  },
-  events: [{ name: "exception" }],
-};
-
 const SPAN_SOURCE: Record<string, unknown> = {
   input: "what is the weather?",
   output: "sunny",
-  metadata: { span_id: "7f3b1c9a", latency_ms: 842.5, span: SPAN_RECORD },
+  metadata: {
+    span_id: "7f3b1c9a",
+    latency_ms: 842.5,
+    attributes: {
+      llm: { model_name: "gpt-4o-mini", token_count: { total: 100 } },
+      "llm.deprecated": "legacy",
+    },
+    events: [{ name: "exception" }],
+  },
 };
 
 const SESSION_SOURCE: Record<string, unknown> = {
@@ -33,7 +31,8 @@ const SESSION_SOURCE: Record<string, unknown> = {
   output: "hello",
   metadata: {
     first_input: "hi",
-    session: { session_id: "abc", turns: [{ input: "hi", output: "hello" }] },
+    session_id: "abc",
+    turns: [{ input: "hi", output: "hello" }],
   },
 };
 
@@ -52,19 +51,19 @@ const ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
     section: { name: "From the span", rank: 2 },
   },
   {
-    key: "metadata.span",
-    path: "metadata.span",
-    preview: "object",
+    key: "metadata.attributes",
+    path: "metadata.attributes",
+    preview: "object · 2",
     section: { name: "From the span", rank: 2 },
   },
 ];
 
-/** The session grain's tree, whose record sits under `metadata.session`. */
+/** The session grain's tree, whose turns sit flat at `metadata.turns`. */
 const SESSION_ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
   {
-    key: "metadata.session",
-    path: "metadata.session",
-    preview: "object",
+    key: "metadata.turns",
+    path: "metadata.turns",
+    preview: "list · 1",
     section: { name: "From the session", rank: 2 },
   },
 ];
@@ -88,13 +87,12 @@ describe("appendPathSegment", () => {
   it("emits paths that resolve back to the keys they were built from", () => {
     const path = ["attributes", "llm.model_name"].reduce(
       (parent, key) => appendPathSegment(parent, key, false),
-      "metadata.span"
+      "metadata"
     );
 
-    expect(path).toBe("metadata.span.attributes['llm.model_name']");
+    expect(path).toBe("metadata.attributes['llm.model_name']");
     expect(parsePathSegments(path)).toEqual([
       "metadata",
-      "span",
       "attributes",
       "llm.model_name",
     ]);
@@ -102,18 +100,13 @@ describe("appendPathSegment", () => {
 
   it("indexes into a list with bracket notation", () => {
     const path = appendPathSegment(
-      appendPathSegment("metadata.session", "turns", false),
+      appendPathSegment("metadata", "turns", false),
       "0",
       true
     );
 
-    expect(path).toBe("metadata.session.turns[0]");
-    expect(parsePathSegments(path)).toEqual([
-      "metadata",
-      "session",
-      "turns",
-      "0",
-    ]);
+    expect(path).toBe("metadata.turns[0]");
+    expect(parsePathSegments(path)).toEqual(["metadata", "turns", "0"]);
   });
 });
 
@@ -127,26 +120,26 @@ describe("getEvaluatorPathCursor", () => {
   });
 
   it("opens the level below once the separator is typed", () => {
-    expect(getEvaluatorPathCursor("metadata.span.attributes.")).toEqual({
-      containerPath: "metadata.span.attributes",
+    expect(getEvaluatorPathCursor("metadata.attributes.")).toEqual({
+      containerPath: "metadata.attributes",
       partial: "",
-      from: 25,
+      from: 20,
     });
   });
 
   it("matches on the name alone inside an open subscript", () => {
-    expect(getEvaluatorPathCursor("metadata.span.attributes['ll")).toEqual({
-      containerPath: "metadata.span.attributes",
+    expect(getEvaluatorPathCursor("metadata.attributes['ll")).toEqual({
+      containerPath: "metadata.attributes",
       partial: "ll",
-      from: 26,
+      from: 21,
     });
   });
 
   it("drills past a list index", () => {
-    expect(getEvaluatorPathCursor("metadata.session.turns[0].in")).toEqual({
-      containerPath: "metadata.session.turns[0]",
+    expect(getEvaluatorPathCursor("metadata.turns[0].in")).toEqual({
+      containerPath: "metadata.turns[0]",
       partial: "in",
-      from: 26,
+      from: 18,
     });
   });
 });
@@ -160,75 +153,72 @@ describe("getEvaluatorPathCompletions", () => {
   });
 
   it("offers the next level's members after each separator", () => {
-    const result = completionsFor("metadata.span.attributes.");
+    const result = completionsFor("metadata.attributes.");
 
-    expect(result?.from).toBe(25);
-    expect(result?.containerPath).toBe("metadata.span.attributes");
+    expect(result?.from).toBe(20);
+    expect(result?.containerPath).toBe("metadata.attributes");
     expect(result?.completions.map((completion) => completion.path)).toEqual([
-      "metadata.span.attributes.llm",
-      "metadata.span.attributes['llm.deprecated']",
+      "metadata.attributes.llm",
+      "metadata.attributes['llm.deprecated']",
     ]);
     expect(result?.completions[0]?.section).toEqual(
-      toMemberSection("metadata.span.attributes", PATH_MEMBER_SECTION_RANK)
+      toMemberSection("metadata.attributes", PATH_MEMBER_SECTION_RANK)
     );
   });
 
   it("previews the value each member holds on the record", () => {
-    const result = completionsFor("metadata.span.attributes.llm.");
+    const result = completionsFor("metadata.attributes.llm.");
 
     expect(
       result?.completions.map(({ key, preview }) => [key, preview])
     ).toEqual([
       ["model_name", "gpt-4o-mini"],
-      ["token_count", "object"],
+      ["token_count", "object · 1"],
     ]);
   });
 
   it("describes a branch by what it is rather than by its contents", () => {
     const byKey = new Map(
-      completionsFor("metadata.span.")?.completions.map((c) => [
-        c.key,
-        c.preview,
-      ])
+      completionsFor("metadata.")?.completions.map((c) => [c.key, c.preview])
     );
 
-    expect(byKey.get("attributes")).toBe("object");
+    expect(byKey.get("attributes")).toBe("object · 2");
     expect(byKey.get("events")).toBe("list · 1");
   });
 
   it("indexes into a list", () => {
-    const result = completionsFor("metadata.session.turns.", SESSION_SOURCE);
+    const result = completionsFor("metadata.turns.", SESSION_SOURCE);
 
     expect(result?.completions.map((completion) => completion.path)).toEqual([
-      "metadata.session.turns[0]",
+      "metadata.turns[0]",
     ]);
   });
 
   it("pins suggested paths above the candidate tree, at the top only", () => {
     const rooted = completionsFor("", SPAN_SOURCE, [
-      { path: "metadata.span.input_value", description: "the raw input" },
-      { path: "metadata.span.attributes.llm", description: "the llm block" },
+      { path: "metadata.latency_ms", description: "the span latency" },
+      { path: "metadata.attributes.llm", description: "the llm block" },
     ]);
 
     expect(rooted?.completions.slice(0, 2)).toEqual([
       {
-        key: "metadata.span.input_value",
-        path: "metadata.span.input_value",
-        preview: "what is the weather?",
+        key: "metadata.latency_ms",
+        path: "metadata.latency_ms",
+        preview: "842.5",
         section: SUGGESTED_PATH_SECTION,
-        description: "the raw input",
+        description: "the span latency",
       },
       {
-        key: "metadata.span.attributes.llm",
-        path: "metadata.span.attributes.llm",
-        preview: "object",
+        key: "metadata.attributes.llm",
+        path: "metadata.attributes.llm",
+        preview: "object · 2",
         section: SUGGESTED_PATH_SECTION,
         description: "the llm block",
       },
     ]);
 
-    const drilled = completionsFor("metadata.span.attributes.", SPAN_SOURCE, [
-      { path: "metadata.span.input_value", description: "the raw input" },
+    const drilled = completionsFor("metadata.attributes.", SPAN_SOURCE, [
+      { path: "metadata.latency_ms", description: "the span latency" },
     ]);
 
     expect(
@@ -241,63 +231,61 @@ describe("getEvaluatorPathCompletions", () => {
     // path that fails the moment it is accepted.
     const rooted = completionsFor("", SPAN_SOURCE, [
       {
-        path: "metadata.span.attributes.retrieval.documents",
+        path: "metadata.attributes.retrieval.documents",
         description: "no such field",
       },
-      { path: "metadata.span.input_value", description: "the raw input" },
+      { path: "metadata.attributes.llm", description: "the llm block" },
     ]);
 
     expect(
       rooted?.completions
         .filter((c) => c.section === SUGGESTED_PATH_SECTION)
         .map((c) => c.key)
-    ).toEqual(["metadata.span.input_value"]);
+    ).toEqual(["metadata.attributes.llm"]);
   });
 
   // A record name is offered by its whole path, so drilling one has to read
   // the home back in — otherwise the dot that opens the level throws away the
   // match the name alone already had.
   it("opens the level below a record name typed without its home", () => {
-    const result = completionsFor("span.");
+    const result = completionsFor("attributes.");
 
-    expect(result?.containerPath).toBe("metadata.span");
+    expect(result?.containerPath).toBe("metadata.attributes");
     // The row rewrites the whole path, so the typeahead matches from the start
     // of what was written rather than from after the dot.
     expect(result?.from).toBe(0);
     expect(result?.completions.map((completion) => completion.key)).toEqual([
-      "metadata.span.span_id",
-      "metadata.span.input_value",
-      "metadata.span.attributes",
-      "metadata.span.events",
+      "metadata.attributes.llm",
+      "metadata.attributes['llm.deprecated']",
     ]);
     expect(result?.completions[0]?.section).toEqual(
-      toMemberSection("metadata.span", PATH_MEMBER_SECTION_RANK)
+      toMemberSection("metadata.attributes", PATH_MEMBER_SECTION_RANK)
     );
 
     // The name alone still matches the root row it always did.
-    expect(completionsFor("span")?.completions).toEqual(ROOT_CANDIDATES);
+    expect(completionsFor("attributes")?.completions).toEqual(ROOT_CANDIDATES);
 
     expect(
       completionsFor(
-        "session.",
+        "turns.",
         SESSION_SOURCE,
         [],
         SESSION_ROOT_CANDIDATES
       )?.completions.map((completion) => completion.path)
-    ).toEqual(["metadata.session.session_id", "metadata.session.turns"]);
+    ).toEqual(["metadata.turns[0]"]);
   });
 
   it("carries the rest of a path across the home it reads back in", () => {
     expect(
-      completionsFor("span.attributes.")?.completions.map((c) => c.path)
+      completionsFor("attributes.llm.")?.completions.map((c) => c.path)
     ).toEqual([
-      "metadata.span.attributes.llm",
-      "metadata.span.attributes['llm.deprecated']",
+      "metadata.attributes.llm.model_name",
+      "metadata.attributes.llm.token_count",
     ]);
   });
 
   it("offers nothing for a level the record does not have", () => {
-    expect(completionsFor("metadata.span.nope.")).toBeNull();
+    expect(completionsFor("metadata.nope.")).toBeNull();
   });
 
   it("offers nothing when the surface has no tree to offer", () => {
@@ -306,22 +294,20 @@ describe("getEvaluatorPathCompletions", () => {
 
   it("caps a browsed level, and lifts the cap once the user types", () => {
     const wide = {
-      metadata: {
-        span: Object.fromEntries(
-          Array.from({ length: MAX_BROWSE_MEMBERS + 5 }, (_, index) => [
-            `field_${index}`,
-            index,
-          ])
-        ),
-      },
+      metadata: Object.fromEntries(
+        Array.from({ length: MAX_BROWSE_MEMBERS + 5 }, (_, index) => [
+          `field_${index}`,
+          index,
+        ])
+      ),
     };
 
-    expect(completionsFor("metadata.span.", wide)?.completions).toHaveLength(
+    expect(completionsFor("metadata.", wide)?.completions).toHaveLength(
       MAX_BROWSE_MEMBERS
     );
-    expect(
-      completionsFor("metadata.span.field", wide)?.completions
-    ).toHaveLength(MAX_BROWSE_MEMBERS + 5);
+    expect(completionsFor("metadata.field", wide)?.completions).toHaveLength(
+      MAX_BROWSE_MEMBERS + 5
+    );
   });
 });
 
@@ -330,7 +316,7 @@ describe("resolveEvaluatorPath", () => {
     expect(
       resolveEvaluatorPath({
         source: SPAN_SOURCE,
-        path: "metadata.span.attributes.llm.model_name",
+        path: "metadata.attributes.llm.model_name",
       })
     ).toEqual({ status: "resolved", value: "gpt-4o-mini" });
   });
@@ -342,21 +328,21 @@ describe("resolveEvaluatorPath", () => {
   });
 
   it("blames the segment that named nothing, not the whole path", () => {
-    const path = "metadata.span.attributes.nope.model_name";
+    const path = "metadata.attributes.nope.model_name";
 
     expect(resolveEvaluatorPath({ source: SPAN_SOURCE, path })).toEqual({
       status: "unresolved",
-      range: { from: 25, to: 29 },
+      range: { from: 20, to: 24 },
     });
-    expect(path.slice(25, 29)).toBe("nope");
+    expect(path.slice(20, 24)).toBe("nope");
   });
 
   it("blames a subscript by the text that wrote it", () => {
-    const path = "metadata.span.attributes['llm.missing']";
+    const path = "metadata.attributes['llm.missing']";
 
     expect(resolveEvaluatorPath({ source: SPAN_SOURCE, path })).toEqual({
       status: "unresolved",
-      range: { from: 24, to: 39 },
+      range: { from: 19, to: 34 },
     });
   });
 
@@ -364,13 +350,13 @@ describe("resolveEvaluatorPath", () => {
     expect(
       resolveEvaluatorPath({
         source: SESSION_SOURCE,
-        path: "metadata.session.turns[0].input",
+        path: "metadata.turns[0].input",
       })
     ).toEqual({ status: "resolved", value: "hi" });
     expect(
       resolveEvaluatorPath({
         source: SESSION_SOURCE,
-        path: "metadata.session.turns[1]",
+        path: "metadata.turns[1]",
       }).status
     ).toBe("unresolved");
   });
@@ -384,7 +370,7 @@ describe("resolveEvaluatorPath", () => {
     expect(
       resolveEvaluatorPath({
         source: SPAN_SOURCE,
-        path: "metadata.span.events[*].name",
+        path: "metadata.events[*].name",
       })
     ).toEqual({ status: "unverifiable" });
   });

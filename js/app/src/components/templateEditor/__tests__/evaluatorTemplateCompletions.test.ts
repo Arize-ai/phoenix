@@ -14,24 +14,29 @@ import { TemplateFormats } from "../constants";
 import { getEvaluatorTemplateCompletions } from "../evaluatorTemplateCompletions";
 import type { TemplateFormat } from "../types";
 
-const SPAN_RECORD = {
-  span_id: "7f3b1c9a",
-  name: "ChatCompletion",
-  output_value: "Because.",
-  attributes: {
-    llm: {
-      model_name: "gpt-4o-mini",
-      input_messages: [{ role: "user", content: "Why?" }],
-      "invocation.parameters": { temperature: 0 },
-    },
+const SPAN_ATTRIBUTES = {
+  llm: {
+    model_name: "gpt-4o-mini",
+    input_messages: [{ role: "user", content: "Why?" }],
+    "invocation.parameters": { temperature: 0 },
   },
 };
 
 function buildContext(grain: ProjectEvaluatorMappingSourceGrain) {
   const metadata =
     grain === "span"
-      ? { latency_ms: 842.5, span: SPAN_RECORD }
-      : { first_input: "Hello", session: SPAN_RECORD };
+      ? {
+          span_id: "7f3b1c9a",
+          name: "ChatCompletion",
+          latency_ms: 842.5,
+          attributes: SPAN_ATTRIBUTES,
+          events: [],
+          annotations: {},
+        }
+      : {
+          first_input: "Hello",
+          turns: [{ input: "Hello", output: "Because." }],
+        };
   return materializeEvaluatorContext({
     grain,
     evaluatorMappingSource:
@@ -116,7 +121,7 @@ describe("isAtEmptyTemplateVariable", () => {
       ["Rate this: {{", TemplateFormats.Mustache, true],
       ["", TemplateFormats.Mustache, false],
       ["Rate this: {{metadata", TemplateFormats.Mustache, false],
-      ["Rate this: {{metadata.span}} ", TemplateFormats.Mustache, false],
+      ["Rate this: {{metadata.name}} ", TemplateFormats.Mustache, false],
       ["Rate this: {", TemplateFormats.FString, true],
       ["Rate this: {input} ", TemplateFormats.FString, false],
     ];
@@ -172,7 +177,7 @@ describe("getEvaluatorTemplateCompletions", () => {
       },
       {
         label: "metadata",
-        detail: "object",
+        detail: "object · 6",
         section: { name: "Evaluator input", rank: 1 },
       },
     ]);
@@ -181,10 +186,20 @@ describe("getEvaluatorTemplateCompletions", () => {
         (option) => option.label === "metadata.latency_ms"
       )
     ).toMatchObject({ detail: "842.5", section: { name: "From the span" } });
-    // The record itself closes the list rather than being flattened into it.
+    // The structured fields lead the record section; the scalar record
+    // fields (timestamps) close the list.
+    expect(
+      spanResult?.options
+        .filter((option) => option.label.startsWith("metadata."))
+        .slice(0, 3)
+        .map((option) => option.label)
+    ).toEqual([
+      "metadata.attributes",
+      "metadata.events",
+      "metadata.annotations",
+    ]);
     expect(spanResult?.options.at(-1)).toMatchObject({
-      label: "metadata.span",
-      detail: "object",
+      label: "metadata.end_time",
     });
 
     expect(
@@ -203,14 +218,16 @@ describe("getEvaluatorTemplateCompletions", () => {
       "metadata.latency_ms"
     );
     // The dot in `metadata.lat` is still on its way into a row on offer, so
-    // the menu keeps filtering; the one in `span.` is not, so it re-queries.
+    // the menu keeps filtering; the one in `attributes.` is not, so it
+    // re-queries.
     const staysOpen = result?.validFor;
     if (typeof staysOpen !== "function") {
       throw new Error("expected the root menu to decide when it stays open");
     }
     expect(
-      ["metadata", "metadata.lat", "span.", "metadata.span.a"].map((text) =>
-        staysOpen(text, 0, text.length, EditorState.create({ doc: text }))
+      ["metadata", "metadata.lat", "attributes.", "metadata.attributes.a"].map(
+        (text) =>
+          staysOpen(text, 0, text.length, EditorState.create({ doc: text }))
       )
     ).toEqual([true, true, false, false]);
     expect(
@@ -228,23 +245,23 @@ describe("getEvaluatorTemplateCompletions", () => {
   });
 
   it("drills a level per dot in Mustache and stays at the root in f-strings", () => {
-    const drilled = complete({ doc: "{{metadata.span.attributes.llm." });
+    const drilled = complete({ doc: "{{metadata.attributes.llm." });
 
     // Right after the dot: the menu matches the member name alone.
-    expect(drilled?.from).toBe(31);
+    expect(drilled?.from).toBe(26);
     expect(drilled?.options.map((option) => option.label)).toEqual([
       "model_name",
       "input_messages",
     ]);
     expect(drilled?.options[0]).toMatchObject({
       detail: "gpt-4o-mini",
-      section: { name: "metadata.span.attributes.llm" },
+      section: { name: "metadata.attributes.llm" },
     });
 
     // The server keeps a dotted f-string field as one literal schema property.
     expect(
       complete({
-        doc: "{metadata.span.",
+        doc: "{metadata.attributes.",
         templateFormat: TemplateFormats.FString,
       })
     ).toBeNull();
@@ -255,39 +272,41 @@ describe("getEvaluatorTemplateCompletions", () => {
     expect(fstring).toEqual(["input", "output", "metadata"]);
   });
 
-  // The record is offered by its whole path, so the dot that opens it has to
-  // read the home back in rather than throw away the match the name had.
+  // A record name is offered by its whole path, so the dot that opens it has
+  // to read the home back in rather than throw away the match the name had.
   it("opens the record's level from the name typed without its home", () => {
-    const result = complete({ doc: "{{span." });
+    const result = complete({ doc: "{{attributes." });
 
     // The row rewrites the whole variable, so the menu matches from its start.
     expect(result?.from).toBe(2);
     expect(result?.options.map((option) => option.label)).toEqual([
-      "metadata.span.span_id",
-      "metadata.span.name",
-      "metadata.span.output_value",
-      "metadata.span.attributes",
+      "metadata.attributes.llm",
     ]);
     expect(result?.options[0]).toMatchObject({
-      section: { name: "metadata.span" },
+      section: { name: "metadata.attributes" },
     });
     expect(
-      applyCompletion({ before: "{{span.", label: "metadata.span.name" })
-    ).toBe("{{metadata.span.name}}");
+      applyCompletion({
+        before: "{{attributes.",
+        label: "metadata.attributes.llm",
+      })
+    ).toBe("{{metadata.attributes.llm}}");
 
+    // Mustache has no bracket syntax, so the session's turns are reached as a
+    // repeat block rather than by index.
     expect(
-      complete({ doc: "{{session.", grain: "session" })?.options.map(
+      complete({ doc: "{{#metadata.", grain: "session" })?.options.map(
         (option) => option.label
       )
-    ).toContain("metadata.session.output_value");
+    ).toContain("#metadata.turns");
   });
 
   it("offers repeat blocks for what a block can wrap", () => {
-    const repeats = complete({ doc: "{{#metadata.span.attributes.llm." });
+    const repeats = complete({ doc: "{{#metadata.attributes.llm." });
 
     expect(repeats?.options).toMatchObject([
       {
-        label: "#metadata.span.attributes.llm.input_messages",
+        label: "#metadata.attributes.llm.input_messages",
         detail: "1 items",
         section: { name: "Blocks" },
       },
@@ -296,8 +315,8 @@ describe("getEvaluatorTemplateCompletions", () => {
 
   it("names a section's own fields while the cursor is inside it", () => {
     const inSection = complete({
-      doc: "{{#metadata.span.attributes.llm.input_messages}}{{",
-      sectionStack: ["metadata.span.attributes.llm.input_messages"],
+      doc: "{{#metadata.attributes.llm.input_messages}}{{",
+      sectionStack: ["metadata.attributes.llm.input_messages"],
     });
 
     expect(inSection?.options.map((option) => option.label)).toEqual([

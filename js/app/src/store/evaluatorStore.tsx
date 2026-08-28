@@ -502,17 +502,14 @@ export const createEvaluatorStore = (
           setEvaluatorMappingSource(evaluatorMappingSource) {
             const { input, output } = evaluatorMappingSource;
             const { grain } = get().evaluatorMappingSource;
-            // The record sits under a grain-named key of `metadata`, so a
-            // context built for the other grain contributes nothing and leaves
-            // the tree empty rather than offering paths this grain would fail
-            // to bind.
-            const metadataRoot = (key: string): Record<string, unknown> => {
+            const metadataWith = (
+              hasRecordField: (metadata: Record<string, unknown>) => boolean
+            ): Record<string, unknown> => {
               const metadata =
                 "metadata" in evaluatorMappingSource
                   ? evaluatorMappingSource.metadata
                   : undefined;
-              return isStringKeyedObject(metadata) &&
-                isStringKeyedObject(metadata[key])
+              return isStringKeyedObject(metadata) && hasRecordField(metadata)
                 ? metadata
                 : {};
             };
@@ -521,7 +518,13 @@ export const createEvaluatorStore = (
               case "span":
                 nextEvaluatorMappingSource = {
                   grain: "span",
-                  source: { input, output, metadata: metadataRoot("span") },
+                  source: {
+                    input,
+                    output,
+                    metadata: metadataWith((metadata) =>
+                      isStringKeyedObject(metadata.attributes)
+                    ),
+                  },
                 };
                 break;
               case "session":
@@ -530,7 +533,9 @@ export const createEvaluatorStore = (
                   source: {
                     input,
                     output,
-                    metadata: metadataRoot("session"),
+                    metadata: metadataWith((metadata) =>
+                      Array.isArray(metadata.turns)
+                    ),
                   },
                 };
                 break;

@@ -74,7 +74,7 @@ import type {
 import type { ProjectEvaluatorScopePanelSessionCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionCountQuery.graphql";
 import type { ProjectEvaluatorScopePanelSessionsQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionsQuery.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
-import { getEvaluatorBoundVariables } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
   dropOtherGrainEntityPathMappings,
@@ -408,8 +408,7 @@ function SessionInputNote() {
       <Heading level={2}>Session input</Heading>
       <Text color="text-500" size="S">
         The session's first input as <code>input</code>, its last output as{" "}
-        <code>output</code>, and every turn under{" "}
-        <code>metadata.session.turns</code>.
+        <code>output</code>, and every turn under <code>metadata.turns</code>.
       </Text>
     </Flex>
   );
@@ -566,7 +565,9 @@ function MatchedSpanCountLine({
   return (
     <Text size="S" color="text-500">
       {hasMatches
-        ? `${matchedCount.toLocaleString()} span${matchedCount === 1 ? "" : "s"} matched ${prose}. The most recent are shown below.`
+        ? `${matchedCount.toLocaleString()} span${
+            matchedCount === 1 ? "" : "s"
+          } matched ${prose}. The most recent are shown below.`
         : `No spans matched this scope ${prose}.`}
     </Text>
   );
@@ -611,7 +612,9 @@ function MatchedSessionCountLine({
   return (
     <Text size="S" color="text-500">
       {hasMatches
-        ? `${matchedCount.toLocaleString()} session${matchedCount === 1 ? "" : "s"} matched ${prose}. The most recent are shown below.`
+        ? `${matchedCount.toLocaleString()} session${
+            matchedCount === 1 ? "" : "s"
+          } matched ${prose}. The most recent are shown below.`
         : `No sessions matched this scope ${prose}.`}
     </Text>
   );
@@ -620,7 +623,9 @@ function MatchedSessionCountLine({
 const SESSION_LIST_PAGE_SIZE = 5;
 
 function formatSessionMetric(numTraces: number, totalTokens: number): string {
-  const traces = `${numTraces.toLocaleString()} trace${numTraces === 1 ? "" : "s"}`;
+  const traces = `${numTraces.toLocaleString()} trace${
+    numTraces === 1 ? "" : "s"
+  }`;
   return `${traces} · ${totalTokens.toLocaleString()} tokens`;
 }
 
@@ -724,16 +729,16 @@ function SessionRunList({
         ),
       }))
     : sample
-      ? [
-          {
-            key: SAMPLE_ROW_KEY,
-            name: "Sample session",
-            context: sample.context,
-            mappingContext: getGenericSessionEvaluationContext().context,
-            isSample: true,
-          },
-        ]
-      : [];
+    ? [
+        {
+          key: SAMPLE_ROW_KEY,
+          name: "Sample session",
+          context: sample.context,
+          mappingContext: getGenericSessionEvaluationContext().context,
+          isSample: true,
+        },
+      ]
+    : [];
   return (
     <RecordedRunList
       rows={rows}
@@ -892,17 +897,17 @@ function SpanRunList({
         isSample: false,
       }))
     : sample
-      ? [
-          {
-            key: SAMPLE_ROW_KEY,
-            name: `Sample ${sample.spanKind} span`,
-            spanKind: sample.spanKind.toLowerCase(),
-            context: sample.context,
-            mappingContext: getGenericSpanEvaluationContext().context,
-            isSample: true,
-          },
-        ]
-      : [];
+    ? [
+        {
+          key: SAMPLE_ROW_KEY,
+          name: `Sample ${sample.spanKind} span`,
+          spanKind: sample.spanKind.toLowerCase(),
+          context: sample.context,
+          mappingContext: getGenericSpanEvaluationContext().context,
+          isSample: true,
+        },
+      ]
+    : [];
   return (
     <RecordedRunList
       rows={rows}
@@ -966,8 +971,8 @@ function RecordedRunList({
     expandedKey === null
       ? null
       : expandedKey != null && rows.some(({ key }) => key === expandedKey)
-        ? expandedKey
-        : (rows[0]?.key ?? null);
+      ? expandedKey
+      : rows[0]?.key ?? null;
   const activeRow = rows.find(({ key }) => key === expandedRowKey) ?? rows[0];
   const evaluatorStore = useEvaluatorStoreInstance();
   const inputMapping = useEvaluatorStore(
@@ -1129,7 +1134,9 @@ function RecordedRunRow({
                 // each row's button has a distinct accessible name.
                 row.isSample
                   ? `Test evaluator on ${row.name}`
-                  : `Test evaluator on ${row.name}, ${recordNoun} ${row.key.slice(-8)}`
+                  : `Test evaluator on ${
+                      row.name
+                    }, ${recordNoun} ${row.key.slice(-8)}`
               }
               leadingVisual={
                 <Icon
@@ -1414,14 +1421,10 @@ export function BindingPreview({
 }
 
 /**
- * What `metadata` holds, in reading order: the record's own names first — the
- * ones a filter condition already uses — then the whole record, collapsed,
- * because it is the one branch nobody reads top to bottom.
- *
  * The rows are the shared candidate tree's nested rows, so what the preview
- * lists under `metadata` is exactly what the authoring surfaces offer there.
- * Only the type hint and the one-line description are read off the vocabulary
- * definition — presentation the candidate does not carry.
+ * lists under `metadata` is exactly what the authoring surfaces offer there,
+ * in the same order. Only the type hint and the one-line description are read
+ * off the entry definition — presentation the candidate does not carry.
  */
 function MetadataBindingTree({
   evaluationContext,
@@ -1430,7 +1433,7 @@ function MetadataBindingTree({
 }) {
   const { grain, hasSampledRecord } = evaluationContext;
   const definitionByName = new Map(
-    getEvaluatorBoundVariables(grain).map((variable) => [
+    getEvaluatorMetadataEntries(grain).map((variable) => [
       variable.name,
       variable,
     ])
@@ -1703,7 +1706,7 @@ function hasEvaluatorMappingSourceShape(
   }
   const { metadata } = value;
   return (
-    isStringKeyedObject(metadata.span) || isStringKeyedObject(metadata.session)
+    isStringKeyedObject(metadata.attributes) || Array.isArray(metadata.turns)
   );
 }
 

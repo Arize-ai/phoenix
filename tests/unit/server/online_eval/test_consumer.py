@@ -53,7 +53,9 @@ from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
 from phoenix.server.online_eval.bound_variables import (
     SESSION_BOUND_VARIABLE_NAMES,
+    SESSION_METADATA_FIELD_NAMES,
     SPAN_BOUND_VARIABLE_NAMES,
+    SPAN_METADATA_FIELD_NAMES,
     load_session_bound_variables,
 )
 from phoenix.server.online_eval.consumer import (
@@ -613,47 +615,67 @@ async def _annotations(db: DbSessionFactory) -> list[models.SpanAnnotation]:
         return list(await session.scalars(select(models.SpanAnnotation)))
 
 
-async def test_span_eval_context_roots_the_span_document_under_metadata(
+async def test_span_eval_context_lays_the_record_flat_under_metadata(
     db: DbSessionFactory,
 ) -> None:
     attributes = {
         "input": {"value": "span input"},
         "output": {"value": "span output"},
-        "metadata": {"user": "value"},
+        "metadata": {"user": "value", "latency_ms": "shadowed"},
         "custom": {"nested": "value"},
     }
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace, attributes=attributes)
+        annotation = models.SpanAnnotation(
+            span_rowid=span.id,
+            name="correctness",
+            label="correct",
+            score=1.0,
+            explanation="matches the reference",
+            metadata_={},
+            annotator_kind="LLM",
+            identifier="",
+            source="API",
+        )
+        session.add(annotation)
+        await session.flush()
 
-        context = span_eval_context(span, trace_id=trace.trace_id)
+        context = span_eval_context(span, trace_id=trace.trace_id, annotations=[annotation])
 
     assert set(context) == {"input", "output", "metadata"}
     assert context["input"] == "span input"
     assert context["output"] == "span output"
     metadata = context["metadata"]
-    assert set(metadata) == SPAN_BOUND_VARIABLE_NAMES | {"span"}
+    # The span's own metadata attribute spreads flat, under the reserved names.
+    assert set(metadata) == SPAN_BOUND_VARIABLE_NAMES | SPAN_METADATA_FIELD_NAMES | {"user"}
+    assert metadata["user"] == "value"
+    # A user metadata key spelled like a reserved name loses to it.
     assert metadata["latency_ms"] == span.latency_ms
-    assert metadata["span"] == {
-        "span_id": span.span_id,
-        "trace_id": trace.trace_id,
-        "parent_id": None,
-        "name": span.name,
-        "span_kind": "LLM",
-        "status_code": "OK",
-        "status_message": "test_status_message",
-        "latency_ms": span.latency_ms,
-        "start_time": span.start_time.isoformat(),
-        "end_time": span.end_time.isoformat(),
-        "cumulative_llm_token_count_prompt": 0,
-        "cumulative_llm_token_count_completion": 0,
-        "cumulative_llm_token_count_total": 0,
-        "input_value": "span input",
-        "output_value": "span output",
-        "attributes": attributes,
-        "events": [],
+    assert metadata["span_kind"] == "LLM"
+    assert metadata["trace_id"] == trace.trace_id
+    assert metadata["start_time"] == span.start_time.isoformat()
+    assert metadata["end_time"] == span.end_time.isoformat()
+    assert metadata["attributes"] == attributes
+    assert metadata["events"] == []
+    assert metadata["annotations"] == {
+        "correctness": [
+            {
+                "label": "correct",
+                "score": 1.0,
+                "explanation": "matches the reference",
+                "metadata": {},
+                "annotator_kind": "LLM",
+                "user_id": None,
+                "username": None,
+                "email": None,
+            }
+        ]
     }
+    # The span's own values are the top-level input and output, not metadata.
+    assert "input_value" not in metadata
+    assert "output_value" not in metadata
 
 
 async def _session_annotations(
@@ -810,7 +832,7 @@ def _session_vocabulary(**overrides: Any) -> dict[str, Any]:
     return {name: None for name in SESSION_BOUND_VARIABLE_NAMES} | overrides
 
 
-def test_session_eval_context_roots_the_session_document_under_metadata() -> None:
+def test_session_eval_context_lays_the_record_flat_under_metadata() -> None:
     project_session = _unsaved_project_session()
     turns = [
         {
@@ -834,14 +856,10 @@ def test_session_eval_context_roots_the_session_document_under_metadata() -> Non
     assert loaded.context["input"] == "question-0"
     assert loaded.context["output"] == "answer-2"
     metadata = loaded.context["metadata"]
-    assert set(metadata) == SESSION_BOUND_VARIABLE_NAMES | {"session"}
-    assert metadata["session"] == {
-        "session_id": project_session.session_id,
-        "start_time": project_session.start_time.isoformat(),
-        "end_time": project_session.end_time.isoformat(),
-        "duration_ms": 2000.0,
-        "turns": turns,
-    }
+    assert set(metadata) == SESSION_BOUND_VARIABLE_NAMES | SESSION_METADATA_FIELD_NAMES
+    assert metadata["start_time"] == project_session.start_time.isoformat()
+    assert metadata["end_time"] == project_session.end_time.isoformat()
+    assert metadata["turns"] == turns
     assert loaded.applied_policy == {
         "version": SESSION_POLICY_VERSION,
         "ordering": "trace_start_time_then_trace_id_with_earliest_root_span",
@@ -861,7 +879,7 @@ def test_session_eval_context_roots_the_session_document_under_metadata() -> Non
     )
     assert empty.context["input"] is None
     assert empty.context["output"] is None
-    assert empty.context["metadata"]["session"]["turns"] == []
+    assert empty.context["metadata"]["turns"] == []
     assert empty.applied_policy["total_eligible_root_count"] == 0
 
 
@@ -949,7 +967,7 @@ async def test_span_entity_path_mapping_binds_attribute(
         project.id,
         template_content="Model: {{input}}",
         criteria_input_mapping=InputMapping(
-            path_mapping={"input": "metadata.span.attributes.llm.model_name"},
+            path_mapping={"input": "metadata.attributes.llm.model_name"},
             literal_mapping={},
         ),
     )
@@ -1042,7 +1060,7 @@ async def test_session_entity_turns_path_mapping_binds_a_turn(
         evaluation_target="SESSION",
         template_content="First turn: {{question}}",
         criteria_input_mapping=InputMapping(
-            path_mapping={"question": "metadata.session.turns[0].input"},
+            path_mapping={"question": "metadata.turns[0].input"},
             literal_mapping={},
         ),
     )
@@ -1443,8 +1461,8 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
         evaluation_target="SESSION",
         template_content=(
             "OUTPUT={{output}}\n"
-            "TURNS={{#metadata.session.turns}}{{input}}/{{output}}/{{metadata.turn}};"
-            "{{/metadata.session.turns}}"
+            "TURNS={{#metadata.turns}}{{input}}/{{output}}/{{metadata.turn}};"
+            "{{/metadata.turns}}"
         ),
     )
     unit_id, fingerprint = await _materialize_session_unit(
@@ -1922,7 +1940,7 @@ async def test_llm_criteria_input_mapping_override_is_used_during_execution(
         project.id,
         template_content="Question: {{question}}\nAnswer: {{answer}}",
         criteria_input_mapping=InputMapping(
-            path_mapping={"question": "metadata.span.attributes.remapped.question"},
+            path_mapping={"question": "metadata.attributes.remapped.question"},
             literal_mapping={"answer": "literal answer"},
         ),
     )
@@ -1964,7 +1982,7 @@ async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
             sampling_rate=1.0,
             evaluation_target="SPAN",
             input_mapping=InputMapping(
-                path_mapping={"text": "metadata.span.attributes.remapped.text"},
+                path_mapping={"text": "metadata.attributes.remapped.text"},
                 literal_mapping={"words": "mapped value"},
             ),
         )
@@ -2034,7 +2052,7 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
         db,
         project.id,
         criteria_input_mapping=InputMapping(
-            path_mapping={"output": "metadata.span.attributes.remapped.value"},
+            path_mapping={"output": "metadata.attributes.remapped.value"},
             literal_mapping={"metadata": "project_evaluator literal"},
         ),
     )

@@ -262,6 +262,7 @@ async def test_span_fields(
         expected_context = span_eval_context(
             db_span,
             trace_id=db_traces[db_span.trace_rowid].trace_id,
+            annotations=[],
         )
         assert set(span["evaluationContext"]) == {"input", "output", "metadata"}
         assert span["evaluationContext"] == _as_stored(expected_context)
@@ -1021,6 +1022,11 @@ async def test_as_example_revision_with_annotations(
     assert metadata is not None
     assert "span_kind" in metadata
     assert metadata["span_kind"] == "LLM"
+    # The preview shares the converter's metadata builder wholesale.
+    assert "trace_id" in metadata
+    assert "attributes" in metadata
+    assert "events" in metadata
+    assert "latency_ms" in metadata
 
     # Check annotations are present and structured as lists
     annotations = metadata.get("annotations")

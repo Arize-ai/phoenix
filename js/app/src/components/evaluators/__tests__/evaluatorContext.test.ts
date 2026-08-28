@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getEvaluatorBoundVariables } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
   getGenericSessionEvaluationContext,
@@ -34,12 +34,12 @@ describe("materializeEvaluatorContext", () => {
           output: "Because.",
           metadata: {
             latency_ms: 842.5,
-            span: { input_value: "Why?", output_value: "Because." },
+            attributes: { input: { value: "Why?" } },
           },
         },
       },
       inputMapping: {
-        pathMapping: { input: "metadata.span.input_value" },
+        pathMapping: { input: "metadata.attributes.input.value" },
         literalMapping: {},
       },
       slotDefaults: getEvaluatorSlotDefaults("span"),
@@ -50,7 +50,7 @@ describe("materializeEvaluatorContext", () => {
         name: "input",
         status: "resolved",
         value: "Why?",
-        provenance: { kind: "path", path: "metadata.span.input_value" },
+        provenance: { kind: "path", path: "metadata.attributes.input.value" },
       },
       {
         name: "output",
@@ -83,7 +83,8 @@ describe("materializeEvaluatorContext", () => {
           metadata: {
             first_input: "Hello",
             last_output: "Goodbye",
-            session: { session_id: "session-1", turns: [] },
+            session_id: "session-1",
+            turns: [],
           },
         },
       },
@@ -143,11 +144,11 @@ describe("materializeEvaluatorContext", () => {
         source: {
           input: "Why?",
           output: "Because.",
-          metadata: { latency_ms: 1, span: { input_value: "Why?" } },
+          metadata: { latency_ms: 1, attributes: { input: { value: "Why?" } } },
         },
       },
       inputMapping: {
-        pathMapping: { input: "metadata.span.nonexistent" },
+        pathMapping: { input: "metadata.attributes.nonexistent" },
         literalMapping: { input: "pinned" },
       },
       slotDefaults: getEvaluatorSlotDefaults("span"),
@@ -156,7 +157,7 @@ describe("materializeEvaluatorContext", () => {
     expect(context?.evaluatorInputs[0]).toMatchObject({
       name: "input",
       status: "unresolved",
-      provenance: { kind: "path", path: "metadata.span.nonexistent" },
+      provenance: { kind: "path", path: "metadata.attributes.nonexistent" },
     });
     expect(context?.evaluatorInputs[0]).not.toHaveProperty("value");
   });
@@ -169,11 +170,11 @@ describe("materializeEvaluatorContext", () => {
         source: {
           input: "Why?",
           output: "Because.",
-          metadata: { latency_ms: 1, span: { input_value: "Why?" } },
+          metadata: { latency_ms: 1, attributes: { input: { value: "Why?" } } },
         },
       },
       inputMapping: {
-        pathMapping: { input: "metadata.span.input_value" },
+        pathMapping: { input: "metadata.attributes.input.value" },
         literalMapping: { input: "pinned" },
       },
       slotDefaults: getEvaluatorSlotDefaults("span"),
@@ -254,21 +255,22 @@ describe("the preview binds what a live run binds", () => {
         slotDefaults: getEvaluatorSlotDefaults(grain),
       });
 
-      const vocabularyNames = getEvaluatorBoundVariables(grain).map(
+      const metadataNames = getEvaluatorMetadataEntries(grain).map(
         ({ name }) => name
       );
       // The server binds by the three top-level names and nothing else.
       expect(Object.keys(materialized?.values ?? {})).toEqual([
         ...EVALUATOR_SLOT_NAMES,
       ]);
-      // Under `metadata`: the grain's vocabulary flat, and the record nested
-      // under the grain's own key.
-      expect(Object.keys(source.metadata).sort()).toEqual(
-        [...vocabularyNames, grain].sort()
+      // Under `metadata`: the grain's vocabulary and its record fields, flat —
+      // no grain-named level. A sampled span may also spread its own metadata
+      // attribute's keys beside them.
+      expect(Object.keys(source.metadata)).toEqual(
+        expect.arrayContaining(metadataNames)
       );
       // Read out in the order the authoring surfaces present them in.
       expect(materialized?.vocabulary.map(({ name }) => name)).toEqual(
-        vocabularyNames.map((name) => `metadata.${name}`)
+        metadataNames.map((name) => `metadata.${name}`)
       );
       expect(materialized?.hasSampledRecord).toBe(isSampled);
     }

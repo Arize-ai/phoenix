@@ -6,6 +6,7 @@ import type {
 import { EVALUATOR_SLOT_NAMES } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import {
   getEvaluatorBoundVariables,
+  getEvaluatorMetadataEntries,
   type EvaluatorBoundVariable,
 } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
@@ -32,6 +33,8 @@ export type MaterializedEvaluatorContextEntry = {
   value?: unknown;
   provenance: EvaluatorContextProvenance;
   description?: string;
+  /** An object or list the author can drill into. */
+  isContainer?: boolean;
 };
 
 export type MaterializedEvaluatorContext = {
@@ -46,9 +49,10 @@ export type MaterializedEvaluatorContext = {
   values: Record<string, unknown>;
   evaluatorInputs: MaterializedEvaluatorContextEntry[];
   /**
-   * The record's own names, as the `metadata.…` paths that read them. Binding
-   * is by the three slot names alone, so these are reached by path, never by
-   * name — the entry is written exactly as it must be typed.
+   * The record's own names — the filter vocabulary, then the record fields —
+   * as the `metadata.…` paths that read them. Binding is by the three slot
+   * names alone, so these are reached by path, never by name — the entry is
+   * written exactly as it must be typed.
    */
   vocabulary: MaterializedEvaluatorContextEntry[];
 };
@@ -104,12 +108,12 @@ export function materializeEvaluatorContext({
     }
   }
 
-  // The vocabulary reads off whatever `metadata` ended up bound to, so what the
-  // rows offer is what the evaluator would actually receive under that name.
+  // The rows read off whatever `metadata` ended up bound to, so what they
+  // offer is what the evaluator would actually receive under that name.
   const boundMetadata = isStringKeyedObject(values[EVALUATOR_METADATA_SLOT])
     ? values[EVALUATOR_METADATA_SLOT]
     : {};
-  const vocabulary = boundVariables.map((variable) =>
+  const vocabulary = getEvaluatorMetadataEntries(grain).map((variable) =>
     materializeVocabularyEntry({ variable, boundMetadata, hasSampledRecord })
   );
 
@@ -217,10 +221,13 @@ function materializeVocabularyEntry({
     status: isResolved
       ? "resolved"
       : hasSampledRecord
-        ? "unresolved"
-        : "unverifiable",
+      ? "unresolved"
+      : "unverifiable",
     ...(isResolved ? { value: boundMetadata[variable.name] } : {}),
     provenance: { kind: "path", path },
     description: variable.description,
+    ...(variable.type === "object" || variable.type === "list"
+      ? { isContainer: true }
+      : {}),
   };
 }

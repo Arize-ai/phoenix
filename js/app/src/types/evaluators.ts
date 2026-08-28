@@ -170,8 +170,9 @@ export type DatasetEvaluatorMappingSource = {
 
 /**
  * As produced by the server: `input` and `output` are the span's own input and
- * output values, and everything else sits under `metadata` — the span filter
- * language's names flat, with the whole span record under `metadata.span`.
+ * output values, and everything else sits flat under `metadata` — the span
+ * filter language's names beside the record's timestamps, `attributes`,
+ * `events`, and `annotations`.
  */
 export type SpanEvaluatorMappingSource = {
   input: unknown;
@@ -182,8 +183,8 @@ export type SpanEvaluatorMappingSource = {
 /**
  * As produced by the server: `input` and `output` are the values the session
  * filter language spells `first_input` and `last_output`, and everything else
- * sits under `metadata` — those names flat, with the whole session record under
- * `metadata.session`.
+ * sits flat under `metadata` — those names beside the session's timestamps
+ * and `turns`.
  *
  * Structurally identical to a span source, but semantically distinct: the two
  * grains name different records and offer different mapping vocabulary, so the
@@ -204,9 +205,9 @@ export type EvaluatorMappingSourceByGrain = {
 };
 
 export type EvaluatorMappingSource<
-  TGrain extends EvaluatorMappingSourceGrain = EvaluatorMappingSourceGrain,
+  TGrain extends EvaluatorMappingSourceGrain = EvaluatorMappingSourceGrain
 > = EvaluatorMappingSourceByGrain[TGrain];
 
 export type EvaluatorMappingSourceField<
-  TGrain extends EvaluatorMappingSourceGrain,
+  TGrain extends EvaluatorMappingSourceGrain
 > = keyof EvaluatorMappingSourceByGrain[TGrain];

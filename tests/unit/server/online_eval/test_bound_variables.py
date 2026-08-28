@@ -19,7 +19,9 @@ from typing import Any, Mapping
 from phoenix.db import models
 from phoenix.server.online_eval.bound_variables import (
     SESSION_BOUND_VARIABLE_NAMES,
+    SESSION_METADATA_FIELD_NAMES,
     SPAN_BOUND_VARIABLE_NAMES,
+    SPAN_METADATA_FIELD_NAMES,
 )
 from phoenix.server.online_eval.executor import span_eval_context
 
@@ -64,8 +66,22 @@ def test_session_vocabulary_matches_the_authoring_surface() -> None:
     )
 
 
-def _span_entity() -> Mapping[str, Any]:
-    """The ``metadata.span`` document, built off an unsaved span."""
+def test_span_record_fields_match_the_authoring_surface() -> None:
+    assert _mirrored_names("SPAN_METADATA_FIELDS") == set(SPAN_METADATA_FIELD_NAMES), (
+        f"The span record fields in {_MIRROR.name} no longer match the ones a span "
+        "context carries under `metadata`."
+    )
+
+
+def test_session_record_fields_match_the_authoring_surface() -> None:
+    assert _mirrored_names("SESSION_METADATA_FIELDS") == set(SESSION_METADATA_FIELD_NAMES), (
+        f"The session record fields in {_MIRROR.name} no longer match the ones a "
+        "session context carries under `metadata`."
+    )
+
+
+def _span_metadata() -> Mapping[str, Any]:
+    """A span context's ``metadata``, built off an unsaved span."""
     start_time = datetime.now(timezone.utc)
     span = models.Span(
         span_id="span-under-test",
@@ -82,24 +98,25 @@ def _span_entity() -> Mapping[str, Any]:
         cumulative_llm_token_count_prompt=0,
         cumulative_llm_token_count_completion=0,
     )
-    entity: Mapping[str, Any] = span_eval_context(span, trace_id="trace-under-test")["metadata"][
-        "span"
-    ]
-    return entity
+    metadata: Mapping[str, Any] = span_eval_context(
+        span, trace_id="trace-under-test", annotations=[]
+    )["metadata"]
+    return metadata
 
 
-def test_every_span_name_is_readable_from_the_span_document() -> None:
-    missing = set(SPAN_BOUND_VARIABLE_NAMES) - set(_span_entity())
-    assert not missing, (
-        f"The span document has no field for {sorted(missing)}. A span context reads "
-        "each vocabulary name straight off that document, so a name the filter "
-        "language gains needs the matching field added beside it."
+def test_span_metadata_is_exactly_the_vocabulary_and_the_record_fields() -> None:
+    assert set(_span_metadata()) == SPAN_BOUND_VARIABLE_NAMES | SPAN_METADATA_FIELD_NAMES, (
+        "A span context's `metadata` carries the filter vocabulary and the record "
+        "fields, nothing else. A name the filter language gains needs its value "
+        "added to the builder; a new record field is declared in "
+        "SPAN_METADATA_FIELD_NAMES beside it."
     )
 
 
-def test_neither_grain_root_name_collides_with_its_vocabulary() -> None:
-    assert "span" not in SPAN_BOUND_VARIABLE_NAMES
-    assert "session" not in SESSION_BOUND_VARIABLE_NAMES, (
-        "A grain root shares `metadata` with the grain vocabulary, so a vocabulary "
-        "name spelled like the root would shadow the record. Rename the new name."
+def test_no_record_field_name_collides_with_a_vocabulary_name() -> None:
+    assert not SPAN_BOUND_VARIABLE_NAMES & SPAN_METADATA_FIELD_NAMES
+    assert not SESSION_BOUND_VARIABLE_NAMES & SESSION_METADATA_FIELD_NAMES, (
+        "Record fields share `metadata` with the grain vocabulary flat, so a "
+        "vocabulary name spelled like a record field would shadow it. Rename "
+        "the new name."
     )

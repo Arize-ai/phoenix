@@ -38,17 +38,17 @@ const defaultPathsFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
   );
 
 /**
- * What each slot's default used to name: the record field the context happens
- * to have copied the slot's value from. The identity default has to reach the
- * same value, or moving to it would quietly change what an unmapped slot binds.
+ * The record path that publishes the same value a slot's identity default
+ * binds. The identity default has to reach the same value, or moving to it
+ * would quietly change what an unmapped slot binds. Span `input`/`output`
+ * have no such path: they are the example conversion's extraction (messages
+ * for an LLM span), a derivation rather than a copy of one record field.
  */
 const RECORD_PATHS: Record<
   ProjectEvaluatorMappingSourceGrain,
-  Record<EvaluatorSlotName, string>
+  Partial<Record<EvaluatorSlotName, string>>
 > = {
   span: {
-    input: "metadata.span.input_value",
-    output: "metadata.span.output_value",
     metadata: "metadata",
   },
   session: {
@@ -93,8 +93,12 @@ describe("evaluator slot defaults", () => {
   it("binds what the record path it replaced bound", () => {
     for (const grain of GRAINS) {
       for (const slotName of EVALUATOR_SLOT_NAMES) {
+        const recordPath = RECORD_PATHS[grain][slotName];
+        if (recordPath === undefined) {
+          continue;
+        }
         expect(boundValue(grain, slotName)).toEqual(
-          boundValue(grain, slotName, RECORD_PATHS[grain][slotName])
+          boundValue(grain, slotName, recordPath)
         );
       }
     }
@@ -117,25 +121,22 @@ describe("evaluator slot defaults", () => {
       getEvaluatorSlotSuggestedPaths(grain, slotName).map(({ path }) => path);
 
     expect(paths("span", "input")).toEqual([
-      "metadata.span.input_value",
-      "metadata.span.attributes.llm.input_messages",
-      "metadata.span.attributes.input",
+      "metadata.attributes.llm.input_messages",
+      "metadata.attributes.input",
     ]);
     expect(paths("span", "output")).toEqual([
-      "metadata.span.output_value",
-      "metadata.span.attributes.llm.output_messages",
+      "metadata.attributes.llm.output_messages",
     ]);
     expect(paths("span", "metadata")).toEqual([
-      "metadata.span.attributes",
-      "metadata.span.attributes.llm",
+      "metadata.attributes",
+      "metadata.attributes.llm",
+      "metadata.annotations",
     ]);
     expect(paths("session", "input")).toEqual([
-      "metadata.session.turns",
-      "metadata.session.turns[0].input",
+      "metadata.turns",
+      "metadata.turns[0].input",
     ]);
-    expect(paths("session", "output")).toEqual([
-      "metadata.session.turns[0].output",
-    ]);
+    expect(paths("session", "output")).toEqual(["metadata.turns[0].output"]);
     expect(paths("session", "metadata")).toEqual([]);
   });
 

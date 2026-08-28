@@ -17,54 +17,34 @@ import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/
  */
 export type EvaluatorBoundVariable = {
   name: string;
-  type: "text" | "number";
+  type: "text" | "number" | "object" | "list";
   /** Omitted where the name already says it. */
   description?: string;
 };
 
 const SPAN_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
   { name: "span_id", type: "text" },
-  {
-    name: "trace_id",
-    type: "text",
-    description: "The trace the span belongs to.",
-  },
-  {
-    name: "parent_id",
-    type: "text",
-    description: "The parent span, if it has one.",
-  },
+  { name: "trace_id", type: "text" },
+  { name: "parent_id", type: "text" },
   { name: "name", type: "text" },
-  {
-    name: "span_kind",
-    type: "text",
-    description: "The OpenInference kind, such as LLM or TOOL.",
-  },
+  { name: "span_kind", type: "text", description: "LLM, TOOL, CHAIN, …" },
   { name: "status_code", type: "text", description: "OK, ERROR, or UNSET." },
-  {
-    name: "status_message",
-    type: "text",
-    description: "The message recorded with the status.",
-  },
-  {
-    name: "latency_ms",
-    type: "number",
-    description: "Span duration, in milliseconds.",
-  },
+  { name: "status_message", type: "text" },
+  { name: "latency_ms", type: "number" },
   {
     name: "cumulative_llm_token_count_prompt",
     type: "number",
-    description: "Prompt tokens for the span and everything beneath it.",
+    description: "Includes descendants.",
   },
   {
     name: "cumulative_llm_token_count_completion",
     type: "number",
-    description: "Completion tokens for the span and everything beneath it.",
+    description: "Includes descendants.",
   },
   {
     name: "cumulative_llm_token_count_total",
     type: "number",
-    description: "Total tokens for the span and everything beneath it.",
+    description: "Includes descendants.",
   },
 ];
 
@@ -73,73 +53,36 @@ const SESSION_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
   {
     name: "user_id",
     type: "text",
-    description: "The user recorded on the session's first trace.",
+    description: "From the session's first trace.",
   },
-  {
-    name: "first_input",
-    type: "text",
-    description: "The input of the session's first trace.",
-  },
-  {
-    name: "last_output",
-    type: "text",
-    description: "The output of the session's last trace.",
-  },
-  {
-    name: "duration_ms",
-    type: "number",
-    description: "Session duration, in milliseconds.",
-  },
-  {
-    name: "num_traces",
-    type: "number",
-    description: "Traces in the session.",
-  },
-  {
-    name: "num_traces_with_error",
-    type: "number",
-    description: "Traces that ended in an error.",
-  },
-  {
-    name: "llm_span_count",
-    type: "number",
-    description: "LLM spans in the session.",
-  },
-  {
-    name: "tool_span_count",
-    type: "number",
-    description: "Tool spans in the session.",
-  },
-  {
-    name: "token_count_prompt",
-    type: "number",
-    description: "Prompt tokens across the session.",
-  },
-  {
-    name: "token_count_completion",
-    type: "number",
-    description: "Completion tokens across the session.",
-  },
-  {
-    name: "token_count_total",
-    type: "number",
-    description: "Total tokens across the session.",
-  },
-  {
-    name: "prompt_cost",
-    type: "number",
-    description: "Cost of the session's prompt tokens.",
-  },
-  {
-    name: "completion_cost",
-    type: "number",
-    description: "Cost of the session's completion tokens.",
-  },
-  {
-    name: "total_cost",
-    type: "number",
-    description: "Total cost of the session.",
-  },
+  { name: "first_input", type: "text" },
+  { name: "last_output", type: "text" },
+  { name: "duration_ms", type: "number" },
+  { name: "num_traces", type: "number" },
+  { name: "num_traces_with_error", type: "number" },
+  { name: "llm_span_count", type: "number" },
+  { name: "tool_span_count", type: "number" },
+  { name: "token_count_prompt", type: "number" },
+  { name: "token_count_completion", type: "number" },
+  { name: "token_count_total", type: "number" },
+  { name: "prompt_cost", type: "number" },
+  { name: "completion_cost", type: "number" },
+  { name: "total_cost", type: "number" },
+];
+
+/** Mirrors the server's SPAN/SESSION_METADATA_FIELD_NAMES via the same test as above. */
+const SPAN_METADATA_FIELDS: EvaluatorBoundVariable[] = [
+  { name: "start_time", type: "text" },
+  { name: "end_time", type: "text" },
+  { name: "attributes", type: "object" },
+  { name: "events", type: "list" },
+  { name: "annotations", type: "object", description: "Grouped by name." },
+];
+
+const SESSION_METADATA_FIELDS: EvaluatorBoundVariable[] = [
+  { name: "start_time", type: "text" },
+  { name: "end_time", type: "text" },
+  { name: "turns", type: "list", description: "Oldest first." },
 ];
 
 /**
@@ -152,8 +95,34 @@ export function getEvaluatorBoundVariables(
   return grain === "session" ? SESSION_BOUND_VARIABLES : SPAN_BOUND_VARIABLES;
 }
 
+/** The record fields beside the vocabulary, after it in reading order. */
+export function getEvaluatorMetadataFields(
+  grain: ProjectEvaluatorMappingSourceGrain
+): EvaluatorBoundVariable[] {
+  return grain === "session" ? SESSION_METADATA_FIELDS : SPAN_METADATA_FIELDS;
+}
+
+export function getEvaluatorMetadataEntries(
+  grain: ProjectEvaluatorMappingSourceGrain
+): EvaluatorBoundVariable[] {
+  const fields = getEvaluatorMetadataFields(grain);
+  const isContainer = ({ type }: EvaluatorBoundVariable) =>
+    type === "object" || type === "list";
+  return [
+    ...fields.filter(isContainer),
+    ...getEvaluatorBoundVariables(grain),
+    ...fields.filter((field) => !isContainer(field)),
+  ];
+}
+
 export function getEvaluatorBoundVariableNames(
   grain: ProjectEvaluatorMappingSourceGrain
 ): Set<string> {
   return new Set(getEvaluatorBoundVariables(grain).map(({ name }) => name));
+}
+
+export function getEvaluatorMetadataEntryNames(
+  grain: ProjectEvaluatorMappingSourceGrain
+): Set<string> {
+  return new Set(getEvaluatorMetadataEntries(grain).map(({ name }) => name));
 }

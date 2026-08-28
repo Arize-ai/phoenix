@@ -133,7 +133,7 @@ export function getEvaluatorPathCursor(
       containerEnd = splitAt;
       partial =
         quotedKey === undefined
-          ? (index ?? "")
+          ? index ?? ""
           : unescapeQuotedPathKey(quotedKey);
       from = splitAt + (quotedKey === undefined ? 1 : 2);
     } else if (PARTIAL_MEMBER_PATTERN.test(fragment)) {
@@ -168,10 +168,11 @@ const PATH_HEAD_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*/;
  * in, or null when it already names something.
  *
  * The record's own names live under `metadata`, and the root menu offers them
- * by their whole path — which is how typing `span` finds `metadata.span`. A
- * container is read the same way: when what the author wrote reaches nothing,
- * its first name is looked up among the roots and the rest is carried across,
- * so `span.` opens `metadata.span` and `span.attributes.` the level below it.
+ * by their whole path — which is how typing `attributes` finds
+ * `metadata.attributes`. A container is read the same way: when what the
+ * author wrote reaches nothing, its first name is looked up among the roots
+ * and the rest is carried across, so `attributes.` opens `metadata.attributes`
+ * and `attributes.llm.` the level below it.
  */
 export function reachEvaluatorContainerPath({
   source,
@@ -210,6 +211,15 @@ export function reachEvaluatorContainerPath({
  * on the sampled record, or what kind of thing it is when the member is a
  * branch to drill into rather than a value to read.
  */
+/** A row that can be drilled with `.` — styled with a trailing chevron. */
+export const CONTAINER_COMPLETION_TYPE = "typeahead-completion--container";
+
+export function toMemberCompletionType(value: unknown): string {
+  return Array.isArray(value) || isStringKeyedObject(value)
+    ? CONTAINER_COMPLETION_TYPE
+    : "variable";
+}
+
 export function toMemberPreview(value: unknown): string {
   if (value == null) {
     // A field with no value has nothing to preview; the name alone reads
@@ -221,7 +231,7 @@ export function toMemberPreview(value: unknown): string {
     return `list · ${value.length}`;
   }
   if (isStringKeyedObject(value)) {
-    return "object";
+    return `object · ${Object.keys(value).length}`;
   }
   return toContentPreview(value, { maxLength: 48 }) ?? String(value);
 }
@@ -403,6 +413,7 @@ function toCompletion(
     key: member.key,
     path: member.path,
     preview: toMemberPreview(member.value),
+    type: toMemberCompletionType(member.value),
     section,
   };
 }

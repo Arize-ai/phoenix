@@ -1,15 +1,11 @@
-import { getEvaluatorBoundVariableNames } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import type { GenericEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
+import { genericMetadata } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import type { EvaluatorMappingSource } from "@phoenix/types";
 
 /**
- * Mirrors the server's `session_eval_context()`: `input` and `output` are the
- * values the session filter language spells `first_input` and `last_output`,
- * and `metadata` carries those names flat beside the whole session record
- * under `metadata.session`.
- *
- * A project with no recorded sessions yet still needs something to author a
- * mapping against, the same way the span grain has a sample span.
+ * Mirrors the server's `session_eval_context()`. A project with no recorded
+ * sessions yet still needs something to author a mapping against, the same way
+ * the span grain has a sample span.
  */
 export type SampleSessionEvaluationContext = {
   context: EvaluatorMappingSource<"session">;
@@ -31,14 +27,6 @@ const TURNS = [
     event_time: "2026-01-14T18:24:47.911000+00:00",
   },
 ];
-
-const SESSION_DOCUMENT: Record<string, unknown> = {
-  session_id: "support-2026-01-14-8842",
-  start_time: "2026-01-14T18:20:11.402000+00:00",
-  end_time: "2026-01-14T18:24:49.183000+00:00",
-  duration_ms: 277781.0,
-  turns: TURNS,
-};
 
 /** The session's own names, exactly as the session filter language spells them. */
 const SESSION_VOCABULARY: Record<string, unknown> = {
@@ -63,7 +51,12 @@ const SESSION_SAMPLE: SampleSessionEvaluationContext = {
   context: {
     input: SESSION_VOCABULARY.first_input,
     output: SESSION_VOCABULARY.last_output,
-    metadata: { ...SESSION_VOCABULARY, session: SESSION_DOCUMENT },
+    metadata: {
+      ...SESSION_VOCABULARY,
+      start_time: "2026-01-14T18:20:11.402000+00:00",
+      end_time: "2026-01-14T18:24:49.183000+00:00",
+      turns: TURNS,
+    },
   },
 };
 
@@ -77,32 +70,19 @@ export function getSampleSessionEvaluationContext(): SampleSessionEvaluationCont
  * skeleton, and one empty turn keeps the turn shape drillable. The sample
  * above exists only as a runnable demo record.
  */
-const GENERIC_SESSION_DOCUMENT: Record<string, unknown> = {
-  session_id: null,
-  start_time: null,
-  end_time: null,
-  duration_ms: null,
-  turns: [
-    {
-      input: null,
-      output: null,
-      event_time: null,
-    },
-  ],
-};
-
 const GENERIC_SESSION_CONTEXT: GenericEvaluationContext<"session"> = {
   context: {
     input: null,
     output: null,
     metadata: {
-      ...Object.fromEntries(
-        [...getEvaluatorBoundVariableNames("session")].map((name) => [
-          name,
-          null,
-        ])
-      ),
-      session: GENERIC_SESSION_DOCUMENT,
+      ...genericMetadata("session"),
+      turns: [
+        {
+          input: null,
+          output: null,
+          event_time: null,
+        },
+      ],
     },
   },
 };

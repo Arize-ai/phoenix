@@ -230,8 +230,7 @@ function snippetToCompletion({
  * `null` for an empty condition, which the field resolves itself.
  */
 export type DSLFilterValidConditionArgs<
-  TValidationResult extends DSLFilterConditionValidationResult =
-    DSLFilterConditionValidationResult,
+  TValidationResult extends DSLFilterConditionValidationResult = DSLFilterConditionValidationResult
 > = {
   condition: string;
   validationResult: TValidationResult | null;
@@ -263,8 +262,7 @@ export type DSLFilterConditionFieldRef = {
 };
 
 export type DSLFilterConditionFieldProps<
-  TValidationResult extends DSLFilterConditionValidationResult =
-    DSLFilterConditionValidationResult,
+  TValidationResult extends DSLFilterConditionValidationResult = DSLFilterConditionValidationResult
 > = {
   /**
    * The current filter condition expression (controlled)
@@ -498,7 +496,7 @@ export function DSLFilterErrorBadge({
  * `ref` — see `AIQueryDSLFilterField` for the AI-query composition.
  */
 export function DSLFilterConditionField<
-  TValidationResult extends DSLFilterConditionValidationResult,
+  TValidationResult extends DSLFilterConditionValidationResult
 >(props: DSLFilterConditionFieldProps<TValidationResult>) {
   const {
     value,
@@ -669,9 +667,14 @@ export function DSLFilterConditionField<
         icons: false,
         tooltipClass: () => "dsl-filter-typeahead",
         // Suggestion rows show a prose label (and the DSL as `detail`), so
-        // they render in the UI font rather than code font
+        // they render in the UI font rather than code font. A type already
+        // spelled as a `typeahead-completion--` class styles its own row.
         optionClass: (completion) =>
-          completion.type === "text" ? "dsl-filter-suggestion" : "",
+          completion.type === "text"
+            ? "dsl-filter-suggestion"
+            : completion.type?.startsWith("typeahead-completion--")
+            ? completion.type
+            : "",
       }),
     ];
   }, [
@@ -707,7 +710,7 @@ export function DSLFilterConditionField<
     if (!editorView) {
       return;
     }
-    const range = hasError ? (getErrorRange?.(value) ?? null) : null;
+    const range = hasError ? getErrorRange?.(value) ?? null : null;
     editorView.dispatch({ effects: setErrorRangeEffect.of(range) });
   }, [hasError, value, getErrorRange]);
 

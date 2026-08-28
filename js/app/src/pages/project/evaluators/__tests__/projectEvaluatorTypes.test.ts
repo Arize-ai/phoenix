@@ -202,11 +202,13 @@ describe("dropOtherGrainEntityPathMappings", () => {
         {
           literalMapping: { rubric: "helpfulness" },
           pathMapping: {
-            whole: "metadata.span",
-            nested: "metadata.span.attributes.llm.model_name",
-            bracketed: "metadata.span['a.b']",
-            similarPrefix: "metadata.spanX.name",
-            kept: "metadata.session.turns[0].input",
+            whole: "metadata.attributes",
+            nested: "metadata.attributes.llm.model_name",
+            bracketed: "metadata.attributes['a.b']",
+            scalar: "metadata.latency_ms",
+            similarPrefix: "metadata.attributesX.name",
+            shared: "metadata.start_time",
+            kept: "metadata.turns[0].input",
             slot: "metadata.first_input",
           },
         },
@@ -215,8 +217,9 @@ describe("dropOtherGrainEntityPathMappings", () => {
     ).toEqual({
       literalMapping: { rubric: "helpfulness" },
       pathMapping: {
-        similarPrefix: "metadata.spanX.name",
-        kept: "metadata.session.turns[0].input",
+        similarPrefix: "metadata.attributesX.name",
+        shared: "metadata.start_time",
+        kept: "metadata.turns[0].input",
         slot: "metadata.first_input",
       },
     });
@@ -228,15 +231,15 @@ describe("dropOtherGrainEntityPathMappings", () => {
         {
           literalMapping: {},
           pathMapping: {
-            stale: "metadata.session.turns[0].input",
-            kept: "metadata.span.attributes",
+            stale: "metadata.turns[0].input",
+            kept: "metadata.attributes",
           },
         },
         "span"
       )
     ).toEqual({
       literalMapping: {},
-      pathMapping: { kept: "metadata.span.attributes" },
+      pathMapping: { kept: "metadata.attributes" },
     });
   });
 });
@@ -256,7 +259,7 @@ describe("isSameInputMapping", () => {
       isSameInputMapping(
         {
           literalMapping: {},
-          pathMapping: { output: "metadata.span.attributes" },
+          pathMapping: { output: "metadata.attributes" },
         },
         loaded
       )

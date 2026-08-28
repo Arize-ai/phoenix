@@ -7,6 +7,7 @@ import type {
 import { EVALUATOR_METADATA_SLOT } from "@phoenix/components/evaluators/evaluatorContext";
 import type { EvaluatorPathMember } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import {
+  CONTAINER_COMPLETION_TYPE,
   getEvaluatorPathMembers,
   resolveEvaluatorPath,
   toMemberPreview,
@@ -28,21 +29,16 @@ export const RECORD_SECTION_BY_GRAIN: Record<
 };
 
 /** A row for a name the selected record does not supply; dimmed, not dropped. */
-export const UNSET_COMPLETION_TYPE = "evaluator-completion-unset";
+export const UNSET_COMPLETION_TYPE = "typeahead-completion--unset";
 
 /** A row whose detail reads as prose rather than as a value. */
-export const HINT_COMPLETION_TYPE = "evaluator-completion-hint";
-
-const CLASS_BY_COMPLETION_TYPE: Record<string, string> = {
-  [UNSET_COMPLETION_TYPE]: "typeahead-completion--unset",
-  [HINT_COMPLETION_TYPE]: "typeahead-completion--hint",
-};
+export const HINT_COMPLETION_TYPE = "typeahead-completion--hint";
 
 /** The row class the shared typeahead chrome styles a completion with. */
 export function toEvaluatorCompletionClass(completion: Completion): string {
-  return completion.type === undefined
-    ? ""
-    : (CLASS_BY_COMPLETION_TYPE[completion.type] ?? "");
+  return completion.type?.startsWith("typeahead-completion--")
+    ? completion.type
+    : "";
 }
 
 /**
@@ -74,8 +70,8 @@ export type EvaluatorContextCandidate = {
  * completion by adding the insertion its own syntax calls for.
  *
  * The evaluator's three inputs come first, then the record's own names as the
- * paths that read them, then the record itself — the same reading order the
- * bindings panel lays `metadata` out in.
+ * paths that read them — the same reading order the bindings panel lays
+ * `metadata` out in.
  */
 export function buildEvaluatorContextCandidates(
   evaluationContext: MaterializedEvaluatorContext
@@ -88,7 +84,10 @@ export function buildEvaluatorContextCandidates(
     ...("value" in entry ? { value: entry.value } : {}),
     type: "variable",
     detail: getEvaluatorInputDetail({ entry, evaluationContext }),
-    info: getEvaluatorInputInfo(entry),
+    info:
+      entry.name === EVALUATOR_METADATA_SLOT
+        ? `${capitalize(evaluationContext.grain)} properties.`
+        : "",
     section: EVALUATOR_INPUT_SECTION,
     boost: 100 - index,
   }));
@@ -97,43 +96,26 @@ export function buildEvaluatorContextCandidates(
     rootName: EVALUATOR_METADATA_SLOT,
     isNested: true,
     ...("value" in entry ? { value: entry.value } : {}),
-    type: entry.status === "unresolved" ? UNSET_COMPLETION_TYPE : "variable",
+    type:
+      entry.status === "unresolved"
+        ? UNSET_COMPLETION_TYPE
+        : entry.isContainer
+        ? CONTAINER_COMPLETION_TYPE
+        : "variable",
     // Only a sampled record can preview a value; before one is picked the
     // name alone is the whole offer, and "not set" would be a lie.
     detail:
       entry.status === "resolved"
         ? toMemberPreview(entry.value)
         : entry.status === "unresolved"
-          ? "not set"
-          : "",
+        ? "not set"
+        : "",
     // A name that needs no explaining shows no info pane.
     info: entry.description ?? "",
     section: recordSection,
     boost: 100 - index,
   }));
-  return [...inputs, ...vocabulary, toRecordCandidate(evaluationContext)];
-}
-
-/** The whole record, under the `metadata` key that holds it. */
-function toRecordCandidate(
-  evaluationContext: MaterializedEvaluatorContext
-): EvaluatorContextCandidate {
-  const label = `${EVALUATOR_METADATA_SLOT}.${evaluationContext.grain}`;
-  const resolution = resolveEvaluatorPath({
-    source: evaluationContext.values,
-    path: label,
-  });
-  return {
-    label,
-    rootName: EVALUATOR_METADATA_SLOT,
-    isNested: true,
-    ...(resolution.status === "resolved" ? { value: resolution.value } : {}),
-    type: "variable",
-    detail: "object",
-    info: `The whole ${evaluationContext.grain}.`,
-    section: RECORD_SECTION_BY_GRAIN[evaluationContext.grain],
-    boost: 0,
-  };
+  return [...inputs, ...vocabulary];
 }
 
 /**
@@ -186,15 +168,10 @@ function getEvaluatorInputDetail({
   return provenance.kind === "path" && provenance.path !== entry.name
     ? `← ${provenance.path}`
     : entry.status === "resolved" && evaluationContext.hasSampledRecord
-      ? toMemberPreview(entry.value)
-      : "";
+    ? toMemberPreview(entry.value)
+    : "";
 }
 
-function getEvaluatorInputInfo(
-  entry: MaterializedEvaluatorContextEntry
-): string {
-  if (entry.name === EVALUATOR_METADATA_SLOT) {
-    return "Everything else about the record. Set in Evaluator input.";
-  }
-  return "Set in Evaluator input.";
+function capitalize(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
 }

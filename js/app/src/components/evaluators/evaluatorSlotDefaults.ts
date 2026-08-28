@@ -57,53 +57,49 @@ const SLOT_SUGGESTED_PATHS: BySlot<readonly EvaluatorSlotSuggestedPath[]> = {
   span: {
     input: [
       {
-        path: "metadata.span.input_value",
-        description: "The span's raw input value.",
+        path: "metadata.attributes.llm.input_messages",
+        description: "Chat messages sent to the model.",
       },
       {
-        path: "metadata.span.attributes.llm.input_messages",
-        description: "The chat messages sent to the model.",
-      },
-      {
-        path: "metadata.span.attributes.input",
-        description: "The input attribute, with its mime type.",
+        path: "metadata.attributes.input",
+        description: "Input attribute, with mime type.",
       },
     ],
     output: [
       {
-        path: "metadata.span.output_value",
-        description: "The span's raw output value.",
-      },
-      {
-        path: "metadata.span.attributes.llm.output_messages",
-        description: "The messages the model returned.",
+        path: "metadata.attributes.llm.output_messages",
+        description: "Messages the model returned.",
       },
     ],
     metadata: [
       {
-        path: "metadata.span.attributes",
-        description: "The span's whole attribute tree.",
+        path: "metadata.attributes",
+        description: "The whole attribute tree.",
       },
       {
-        path: "metadata.span.attributes.llm",
+        path: "metadata.attributes.llm",
         description: "Model, token counts, and messages.",
+      },
+      {
+        path: "metadata.annotations",
+        description: "Span annotations, by name.",
       },
     ],
   },
   session: {
     input: [
       {
-        path: "metadata.session.turns",
-        description: "Every turn of the session, in order.",
+        path: "metadata.turns",
+        description: "Every turn, oldest first.",
       },
       {
-        path: "metadata.session.turns[0].input",
+        path: "metadata.turns[0].input",
         description: "The session's opening request.",
       },
     ],
     output: [
       {
-        path: "metadata.session.turns[0].output",
+        path: "metadata.turns[0].output",
         description: "The first turn's response.",
       },
     ],

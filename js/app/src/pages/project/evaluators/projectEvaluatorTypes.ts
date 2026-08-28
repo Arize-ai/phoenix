@@ -9,25 +9,25 @@ import type {
   EvaluatorMappingSourceGrain,
 } from "@phoenix/types";
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import { getEvaluatorMetadataEntryNames } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
- * Drops the paths rooted at the record kind an evaluator no longer runs on.
- *
- * A path may be written against the whole record — `metadata.span.attributes…`,
- * `metadata.session.turns…` — and that key exists only on its own kind.
- * Switching an evaluator from spans to sessions would otherwise leave paths
- * behind that match nothing, and a path that matches nothing fails the
- * evaluation.
+ * Drops paths rooted at a `metadata` name the new record kind does not carry —
+ * a path that matches nothing fails the evaluation server-side.
  */
 export function dropOtherGrainEntityPathMappings(
   inputMapping: EvaluatorInputMapping,
   grain: ProjectEvaluatorMappingSourceGrain
 ): EvaluatorInputMapping {
-  const staleRoot = grain === "session" ? "metadata.span" : "metadata.session";
+  const otherGrain = grain === "session" ? "span" : "session";
+  const staleNames = [...getEvaluatorMetadataEntryNames(otherGrain)].filter(
+    (name) => !getEvaluatorMetadataEntryNames(grain).has(name)
+  );
   const pathMapping = Object.fromEntries(
     Object.entries(inputMapping.pathMapping).filter(
-      ([, path]) => !isPathRootedAt(path, staleRoot)
+      ([, path]) =>
+        !staleNames.some((name) => isPathRootedAt(path, `metadata.${name}`))
     )
   );
   return { ...inputMapping, pathMapping };
@@ -61,7 +61,7 @@ function sortedEntriesJson(mapping: Record<string, unknown> | undefined) {
   );
 }
 
-/** `metadata.span` and `metadata.span['a.b']` are rooted there; `metadata.spanX` is not. */
+/** `metadata.turns` and `metadata.turns[0]` are rooted there; `metadata.turnsX` is not. */
 function isPathRootedAt(path: string, root: string): boolean {
   if (!path.startsWith(root)) {
     return false;

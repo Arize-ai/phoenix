@@ -102,9 +102,9 @@ describe("code evaluator completions", () => {
         output: "Because.",
         metadata: {
           latency_ms: 842.5,
-          span: {
-            attributes: { llm: { model_name: "gpt-4o-mini" } },
-            output_value: "Because.",
+          attributes: {
+            llm: { model_name: "gpt-4o-mini" },
+            output: { value: "Because." },
           },
         },
       },
@@ -155,18 +155,18 @@ describe("code evaluator completions", () => {
   // the home back in and rewrite the expression the author started.
   it("opens the record's level from a name written without its home", () => {
     const result = completeAt(
-      "def evaluate(metadata):\n    value = span.",
+      "def evaluate(metadata):\n    value = attributes.",
       false
     );
 
     expect(result?.from).toBe(36);
     expect(result?.options.map((o) => o.label)).toEqual([
-      "metadata.span.attributes",
-      "metadata.span.output_value",
+      "metadata.attributes.llm",
+      "metadata.attributes.output",
     ]);
     expect(result?.options[1]).toMatchObject({
-      info: 'inserts metadata["span"]["output_value"]',
-      section: { name: "metadata.span" },
+      info: 'inserts metadata["attributes"]["output"]',
+      section: { name: "metadata.attributes" },
     });
   });
 
@@ -174,7 +174,7 @@ describe("code evaluator completions", () => {
   // leaves nothing that could be written.
   it("offers nothing from a record name whose slot is not declared", () => {
     expect(
-      completeAt("def evaluate(input):\n    value = span.", false)
+      completeAt("def evaluate(input):\n    value = attributes.", false)
     ).toBeNull();
   });
 
@@ -184,7 +184,10 @@ describe("code evaluator completions", () => {
       false
     );
 
-    expect(result?.options.map((o) => o.label)).toEqual(["latency_ms", "span"]);
+    expect(result?.options.map((o) => o.label)).toEqual([
+      "latency_ms",
+      "attributes",
+    ]);
     expect(result?.options[0]).toMatchObject({
       info: 'inserts metadata["latency_ms"]',
       section: { name: "metadata" },
