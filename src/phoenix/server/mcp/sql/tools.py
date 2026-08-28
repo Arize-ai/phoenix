@@ -269,6 +269,10 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         Returns either the columns, rows, and applied limits, or an error
         envelope when the SQL cannot be accepted.
 
+        A statement may be at most 2 KiB of SQL, measured in UTF-8 bytes.
+        Longer ones are refused unexecuted, so split the work rather than
+        generating one long statement.
+
         `row_count_is_partial` is the authoritative answer to whether the result
         was truncated by either row or response-byte limits. One row beyond the
         row limit is fetched, and `notes` identifies the limit that applied.

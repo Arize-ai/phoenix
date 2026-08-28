@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -1108,6 +1109,8 @@ async def test_a_call_cancelled_before_its_thread_starts_returns_its_permit_at_o
     parsed: list[str] = []
     occupied = threading.Event()
     release_pool = threading.Event()
+    submitted: list[concurrent.futures.Future[Any]] = []
+    accepted = threading.Event()
 
     def watched(*args: Any, **kwargs: Any) -> Any:
         parsed.append("ran")
@@ -1117,10 +1120,18 @@ async def test_a_call_cancelled_before_its_thread_starts_returns_its_permit_at_o
     semaphore = execute_module.ExecutionSemaphore()
     monkeypatch.setattr(execute_module, "EXECUTION_SEMAPHORE", semaphore)
 
-    # One thread, held by an unrelated job, so the call's parse can only queue.
-    execute_module.shutdown_sql_executor()
-    monkeypatch.setattr(execute_module, "_EXECUTOR_WIDTH", 1)
-    pool = execute_module._sql_executor()
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+    class Recording:
+        """Reports the moment the pool accepts a job, so the test can wait for it."""
+
+        def submit(self, fn: Any, *args: Any, **kwargs: Any) -> concurrent.futures.Future[Any]:
+            future = pool.submit(fn, *args, **kwargs)
+            submitted.append(future)
+            accepted.set()
+            return future
+
+    monkeypatch.setattr(execute_module, "_sql_executor", Recording)
     try:
 
         def hold_the_only_thread() -> None:
@@ -1135,18 +1146,24 @@ async def test_a_call_cancelled_before_its_thread_starts_returns_its_permit_at_o
                 db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path
             )
         )
-        await asyncio.sleep(0.1)
+        # Waiting on the submission rather than on a delay. Cancelling before it
+        # would return the permit for a call that never reached the pool, which
+        # this guard would then report as a pass.
+        await asyncio.to_thread(accepted.wait, 10)
+        assert not submitted[0].running(), "the job started; this exercises the wrong branch"
+
         call.cancel()
         with pytest.raises(asyncio.CancelledError):
             await call
 
-        # The permit is free while the pool is still occupied, which it could
-        # not be if release waited on the queue rather than on started work.
+        assert submitted[0].cancelled(), "the queued job was not cancelled"
+        # Free while the pool is still occupied, which it could not be if
+        # release waited on the queue rather than on started work.
         await asyncio.wait_for(semaphore.acquire("sqlite"), 1)
         semaphore.release("sqlite")
     finally:
         release_pool.set()
-        execute_module.shutdown_sql_executor()
+        pool.shutdown(wait=True)
 
     assert parsed == [], "a cancelled call ran its parse after the queue drained"
 
