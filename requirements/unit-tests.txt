@@ -9,10 +9,6 @@ grpc-interceptor[testing]
 httpx
 litellm>=1.83.14; python_version < '3.14'
 nest-asyncio # for executor testing
-# The vendored data-stream protocol types in src/phoenix/db/types are at
-# pydantic-ai 2.33 parity; test_data_stream_protocol_compatibility fails on
-# newer releases. Re-sync the vendored types before lifting this cap.
-pydantic-ai-slim<2.34
 numpy
 pandas-stubs==2.0.3.230814
 pandas>=1.0
