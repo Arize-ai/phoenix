@@ -26,7 +26,20 @@ function TestProjectEvaluatorPaths() {
   return (
     <output
       data-gallery={paths.gallery}
-      data-gallery-return={paths.galleryReturn}
+      data-list-new-llm={paths.listCreation.newLlm}
+      data-list-new-code={paths.listCreation.newCode}
+      data-list-copy-llm={paths.listCreation.copyLlm("Evaluator:llm/source")}
+      data-list-attach-code={paths.listCreation.attachCode(
+        "Evaluator:code/source"
+      )}
+      data-gallery-new-llm={paths.galleryCreation.newLlm}
+      data-gallery-new-code={paths.galleryCreation.newCode}
+      data-gallery-copy-llm={paths.galleryCreation.copyLlm(
+        "Evaluator:llm/source"
+      )}
+      data-gallery-attach-code={paths.galleryCreation.attachCode(
+        "Evaluator:code/source"
+      )}
       data-response-quality-gallery={paths.galleryCategory("RESPONSE_QUALITY")}
       data-template-gallery={paths.galleryTemplate({
         category: "RESPONSE_QUALITY",
@@ -37,7 +50,7 @@ function TestProjectEvaluatorPaths() {
 }
 
 describe("useProjectEvaluatorPaths", () => {
-  it("separates the default gallery entry and slideover return destinations", () => {
+  it("builds list and gallery destinations while preserving view state", () => {
     act(() => {
       root.render(
         <MemoryRouter
@@ -56,11 +69,32 @@ describe("useProjectEvaluatorPaths", () => {
     });
 
     const output = container.querySelector("output");
-    expect(output?.getAttribute("data-gallery-return")).toBe(
-      "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
-    );
     expect(output?.getAttribute("data-gallery")).toBe(
       "/projects/project-1/evaluator-gallery?timeRangeKey=7d&proof=preserved"
+    );
+    expect(output?.getAttribute("data-list-new-llm")).toBe(
+      "/projects/project-1/evaluators/new/llm?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
+    );
+    expect(output?.getAttribute("data-list-new-code")).toBe(
+      "/projects/project-1/evaluators/new/code?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
+    );
+    expect(output?.getAttribute("data-list-copy-llm")).toBe(
+      "/projects/project-1/evaluators/new/copy/Evaluator%3Allm%2Fsource?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
+    );
+    expect(output?.getAttribute("data-list-attach-code")).toBe(
+      "/projects/project-1/evaluators/new/attach/Evaluator%3Acode%2Fsource?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
+    );
+    expect(output?.getAttribute("data-gallery-new-llm")).toBe(
+      "/projects/project-1/evaluator-gallery/new/llm?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
+    );
+    expect(output?.getAttribute("data-gallery-new-code")).toBe(
+      "/projects/project-1/evaluator-gallery/new/code?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
+    );
+    expect(output?.getAttribute("data-gallery-copy-llm")).toBe(
+      "/projects/project-1/evaluator-gallery/new/copy/Evaluator%3Allm%2Fsource?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
+    );
+    expect(output?.getAttribute("data-gallery-attach-code")).toBe(
+      "/projects/project-1/evaluator-gallery/new/attach/Evaluator%3Acode%2Fsource?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved"
     );
     expect(output?.getAttribute("data-response-quality-gallery")).toBe(
       "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=RESPONSE_QUALITY&proof=preserved"
