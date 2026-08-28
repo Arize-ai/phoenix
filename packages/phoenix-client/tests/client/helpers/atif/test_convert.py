@@ -741,6 +741,60 @@ class TestSubagentLinking:
         root = spans[0]
         assert "parent_id" not in root
 
+    def test_all_subagent_parents_are_emitted(self) -> None:
+        unmatched_agent_parent: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "unmatched-agent-parent",
+            "agent": {"name": "parent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "summarize"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "delegating",
+                    "observation": {
+                        "results": [
+                            {
+                                "subagent_trajectory_ref": [
+                                    {"session_id": "unmatched-agent-child"}
+                                ],
+                            }
+                        ]
+                    },
+                },
+            ],
+        }
+        unmatched_agent_child: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "unmatched-agent-child",
+            "agent": {"name": "child", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "answer"},
+                {"step_id": 2, "source": "agent", "message": "done"},
+            ],
+        }
+        harbor_batch = [
+            _load_fixture("harbor_terminus2_summarization.json"),
+            _load_fixture("harbor_terminus2_sub_summary.json"),
+            _load_fixture("harbor_terminus2_sub_answers.json"),
+            _load_fixture("harbor_terminus2_sub_questions.json"),
+        ]
+        embedded_v17_batch = [_load_fixture("v17_embedded_subagents.json")]
+
+        for batch_name, trajectories in (
+            ("harbor", harbor_batch),
+            ("unmatched agent", [unmatched_agent_parent, unmatched_agent_child]),
+            ("embedded v1.7", embedded_v17_batch),
+        ):
+            spans = _convert_atif_trajectories_to_spans(trajectories)
+            span_ids = {span["context"]["span_id"] for span in spans}
+            unresolved_parents = [
+                (span["name"], span["parent_id"])
+                for span in spans
+                if "parent_id" in span and span["parent_id"] not in span_ids
+            ]
+            assert not unresolved_parents, (batch_name, unresolved_parents)
+
 
 class TestATIFV17Conversion:
     def test_flatten_embedded_subagents_inherits_session(
