@@ -298,10 +298,10 @@ class RateLimiter:
             except self._rate_limit_error:
                 async with self._rate_limit_handling_lock:
                     self._rate_limit_handling.clear()  # prevent new requests from starting
-                    await self._throttler.async_on_rate_limit_error(
-                        request_start_time, verbose=self._verbose
-                    )
                     try:
+                        await self._throttler.async_on_rate_limit_error(
+                            request_start_time, verbose=self._verbose
+                        )
                         for _attempt in range(self._max_rate_limit_retries):
                             try:
                                 request_start_time = time.time()

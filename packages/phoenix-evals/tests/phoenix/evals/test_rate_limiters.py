@@ -408,3 +408,26 @@ async def test_alimit_cooldown_never_blocks_the_event_loop():
             with pytest.raises(RateLimitError):
                 await always_rate_limited()
             assert not mock_sync_sleep.called, "async path must not block with time.sleep"
+
+
+async def test_alimit_cancellation_during_cooldown_unblocks_waiters():
+    class _RateLimitError(Exception):
+        pass
+
+    limiter = RateLimiter(
+        rate_limit_error=_RateLimitError,
+        max_rate_limit_retries=0,
+        initial_per_second_request_rate=1000,
+        cooldown_seconds=5,
+    )
+
+    @limiter.alimit
+    async def always_rate_limited():
+        raise _RateLimitError
+
+    with mock.patch("asyncio.sleep", side_effect=asyncio.CancelledError):
+        with pytest.raises(asyncio.CancelledError):
+            await always_rate_limited()
+
+    assert limiter._rate_limit_handling is not None
+    assert limiter._rate_limit_handling.is_set()
