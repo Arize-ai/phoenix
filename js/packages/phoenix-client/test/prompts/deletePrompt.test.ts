@@ -4,6 +4,7 @@ import {
   afterAll,
   afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
@@ -14,6 +15,10 @@ vi.unmock("../../src/utils/serverVersionUtils");
 
 import { HttpError } from "../../src/errors";
 import { deletePrompt } from "../../src/prompts";
+import type {
+  GetPromptByTagSelector,
+  PromptIdentifier,
+} from "../../src/types/prompts";
 import { createTestClient } from "../testUtils";
 
 const http = createHttp();
@@ -44,62 +49,116 @@ afterAll(() => {
   server.close();
 });
 
+/**
+ * Handler that records the `{prompt_identifier}` the client interpolated into
+ * the request path and answers 204, as a successful deletion does.
+ */
+function captureDeleteHandler(captured: { identifier?: string }) {
+  return http.delete(
+    "/v1/prompts/{prompt_identifier}",
+    ({ params, response }) => {
+      captured.identifier = params.prompt_identifier;
+      return response(204).empty();
+    }
+  );
+}
+
 describe("deletePrompt", () => {
-  it("DELETEs the prompt by name", async () => {
+  it("DELETEs the prompt selected by name", async () => {
     const captured: { identifier?: string } = {};
-    server.use(
-      serverVersionHandler("13.20.0"),
-      http.delete("/v1/prompts/{prompt_identifier}", ({ params, response }) => {
-        captured.identifier = params.prompt_identifier;
-        return response(204).empty();
-      })
-    );
+    server.use(serverVersionHandler("13.20.0"), captureDeleteHandler(captured));
 
     await expect(
       deletePrompt({
         client: createTestClient(),
-        promptIdentifier: "my-prompt",
+        prompt: { name: "my-prompt" },
       })
     ).resolves.toBeUndefined();
 
     expect(captured.identifier).toBe("my-prompt");
   });
 
-  it("DELETEs the prompt by global ID", async () => {
+  it("DELETEs the prompt selected by prompt id", async () => {
     const captured: { identifier?: string } = {};
-    server.use(
-      serverVersionHandler("13.20.0"),
-      http.delete("/v1/prompts/{prompt_identifier}", ({ params, response }) => {
-        captured.identifier = params.prompt_identifier;
-        return response(204).empty();
-      })
-    );
+    server.use(serverVersionHandler("13.20.0"), captureDeleteHandler(captured));
 
     await deletePrompt({
       client: createTestClient(),
-      promptIdentifier: "UHJvbXB0OjE=",
+      prompt: { promptId: "UHJvbXB0OjE=" },
     });
 
     expect(captured.identifier).toBe("UHJvbXB0OjE=");
   });
 
-  it("rejects an empty identifier without calling the server", async () => {
+  describe("selector validation", () => {
     let deleteRequestCount = 0;
-    server.use(
-      serverVersionHandler("13.20.0"),
-      http.delete("/v1/prompts/{prompt_identifier}", ({ response }) => {
-        deleteRequestCount += 1;
-        return response(204).empty();
-      })
-    );
 
-    await expect(
-      deletePrompt({ client: createTestClient(), promptIdentifier: "" })
-    ).rejects.toThrow(
-      "promptIdentifier must be a non-empty prompt name or ID."
-    );
+    beforeEach(() => {
+      deleteRequestCount = 0;
+      server.use(
+        serverVersionHandler("13.20.0"),
+        http.delete("/v1/prompts/{prompt_identifier}", ({ response }) => {
+          deleteRequestCount += 1;
+          return response(204).empty();
+        })
+      );
+    });
 
-    expect(deleteRequestCount).toBe(0);
+    it("rejects an empty name", async () => {
+      await expect(
+        deletePrompt({ client: createTestClient(), prompt: { name: "" } })
+      ).rejects.toThrow("name must be a non-empty prompt name.");
+
+      expect(deleteRequestCount).toBe(0);
+    });
+
+    it("rejects an empty prompt id", async () => {
+      await expect(
+        deletePrompt({ client: createTestClient(), prompt: { promptId: "" } })
+      ).rejects.toThrow("promptId must be a non-empty prompt id.");
+
+      expect(deleteRequestCount).toBe(0);
+    });
+
+    it("rejects a version selector rather than deleting the whole prompt", async () => {
+      const versionSelector = {
+        versionId: "UHJvbXB0VmVyc2lvbjox",
+      } as unknown as PromptIdentifier;
+
+      await expect(
+        deletePrompt({ client: createTestClient(), prompt: versionSelector })
+      ).rejects.toThrow(/selects a single version, not a prompt/);
+
+      expect(deleteRequestCount).toBe(0);
+    });
+
+    it("rejects a name + tag selector rather than ignoring the tag", async () => {
+      // Structural typing lets a tag selector reach a PromptIdentifier
+      // parameter, so the guard has to be a runtime one.
+      const tagSelector: PromptIdentifier = {
+        name: "my-prompt",
+        tag: "production",
+      } as GetPromptByTagSelector;
+
+      await expect(
+        deletePrompt({ client: createTestClient(), prompt: tagSelector })
+      ).rejects.toThrow(/selects a single version, not a prompt/);
+
+      expect(deleteRequestCount).toBe(0);
+    });
+
+    it("rejects a selector with neither name nor prompt id", async () => {
+      await expect(
+        deletePrompt({
+          client: createTestClient(),
+          prompt: {} as unknown as PromptIdentifier,
+        })
+      ).rejects.toThrow(
+        "A prompt must be selected by either name or promptId."
+      );
+
+      expect(deleteRequestCount).toBe(0);
+    });
   });
 
   it("reports a missing prompt by identifier", async () => {
@@ -112,7 +171,7 @@ describe("deletePrompt", () => {
 
     const error = await deletePrompt({
       client: createTestClient(),
-      promptIdentifier: "missing-prompt",
+      prompt: { name: "missing-prompt" },
     }).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(Error);
@@ -131,7 +190,7 @@ describe("deletePrompt", () => {
 
     const error = await deletePrompt({
       client: createTestClient(),
-      promptIdentifier: "my-prompt",
+      prompt: { name: "my-prompt" },
     }).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(HttpError);
@@ -152,7 +211,7 @@ describe("deletePrompt", () => {
     await expect(
       deletePrompt({
         client: createTestClient(),
-        promptIdentifier: "my-prompt",
+        prompt: { name: "my-prompt" },
       })
     ).rejects.toThrow(/requires Phoenix server >= 13\.20\.0/);
 

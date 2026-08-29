@@ -2,6 +2,8 @@ import { createClient } from "../client";
 import { DELETE_PROMPT } from "../constants/serverRequirements";
 import { HttpError } from "../errors";
 import type { ClientFn } from "../types/core";
+import type { PromptIdentifier } from "../types/prompts";
+import { resolvePromptIdentifier } from "../utils/resolvePromptIdentifier";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
@@ -9,9 +11,11 @@ import { ensureServerCapability } from "../utils/serverVersionUtils";
  */
 export interface DeletePromptParams extends ClientFn {
   /**
-   * The prompt name or ID (a Phoenix Global ID, base64-encoded).
+   * The prompt to delete. Selected either by `name` or by `promptId` — the same
+   * selector style {@link getPrompt} takes, minus the version-level selectors,
+   * which do not identify a prompt.
    */
-  promptIdentifier: string;
+  prompt: PromptIdentifier;
 }
 
 /**
@@ -21,6 +25,7 @@ export interface DeletePromptParams extends ClientFn {
  * and labels, is removed with it. This cannot be undone.
  *
  * @param params - The parameters to delete the prompt.
+ * @param params.prompt - The prompt to delete, selected by `name` or `promptId`.
  * @returns A promise that resolves once the prompt is deleted.
  * @throws An error if the prompt does not exist, or if the deletion fails.
  *
@@ -31,19 +36,17 @@ export interface DeletePromptParams extends ClientFn {
  * import { deletePrompt } from "@arizeai/phoenix-client/prompts";
  *
  * // Delete by name
- * await deletePrompt({ promptIdentifier: "my-prompt" });
+ * await deletePrompt({ prompt: { name: "my-prompt" } });
  *
- * // Delete by Global ID
- * await deletePrompt({ promptIdentifier: "UHJvbXB0OjE=" });
+ * // Delete by prompt id
+ * await deletePrompt({ prompt: { promptId: "UHJvbXB0OjE=" } });
  * ```
  */
 export async function deletePrompt({
   client: _client,
-  promptIdentifier,
+  prompt,
 }: DeletePromptParams): Promise<void> {
-  if (!promptIdentifier) {
-    throw new Error("promptIdentifier must be a non-empty prompt name or ID.");
-  }
+  const promptIdentifier = resolvePromptIdentifier(prompt);
 
   const client = _client ?? createClient();
   await ensureServerCapability({ client, requirement: DELETE_PROMPT });

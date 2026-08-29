@@ -64,10 +64,15 @@ Requires a Phoenix server on 19.18.0 or later.
 ```ts
 import { deletePrompt } from "@arizeai/phoenix-client/prompts";
 
-await deletePrompt({ promptIdentifier: "support-response" });
+await deletePrompt({ prompt: { name: "support-response" } });
+
+// Or by prompt id
+await deletePrompt({ prompt: { promptId: "UHJvbXB0OjE=" } });
 ```
 
-`promptIdentifier` is a prompt name or ID, the same selector `updatePrompt` takes. Deletion cascades: every version of the prompt, along with its version tags and labels, is removed with it, and the deletion cannot be undone. A prompt that does not exist rejects with `Prompt not found: <identifier>`.
+`prompt` takes the same selector style as `getPrompt`, narrowed to the two selectors that identify a prompt rather than one of its versions: `{ name }` and `{ promptId }`. Passing a version selector — `{ versionId }`, or `{ name, tag }` — rejects instead of falling back to the whole prompt, so a variable holding a version never deletes more than you named.
+
+Deletion cascades: every version of the prompt, along with its version tags and labels, is removed with it, and the deletion cannot be undone. A prompt that does not exist rejects with `Prompt not found: <identifier>`.
 
 Requires a Phoenix server on 13.20.0 or later.
 
