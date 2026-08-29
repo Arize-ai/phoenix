@@ -48,21 +48,18 @@ jobs:
       - name: create and publish versions
         # Using PAT instead of GITHUB_TOKEN so that PRs created by this action
         # can trigger subsequent workflows (like publish) when merged
-        # Pinned to v1.5.2 because released versions after that still break monorepo
-        # cwd handling; the upstream fix merged after v1.7.0 but is not released yet.
-        uses: changesets/action@d183df40791e90508058cd180e6435cdd9ba16a4 # v1.5.2
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
         with:
-          version: pnpm ci:version
-          commit: "chore(js): update versions"
-          title: "chore(js): update versions"
-          publish: pnpm ci:publish
-          createGithubReleases: true
-          # v1.5.2 resolves cwd relative to the action runtime, not github.workspace.
-          cwd: "${{ github.workspace }}/js"
+          github-token: ${{ secrets.MY_CHANGESET_TOKEN }}
+          version-script: pnpm ci:version
+          commit-message: "chore(js): update versions"
+          pr-title: "chore(js): update versions"
+          publish-script: pnpm ci:publish
+          create-github-releases: true
+          cwd: js
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.MY_CHANGESET_TOKEN }}
       # - name: Release docs
       # Run pnpm run docs in js/packages/phoenix-client
       # Deploy the static files in js/packages/phoenix-client/docs to github pages
