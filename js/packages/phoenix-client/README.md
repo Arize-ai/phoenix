@@ -732,7 +732,7 @@ await addSessionNote({
 
 ## Projects
 
-The `@arizeai/phoenix-client` package provides a `projects` export for listing projects.
+The `@arizeai/phoenix-client` package provides a `projects` export for listing projects and managing their retention-policy assignments.
 
 ### Fetching Projects
 
@@ -754,6 +754,30 @@ Pass `nameContains` to filter by a case-insensitive substring of the project nam
 ```ts
 const agentProjects = await getProjects({ nameContains: "agent" });
 ```
+
+### Assigning a Retention Policy
+
+Use `setProjectRetentionPolicy` to assign an existing trace retention policy by GlobalID. Select the project by name or GlobalID.
+
+```ts
+import { setProjectRetentionPolicy } from "@arizeai/phoenix-client/projects";
+
+await setProjectRetentionPolicy({
+  projectName: "support-bot",
+  policyId: "UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI=",
+});
+```
+
+Pass `policyId: null` to reset the project to Phoenix's default retention policy:
+
+```ts
+await setProjectRetentionPolicy({
+  projectId: "UHJvamVjdDox",
+  policyId: null,
+});
+```
+
+This helper only changes a project's assignment to an existing policy. Creating, reading, updating, and deleting retention policies is outside the scope of the TypeScript projects helper.
 
 ## Examples
 
