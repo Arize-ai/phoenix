@@ -145,6 +145,20 @@ export const DELETE_PROMPT: RouteRequirement = {
   minServerVersion: [13, 20, 0],
 };
 
+export const UPSERT_PROMPT_VERSION_TAG: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/prompt_versions/{prompt_version_id}/tags",
+  minServerVersion: [8, 22, 0],
+};
+
+export const DELETE_PROMPT_VERSION_TAG: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}",
+  minServerVersion: [13, 20, 0],
+};
+
 export const PATCH_PROMPT: RouteRequirement = {
   kind: "route",
   method: "PATCH",
@@ -232,6 +246,8 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   ADD_SPAN_NOTE_IDENTIFIER,
   ADD_SESSION_NOTE_IDENTIFIER,
   DELETE_PROMPT,
+  UPSERT_PROMPT_VERSION_TAG,
+  DELETE_PROMPT_VERSION_TAG,
   PATCH_PROMPT,
   AGENT_SESSION_CREATE,
   AGENT_SESSION_LIST,
