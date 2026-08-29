@@ -236,6 +236,41 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
+### Dataset Labels
+
+Dataset labels are global resources. A label is created once and can then be applied to
+many datasets, so managing the labels themselves is separate from managing which labels a
+given dataset carries. `client.dataset_labels` covers the labels; applying a label to a
+dataset, or reading the labels currently on one, is dataset membership and lives on the
+datasets resource.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# List every label defined on the server (cursor pagination is followed for you)
+labels = client.dataset_labels.list()
+for label in labels:
+    print(f"{label['name']}: {label['color']}")
+
+# Create a label
+label = client.dataset_labels.create(
+    name="regression",
+    color="#FF0000",
+    description="Datasets used for regression testing",
+)
+
+# Update only the fields you pass; everything omitted keeps its current value
+label = client.dataset_labels.update(dataset_label_id=label["id"], color="#00FF00")
+
+# Fetch a single label by ID
+label = client.dataset_labels.get(dataset_label_id=label["id"])
+
+# Deleting a label also removes it from every dataset it was applied to
+client.dataset_labels.delete(dataset_label_id=label["id"])
+```
+
 ### Traces
 
 Retrieve traces for a project with optional filtering and sorting:

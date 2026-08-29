@@ -4,6 +4,7 @@ from typing import Mapping, Optional
 
 import httpx
 
+from phoenix.client.resources.dataset_labels import AsyncDatasetLabels, DatasetLabels
 from phoenix.client.resources.datasets import AsyncDatasets, Datasets
 from phoenix.client.resources.experiments import AsyncExperiments, Experiments
 from phoenix.client.resources.projects import AsyncProjects, Projects
@@ -66,6 +67,7 @@ class Client:
         self._spans = Spans(value, _guard=guard)
         self._traces = Traces(value, _guard=guard)
         self._sessions = Sessions(value, self._spans, _guard=guard)
+        self._dataset_labels = DatasetLabels(value, _guard=guard)
         self._datasets = Datasets(value, _guard=guard)
         self._experiments = Experiments(value, _guard=guard)
 
@@ -113,6 +115,15 @@ class Client:
             Sessions: An instance of the Sessions class.
         """  # noqa: E501
         return self._sessions
+
+    @property
+    def dataset_labels(self) -> DatasetLabels:
+        """Returns an instance of the DatasetLabels class for interacting with global dataset label API endpoints.
+
+        Returns:
+            DatasetLabels: An instance of the DatasetLabels class.
+        """  # noqa: E501
+        return self._dataset_labels
 
     @property
     def datasets(self) -> Datasets:
@@ -182,6 +193,7 @@ class AsyncClient:
         self._spans = AsyncSpans(value, _guard=guard)
         self._traces = AsyncTraces(value, _guard=guard)
         self._sessions = AsyncSessions(value, self._spans, _guard=guard)
+        self._dataset_labels = AsyncDatasetLabels(value, _guard=guard)
         self._datasets = AsyncDatasets(value, _guard=guard)
         self._experiments = AsyncExperiments(value, _guard=guard)
 
@@ -230,6 +242,15 @@ class AsyncClient:
             AsyncSessions: An instance of the AsyncSessions class.
         """  # noqa: E501
         return self._sessions
+
+    @property
+    def dataset_labels(self) -> AsyncDatasetLabels:
+        """Returns an instance of the AsyncDatasetLabels class for interacting with global dataset label API endpoints.
+
+        Returns:
+            AsyncDatasetLabels: An instance of the AsyncDatasetLabels class.
+        """  # noqa: E501
+        return self._dataset_labels
 
     @property
     def datasets(self) -> AsyncDatasets:
