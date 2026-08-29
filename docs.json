@@ -956,6 +956,7 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/dataset-labels",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
                   {
                     "group": "CI eval tests",

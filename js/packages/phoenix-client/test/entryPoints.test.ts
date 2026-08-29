@@ -6,6 +6,7 @@ const requireCjs = createRequire(import.meta.url);
 // The ./vitest subpath is intentionally absent: vitest itself refuses to be
 // require()d (its CJS stub throws), so that entry is only usable from ESM.
 const cjsEntries = {
+  datasetLabels: "../dist/src/datasetLabels/index.js",
   index: "../dist/src/index.js",
   experiments: "../dist/src/experiments/index.js",
   jest: "../dist/src/jest/index.js",
@@ -45,6 +46,7 @@ describe.skipIf(!isBuilt)("built CommonJS entry points", () => {
 });
 
 const esmEntries = {
+  datasetLabels: "../dist/esm/datasetLabels/index.js",
   index: "../dist/esm/index.js",
   experiments: "../dist/esm/experiments/index.js",
   jest: "../dist/esm/jest/index.js",
