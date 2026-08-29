@@ -276,7 +276,7 @@ from phoenix.client import Client
 client = Client(base_url="http://localhost:6006")
 ```
 
-The constructor parameter `endpoint` has been renamed to `base_url`. If omitted, it falls back to environment variables or `http://localhost:6006`. Attempting to import `phoenix.session.client` will raise an `ImportError` with migration guidance.
+The constructor parameter `endpoint` has been renamed to `base_url`. If omitted, it falls back to environment variables or `http://localhost:6006`. The `phoenix.session.client` module no longer exists, so importing it raises a `ModuleNotFoundError`.
 
 ### Client Method Changes
 

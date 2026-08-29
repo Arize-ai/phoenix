@@ -1,4 +1,8 @@
 import { registerRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/routeCatalogRegistry";
+import {
+  grantScriptApproval,
+  revokeScriptApproval,
+} from "@phoenix/agent/uiOperations/scriptApprovalGrant";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
 import { createNavigationGoToClientAction } from "../clientActions";
@@ -189,16 +193,38 @@ describe("navigation.goTo client action", () => {
     expect(getPending(store)).toBeUndefined();
   });
 
-  it("never auto-accepts, even in bypass edit mode", async () => {
+  it("auto-accepts in bypass edit mode, like every other state-changing operation", async () => {
     const { store, navigate, handler } = setup();
     store.getState().setPermissions({ edits: "bypass" });
-    void handler(
+    const result = await handler(
       { path: "/playground", reason: "to stage the prompt edit" },
       CALL_CONTEXT
     );
-    await Promise.resolve();
-    expect(getPending(store)).toBeDefined();
-    expect(navigate).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith("/playground");
+    expect(result).toMatchObject({
+      ok: true,
+      output: { status: "navigated", path: "/playground" },
+    });
+    expect(getPending(store)).toBeUndefined();
+  });
+
+  it("auto-accepts when the enclosing script run holds an approval grant", async () => {
+    const { store, navigate, handler } = setup();
+    grantScriptApproval("tool-call-1");
+    try {
+      const result = await handler(
+        { path: "/playground", reason: "to stage the prompt edit" },
+        CALL_CONTEXT
+      );
+      expect(navigate).toHaveBeenCalledWith("/playground");
+      expect(result).toMatchObject({
+        ok: true,
+        output: { status: "navigated", path: "/playground" },
+      });
+      expect(getPending(store)).toBeUndefined();
+    } finally {
+      revokeScriptApproval("tool-call-1");
+    }
   });
 });
 

@@ -620,6 +620,8 @@ async def run_pxi_example(
                 ),
             )
         agent = build_agent(
+            name="PXIAgent",
+            headless=False,
             model=model,
             docs_mcp_server=docs_mcp_server,
             tracer_provider=tracer_provider,

@@ -116,10 +116,10 @@ import {
   PatchExperimentToolDetails,
 } from "./PatchExperimentToolDetails";
 import {
-  getReadSkillResourceToolPreview,
-  READ_SKILL_RESOURCE_TOOL_NAME,
-  ReadSkillResourceToolDetails,
-} from "./ReadSkillResourceToolDetails";
+  getLoadSkillReferenceToolPreview,
+  LOAD_SKILL_REFERENCE_TOOL_NAME,
+  LoadSkillReferenceToolDetails,
+} from "./LoadSkillReferenceToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
 import {
   getSearchUIToolPreview,
@@ -1213,11 +1213,11 @@ const TOOL_PRESENTATION_BUILDERS: Partial<
       quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
     };
   },
-  [READ_SKILL_RESOURCE_TOOL_NAME]: (part, statusVariant) => ({
-    preview: getReadSkillResourceToolPreview(part),
+  [LOAD_SKILL_REFERENCE_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getLoadSkillReferenceToolPreview(part),
     stateLabel: formatToolState(part.state),
     statusVariant,
-    details: <ReadSkillResourceToolDetails part={part} />,
+    details: <LoadSkillReferenceToolDetails part={part} />,
   }),
   [NATIVE_WEB_SEARCH_TOOL_NAME]: (part, statusVariant, toolName) => ({
     preview: getNativeWebToolPreview(toolName, part),

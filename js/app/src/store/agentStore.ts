@@ -27,6 +27,7 @@ import type {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
+import type { PendingScriptApproval } from "@phoenix/agent/uiOperations/pendingScriptApproval";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
 
@@ -513,6 +514,16 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     pending: PendingNavigation | null
   ) => void;
+  // Whole-script approvals staged by `execute_browser_action` before a
+  // state-changing script runs, keyed by the host tool-call id (no
+  // `:<sequence>` suffix — the approval covers the entire script).
+  pendingScriptApprovalsByToolCallId: Partial<
+    Record<string, PendingScriptApproval>
+  >;
+  setPendingScriptApproval: (
+    toolCallId: string,
+    pending: PendingScriptApproval | null
+  ) => void;
   pendingAnnotationConfigWritesByToolCallId: Partial<
     Record<string, PendingAnnotationConfigWrite>
   >;
@@ -709,6 +720,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingDatasetWritesByToolCallId: {},
     pendingNavigationsByToolCallId: {},
+    pendingScriptApprovalsByToolCallId: {},
     pendingAnnotationConfigWritesByToolCallId: {},
     pendingPatchExperimentsByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
@@ -1193,6 +1205,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingNavigation" }
+      );
+    },
+    setPendingScriptApproval: (toolCallId, pending) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingScriptApprovalsByToolCallId };
+          if (pending) {
+            next[toolCallId] = pending;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingScriptApprovalsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingScriptApproval" }
       );
     },
     setPendingAnnotationConfigWrite: (toolCallId, pending) => {

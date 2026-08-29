@@ -1,4 +1,5 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# Harbor cannot be installed on the client's Python 3.10 and 3.11 CI jobs.
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Write a resolved Harbor job to Phoenix."""
@@ -18,6 +19,7 @@ from phoenix.client.client import AsyncClient
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import ExperimentSlice, JobPlan, canonical_digest
 from phoenix.client.harbor._naming import experiment_names, validate_experiment_naming
+from phoenix.client.harbor._scores import ExtractedEvaluation
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +219,7 @@ class PhoenixRecorder:
             )
         return run
 
-    async def record_trial(
+    async def record_experiment_run(
         self,
         *,
         plan: JobPlan,
@@ -269,6 +271,31 @@ class PhoenixRecorder:
                 f"Could not record Harbor trial {trial_name!r} in Phoenix experiment "
                 f"{experiment.name!r}: {error}"
             ) from error
+
+    async def record_evaluations(
+        self,
+        run_id: str,
+        records: Sequence[ExtractedEvaluation],
+    ) -> None:
+        """Upsert the complete evaluation set for an experiment run."""
+        for record in records:
+            try:
+                await self._client.experiments.log_evaluation(
+                    experiment_run_id=run_id,
+                    name=record.name,
+                    annotator_kind="CODE",
+                    start_time=record.start_time,
+                    end_time=record.end_time,
+                    score=record.score,
+                    label=record.label,
+                    explanation=record.explanation,
+                    metadata=record.metadata,
+                )
+            except Exception as error:
+                raise HarborPluginError(
+                    f"Could not record Harbor evaluation {record.name!r} for Phoenix run "
+                    f"{run_id}: {error}"
+                ) from error
 
     async def _resolve_experiment(
         self,
@@ -428,7 +455,14 @@ def _trial_output(trial_result: TrialResult) -> dict[str, Any]:
 
 
 def _trial_error(trial_result: TrialResult) -> str | None:
-    error = trial_result.exception_info
-    if error is None:
-        return None
-    return f"{error.exception_type}: {error.exception_message}"
+    errors: list[str] = []
+    if error := trial_result.exception_info:
+        errors.append(f"{error.exception_type}: {error.exception_message}")
+    for step_result in trial_result.step_results or ():
+        if (
+            error := step_result.exception_info
+        ) is not None and step_result.verifier_result is None:
+            errors.append(
+                f"step {step_result.step_name}: {error.exception_type}: {error.exception_message}"
+            )
+    return "; ".join(errors) or None

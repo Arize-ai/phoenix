@@ -763,6 +763,7 @@ class PydanticAIMessageMetadata(TypedDict):
 class ReasoningUIPart(TypedDict):
     type: Literal["reasoning"]
     text: str
+    id: NotRequired[str]
     state: NotRequired[Literal["streaming", "done"]]
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
 
@@ -2294,6 +2295,15 @@ class CreatePromptRequestBody(TypedDict):
 
 
 class CreatePromptResponseBody(TypedDict):
+    data: PromptVersion
+
+
+class CreatePromptVersionRequestBody(TypedDict):
+    version: PromptVersionData
+    tags: NotRequired[Sequence[PromptVersionTagData]]
+
+
+class CreatePromptVersionResponseBody(TypedDict):
     data: PromptVersion
 
 

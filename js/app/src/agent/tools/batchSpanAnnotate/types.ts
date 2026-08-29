@@ -6,7 +6,6 @@ import type { UIOperationResultEmitter } from "@phoenix/agent/uiOperations/types
 import type {
   annotateSpanInputSchema,
   batchSpanAnnotateActionContextSchema,
-  BatchSpanAnnotateToolOutputSender,
   batchSpanAnnotateInputSchema,
 } from "./schemas";
 
@@ -35,24 +34,12 @@ export type PendingBatchSpanAnnotate = {
   cancel?: () => Promise<void>;
 };
 
-export type BindPendingBatchSpanAnnotateOptions = {
+export type BindPendingBatchSpanAnnotateOperationOptions = {
   pendingAnnotation: PendingBatchSpanAnnotate;
   applyAnnotations: (annotations: AnnotateSpanInput[]) => Promise<void>;
-  addToolOutput: BatchSpanAnnotateToolOutputSender;
   setPendingBatchSpanAnnotate: (
     toolCallId: string,
     annotation: PendingBatchSpanAnnotate | null
   ) => void;
-};
-
-/**
- * Options for the operation-flavored binder: `emitResult` resolves the
- * promise the calling `execute_browser_action` script awaits, in place of the tool-call
- * `addToolOutput` sender.
- */
-export type BindPendingBatchSpanAnnotateOperationOptions = Omit<
-  BindPendingBatchSpanAnnotateOptions,
-  "addToolOutput"
-> & {
   emitResult: UIOperationResultEmitter;
 };

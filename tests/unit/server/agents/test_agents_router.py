@@ -3359,7 +3359,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
         assert len(snapshots) == 1
 
 
-async def test_server_agent_chat_turn_persists_session_transcript(
+async def test_headless_chat_turn_persists_session_transcript(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -3411,13 +3411,13 @@ async def test_server_agent_chat_turn_persists_session_transcript(
     assert len(second_turn_messages) > len(messages)
 
 
-async def test_server_agent_bash_shell_state_persists_across_chat_turns(
+async def test_headless_bash_shell_state_persists_across_chat_turns(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Mirror of ``test_bash_shell_state_persists_across_chat_turns`` for
-    ``headless=True``: pins the snapshot wiring ``build_server_agent``
+    ``headless=True``: pins the snapshot wiring for a headless agent
     gained for the session route."""
     session_id = "57575757-5757-4757-8757-575757575757"
     agent_session_id = await _create_agent_session_row(db)

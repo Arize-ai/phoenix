@@ -330,9 +330,14 @@ export function renderUIOperationSignature({
   const availability = isMounted
     ? "available on the current page"
     : `not on this page — requires ${descriptor.availability?.routeHint ?? "a different page"}`;
-  const approvalNote =
-    descriptor.operationKind === "approval"
-      ? " Stages a change the user must accept; the returned promise resolves with the decision."
+  // `approval` is an internal staging detail; to the model both non-read
+  // kinds are simply writes, covered by the whole-script approval
+  // (`write_description`) rather than per-call decisions.
+  const modelFacingKind =
+    descriptor.operationKind === "read" ? "read" : "write";
+  const writeNote =
+    modelFacingKind === "write"
+      ? " Changes state: a script calling it must carry write_description."
       : "";
   const inputType = renderInlineType(toJsonSchemaNode(descriptor.inputSchema));
   // Declared output shapes render as `UIResult<T>`; operations without one
@@ -346,7 +351,7 @@ export function renderUIOperationSignature({
   return [
     "/**",
     ` * ${descriptor.description}`,
-    ` * kind: ${descriptor.operationKind}; ${availability}.${approvalNote}`,
+    ` * kind: ${modelFacingKind}; ${availability}.${writeNote}`,
     " */",
     `ui.${descriptor.name}(input: ${inputType}): Promise<${resultType}>;`,
   ].join("\n");
@@ -372,7 +377,8 @@ export function renderUIOperationCatalog(
       '// ("available on the current page") changes, after navigation.',
     "// UIResult<T = unknown> = { ok: true; output: T } | { ok: false; code?: ErrorCode; error: string }\n" +
       '// ErrorCode = "UNKNOWN_OPERATION" | "NOT_AVAILABLE" | "INVALID_INPUT" | "CAPABILITY_DISABLED"\n' +
-      '//   | "NO_SESSION" | "HANDLER_ERROR" | "NOT_FOUND" | "STALE_REVISION" | "NO_RUN_OUTPUT"\n' +
+      '//   | "NO_SESSION" | "HANDLER_ERROR" | "APPROVAL_REQUIRED" | "NOT_FOUND" | "STALE_REVISION"\n' +
+      '//   | "NO_RUN_OUTPUT"\n' +
       "// Branch on `code` (stable), not on the `error` prose (for humans).",
     signatures,
   ].join("\n\n");

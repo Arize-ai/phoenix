@@ -91,12 +91,14 @@ def upload_atif_trajectories_as_spans(
     **Multi-agent / subagent handoffs**
 
     When trajectories in the batch reference each other via
-    ``subagent_trajectory_ref``, the child trajectory's spans are nested
-    under the parent's tool span within a single trace. Upload the parent
-    and child trajectories together in one call for linking to work. ATIF
-    v1.7 embedded ``subagent_trajectories`` are flattened and uploaded
-    automatically, with ``trajectory_id`` used as the canonical embedded
-    reference key::
+    ``subagent_trajectory_ref``, the child trajectory's spans join the
+    parent's trace. A matching emitted TOOL span parents the child when the
+    reference's ``source_call_id`` identifies one of the agent step's tool
+    calls. Otherwise, the parent trajectory's root AGENT span parents the
+    child. Upload the parent and child trajectories together in one call for
+    linking to work. ATIF v1.7 embedded ``subagent_trajectories`` are
+    flattened and uploaded automatically, with ``trajectory_id`` used as the
+    canonical embedded reference key::
 
         AGENT (parent)
           LLM

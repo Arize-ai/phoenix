@@ -110,7 +110,7 @@ help: ## Show this help message
 	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Run the isolated Phoenix Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
-	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real ServerAgent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
+	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real headless-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
@@ -500,7 +500,7 @@ HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VER
 
 # The runner is staged into the task's Docker build context by stage_harbor_task_environments.sh.
 define check-harbor-staged
-	@test -f $(HARBOR_TASK)/environment/run_server_agent.py || \
+	@test -f $(HARBOR_TASK)/environment/run_headless_agent.py || \
 		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
 endef
 
@@ -522,11 +522,11 @@ harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK
 	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
 	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
-harbor-run: ## Run the real ServerAgent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
+harbor-run: ## Run the real headless-agent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
 	$(check-harbor-staged)
-	@echo -e "$(CYAN)Running Harbor ServerAgent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
+	@echo -e "$(CYAN)Running Harbor headless-agent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
-		-a evals.harbor.agents.phoenix_server_agent:PhoenixServerAgent \
+		-a evals.harbor.agents.phoenix_headless_agent:PhoenixHeadlessAgent \
 		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer

@@ -52,11 +52,9 @@ describe("approval marker coverage", () => {
     expect(emitters.map((e) => e.path.slice(agentDir.length + 1)).sort())
       .toMatchInlineSnapshot(`
         [
-          "shared/pendingApproval/bindPendingApproval.ts",
           "shared/pendingApproval/stageApprovalOperation.ts",
           "tools/approval.ts",
-          "tools/batchSpanAnnotate/pendingBatchSpanAnnotate.ts",
-          "tools/patchExperiment/pendingPatchExperiment.ts",
+          "uiOperations/executeBrowserActionTool.ts",
         ]
       `);
   });

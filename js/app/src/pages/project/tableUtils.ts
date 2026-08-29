@@ -29,6 +29,19 @@ export const DEFAULT_SESSION_SORT: ProjectSessionSort = {
   dir: "desc",
 };
 
+function parseAnnotationColumnSortKey(columnId: string): {
+  attr: string;
+  name: string;
+} {
+  const [, attr, ...encodedNameParts] = columnId.split(
+    ANNOTATIONS_KEY_SEPARATOR
+  );
+  return {
+    attr,
+    name: decodeURIComponent(encodedNameParts.join(ANNOTATIONS_KEY_SEPARATOR)),
+  };
+}
+
 export function getGqlSort(
   sort: ColumnSort
 ): TracesTableQuery$variables["sort"] {
@@ -44,7 +57,7 @@ export function getGqlSort(
     };
   }
   if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
-    const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
+    const { attr, name } = parseAnnotationColumnSortKey(sort.id);
     evalResultKey = {
       attr,
       name,
@@ -74,7 +87,7 @@ export function getGqlSessionSort(
     };
   }
   if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
-    const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
+    const { attr, name } = parseAnnotationColumnSortKey(sort.id);
     annoResultKey = {
       attr,
       name,
@@ -100,12 +113,10 @@ export function makeFlatAnnotationColumnId(
       ? TRACE_ANNOTATIONS_COLUMN_PREFIX
       : ANNOTATIONS_COLUMN_PREFIX;
   // The "score" segment survives from the grouped-column era so persisted
-  // sort, order, and visibility ids stay valid.
-  return (
-    `${prefix}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`
-      // replace anything that's not alphanumeric with a dash
-      .replace(/[^a-zA-Z0-9]/g, "-")
-  );
+  // sort, order, and visibility ids stay valid. Encode only the name suffix
+  // so ids remain reversible for names with spaces or punctuation, while
+  // alphanumeric names keep the same persisted ids.
+  return `${prefix}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${encodeURIComponent(name)}`;
 }
 
 /** A kind of flat annotation columns: names plus the column id each maps to. */

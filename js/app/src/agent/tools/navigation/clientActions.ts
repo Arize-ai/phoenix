@@ -3,6 +3,7 @@ import { matchPath } from "react-router";
 import { normalizeInputPath } from "@phoenix/agent/tools/getRouteInfo/parsers";
 import { getRegisteredRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/routeCatalogRegistry";
 import type { RouteCatalogEntry } from "@phoenix/agent/tools/getRouteInfo/types";
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
 import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
@@ -28,8 +29,10 @@ function matchCatalogEntry(path: string): RouteCatalogEntry | null {
 /**
  * Handler for the `navigation.goTo` operation. Always registered at the app
  * root — its job is to be reachable when the operation the script actually
- * wants is not. Navigation is never auto-accepted: bypass edit mode covers
- * edits the user is looking at, and a navigation moves their view instead.
+ * wants is not. Consent is script-level: when the run holds a script
+ * approval grant (the user accepted the script's `write_description`, or
+ * bypass edit mode granted the run implicitly), the navigation applies
+ * immediately instead of staging its own card.
  */
 export function createNavigationGoToClientAction({
   agentStore,
@@ -75,9 +78,13 @@ export function createNavigationGoToClientAction({
         emitResult: resolve,
         setPendingNavigation: agentStore.getState().setPendingNavigation,
       });
-      // Deliberately no bypass auto-accept (unlike every other approval op):
-      // navigation yanks the user's view out from under them mid-task, so the
-      // card is always shown. `navigationGoToOperation` documents this.
+      if (
+        agentStore.getState().permissions.edits === "bypass" ||
+        isOperationCallApprovalGranted(context.callId)
+      ) {
+        void pendingNavigation.accept?.({ approvalSource: "auto" });
+        return;
+      }
       agentStore
         .getState()
         .setPendingNavigation(context.callId, pendingNavigation);

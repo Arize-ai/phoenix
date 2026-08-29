@@ -1,13 +1,32 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ANNOTATIONS_COLUMN_PREFIX,
+  ANNOTATIONS_KEY_SEPARATOR,
   getGqlSessionSort,
   getGqlSort,
   makeFlatAnnotationColumnId,
   normalizeAnnotationColumnOrder,
 } from "../tableUtils";
 
+const ANNOTATION_NAMES_WITH_SPECIAL_CHARS = [
+  ["spaces", "my annotation"],
+  ["dashes", "hallucination-check"],
+  ["underscores", "qa_score"],
+  ["punctuation", "Q&A"],
+  ["percent signs", "top 10%"],
+  ["unicode", "质量"],
+] as const;
+
 describe("tableUtils", () => {
+  describe("makeFlatAnnotationColumnId", () => {
+    it("keeps alphanumeric names as a stable persisted column id", () => {
+      expect(makeFlatAnnotationColumnId("quality")).toEqual(
+        "annotations-score-quality"
+      );
+    });
+  });
+
   describe("getGqlSort", () => {
     it("extracts the score attribute from a flat annotation column id", () => {
       expect(
@@ -22,6 +41,42 @@ describe("tableUtils", () => {
       });
     });
 
+    it.each(ANNOTATION_NAMES_WITH_SPECIAL_CHARS)(
+      "round-trips score sorts for annotation names with %s",
+      (_label, name) => {
+        expect(
+          getGqlSort({
+            id: makeFlatAnnotationColumnId(name),
+            desc: true,
+          })
+        ).toEqual({
+          col: null,
+          evalResultKey: { attr: "score", name },
+          dir: "desc",
+        });
+      }
+    );
+
+    it.each(ANNOTATION_NAMES_WITH_SPECIAL_CHARS)(
+      "round-trips label sorts for annotation names with %s",
+      (_label, name) => {
+        expect(
+          getGqlSort({
+            id: [
+              ANNOTATIONS_COLUMN_PREFIX,
+              "label",
+              encodeURIComponent(name),
+            ].join(ANNOTATIONS_KEY_SEPARATOR),
+            desc: false,
+          })
+        ).toEqual({
+          col: null,
+          evalResultKey: { attr: "label", name },
+          dir: "asc",
+        });
+      }
+    );
+
     it("does not sort trace annotation columns", () => {
       expect(
         getGqlSort({
@@ -29,6 +84,15 @@ describe("tableUtils", () => {
           desc: false,
         })
       ).toEqual({ col: null, evalResultKey: null, dir: "asc" });
+    });
+
+    it("does not sort trace annotation columns whose names contain spaces", () => {
+      expect(
+        getGqlSort({
+          id: makeFlatAnnotationColumnId("my annotation", "trace"),
+          desc: true,
+        })
+      ).toEqual({ col: null, evalResultKey: null, dir: "desc" });
     });
   });
 
@@ -45,6 +109,42 @@ describe("tableUtils", () => {
         dir: "asc",
       });
     });
+
+    it.each(ANNOTATION_NAMES_WITH_SPECIAL_CHARS)(
+      "round-trips score sorts for annotation names with %s",
+      (_label, name) => {
+        expect(
+          getGqlSessionSort({
+            id: makeFlatAnnotationColumnId(name),
+            desc: false,
+          })
+        ).toEqual({
+          col: null,
+          annoResultKey: { attr: "score", name },
+          dir: "asc",
+        });
+      }
+    );
+
+    it.each(ANNOTATION_NAMES_WITH_SPECIAL_CHARS)(
+      "round-trips label sorts for annotation names with %s",
+      (_label, name) => {
+        expect(
+          getGqlSessionSort({
+            id: [
+              ANNOTATIONS_COLUMN_PREFIX,
+              "label",
+              encodeURIComponent(name),
+            ].join(ANNOTATIONS_KEY_SEPARATOR),
+            desc: true,
+          })
+        ).toEqual({
+          col: null,
+          annoResultKey: { attr: "label", name },
+          dir: "desc",
+        });
+      }
+    );
 
     it("does not sort trace annotation columns", () => {
       expect(

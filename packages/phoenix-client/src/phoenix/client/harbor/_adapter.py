@@ -1,4 +1,5 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# Harbor cannot be installed on the client's Python 3.10 and 3.11 CI jobs.
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 # pyright: reportAttributeAccessIssue=false
@@ -13,7 +14,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import harbor
 from harbor.job import Job
@@ -163,6 +164,7 @@ def _build_task_records(
                 name=content.name,
                 instruction=content.instruction,
                 steps=content.steps,
+                multi_step_reward_strategy=content.multi_step_reward_strategy,
                 config=content.config,
             )
         )
@@ -191,6 +193,7 @@ class _TaskContent:
     name: str
     instruction: str
     steps: tuple[StepRecord, ...]
+    multi_step_reward_strategy: Literal["mean", "final"] | None
     config: dict[str, Any]
 
 
@@ -211,11 +214,21 @@ def _read_task_content(task_dir: Path) -> _TaskContent:
         instruction = task.step_instruction(step.name)
         steps.append(StepRecord(name=str(step.name), instruction=str(instruction)))
 
+    configured_strategy = task.config.multi_step_reward_strategy
+    multi_step_reward_strategy: Literal["mean", "final"] | None
+    if configured_strategy is not None:
+        multi_step_reward_strategy = configured_strategy.value
+    elif steps:
+        multi_step_reward_strategy = "mean"
+    else:
+        multi_step_reward_strategy = None
+
     task_toml = task.config.model_dump(mode="json", exclude_defaults=True)
     return _TaskContent(
         name=task.name or task_dir.name,
         instruction=str(task.instruction),
         steps=tuple(steps),
+        multi_step_reward_strategy=multi_step_reward_strategy,
         config=_redact_env(task_toml),
     )
 

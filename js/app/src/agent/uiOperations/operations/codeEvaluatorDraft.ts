@@ -78,9 +78,8 @@ export const readCodeEvaluatorDraftOperation = defineUIOperation({
 export const editCodeEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.code.edit",
   description:
-    "Propose edits to the open code-evaluator draft. This operation does not change " +
-    "the form immediately: the browser renders an inline diff and the user must " +
-    "accept or reject it. Call `evaluators.code.read` first to see the " +
+    "Edit the open code-evaluator draft. The edit is a state change covered by the " +
+    "script-level approval (write_description). Call `evaluators.code.read` first to see the " +
     "current draft before proposing edits. " +
     "Use camelCase field names exactly as shown. Common valid examples: " +
     '{"type":"set_source_code","sourceCode":"def evaluate(output):\\n    return 1.0"}; ' +

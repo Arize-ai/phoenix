@@ -16,8 +16,8 @@ export const savePromptOperation = defineUIOperation({
     "Save the active changes for one mounted playground prompt instance. " +
     "Use this only when the user explicitly asks to save the current playground prompt, " +
     "or after they explicitly accept that the current prompt should become a saved prompt " +
-    "version. In manual approval mode, the browser asks the user to approve before " +
-    "committing the save; approval is bypassed only when edit_permission is bypass. " +
+    "version. The save is a state change covered by the script-level approval " +
+    "(write_description). " +
     "If the instance is already associated with a prompt, omit `name` and " +
     "`promptId` to save a new version on that prompt. If the instance is not associated " +
     "with a prompt and `name` is omitted, the browser derives a valid prompt name from " +
