@@ -3,7 +3,7 @@ title: "Prompts"
 description: "Manage prompts with @arizeai/phoenix-client"
 ---
 
-The prompts module lets you create prompt versions in Phoenix, fetch them back by selector, list prompts, update a prompt's description and metadata, and adapt prompt versions to supported provider SDKs.
+The prompts module lets you create prompt versions in Phoenix, fetch them back by selector, list prompts, update a prompt's description and metadata, delete a prompt, and adapt prompt versions to supported provider SDKs.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
@@ -59,6 +59,18 @@ await updatePrompt({
 
 Requires a Phoenix server on 19.18.0 or later.
 
+## Delete A Prompt
+
+```ts
+import { deletePrompt } from "@arizeai/phoenix-client/prompts";
+
+await deletePrompt({ promptIdentifier: "support-response" });
+```
+
+`promptIdentifier` is a prompt name or ID, the same selector `updatePrompt` takes. Deletion cascades: every version of the prompt, along with its version tags and labels, is removed with it, and the deletion cannot be undone. A prompt that does not exist rejects with `Prompt not found: <identifier>`.
+
+Requires a Phoenix server on 13.20.0 or later.
+
 ## Convert To Another SDK
 
 ```ts
@@ -81,6 +93,7 @@ Supported `sdk` targets:
   <h2>Source Map</h2>
   <ul>
     <li><code>src/prompts/createPrompt.ts</code></li>
+    <li><code>src/prompts/deletePrompt.ts</code></li>
     <li><code>src/prompts/getPrompt.ts</code></li>
     <li><code>src/prompts/listPrompts.ts</code></li>
     <li><code>src/prompts/updatePrompt.ts</code></li>

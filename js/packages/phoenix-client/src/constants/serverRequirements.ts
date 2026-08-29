@@ -138,6 +138,13 @@ export const ADD_SESSION_NOTE_IDENTIFIER: ParameterRequirement = {
   minServerVersion: [15, 5, 0],
 };
 
+export const DELETE_PROMPT: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/prompts/{prompt_identifier}",
+  minServerVersion: [13, 20, 0],
+};
+
 export const PATCH_PROMPT: RouteRequirement = {
   kind: "route",
   method: "PATCH",
@@ -224,6 +231,7 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   ADD_TRACE_NOTE_IDENTIFIER,
   ADD_SPAN_NOTE_IDENTIFIER,
   ADD_SESSION_NOTE_IDENTIFIER,
+  DELETE_PROMPT,
   PATCH_PROMPT,
   AGENT_SESSION_CREATE,
   AGENT_SESSION_LIST,
