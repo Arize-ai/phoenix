@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dbc48b4d85a7f3aaf4948350ad6398df>>
+ * @generated SignedSource<<cd3303b3c147f5835113fba7082d6776>>
  * @lightSyntaxTransform
  */
 
@@ -20,6 +20,7 @@ export type ConnectedTraceTree$data = {
         readonly endTime: string | null;
         readonly id: string;
         readonly latencyMs: number | null;
+        readonly metadata: string | null;
         readonly name: string;
         readonly parentId: string | null;
         readonly spanAnnotationSummaries: ReadonlyArray<{
@@ -205,6 +206,13 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "metadata",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "AnnotationSummary",
                   "kind": "LinkedField",
                   "name": "spanAnnotationSummaries",
@@ -340,6 +348,6 @@ return {
 };
 })();
 
-(node as any).hash = "a795a35718b61f5ea864138d6b275046";
+(node as any).hash = "781a442b2dc8e085c578afd56209f5b1";
 
 export default node;
