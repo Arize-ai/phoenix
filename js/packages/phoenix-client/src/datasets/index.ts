@@ -1,4 +1,5 @@
 export * from "./createDataset";
+export * from "./datasetLabelAssignments";
 export * from "./getDataset";
 export * from "./getDatasetExamples";
 export * from "./appendDatasetExamples";

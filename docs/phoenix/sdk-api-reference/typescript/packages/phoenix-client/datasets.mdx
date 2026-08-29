@@ -3,7 +3,7 @@ title: "Datasets"
 description: "Create datasets and manage reusable dataset labels with @arizeai/phoenix-client"
 ---
 
-Datasets are the foundation for experiment runs. The `@arizeai/phoenix-client/datasets` entrypoint covers dataset creation (which upserts by name), record inspection, example appends, and global dataset-label resource management.
+Datasets are the foundation for experiment runs. The `@arizeai/phoenix-client/datasets` entrypoint covers dataset creation (which upserts by name), record inspection, example appends, and both global dataset-label resources and their dataset assignments.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
@@ -15,6 +15,10 @@ Datasets are the foundation for experiment runs. The `@arizeai/phoenix-client/da
     <li>
       <code>src/datasets/datasetLabelTypes.ts</code> for the generated
       dataset-label request and response types
+    </li>
+    <li>
+      <code>src/datasets/datasetLabelAssignments.ts</code> for dataset label assignment
+      helpers
     </li>
   </ul>
 </section>
@@ -70,6 +74,57 @@ await appendDatasetExamples({
 ```
 
 `createDataset()` returns `{ datasetId }`, so you can pass that object directly as the dataset selector for append or experiment calls.
+
+## Organize Datasets With Labels
+
+Dataset label assignment helpers accept either a dataset name or a Phoenix GlobalID.
+Label IDs are Phoenix GlobalIDs returned by the dataset-label API or shown in Phoenix.
+The following workflow creates a shared label, applies it to a dataset, and then
+uses replacement to make the dataset's organization declarative:
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+import {
+  addLabelToDataset,
+  createDatasetLabel,
+  listLabelsForDataset,
+  removeLabelFromDataset,
+  replaceLabelsForDataset,
+} from "@arizeai/phoenix-client/datasets";
+
+const client = createClient();
+const goldenLabel = await createDatasetLabel({
+  client,
+  name: "golden",
+  color: "#00cc88",
+  description: "Curated datasets for release qualification",
+});
+
+const goldenLabelId = goldenLabel.id;
+const dataset = { datasetName: "support-eval" };
+
+// Safe to retry: applying an existing assignment is a no-op.
+await addLabelToDataset({ client, dataset, labelId: goldenLabelId });
+console.log(await listLabelsForDataset({ client, dataset }));
+
+// Make this the dataset's complete label set. Pass [] to clear all labels.
+await replaceLabelsForDataset({
+  client,
+  dataset,
+  labelIds: [goldenLabelId],
+});
+
+// This only removes the assignment; it does not delete the shared label.
+await removeLabelFromDataset({
+  client,
+  dataset,
+  labelId: goldenLabelId,
+});
+```
+
+Assignment endpoints require Phoenix server 17.16.0 or newer. Adding and removing an
+assignment are idempotent, while `replaceLabelsForDataset()` treats
+`labelIds` as the complete desired set.
 
 ## Read Back Dataset State
 
@@ -170,5 +225,6 @@ Dataset assignments use the separate `/v1/datasets/{dataset_identifier}/labels` 
     <li><code>src/datasets/createDatasetLabel.ts</code></li>
     <li><code>src/datasets/updateDatasetLabel.ts</code></li>
     <li><code>src/datasets/deleteDatasetLabel.ts</code></li>
+    <li><code>src/datasets/datasetLabelAssignments.ts</code></li>
   </ul>
 </section>
