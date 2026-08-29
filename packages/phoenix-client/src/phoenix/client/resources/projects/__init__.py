@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, cast
+from typing import Optional, Sequence, Union, cast
 
 import httpx
 
@@ -13,6 +13,30 @@ from phoenix.client.utils.server_requirements import (
 )
 
 logger = logging.getLogger(__name__)
+
+AnnotationConfig = Union[
+    v1.CategoricalAnnotationConfig,
+    v1.ContinuousAnnotationConfig,
+    v1.FreeformAnnotationConfig,
+]
+"""One of the annotation config shapes the REST API returns."""
+
+AnnotationConfigList = list[AnnotationConfig]
+"""A list of annotation configs.
+
+Aliased at module scope because ``Projects.list`` and ``AsyncProjects.list`` shadow the
+``list`` builtin inside their class bodies, so a ``list[...]`` annotation on any method
+declared after them would resolve to the method rather than the builtin.
+"""
+
+
+def _project_identifier(project_id: Optional[str], project_name: Optional[str]) -> str:
+    """Resolve the project path segment from exactly one of an ID or a name."""
+    if not project_id and not project_name:
+        raise ValueError("Either project_id or project_name must be provided.")
+    if project_id and project_name:
+        raise ValueError("Only one of project_id or project_name can be provided.")
+    return project_name or cast(str, project_id)
 
 
 class Projects:
@@ -295,6 +319,184 @@ class Projects:
         response = self._client.delete(url)
         response.raise_for_status()
 
+    def list_annotation_configs(
+        self,
+        *,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> AnnotationConfigList:
+        """List the annotation configs assigned to a project.
+
+        Cursor pagination is followed to completion, so every assigned config is returned.
+
+        Args:
+            project_id (Optional[str]): The ID of the project.
+            project_name (Optional[str]): The name of the project.
+
+        Returns:
+            The annotation configs currently assigned to the project.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If neither or both of project_id and project_name are provided.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            configs = client.projects.list_annotation_configs(project_name="My Project")
+            for config in configs:
+                print(f"Annotation config: {config['name']}")
+        """  # noqa: E501
+        identifier = _project_identifier(project_id, project_name)
+        url = f"v1/projects/{encode_path_param(identifier)}/annotation_configs"
+        all_configs: list[AnnotationConfig] = []
+        next_cursor: Optional[str] = None
+        while True:
+            params: dict[str, str] = {}
+            if next_cursor:
+                params["cursor"] = next_cursor
+            response = self._client.get(url, params=params)
+            response.raise_for_status()
+            data = cast(v1.GetProjectAnnotationConfigsResponseBody, response.json())
+            all_configs.extend(data["data"])
+            if not (next_cursor := data.get("next_cursor")):
+                break
+        return all_configs
+
+    def assign_annotation_config(
+        self,
+        *,
+        annotation_config_identifier: str,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> AnnotationConfig:
+        """Assign an annotation config to a project.
+
+        The assignment is idempotent: assigning a config that is already assigned succeeds
+        and returns the same config rather than raising or creating a duplicate.
+
+        Args:
+            annotation_config_identifier (str): The ID or name of the annotation config.
+            project_id (Optional[str]): The ID of the project.
+            project_name (Optional[str]): The name of the project.
+
+        Returns:
+            The annotation config that is now assigned to the project.
+
+        Raises:
+            httpx.HTTPError: If the request fails, including a 404 when the project or the
+                annotation config does not exist.
+            ValueError: If neither or both of project_id and project_name are provided.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            config = client.projects.assign_annotation_config(
+                project_name="My Project",
+                annotation_config_identifier="quality",
+            )
+        """  # noqa: E501
+        identifier = _project_identifier(project_id, project_name)
+        url = (
+            f"v1/projects/{encode_path_param(identifier)}"
+            f"/annotation_configs/{encode_path_param(annotation_config_identifier)}"
+        )
+        response = self._client.put(url)
+        response.raise_for_status()
+        return cast(v1.AssignAnnotationConfigToProjectResponseBody, response.json())["data"]
+
+    def unassign_annotation_config(
+        self,
+        *,
+        annotation_config_identifier: str,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> None:
+        """Remove an annotation config from a project.
+
+        The annotation config itself is not deleted, only its assignment to this project.
+
+        Args:
+            annotation_config_identifier (str): The ID or name of the annotation config.
+            project_id (Optional[str]): The ID of the project.
+            project_name (Optional[str]): The name of the project.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If neither or both of project_id and project_name are provided.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            client.projects.unassign_annotation_config(
+                project_name="My Project",
+                annotation_config_identifier="quality",
+            )
+        """  # noqa: E501
+        identifier = _project_identifier(project_id, project_name)
+        url = (
+            f"v1/projects/{encode_path_param(identifier)}"
+            f"/annotation_configs/{encode_path_param(annotation_config_identifier)}"
+        )
+        response = self._client.delete(url)
+        response.raise_for_status()
+
+    def set_annotation_configs(
+        self,
+        *,
+        annotation_config_ids: Sequence[str],
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> AnnotationConfigList:
+        """Replace a project's entire annotation config set.
+
+        Any config not named here is unassigned from the project. Passing an empty sequence
+        clears the project's annotation configs. The configs themselves are never deleted.
+
+        Args:
+            annotation_config_ids (Sequence[str]): The IDs of the annotation configs the
+                project should have after this call.
+            project_id (Optional[str]): The ID of the project.
+            project_name (Optional[str]): The name of the project.
+
+        Returns:
+            The annotation configs assigned to the project after the replacement.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If neither or both of project_id and project_name are provided.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            # Replace the set
+            configs = client.projects.set_annotation_configs(
+                project_name="My Project",
+                annotation_config_ids=["QW5ub3RhdGlvbkNvbmZpZzox"],
+            )
+
+            # Clear every assignment
+            client.projects.set_annotation_configs(
+                project_name="My Project", annotation_config_ids=[]
+            )
+        """  # noqa: E501
+        identifier = _project_identifier(project_id, project_name)
+        url = f"v1/projects/{encode_path_param(identifier)}/annotation_configs"
+        json_ = v1.SetProjectAnnotationConfigsRequestBody(
+            annotation_config_ids=list(annotation_config_ids)
+        )
+        response = self._client.put(url=url, json=json_)
+        response.raise_for_status()
+        return list(cast(v1.SetProjectAnnotationConfigsResponseBody, response.json())["data"])
+
 
 class AsyncProjects:
     """Asynchronous client for interacting with the Projects API endpoints.
@@ -576,3 +778,181 @@ class AsyncProjects:
         url = f"v1/projects/{encode_path_param(project_identifier)}"
         response = await self._client.delete(url)
         response.raise_for_status()
+
+    async def list_annotation_configs(
+        self,
+        *,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> AnnotationConfigList:
+        """List the annotation configs assigned to a project.
+
+        Cursor pagination is followed to completion, so every assigned config is returned.
+
+        Args:
+            project_id (Optional[str]): The ID of the project.
+            project_name (Optional[str]): The name of the project.
+
+        Returns:
+            The annotation configs currently assigned to the project.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If neither or both of project_id and project_name are provided.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            configs = await client.projects.list_annotation_configs(project_name="My Project")
+            for config in configs:
+                print(f"Annotation config: {config['name']}")
+        """  # noqa: E501
+        identifier = _project_identifier(project_id, project_name)
+        url = f"v1/projects/{encode_path_param(identifier)}/annotation_configs"
+        all_configs: list[AnnotationConfig] = []
+        next_cursor: Optional[str] = None
+        while True:
+            params: dict[str, str] = {}
+            if next_cursor:
+                params["cursor"] = next_cursor
+            response = await self._client.get(url, params=params)
+            response.raise_for_status()
+            data = cast(v1.GetProjectAnnotationConfigsResponseBody, response.json())
+            all_configs.extend(data["data"])
+            if not (next_cursor := data.get("next_cursor")):
+                break
+        return all_configs
+
+    async def assign_annotation_config(
+        self,
+        *,
+        annotation_config_identifier: str,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> AnnotationConfig:
+        """Assign an annotation config to a project.
+
+        The assignment is idempotent: assigning a config that is already assigned succeeds
+        and returns the same config rather than raising or creating a duplicate.
+
+        Args:
+            annotation_config_identifier (str): The ID or name of the annotation config.
+            project_id (Optional[str]): The ID of the project.
+            project_name (Optional[str]): The name of the project.
+
+        Returns:
+            The annotation config that is now assigned to the project.
+
+        Raises:
+            httpx.HTTPError: If the request fails, including a 404 when the project or the
+                annotation config does not exist.
+            ValueError: If neither or both of project_id and project_name are provided.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            config = await client.projects.assign_annotation_config(
+                project_name="My Project",
+                annotation_config_identifier="quality",
+            )
+        """  # noqa: E501
+        identifier = _project_identifier(project_id, project_name)
+        url = (
+            f"v1/projects/{encode_path_param(identifier)}"
+            f"/annotation_configs/{encode_path_param(annotation_config_identifier)}"
+        )
+        response = await self._client.put(url)
+        response.raise_for_status()
+        return cast(v1.AssignAnnotationConfigToProjectResponseBody, response.json())["data"]
+
+    async def unassign_annotation_config(
+        self,
+        *,
+        annotation_config_identifier: str,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> None:
+        """Remove an annotation config from a project.
+
+        The annotation config itself is not deleted, only its assignment to this project.
+
+        Args:
+            annotation_config_identifier (str): The ID or name of the annotation config.
+            project_id (Optional[str]): The ID of the project.
+            project_name (Optional[str]): The name of the project.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If neither or both of project_id and project_name are provided.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            await client.projects.unassign_annotation_config(
+                project_name="My Project",
+                annotation_config_identifier="quality",
+            )
+        """  # noqa: E501
+        identifier = _project_identifier(project_id, project_name)
+        url = (
+            f"v1/projects/{encode_path_param(identifier)}"
+            f"/annotation_configs/{encode_path_param(annotation_config_identifier)}"
+        )
+        response = await self._client.delete(url)
+        response.raise_for_status()
+
+    async def set_annotation_configs(
+        self,
+        *,
+        annotation_config_ids: Sequence[str],
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
+    ) -> AnnotationConfigList:
+        """Replace a project's entire annotation config set.
+
+        Any config not named here is unassigned from the project. Passing an empty sequence
+        clears the project's annotation configs. The configs themselves are never deleted.
+
+        Args:
+            annotation_config_ids (Sequence[str]): The IDs of the annotation configs the
+                project should have after this call.
+            project_id (Optional[str]): The ID of the project.
+            project_name (Optional[str]): The name of the project.
+
+        Returns:
+            The annotation configs assigned to the project after the replacement.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If neither or both of project_id and project_name are provided.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            # Replace the set
+            configs = await client.projects.set_annotation_configs(
+                project_name="My Project",
+                annotation_config_ids=["QW5ub3RhdGlvbkNvbmZpZzox"],
+            )
+
+            # Clear every assignment
+            await client.projects.set_annotation_configs(
+                project_name="My Project", annotation_config_ids=[]
+            )
+        """  # noqa: E501
+        identifier = _project_identifier(project_id, project_name)
+        url = f"v1/projects/{encode_path_param(identifier)}/annotation_configs"
+        json_ = v1.SetProjectAnnotationConfigsRequestBody(
+            annotation_config_ids=list(annotation_config_ids)
+        )
+        response = await self._client.put(url=url, json=json_)
+        response.raise_for_status()
+        return list(cast(v1.SetProjectAnnotationConfigsResponseBody, response.json())["data"])

@@ -513,6 +513,44 @@ new_project = client.projects.create(
 print(f"Created project with ID: {new_project['id']}")
 ```
 
+### Project Annotation Configs
+
+Annotation configs are defined once and then assigned to the projects that use them.
+These methods manage that assignment; they never create or delete the configs themselves.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# Set up a project with exactly the annotation configs it should use
+client.projects.set_annotation_configs(
+    project_name="Customer Support Bot",
+    annotation_config_ids=["QW5ub3RhdGlvbkNvbmZpZzox", "QW5ub3RhdGlvbkNvbmZpZzoy"],
+)
+
+# Add one more later; assigning an already-assigned config is a no-op
+client.projects.assign_annotation_config(
+    project_name="Customer Support Bot",
+    annotation_config_identifier="hallucination",
+)
+
+# Inspect what the project currently uses
+for config in client.projects.list_annotation_configs(project_name="Customer Support Bot"):
+    print(f"Annotation config: {config['name']}")
+
+# Remove one assignment; the annotation config itself is not deleted
+client.projects.unassign_annotation_config(
+    project_name="Customer Support Bot",
+    annotation_config_identifier="hallucination",
+)
+
+# Clear every assignment
+client.projects.set_annotation_configs(
+    project_name="Customer Support Bot", annotation_config_ids=[]
+)
+```
+
 ## Documentation
 
 - **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/client/en/latest/index.html)** - Complete API reference and guides
