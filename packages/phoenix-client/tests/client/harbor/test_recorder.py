@@ -345,7 +345,6 @@ class TestResolveExperiments:
 
     async def test_replay_reuses_experiment(self) -> None:
         job = plan()
-        identity = experiment_identity(job, SNAPSHOT, job.slices[0])
         experiments = FakeExperiments(
             [
                 {
@@ -354,7 +353,11 @@ class TestResolveExperiments:
                     "project_name": "Experiment-abc",
                     "dataset_version_id": "version-1",
                     "repetitions": 1,
-                    "metadata": {"integration": "harbor", "harbor_identity_digest": identity},
+                    "metadata": {
+                        "integration": "harbor",
+                        "harbor_job_id": job.job_id,
+                        "harbor_agent_digest": job.slices[0].identity_digest,
+                    },
                 }
             ]
         )
@@ -378,8 +381,11 @@ class TestResolveExperiments:
 
     async def test_duplicate_identity_lists_ids(self) -> None:
         job = plan()
-        identity = experiment_identity(job, SNAPSHOT, job.slices[0])
-        metadata = {"integration": "harbor", "harbor_identity_digest": identity}
+        metadata = {
+            "integration": "harbor",
+            "harbor_job_id": job.job_id,
+            "harbor_agent_digest": job.slices[0].identity_digest,
+        }
         experiments = FakeExperiments(
             [{"id": "one", "metadata": metadata}, {"id": "two", "metadata": metadata}]
         )
@@ -388,14 +394,17 @@ class TestResolveExperiments:
 
     async def test_repetition_mismatch_rejects_recovery(self) -> None:
         job = plan(repetitions=2)
-        identity = experiment_identity(job, SNAPSHOT, job.slices[0])
         experiments = FakeExperiments(
             [
                 {
                     "id": "experiment-existing",
                     "dataset_version_id": "version-1",
                     "repetitions": 5,
-                    "metadata": {"integration": "harbor", "harbor_identity_digest": identity},
+                    "metadata": {
+                        "integration": "harbor",
+                        "harbor_job_id": job.job_id,
+                        "harbor_agent_digest": job.slices[0].identity_digest,
+                    },
                 }
             ]
         )
@@ -410,12 +419,36 @@ class TestExperimentIdentity:
             second, SNAPSHOT, second.slices[0]
         )
 
-    def test_a_changed_task_set_is_a_separate_experiment(self) -> None:
+    def test_dataset_version_churn_does_not_change_identity(self) -> None:
+        """Other jobs sharing the dataset mint versions between replays."""
         job = plan()
         other = DatasetSnapshot("dataset-1", "version-2", {"task-a": "node-a"})
-        assert experiment_identity(job, SNAPSHOT, job.slices[0]) != experiment_identity(
+        assert experiment_identity(job, SNAPSHOT, job.slices[0]) == experiment_identity(
             job, other, job.slices[0]
         )
+
+    async def test_version_churn_still_recovers_the_experiment(self) -> None:
+        job = plan()
+        experiments = FakeExperiments(
+            [
+                {
+                    "id": "experiment-existing",
+                    "dataset_version_id": "version-recorded-earlier",
+                    "repetitions": 1,
+                    "metadata": {
+                        "integration": "harbor",
+                        "harbor_job_id": job.job_id,
+                        "harbor_agent_digest": job.slices[0].identity_digest,
+                    },
+                }
+            ]
+        )
+        handles = await recorder(FakeClient(experiments=experiments)).resolve_experiments(
+            job, SNAPSHOT
+        )
+        assert experiments.created == []
+        handle = handles[job.slices[0].identity_digest]
+        assert (handle.experiment_id, handle.created) == ("experiment-existing", False)
 
     async def test_two_jobs_can_use_the_same_exact_display_name(self) -> None:
         first_experiments = FakeExperiments()

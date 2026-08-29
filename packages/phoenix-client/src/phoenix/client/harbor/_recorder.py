@@ -415,7 +415,11 @@ class PhoenixRecorder:
         matches = [
             experiment
             for experiment in existing
-            if _identity_of(experiment.get("metadata")) == identity
+            if _matches_slice(
+                experiment.get("metadata"),
+                job_id=plan.job_id,
+                agent_digest=experiment_slice.identity_digest,
+            )
         ]
         if len(matches) > 1:
             ids = ", ".join(sorted(str(match["id"]) for match in matches))
@@ -459,16 +463,17 @@ def experiment_identity(
     snapshot: DatasetSnapshot,
     experiment_slice: ExperimentSlice,
 ) -> str:
-    """Return an identity that separates job, dataset, and agent configuration.
+    """Return an identity that separates job execution and agent configuration.
 
     The job ID keeps separate executions from competing for the same immutable
-    experiment run keys.
+    experiment run keys. The dataset version is deliberately excluded: other
+    jobs sharing the dataset churn the latest version between replays, and a
+    replayed job must recover its original experiment.
     """
     return canonical_digest(
         {
             "integration": _INTEGRATION,
             "job_id": plan.job_id,
-            "dataset_version_id": snapshot.version_id,
             "agent": experiment_slice.identity_digest,
         }
     )
@@ -492,14 +497,23 @@ def _experiment_metadata(
     }
 
 
-def _identity_of(metadata: Any) -> str | None:
+def _matches_slice(metadata: Any, *, job_id: str, agent_digest: str) -> bool:
+    """Match a stored experiment to this job execution and agent configuration.
+
+    Matching uses the stable job and agent fields rather than the composite
+    identity digest: the digest historically included the dataset version, and
+    other Harbor jobs sharing one dataset churn the latest version between
+    replays, which must not make a completed job unrecoverable.
+    """
     if not isinstance(metadata, Mapping):
-        return None
+        return False
     fields = cast(Mapping[str, Any], metadata)
     if fields.get("integration") != _INTEGRATION:
-        return None
-    identity = fields.get("harbor_identity_digest")
-    return str(identity) if identity else None
+        return False
+    return (
+        str(fields.get("harbor_job_id") or "") == job_id
+        and str(fields.get("harbor_agent_digest") or "") == agent_digest
+    )
 
 
 def _require_consistent(
@@ -513,10 +527,17 @@ def _require_consistent(
     fields = cast(Mapping[str, Any], experiment)
     stored_version = fields.get("dataset_version_id")
     if stored_version is not None and stored_version != snapshot.version_id:
-        raise HarborPluginError(
-            f"Phoenix experiment {name!r} ({experiment['id']}) is pinned to dataset "
-            f"version {stored_version}, but this job resolved version "
-            f"{snapshot.version_id}."
+        # Other Harbor jobs sharing the dataset may have minted versions in
+        # between, so a replay can resolve a newer version ID with identical
+        # task content. Harbor's own job lock rejects replaying a job whose
+        # tasks changed, so recovery keeps the experiment's pinned version.
+        logger.info(
+            "Phoenix experiment %r (%s) stays pinned to dataset version %s; "
+            "this replay resolved version %s.",
+            name,
+            experiment["id"],
+            stored_version,
+            snapshot.version_id,
         )
     stored_repetitions = fields.get("repetitions")
     if stored_repetitions is not None and int(stored_repetitions) != plan.repetitions:
