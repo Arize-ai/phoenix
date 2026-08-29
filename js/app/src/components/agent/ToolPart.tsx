@@ -105,6 +105,11 @@ import {
   getExecuteBrowserActionToolPreview,
 } from "./ExecuteBrowserActionToolDetails";
 import {
+  getLoadSkillReferenceToolPreview,
+  LOAD_SKILL_REFERENCE_TOOL_NAME,
+  LoadSkillReferenceToolDetails,
+} from "./LoadSkillReferenceToolDetails";
+import {
   getLoadSkillToolPreview,
   LOAD_SKILL_TOOL_NAME,
   LoadSkillToolDetails,
@@ -115,11 +120,6 @@ import {
   getPatchExperimentToolPreview,
   PatchExperimentToolDetails,
 } from "./PatchExperimentToolDetails";
-import {
-  getLoadSkillReferenceToolPreview,
-  LOAD_SKILL_REFERENCE_TOOL_NAME,
-  LoadSkillReferenceToolDetails,
-} from "./LoadSkillReferenceToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
 import {
   getSearchUIToolPreview,
@@ -602,7 +602,7 @@ function ToolInvocationPartDetails({
   const hasAutoOpenedRef = useRef(false);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const { preview, stateLabel, statusVariant, details, variant, quietLabel } =
-    getToolPresentation(toolName, part);
+    getToolPresentation({ toolName, part });
   // Store-driven open request: set when this call stages a user-facing
   // approval (see `requestToolPartOpen`), so Accept/Reject is never hidden
   // behind a collapsed disclosure. It layers under the same manual-toggle
@@ -730,7 +730,7 @@ function shouldAutoOpenToolPart(part: ToolInvocationPart): boolean {
 }
 
 export function getToolPartPreview(part: ToolInvocationPart): string {
-  return getToolPresentation(getToolName(part), part).preview;
+  return getToolPresentation({ toolName: getToolName(part), part }).preview;
 }
 
 // ---------------------------------------------------------------------------
@@ -1248,10 +1248,13 @@ const TOOL_PRESENTATION_BUILDERS: Partial<
   }),
 };
 
-function getToolPresentation(
-  toolName: string,
-  part: ToolInvocationPart
-): ToolPresentation {
+function getToolPresentation({
+  toolName,
+  part,
+}: {
+  toolName: string;
+  part: ToolInvocationPart;
+}): ToolPresentation {
   const statusVariant = getStatusVariant(part.state);
   if (DATASET_WRITE_TOOL_NAMES.has(toolName)) {
     return {

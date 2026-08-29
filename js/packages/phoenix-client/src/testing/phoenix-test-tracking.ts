@@ -220,7 +220,13 @@ function buildLinks(
   ];
 }
 
-function disableSuiteTracking(suite: SuiteState, error?: unknown): void {
+function disableSuiteTracking({
+  suite,
+  error,
+}: {
+  suite: SuiteState;
+  error?: unknown;
+}): void {
   suite.trackingDisabled = true;
   if (error !== undefined) {
     suite.setupError =
@@ -259,7 +265,7 @@ async function createSuiteDataset({
     });
     return created.datasetId;
   } catch (error) {
-    disableSuiteTracking(suite, error);
+    disableSuiteTracking({ suite, error });
     return null;
   }
 }
@@ -348,7 +354,7 @@ async function createSuiteExperiment({
     suite.projectName = response.project_name ?? projectName;
     return true;
   } catch (error) {
-    disableSuiteTracking(suite, error);
+    disableSuiteTracking({ suite, error });
     return false;
   }
 }
@@ -362,21 +368,21 @@ function setupSuiteTracer({
 }): boolean {
   const baseUrl = client.config.baseUrl;
   if (!baseUrl) {
-    disableSuiteTracking(
+    disableSuiteTracking({
       suite,
-      new Error(
+      error: new Error(
         "Phoenix base URL not found. Set PHOENIX_ENDPOINT (or PHOENIX_COLLECTOR_ENDPOINT) or pass baseUrl on the client."
-      )
-    );
+      ),
+    });
     return false;
   }
   maybeWarnHttpScheme(baseUrl, client.config.headers);
   const projectName = suite.projectName;
   if (!projectName) {
-    disableSuiteTracking(
+    disableSuiteTracking({
       suite,
-      new Error("Experiment project name is missing.")
-    );
+      error: new Error("Experiment project name is missing."),
+    });
     return false;
   }
   try {
@@ -395,7 +401,7 @@ function setupSuiteTracer({
     suite.evaluatorTracer = provider.getTracer(`${projectName}-evaluators`);
     return true;
   } catch (error) {
-    disableSuiteTracking(suite, error);
+    disableSuiteTracking({ suite, error });
     return false;
   }
 }
