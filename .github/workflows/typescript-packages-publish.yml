@@ -60,6 +60,9 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # `changeset publish` builds its own publish flags and never passes
+          # --provenance, so request it through npm config instead.
+          NPM_CONFIG_PROVENANCE: true
       # - name: Release docs
       # Run pnpm run docs in js/packages/phoenix-client
       # Deploy the static files in js/packages/phoenix-client/docs to github pages

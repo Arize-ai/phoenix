@@ -21,7 +21,7 @@
   },
   "scripts": {
     "build": "pnpm run -r build",
-    "ci:publish": "pnpm --filter './packages/*' run -r build && pnpm publish -r --access public --provenance",
+    "ci:publish": "pnpm --filter './packages/*' run -r build && pnpm changeset publish",
     "ci:version": "pnpm changeset version",
     "clean": "pnpm run clean:node_modules",
     "clean:node_modules": "rimraf --glob '**/node_modules/**'",
