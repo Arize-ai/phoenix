@@ -9,12 +9,20 @@ const cjsEntries = {
   index: "../dist/src/index.js",
   experiments: "../dist/src/experiments/index.js",
   jest: "../dist/src/jest/index.js",
+  secrets: "../dist/src/secrets/index.js",
+} as const;
+const esmEntries = {
+  index: "../dist/esm/index.js",
+  experiments: "../dist/esm/experiments/index.js",
+  jest: "../dist/esm/jest/index.js",
+  secrets: "../dist/esm/secrets/index.js",
 } as const;
 // The index entry transitively require()s @arizeai/phoenix-otel's dist via the
-// workspace symlink, so an unbuilt sibling would fail the guard even though
-// the published entry points are fine.
+// workspace symlink. Check every guarded entry and that dependency so a
+// partially stale local build skips instead of producing misleading failures.
 const requiredDist = [
-  cjsEntries.index,
+  ...Object.values(cjsEntries),
+  ...Object.values(esmEntries),
   "../node_modules/@arizeai/phoenix-otel/dist/src/index.js",
 ];
 const isBuilt = requiredDist.every((path) =>
@@ -43,12 +51,6 @@ describe.skipIf(!isBuilt)("built CommonJS entry points", () => {
     });
   }
 });
-
-const esmEntries = {
-  index: "../dist/esm/index.js",
-  experiments: "../dist/esm/experiments/index.js",
-  jest: "../dist/esm/jest/index.js",
-} as const;
 
 describe.skipIf(!isBuilt)("built ESM entry points", () => {
   for (const [name, relativePath] of Object.entries(esmEntries)) {
