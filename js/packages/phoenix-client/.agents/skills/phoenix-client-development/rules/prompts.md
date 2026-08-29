@@ -5,16 +5,16 @@
 Helpers in `src/prompts/` take a **selector object** under a `prompt` key, never a
 bare identifier string. `getPrompt` established this with `PromptSelector`
 (`{ promptId }` | `{ name }` | `{ versionId }` | `{ tag, name }`), and new helpers
-follow it — a call site reads as `{ prompt: { name: "x" } }`, which says *which
-kind* of thing `"x"` is.
+follow it — a call site reads as `{ prompt: { name: "x" } }`, which says _which
+kind_ of thing `"x"` is.
 
 Two selector unions live in `src/types/prompts.ts`. Pick by what the operation
 acts on:
 
-| Union              | Members                        | For                                             |
-| ------------------ | ------------------------------ | ----------------------------------------------- |
-| `PromptSelector`   | id, name, versionId, tag+name  | Operations that resolve to a prompt **version** |
-| `PromptIdentifier` | `{ promptId }` \| `{ name }`   | Operations on the **prompt itself**             |
+| Union              | Members                       | For                                             |
+| ------------------ | ----------------------------- | ----------------------------------------------- |
+| `PromptSelector`   | id, name, versionId, tag+name | Operations that resolve to a prompt **version** |
+| `PromptIdentifier` | `{ promptId }` \| `{ name }`  | Operations on the **prompt itself**             |
 
 `PromptIdentifier` is what the REST `{prompt_identifier}` path segment accepts.
 Resolve it with `resolvePromptIdentifier()` from `src/utils/` rather than reaching
