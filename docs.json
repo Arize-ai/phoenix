@@ -954,6 +954,7 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/document-annotations",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/session-annotations",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/users",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
