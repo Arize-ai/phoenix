@@ -17,6 +17,7 @@ from secrets import token_hex
 from typing import Any, Dict, Iterator, List
 
 import pytest
+
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.atif import (  # pyright: ignore[reportPrivateUsage]
@@ -108,12 +109,15 @@ class TestAtifTrajectoryUpload:
         assert not unresolvable, f"spans persisted with unresolvable parents: {unresolvable}"
 
         # The parent trajectory hangs off the trial span. Its summarization
-        # step has no matching TOOL span, so the parent trajectory's root
-        # parents the referenced sub-trajectories instead.
+        # step declares the subagent refs without a matching tool call, so
+        # that operational system step's CHAIN parents the referenced
+        # sub-trajectories: the closest causal parent the document proves.
         roots = {s["name"] for s in fetched if s.get("parent_id") == parent_span_id}
         assert roots == {"terminus-2"}
 
-        parent_root_id = next(s["context"]["span_id"] for s in fetched if s["name"] == "terminus-2")
+        handoff_step_id = next(
+            s["context"]["span_id"] for s in fetched if s["name"] == "system_action_1"
+        )
         subagent_root_names = {
             "terminus-2-summarization-questions",
             "terminus-2-summarization-answers",
@@ -121,7 +125,7 @@ class TestAtifTrajectoryUpload:
         }
         assert {
             s["name"]: s.get("parent_id") for s in fetched if s["name"] in subagent_root_names
-        } == {name: parent_root_id for name in subagent_root_names}
+        } == {name: handoff_step_id for name in subagent_root_names}
 
     async def test_separate_trials_with_distinct_trajectory_ids_do_not_collide(
         self,

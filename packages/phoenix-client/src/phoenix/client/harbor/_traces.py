@@ -24,6 +24,12 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.harbor._model import JobPlan, TaskRecord, TrialSlot
 from phoenix.client.harbor._scores import infrastructure_failures
 from phoenix.client.helpers.atif import _convert_atif_trajectories_to_spans
+from phoenix.client.helpers.atif._convert import (
+    _CONTINUATION_INDEX_KEY,
+    _FALLBACK_TIMESTAMP_KEY,
+    _IS_CONTINUATION_KEY,
+    _STEP_NAME_KEY,
+)
 from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_parent
 
 logger = logging.getLogger(__name__)
@@ -103,13 +109,30 @@ def build_harbor_trace(
         if not root_path.is_file():
             missing.append(_display_path(root_path, loader.trial_root))
             continue
-        _load_file(
+        documents_before = set(loader.documents)
+        document = _load_file(
             loader,
             path=root_path,
             allowed_directory=location.directory.resolve(),
             role=location.role,
             step_name=location.step_name,
+            fallback_timestamp=_agent_execution_finished_at(
+                trial_result,
+                location.step_name,
+            ),
         )
+        if document is not None:
+            loaded_documents = [
+                loaded for path, loaded in loader.documents.items() if path not in documents_before
+            ]
+            _apply_request_times(
+                loaded_documents or [document],
+                (
+                    _agent_context(trial_result, location.step_name)
+                    if location.role == "agent"
+                    else None
+                ),
+            )
 
     if missing:
         loader.warn(
@@ -178,6 +201,125 @@ def _root_locations(trial_result: TrialResult) -> tuple[_RootLocation, ...]:
     return tuple(_RootLocation(paths.step_agent_dir(name), "agent", name) for name in step_names)
 
 
+def _step_result(trial_result: TrialResult, step_name: str | None) -> Any:
+    if step_name is None:
+        return None
+    for step_result in trial_result.step_results or ():
+        if str(step_result.step_name) == step_name:
+            return step_result
+    return None
+
+
+def _agent_context(trial_result: TrialResult, step_name: str | None) -> Any:
+    step_result = _step_result(trial_result, step_name)
+    if step_result is not None:
+        return getattr(step_result, "agent_result", None)
+    return getattr(trial_result, "agent_result", None)
+
+
+def _agent_execution_finished_at(
+    trial_result: TrialResult,
+    step_name: str | None,
+) -> datetime | None:
+    step_result = _step_result(trial_result, step_name)
+    execution = (
+        getattr(step_result, "agent_execution", None)
+        if step_result is not None
+        else getattr(trial_result, "agent_execution", None)
+    )
+    finished_at = getattr(execution, "finished_at", None)
+    if isinstance(finished_at, datetime):
+        return finished_at
+    trial_finished_at = getattr(trial_result, "finished_at", None)
+    return trial_finished_at if isinstance(trial_finished_at, datetime) else None
+
+
+def _documents_with_embedded_subagents(
+    documents: Sequence[MutableMapping[str, Any]],
+) -> list[MutableMapping[str, Any]]:
+    expanded: list[MutableMapping[str, Any]] = []
+
+    def visit(document: MutableMapping[str, Any]) -> None:
+        expanded.append(document)
+        for child in _embedded_subagents(document):
+            visit(child)
+
+    for document in documents:
+        visit(document)
+    return expanded
+
+
+def _request_timed_llm_steps(
+    documents: Sequence[MutableMapping[str, Any]],
+) -> list[MutableMapping[str, Any]] | None:
+    """Return fresh LLM steps in a defensible request order.
+
+    Step order is authoritative within one document. Across continuation or
+    subagent documents, timestamps are required so their events can be merged
+    chronologically without guessing how the producer interleaved them.
+    """
+    expanded = _documents_with_embedded_subagents(documents)
+    candidates: list[tuple[int, int, MutableMapping[str, Any]]] = []
+    for document_index, document in enumerate(expanded):
+        for step_index, step in enumerate(document.get("steps", [])):
+            if (
+                isinstance(step, MutableMapping)
+                and step.get("source") == "agent"
+                and not step.get("is_copied_context", False)
+                and step.get("llm_call_count") != 0
+            ):
+                candidates.append((document_index, step_index, step))
+
+    if len(expanded) == 1:
+        return [step for _, _, step in candidates]
+
+    timed_candidates: list[tuple[datetime, int, int, MutableMapping[str, Any]]] = []
+    for document_index, step_index, step in candidates:
+        raw_timestamp = step.get("timestamp")
+        if not isinstance(raw_timestamp, str):
+            return None
+        try:
+            timestamp = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        timed_candidates.append((timestamp, document_index, step_index, step))
+    timed_candidates.sort(key=lambda item: item[:3])
+    return [step for _, _, _, step in timed_candidates]
+
+
+def _apply_request_times(documents: Sequence[MutableMapping[str, Any]], agent_context: Any) -> None:
+    """Copy Harbor's per-request measurements into matching ATIF LLM steps.
+
+    Some Harbor agents record request latency on ``AgentContext`` but omit it
+    from ATIF. Enrichment is all-or-nothing so a partial or aggregated list can
+    never be shifted onto the wrong steps. Producer-supplied ATIF latency wins.
+    """
+    context_metadata = getattr(agent_context, "metadata", None)
+    if not isinstance(context_metadata, Mapping):
+        return
+    request_times = context_metadata.get("api_request_times_msec")
+    if not isinstance(request_times, Sequence) or isinstance(request_times, (str, bytes)):
+        return
+    if not all(
+        isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
+        for value in request_times
+    ):
+        return
+
+    llm_steps = _request_timed_llm_steps(documents)
+    if llm_steps is None or len(llm_steps) != len(request_times):
+        return
+    for step, latency_ms in zip(llm_steps, request_times):
+        metrics = step.setdefault("metrics", {})
+        if not isinstance(metrics, MutableMapping):
+            continue
+        extra = metrics.setdefault("extra", {})
+        if isinstance(extra, MutableMapping):
+            extra.setdefault("latency_ms", latency_ms)
+
+
 def _load_file(
     loader: _Loader,
     *,
@@ -185,7 +327,9 @@ def _load_file(
     allowed_directory: Path,
     role: _Role,
     step_name: str | None,
+    fallback_timestamp: datetime | None,
     reference: str | None = None,
+    continuation_index: int = 0,
 ) -> MutableMapping[str, Any] | None:
     """Load, validate, and normalize one ATIF file and everything it references.
 
@@ -239,7 +383,15 @@ def _load_file(
             step_name=step_name,
             relative_path=_display_path(canonical_path, loader.trial_root),
             index_path="root",
+            fallback_timestamp=fallback_timestamp,
         )
+        if continuation_index > 0:
+            document[_IS_CONTINUATION_KEY] = True
+            document[_CONTINUATION_INDEX_KEY] = continuation_index
+        if step_name is not None and (reference is None or continuation_index > 0):
+            # Qualify only canonical role roots and their continuations; nested
+            # subagent documents keep their producer identity unqualified.
+            document[_STEP_NAME_KEY] = step_name
         _resolve_file_references(
             loader,
             document,
@@ -247,6 +399,7 @@ def _load_file(
             allowed_directory=allowed_directory,
             role=role,
             step_name=step_name,
+            fallback_timestamp=fallback_timestamp,
         )
         continuation = document.get("continued_trajectory_ref")
         if isinstance(continuation, str) and continuation:
@@ -258,7 +411,9 @@ def _load_file(
                     allowed_directory=allowed_directory,
                     role=role,
                     step_name=step_name,
+                    fallback_timestamp=fallback_timestamp,
                     reference=continuation,
+                    continuation_index=continuation_index + 1,
                 )
     finally:
         loader.active.discard(canonical_path)
@@ -273,6 +428,7 @@ def _normalize_document(
     step_name: str | None,
     relative_path: str,
     index_path: str,
+    fallback_timestamp: datetime | None,
 ) -> None:
     """Give a document and its embedded subagents trial-scoped identities.
 
@@ -289,6 +445,8 @@ def _normalize_document(
         index_path=index_path,
     )
     document["session_id"] = _session_id(loader.trace_id)
+    if fallback_timestamp is not None:
+        document[_FALLBACK_TIMESTAMP_KEY] = fallback_timestamp.isoformat()
     agent = document.get("agent")
     if isinstance(agent, MutableMapping):
         extra = agent.setdefault("extra", {})
@@ -308,6 +466,7 @@ def _normalize_document(
             step_name=step_name,
             relative_path=relative_path,
             index_path=f"{index_path}.{index}",
+            fallback_timestamp=fallback_timestamp,
         )
         if isinstance(producer_child_id, str):
             embedded_ids[producer_child_id] = cast(str, child["trajectory_id"])
@@ -328,6 +487,7 @@ def _resolve_file_references(
     allowed_directory: Path,
     role: _Role,
     step_name: str | None,
+    fallback_timestamp: datetime | None,
 ) -> None:
     """Load ``trajectory_path`` references and point them at the loaded IDs.
 
@@ -344,6 +504,7 @@ def _resolve_file_references(
             allowed_directory=allowed_directory,
             role=role,
             step_name=step_name,
+            fallback_timestamp=fallback_timestamp,
         )
     for refs in _subagent_reference_lists(document):
         retained: list[Any] = []
@@ -358,6 +519,7 @@ def _resolve_file_references(
                         allowed_directory=allowed_directory,
                         role=role,
                         step_name=step_name,
+                        fallback_timestamp=fallback_timestamp,
                         reference=reference,
                     )
                     if target is not None

@@ -26,6 +26,11 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 from phoenix.client.__generated__ import v1
 
 _PARENT_SPAN_CONTEXT_KEY = "_phoenix_parent_span_context"
+_FALLBACK_TIMESTAMP_KEY = "_phoenix_fallback_timestamp"
+_IS_CONTINUATION_KEY = "_phoenix_is_continuation"
+_CONTINUATION_INDEX_KEY = "_phoenix_continuation_index"
+_STEP_NAME_KEY = "_phoenix_step_name"
+_SPAN_ORDER_METADATA_KEY = "_phoenix.span_order"
 
 
 def _sha256_span_id(seed: str) -> str:
@@ -36,6 +41,15 @@ def _sha256_span_id(seed: str) -> str:
 def _sha256_trace_id(seed: str) -> str:
     """Derive a deterministic 32-hex-char trace ID from a seed string."""
     return hashlib.sha256(seed.encode()).hexdigest()[:32]
+
+
+def _update_metadata(attributes: Dict[str, Any], values: Mapping[str, Any]) -> None:
+    """Merge converter metadata without replacing producer metadata."""
+    metadata = attributes.setdefault("metadata", {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+        attributes["metadata"] = metadata
+    metadata.update(values)
 
 
 def _stable_trajectory_hash(trajectory: Mapping[str, Any]) -> str:
@@ -138,29 +152,6 @@ def _subagent_ref_lookup_keys(
     return keys
 
 
-def _subagent_parent_span_id(
-    step: Mapping[str, Any],
-    result: Mapping[str, Any],
-    span_seed: str,
-) -> str:
-    """Return the emitted span that should parent a referenced subagent."""
-    source_call_id = result.get("source_call_id")
-    tool_calls = step.get("tool_calls")
-    has_matching_tool_call = (
-        step.get("source") == "agent"
-        and isinstance(source_call_id, str)
-        and isinstance(tool_calls, list)
-        and any(
-            isinstance(tool_call, Mapping) and tool_call.get("tool_call_id") == source_call_id
-            for tool_call in tool_calls
-        )
-    )
-    if has_matching_tool_call:
-        step_id = step.get("step_id")
-        return _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{source_call_id}")
-    return _sha256_span_id(f"{span_seed}:root")
-
-
 def _get_parent_span_context(
     trajectory: Mapping[str, Any],
     ref_map: Mapping[str, tuple[str, str]],
@@ -178,6 +169,68 @@ def _get_parent_span_context(
         if parent_ctx is not None:
             return parent_ctx
     return None
+
+
+def _is_compaction_step(step: Mapping[str, Any]) -> bool:
+    """Return whether a step records producer context management (compaction)."""
+    extra = step.get("extra")
+    context_management = extra.get("context_management") if isinstance(extra, Mapping) else None
+    return bool(context_management)
+
+
+def _measured_latency_ms(step: Mapping[str, Any]) -> Optional[float]:
+    """Return the producer-measured LLM latency for a step, if present."""
+    metrics = step.get("metrics")
+    extra = metrics.get("extra") if isinstance(metrics, Mapping) else None
+    raw_latency_ms = extra.get("latency_ms") if isinstance(extra, Mapping) else None
+    if (
+        not isinstance(raw_latency_ms, (int, float))
+        or isinstance(raw_latency_ms, bool)
+        or raw_latency_ms < 0
+    ):
+        return None
+    return float(raw_latency_ms)
+
+
+def _is_operational_step(step: Mapping[str, Any]) -> bool:
+    """Return whether a fresh ATIF step represents observable execution."""
+    extra = step.get("extra")
+    context_management = extra.get("context_management") if isinstance(extra, Mapping) else None
+    return (
+        step.get("source") == "agent"
+        or bool(step.get("tool_calls"))
+        or bool(step.get("observation"))
+        or bool(context_management)
+    )
+
+
+def _operation_span_id(span_seed: str, step_id: object) -> str:
+    return _sha256_span_id(f"{span_seed}:step:{step_id}:operation")
+
+
+def _subagent_parent_span_id(
+    step: Mapping[str, Any],
+    result: Mapping[str, Any],
+    span_seed: str,
+) -> str:
+    """Resolve a subagent to the closest span the ATIF document can prove.
+
+    A matching ``source_call_id`` attaches the child to that tool call. A
+    fresh observation without a matching tool call attaches to the ATIF step
+    operation. Callers exclude copied history because it cannot own fresh
+    execution in this document.
+    """
+    source_call_id = result.get("source_call_id")
+    tool_call_ids = {
+        tool_call.get("tool_call_id")
+        for tool_call in step.get("tool_calls", [])
+        if isinstance(tool_call, Mapping)
+    }
+    if isinstance(source_call_id, str) and source_call_id in tool_call_ids:
+        return _sha256_span_id(f"{span_seed}:step:{step.get('step_id')}:tool:{source_call_id}")
+    if _is_operational_step(step):
+        return _operation_span_id(span_seed, step.get("step_id"))
+    return _sha256_span_id(f"{span_seed}:root")
 
 
 def _flatten_atif_trajectories(
@@ -228,6 +281,8 @@ def _flatten_atif_trajectories(
         span_seed = _trajectory_span_seed(trajectory_for_conversion, trace_id)
         local_ref_map: Dict[str, tuple[str, str]] = {}
         for step in trajectory_for_conversion.get("steps", []):
+            if step.get("is_copied_context", False):
+                continue
             observation = step.get("observation")
             if not isinstance(observation, Mapping):
                 continue
@@ -240,12 +295,16 @@ def _flatten_atif_trajectories(
                 refs = result.get("subagent_trajectory_ref", [])
                 if not isinstance(refs, list):
                     continue
-                parent_span_id = _subagent_parent_span_id(step, result, span_seed)
+                parent_span_id = _subagent_parent_span_id(
+                    step,
+                    result,
+                    span_seed,
+                )
                 for ref in refs:
                     if not isinstance(ref, Mapping):
                         continue
                     for key in _subagent_ref_lookup_keys(ref, trajectory_for_conversion):
-                        local_ref_map[key] = (parent_span_id, trace_id)
+                        local_ref_map.setdefault(key, (parent_span_id, trace_id))
         for subagent in subagent_trajectories:
             if isinstance(subagent, Mapping):
                 subagent_parent_ctx = None
@@ -477,29 +536,75 @@ def _get_step_timestamps(
     step_index: int,
     fallback_start: datetime,
 ) -> tuple[datetime, datetime]:
-    """Determine start/end timestamps for a step.
+    """Bound a step by the preceding event and its own event timestamp.
 
-    Strategy:
-    - If the step has a timestamp, use it as start_time.
-    - Otherwise use fallback_start (previous step's end or trajectory start).
-    - For end_time: use next step's timestamp if available, else start + 1s.
+    ATIF records when a step occurred, not when it started. Missing or
+    non-monotonic timestamps therefore collapse to the preceding event rather
+    than inventing elapsed time.
     """
     step = steps[step_index]
     ts = _parse_timestamp(step.get("timestamp"))
-    start = ts if ts is not None else fallback_start
+    end = ts if ts is not None and ts >= fallback_start else fallback_start
+    return fallback_start, end
 
-    # Look for the next step with a timestamp for the end
-    end: Optional[datetime] = None
-    for j in range(step_index + 1, len(steps)):
-        next_ts = _parse_timestamp(steps[j].get("timestamp"))
-        if next_ts is not None:
-            end = next_ts
-            break
 
-    if end is None:
-        end = start + timedelta(seconds=1)
+def _get_llm_timestamps(
+    step: Mapping[str, Any],
+    step_start: datetime,
+    step_end: datetime,
+) -> tuple[datetime, datetime, Dict[str, Any]]:
+    """Return measured LLM timing when ATIF metrics carry a latency hint.
 
-    return start, end
+    ``metrics.extra.latency_ms`` is bounded by the ATIF step interval. Without
+    that producer measurement, the LLM is represented as an event at the step
+    timestamp rather than assigned the whole interaction interval.
+    """
+    raw_latency_ms = _measured_latency_ms(step)
+    if raw_latency_ms is None:
+        return step_end, step_end, {"atif.timing": "event"}
+
+    measured_end = step_start + timedelta(milliseconds=raw_latency_ms)
+    if measured_end <= step_end:
+        return (
+            step_start,
+            measured_end,
+            {
+                "atif.timing": "metrics.extra.latency_ms",
+                "atif.measured_latency_ms": raw_latency_ms,
+            },
+        )
+    return (
+        step_start,
+        step_end,
+        {
+            "atif.timing": "metrics.extra.latency_ms_clamped",
+            "atif.measured_latency_ms": raw_latency_ms,
+        },
+    )
+
+
+def _event_schedule(
+    step_start: datetime,
+    step_end: datetime,
+    event_count: int,
+) -> List[datetime]:
+    """Place same-instant events at tiny ordered offsets before the step event.
+
+    ATIF records one timestamp per step, so an unmeasured LLM event and its
+    tool calls would otherwise share that instant exactly and render in
+    arbitrary waterfall order in any viewer that sorts by start time alone.
+    Spread them at most one millisecond apart within the step interval, in
+    causal order, with the last event exactly at the step's own timestamp.
+    Durations stay zero: the offsets encode order, not measured time.
+    """
+    if event_count <= 0:
+        return []
+    available = (step_end - step_start).total_seconds()
+    spacing = min(0.001, available / event_count) if available > 0 else 0.0
+    return [
+        step_end - timedelta(seconds=spacing * (event_count - 1 - index))
+        for index in range(event_count)
+    ]
 
 
 def _build_message_attributes(
@@ -661,14 +766,12 @@ def _build_subagent_ref_map(
     parent context under _PARENT_SPAN_CONTEXT_KEY. This map remains necessary
     for non-embedded batch links and older separate-trajectory refs.
 
-    Trace IDs are derived from the run-scoped session identity. Parent span
-    IDs use a matching emitted TOOL span when one exists, or the parent
-    trajectory's root AGENT span otherwise. Both use the document-scoped
-    trajectory identity, matching the deterministic IDs produced by the
-    converter.
+    Trace IDs are derived from the run-scoped session identity and tool
+    span IDs from the document-scoped trajectory identity,
+    matching the deterministic IDs produced by the converter.
 
     Returns:
-        Dict mapping child resolution key -> (parent_span_id, parent_trace_id)
+        Dict mapping child resolution key -> (parent_tool_span_id, parent_trace_id)
     """
     ref_map: Dict[str, tuple[str, str]] = {}
     for trajectory in trajectories:
@@ -679,6 +782,8 @@ def _build_subagent_ref_map(
             trace_id = _sha256_trace_id(f"{_trajectory_trace_seed(trajectory)}:trace")
         span_seed = _trajectory_span_seed(trajectory, trace_id)
         for step in trajectory.get("steps", []):
+            if step.get("is_copied_context", False):
+                continue
             observation = step.get("observation")
             if not observation:
                 continue
@@ -691,9 +796,13 @@ def _build_subagent_ref_map(
                 for ref in refs:
                     if not isinstance(ref, dict):
                         continue
-                    parent_span_id = _subagent_parent_span_id(step, result, span_seed)
+                    parent_span_id = _subagent_parent_span_id(
+                        step,
+                        result,
+                        span_seed,
+                    )
                     for key in _subagent_ref_lookup_keys(ref, trajectory):
-                        ref_map[key] = (parent_span_id, trace_id)
+                        ref_map.setdefault(key, (parent_span_id, trace_id))
     return ref_map
 
 
@@ -702,25 +811,26 @@ def _split_into_turns(
 ) -> List[List[int]]:
     """Split step indices into turns based on user messages.
 
-    The first turn includes all steps from the beginning through the
-    agent/system steps that follow the first user message, up to (but
-    not including) the next user message. Each subsequent user message
-    starts a new turn. This means leading system/context steps before
-    the first user message are grouped into the first turn rather than
-    creating an empty turn.
+    A turn is one fresh user request plus the agent activity that answers it.
+    A user message therefore starts a new turn only when the current turn
+    already contains agent activity: leading system steps and consecutive
+    user/system context messages (some producers record environment context
+    as extra user steps) group into the turn they introduce instead of
+    creating empty turns.
 
     Returns a list of lists of step indices.
     """
     turns: List[List[int]] = []
     current: List[int] = []
-    seen_first_user = False
+    current_has_agent_activity = False
     for i, step in enumerate(steps):
-        if step.get("source") == "user":
-            if seen_first_user and current:
-                turns.append(current)
-                current = []
-            seen_first_user = True
+        if step.get("source") == "user" and current and current_has_agent_activity:
+            turns.append(current)
+            current = []
+            current_has_agent_activity = False
         current.append(i)
+        if step.get("source") == "agent":
+            current_has_agent_activity = True
     if current:
         turns.append(current)
     return turns
@@ -775,30 +885,53 @@ def _get_turn_output(
 def _convert_atif_trajectory_to_spans(
     trajectory: Mapping[str, Any],
     parent_span_context: Optional[tuple[str, str]] = None,
+    root_span_order: int = 0,
 ) -> List[v1.Span]:
     """Convert a validated ATIF trajectory into a flat list of spans.
 
-    Produces one trace per trajectory. For multi-turn conversations,
-    each user turn gets a nested AGENT span under the root:
+    Produces one trace per trajectory. Each fresh operational ATIF step owns
+    a CHAIN span. For multi-turn conversations, each user turn gets a nested
+    AGENT span under the root:
 
     Single-turn::
 
         AGENT (root)
-          LLM
+          CHAIN agent_action_1
+            LLM
             TOOL
-          LLM
+          CHAIN agent_action_2
+            LLM
 
     Multi-turn::
 
         AGENT (root)
           AGENT (turn 1 — input=user msg 1, output=agent reply 1)
-            LLM
+            CHAIN agent_action_1
+              LLM
               TOOL
           AGENT (turn 2 — input=user msg 2, output=agent reply 2)
-            LLM
+            CHAIN agent_action_2
+              LLM
 
-    User/system messages are not separate spans — they appear as
-    ``llm.input_messages`` on the LLM spans that follow them.
+    Visible CHAIN names number fresh operational steps with deterministic
+    per-label ordinals (``agent_action_N``, ``system_action_N``, or
+    ``compaction_N`` for context-management steps — the N counts steps of that
+    label only); the producer's original ``step_id`` stays in span metadata as
+    ``atif.step_id``. Continuation roots
+    are labeled ``<agent> (continuation N)`` and Harbor multi-step roots are
+    qualified with their step name.
+
+    User messages remain prompt context. An operational system step, such as
+    a handoff observation, gets a CHAIN span so referenced child work has a
+    causal parent. Copied-context steps contribute only to reconstructed LLM
+    prompts and never create execution spans or elapsed time.
+
+    ATIF step timestamps are point events. Operation spans cover the interval
+    from the preceding fresh event to their own event. LLM spans use a
+    producer's ``metrics.extra.latency_ms`` when present and bounded by that
+    interval; otherwise LLM and TOOL spans are point events. Internal span
+    order metadata is a display tie-break for equal timestamps, not a timing
+    assertion.
 
     IDs are deterministic: trace IDs usually use the run-scoped session
     identity, while span IDs use the document-scoped trajectory identity
@@ -811,7 +944,10 @@ def _convert_atif_trajectory_to_spans(
     Args:
         trajectory: A validated ATIF trajectory dict.
         parent_span_context: Optional (parent_span_id, parent_trace_id) tuple
-            for linking child trajectories to a parent's tool span.
+            for linking child trajectories to the closest proven parent
+            operation.
+        root_span_order: Stable document order used only to break equal-time
+            display ties between trajectory roots.
     """
     session_id = _trajectory_session_id(trajectory)
     agent: Mapping[str, Any] = trajectory["agent"]
@@ -826,24 +962,42 @@ def _convert_atif_trajectory_to_spans(
     span_seed = _trajectory_span_seed(trajectory, trace_id)
     root_span_id = _sha256_span_id(f"{span_seed}:root")
 
-    # --- Compute step timings upfront ---
-    fallback_now = datetime.now(tz=timezone.utc)
+    # Copied context reconstructs prompts, but it is not execution performed by
+    # this trajectory. Exclude it from spans, turns, and trajectory timing.
+    execution_step_indices = [
+        i for i, step in enumerate(steps) if not step.get("is_copied_context", False)
+    ]
+
+    # --- Compute execution-step timings upfront ---
+    fallback_now = _parse_timestamp(trajectory.get(_FALLBACK_TIMESTAMP_KEY))
+    if fallback_now is None:
+        fallback_now = datetime.now(tz=timezone.utc)
     first_start: Optional[datetime] = None
-    for s in steps:
-        ts = _parse_timestamp(s.get("timestamp"))
+    for i in execution_step_indices:
+        step = steps[i]
+        ts = _parse_timestamp(step.get("timestamp"))
         if ts is not None:
             first_start = ts
+            # A continuation (or any document whose first fresh event is an
+            # agent step) has no preceding event to open its interval, so
+            # anchor the document that far before its first event using the
+            # producer's own LLM latency measurement. Without it, the first
+            # step honestly stays a point event.
+            if step.get("source") == "agent" and step.get("llm_call_count") != 0:
+                latency_ms = _measured_latency_ms(step)
+                if latency_ms is not None:
+                    first_start = ts - timedelta(milliseconds=latency_ms)
             break
     if first_start is None:
         first_start = fallback_now
 
-    step_timings: List[tuple[datetime, datetime]] = []
+    step_timings: Dict[int, tuple[datetime, datetime]] = {}
     prev_end = first_start
-    for i, _step in enumerate(steps):
+    for i in execution_step_indices:
         step_start, step_end = _get_step_timestamps(steps, i, prev_end)
-        step_timings.append((step_start, step_end))
+        step_timings[i] = (step_start, step_end)
         prev_end = step_end
-    last_end = step_timings[-1][1]
+    last_end = prev_end
 
     # --- Shared attributes ---
     tool_definitions = agent.get("tool_definitions")
@@ -867,12 +1021,24 @@ def _convert_atif_trajectory_to_spans(
 
     # --- Root AGENT span (trajectory-level) ---
     raw_session_id = trajectory.get("session_id")
-    is_continuation = isinstance(raw_session_id, str) and raw_session_id != _base_session_id(
-        raw_session_id
+    is_continuation = bool(trajectory.get(_IS_CONTINUATION_KEY)) or (
+        isinstance(raw_session_id, str) and raw_session_id != _base_session_id(raw_session_id)
     )
     root_meta = dict(agent_meta)
+    root_meta[_SPAN_ORDER_METADATA_KEY] = root_span_order
+    root_name = str(agent.get("name") or "agent")
+    step_name = trajectory.get(_STEP_NAME_KEY)
+    if isinstance(step_name, str) and step_name:
+        root_name = f"{root_name} · {step_name}"
+        root_meta["harbor.step_name"] = step_name
     if is_continuation:
         root_meta["is_continuation"] = True
+        continuation_index = trajectory.get(_CONTINUATION_INDEX_KEY)
+        if isinstance(continuation_index, int) and continuation_index > 0:
+            root_name = f"{root_name} (continuation {continuation_index})"
+            root_meta["continuation_index"] = continuation_index
+        else:
+            root_name = f"{root_name} (continuation)"
     root_attrs: Dict[str, Any] = {
         "openinference.span.kind": "AGENT",
         "session.id": session_id,
@@ -898,7 +1064,7 @@ def _convert_atif_trajectory_to_spans(
             root_attrs["llm.cost.total"] = total_cost
 
     root_span: v1.Span = {
-        "name": agent.get("name", "agent"),
+        "name": root_name,
         "context": {
             "trace_id": trace_id,
             "span_id": root_span_id,
@@ -914,15 +1080,37 @@ def _convert_atif_trajectory_to_spans(
     all_spans.append(root_span)
 
     # --- Split into turns ---
-    turns = _split_into_turns(steps)
+    execution_steps = [steps[i] for i in execution_step_indices]
+    turns = [
+        [execution_step_indices[i] for i in turn] for turn in _split_into_turns(execution_steps)
+    ]
     multi_turn = len(turns) > 1
+
+    # Visible action names use deterministic per-label ordinals over fresh
+    # operational steps: ``agent_action_3`` is the third agent action and
+    # ``compaction_1`` the first compaction, regardless of interleaving. The
+    # original ATIF ``step_id`` (which counts prompt context such as the user
+    # instruction) stays in metadata, and global execution order lives in
+    # timestamps and ``_phoenix.span_order``, so names never encode it.
+    operation_names: Dict[int, str] = {}
+    label_ordinals: Dict[str, int] = {}
+    for i in execution_step_indices:
+        step = steps[i]
+        if not _is_operational_step(step):
+            continue
+        if _is_compaction_step(step):
+            label = "compaction"
+        else:
+            label = f"{step.get('source', 'unknown')}_action"
+        label_ordinals[label] = label_ordinals.get(label, 0) + 1
+        operation_names[i] = f"{label}_{label_ordinals[label]}"
 
     for turn_idx, step_indices in enumerate(turns):
         # For multi-turn: create a nested AGENT span per turn.
         # For single-turn: LLM spans parent directly to the root.
         if multi_turn:
             turn_span_id = _sha256_span_id(f"{span_seed}:turn:{turn_idx}")
-            turn_start = step_timings[step_indices[0]][0]
+            turn_start = step_timings[step_indices[0]][1]
             turn_end = step_timings[step_indices[-1]][1]
             turn_attrs: Dict[str, Any] = {
                 "openinference.span.kind": "AGENT",
@@ -931,6 +1119,7 @@ def _convert_atif_trajectory_to_spans(
                 "input.mime_type": "text/plain",
                 "output.value": _get_turn_output(steps, step_indices),
                 "output.mime_type": "text/plain",
+                "metadata": {_SPAN_ORDER_METADATA_KEY: turn_idx},
             }
             turn_span: v1.Span = {
                 "name": f"turn_{turn_idx + 1}",
@@ -946,22 +1135,128 @@ def _convert_atif_trajectory_to_spans(
                 "attributes": turn_attrs,
             }
             all_spans.append(turn_span)
-            llm_parent_id = turn_span_id
+            operation_parent_id = turn_span_id
         else:
-            llm_parent_id = root_span_id
+            operation_parent_id = root_span_id
 
-        # --- LLM + TOOL spans for agent steps ---
+        # --- ATIF operation + LLM/TOOL spans ---
         for i in step_indices:
             step = steps[i]
-            if step.get("source") != "agent":
+            if not _is_operational_step(step):
                 continue
 
             step_id = step.get("step_id", i + 1)
-            step_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}")
+            operation_span_id = _operation_span_id(span_seed, step_id)
             step_start, step_end = step_timings[i]
-            is_deterministic_dispatch = step.get("llm_call_count") == 0
+            source = str(step.get("source", "unknown"))
+            operation_metadata: Dict[str, Any] = {
+                "atif.step_id": step_id,
+                "atif.source": source,
+                "atif.timing": "event_interval",
+                _SPAN_ORDER_METADATA_KEY: i,
+            }
+            if _is_compaction_step(step):
+                operation_metadata["atif.context_management"] = True
+            operation_attrs: Dict[str, Any] = {
+                "openinference.span.kind": "CHAIN",
+                "session.id": session_id,
+                "metadata": operation_metadata,
+            }
+            # Pair observation results with tool calls before building the
+            # operation span so unmatched step-level observations can surface
+            # on the operation rather than disappearing. Producers such as
+            # Terminus record one combined observation for a whole step with
+            # no ``source_call_id``.
+            tool_calls = step.get("tool_calls", [])
+            observation = step.get("observation", {})
+            results: List[Any] = observation.get("results", []) if observation else []
+            obs_map: Dict[str, Mapping[str, Any]] = {}
+            unmatched_results: List[Mapping[str, Any]] = []
+            tool_call_id_set = {
+                tc.get("tool_call_id")
+                for tc in tool_calls
+                if isinstance(tc, Mapping) and tc.get("tool_call_id")
+            }
+            for r in results:
+                if not isinstance(r, dict):
+                    continue
+                scid: object = r.get("source_call_id")
+                if isinstance(scid, str) and scid in tool_call_id_set:
+                    obs_map[scid] = r
+                elif r.get("content") is not None:
+                    unmatched_results.append(r)
+            if (
+                len(tool_calls) == 1
+                and len(unmatched_results) == 1
+                and isinstance(tool_calls[0], Mapping)
+                and tool_calls[0].get("tool_call_id", "tc_0") not in obs_map
+            ):
+                # One call, one result: the pairing is unambiguous even
+                # without a recorded ``source_call_id``.
+                only_call_id = str(tool_calls[0].get("tool_call_id", "tc_0"))
+                obs_map[only_call_id] = unmatched_results.pop()
 
-            if not is_deterministic_dispatch:
+            step_message = _stringify_message(step.get("message"))
+            step_observation = (
+                _stringify_observation_results(unmatched_results) if unmatched_results else ""
+            )
+            if source == "agent":
+                if step_message and step_observation:
+                    operation_attrs["output.value"] = json.dumps(
+                        {"message": step_message, "observation": step_observation}
+                    )
+                    operation_attrs["output.mime_type"] = "application/json"
+                elif step_message or step_observation:
+                    operation_attrs["output.value"] = step_message or step_observation
+                    operation_attrs["output.mime_type"] = "text/plain"
+            else:
+                if step_message:
+                    operation_attrs["input.value"] = step_message
+                    operation_attrs["input.mime_type"] = "text/plain"
+                if step_observation:
+                    operation_attrs["output.value"] = step_observation
+                    operation_attrs["output.mime_type"] = "text/plain"
+
+            operation_span: v1.Span = {
+                "name": operation_names[i],
+                "context": {
+                    "trace_id": trace_id,
+                    "span_id": operation_span_id,
+                },
+                "parent_id": operation_parent_id,
+                "span_kind": "CHAIN",
+                "start_time": _format_timestamp(step_start),
+                "end_time": _format_timestamp(step_end),
+                "status_code": "OK",
+                "attributes": operation_attrs,
+            }
+            all_spans.append(operation_span)
+
+            is_deterministic_dispatch = step.get("llm_call_count") == 0
+            has_llm = source == "agent" and not is_deterministic_dispatch
+
+            # Same-instant events keep causal waterfall order through tiny
+            # deterministic offsets: the unmeasured LLM event first, then tool
+            # calls in declared array order, ending at the step timestamp.
+            llm_is_event = has_llm and _measured_latency_ms(step) is None
+            schedule = _event_schedule(
+                step_start,
+                step_end,
+                len(tool_calls) + (1 if llm_is_event else 0),
+            )
+            tool_event_times = schedule[1:] if llm_is_event else schedule
+
+            if has_llm:
+                llm_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}")
+                if llm_is_event:
+                    llm_start = llm_end = schedule[0]
+                    llm_timing_metadata: Dict[str, Any] = {"atif.timing": "event"}
+                else:
+                    llm_start, llm_end, llm_timing_metadata = _get_llm_timestamps(
+                        step,
+                        step_start,
+                        step_end,
+                    )
                 llm_attrs = _build_llm_attributes(step, agent)
                 llm_attrs["openinference.span.kind"] = "LLM"
                 llm_attrs["session.id"] = session_id
@@ -971,36 +1266,33 @@ def _convert_atif_trajectory_to_spans(
                 # Flag LLM spans whose input includes copied context
                 has_copied = any(steps[j].get("is_copied_context") for j in range(i))
                 if has_copied:
-                    llm_attrs.setdefault("metadata", {})["has_copied_context"] = True
+                    _update_metadata(llm_attrs, {"has_copied_context": True})
+                _update_metadata(
+                    llm_attrs,
+                    {
+                        "atif.step_id": step_id,
+                        _SPAN_ORDER_METADATA_KEY: 0,
+                        **llm_timing_metadata,
+                    },
+                )
 
-                step_span: v1.Span = {
+                llm_span: v1.Span = {
                     "name": "LLM",
                     "context": {
                         "trace_id": trace_id,
-                        "span_id": step_span_id,
+                        "span_id": llm_span_id,
                     },
-                    "parent_id": llm_parent_id,
+                    "parent_id": operation_span_id,
                     "span_kind": "LLM",
-                    "start_time": _format_timestamp(step_start),
-                    "end_time": _format_timestamp(step_end),
+                    "start_time": _format_timestamp(llm_start),
+                    "end_time": _format_timestamp(llm_end),
                     "status_code": "OK",
                     "attributes": llm_attrs,
                 }
-                all_spans.append(step_span)
+                all_spans.append(llm_span)
 
-            # TOOL sibling spans (peers of LLM, both children of the AGENT)
-            tool_calls = step.get("tool_calls", [])
-            observation = step.get("observation", {})
-            results: List[Any] = observation.get("results", []) if observation else []
-            obs_map: Dict[str, Mapping[str, Any]] = {}
-            for r in results:
-                if not isinstance(r, dict):
-                    continue
-                scid: object = r.get("source_call_id")
-                if not isinstance(scid, str):
-                    continue
-                obs_map[scid] = r
-
+            # TOOL spans are events beneath the ATIF operation. ATIF preserves
+            # declared array order but not serial/parallel execution timing.
             for j, tc in enumerate(tool_calls):
                 tc_id = tc.get("tool_call_id", f"tc_{j}")
                 tool_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{tc_id}")
@@ -1014,11 +1306,22 @@ def _convert_atif_trajectory_to_spans(
                 tool_attrs["openinference.span.kind"] = "TOOL"
                 tool_attrs["session.id"] = session_id
                 if is_deterministic_dispatch:
-                    tool_attrs.setdefault("metadata", {})["llm_call_count"] = 0
+                    _update_metadata(tool_attrs, {"llm_call_count": 0})
+                _update_metadata(
+                    tool_attrs,
+                    {
+                        "atif.step_id": step_id,
+                        "atif.tool_call_index": j,
+                        "atif.timing": "event",
+                        _SPAN_ORDER_METADATA_KEY: j + 1,
+                    },
+                )
 
-                # Offset tool start times by 1ms per tool so the waterfall
-                # sorts them after the LLM span that requested them.
-                tool_start = step_start + timedelta(milliseconds=j + 1)
+                # ATIF does not record tool start/end times or whether calls in
+                # one step ran serially or concurrently. Represent each call as
+                # a zero-duration event at its scheduled offset instead of
+                # fabricating elapsed time.
+                tool_start = tool_event_times[j]
 
                 tool_span: v1.Span = {
                     "name": tc.get("function_name", "tool_call"),
@@ -1026,10 +1329,10 @@ def _convert_atif_trajectory_to_spans(
                         "trace_id": trace_id,
                         "span_id": tool_span_id,
                     },
-                    "parent_id": llm_parent_id,
+                    "parent_id": operation_span_id,
                     "span_kind": "TOOL",
                     "start_time": _format_timestamp(tool_start),
-                    "end_time": _format_timestamp(step_end),
+                    "end_time": _format_timestamp(tool_start),
                     "status_code": "OK",
                     "attributes": tool_attrs,
                 }
@@ -1041,11 +1344,40 @@ def _convert_atif_trajectory_to_spans(
 def _get_trajectory_input(
     steps: Sequence[Mapping[str, Any]],
 ) -> str:
-    """Extract the first user message as the trajectory input."""
+    """Extract the user request as the trajectory input.
+
+    Some producers record environment context as extra leading user steps
+    before the actual request (Codex, for example). The request is the last
+    fresh user message before the first fresh agent step. A continuation
+    document may carry its entire prompt as copied context, so copied user
+    messages are the final fallback rather than an empty input.
+    """
+    last_user_message = ""
+    for step in steps:
+        if step.get("is_copied_context", False):
+            continue
+        if step.get("source") == "user":
+            message = _stringify_message(step.get("message"))
+            if message:
+                last_user_message = message
+        elif step.get("source") == "agent":
+            break
+    if last_user_message:
+        return last_user_message
+    for step in steps:
+        if step.get("source") == "user" and not step.get("is_copied_context", False):
+            return _stringify_message(step.get("message"))
+    # Only copied context remains: the replayed handoff conversation is this
+    # document's prompt, so its last user message before fresh agent work is
+    # the request being answered.
     for step in steps:
         if step.get("source") == "user":
-            return _stringify_message(step.get("message"))
-    return ""
+            message = _stringify_message(step.get("message"))
+            if message:
+                last_user_message = message
+        elif step.get("source") == "agent" and not step.get("is_copied_context", False):
+            break
+    return last_user_message
 
 
 def _get_trajectory_output(
@@ -1053,6 +1385,6 @@ def _get_trajectory_output(
 ) -> str:
     """Extract the last agent message as the trajectory output."""
     for step in reversed(steps):
-        if step.get("source") == "agent":
+        if step.get("source") == "agent" and not step.get("is_copied_context", False):
             return _stringify_message(step.get("message"))
     return ""

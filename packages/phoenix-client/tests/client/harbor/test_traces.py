@@ -165,6 +165,47 @@ def test_single_step_builds_one_stable_chain_root(tmp_path: Path) -> None:
     assert json.loads((tmp_path / "task-a__1/agent/trajectory.json").read_text()) == source
 
 
+def test_missing_atif_timestamps_use_stable_harbor_completion_time(tmp_path: Path) -> None:
+    source = trajectory()
+    for step in source["steps"]:
+        step.pop("timestamp")
+    write(tmp_path / "task-a__1/agent/trajectory.json", source)
+
+    first = build(tmp_path)
+    second = build(tmp_path)
+
+    assert first is not None and second is not None
+    assert first == second
+    llm_span = next(span for span in first.spans if span["span_kind"] == "LLM")
+    assert llm_span["start_time"] == NOW
+    assert llm_span["end_time"] == NOW
+
+
+def test_harbor_request_measurements_time_matching_llm_steps(tmp_path: Path) -> None:
+    source = trajectory()
+    source["steps"][1]["timestamp"] = "2026-08-26T12:00:05+00:00"
+    write(tmp_path / "task-a__1/agent/trajectory.json", source)
+    plan, slot, task, result = context(tmp_path)
+    cast(Any, result).finished_at = datetime.fromisoformat("2026-08-26T12:00:06+00:00")
+    cast(Any, result).agent_result = SimpleNamespace(metadata={"api_request_times_msec": [2500.0]})
+
+    trace = build_harbor_trace(
+        plan=plan,
+        slot=slot,
+        task=task,
+        trial_result=result,
+        run_output={},
+    )
+
+    assert trace is not None
+    llm_span = next(span for span in trace.spans if span["span_kind"] == "LLM")
+    assert llm_span["start_time"] == NOW
+    assert llm_span["end_time"] == "2026-08-26T12:00:02.500000+00:00"
+    metadata = cast(dict[str, Any], llm_span.get("attributes", {}).get("metadata"))
+    assert metadata["atif.timing"] == "metrics.extra.latency_ms"
+    assert metadata["atif.measured_latency_ms"] == 2500.0
+
+
 def test_every_span_shares_one_trial_session(tmp_path: Path) -> None:
     write(tmp_path / "task-a__1/agent/trajectory.json", trajectory())
 
@@ -206,6 +247,13 @@ def test_multi_step_uses_only_attempted_steps_in_result_order(tmp_path: Path) ->
     assert len(ids) == len(set(ids))
     trial_root_id = result.spans[0]["context"]["span_id"]
     assert [span["parent_id"] for span in agent_roots(result)] == [trial_root_id] * 2
+    assert [
+        span["attributes"]["metadata"]["_phoenix.span_order"] for span in agent_roots(result)
+    ] == [0, 1]
+    assert [span["name"] for span in agent_roots(result)] == [
+        "terminus-2 · prepare",
+        "terminus-2 · solve",
+    ]
 
 
 def test_native_resume_uses_last_cumulative_snapshot(tmp_path: Path) -> None:
@@ -243,6 +291,36 @@ def test_simulated_user_and_primary_agent_share_one_trace(tmp_path: Path) -> Non
     assert len(agent_roots(result)) == 2
 
 
+def test_agent_request_measurements_do_not_leak_to_simulated_user(tmp_path: Path) -> None:
+    from harbor.models.trial.paths import TrialPaths
+
+    if not hasattr(TrialPaths, "user_agent_dir"):
+        pytest.skip("Simulated-user trials require Harbor >=0.22")
+    write(tmp_path / "task-a__1/agent/trajectory.json", trajectory())
+    user_trajectory = trajectory(session_id="user-agent-session")
+    user_trajectory["agent"]["name"] = "user-simulator"
+    write(tmp_path / "task-a__1/user-agent/trajectory.json", user_trajectory)
+    plan, slot, task, result = context(tmp_path, simulated_user=True)
+    cast(Any, result).agent_result = SimpleNamespace(metadata={"api_request_times_msec": [100.0]})
+
+    trace = build_harbor_trace(
+        plan=plan,
+        slot=slot,
+        task=task,
+        trial_result=result,
+        run_output={},
+    )
+
+    assert trace is not None
+    measured = [
+        span
+        for span in trace.spans
+        if span["span_kind"] == "LLM"
+        and span.get("attributes", {}).get("metadata", {}).get("atif.measured_latency_ms") == 100.0
+    ]
+    assert len(measured) == 1
+
+
 def test_continuation_chain_is_discovered(tmp_path: Path) -> None:
     root = trajectory()
     root["continued_trajectory_ref"] = "trajectory.cont-1.json"
@@ -258,6 +336,71 @@ def test_continuation_chain_is_discovered(tmp_path: Path) -> None:
         "agent/trajectory.cont-1.json",
     )
     assert len(agent_roots(result)) == 2
+    assert [
+        root["attributes"]["metadata"].get("is_continuation") for root in agent_roots(result)
+    ] == [None, True]
+    assert [span["name"] for span in agent_roots(result)] == [
+        "terminus-2",
+        "terminus-2 (continuation 1)",
+    ]
+
+
+def test_request_measurements_cover_continuation_documents(tmp_path: Path) -> None:
+    root = trajectory()
+    root["steps"][1]["timestamp"] = "2026-08-26T12:00:01+00:00"
+    root["continued_trajectory_ref"] = "trajectory.cont-1.json"
+    continuation = trajectory(session_id="producer-session-cont-1")
+    continuation["steps"][0]["timestamp"] = "2026-08-26T12:00:02+00:00"
+    continuation["steps"][1]["timestamp"] = "2026-08-26T12:00:03+00:00"
+    write(tmp_path / "task-a__1/agent/trajectory.json", root)
+    write(tmp_path / "task-a__1/agent/trajectory.cont-1.json", continuation)
+    plan, slot, task, result = context(tmp_path)
+    cast(Any, result).agent_result = SimpleNamespace(
+        metadata={"api_request_times_msec": [100.0, 200.0]}
+    )
+
+    trace = build_harbor_trace(
+        plan=plan,
+        slot=slot,
+        task=task,
+        trial_result=result,
+        run_output={},
+    )
+
+    assert trace is not None
+    llm_spans = [span for span in trace.spans if span["span_kind"] == "LLM"]
+    assert [
+        span.get("attributes", {}).get("metadata", {}).get("atif.measured_latency_ms")
+        for span in llm_spans
+    ] == [100.0, 200.0]
+
+
+def test_cross_document_request_measurements_require_complete_clocks(tmp_path: Path) -> None:
+    root = trajectory()
+    root["continued_trajectory_ref"] = "trajectory.cont-1.json"
+    continuation = trajectory(session_id="producer-session-cont-1")
+    continuation["steps"][1].pop("timestamp")
+    write(tmp_path / "task-a__1/agent/trajectory.json", root)
+    write(tmp_path / "task-a__1/agent/trajectory.cont-1.json", continuation)
+    plan, slot, task, result = context(tmp_path)
+    cast(Any, result).agent_result = SimpleNamespace(
+        metadata={"api_request_times_msec": [100.0, 200.0]}
+    )
+
+    trace = build_harbor_trace(
+        plan=plan,
+        slot=slot,
+        task=task,
+        trial_result=result,
+        run_output={},
+    )
+
+    assert trace is not None
+    llm_spans = [span for span in trace.spans if span["span_kind"] == "LLM"]
+    assert all(
+        span.get("attributes", {}).get("metadata", {}).get("atif.timing") == "event"
+        for span in llm_spans
+    )
 
 
 def test_embedded_subagent_remains_linked_after_id_rewrite(tmp_path: Path) -> None:
@@ -328,6 +471,35 @@ def test_external_subagent_is_followed_and_rewritten(tmp_path: Path) -> None:
     assert all(span["attributes"].get("session.id") == session for span in roots)
 
 
+def test_system_handoff_without_tool_stays_at_its_causal_step(tmp_path: Path) -> None:
+    parent = trajectory()
+    parent["steps"] = [
+        parent["steps"][0],
+        {
+            "step_id": 2,
+            "timestamp": NOW,
+            "source": "system",
+            "message": "Performed context summarization",
+            "observation": {
+                "results": [{"subagent_trajectory_ref": [{"trajectory_path": "summary.json"}]}]
+            },
+        },
+        {**parent["steps"][1], "step_id": 3},
+    ]
+    child = trajectory(session_id="summary-session")
+    child["trajectory_id"] = "summary-document"
+    child["agent"]["name"] = "summarizer"
+    write(tmp_path / "task-a__1/agent/trajectory.json", parent)
+    write(tmp_path / "task-a__1/agent/summary.json", child)
+
+    result = build(tmp_path)
+
+    assert result is not None
+    system_step = next(span for span in result.spans if span["name"] == "system_action_1")
+    child_root = next(span for span in agent_roots(result) if span["name"] == "summarizer")
+    assert child_root["parent_id"] == system_step["context"]["span_id"]
+
+
 def test_shared_child_file_is_loaded_once(tmp_path: Path) -> None:
     parent = trajectory()
     parent["steps"][1]["tool_calls"] = [
@@ -351,6 +523,21 @@ def test_shared_child_file_is_loaded_once(tmp_path: Path) -> None:
     assert result is not None
     assert result.source_paths == ("agent/trajectory.json", "agent/child.json")
     assert len(agent_roots(result)) == 2
+    child_root = next(
+        span
+        for span in agent_roots(result)
+        if (span.get("attributes", {}).get("metadata", {}) or {}).get(
+            "phoenix.harbor.producer_session_id"
+        )
+        == "child-session"
+    )
+    first_tool = next(
+        span
+        for span in result.spans
+        if span["span_kind"] == "TOOL"
+        and (span.get("attributes", {}).get("metadata", {}) or {}).get("atif.tool_call_index") == 0
+    )
+    assert child_root["parent_id"] == first_tool["context"]["span_id"]
 
 
 def test_escaping_reference_is_not_read(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:

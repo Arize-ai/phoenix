@@ -48,6 +48,219 @@ def v17_embedded_subagents() -> Dict[str, Any]:
 
 
 class TestUploadIntegration:
+    def test_upload_uses_fresh_steps_for_execution_timing_and_structure(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "continued-run-cont-1",
+            "trajectory_id": "continued-document",
+            "agent": {"name": "agent", "version": "1.0", "model_name": "model"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "user",
+                    "message": "old request",
+                    "timestamp": "2025-01-15T09:00:00Z",
+                    "is_copied_context": True,
+                },
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "old response",
+                    "timestamp": "2025-01-15T09:00:01Z",
+                    "is_copied_context": True,
+                },
+                {
+                    "step_id": 3,
+                    "source": "user",
+                    "message": "continue",
+                    "timestamp": "2025-01-15T10:00:00Z",
+                },
+                {
+                    "step_id": 4,
+                    "source": "agent",
+                    "message": "running tools",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                    "tool_calls": [
+                        {
+                            "tool_call_id": "call_a",
+                            "function_name": "tool_a",
+                            "arguments": {},
+                        },
+                        {
+                            "tool_call_id": "call_b",
+                            "function_name": "tool_b",
+                            "arguments": {},
+                        },
+                    ],
+                    "observation": {
+                        "results": [
+                            {"source_call_id": "call_a", "content": "a"},
+                            {"source_call_id": "call_b", "content": "b"},
+                        ]
+                    },
+                },
+                {
+                    "step_id": 5,
+                    "source": "agent",
+                    "message": "done",
+                    "timestamp": "2025-01-15T10:00:08Z",
+                },
+            ],
+        }
+        mock_client = MagicMock()
+
+        upload_atif_trajectories_as_spans(
+            mock_client,
+            [trajectory],
+            project_name="continued-run",
+        )
+
+        spans = mock_client.spans.log_spans.call_args.kwargs["spans"]
+        root = spans[0]
+        llm_spans = [span for span in spans if span["span_kind"] == "LLM"]
+        tool_spans = [span for span in spans if span["span_kind"] == "TOOL"]
+
+        assert [span["name"] for span in spans] == [
+            "agent (continuation)",
+            "agent_action_1",
+            "LLM",
+            "tool_a",
+            "tool_b",
+            "agent_action_2",
+            "LLM",
+        ]
+        assert root["start_time"] == "2025-01-15T10:00:00+00:00"
+        assert root["end_time"] == "2025-01-15T10:00:08+00:00"
+        step_spans = [span for span in spans if span["span_kind"] == "CHAIN"]
+        assert [(span["start_time"], span["end_time"]) for span in step_spans] == [
+            ("2025-01-15T10:00:00+00:00", "2025-01-15T10:00:05+00:00"),
+            ("2025-01-15T10:00:05+00:00", "2025-01-15T10:00:08+00:00"),
+        ]
+        # Same-instant events spread at 1ms offsets in causal order: the
+        # unmeasured LLM event precedes its two tools, and the last tool
+        # lands exactly on the step timestamp.
+        assert [(span["start_time"], span["end_time"]) for span in llm_spans] == [
+            ("2025-01-15T10:00:04.998000+00:00", "2025-01-15T10:00:04.998000+00:00"),
+            ("2025-01-15T10:00:08+00:00", "2025-01-15T10:00:08+00:00"),
+        ]
+        assert [(span["start_time"], span["end_time"]) for span in tool_spans] == [
+            ("2025-01-15T10:00:04.999000+00:00", "2025-01-15T10:00:04.999000+00:00"),
+            ("2025-01-15T10:00:05+00:00", "2025-01-15T10:00:05+00:00"),
+        ]
+        assert [span["attributes"]["metadata"]["_phoenix.span_order"] for span in step_spans] == [
+            3,
+            4,
+        ]
+        assert [span["parent_id"] for span in llm_spans] == [
+            step_spans[0]["context"]["span_id"],
+            step_spans[1]["context"]["span_id"],
+        ]
+
+    def test_system_handoff_without_tool_attaches_child_to_system_step(self) -> None:
+        child: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "trajectory_id": "child-document",
+            "agent": {"name": "summarizer", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "summarize"},
+                {"step_id": 2, "source": "agent", "message": "summary"},
+            ],
+        }
+        parent: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "handoff-run",
+            "trajectory_id": "parent-document",
+            "agent": {"name": "primary", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "work"},
+                {
+                    "step_id": 2,
+                    "source": "system",
+                    "message": "Compacted context",
+                    "observation": {
+                        "results": [
+                            {"subagent_trajectory_ref": [{"trajectory_id": "child-document"}]}
+                        ]
+                    },
+                },
+                {"step_id": 3, "source": "agent", "message": "continued"},
+            ],
+            "subagent_trajectories": [child],
+        }
+        mock_client = MagicMock()
+
+        upload_atif_trajectories_as_spans(
+            mock_client,
+            [parent],
+            project_name="handoff-run",
+        )
+
+        spans = mock_client.spans.log_spans.call_args.kwargs["spans"]
+        system_step = next(span for span in spans if span["name"] == "system_action_1")
+        child_root = next(span for span in spans if span["name"] == "summarizer")
+        span_ids = {span["context"]["span_id"] for span in spans}
+
+        assert child_root["parent_id"] == system_step["context"]["span_id"]
+        assert all(span.get("parent_id") in span_ids for span in spans if span.get("parent_id"))
+
+    def test_copied_subagent_reference_does_not_replace_fresh_tool_parent(self) -> None:
+        child: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "trajectory_id": "child-document",
+            "agent": {"name": "worker", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "work"},
+                {"step_id": 2, "source": "agent", "message": "done"},
+            ],
+        }
+        parent: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "delegation-run",
+            "trajectory_id": "parent-document",
+            "agent": {"name": "primary", "version": "1.0"},
+            "subagent_trajectories": [child],
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "delegate"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "delegating",
+                    "tool_calls": [
+                        {
+                            "tool_call_id": "fresh-call",
+                            "function_name": "delegate",
+                            "arguments": {},
+                        }
+                    ],
+                    "observation": {
+                        "results": [
+                            {
+                                "source_call_id": "fresh-call",
+                                "subagent_trajectory_ref": [{"trajectory_id": "child-document"}],
+                            }
+                        ]
+                    },
+                },
+                {
+                    "step_id": 3,
+                    "source": "agent",
+                    "message": "replayed delegation",
+                    "is_copied_context": True,
+                    "observation": {
+                        "results": [
+                            {"subagent_trajectory_ref": [{"trajectory_id": "child-document"}]}
+                        ]
+                    },
+                },
+            ],
+        }
+
+        spans = _convert_atif_trajectories_to_spans([parent])
+        fresh_tool = next(span for span in spans if span["name"] == "delegate")
+        child_root = next(span for span in spans if span["name"] == "worker")
+
+        assert child_root.get("parent_id") == fresh_tool["context"]["span_id"]
+
     def test_uploader_uses_unchanged_conversion_output(
         self, simple_trajectory: Dict[str, Any]
     ) -> None:
@@ -91,8 +304,8 @@ class TestUploadIntegration:
 
         call_kwargs = mock_client.spans.log_spans.call_args
         spans = call_kwargs.kwargs["spans"]
-        # simple_trajectory: 1 root + 2 LLM + 1 TOOL = 4
-        assert len(spans) == 4
+        # 1 root + 2 step CHAIN + 2 LLM + 1 TOOL
+        assert len(spans) == 6
 
     def test_multi_tool_span_count(self, multi_tool_trajectory: Dict[str, Any]) -> None:
         mock_client = MagicMock()
@@ -107,8 +320,8 @@ class TestUploadIntegration:
 
         call_kwargs = mock_client.spans.log_spans.call_args
         spans = call_kwargs.kwargs["spans"]
-        # multi_tool_trajectory: 1 root + 3 LLM + 4 TOOL = 8
-        assert len(spans) == 8
+        # 1 root + 3 step CHAIN + 3 LLM + 4 TOOL
+        assert len(spans) == 11
 
     def test_invalid_trajectory_raises_before_api_call(
         self,
@@ -161,8 +374,8 @@ class TestUploadIntegration:
         mock_client.spans.log_spans.assert_called_once()
         call_kwargs = mock_client.spans.log_spans.call_args
         spans = call_kwargs.kwargs["spans"]
-        # 4 from simple + 8 from multi_tool = 12
-        assert len(spans) == 12
+        # 6 from simple + 11 from multi_tool
+        assert len(spans) == 17
 
     def test_batch_subagent_linking(self, subagent_fixture: Dict[str, Any]) -> None:
         """Upload parent + child in one batch; child root should link to parent tool span."""
@@ -212,7 +425,8 @@ class TestUploadIntegration:
 
         call_kwargs = mock_client.spans.log_spans.call_args
         spans = call_kwargs.kwargs["spans"]
-        assert len(spans) == 5
+        # Parent: root + 2 steps + LLM + TOOL. Child: root + step + LLM.
+        assert len(spans) == 9
 
         child_root = [s for s in spans if s["name"] == "researcher"][0]
         expected_trace_id = _sha256_trace_id("run-v17-001:trace")

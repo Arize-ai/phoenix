@@ -232,12 +232,12 @@ class TestBatchConversion:
 
 class TestSimpleTrajectoryConversion:
     """simple_trajectory.json: 3 steps (1 user, 2 agent) -> 1 turn.
-    1 root AGENT + 2 LLM + 1 TOOL = 4 spans.
+    1 root AGENT + 2 step CHAIN + 2 LLM + 1 TOOL = 6 spans.
     """
 
     def test_span_count(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        assert len(spans) == 4
+        assert len(spans) == 6
 
     def test_root_span(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
@@ -252,29 +252,37 @@ class TestSimpleTrajectoryConversion:
         trace_ids = {s["context"]["trace_id"] for s in spans}
         assert len(trace_ids) == 1
 
-    def test_no_chain_spans(self, simple_trajectory: Dict[str, Any]) -> None:
-        """User/system messages are no longer separate CHAIN spans."""
+    def test_agent_steps_become_chain_spans(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
         kinds = _span_kind_counts(spans)
-        assert "CHAIN" not in kinds
+        assert kinds["CHAIN"] == 2
 
     def test_agent_step_becomes_llm(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
         llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
         assert len(llm_spans) == 2
-        # All LLM spans are children of root
+        # Each LLM is nested beneath the ATIF step that produced it.
         root_id = spans[0]["context"]["span_id"]
+        operation_ids = {
+            span["context"]["span_id"]
+            for span in spans
+            if span["span_kind"] == "CHAIN" and span.get("parent_id") == root_id
+        }
         for llm_span in llm_spans:
-            assert llm_span.get("parent_id") == root_id
+            assert llm_span.get("parent_id") in operation_ids
 
     def test_tool_call_becomes_tool_span(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
         tool_spans = [s for s in spans if s["span_kind"] == "TOOL"]
         assert len(tool_spans) == 1
         assert tool_spans[0]["name"] == "financial_search"
-        # Tool is a sibling of the LLM span (both children of the AGENT)
-        root_id = spans[0]["context"]["span_id"]
-        assert tool_spans[0].get("parent_id") == root_id
+        llm_span = next(
+            span
+            for span in spans
+            if span["span_kind"] == "LLM"
+            and span.get("attributes", {}).get("metadata", {}).get("atif.step_id") == 2
+        )
+        assert tool_spans[0].get("parent_id") == llm_span.get("parent_id")
 
     def test_tool_span_has_observation(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
@@ -320,17 +328,17 @@ class TestSimpleTrajectoryConversion:
 
 class TestMultiToolTrajectoryConversion:
     """multi_tool_trajectory.json: 5 steps (1 user, 1 system, 3 agent) -> 1 turn.
-    1 root AGENT + 3 LLM + 4 TOOL = 8 spans.
+    1 root AGENT + 3 step CHAIN + 3 LLM + 4 TOOL = 11 spans.
     """
 
     def test_span_count(self, multi_tool_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
-        assert len(spans) == 8
+        assert len(spans) == 11
 
-    def test_no_chain_spans(self, multi_tool_trajectory: Dict[str, Any]) -> None:
+    def test_agent_step_chain_spans(self, multi_tool_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
         kinds = _span_kind_counts(spans)
-        assert "CHAIN" not in kinds
+        assert kinds["CHAIN"] == 3
 
     def test_parallel_tool_calls(self, multi_tool_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
@@ -340,6 +348,23 @@ class TestMultiToolTrajectoryConversion:
         assert "financial_search" in tool_names
         assert "news_search" in tool_names
         assert "analyst_estimates" in tool_names
+
+    def test_measured_llm_latency_is_bounded_by_its_step(
+        self, multi_tool_trajectory: Dict[str, Any]
+    ) -> None:
+        spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
+        llm_spans = [span for span in spans if span["span_kind"] == "LLM"]
+
+        assert [(span["start_time"], span["end_time"]) for span in llm_spans] == [
+            ("2025-01-15T14:00:00+00:00", "2025-01-15T14:00:02.840000+00:00"),
+            ("2025-01-15T14:00:07+00:00", "2025-01-15T14:00:08.950000+00:00"),
+            ("2025-01-15T14:00:09+00:00", "2025-01-15T14:00:13.200000+00:00"),
+        ]
+        assert all(
+            span.get("attributes", {}).get("metadata", {}).get("atif.timing")
+            == "metrics.extra.latency_ms"
+            for span in llm_spans
+        )
 
     def test_final_metrics_on_root(self, multi_tool_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
@@ -394,8 +419,8 @@ class TestOptionalFields:
             ],
         }
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 1 LLM = 2 spans (no CHAIN for user)
-        assert len(spans) == 2
+        # 1 root + 1 agent-step CHAIN + 1 LLM
+        assert len(spans) == 3
         for span in spans:
             assert span["start_time"]
             assert span["end_time"]
@@ -448,8 +473,8 @@ class TestOptionalFields:
             ],
         }
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 1 LLM = 2 spans
-        assert len(spans) == 2
+        # 1 root + 1 agent-step CHAIN + 1 LLM
+        assert len(spans) == 3
         llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
         attrs = llm_span.get("attributes", {})
         assert "llm.model_name" not in attrs
@@ -480,7 +505,103 @@ class TestOptionalFields:
         spans = _convert_atif_trajectory_to_spans(trajectory)
         tool_span = [s for s in spans if s["span_kind"] == "TOOL"][0]
         attrs = tool_span.get("attributes", {})
-        assert "output.value" not in attrs
+        # One call and one result pair unambiguously even without an ID.
+        assert attrs.get("output.value") == "result without source_call_id"
+
+    def test_non_monotonic_and_missing_timestamps_do_not_create_negative_durations(
+        self,
+    ) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "bad-clock",
+            "trajectory_id": "bad-clock-document",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "user",
+                    "message": "start",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                },
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "clock moved backward",
+                    "timestamp": "2025-01-15T10:00:04Z",
+                },
+                {"step_id": 3, "source": "agent", "message": "no clock"},
+            ],
+        }
+
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        operation_spans = [span for span in spans if span["span_kind"] == "CHAIN"]
+        llm_spans = [span for span in spans if span["span_kind"] == "LLM"]
+
+        assert all(span["start_time"] == span["end_time"] for span in operation_spans)
+        assert all(span["start_time"] == span["end_time"] for span in llm_spans)
+        assert [
+            span.get("attributes", {}).get("metadata", {}).get("_phoenix.span_order")
+            for span in operation_spans
+        ] == [1, 2]
+
+    def test_leading_missing_timestamp_collapses_to_first_known_event(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "missing-first-clock",
+            "trajectory_id": "missing-first-clock-document",
+            "_phoenix_fallback_timestamp": "2025-01-15T10:00:10Z",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "start"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "finished",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                },
+            ],
+        }
+
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+
+        assert spans[0]["start_time"] == "2025-01-15T10:00:05+00:00"
+        assert spans[0]["end_time"] == "2025-01-15T10:00:05+00:00"
+        operation = next(span for span in spans if span["span_kind"] == "CHAIN")
+        assert operation["start_time"] == operation["end_time"]
+
+    def test_all_copied_document_emits_context_root_only(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "copied-run",
+            "trajectory_id": "copied-document",
+            "_phoenix_fallback_timestamp": "2025-01-15T10:00:00Z",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "user",
+                    "message": "old input",
+                    "is_copied_context": True,
+                },
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "old output",
+                    "is_copied_context": True,
+                },
+            ],
+        }
+
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+
+        assert len(spans) == 1
+        assert spans[0]["start_time"] == "2025-01-15T10:00:00+00:00"
+        assert spans[0]["end_time"] == "2025-01-15T10:00:00+00:00"
+        # Copied context is this document's whole prompt, so the replayed
+        # request still serves as the root input; there is no fresh agent
+        # message to serve as output.
+        assert spans[0].get("attributes", {}).get("input.value") == "old input"
+        assert spans[0].get("attributes", {}).get("output.value") == ""
 
 
 class TestMessageAttributes:
@@ -597,8 +718,8 @@ class TestMultimodalContent:
 
     def test_multimodal_span_count(self, multimodal_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multimodal_trajectory)
-        # 1 root + 2 LLM + 1 TOOL = 4 spans
-        assert len(spans) == 4
+        # 1 root + 2 agent-step CHAIN + 2 LLM + 1 TOOL
+        assert len(spans) == 6
 
     def test_multimodal_input_value_uses_serializable_content(
         self, multimodal_trajectory: Dict[str, Any]
@@ -659,8 +780,8 @@ class TestParallelToolsMixedResults:
 
     def test_span_count(self, parallel_mixed_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
-        # 1 root + 2 LLM + 3 TOOL = 6 spans
-        assert len(spans) == 6
+        # 1 root + 2 agent-step CHAIN + 2 LLM + 3 TOOL
+        assert len(spans) == 8
 
 
 class TestSubagentLinking:
@@ -968,6 +1089,9 @@ class TestATIFV17Conversion:
         assert _stable_trajectory_hash(trajectory) == _stable_trajectory_hash(
             {**trajectory, "_phoenix_parent_span_context": ("parent-span", "trace")}
         )
+        assert _stable_trajectory_hash(trajectory) == _stable_trajectory_hash(
+            {**trajectory, "_phoenix_fallback_timestamp": "2025-01-15T10:00:00Z"}
+        )
 
     def test_grandchild_embedded_subagent_links_to_nearest_parent_tool(self) -> None:
         grandchild: Dict[str, Any] = {
@@ -1107,7 +1231,7 @@ class TestATIFV17Conversion:
 
 
 class TestMultiTurnBehavior:
-    """Test multi-turn structure: root AGENT -> turn AGENT spans -> LLM/TOOL."""
+    """Test root AGENT -> turn AGENT -> ATIF step CHAIN -> LLM/TOOL."""
 
     @pytest.fixture()
     def multi_turn_trajectory(self) -> Dict[str, Any]:
@@ -1146,8 +1270,8 @@ class TestMultiTurnBehavior:
     def test_span_count(self, multi_turn_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
         # 2 user messages -> 2 turns (multi-turn)
-        # 1 root AGENT + 2 turn AGENT + 2 LLM = 5
-        assert len(spans) == 5
+        # 1 root AGENT + 2 turn AGENT + 2 step CHAIN + 2 LLM
+        assert len(spans) == 7
 
     def test_root_agent_exists(self, multi_turn_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
@@ -1163,6 +1287,17 @@ class TestMultiTurnBehavior:
         assert turn_spans[0]["name"] == "turn_1"
         assert turn_spans[1]["name"] == "turn_2"
 
+    def test_turn_timing_starts_at_its_user_event(
+        self, multi_turn_trajectory: Dict[str, Any]
+    ) -> None:
+        spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
+        turn_spans = [s for s in spans if s["name"].startswith("turn_")]
+
+        assert [(span["start_time"], span["end_time"]) for span in turn_spans] == [
+            ("2025-01-15T10:00:00+00:00", "2025-01-15T10:00:01+00:00"),
+            ("2025-01-15T10:00:02+00:00", "2025-01-15T10:00:03+00:00"),
+        ]
+
     def test_turn_spans_are_children_of_root(self, multi_turn_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
         root_id = spans[0]["context"]["span_id"]
@@ -1171,14 +1306,20 @@ class TestMultiTurnBehavior:
             assert turn_span.get("parent_id") == root_id
             assert turn_span["span_kind"] == "AGENT"
 
-    def test_llm_spans_are_children_of_turns(self, multi_turn_trajectory: Dict[str, Any]) -> None:
+    def test_llm_spans_are_children_of_steps_in_turns(
+        self, multi_turn_trajectory: Dict[str, Any]
+    ) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
         turn_spans = [s for s in spans if s["name"].startswith("turn_")]
+        step_spans = [s for s in spans if s["span_kind"] == "CHAIN"]
         llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
         assert len(llm_spans) == 2
-        # Each LLM span should be a child of its respective turn span
-        assert llm_spans[0].get("parent_id") == turn_spans[0]["context"]["span_id"]
-        assert llm_spans[1].get("parent_id") == turn_spans[1]["context"]["span_id"]
+        assert [step.get("parent_id") for step in step_spans] == [
+            turn["context"]["span_id"] for turn in turn_spans
+        ]
+        assert [llm.get("parent_id") for llm in llm_spans] == [
+            step["context"]["span_id"] for step in step_spans
+        ]
 
     def test_turn_input_output(self, multi_turn_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
@@ -1211,14 +1352,16 @@ class TestMultiTurnBehavior:
             ],
         }
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 1 LLM = 2 (no turn AGENT)
-        assert len(spans) == 2
+        # 1 root + 1 step CHAIN + 1 LLM (no turn AGENT)
+        assert len(spans) == 3
         turn_spans = [s for s in spans if s["name"].startswith("turn_")]
         assert len(turn_spans) == 0
-        # LLM parents directly to root
+        # The operation step parents to root; the LLM parents to the step.
         root_id = spans[0]["context"]["span_id"]
+        step_span = [s for s in spans if s["span_kind"] == "CHAIN"][0]
         llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
-        assert llm_span.get("parent_id") == root_id
+        assert step_span.get("parent_id") == root_id
+        assert llm_span.get("parent_id") == step_span["context"]["span_id"]
 
 
 class TestContinuationMerging:
@@ -1345,11 +1488,11 @@ class TestHarborGoldenFiles:
         spans = _convert_atif_trajectory_to_spans(trajectory)
         # 6 steps: 1 system, 1 user, 2 system, 2 agent (with 1 tool call each).
         # Single turn (leading system step + user grouped together).
-        # 1 root AGENT + 2 LLM + 2 TOOL = 5
-        assert len(spans) == 5
+        # 1 root AGENT + 2 step CHAIN + 2 LLM + 2 TOOL
+        assert len(spans) == 7
         kinds = _span_kind_counts(spans)
         assert kinds["AGENT"] == 1
-        assert "CHAIN" not in kinds
+        assert kinds["CHAIN"] == 2
         assert kinds["LLM"] == 2
         assert kinds["TOOL"] == 2
 
@@ -1376,13 +1519,14 @@ class TestHarborGoldenFiles:
         trajectory = _load_fixture("harbor_terminus2_summarization.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
         # 10 steps (2 user, 1 system, 7 agent, 7 tool calls) -> 2 turns (multi-turn)
-        # 1 root AGENT + 2 turn AGENT + 7 LLM + 7 TOOL = 17
-        assert len(spans) == 17
+        # 1 root + 2 turns + 8 operation CHAIN (7 agent, 1 system)
+        # + 7 LLM + 7 TOOL
+        assert len(spans) == 25
         kinds = _span_kind_counts(spans)
         assert kinds["AGENT"] == 3
         assert kinds["LLM"] == 7
         assert kinds["TOOL"] == 7
-        assert "CHAIN" not in kinds
+        assert kinds["CHAIN"] == 8
 
     def test_terminus2_summarization_subagent_refs_detected(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_summarization.json")
@@ -1415,38 +1559,38 @@ class TestHarborGoldenFiles:
     def test_terminus2_continuation_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_continuation.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 5 steps (1 user, 3 agent, 1 system) -> 1 turn -> 1 root + 3 LLM = 4
-        assert len(spans) == 4
+        # 1 root + 4 operation CHAIN (3 agent, 1 system) + 3 LLM
+        assert len(spans) == 8
         kinds = _span_kind_counts(spans)
         assert kinds["AGENT"] == 1
-        assert "CHAIN" not in kinds
+        assert kinds["CHAIN"] == 4
 
     def test_terminus2_continuation_has_continued_ref(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_continuation.json")
         assert "continued_trajectory_ref" in trajectory
 
     def test_terminus2_cont1_multi_turn(self) -> None:
-        """continuation_cont1 has 3 user messages -> 3 turns (multi-turn)."""
+        """Copied handoff history does not become fresh execution turns."""
         trajectory = _load_fixture("harbor_terminus2_continuation_cont1.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 8 steps (3 user, 5 agent) -> 3 turns (multi-turn)
-        # 1 root AGENT + 3 turn AGENT + 5 LLM = 9
+        # Four fresh agent steps follow copied context. With no fresh user
+        # boundary, they form one execution turn beneath the root.
         assert len(spans) == 9
         kinds = _span_kind_counts(spans)
-        assert kinds["AGENT"] == 4
-        assert kinds["LLM"] == 5
-        assert "CHAIN" not in kinds
+        assert kinds["AGENT"] == 1
+        assert kinds["LLM"] == 4
+        assert kinds["CHAIN"] == 4
 
     # -- Terminus-2: invalid JSON (error recovery, reasoning_content) --
 
     def test_terminus2_invalid_json_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_invalid_json.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 5 steps (1 user, 4 agent) -> 1 turn -> 1 root + 4 LLM + 3 TOOL = 8
-        assert len(spans) == 8
+        # 1 root + 4 step CHAIN + 4 LLM + 3 TOOL
+        assert len(spans) == 12
         kinds = _span_kind_counts(spans)
         assert kinds["TOOL"] == 3
-        assert "CHAIN" not in kinds
+        assert kinds["CHAIN"] == 4
 
     def test_terminus2_invalid_json_has_reasoning(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_invalid_json.json")
@@ -1464,33 +1608,32 @@ class TestHarborGoldenFiles:
     def test_terminus2_timeout_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_timeout.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 4 steps (1 user, 3 agent) -> 1 turn -> 1 root + 3 LLM + 3 TOOL = 7
-        assert len(spans) == 7
+        # 1 root + 3 step CHAIN + 3 LLM + 3 TOOL
+        assert len(spans) == 10
         kinds = _span_kind_counts(spans)
         assert kinds["TOOL"] == 3
-        assert "CHAIN" not in kinds
+        assert kinds["CHAIN"] == 3
 
     # -- Subagent child trajectories --
 
     def test_terminus2_sub_summary_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_sub_summary.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 5 steps (2 user, 3 agent, 2 tool calls) -> 2 turns (multi-turn)
-        # 1 root AGENT + 2 turn AGENT + 3 LLM + 2 TOOL = 8
-        assert len(spans) == 8
+        # Copied parent work remains prompt context. Only the fresh summary
+        # request and response are execution in this child trajectory.
+        assert len(spans) == 3
 
     def test_terminus2_sub_answers_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_sub_answers.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 7 steps (3 user, 4 agent, 2 tool calls) -> 3 turns (multi-turn)
-        # 1 root AGENT + 3 turn AGENT + 4 LLM + 2 TOOL = 10
-        assert len(spans) == 10
+        # Only the fresh answer request and response are execution.
+        assert len(spans) == 3
 
     def test_terminus2_sub_questions_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_sub_questions.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 2 steps (1 user, 1 agent) -> 1 turn -> 1 root + 1 LLM = 2
-        assert len(spans) == 2
+        # 1 root + 1 step CHAIN + 1 LLM
+        assert len(spans) == 3
 
 
 class TestRealWorldTrajectories:
@@ -1543,8 +1686,8 @@ class TestRealWorldTrajectories:
         }
         spans = _convert_atif_trajectory_to_spans(trajectory)
 
-        # 1 root + 1 LLM = 2 spans (no CHAIN for user)
-        assert len(spans) == 2
+        # 1 root + 1 agent-step CHAIN + 1 LLM
+        assert len(spans) == 3
         root = spans[0]
         assert root["name"] == "claude-code"
         assert root["span_kind"] == "AGENT"
@@ -1557,3 +1700,412 @@ class TestRealWorldTrajectories:
 
         # Output should be the error message
         assert attrs.get("output.value") == "Not logged in"
+
+
+class TestOperationNamingAndTiming:
+    """Visible action names and document timing anchors."""
+
+    @staticmethod
+    def _trajectory(steps: List[Dict[str, Any]]) -> Dict[str, Any]:
+        return {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "naming-run",
+            "trajectory_id": "naming-document",
+            "agent": {"name": "worker", "version": "1.0"},
+            "steps": steps,
+        }
+
+    def test_action_names_use_per_label_ordinals(self) -> None:
+        trajectory = self._trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "go"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "working",
+                    "timestamp": "2025-01-15T10:00:01Z",
+                },
+                {
+                    "step_id": 3,
+                    "source": "system",
+                    "message": "Compacted context",
+                    "timestamp": "2025-01-15T10:00:02Z",
+                    "extra": {"context_management": {"kind": "summarization"}},
+                },
+                {
+                    "step_id": 4,
+                    "source": "agent",
+                    "message": "done",
+                    "timestamp": "2025-01-15T10:00:03Z",
+                },
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        chain_spans = [s for s in spans if s["span_kind"] == "CHAIN"]
+        assert [s["name"] for s in chain_spans] == [
+            "agent_action_1",
+            "compaction_1",
+            "agent_action_2",
+        ]
+        metadata = [s.get("attributes", {})["metadata"] for s in chain_spans]
+        assert [m["atif.step_id"] for m in metadata] == [2, 3, 4]
+        assert metadata[1]["atif.context_management"] is True
+        assert "atif.context_management" not in metadata[0]
+
+    def test_copied_context_consumes_no_ordinal(self) -> None:
+        trajectory = self._trajectory(
+            [
+                {
+                    "step_id": 1,
+                    "source": "agent",
+                    "message": "old work",
+                    "is_copied_context": True,
+                },
+                {"step_id": 2, "source": "user", "message": "go"},
+                {
+                    "step_id": 3,
+                    "source": "agent",
+                    "message": "fresh work",
+                    "timestamp": "2025-01-15T10:00:01Z",
+                },
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        chain_spans = [s for s in spans if s["span_kind"] == "CHAIN"]
+        assert [s["name"] for s in chain_spans] == ["agent_action_1"]
+
+    def test_continuation_root_name_uses_index_key(self) -> None:
+        trajectory = self._trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "go"},
+                {"step_id": 2, "source": "agent", "message": "done"},
+            ]
+        )
+        trajectory["_phoenix_is_continuation"] = True
+        trajectory["_phoenix_continuation_index"] = 2
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        root = spans[0]
+        assert root["name"] == "worker (continuation 2)"
+        assert root.get("attributes", {})["metadata"]["continuation_index"] == 2
+
+    def test_continuation_session_heuristic_names_root(self) -> None:
+        trajectory = self._trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "go"},
+                {"step_id": 2, "source": "agent", "message": "done"},
+            ]
+        )
+        trajectory["session_id"] = "naming-run-cont-1"
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        assert spans[0]["name"] == "worker (continuation)"
+
+    def test_step_name_key_qualifies_root(self) -> None:
+        trajectory = self._trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "go"},
+                {"step_id": 2, "source": "agent", "message": "done"},
+            ]
+        )
+        trajectory["_phoenix_step_name"] = "step_01_aggregate"
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        root = spans[0]
+        assert root["name"] == "worker · step_01_aggregate"
+        assert root.get("attributes", {})["metadata"]["harbor.step_name"] == "step_01_aggregate"
+
+    def test_first_agent_step_anchors_document_with_measured_latency(self) -> None:
+        trajectory = self._trajectory(
+            [
+                {
+                    "step_id": 3,
+                    "source": "agent",
+                    "message": "fresh work",
+                    "timestamp": "2025-01-15T10:00:30Z",
+                    "metrics": {"extra": {"latency_ms": 10000}},
+                    "tool_calls": [
+                        {"tool_call_id": "c1", "function_name": "bash", "arguments": {}}
+                    ],
+                },
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        root = spans[0]
+        chain = next(s for s in spans if s["span_kind"] == "CHAIN")
+        llm = next(s for s in spans if s["span_kind"] == "LLM")
+        tool = next(s for s in spans if s["span_kind"] == "TOOL")
+        assert root["start_time"] == "2025-01-15T10:00:20+00:00"
+        assert chain["start_time"] == "2025-01-15T10:00:20+00:00"
+        assert chain["end_time"] == "2025-01-15T10:00:30+00:00"
+        assert llm["start_time"] == "2025-01-15T10:00:20+00:00"
+        assert llm["end_time"] == "2025-01-15T10:00:30+00:00"
+        assert tool["start_time"] == "2025-01-15T10:00:30+00:00"
+
+    def test_first_step_without_latency_stays_point_event(self) -> None:
+        trajectory = self._trajectory(
+            [
+                {
+                    "step_id": 3,
+                    "source": "agent",
+                    "message": "fresh work",
+                    "timestamp": "2025-01-15T10:00:30Z",
+                },
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        root = spans[0]
+        assert root["start_time"] == "2025-01-15T10:00:30+00:00"
+        assert root["end_time"] == "2025-01-15T10:00:30+00:00"
+
+
+class TestStepLevelObservations:
+    """Unmatched step-level observations surface on the operation span."""
+
+    def test_combined_observation_lands_on_operation_span(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "combined-observation",
+            "agent": {"name": "worker", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "agent",
+                    "message": "running commands",
+                    "timestamp": "2025-01-15T10:00:00Z",
+                    "tool_calls": [
+                        {"tool_call_id": "a", "function_name": "bash", "arguments": {}},
+                        {"tool_call_id": "b", "function_name": "bash", "arguments": {}},
+                    ],
+                    "observation": {"results": [{"content": "combined terminal output"}]},
+                },
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        operation = next(s for s in spans if s["span_kind"] == "CHAIN")
+        tool_spans = [s for s in spans if s["span_kind"] == "TOOL"]
+        assert all("output.value" not in s.get("attributes", {}) for s in tool_spans)
+        payload = json.loads(operation.get("attributes", {})["output.value"])
+        assert payload == {
+            "message": "running commands",
+            "observation": "combined terminal output",
+        }
+        assert operation.get("attributes", {})["output.mime_type"] == "application/json"
+
+    def test_matched_results_still_pair_to_tools(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "matched-observation",
+            "agent": {"name": "worker", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "agent",
+                    "message": "running",
+                    "timestamp": "2025-01-15T10:00:00Z",
+                    "tool_calls": [
+                        {"tool_call_id": "a", "function_name": "bash", "arguments": {}},
+                        {"tool_call_id": "b", "function_name": "bash", "arguments": {}},
+                    ],
+                    "observation": {
+                        "results": [
+                            {"source_call_id": "a", "content": "out-a"},
+                            {"source_call_id": "b", "content": "out-b"},
+                        ]
+                    },
+                },
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        operation = next(s for s in spans if s["span_kind"] == "CHAIN")
+        tool_outputs = [
+            s.get("attributes", {}).get("output.value") for s in spans if s["span_kind"] == "TOOL"
+        ]
+        assert tool_outputs == ["out-a", "out-b"]
+        assert operation.get("attributes", {})["output.value"] == "running"
+        assert operation.get("attributes", {})["output.mime_type"] == "text/plain"
+
+
+class TestTurnGrouping:
+    def test_consecutive_context_user_messages_do_not_create_turns(self) -> None:
+        """Codex-style leading system + double user context stays one turn."""
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "codex-style",
+            "agent": {"name": "codex", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "system", "message": "skills"},
+                {"step_id": 2, "source": "user", "message": "<environment_context/>"},
+                {"step_id": 3, "source": "user", "message": "do the task"},
+                {
+                    "step_id": 4,
+                    "source": "agent",
+                    "message": "done",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                },
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        agent_spans = [s for s in spans if s["span_kind"] == "AGENT"]
+        assert [s["name"] for s in agent_spans] == ["codex"]  # no turn wrappers
+        chain_spans = [s for s in spans if s["span_kind"] == "CHAIN"]
+        assert [s["name"] for s in chain_spans] == ["agent_action_1"]
+
+    def test_follow_up_user_message_after_agent_activity_starts_turn(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "true-multi-turn",
+            "agent": {"name": "worker", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "first"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "one",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                },
+                {"step_id": 3, "source": "user", "message": "second"},
+                {
+                    "step_id": 4,
+                    "source": "agent",
+                    "message": "two",
+                    "timestamp": "2025-01-15T10:00:10Z",
+                },
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        turn_spans = [s for s in spans if s["name"].startswith("turn_")]
+        assert [s["name"] for s in turn_spans] == ["turn_1", "turn_2"]
+
+    def test_trajectory_input_prefers_request_over_leading_context(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "input-selection",
+            "agent": {"name": "codex", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "system", "message": "skills"},
+                {"step_id": 2, "source": "user", "message": "<environment_context/>"},
+                {"step_id": 3, "source": "user", "message": "do the task"},
+                {
+                    "step_id": 4,
+                    "source": "agent",
+                    "message": "done",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                },
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        root = spans[0]
+        assert root.get("attributes", {})["input.value"] == "do the task"
+
+
+class TestEventSchedule:
+    @staticmethod
+    def _trajectory(steps: List[Dict[str, Any]]) -> Dict[str, Any]:
+        return {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "event-schedule",
+            "trajectory_id": "event-schedule-document",
+            "agent": {"name": "worker", "version": "1.0"},
+            "steps": steps,
+        }
+
+    def test_same_instant_events_keep_causal_waterfall_order(self) -> None:
+        trajectory = self._trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "go"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "running",
+                    "timestamp": "2025-01-15T10:00:10Z",
+                    "tool_calls": [
+                        {"tool_call_id": "a", "function_name": "bash", "arguments": {}},
+                        {"tool_call_id": "b", "function_name": "bash", "arguments": {}},
+                        {"tool_call_id": "c", "function_name": "done", "arguments": {}},
+                    ],
+                },
+            ]
+        )
+        # No user timestamp: the document opens at the agent event, so the
+        # step interval is degenerate and offsets compress to zero.
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        llm = next(s for s in spans if s["span_kind"] == "LLM")
+        tools = [s for s in spans if s["span_kind"] == "TOOL"]
+        starts = [llm["start_time"], *(t["start_time"] for t in tools)]
+        assert starts == sorted(starts)
+        assert all(t["start_time"] == t["end_time"] for t in tools)
+
+        # With a real interval, events spread at 1ms and stay ordered:
+        # LLM event, then tools in declared order, last tool on the step
+        # timestamp.
+        trajectory["steps"][0]["timestamp"] = "2025-01-15T10:00:00Z"
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        llm = next(s for s in spans if s["span_kind"] == "LLM")
+        tools = [s for s in spans if s["span_kind"] == "TOOL"]
+        starts = [llm["start_time"], *(t["start_time"] for t in tools)]
+        assert starts == [
+            "2025-01-15T10:00:09.997000+00:00",
+            "2025-01-15T10:00:09.998000+00:00",
+            "2025-01-15T10:00:09.999000+00:00",
+            "2025-01-15T10:00:10+00:00",
+        ]
+        assert [t["name"] for t in tools] == ["bash", "bash", "done"]
+
+    def test_short_interval_compresses_event_offsets(self) -> None:
+        trajectory = self._trajectory(
+            [
+                {
+                    "step_id": 1,
+                    "source": "user",
+                    "message": "go",
+                    "timestamp": "2025-01-15T10:00:09.999000Z",
+                },
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "running",
+                    "timestamp": "2025-01-15T10:00:10Z",
+                    "tool_calls": [
+                        {"tool_call_id": "a", "function_name": "bash", "arguments": {}},
+                        {"tool_call_id": "b", "function_name": "bash", "arguments": {}},
+                    ],
+                },
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        chain = next(s for s in spans if s["span_kind"] == "CHAIN")
+        llm = next(s for s in spans if s["span_kind"] == "LLM")
+        tools = [s for s in spans if s["span_kind"] == "TOOL"]
+        starts = [llm["start_time"], *(t["start_time"] for t in tools)]
+        assert starts == sorted(starts)
+        # Events never escape the step interval.
+        assert all(chain["start_time"] <= s <= chain["end_time"] for s in starts)
+
+    def test_continuation_input_falls_back_to_copied_request(self) -> None:
+        """A continuation whose prompt is entirely copied context still gets
+        the replayed request as its root input."""
+        trajectory = self._trajectory(
+            [
+                {
+                    "step_id": 1,
+                    "source": "user",
+                    "message": "original instruction",
+                    "is_copied_context": True,
+                },
+                {
+                    "step_id": 2,
+                    "source": "user",
+                    "message": "handoff answers from the previous agent",
+                    "is_copied_context": True,
+                },
+                {
+                    "step_id": 3,
+                    "source": "agent",
+                    "message": "continuing",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                },
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        root = spans[0]
+        assert (
+            root.get("attributes", {})["input.value"] == "handoff answers from the previous agent"
+        )
