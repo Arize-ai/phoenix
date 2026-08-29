@@ -11,8 +11,10 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -25,11 +27,40 @@ DIRECT_TASK = TASKS_DIR / "regression-triage"
 HARBOR_VERSION = os.environ.get("HARBOR_VERSION", "0.21.0")
 HARBOR_PYTHON = os.environ.get("HARBOR_PYTHON", "3.13")
 HARBOR_ATIF_MODEL = os.environ.get("HARBOR_ATIF_MODEL", "openai/gpt-5-mini")
+HARBOR_ATIF_DATASET = "terminal-bench/terminal-bench-2-1@6"
+HARBOR_ATIF_DATASET_NAME = "terminal-bench/terminal-bench-2-1"
+HARBOR_ATIF_TASKS = (
+    "terminal-bench/regex-log",
+    "terminal-bench/cancel-async-tasks",
+    "terminal-bench/fix-git",
+)
 
 
 def _check(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def _span_metadata(span: Mapping[str, Any]) -> dict[str, Any]:
+    """Read metadata from nested or OpenInference-flattened attributes."""
+    attributes = span.get("attributes") or {}
+    if not isinstance(attributes, Mapping):
+        return {}
+
+    metadata: dict[str, Any] = {
+        key.removeprefix("metadata."): value
+        for key, value in attributes.items()
+        if isinstance(key, str) and key.startswith("metadata.")
+    }
+    nested = attributes.get("metadata")
+    if isinstance(nested, str):
+        try:
+            nested = json.loads(nested)
+        except json.JSONDecodeError:
+            nested = None
+    if isinstance(nested, Mapping):
+        metadata.update(nested)
+    return metadata
 
 
 def _run(
@@ -267,12 +298,13 @@ def _expected_atif_source_paths(
 def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     _check(bool(os.environ.get("OPENAI_API_KEY")), "OPENAI_API_KEY is required")
     jobs_dir = root / "jobs"
-    jobs_dir.mkdir()
+    jobs_dir.mkdir(exist_ok=True)
     client = Client(base_url=endpoint)
     job_name = os.environ.get("HARBOR_E2E_JOB_NAME", "plugin-e2e-atif")
     arguments = [
-        "-p",
-        str(DIRECT_TASK),
+        "-d",
+        HARBOR_ATIF_DATASET,
+        *(item for task_name in HARBOR_ATIF_TASKS for item in ("-i", task_name)),
         "-a",
         "terminus-2",
         "-m",
@@ -301,86 +333,208 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     _print_plugin_warnings(
         _run(traced_command, description="Terminus-2 records a run with its ATIF trace")
     )
-    trial_dirs = [path for path in (jobs_dir / job_name).iterdir() if path.is_dir()]
-    _check(len(trial_dirs) == 1, repr(trial_dirs))
-    trial_dir = trial_dirs[0]
-    trial_result = json.loads((trial_dir / "result.json").read_text())
-    expected_source_paths = _expected_atif_source_paths(trial_dir, trial_result)
-    _check(bool(expected_source_paths), "Terminus-2 wrote no importable trajectory.json")
-    for relative_path in expected_source_paths:
-        payload = json.loads((trial_dir / relative_path).read_text())
-        _check(
-            str(payload.get("schema_version", "")).startswith("ATIF-v1."),
-            relative_path,
-        )
+    trial_dirs = sorted(path for path in (jobs_dir / job_name).iterdir() if path.is_dir())
+    _check(len(trial_dirs) == len(HARBOR_ATIF_TASKS), repr(trial_dirs))
+    trials_by_name: dict[str, tuple[Path, Mapping[str, Any], tuple[str, ...]]] = {}
+    for trial_dir in trial_dirs:
+        trial_result = json.loads((trial_dir / "result.json").read_text())
+        expected_source_paths = _expected_atif_source_paths(trial_dir, trial_result)
+        _check(bool(expected_source_paths), f"{trial_dir.name} wrote no importable trajectory.json")
+        for relative_path in expected_source_paths:
+            payload = json.loads((trial_dir / relative_path).read_text())
+            _check(
+                str(payload.get("schema_version", "")).startswith("ATIF-v1."),
+                relative_path,
+            )
+        trials_by_name[trial_dir.name] = (trial_dir, trial_result, expected_source_paths)
 
-    dataset = _find_dataset(client, "harbor-task/arize/phoenix-regression-triage")
+    dataset = _find_dataset(client, HARBOR_ATIF_DATASET_NAME)
     experiments = _job_experiments(client, dataset["id"], job_name)
     _check(len(experiments) == 1, repr(experiments))
     experiment = experiments[0]
     initial_runs = _runs(client, experiment["id"])
-    _check(len(initial_runs) == 1, repr(initial_runs))
-    trace_id = initial_runs[0].get("trace_id")
-    _check(isinstance(trace_id, str) and len(trace_id) == 32, repr(initial_runs[0]))
+    _check(len(initial_runs) == len(HARBOR_ATIF_TASKS), repr(initial_runs))
+    trace_ids = {run.get("trace_id") for run in initial_runs}
+    _check(
+        len(trace_ids) == len(HARBOR_ATIF_TASKS)
+        and all(isinstance(trace_id, str) and len(trace_id) == 32 for trace_id in trace_ids),
+        repr(initial_runs),
+    )
     evaluations_before = _evaluation_state(endpoint, experiment["id"])
     project_name = experiment.get("project_name")
     _check(bool(project_name), repr(experiment))
-    spans = client.spans.get_spans(
-        project_identifier=str(project_name),
-        trace_ids=[str(trace_id)],
-        limit=10_000,
-    )
-    _check(bool(spans), "ATIF trace has no spans")
-    roots = [span for span in spans if span.get("parent_id") is None]
-    _check(len(roots) == 1 and roots[0]["name"] == "harbor.trial", repr(roots))
-    _check(roots[0]["span_kind"] == "CHAIN", repr(roots[0]))
-    root_metadata = roots[0]["attributes"].get("metadata") or {}
-    recorded_source_paths = tuple(root_metadata.get("atif_source_paths") or ())
+    runs_by_trace_id = {str(run.get("trace_id")): run for run in initial_runs}
+    job_result_id = str(json.loads((jobs_dir / job_name / "result.json").read_text()).get("id"))
+    span_ids_before: dict[str, set[str]] = {}
+    for raw_trace_id in trace_ids:
+        trace_id = str(raw_trace_id)
+        spans = client.spans.get_spans(
+            project_identifier=str(project_name),
+            trace_ids=[trace_id],
+            limit=10_000,
+        )
+        _check(bool(spans), f"ATIF trace {trace_id} has no spans")
+        roots = [span for span in spans if span.get("parent_id") is None]
+        _check(len(roots) == 1 and roots[0]["name"] == "harbor.trial", repr(roots))
+        _check(roots[0]["span_kind"] == "CHAIN", repr(roots[0]))
+        root_metadata = _span_metadata(roots[0])
+        trial_name = str(root_metadata.get("harbor_trial_name"))
+        _check(trial_name in trials_by_name, repr(root_metadata))
+        # The linked run and the trace root describe the same Harbor trial
+        # and job: a mismatch means a run was linked to someone else's trace.
+        linked_run = runs_by_trace_id[trace_id]
+        linked_output = linked_run.get("output") or {}
+        _check(
+            isinstance(linked_output, Mapping)
+            and root_metadata.get("harbor_trial_id") == linked_output.get("harbor_trial_id"),
+            f"run {linked_run.get('id')!r} links trace {trace_id} whose root records "
+            f"trial {root_metadata.get('harbor_trial_id')!r}, "
+            f"not {linked_output!r}",
+        )
+        _check(
+            root_metadata.get("harbor_job_id") == job_result_id,
+            f"trace root records job {root_metadata.get('harbor_job_id')!r}, "
+            f"expected {job_result_id!r}",
+        )
+        trial_dir, _, expected_source_paths = trials_by_name[trial_name]
+        recorded_source_paths = tuple(root_metadata.get("atif_source_paths") or ())
+        _check(
+            set(expected_source_paths) <= set(recorded_source_paths),
+            f"expected ATIF roots {expected_source_paths!r}, got {root_metadata!r}",
+        )
+        _check(
+            all((trial_dir / path).is_file() for path in recorded_source_paths),
+            f"trace lists an ATIF source that is not a trial file: {recorded_source_paths!r}",
+        )
+        spans_by_id = {span["context"]["span_id"]: span for span in spans}
+        span_ids_before[trace_id] = set(spans_by_id)
+        _check(
+            all(span.get("parent_id") in spans_by_id for span in spans if span.get("parent_id")),
+            "ATIF trace contains an unresolved parent",
+        )
+        trial_root_id = roots[0]["context"]["span_id"]
+        trajectory_roots = [
+            span
+            for span in spans
+            if span["span_kind"] == "AGENT" and span.get("parent_id") == trial_root_id
+        ]
+        _check(
+            len(trajectory_roots) >= len(expected_source_paths),
+            f"expected an AGENT root per canonical source, got {trajectory_roots!r}",
+        )
+        _check(
+            all(span["attributes"].get("session.id") == f"harbor:{trace_id}" for span in spans),
+            "ATIF trace does not share one trial session",
+        )
+        converted_spans = [span for span in spans if span["context"]["span_id"] != trial_root_id]
+        _check(
+            all(
+                isinstance(
+                    _span_metadata(span).get("_phoenix.span_order"),
+                    int,
+                )
+                for span in converted_spans
+            ),
+            "ATIF upload lost deterministic equal-time display order",
+        )
+        leaf_spans = [span for span in spans if span["span_kind"] in {"LLM", "TOOL"}]
+        _check(bool(leaf_spans), f"ATIF trace {trace_id} has no LLM/TOOL spans")
+        _check(
+            all(spans_by_id[str(span["parent_id"])]["span_kind"] == "CHAIN" for span in leaf_spans),
+            "ATIF LLM/TOOL spans are not nested under their source step",
+        )
+        for span in spans:
+            start = datetime.fromisoformat(str(span["start_time"]).replace("Z", "+00:00"))
+            end = datetime.fromisoformat(str(span["end_time"]).replace("Z", "+00:00"))
+            _check(start <= end, f"negative span duration: {span!r}")
+        tool_spans = [span for span in spans if span["span_kind"] == "TOOL"]
+        _check(
+            all(span["start_time"] == span["end_time"] for span in tool_spans),
+            "ATIF invented tool durations",
+        )
+        llm_spans = [span for span in spans if span["span_kind"] == "LLM"]
+        measured_llm_spans = [
+            span
+            for span in llm_spans
+            if _span_metadata(span).get("atif.timing") == "metrics.extra.latency_ms"
+        ]
+        _check(
+            len(measured_llm_spans) == len(llm_spans),
+            "Terminus-2 request measurements were not applied to every LLM step",
+        )
+        source_steps = [
+            span
+            for span in spans
+            if span["span_kind"] == "CHAIN" and _span_metadata(span).get("atif.step_id") is not None
+        ]
+        for source_step in source_steps:
+            children = [
+                span
+                for span in leaf_spans
+                if span.get("parent_id") == source_step["context"]["span_id"]
+            ]
+            children.sort(
+                key=lambda span: (
+                    datetime.fromisoformat(str(span["start_time"]).replace("Z", "+00:00")),
+                    _span_metadata(span)["_phoenix.span_order"],
+                )
+            )
+            llm_children = [span for span in children if span["span_kind"] == "LLM"]
+            tool_children = [span for span in children if span["span_kind"] == "TOOL"]
+            if llm_children:
+                _check(children[0] is llm_children[0], "LLM does not precede its requested tools")
+            _check(
+                [_span_metadata(span).get("atif.tool_call_index") for span in tool_children]
+                == list(range(len(tool_children))),
+                "Equal-time tools do not preserve ATIF array order",
+            )
+            # Start times alone must reproduce causal order, so viewers
+            # without the metadata tie-break still render correctly.
+            by_time_only = sorted(
+                children,
+                key=lambda span: datetime.fromisoformat(
+                    str(span["start_time"]).replace("Z", "+00:00")
+                ),
+            )
+            _check(
+                [span["context"]["span_id"] for span in by_time_only]
+                == [span["context"]["span_id"] for span in children],
+                "start-time sorting does not reproduce causal event order",
+            )
+    # The experiment project holds exactly the traces its runs link: an
+    # unlinked or foreign trace in the project means linking failed somewhere.
+    project_spans = client.spans.get_spans(project_identifier=str(project_name), limit=10_000)
+    project_trace_ids = {span["context"]["trace_id"] for span in project_spans}
     _check(
-        set(expected_source_paths) <= set(recorded_source_paths),
-        f"expected ATIF roots {expected_source_paths!r}, got {root_metadata!r}",
-    )
-    _check(
-        all((trial_dir / path).is_file() for path in recorded_source_paths),
-        f"trace lists an ATIF source that is not a trial file: {recorded_source_paths!r}",
-    )
-    span_ids = {span["context"]["span_id"] for span in spans}
-    _check(
-        all(span.get("parent_id") in span_ids for span in spans if span.get("parent_id")),
-        "ATIF trace contains an unresolved parent",
-    )
-    trial_root_id = roots[0]["context"]["span_id"]
-    step_roots = [
-        span
-        for span in spans
-        if span["span_kind"] == "AGENT" and span.get("parent_id") == trial_root_id
-    ]
-    _check(
-        len(step_roots) >= len(expected_source_paths),
-        f"expected an AGENT root per canonical source, got {step_roots!r}",
-    )
-    _check(
-        all(span["attributes"].get("session.id") == f"harbor:{trace_id}" for span in spans),
-        "ATIF trace does not share one trial session",
+        project_trace_ids == {str(trace_id) for trace_id in trace_ids},
+        f"experiment project holds traces {sorted(project_trace_ids)!r} "
+        f"but runs link {sorted(str(t) for t in trace_ids)!r}",
     )
     _check(_evaluation_state(endpoint, experiment["id"]) == evaluations_before, "Evals changed")
 
-    span_ids_before = span_ids
     _print_plugin_warnings(_run(traced_command, description="second ATIF resume is idempotent"))
     replayed_experiments = _job_experiments(client, dataset["id"], job_name)
     replayed_runs = _runs(client, experiment["id"])
     replayed_spans = client.spans.get_spans(
         project_identifier=str(project_name),
-        trace_ids=[str(trace_id)],
+        trace_ids=[str(trace_id) for trace_id in trace_ids],
         limit=10_000,
     )
     _check(
         [item["id"] for item in replayed_experiments] == [experiment["id"]],
         repr(replayed_experiments),
     )
-    _check([item["id"] for item in replayed_runs] == [initial_runs[0]["id"]], repr(replayed_runs))
     _check(
-        {span["context"]["span_id"] for span in replayed_spans} == span_ids_before,
+        _run_ids(client, experiment["id"]) == {run["id"] for run in initial_runs},
+        repr(replayed_runs),
+    )
+    replayed_span_ids: dict[str, set[str]] = {}
+    for span in replayed_spans:
+        replayed_span_ids.setdefault(span["context"]["trace_id"], set()).add(
+            span["context"]["span_id"]
+        )
+    _check(
+        replayed_span_ids == span_ids_before,
         "Second resume changed the trace span set",
     )
     _check(_evaluation_state(endpoint, experiment["id"]) == evaluations_before, "Evals changed")
@@ -775,6 +929,7 @@ def main() -> int:
         print("PASS  Phoenix Harbor plugin E2E matrix")
         return 0
     except Exception as error:
+        traceback.print_exc()
         print(f"\nFAIL  {error}", file=sys.stderr)
         print(f"Artifacts retained at {root}", file=sys.stderr)
         return 1

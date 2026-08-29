@@ -53,8 +53,19 @@ persisted `trajectory.json` files and converts them into one Phoenix trace:
 ```text
 harbor.trial (CHAIN)
   trajectory (AGENT)
-    LLM and TOOL spans
+    agent_action_N (CHAIN)
+      LLM and TOOL spans
 ```
+
+Visible names describe execution, not raw ATIF indices: fresh operational
+steps are numbered per label — `agent_action_3` is the third agent action and
+`compaction_1` the first context-management step, regardless of interleaving —
+while the producer's original `step_id` stays in span metadata as
+`atif.step_id` and global execution order lives in timestamps and
+`_phoenix.span_order`. Multi-step trajectory roots are qualified with their Harbor step
+name (`terminus-2 · step_01_aggregate`) and continuation roots are labeled
+(`terminus-2 (continuation 1)`). A step-level observation that ATIF does not tie
+to a specific tool call is preserved on the action span's output.
 
 Every span uses one trial-scoped session ID. The top-level `harbor.trial` span records the Harbor
 job, trial, task, repetition, and imported file paths. Phoenix links the experiment run to this
@@ -64,6 +75,17 @@ For a multi-step trial without native trajectory resume, the trace has one direc
 for each attempted step that wrote a canonical trajectory. With `agent.resume_trajectory=true`,
 the last available step trajectory is the cumulative snapshot, so the plugin imports only that
 file. Referenced continuations and subagent trajectories remain nested below their owning agent.
+
+ATIF step timestamps describe when an event occurred, not both ends of an operation. The
+converter bounds each source-step CHAIN by the preceding fresh event and its own timestamp. Harbor
+adds Terminus request durations from `api_request_times_msec` when they match the trajectory's LLM
+steps. Those LLM spans use the measured duration; unmeasured LLMs and all TOOL calls remain
+zero-duration events. Events that share one ATIF step timestamp are spread at most one
+millisecond apart within the step interval, in causal order (LLM before its tool calls, tool
+calls in declared array order, the last landing on the step's own timestamp), so any viewer that
+sorts by start time shows the true order without invented durations. Copied context reconstructs
+prompts but does not create duplicate execution spans. Exact remaining ties retain ATIF array
+order through a display-only metadata tie-break.
 
 Tracing is best effort. A missing or invalid trajectory, an unresolved reference, or an upload
 failure produces a warning but does not discard the experiment run or its evaluations. Phoenix
@@ -133,16 +155,35 @@ Run the explicit Terminus-2 ATIF test with `OPENAI_API_KEY` already set in the e
 make harbor-plugin-e2e-atif
 ```
 
-The target runs Terminus-2 with ATIF tracing enabled. It checks the trial-level `CHAIN` root,
-selected trajectory sources, parent links, shared session ID, experiment-run link, and resume
-idempotency. It uses the same `HARBOR_VERSION` as the credential-free matrix and defaults to
-`openai/gpt-5-mini`; override the model with `HARBOR_ATIF_MODEL`. Like the credential-free matrix,
-it uses a disposable Phoenix working directory and does not touch the shared
-`~/.phoenix/phoenix.db`.
+The target runs Terminus-2 against three tasks from the pinned Harbor package dataset
+`terminal-bench/terminal-bench-2-1@6`: `regex-log` exercises repeated shell inspection and editing,
+`cancel-async-tasks` exercises a longer tool loop, and `fix-git` exercises repository inspection
+and mutation. It checks the trial-level CHAIN root, trajectory sources, parent links, shared session
+ID, source-step nesting, measured LLM timings, conservative TOOL event timings, experiment-run
+linkage, and replay idempotency. It uses the same
+`HARBOR_VERSION` as the credential-free matrix and defaults to `openai/gpt-5-mini`; override the
+model with `HARBOR_ATIF_MODEL`. Without `HARBOR_E2E_ENDPOINT`, it uses a disposable Phoenix working
+directory and does not touch the shared `~/.phoenix/phoenix.db`.
 
 Both targets accept `HARBOR_E2E_ENDPOINT=http://127.0.0.1:6006` to run against an already-running
 Phoenix instead of starting an isolated one, and `HARBOR_E2E_JOB_NAME` to pick a job name that does
 not collide with earlier runs in that database.
+
+### ATIF coverage matrix
+
+The three live tasks are a representative integration sample, not the whole format contract. The
+test suite divides coverage by the cheapest layer that can prove each behavior:
+
+| Layer | Representative cases | Contract proved |
+| --- | --- | --- |
+| Converter producer fixtures | OpenHands, Terminus, Claude Code; ATIF v1.2-v1.7; timeout, invalid output, continuation, compaction, subagents, multimodal input, parallel tools, deterministic dispatch | Format and producer variations become valid causal span trees without invented timing |
+| Harbor trace builder | Single-step, per-step multi-step, native resume, simulated user, missing clocks, embedded/external/shared subagents, continuation, cyclic or invalid refs, failed trials | Trial normalization, identity, parentage, source selection, fallback time, and replay remain correct for every Harbor layout |
+| Credential-free Docker E2E | Direct regression-triage task with oracle and nop agents, repetitions, multiple agents, resume, startup failure | Dataset, experiment, evaluation, and lifecycle behavior when an agent does not produce ATIF |
+| Live ATIF Docker E2E | Terminus-2 on the three Terminal Bench tasks above | A real Harbor producer writes ATIF, request timings survive trial persistence, spans upload, and experiment runs link to readable traces |
+
+This split keeps semantic edge cases deterministic while retaining a real container-and-model path
+for the integration boundary. Add a focused fixture when a new trajectory shape is introduced, and
+add a live task only when it exercises a boundary fixtures cannot prove.
 
 Browse job results in a local web viewer:
 

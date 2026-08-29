@@ -156,7 +156,7 @@ At `on_job_start`, the plugin:
 
 1. resolves the complete task and trial plan;
 2. synchronizes the complete dataset example snapshot;
-3. recovers or creates one experiment for each effective agent and model configuration, pinned to the current dataset version;
+3. recovers or creates one experiment for each effective agent and model configuration. Recovery matches on the stored Harbor job ID and agent identity digest, not on the dataset version: other Harbor jobs sharing the dataset mint new versions between replays, and a replayed job must recover its original experiment, which stays pinned to the version it was created with. A newly created experiment is pinned to the current dataset version;
 4. reads the server-assigned project name for each experiment;
 5. derives a stable repetition number for every trial; and
 6. once deferred OTLP mode is implemented, validates each agent's exporter project and endpoint. If they are invalid, the error lists the exact flags to add.
@@ -221,6 +221,38 @@ The conversion layer does not use a client. Harbor-specific discovery, normaliza
 identity, and upload-repair behavior stay private to the plugin.
 
 The plugin creates one deterministic trial-level CHAIN root named `harbor.trial`. It converts saved trajectories under that root and sends all spans to the experiment's Phoenix project. Harbor-specific identity and replay logic stay in the plugin. The root's status is `ERROR` for the same failures that set the experiment run's error and drive `infra_ok`. Any top-level or step exception is a failure, even when Harbor also records verifier rewards for that step or trial.
+
+Each fresh operational ATIF step becomes a source CHAIN beneath its trajectory root or turn. LLM,
+TOOL, and referenced subagent work hangs beneath that source step; a matching `source_call_id`
+narrows a subagent parent to its TOOL call. Copied context is prompt history and does not create
+duplicate execution spans.
+
+Visible span names describe execution, not raw ATIF indices. Source CHAINs are numbered with
+per-label ordinals over fresh operational steps: `agent_action_3` is the third agent action and
+`compaction_1` the first context-management step, regardless of interleaving. The producer's
+`step_id` stays in metadata as `atif.step_id`, and global execution order lives in timestamps and
+`_phoenix.span_order`, never in names. Multi-step role roots are qualified with their Harbor step name
+(`terminus-2 · step_01_aggregate`), continuation roots are labeled
+(`terminus-2 (continuation N)`) with the index taken from the validated continuation chain, and a
+user message never consumes an action ordinal. Consecutive user or system context messages do not
+open new turns; a turn starts only at a user message that follows agent activity. A step-level
+observation without a provable `source_call_id` pairing is preserved on the source CHAIN's output
+(paired to the step's only tool call when that pairing is unambiguous).
+
+ATIF timestamps are point events. A source CHAIN spans the preceding fresh event through its own
+event. Harbor enriches Terminus trajectories with `agent_result.metadata.api_request_times_msec`
+only when the number of request measurements exactly matches the number of fresh LLM steps. A
+single document uses its declared step order. Continuation and subagent graphs require timestamps
+on every fresh LLM step so their requests can be merged chronologically; otherwise enrichment is
+skipped rather than risking a shifted measurement. Producer latency wins when already present.
+Measured LLM spans use that duration within the source interval. Unmeasured LLMs and TOOL calls are
+zero-duration events; the converter does not infer tool serialism, concurrency, or elapsed time.
+Events that would share one step timestamp are spread at most one millisecond apart within the
+step interval, in causal order — the unmeasured LLM event, then tool calls in declared array
+order, the last landing exactly on the step's own timestamp — so start-time sorting alone shows
+the true order in any viewer. Missing and non-monotonic event clocks collapse instead of creating
+synthetic duration. Phoenix-only order metadata breaks any exact remaining ties in the trace tree
+while leaving timestamps unchanged.
 
 For each in-memory trajectory, the plugin:
 
