@@ -1,6 +1,9 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
-import type { CreateDatasetLabelInput, DatasetLabel } from "./types";
+import type {
+  CreateDatasetLabelInput,
+  DatasetLabel,
+} from "./datasetLabelTypes";
 
 export type CreateDatasetLabelParams = ClientFn & CreateDatasetLabelInput;
 

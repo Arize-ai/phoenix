@@ -1,7 +1,10 @@
 import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
-import type { ListDatasetLabelsQuery, ListDatasetLabelsResult } from "./types";
+import type {
+  ListDatasetLabelsQuery,
+  ListDatasetLabelsResult,
+} from "./datasetLabelTypes";
 
 export type ListDatasetLabelsParams = ClientFn & ListDatasetLabelsQuery;
 

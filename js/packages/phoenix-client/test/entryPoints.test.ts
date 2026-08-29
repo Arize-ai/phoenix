@@ -3,10 +3,24 @@ import { createRequire } from "node:module";
 import { describe, expect, test } from "vitest";
 
 const requireCjs = createRequire(import.meta.url);
+const datasetLabelHelperNames = [
+  "createDatasetLabel",
+  "deleteDatasetLabel",
+  "getDatasetLabel",
+  "listDatasetLabels",
+  "updateDatasetLabel",
+] as const;
+
+function expectDatasetLabelHelpers(loaded: Record<string, unknown>) {
+  for (const helperName of datasetLabelHelperNames) {
+    expect(loaded[helperName]).toBeTypeOf("function");
+  }
+}
+
 // The ./vitest subpath is intentionally absent: vitest itself refuses to be
 // require()d (its CJS stub throws), so that entry is only usable from ESM.
 const cjsEntries = {
-  datasetLabels: "../dist/src/datasetLabels/index.js",
+  datasets: "../dist/src/datasets/index.js",
   index: "../dist/src/index.js",
   experiments: "../dist/src/experiments/index.js",
   jest: "../dist/src/jest/index.js",
@@ -43,10 +57,15 @@ describe.skipIf(!isBuilt)("built CommonJS entry points", () => {
       expect(Object.keys(loaded).length).toBeGreaterThan(0);
     });
   }
+
+  test("the datasets entry exposes dataset-label helpers", () => {
+    const loaded = requireCjs(cjsEntries.datasets) as Record<string, unknown>;
+    expectDatasetLabelHelpers(loaded);
+  });
 });
 
 const esmEntries = {
-  datasetLabels: "../dist/esm/datasetLabels/index.js",
+  datasets: "../dist/esm/datasets/index.js",
   index: "../dist/esm/index.js",
   experiments: "../dist/esm/experiments/index.js",
   jest: "../dist/esm/jest/index.js",
@@ -61,4 +80,11 @@ describe.skipIf(!isBuilt)("built ESM entry points", () => {
       expect(Object.keys(loaded).length).toBeGreaterThan(0);
     });
   }
+
+  test("the datasets entry exposes dataset-label helpers", async () => {
+    const loaded = (await import(
+      new URL(esmEntries.datasets, import.meta.url).href
+    )) as Record<string, unknown>;
+    expectDatasetLabelHelpers(loaded);
+  });
 });

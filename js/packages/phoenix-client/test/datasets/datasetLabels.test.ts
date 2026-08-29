@@ -2,14 +2,14 @@ import { createHttp } from "@arizeai/phoenix-testing";
 import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { DatasetLabel } from "../../src/datasetLabels";
+import type { DatasetLabel } from "../../src/datasets";
 import {
   createDatasetLabel,
   deleteDatasetLabel,
   getDatasetLabel,
   listDatasetLabels,
   updateDatasetLabel,
-} from "../../src/datasetLabels";
+} from "../../src/datasets";
 import { HttpError } from "../../src/errors";
 import { createTestClient } from "../testUtils";
 

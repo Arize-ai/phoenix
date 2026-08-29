@@ -1,6 +1,6 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
-import type { DatasetLabel } from "./types";
+import type { DatasetLabel } from "./datasetLabelTypes";
 
 export interface GetDatasetLabelParams extends ClientFn {
   /** The global ID of the dataset label resource. */
