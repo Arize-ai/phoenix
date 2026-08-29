@@ -21,6 +21,34 @@ const client = createClient();
 const datasets = await listDatasets({ client });
 ```
 
+## Runtime Support
+
+The package root and the `datasets`, `prompts`, `projects`, `sessions`, `spans`,
+and `traces` entry points work in Node.js, browsers, React Native, and other
+runtimes with the standard Fetch APIs (`fetch`, `Request`, `Response`, and
+`Headers`).
+
+In non-Node runtimes, filesystem-backed `.env.phoenix` discovery is disabled.
+Pass configuration explicitly, including a standards-compliant `fetch`
+implementation when the runtime does not expose one globally:
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+
+const client = createClient({
+  getEnvironmentOptions: () => ({}),
+  options: {
+    baseUrl: "https://phoenix.example.com",
+    fetch: globalThis.fetch,
+  },
+});
+```
+
+The `experiments` entry point is intentionally Node-only because experiment
+execution statically loads tracing infrastructure. The `jest`, `jest/reporter`,
+`vitest`, and `vitest/reporter` entry points are also Node-only because they
+integrate with Node test runners.
+
 ## Docs And Source In `node_modules`
 
 After install, a coding agent can inspect the installed package directly:
@@ -39,14 +67,14 @@ That gives the agent version-matched docs plus the exact implementation and gene
 | `@arizeai/phoenix-client` | `createClient`, generated OpenAPI types, config helpers |
 | `@arizeai/phoenix-client/prompts` | Prompt CRUD plus `toSDK` conversion |
 | `@arizeai/phoenix-client/datasets` | Dataset creation and retrieval |
-| `@arizeai/phoenix-client/experiments` | Experiment execution and lifecycle |
+| `@arizeai/phoenix-client/experiments` | Node-only experiment execution and lifecycle |
 | `@arizeai/phoenix-client/spans` | Span search, notes, and span/document annotations |
 | `@arizeai/phoenix-client/sessions` | Session listing, retrieval, and session annotations |
 | `@arizeai/phoenix-client/traces` | Project trace retrieval and trace annotations |
-| `@arizeai/phoenix-client/vitest` | Vitest entrypoint for dataset-backed eval tests |
-| `@arizeai/phoenix-client/vitest/reporter` | Vitest reporter for Phoenix eval summaries |
-| `@arizeai/phoenix-client/jest` | Jest entrypoint for dataset-backed eval tests |
-| `@arizeai/phoenix-client/jest/reporter` | Jest reporter for Phoenix eval summaries |
+| `@arizeai/phoenix-client/vitest` | Node-only Vitest entrypoint for dataset-backed eval tests |
+| `@arizeai/phoenix-client/vitest/reporter` | Node-only Vitest reporter for Phoenix eval summaries |
+| `@arizeai/phoenix-client/jest` | Node-only Jest entrypoint for dataset-backed eval tests |
+| `@arizeai/phoenix-client/jest/reporter` | Node-only Jest reporter for Phoenix eval summaries |
 
 ## Configuration
 

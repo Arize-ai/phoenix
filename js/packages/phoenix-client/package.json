@@ -106,7 +106,8 @@
     "postpublish": "node ../../scripts/sync-package-docs.mjs clean phoenix-client",
     "prebuild": "pnpm run clean && pnpm run generate",
     "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-client",
-    "test": "vitest run",
+    "test": "vitest run && pnpm run test:non-node-builds",
+    "test:non-node-builds": "node scripts/testNonNodeBuilds.mjs",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit && tsc -p examples/tsconfig.examples.json"
   },
