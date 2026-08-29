@@ -13,16 +13,15 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize/user-interview).
 </Info>
 
-<ReleaseUpdate label="08.25.2026" href="/docs/phoenix/release-notes/08-2026/08-25-2026-pxi-browser-actions-and-retrieval-relevance" title="PXI Browser Actions, Retrieval Relevance, and REST Additions">
+<ReleaseUpdate label="08.25.2026" href="/docs/phoenix/release-notes/08-2026/08-25-2026-pxi-browser-actions-and-retrieval-relevance" title="Smarter PXI Workflows and Retrieval Evaluation">
 **Available in arize-phoenix 20.4.0+, arize-phoenix-evals 3.5.0+ (Python), @arizeai/phoenix-evals 2.3.0+ (TypeScript)**
 
-PXI discovers what your page can do and scripts it in one turn, writes through GraphQL behind an approval card, and reads Phoenix's own REST API in-process.
+Complete multi-step Phoenix workflows with PXI, evaluate retrievals from any source, and build focused trace views faster.
 
-- **Browser-action meta-tools** — `search_browser_actions` and `execute_browser_action` replace ~50 per-action tools with a sandboxed script over a documented `ui.*` catalog
-- **Approval-gated mutations** — the resolved document and variables come to you with Accept and Reject, digest-bound and durable across reloads
-- **Retrieval Relevance evaluator** — source-agnostic scoring of retrieved information in both evals SDKs
-- **Plain-English AI query for trace filters**, click a chart bin to narrow the time range, and one table column per annotation
-- **REST additions** — `PATCH /v1/projects/{id}/retention`, `GET /v1/model_providers`, and `GET /v1/custom_model_providers`
+- **PXI workflows** — combine several UI actions in one turn and approve changes before Phoenix applies them
+- **Retrieval Relevance** — score results from vector search, tools, MCP, web search, or SQL in Python and TypeScript
+- **Faster trace analysis** — write trace filters in plain English, click a chart bin to set the time range, and compare annotations in dedicated columns
+- **REST administration** — assign project retention policies and discover built-in or custom model providers
 </ReleaseUpdate>
 
 <ReleaseUpdate label="08.17.2026" href="/docs/phoenix/release-notes/08-2026/08-17-2026-trace-filters-and-analytics-sql" title="Trace Filter Expressions and Analytics SQL">
