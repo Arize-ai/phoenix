@@ -98,6 +98,13 @@ export const LIST_PROJECT_TRACES: RouteRequirement = {
   minServerVersion: [13, 15, 0],
 };
 
+export const TRANSFER_TRACES: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/traces/transfer",
+  minServerVersion: [20, 4, 0],
+};
+
 export const GET_SPANS_BY_ATTRIBUTE: ParameterRequirement = {
   kind: "parameter",
   parameterName: "attribute",
@@ -227,6 +234,7 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_SPANS_FILTERS,
   GET_SPANS_BY_ATTRIBUTE,
   LIST_PROJECT_TRACES,
+  TRANSFER_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
   ADD_TRACE_NOTE_IDENTIFIER,
   ADD_SPAN_NOTE_IDENTIFIER,
