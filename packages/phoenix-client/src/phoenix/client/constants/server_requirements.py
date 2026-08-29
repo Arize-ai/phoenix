@@ -96,3 +96,9 @@ PATCH_PROMPT = RouteRequirement(
     path="/v1/prompts/{prompt_identifier}",
     min_server_version=Version(19, 18, 0),
 )
+
+DELETE_PROMPT = RouteRequirement(
+    method="DELETE",
+    path="/v1/prompts/{prompt_identifier}",
+    min_server_version=Version(13, 20, 0),
+)
