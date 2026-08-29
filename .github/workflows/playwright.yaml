@@ -34,10 +34,35 @@ jobs:
         with:
           filters: |
             e2e:
+              # The Python backend the suite runs against, plus the
+              # dependency set `uv sync --extra container` resolves.
               - "src/**"
+              - "pyproject.toml"
+              - "uv.lock"
+              # The app under test.
               - "js/app/**"
-              - "js/packages/**"
+              # Only the workspace packages the app actually builds
+              # against, i.e. the closure of
+              # `pnpm --filter 'phoenix-ui^...' run build` (see the
+              # `pretest:e2e` script in js/app/package.json):
+              # phoenix-client and phoenix-evals, plus their transitive
+              # workspace deps phoenix-config, phoenix-otel and
+              # phoenix-testing. phoenix-cli and phoenix-mcp are
+              # downstream consumers of the workspace, not inputs to the
+              # app build, so changes there must not trigger e2e. Add a
+              # package here if the app ever starts depending on it.
+              - "js/packages/phoenix-client/**"
+              - "js/packages/phoenix-config/**"
+              - "js/packages/phoenix-evals/**"
+              - "js/packages/phoenix-otel/**"
+              - "js/packages/phoenix-testing/**"
+              # Workspace-level config that changes how the app's
+              # dependencies are resolved, installed or compiled.
+              - "js/package.json"
               - "js/pnpm-lock.yaml"
+              - "js/pnpm-workspace.yaml"
+              - "js/tsconfig.base.json"
+              - "js/tsconfig.base.esm.json"
               - ".github/workflows/playwright.yaml"
 
 
