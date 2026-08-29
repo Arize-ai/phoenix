@@ -3,7 +3,7 @@ title: "Overview"
 description: "Typed TypeScript client for Phoenix platform APIs"
 ---
 
-`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for projects, prompts, datasets, experiments, spans, sessions, traces, users, and CI-friendly dataset-backed eval tests.
+`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for projects, prompts, model providers, datasets, experiments, spans, sessions, traces, users, and CI-friendly dataset-backed eval tests.
 
 ## Install
 
@@ -39,6 +39,7 @@ That gives the agent version-matched docs plus the exact implementation and gene
 | `@arizeai/phoenix-client` | `createClient`, generated OpenAPI types, config helpers |
 | `@arizeai/phoenix-client/projects` | Project listing and retention-policy assignment |
 | `@arizeai/phoenix-client/prompts` | Prompt CRUD plus `toSDK` conversion |
+| `@arizeai/phoenix-client/modelProviders` | Server-backed built-in model-provider discovery |
 | `@arizeai/phoenix-client/datasets` | Dataset creation and retrieval |
 | `@arizeai/phoenix-client/experiments` | Experiment execution and lifecycle |
 | `@arizeai/phoenix-client/spans` | Span search, notes, and span/document annotations |
@@ -160,7 +161,7 @@ Prefer this layer when:
 
 ## Where To Start
 
-- [Projects](./projects), [Prompts](./prompts), [Datasets](./datasets), [Experiments](./experiments) — higher-level workflows
+- [Projects](./projects), [Prompts](./prompts), [Model Providers](./model-providers), [Datasets](./datasets), [Experiments](./experiments) — higher-level workflows
 - [Annotations](./annotations) — annotation concepts, then [Span](./span-annotations), [Document](./document-annotations), and [Session](./session-annotations) annotations for detailed usage
 - [CI Eval Tests](./ci-evals) — Vitest/Jest eval suites backed by Phoenix datasets and experiments
 - [Spans](./spans), [Sessions](./sessions), [Traces](./traces), [Users](./users) — retrieval and maintenance
@@ -175,6 +176,7 @@ Prefer this layer when:
     <li><code>src/types/core.ts</code></li>
     <li><code>src/projects/</code></li>
     <li><code>src/prompts/</code></li>
+    <li><code>src/modelProviders/</code></li>
     <li><code>src/datasets/</code></li>
     <li><code>src/experiments/</code></li>
     <li><code>src/spans/</code></li>

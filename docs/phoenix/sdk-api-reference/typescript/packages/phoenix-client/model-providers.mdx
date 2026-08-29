@@ -1,0 +1,52 @@
+---
+title: "Model Providers"
+description: "Discover built-in model providers enabled on a Phoenix deployment"
+---
+
+Use the model providers module to discover the built-in provider families that
+are available on a Phoenix deployment.
+
+## List Available Providers
+
+```ts
+import { getModelProviders } from "@arizeai/phoenix-client/modelProviders";
+
+const modelProviders = await getModelProviders();
+
+for (const modelProvider of modelProviders) {
+  console.log(`${modelProvider.name}: ${modelProvider.provider}`);
+}
+```
+
+Each result has a generated, typed `provider` identifier and a human-readable
+`name`. The server can narrow the response with its
+`PHOENIX_ALLOWED_PROVIDERS` configuration, and it can return an empty list.
+
+Use this server-backed result to populate provider selectors and validate user
+choices. Do not hard-code the built-in provider list when server discovery is
+available: a local list can expose providers that the deployment has disabled
+or omit providers added by a newer server.
+
+To reuse an explicitly configured client, pass it to the helper:
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+import { getModelProviders } from "@arizeai/phoenix-client/modelProviders";
+
+const client = createClient({
+  options: { baseUrl: "https://phoenix.example.com" },
+});
+const modelProviders = await getModelProviders({ client });
+```
+
+This endpoint lists built-in provider families. User-defined custom model
+providers are a separate REST resource.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/modelProviders/getModelProviders.ts</code></li>
+    <li><code>src/modelProviders/index.ts</code></li>
+    <li><code>src/__generated__/api/v1.ts</code></li>
+  </ul>
+</section>
