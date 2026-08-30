@@ -24,11 +24,7 @@ import {
   toWholePathValidFor,
 } from "./evaluatorPathCompletions";
 import type { EvaluatorSlotName } from "./evaluatorSlotDefaults";
-import {
-  getEvaluatorSlotDefault,
-  getEvaluatorSlotDefaults,
-  getEvaluatorSlotSuggestedPaths,
-} from "./evaluatorSlotDefaults";
+import { getEvaluatorSlotSuggestedPaths } from "./evaluatorSlotDefaults";
 
 /** What the badge says about a path that names something the record lacks. */
 const UNRESOLVED_PATH_MESSAGE = "No such field";
@@ -88,7 +84,6 @@ export function EvaluatorPathField({
   slotName: EvaluatorSlotName;
 }) {
   const suggestedPaths = getEvaluatorSlotSuggestedPaths(grain, slotName);
-  const slotDefault = getEvaluatorSlotDefault(grain, slotName);
 
   // CodeMirror is reconfigured whenever these change identity, which discards
   // the open dropdown, so they are memoized rather than left to the compiler.
@@ -100,7 +95,6 @@ export function EvaluatorPathField({
         grain,
         evaluatorMappingSource,
         inputMapping: UNMAPPED,
-        slotDefaults: getEvaluatorSlotDefaults(grain),
       }),
     [grain, evaluatorMappingSource]
   );
@@ -164,7 +158,7 @@ export function EvaluatorPathField({
       aria-label={ariaLabel}
       subjectLabel="path"
       leadingVisual={null}
-      placeholder={slotDefault.path}
+      placeholder={slotName}
       value={value}
       onChange={onChange}
       completions={NO_COMPLETIONS}
@@ -221,8 +215,8 @@ function createEvaluatorPathCompletionSource({
         ...(completion.section === SUGGESTED_PATH_SECTION
           ? { boost: 99 - index }
           : completion.boost != null
-            ? { boost: completion.boost }
-            : {}),
+          ? { boost: completion.boost }
+          : {}),
         section: completion.section,
         apply: (
           view: EditorView,

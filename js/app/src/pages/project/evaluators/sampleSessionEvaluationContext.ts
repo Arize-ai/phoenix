@@ -1,3 +1,4 @@
+import { SESSION_TURN_FIELDS } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import type { GenericEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { genericMetadata } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import type { EvaluatorMappingSource } from "@phoenix/types";
@@ -17,14 +18,18 @@ const TURNS = [
     output:
       "It looks like the migration is waiting on a lock. Let's check which " +
       "query is holding it.",
+    metadata: {},
     event_time: "2026-01-14T18:20:11.402000+00:00",
+    span_id: "f9c1b27fca361f90",
   },
   {
     input: "I ran the lock query and there's a long-running SELECT.",
     output:
       "Cancel that SELECT and the migration will proceed. Rerun the deploy " +
       "once it clears.",
+    metadata: {},
     event_time: "2026-01-14T18:24:47.911000+00:00",
+    span_id: "a361f90f84cb27fc",
   },
 ];
 
@@ -77,11 +82,7 @@ const GENERIC_SESSION_CONTEXT: GenericEvaluationContext<"session"> = {
     metadata: {
       ...genericMetadata("session"),
       turns: [
-        {
-          input: null,
-          output: null,
-          event_time: null,
-        },
+        Object.fromEntries(SESSION_TURN_FIELDS.map((field) => [field, null])),
       ],
     },
   },

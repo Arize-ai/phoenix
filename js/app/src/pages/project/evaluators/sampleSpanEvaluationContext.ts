@@ -94,15 +94,8 @@ const LLM_SAMPLE: SampleSpanEvaluationContext = {
   },
 };
 
-/**
- * The span a scope with no matching records is previewed against.
- *
- * `_filterCondition` is what the scope selects on; the one sample stands in for
- * every kind of span it could pick, so nothing reads it yet.
- */
-export function getSampleSpanEvaluationContext(
-  _filterCondition: string
-): SampleSpanEvaluationContext {
+/** The span a scope with no matching records is previewed against. */
+export function getSampleSpanEvaluationContext(): SampleSpanEvaluationContext {
   return LLM_SAMPLE;
 }
 

@@ -1,8 +1,5 @@
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
-import type {
-  EvaluatorSlotDefault,
-  EvaluatorSlotName,
-} from "@phoenix/components/evaluators/evaluatorSlotDefaults";
+import type { EvaluatorSlotName } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import { EVALUATOR_SLOT_NAMES } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import {
   getEvaluatorBoundVariables,
@@ -65,18 +62,15 @@ export type MaterializedEvaluatorContext = {
  * @param params.grain - record kind the editor is authoring against
  * @param params.evaluatorMappingSource - grain-tagged sampled mapping source
  * @param params.inputMapping - current evaluator input mapping
- * @param params.slotDefaults - defaults for the selected record kind
  */
 export function materializeEvaluatorContext({
   grain,
   evaluatorMappingSource,
   inputMapping,
-  slotDefaults,
 }: {
   grain: ProjectEvaluatorMappingSourceGrain;
   evaluatorMappingSource: EvaluatorMappingSourceState;
   inputMapping: EvaluatorInputMapping;
-  slotDefaults: Readonly<Record<EvaluatorSlotName, EvaluatorSlotDefault>>;
 }): MaterializedEvaluatorContext | null {
   if (evaluatorMappingSource.grain !== grain) {
     return null;
@@ -97,7 +91,6 @@ export function materializeEvaluatorContext({
       slotName,
       source,
       inputMapping,
-      slotDefault: slotDefaults[slotName],
       hasSampledRecord,
     })
   );
@@ -130,13 +123,11 @@ function materializeEvaluatorInput({
   slotName,
   source,
   inputMapping,
-  slotDefault,
   hasSampledRecord,
 }: {
   slotName: EvaluatorSlotName;
   source: Record<string, unknown>;
   inputMapping: EvaluatorInputMapping;
-  slotDefault: EvaluatorSlotDefault;
   hasSampledRecord: boolean;
 }): MaterializedEvaluatorContextEntry {
   // The server resolves paths before a literal overwrites them, and a path
@@ -164,12 +155,13 @@ function materializeEvaluatorInput({
     };
   }
 
+  // An unmapped slot binds the context key of the same name.
   return (
     mapped ??
     materializePath({
       name: slotName,
       source,
-      path: slotDefault.path,
+      path: slotName,
       hasSampledRecord,
     })
   );

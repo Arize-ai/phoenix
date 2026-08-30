@@ -33,7 +33,7 @@ describe("the binding preview", () => {
           value={["input", "output", "metadata"]}
         >
           <BindingPreview
-            context={getSampleSpanEvaluationContext("").context}
+            context={getSampleSpanEvaluationContext().context}
             grain="span"
             inputMapping={{
               pathMapping: { input: "metadata.name" },

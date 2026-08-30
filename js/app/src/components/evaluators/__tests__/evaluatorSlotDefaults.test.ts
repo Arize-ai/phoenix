@@ -13,8 +13,6 @@ import { resolveEvaluatorPath } from "../evaluatorPathCompletions";
 import type { EvaluatorSlotName } from "../evaluatorSlotDefaults";
 import {
   EVALUATOR_SLOT_NAMES,
-  getEvaluatorSlotDefault,
-  getEvaluatorSlotDefaults,
   getEvaluatorSlotSuggestedPaths,
 } from "../evaluatorSlotDefaults";
 
@@ -28,14 +26,9 @@ const genericContextFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
 
 const sampleContextFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
   (grain === "span"
-    ? getSampleSpanEvaluationContext("")
+    ? getSampleSpanEvaluationContext()
     : getSampleSessionEvaluationContext()
   ).context as unknown as Record<string, unknown>;
-
-const defaultPathsFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
-  EVALUATOR_SLOT_NAMES.map(
-    (slotName) => getEvaluatorSlotDefault(grain, slotName).path
-  );
 
 /**
  * The record path that publishes the same value a slot's identity default
@@ -73,20 +66,9 @@ const boundValue = (
       pathMapping: path ? { [slotName]: path } : {},
       literalMapping: {},
     },
-    slotDefaults: getEvaluatorSlotDefaults(grain),
   })?.values[slotName];
 
 describe("evaluator slot defaults", () => {
-  // The ghost in the field is the only place these are written down, so
-  // changing one changes what an author is told an unmapped slot will read.
-  // An unmapped slot binds the context key of its own name, so every default
-  // is that name — never a `metadata.…` path that happens to hold the same
-  // value.
-  it("names the path every slot falls back to", () => {
-    expect(defaultPathsFor("span")).toEqual(["input", "output", "metadata"]);
-    expect(defaultPathsFor("session")).toEqual(["input", "output", "metadata"]);
-  });
-
   // `input` and `output` are independent bindings whose values the record also
   // publishes under a name of its own. Saying so in the ghost is only safe
   // while the two agree, so the agreement is checked rather than assumed.
@@ -104,11 +86,11 @@ describe("evaluator slot defaults", () => {
     }
   });
 
-  // A default is shown as a path an author could have typed, so it has to be
-  // one: a ghost that resolves to nothing teaches a path that would fail.
-  it("keeps every default a path the context actually holds", () => {
+  // An unmapped slot binds the context key of its own name; the ghost shows
+  // that name as a path, so it has to be one the context actually holds.
+  it("keeps every slot name a path the context actually holds", () => {
     for (const grain of GRAINS) {
-      for (const path of defaultPathsFor(grain)) {
+      for (const path of EVALUATOR_SLOT_NAMES) {
         expect(
           resolveEvaluatorPath({ source: genericContextFor(grain), path })
         ).toMatchObject({ status: "resolved" });

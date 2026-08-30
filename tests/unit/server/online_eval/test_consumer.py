@@ -51,6 +51,7 @@ from phoenix.server.dml_event import (
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
+from phoenix.server.online_eval import session_policy as session_policy_module
 from phoenix.server.online_eval.bound_variables import (
     SESSION_BOUND_VARIABLE_NAMES,
     SESSION_METADATA_FIELD_NAMES,
@@ -90,7 +91,6 @@ from phoenix.server.online_eval.project_evaluator_resolution import (
 from phoenix.server.online_eval.session_policy import (
     MAX_SESSION_EVAL_TURNS,
     SESSION_POLICY_VERSION,
-    SessionEvalPolicy,
 )
 from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
 from phoenix.server.online_eval.tracing import (
@@ -645,8 +645,10 @@ async def test_span_eval_context_lays_the_record_flat_under_metadata(
         context = span_eval_context(span, trace_id=trace.trace_id, annotations=[annotation])
 
     assert set(context) == {"input", "output", "metadata"}
-    assert context["input"] == "span input"
-    assert context["output"] == "span output"
+    # The example conversion's own shape, verbatim — a span and the dataset
+    # example made from it bind identical input/output.
+    assert context["input"] == {"input": "span input"}
+    assert context["output"] == {"output": "span output"}
     metadata = context["metadata"]
     # The span's own metadata attribute spreads flat, under the reserved names.
     assert set(metadata) == SPAN_BOUND_VARIABLE_NAMES | SPAN_METADATA_FIELD_NAMES | {"user"}
@@ -812,28 +814,16 @@ async def test_incomplete_session_hydration_expires_without_counting_attempt(
     assert await _session_annotations(db) == []
 
 
-def _unsaved_project_session(
-    *,
-    session_id: str = "session-under-test",
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-) -> models.ProjectSession:
-    start_time = start_time or datetime.now(timezone.utc)
-    return models.ProjectSession(
-        session_id=session_id,
-        project_id=1,
-        start_time=start_time,
-        end_time=end_time or (start_time + timedelta(seconds=2)),
+def _session_vocabulary(**overrides: Any) -> dict[str, Any]:
+    """A full session vocabulary, the shape `load_session_bound_variables` returns."""
+    return (
+        {name: None for name in SESSION_BOUND_VARIABLE_NAMES}
+        | {"start_time": "2026-01-01T00:00:00+00:00", "end_time": "2026-01-01T00:00:02+00:00"}
+        | overrides
     )
 
 
-def _session_vocabulary(**overrides: Any) -> dict[str, Any]:
-    """A full session vocabulary, the shape `load_session_bound_variables` returns."""
-    return {name: None for name in SESSION_BOUND_VARIABLE_NAMES} | overrides
-
-
 def test_session_eval_context_lays_the_record_flat_under_metadata() -> None:
-    project_session = _unsaved_project_session()
     turns = [
         {
             "input": f"question-{index}",
@@ -845,9 +835,7 @@ def test_session_eval_context_lays_the_record_flat_under_metadata() -> None:
     ]
 
     loaded = session_eval_context(
-        project_session=project_session,
         turns=turns,
-        policy=SessionEvalPolicy(),
         vocabulary=_session_vocabulary(first_input="question-0", last_output="answer-2"),
         total_eligible_root_count=5,
     )
@@ -857,8 +845,8 @@ def test_session_eval_context_lays_the_record_flat_under_metadata() -> None:
     assert loaded.context["output"] == "answer-2"
     metadata = loaded.context["metadata"]
     assert set(metadata) == SESSION_BOUND_VARIABLE_NAMES | SESSION_METADATA_FIELD_NAMES
-    assert metadata["start_time"] == project_session.start_time.isoformat()
-    assert metadata["end_time"] == project_session.end_time.isoformat()
+    assert metadata["start_time"] == "2026-01-01T00:00:00+00:00"
+    assert metadata["end_time"] == "2026-01-01T00:00:02+00:00"
     assert metadata["turns"] == turns
     assert loaded.applied_policy == {
         "version": SESSION_POLICY_VERSION,
@@ -872,9 +860,7 @@ def test_session_eval_context_lays_the_record_flat_under_metadata() -> None:
     }
 
     empty = session_eval_context(
-        project_session=project_session,
         turns=[],
-        policy=SessionEvalPolicy(),
         vocabulary=_session_vocabulary(),
     )
     assert empty.context["input"] is None
@@ -933,7 +919,7 @@ async def test_load_session_bound_variables_reads_filter_language_values(
         )
 
     populated = resolved[project_session.id]
-    assert set(populated) == set(SESSION_BOUND_VARIABLE_NAMES)
+    assert set(populated) == set(SESSION_BOUND_VARIABLE_NAMES) | {"start_time", "end_time"}
     assert populated["session_id"] == project_session.session_id
     assert populated["duration_ms"] == 3000.0
     assert populated["first_input"] == "first question"
@@ -1004,7 +990,9 @@ async def test_unmapped_input_binds_the_span_input_value(
     await consumer._cycle()
 
     assert len(client.requests) == 1
-    assert client.requests[0]["messages"][0]["content"] == "hi"
+    # The unmapped slot binds the example conversion's dict; the bare value
+    # stays reachable as `input.input`.
+    assert client.requests[0]["messages"][0]["content"] == '{"input": "hi"}'
     assert len(await _annotations(db)) == 1
 
 
@@ -1357,11 +1345,7 @@ async def test_configuration_snapshot_is_discarded_after_claim_batch(
 async def test_session_happy_path_builds_context_annotates_and_emits_insert_event(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        executor_module,
-        "SessionEvalPolicy",
-        lambda: SessionEvalPolicy(max_turns=2),
-    )
+    monkeypatch.setattr(session_policy_module, "MAX_SESSION_EVAL_TURNS", 2)
     start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
         project = await _add_project(session)

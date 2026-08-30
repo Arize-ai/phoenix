@@ -52,6 +52,7 @@ from phoenix.server.dml_event import (
     ProjectSessionAnnotationInsertEvent,
     SpanAnnotationInsertEvent,
 )
+from phoenix.server.online_eval import session_policy
 from phoenix.server.online_eval.bound_variables import load_session_bound_variables
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit, EvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
@@ -62,7 +63,6 @@ from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.session_policy import (
     ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
-    SessionEvalPolicy,
     session_project_evaluator_is_schedulable,
 )
 from phoenix.server.online_eval.tracing import (
@@ -187,12 +187,6 @@ class SessionEvalContext:
     applied_policy: dict[str, Any]
 
 
-def _plain_io_value(extracted: dict[str, Any], kind: Literal["input", "output"]) -> Any:
-    if set(extracted) == {kind}:
-        return extracted[kind]
-    return extracted or None
-
-
 def span_eval_context(
     span: models.Span,
     *,
@@ -202,24 +196,24 @@ def span_eval_context(
     """Span context, sharing the span→dataset-example conversion so an
     evaluator sees the same values on a span and on the example made from it."""
     return {
-        "input": _plain_io_value(get_dataset_example_input(span), "input"),
-        "output": _plain_io_value(get_dataset_example_output(span), "output"),
+        "input": get_dataset_example_input(span),
+        "output": get_dataset_example_output(span),
         "metadata": get_dataset_example_metadata(span, trace_id=trace_id, annotations=annotations),
     }
 
 
 def session_eval_context(
     *,
-    project_session: models.ProjectSession,
     turns: Sequence[dict[str, Any]],
-    policy: SessionEvalPolicy,
     vocabulary: Mapping[str, Any],
     total_eligible_root_count: Optional[int] = None,
 ) -> SessionEvalContext:
     """Session context. ``input`` and ``output`` bind the values the session filter
     language spells ``first_input`` and ``last_output``, so one concept keeps one
     spelling across a filter, a preview, and an evaluation. ``vocabulary`` must
-    carry every name in ``SESSION_BOUND_VARIABLE_NAMES``.
+    carry every name in ``SESSION_BOUND_VARIABLE_NAMES`` plus the session's
+    ``start_time``/``end_time`` record fields, as ``load_session_bound_variables``
+    returns it.
 
     The applied policy is returned beside the context rather than inside it: it is
     published on the annotation, not bound by the evaluator, and every top-level
@@ -229,9 +223,9 @@ def session_eval_context(
         len(turns) if total_eligible_root_count is None else total_eligible_root_count
     )
     applied_policy = {
-        "version": policy.version,
+        "version": session_policy.SESSION_POLICY_VERSION,
         "ordering": "trace_start_time_then_trace_id_with_earliest_root_span",
-        "max_turns": policy.max_turns,
+        "max_turns": session_policy.MAX_SESSION_EVAL_TURNS,
         "total_eligible_root_count": total_root_count,
         "loaded_turn_count": len(turns),
         "turn_cap_omitted_count": max(0, total_root_count - len(turns)),
@@ -244,8 +238,6 @@ def session_eval_context(
             "output": vocabulary["last_output"],
             "metadata": {
                 **vocabulary,
-                "start_time": project_session.start_time.isoformat(),
-                "end_time": project_session.end_time.isoformat(),
                 "turns": list(turns),
             },
         },
@@ -258,7 +250,6 @@ async def load_session_eval_context(
     *,
     project_session_rowid: int,
     project_id: int,
-    policy: SessionEvalPolicy,
     vocabulary: Mapping[str, Any],
 ) -> SessionEvalContext:
     """The session's evaluation context, exactly as an online evaluation reads it.
@@ -268,9 +259,6 @@ async def load_session_eval_context(
     binds against. ``vocabulary`` is supplied by the caller because the executor
     reads it for a whole batch of sessions at once.
     """
-    project_session = await session.get(models.ProjectSession, project_session_rowid)
-    if project_session is None:
-        raise ValueError(f"Project session {project_session_rowid} no longer exists")
     root_filters = (
         models.Trace.project_session_rowid == project_session_rowid,
         models.Trace.project_rowid == project_id,
@@ -323,7 +311,7 @@ async def load_session_eval_context(
                 ranked_roots.c.trace_start_time.desc(),
                 ranked_roots.c.trace_id.desc(),
             )
-            .limit(policy.max_turns)
+            .limit(session_policy.MAX_SESSION_EVAL_TURNS)
         )
     ).all()
     turns = [
@@ -337,9 +325,7 @@ async def load_session_eval_context(
         for row in reversed(root_rows)
     ]
     return session_eval_context(
-        project_session=project_session,
         turns=turns,
-        policy=policy,
         vocabulary=vocabulary,
         total_eligible_root_count=total_eligible_root_count,
     )
@@ -410,7 +396,6 @@ class OnlineEvalExecutor:
         self._tracer_factory = tracer_factory
         self._execution_deadline_seconds = execution_deadline_seconds
         self._db_semaphore = db_semaphore
-        self._session_policy = SessionEvalPolicy()
 
     async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
         configuration = (await self.hydrate_configuration_snapshots([unit]))[0]
@@ -722,7 +707,6 @@ class OnlineEvalExecutor:
             session,
             project_session_rowid=project_session.id,
             project_id=project_id,
-            policy=self._session_policy,
             vocabulary=session_vocabularies[unit.target_rowid],
         )
         if not has_eligible_root_turns(loaded.applied_policy):

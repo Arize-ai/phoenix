@@ -71,7 +71,7 @@ describe("a project evaluator's stored literal mapping", () => {
               isBuiltin: false,
               includeExplanation: false,
               inputMapping: {
-                pathMapping: { input: "metadata.span.input_value" },
+                pathMapping: { input: "metadata.attributes.input.value" },
                 literalMapping: { output: "pinned", metadata: 7 },
               },
             },
@@ -95,12 +95,12 @@ describe("a project evaluator's stored literal mapping", () => {
     expect(store).not.toBeNull();
 
     await act(async () => {
-      setPath?.("metadata.span.output_value");
+      setPath?.("metadata.attributes.output.value");
     });
 
     const { inputMapping } = store!.getState().evaluator;
     expect(inputMapping.pathMapping).toEqual({
-      input: "metadata.span.output_value",
+      input: "metadata.attributes.output.value",
     });
     expect(inputMapping.literalMapping).toEqual({
       output: "pinned",

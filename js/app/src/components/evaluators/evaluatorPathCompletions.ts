@@ -10,6 +10,7 @@ import {
   parsePathSegmentRanges,
   unescapeQuotedPathKey,
 } from "@phoenix/utils/objectUtils";
+import { TYPEAHEAD_COMPLETION_CLASS_PREFIX } from "@phoenix/components/filter/styles";
 
 /** A member name being typed, up to and including the empty one. */
 const PARTIAL_MEMBER_PATTERN = /^(?:[A-Za-z_][A-Za-z0-9_]*)?$/;
@@ -212,7 +213,7 @@ export function reachEvaluatorContainerPath({
  * branch to drill into rather than a value to read.
  */
 /** A row that can be drilled with `.` — styled with a trailing chevron. */
-export const CONTAINER_COMPLETION_TYPE = "typeahead-completion--container";
+export const CONTAINER_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}container`;
 
 export function toMemberCompletionType(value: unknown): string {
   return Array.isArray(value) || isStringKeyedObject(value)

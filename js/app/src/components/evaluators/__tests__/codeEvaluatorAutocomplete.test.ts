@@ -10,7 +10,6 @@ import {
   isAtEmptySignatureName,
 } from "../codeEvaluatorAutocomplete";
 import { materializeEvaluatorContext } from "../evaluatorContext";
-import { getEvaluatorSlotDefaults } from "../evaluatorSlotDefaults";
 
 describe("createCompletionOptions", () => {
   const mappingSource = {
@@ -110,7 +109,6 @@ describe("code evaluator completions", () => {
       },
     },
     inputMapping: { pathMapping: {}, literalMapping: {} },
-    slotDefaults: getEvaluatorSlotDefaults("span"),
   });
   const spanMappingSource = { input: "Why?", output: "Because.", metadata: {} };
 
@@ -207,7 +205,6 @@ describe("code evaluator signature completions", () => {
       },
     },
     inputMapping: { pathMapping: {}, literalMapping: {} },
-    slotDefaults: getEvaluatorSlotDefaults("span"),
   });
   const spanMappingSource = { input: "Why?", output: "Because.", metadata: {} };
   const datasetMappingSource = {

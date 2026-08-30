@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 
 import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
-import { getEvaluatorSlotDefaults } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import { TemplateEvaluatorContextProvider } from "@phoenix/components/templateEditor/TemplateEvaluatorContext";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -41,7 +40,6 @@ export const EvaluatorChatTemplate = () => {
           grain,
           evaluatorMappingSource,
           inputMapping,
-          slotDefaults: getEvaluatorSlotDefaults(grain),
         });
   }, [evaluatorMappingSource, inputMapping]);
   return (

@@ -87,7 +87,6 @@ import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorI
 import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
-import { getEvaluatorSlotDefaults } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import { OptimizationDirectionField } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
@@ -150,7 +149,9 @@ export const EditCodeEvaluatorDialogContent = ({
   evaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
-  const grain = useEvaluatorStore((state) => state.evaluatorMappingSource.grain);
+  const grain = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource.grain
+  );
   const [showValidationError, setShowValidationError] = useState(false);
   const [sourceCode, setSourceCode] = useState(initialSourceCode);
   const [language, setLanguage] =
@@ -491,8 +492,8 @@ export const EditCodeEvaluatorDialogContent = ({
       selectedSandboxConfigId != null
         ? selectedSandboxConfigId
         : mode === "create" || hasSandboxChanged
-          ? null
-          : undefined;
+        ? null
+        : undefined;
     return onSubmit({
       language,
       sourceCode,
@@ -864,7 +865,6 @@ export const CodeEvaluatorSourceEditor = ({
           grain,
           evaluatorMappingSource: evaluatorMappingSourceState,
           inputMapping,
-          slotDefaults: getEvaluatorSlotDefaults(grain),
         });
   }, [evaluatorMappingSourceState, inputMapping]);
 
@@ -1189,11 +1189,11 @@ const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
   }
 
   const threshold =
-    "threshold" in outputConfig ? (outputConfig.threshold ?? null) : null;
+    "threshold" in outputConfig ? outputConfig.threshold ?? null : null;
   const lowerBound =
-    "lowerBound" in outputConfig ? (outputConfig.lowerBound ?? null) : null;
+    "lowerBound" in outputConfig ? outputConfig.lowerBound ?? null : null;
   const upperBound =
-    "upperBound" in outputConfig ? (outputConfig.upperBound ?? null) : null;
+    "upperBound" in outputConfig ? outputConfig.upperBound ?? null : null;
   const optimizationDirection = outputConfig.optimizationDirection;
   const isThresholdDisabled = optimizationDirection === "NONE";
 
@@ -1201,8 +1201,8 @@ const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
     optimizationDirection === "MAXIMIZE"
       ? "Scores at or above this value display as good; lower scores display as bad."
       : optimizationDirection === "MINIMIZE"
-        ? "Scores at or below this value display as good; higher scores display as bad."
-        : "Combined with the optimization direction, this is the cutoff used to visually distinguish “good” from “bad” scores.";
+      ? "Scores at or below this value display as good; higher scores display as bad."
+      : "Combined with the optimization direction, this is the cutoff used to visually distinguish “good” from “bad” scores.";
 
   return (
     <Flex direction="column" gap="size-200">

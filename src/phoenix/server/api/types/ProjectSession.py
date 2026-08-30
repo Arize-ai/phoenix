@@ -163,7 +163,6 @@ class ProjectSession(Node):
             has_eligible_root_turns,
             load_session_eval_context,
         )
-        from phoenix.server.online_eval.session_policy import SessionEvalPolicy
 
         async with info.context.db.read() as session:
             project_session = await session.get(models.ProjectSession, self.id)
@@ -185,7 +184,6 @@ class ProjectSession(Node):
                 session,
                 project_session_rowid=self.id,
                 project_id=project_session.project_id,
-                policy=SessionEvalPolicy(),
                 vocabulary=vocabularies[self.id],
             )
         if not has_eligible_root_turns(loaded.applied_policy):

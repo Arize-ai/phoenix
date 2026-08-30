@@ -57,6 +57,12 @@ SPAN_METADATA_FIELD_NAMES = frozenset(
 )
 SESSION_METADATA_FIELD_NAMES = frozenset({"start_time", "end_time", "turns"})
 
+# Entry shapes inside two of the containers above, mirrored the same way.
+SPAN_ANNOTATION_ENTRY_FIELD_NAMES = frozenset(
+    {"label", "score", "explanation", "metadata", "annotator_kind", "user_id", "username", "email"}
+)
+SESSION_TURN_FIELD_NAMES = frozenset({"input", "output", "metadata", "event_time", "span_id"})
+
 
 def session_duration_ms(start_time: datetime, end_time: datetime) -> float:
     """A session's wall-clock duration, rounded the way the filter language rounds it."""
@@ -70,9 +76,10 @@ async def load_session_bound_variables(
 ) -> dict[int, dict[str, Any]]:
     """Session vocabulary values for a batch of sessions, keyed by session row id.
 
-    Every name in ``SESSION_BOUND_VARIABLE_NAMES`` is loaded, so a caller cannot
-    hand a context builder a vocabulary short of the names it binds. Aggregates
-    sharing one builder are answered for the whole batch in a single statement.
+    Every name in ``SESSION_BOUND_VARIABLE_NAMES`` is loaded, plus the session's
+    ``start_time``/``end_time`` record fields, so a caller cannot hand a context
+    builder a vocabulary short of the names it binds. Aggregates sharing one
+    builder are answered for the whole batch in a single statement.
     """
     rowids = sorted(set(project_session_rowids))
     resolved: dict[int, dict[str, Any]] = {rowid: {} for rowid in rowids}
@@ -89,6 +96,8 @@ async def load_session_bound_variables(
     for rowid, session_id, start_time, end_time in session_rows:
         resolved[rowid]["session_id"] = session_id
         resolved[rowid]["duration_ms"] = session_duration_ms(start_time, end_time)
+        resolved[rowid]["start_time"] = start_time.isoformat()
+        resolved[rowid]["end_time"] = end_time.isoformat()
     for io_name in _ROOT_SPAN_IO_NAMES:
         io_rows = await session.execute(root_span_io_value_by_session(io_name, keys=rowids))
         for rowid, value in io_rows:

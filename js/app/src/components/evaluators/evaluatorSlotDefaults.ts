@@ -10,36 +10,6 @@ type BySlot<T> = Record<
   Record<EvaluatorSlotName, T>
 >;
 
-/**
- * What a slot reads when its own path is left empty, written as a path the
- * author could have typed themselves — so the ghost text in the field is in
- * the same notation as anything they would replace it with.
- */
-export type EvaluatorSlotDefault = { path: string };
-
-/**
- * Each slot's default, as the field's ghost text shows it.
- *
- * An unmapped slot stores nothing and binds the context key of the same name,
- * so every default is that key itself. `input` and `output` are independent
- * bindings the context carries at its top level, not shorthand for a record
- * field, and the ghost says so rather than naming a `metadata.…` path that
- * happens to hold the same value. Which record field each one came from is
- * taught by the sampled value beside the row, not by the default.
- */
-const SLOT_DEFAULTS: BySlot<EvaluatorSlotDefault> = {
-  span: {
-    input: { path: "input" },
-    output: { path: "output" },
-    metadata: { path: "metadata" },
-  },
-  session: {
-    input: { path: "input" },
-    output: { path: "output" },
-    metadata: { path: "metadata" },
-  },
-};
-
 /** A pinned example path and the one line shown beside it when highlighted. */
 export type EvaluatorSlotSuggestedPath = {
   path: string;
@@ -106,20 +76,6 @@ const SLOT_SUGGESTED_PATHS: BySlot<readonly EvaluatorSlotSuggestedPath[]> = {
     metadata: [],
   },
 };
-
-export function getEvaluatorSlotDefault(
-  grain: ProjectEvaluatorMappingSourceGrain,
-  slotName: EvaluatorSlotName
-): EvaluatorSlotDefault {
-  return SLOT_DEFAULTS[grain][slotName];
-}
-
-/** All slot defaults for one project-evaluator record kind. */
-export function getEvaluatorSlotDefaults(
-  grain: ProjectEvaluatorMappingSourceGrain
-): Readonly<Record<EvaluatorSlotName, EvaluatorSlotDefault>> {
-  return SLOT_DEFAULTS[grain];
-}
 
 export function getEvaluatorSlotSuggestedPaths(
   grain: ProjectEvaluatorMappingSourceGrain,

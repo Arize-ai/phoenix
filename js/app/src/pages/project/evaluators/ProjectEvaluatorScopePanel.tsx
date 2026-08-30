@@ -49,7 +49,6 @@ import { buildEvaluatorContextCandidates } from "@phoenix/components/evaluators/
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import {
   EVALUATOR_SLOT_NAMES,
-  getEvaluatorSlotDefaults,
   type EvaluatorSlotName,
 } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import {
@@ -83,14 +82,8 @@ import {
   type ProjectEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import {
-  getGenericSessionEvaluationContext,
-  getSampleSessionEvaluationContext,
-} from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
-import {
-  getGenericSpanEvaluationContext,
-  getSampleSpanEvaluationContext,
-} from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
+import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
+import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import type {
   CodeEvaluatorLanguage,
   EvaluatorInputMapping,
@@ -734,7 +727,6 @@ function SessionRunList({
           key: SAMPLE_ROW_KEY,
           name: "Sample session",
           context: sample.context,
-          mappingContext: getGenericSessionEvaluationContext().context,
           isSample: true,
         },
       ]
@@ -790,12 +782,6 @@ type RecordedRunListRow = {
   /** Prefixes the card title on a span row; a session has no kind. */
   spanKind?: string;
   context: unknown;
-  /**
-   * What authoring builds against instead of `context`. A sample row sets this
-   * to the grain's generic no-values skeleton so completion and the bindings
-   * list read the schema, never the invented demo data.
-   */
-  mappingContext?: unknown;
   isSample: boolean;
   /** An at-a-glance measure of the record, such as a session's trace count. */
   metric?: string;
@@ -886,8 +872,7 @@ function SpanRunList({
     { fetchPolicy: "store-and-network" }
   );
   const spans = data.project?.spans?.edges.map(({ span }) => span) ?? [];
-  const sample =
-    spans.length === 0 ? getSampleSpanEvaluationContext(filterCondition) : null;
+  const sample = spans.length === 0 ? getSampleSpanEvaluationContext() : null;
   const rows: RecordedRunListRow[] = spans.length
     ? spans.map((span) => ({
         key: span.id,
@@ -903,7 +888,6 @@ function SpanRunList({
           name: `Sample ${sample.spanKind} span`,
           spanKind: sample.spanKind.toLowerCase(),
           context: sample.context,
-          mappingContext: getGenericSpanEvaluationContext().context,
           isSample: true,
         },
       ]
@@ -990,8 +974,8 @@ function RecordedRunList({
     [activeRowContext]
   );
   const syncMappingSource = useEffectEvent(() => {
-    const context = activeRow?.mappingContext ?? activeRow?.context;
-    if (context && hasEvaluatorMappingSourceShape(context)) {
+    const context = activeRow?.context;
+    if (hasEvaluatorMappingSourceShape(context)) {
       evaluatorStore.getState().setEvaluatorMappingSource(context);
     }
   });
@@ -1169,7 +1153,7 @@ function RecordedRunRow({
                   <TabPanel id="values">
                     <Flex direction="column" gap="size-200">
                       <BindingPreview
-                        context={row.mappingContext ?? row.context}
+                        context={row.context}
                         grain={recordNoun}
                         inputMapping={inputMapping}
                         requiredVariables={requiredVariables}
@@ -1336,7 +1320,6 @@ export function BindingPreview({
         grain,
         evaluatorMappingSource: { grain, source: context },
         inputMapping,
-        slotDefaults: getEvaluatorSlotDefaults(grain),
       })
     : null;
   const slotRows: BindingRow[] =
@@ -1695,19 +1678,14 @@ function getLatestMessageText(value: unknown): string | null {
 
 /**
  * Span and session contexts share this shape, so this cannot tell them apart —
- * the store's grain does. Only `metadata` is guaranteed to be an object by the
- * server context shape; `input`/`output` are raw attribute values.
+ * the store's grain does, and the store also decides what of `metadata` to
+ * keep. Only `metadata` is guaranteed to be an object by the server context
+ * shape; `input`/`output` are raw attribute values.
  */
 function hasEvaluatorMappingSourceShape(
   value: unknown
 ): value is EvaluatorMappingSource<"span" | "session"> {
-  if (!isStringKeyedObject(value) || !isStringKeyedObject(value.metadata)) {
-    return false;
-  }
-  const { metadata } = value;
-  return (
-    isStringKeyedObject(metadata.attributes) || Array.isArray(metadata.turns)
-  );
+  return isStringKeyedObject(value) && isStringKeyedObject(value.metadata);
 }
 
 function useEvaluatorPreviewRuns({

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import {
+  SESSION_TURN_FIELDS,
+  SPAN_ANNOTATION_FIELDS,
+  getEvaluatorMetadataEntries,
+} from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
   getGenericSessionEvaluationContext,
@@ -16,10 +20,7 @@ import type {
 } from "@phoenix/types";
 
 import { materializeEvaluatorContext } from "../evaluatorContext";
-import {
-  EVALUATOR_SLOT_NAMES,
-  getEvaluatorSlotDefaults,
-} from "../evaluatorSlotDefaults";
+import { EVALUATOR_SLOT_NAMES } from "../evaluatorSlotDefaults";
 
 const UNMAPPED: EvaluatorInputMapping = { pathMapping: {}, literalMapping: {} };
 
@@ -42,7 +43,6 @@ describe("materializeEvaluatorContext", () => {
         pathMapping: { input: "metadata.attributes.input.value" },
         literalMapping: {},
       },
-      slotDefaults: getEvaluatorSlotDefaults("span"),
     });
 
     expect(spanContext?.evaluatorInputs).toMatchObject([
@@ -89,7 +89,6 @@ describe("materializeEvaluatorContext", () => {
         },
       },
       inputMapping: UNMAPPED,
-      slotDefaults: getEvaluatorSlotDefaults("session"),
     });
 
     // An unmapped slot binds the context key of its own name, so its
@@ -115,7 +114,6 @@ describe("materializeEvaluatorContext", () => {
         source: getGenericSpanEvaluationContext().context,
       },
       inputMapping: UNMAPPED,
-      slotDefaults: getEvaluatorSlotDefaults("span"),
     });
 
     expect(genericContext).toMatchObject({
@@ -151,7 +149,6 @@ describe("materializeEvaluatorContext", () => {
         pathMapping: { input: "metadata.attributes.nonexistent" },
         literalMapping: { input: "pinned" },
       },
-      slotDefaults: getEvaluatorSlotDefaults("span"),
     });
 
     expect(context?.evaluatorInputs[0]).toMatchObject({
@@ -177,7 +174,6 @@ describe("materializeEvaluatorContext", () => {
         pathMapping: { input: "metadata.attributes.input.value" },
         literalMapping: { input: "pinned" },
       },
-      slotDefaults: getEvaluatorSlotDefaults("span"),
     });
 
     expect(context?.evaluatorInputs[0]).toMatchObject({
@@ -197,7 +193,6 @@ describe("materializeEvaluatorContext", () => {
           source: { input: null, output: null, metadata: {} },
         },
         inputMapping: UNMAPPED,
-        slotDefaults: getEvaluatorSlotDefaults("span"),
       })
     ).toBeNull();
   });
@@ -219,7 +214,7 @@ describe("the preview binds what a live run binds", () => {
     {
       label: "sample span",
       grain: "span",
-      source: getSampleSpanEvaluationContext("").context,
+      source: getSampleSpanEvaluationContext().context,
       isSampled: true,
     },
     {
@@ -252,7 +247,6 @@ describe("the preview binds what a live run binds", () => {
             ? { grain, source: source as EvaluatorMappingSource<"span"> }
             : { grain, source: source as EvaluatorMappingSource<"session"> },
         inputMapping: UNMAPPED,
-        slotDefaults: getEvaluatorSlotDefaults(grain),
       });
 
       const metadataNames = getEvaluatorMetadataEntries(grain).map(
@@ -273,6 +267,45 @@ describe("the preview binds what a live run binds", () => {
         metadataNames.map((name) => `metadata.${name}`)
       );
       expect(materialized?.hasSampledRecord).toBe(isSampled);
+      // Declared types drive the container badge and the generic skeleton's
+      // placeholders, so a sampled value has to actually be that type.
+      if (isSampled) {
+        for (const { name, type } of getEvaluatorMetadataEntries(grain)) {
+          const value = source.metadata[name];
+          if (value === null) {
+            continue; // a scalar the sampled record legitimately lacks
+          }
+          if (type === "object") {
+            expect(value, `metadata.${name}`).toBeTypeOf("object");
+            expect(Array.isArray(value), `metadata.${name}`).toBe(false);
+          } else if (type === "list") {
+            expect(Array.isArray(value), `metadata.${name}`).toBe(true);
+          } else if (type === "number") {
+            expect(value, `metadata.${name}`).toBeTypeOf("number");
+          } else {
+            expect(value, `metadata.${name}`).toBeTypeOf("string");
+          }
+        }
+      }
+      // Entry shapes inside the containers mirror the server's constants.
+      const turns = source.metadata.turns;
+      if (Array.isArray(turns)) {
+        for (const turn of turns) {
+          expect(Object.keys(turn as object).sort()).toEqual(
+            [...SESSION_TURN_FIELDS].sort()
+          );
+        }
+      }
+      const annotations = source.metadata.annotations;
+      if (annotations && typeof annotations === "object") {
+        for (const entries of Object.values(annotations)) {
+          for (const entry of entries as object[]) {
+            expect(Object.keys(entry).sort()).toEqual(
+              [...SPAN_ANNOTATION_FIELDS].sort()
+            );
+          }
+        }
+      }
     }
   );
 });

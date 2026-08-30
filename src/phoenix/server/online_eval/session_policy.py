@@ -83,32 +83,15 @@ def session_project_evaluator_is_schedulable(
     )
 
 
-@dataclass(frozen=True)
-class SessionEvalPolicy:
-    """What a session evaluation loads, and under which version of that rule.
+def session_policy_fingerprint() -> str:
+    """Identity of the session policy in force, for the config fingerprint.
 
-    Both fields come from module constants and no deployment setting overrides
-    them, so every process in a deployment runs the same policy and two replicas
-    cannot disagree about what a session evaluation loads. Bumping ``version``
-    is what expires pending session work, so old and new results never share an
-    annotation identifier.
+    Bumping ``SESSION_POLICY_VERSION`` is what expires pending session work, so
+    old and new results never share an annotation identifier.
     """
-
-    max_turns: int = MAX_SESSION_EVAL_TURNS
-    version: str = SESSION_POLICY_VERSION
-
-    @property
-    def fingerprint(self) -> str:
-        """Identity of the session policy in force, for the config fingerprint.
-
-        Fixed for a given build, since both inputs are constants. It stays a
-        derived hash rather than the version string because the config
-        fingerprint keys on it, so a field that does vary can be added here
-        without changing either end.
-        """
-        payload = {
-            "policy_version": self.version,
-            "max_turns": self.max_turns,
-        }
-        serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    payload = {
+        "policy_version": SESSION_POLICY_VERSION,
+        "max_turns": MAX_SESSION_EVAL_TURNS,
+    }
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()

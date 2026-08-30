@@ -3,7 +3,6 @@ import type { EditorView } from "@uiw/react-codemirror";
 import { describe, expect, it } from "vitest";
 
 import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
-import { getEvaluatorSlotDefaults } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 import {
@@ -44,7 +43,6 @@ function buildContext(grain: ProjectEvaluatorMappingSourceGrain) {
         ? { grain, source: { input: "Why?", output: "Because.", metadata } }
         : { grain, source: { input: "Hello", output: "Because.", metadata } },
     inputMapping: { pathMapping: {}, literalMapping: {} },
-    slotDefaults: getEvaluatorSlotDefaults(grain),
   });
 }
 

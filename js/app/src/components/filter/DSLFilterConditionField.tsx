@@ -59,6 +59,7 @@ import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
   dslFilterFieldCSS,
+  toTypeaheadCompletionClass,
 } from "./styles";
 import { typeaheadTooltips } from "./typeaheadTooltip";
 
@@ -672,9 +673,7 @@ export function DSLFilterConditionField<
         optionClass: (completion) =>
           completion.type === "text"
             ? "dsl-filter-suggestion"
-            : completion.type?.startsWith("typeahead-completion--")
-            ? completion.type
-            : "",
+            : toTypeaheadCompletionClass(completion.type),
       }),
     ];
   }, [

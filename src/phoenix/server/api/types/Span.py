@@ -290,9 +290,6 @@ class Span(Node):
         self,
         info: Info[Context, None],
     ) -> JSON:
-        return JSON(await self._evaluation_context(info))
-
-    async def _evaluation_context(self, info: Info[Context, None]) -> dict[str, Any]:
         from phoenix.server.online_eval.executor import span_eval_context
 
         span = (
@@ -304,7 +301,7 @@ class Span(Node):
             (self.id, models.Trace.trace_id),
         )
         annotations = await info.context.data_loaders.span_annotations.load(self.id)
-        return span_eval_context(span, trace_id=trace_id, annotations=annotations)
+        return JSON(span_eval_context(span, trace_id=trace_id, annotations=annotations))
 
     @strawberry.field(
         description="Span attributes as a JSON string",

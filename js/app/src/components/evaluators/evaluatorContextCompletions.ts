@@ -12,6 +12,10 @@ import {
   resolveEvaluatorPath,
   toMemberPreview,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import {
+  TYPEAHEAD_COMPLETION_CLASS_PREFIX,
+  toTypeaheadCompletionClass,
+} from "@phoenix/components/filter/styles";
 
 /** The three inputs every evaluator receives, in slot order. */
 export const EVALUATOR_INPUT_SECTION: CompletionSection = {
@@ -29,16 +33,14 @@ export const RECORD_SECTION_BY_GRAIN: Record<
 };
 
 /** A row for a name the selected record does not supply; dimmed, not dropped. */
-export const UNSET_COMPLETION_TYPE = "typeahead-completion--unset";
+export const UNSET_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}unset`;
 
 /** A row whose detail reads as prose rather than as a value. */
-export const HINT_COMPLETION_TYPE = "typeahead-completion--hint";
+export const HINT_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}hint`;
 
 /** The row class the shared typeahead chrome styles a completion with. */
 export function toEvaluatorCompletionClass(completion: Completion): string {
-  return completion.type?.startsWith("typeahead-completion--")
-    ? completion.type
-    : "";
+  return toTypeaheadCompletionClass(completion.type);
 }
 
 /**

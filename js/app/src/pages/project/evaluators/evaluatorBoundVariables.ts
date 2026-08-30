@@ -85,6 +85,47 @@ const SESSION_METADATA_FIELDS: EvaluatorBoundVariable[] = [
   { name: "turns", type: "list", description: "Oldest first." },
 ];
 
+/** Every key of a `metadata.turns` entry; mirrors the server via the same test. */
+export const SESSION_TURN_FIELDS = [
+  "input",
+  "output",
+  "metadata",
+  "event_time",
+  "span_id",
+] as const;
+
+/** Every key of a `metadata.annotations` entry; mirrors the server via the same test. */
+export const SPAN_ANNOTATION_FIELDS = [
+  "label",
+  "score",
+  "explanation",
+  "metadata",
+  "annotator_kind",
+  "user_id",
+  "username",
+  "email",
+] as const;
+
+const BOUND_VARIABLES_BY_GRAIN: Record<
+  ProjectEvaluatorMappingSourceGrain,
+  EvaluatorBoundVariable[]
+> = {
+  span: SPAN_BOUND_VARIABLES,
+  session: SESSION_BOUND_VARIABLES,
+};
+
+const METADATA_FIELDS_BY_GRAIN: Record<
+  ProjectEvaluatorMappingSourceGrain,
+  EvaluatorBoundVariable[]
+> = {
+  span: SPAN_METADATA_FIELDS,
+  session: SESSION_METADATA_FIELDS,
+};
+
+export const EVALUATOR_MAPPING_SOURCE_GRAINS = Object.keys(
+  BOUND_VARIABLES_BY_GRAIN
+) as ProjectEvaluatorMappingSourceGrain[];
+
 /**
  * Ordered for reading: identity first, then status, then measures. The server
  * returns them unordered, so the order is this list's to decide.
@@ -92,14 +133,14 @@ const SESSION_METADATA_FIELDS: EvaluatorBoundVariable[] = [
 export function getEvaluatorBoundVariables(
   grain: ProjectEvaluatorMappingSourceGrain
 ): EvaluatorBoundVariable[] {
-  return grain === "session" ? SESSION_BOUND_VARIABLES : SPAN_BOUND_VARIABLES;
+  return BOUND_VARIABLES_BY_GRAIN[grain];
 }
 
 /** The record fields beside the vocabulary, after it in reading order. */
 export function getEvaluatorMetadataFields(
   grain: ProjectEvaluatorMappingSourceGrain
 ): EvaluatorBoundVariable[] {
-  return grain === "session" ? SESSION_METADATA_FIELDS : SPAN_METADATA_FIELDS;
+  return METADATA_FIELDS_BY_GRAIN[grain];
 }
 
 export function getEvaluatorMetadataEntries(
@@ -113,12 +154,6 @@ export function getEvaluatorMetadataEntries(
     ...getEvaluatorBoundVariables(grain),
     ...fields.filter((field) => !isContainer(field)),
   ];
-}
-
-export function getEvaluatorBoundVariableNames(
-  grain: ProjectEvaluatorMappingSourceGrain
-): Set<string> {
-  return new Set(getEvaluatorBoundVariables(grain).map(({ name }) => name));
 }
 
 export function getEvaluatorMetadataEntryNames(

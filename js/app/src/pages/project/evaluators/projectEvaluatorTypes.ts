@@ -9,7 +9,10 @@ import type {
   EvaluatorMappingSourceGrain,
 } from "@phoenix/types";
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
-import { getEvaluatorMetadataEntryNames } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import {
+  EVALUATOR_MAPPING_SOURCE_GRAINS,
+  getEvaluatorMetadataEntryNames,
+} from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
@@ -20,10 +23,12 @@ export function dropOtherGrainEntityPathMappings(
   inputMapping: EvaluatorInputMapping,
   grain: ProjectEvaluatorMappingSourceGrain
 ): EvaluatorInputMapping {
-  const otherGrain = grain === "session" ? "span" : "session";
-  const staleNames = [...getEvaluatorMetadataEntryNames(otherGrain)].filter(
-    (name) => !getEvaluatorMetadataEntryNames(grain).has(name)
-  );
+  const ownNames = getEvaluatorMetadataEntryNames(grain);
+  const staleNames = EVALUATOR_MAPPING_SOURCE_GRAINS.filter(
+    (otherGrain) => otherGrain !== grain
+  )
+    .flatMap((otherGrain) => [...getEvaluatorMetadataEntryNames(otherGrain)])
+    .filter((name) => !ownNames.has(name));
   const pathMapping = Object.fromEntries(
     Object.entries(inputMapping.pathMapping).filter(
       ([, path]) =>
@@ -232,6 +237,15 @@ export type ProjectEvaluatorStatus = {
   explanation: string;
 };
 
+/** `Badge` takes the variant; `Token` takes the color. One choice, two spellings. */
+const STATUS_COLOR_BY_VARIANT: Record<BadgeVariant, string> = {
+  warning: "var(--global-color-warning)",
+  danger: "var(--global-color-danger)",
+  success: "var(--global-color-success)",
+  info: "var(--global-color-info)",
+  default: "var(--global-color-gray-300)",
+};
+
 /**
  * The one status a row reports. A configuration that keeps the evaluator from
  * ever being scheduled outranks whatever its past runs say, because clearing it
@@ -244,47 +258,41 @@ export function getProjectEvaluatorStatus({
 }: {
   schedulabilityStatus: string;
   schedulabilityReason: string | null | undefined;
-  runSummary: ProjectEvaluatorRunSummary;
+  // Narrowed so status cells can render without fetching run counts.
+  runSummary: Pick<ProjectEvaluatorRunSummary, "status">;
 }): ProjectEvaluatorStatus {
-  if (schedulabilityStatus === "NOT_SCHEDULABLE") {
-    return {
-      label: "Not scheduled",
-      color: "var(--global-color-warning)",
-      variant: "warning",
-      explanation: getSchedulabilityExplanation(schedulabilityReason),
-    };
-  }
-  switch (runSummary.status) {
-    case "FAILING":
-      return {
-        label: "Failing",
-        color: "var(--global-color-danger)",
-        variant: "danger",
-        explanation: "The most recent evaluation failed.",
-      };
-    case "HEALTHY":
-      return {
-        label: "Healthy",
-        color: "var(--global-color-success)",
-        variant: "success",
-        explanation: "Evaluations are running and producing annotations.",
-      };
-    case "QUEUED":
-      return {
-        label: "Queued",
-        color: "var(--global-color-info)",
-        variant: "info",
-        explanation: "Evaluations are waiting to run.",
-      };
-    default:
-      return {
-        label: "Never ran",
-        color: "var(--global-color-gray-300)",
-        variant: "default",
-        explanation:
-          "No evaluations have been scheduled for this evaluator yet.",
-      };
-  }
+  const status =
+    schedulabilityStatus === "NOT_SCHEDULABLE"
+      ? {
+          label: "Not scheduled",
+          variant: "warning" as const,
+          explanation: getSchedulabilityExplanation(schedulabilityReason),
+        }
+      : runSummary.status === "FAILING"
+      ? {
+          label: "Failing",
+          variant: "danger" as const,
+          explanation: "The most recent evaluation failed.",
+        }
+      : runSummary.status === "HEALTHY"
+      ? {
+          label: "Healthy",
+          variant: "success" as const,
+          explanation: "Evaluations are running and producing annotations.",
+        }
+      : runSummary.status === "QUEUED"
+      ? {
+          label: "Queued",
+          variant: "info" as const,
+          explanation: "Evaluations are waiting to run.",
+        }
+      : {
+          label: "Never ran",
+          variant: "default" as const,
+          explanation:
+            "No evaluations have been scheduled for this evaluator yet.",
+        };
+  return { ...status, color: STATUS_COLOR_BY_VARIANT[status.variant] };
 }
 
 export function formatLastRun(lastRunAt: string | null): string {

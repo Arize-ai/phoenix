@@ -20,6 +20,18 @@ export const popoverSurfaceCSS = css`
  * is scoped to the `dsl-filter-typeahead` class the typeahead surfaces ask
  * for, so other editors' menus are untouched.
  */
+/**
+ * Completion `type` values spelled with this prefix are row classes: the menu
+ * chrome in `typeaheadMenuCSS` below styles them, and `optionClass` passes
+ * them through unchanged.
+ */
+export const TYPEAHEAD_COMPLETION_CLASS_PREFIX = "typeahead-completion--";
+
+/** The row class the shared typeahead chrome styles a completion with. */
+export function toTypeaheadCompletionClass(type: string | undefined): string {
+  return type?.startsWith(TYPEAHEAD_COMPLETION_CLASS_PREFIX) ? type : "";
+}
+
 export const typeaheadMenuCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}

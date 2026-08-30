@@ -16,10 +16,15 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+import pytest
+
 from phoenix.db import models
+from phoenix.server.api.helpers.dataset_helpers import get_span_annotations_by_name
 from phoenix.server.online_eval.bound_variables import (
     SESSION_BOUND_VARIABLE_NAMES,
     SESSION_METADATA_FIELD_NAMES,
+    SESSION_TURN_FIELD_NAMES,
+    SPAN_ANNOTATION_ENTRY_FIELD_NAMES,
     SPAN_BOUND_VARIABLE_NAMES,
     SPAN_METADATA_FIELD_NAMES,
 )
@@ -52,32 +57,75 @@ def _mirrored_names(declaration: str) -> set[str]:
     return set(re.findall(r'name:\s*"([^"]+)"', block.group(1)))
 
 
-def test_span_vocabulary_matches_the_authoring_surface() -> None:
-    assert _mirrored_names("SPAN_BOUND_VARIABLES") == set(SPAN_BOUND_VARIABLE_NAMES), (
-        f"The span names in {_MIRROR.name} no longer match the ones an evaluation "
-        "binds. Edit that list so the editor offers exactly what the server supplies."
+def _mirrored_string_array(declaration: str) -> set[str]:
+    """The strings listed under one ``as const`` array declaration."""
+    source = _MIRROR.read_text(encoding="utf-8")
+    block = re.search(
+        rf"const {declaration} = \[(.*?)\] as const;",
+        source,
+        re.DOTALL,
+    )
+    assert block is not None, (
+        f"No `{declaration}` declaration in {_MIRROR.name}. If it was renamed or "
+        "restructured, update this test to read the new shape."
+    )
+    return set(re.findall(r'"([^"]+)"', block.group(1)))
+
+
+# A new grain (or a new mirrored shape) is one row here: without its row, the
+# frontend can gain or lose a whole list and nothing fails.
+_MIRRORED_NAME_SETS = [
+    pytest.param(SPAN_BOUND_VARIABLE_NAMES, "SPAN_BOUND_VARIABLES", id="span-vocabulary"),
+    pytest.param(SESSION_BOUND_VARIABLE_NAMES, "SESSION_BOUND_VARIABLES", id="session-vocabulary"),
+    pytest.param(SPAN_METADATA_FIELD_NAMES, "SPAN_METADATA_FIELDS", id="span-record-fields"),
+    pytest.param(
+        SESSION_METADATA_FIELD_NAMES, "SESSION_METADATA_FIELDS", id="session-record-fields"
+    ),
+]
+
+_MIRRORED_STRING_ARRAYS = [
+    pytest.param(SESSION_TURN_FIELD_NAMES, "SESSION_TURN_FIELDS", id="session-turn-fields"),
+    pytest.param(
+        SPAN_ANNOTATION_ENTRY_FIELD_NAMES, "SPAN_ANNOTATION_FIELDS", id="span-annotation-fields"
+    ),
+]
+
+
+@pytest.mark.parametrize("server_names,ts_declaration", _MIRRORED_NAME_SETS)
+def test_vocabulary_and_record_fields_match_the_authoring_surface(
+    server_names: frozenset[str], ts_declaration: str
+) -> None:
+    assert _mirrored_names(ts_declaration) == set(server_names), (
+        f"`{ts_declaration}` in {_MIRROR.name} no longer matches the names an "
+        "evaluation binds. Edit that list so the editor offers exactly what the "
+        "server supplies."
     )
 
 
-def test_session_vocabulary_matches_the_authoring_surface() -> None:
-    assert _mirrored_names("SESSION_BOUND_VARIABLES") == set(SESSION_BOUND_VARIABLE_NAMES), (
-        f"The session names in {_MIRROR.name} no longer match the ones an evaluation "
-        "binds. Edit that list so the editor offers exactly what the server supplies."
+@pytest.mark.parametrize("server_names,ts_declaration", _MIRRORED_STRING_ARRAYS)
+def test_entry_shapes_match_the_authoring_surface(
+    server_names: frozenset[str], ts_declaration: str
+) -> None:
+    assert _mirrored_string_array(ts_declaration) == set(server_names), (
+        f"`{ts_declaration}` in {_MIRROR.name} no longer matches the entry shape the server builds."
     )
 
 
-def test_span_record_fields_match_the_authoring_surface() -> None:
-    assert _mirrored_names("SPAN_METADATA_FIELDS") == set(SPAN_METADATA_FIELD_NAMES), (
-        f"The span record fields in {_MIRROR.name} no longer match the ones a span "
-        "context carries under `metadata`."
+def test_annotation_entries_carry_exactly_the_declared_fields() -> None:
+    annotation = models.SpanAnnotation(
+        span_rowid=1,
+        name="correctness",
+        annotator_kind="LLM",
+        label="correct",
+        score=1.0,
+        explanation="",
+        metadata_={},
+        identifier="",
+        source="APP",
+        user_id=None,
     )
-
-
-def test_session_record_fields_match_the_authoring_surface() -> None:
-    assert _mirrored_names("SESSION_METADATA_FIELDS") == set(SESSION_METADATA_FIELD_NAMES), (
-        f"The session record fields in {_MIRROR.name} no longer match the ones a "
-        "session context carries under `metadata`."
-    )
+    (entry,) = get_span_annotations_by_name([annotation])["correctness"]
+    assert set(entry) == SPAN_ANNOTATION_ENTRY_FIELD_NAMES
 
 
 def _span_metadata() -> Mapping[str, Any]:

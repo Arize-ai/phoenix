@@ -62,7 +62,6 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.monty_runtime import MontyServiceError
-from phoenix.server.online_eval.bound_variables import BOUND_VARIABLE_NAMES
 from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.sandbox import (  # noqa: E402
     MissingSecretError,
@@ -2480,39 +2479,6 @@ def _make_object_input_schema(
     }
 
 
-# Schema inference has no grain, so this gate only rejects names no grain could
-# ever supply. It is not a binding promise: at either project grain the context
-# is exactly {input, output, metadata}, so a vocabulary name here is satisfied
-# only by an explicit `metadata.<name>` path mapping, and an unmapped one fails
-# when the evaluation runs.
-_SUPPORTED_CODE_EVALUATOR_INPUT_NAMES = (
-    "output",
-    "reference",
-    "input",
-    "metadata",
-    *sorted(BOUND_VARIABLE_NAMES),
-)
-
-
-def _validate_code_evaluator_input_names(
-    parameter_names: Sequence[str],
-    *,
-    language: str,
-) -> Optional[str]:
-    unsupported_names = [
-        name for name in parameter_names if name not in _SUPPORTED_CODE_EVALUATOR_INPUT_NAMES
-    ]
-    if not unsupported_names:
-        return None
-    supported_names = ", ".join(f"`{name}`" for name in _SUPPORTED_CODE_EVALUATOR_INPUT_NAMES)
-    invalid_names = ", ".join(f"`{name}`" for name in unsupported_names)
-    return (
-        f"Could not infer the {language} evaluator inputs because the `evaluate(...)` signature "
-        f"uses unsupported parameter names: {invalid_names}. Supported parameter names are "
-        f"{supported_names}."
-    )
-
-
 def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any], Optional[str]]:
     try:
         module = ast.parse(source_code)
@@ -2555,13 +2521,6 @@ def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any
 
     parameter_names = [arg.arg for arg in positional_args]
     parameter_names.extend(arg.arg for arg in args.kwonlyargs)
-
-    invalid_name_error = _validate_code_evaluator_input_names(
-        parameter_names,
-        language="Python",
-    )
-    if invalid_name_error is not None:
-        return ({}, invalid_name_error)
 
     return (_make_object_input_schema(parameter_names, required_names), None)
 
@@ -2619,13 +2578,6 @@ def _infer_typescript_evaluate_input_schema(
                 "EvaluatorParams) { ... }`."
             ),
         )
-
-    invalid_name_error = _validate_code_evaluator_input_names(
-        parameter_names,
-        language="TypeScript",
-    )
-    if invalid_name_error is not None:
-        return ({}, invalid_name_error)
 
     return (_make_object_input_schema(parameter_names, required_names), None)
 
