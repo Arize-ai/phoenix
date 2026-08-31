@@ -17,6 +17,10 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         evaluator {
           kind
           description
+          ... on CodeEvaluator {
+            id
+            versionCount
+          }
         }
         traceProject {
           id
@@ -24,10 +28,13 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         runSummary {
           status
         }
-        ...ProjectEvaluatorRunDetails_projectEvaluator
+        ...ProjectEvaluatorStats_projectEvaluator
         ...ProjectEvaluatorScopeDetails_projectEvaluator
         ...LLMProjectEvaluatorDetails_projectEvaluator
+        ...CodeProjectEvaluatorDetails_projectEvaluator
+        ...CodeProjectEvaluatorConfigCards_projectEvaluator
         ...ProjectEvaluatorMetrics_projectEvaluator
+        ...AnnotationConfigurationCard_projectEvaluator
       }
     }
   }

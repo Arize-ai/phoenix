@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, useTimeRange } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import {
   DeferredProjectMetricPanel,
@@ -12,7 +12,6 @@ import {
   metricsScrollContainerCSS,
 } from "@phoenix/pages/project/metrics/metricsLayout";
 import { DeferredProjectAnnotationMetricPanel } from "@phoenix/pages/project/metrics/ProjectAnnotationMetrics";
-import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import type {
@@ -49,8 +48,14 @@ function getAnnotationLevel(
  */
 export function ProjectEvaluatorMetrics({
   projectEvaluator,
+  timeRange,
+  onTimeRangeSelected,
 }: {
   projectEvaluator: ProjectEvaluatorMetrics_projectEvaluator$key;
+  /** The page's selected time range, shared with the overview stats strip. */
+  timeRange: TimeRange;
+  /** Called when a brush selection on a panel narrows the range. */
+  onTimeRangeSelected: (timeRange: TimeRange) => void;
 }) {
   const data = useFragment(
     graphql`
@@ -67,8 +72,6 @@ export function ProjectEvaluatorMetrics({
     `,
     projectEvaluator
   );
-  const timeRange = useClosedTimeRange();
-  const { setCustomTimeRange } = useTimeRange();
   // The evaluated project has no annotation configs for this evaluator's
   // results, so the results charts take their names and optimization metadata
   // from the evaluator.
@@ -81,7 +84,7 @@ export function ProjectEvaluatorMetrics({
         annotationLevel={getAnnotationLevel(data.evaluationTarget)}
         resultAnnotations={resultAnnotations}
         timeRange={timeRange}
-        onTimeRangeSelected={setCustomTimeRange}
+        onTimeRangeSelected={onTimeRangeSelected}
       />
     </div>
   );
