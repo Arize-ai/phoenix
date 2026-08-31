@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from phoenix.db.types.annotation_configs import (
@@ -267,3 +269,72 @@ class TestComparisonAccumulator:
         assert result.cohens_kappa is None
         assert result.spearman_rho is None
         assert result.side_a.mean_score is None
+
+
+class TestComparisonTimeSeries:
+    def test_per_bin_stats(self) -> None:
+        hour_one = datetime.fromisoformat("2024-01-01T01:00:00+00:00")
+        hour_two = datetime.fromisoformat("2024-01-01T02:00:00+00:00")
+        binning_a = make_side_binning("a", _continuous_config(name="a"), None)
+        binning_b = make_side_binning("b", _continuous_config(name="b"), None)
+        accumulator = ComparisonAccumulator(binning_a, binning_b)
+        accumulator.add(None, 0.9, None, 0.8, bucket=hour_one)  # agree (both flagged)
+        accumulator.add(None, 0.1, None, 0.9, bucket=hour_one)  # disagree
+        accumulator.add(None, 0.2, None, 0.1, bucket=hour_two)  # agree (both clear)
+        result = accumulator.result()
+        assert len(result.time_series) == 2
+        first, second = result.time_series
+        assert first.timestamp == hour_one
+        assert first.evaluated_by_both == 2
+        assert first.flag_rate_a == pytest.approx(0.5)
+        assert first.flag_rate_b == pytest.approx(1.0)
+        assert first.mean_score_a == pytest.approx(0.5)
+        assert first.agreement == pytest.approx(0.5)
+        assert second.evaluated_by_both == 1
+        assert second.agreement == pytest.approx(1.0)
+
+    def test_rows_without_bucket_do_not_produce_bins(self) -> None:
+        binning_a = make_side_binning("a", _continuous_config(name="a"), None)
+        binning_b = make_side_binning("b", _continuous_config(name="b"), None)
+        accumulator = ComparisonAccumulator(binning_a, binning_b)
+        accumulator.add(None, 0.9, None, 0.8)
+        result = accumulator.result()
+        assert result.n == 1
+        assert result.time_series == ()
+
+    def test_agreement_is_none_without_a_reduction(self) -> None:
+        hour_one = datetime.fromisoformat("2024-01-01T01:00:00+00:00")
+        config_a = _categorical_config(
+            direction=OptimizationDirection.NONE, values=[("harmful", 0.0), ("safe", 1.0)]
+        )
+        config_b = _categorical_config(
+            direction=OptimizationDirection.NONE, values=[("profane", 0.0), ("clean", 1.0)]
+        )
+        accumulator = ComparisonAccumulator(
+            make_side_binning("a", config_a, None), make_side_binning("b", config_b, None)
+        )
+        accumulator.add("harmful", None, "profane", None, bucket=hour_one)
+        (point,) = accumulator.result().time_series
+        assert point.agreement is None
+        assert point.flag_rate_a is None
+
+
+class TestScoreBinCounts:
+    def test_thresholded_sides_get_histograms(self) -> None:
+        binning_a = make_side_binning("a", _continuous_config(name="a"), None)
+        binning_b = make_side_binning("b", _continuous_config(name="b"), None)
+        accumulator = ComparisonAccumulator(binning_a, binning_b)
+        for score_a, score_b in [(0.05, 0.95), (0.05, 0.95), (0.55, 0.15), (1.0, -0.2)]:
+            accumulator.add(None, score_a, None, score_b)
+        result = accumulator.result()
+        assert result.side_a.score_bin_counts == (2, 0, 0, 0, 0, 1, 0, 0, 0, 1)
+        assert result.side_b.score_bin_counts == (1, 1, 0, 0, 0, 0, 0, 0, 0, 2)
+
+    def test_categorical_side_has_no_histogram(self) -> None:
+        binning_a = make_side_binning("a", _categorical_config(), None)
+        binning_b = make_side_binning("b", _continuous_config(name="b"), None)
+        accumulator = ComparisonAccumulator(binning_a, binning_b)
+        accumulator.add("pass", 1.0, None, 0.4)
+        result = accumulator.result()
+        assert result.side_a.score_bin_counts is None
+        assert result.side_b.score_bin_counts is not None
