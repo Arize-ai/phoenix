@@ -131,17 +131,17 @@ export const projectEvaluatorDetailsQueryNode = graphql`
 export type ProjectEvaluatorOption =
   projectEvaluatorOptionsQuery$data["evaluators"]["edges"][number]["evaluator"];
 
-type ProjectEvaluatorDetails = NonNullable<
+export type ProjectEvaluatorDetails = NonNullable<
   projectEvaluatorDetailsQuery["response"]["evaluator"]
 >;
-type LlmProjectEvaluatorDetails = ProjectEvaluatorDetails & {
+export type LlmProjectEvaluatorDetails = ProjectEvaluatorDetails & {
   readonly __typename: "LLMEvaluator";
   readonly id: string;
   readonly name: string;
   readonly description: string | null;
   readonly outputConfigs: NonNullable<ProjectEvaluatorDetails["outputConfigs"]>;
 };
-type CodeProjectEvaluatorDetails = ProjectEvaluatorDetails & {
+export type CodeProjectEvaluatorDetails = ProjectEvaluatorDetails & {
   readonly __typename: "CodeEvaluator";
   readonly id: string;
   readonly name: string;
