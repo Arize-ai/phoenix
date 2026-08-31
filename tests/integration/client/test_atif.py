@@ -1,7 +1,7 @@
 """End-to-end coverage for uploading ATIF trajectories as spans.
 
 Conversion is unit-tested in ``packages/phoenix-client/tests``; what needs a
-live server is whether the resulting span batch survives a round trip — that
+live server is whether the resulting span batch survives a round trip. That
 Phoenix accepts every span, resolves the parent links, and stores the batch as
 one connected trace.
 

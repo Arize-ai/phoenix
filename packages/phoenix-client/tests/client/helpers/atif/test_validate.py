@@ -152,14 +152,14 @@ class TestSchemaVersion:
             _validate_atif_trajectory(simple_trajectory)
         assert caplog.text == ""
 
-    def test_v1_8_warns(
+    def test_v1_8_no_warning(
         self, simple_trajectory: Dict[str, Any], caplog: pytest.LogCaptureFixture
     ) -> None:
-        """ATIF v1.8 should pass validation but emit a warning."""
+        """ATIF v1.8 should pass without any warning."""
         simple_trajectory["schema_version"] = "ATIF-v1.8"
         with caplog.at_level(logging.WARNING):
             _validate_atif_trajectory(simple_trajectory)
-        assert "newer than the latest supported version" in caplog.text
+        assert caplog.text == ""
 
     def test_v1_6_no_warning(
         self, simple_trajectory: Dict[str, Any], caplog: pytest.LogCaptureFixture
@@ -246,10 +246,10 @@ class TestV17Validation:
                 },
             ],
         }
-        with pytest.raises(ValueError, match="trajectory_id is required"):
+        with pytest.raises(ValueError, match="trajectory_id or trajectory_path is required"):
             _validate_atif_trajectory(trajectory)
 
-    def test_path_only_subagent_ref_rejected(self) -> None:
+    def test_path_only_subagent_ref_is_valid(self) -> None:
         trajectory: Dict[str, Any] = {
             "schema_version": "ATIF-v1.7",
             "session_id": "run-v17-path-only",
@@ -282,8 +282,7 @@ class TestV17Validation:
                 },
             ],
         }
-        with pytest.raises(ValueError, match="trajectory_path-only.*not supported"):
-            _validate_atif_trajectory(trajectory)
+        _validate_atif_trajectory(trajectory)
 
     def test_unembedded_trajectory_id_ref_rejected(self) -> None:
         trajectory: Dict[str, Any] = {

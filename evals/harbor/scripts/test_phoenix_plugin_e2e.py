@@ -456,7 +456,7 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         measured_llm_spans = [
             span
             for span in llm_spans
-            if _span_metadata(span).get("atif.timing") == "metrics.extra.latency_ms"
+            if _span_metadata(span).get("atif.timing") == "harbor.api_request_times_msec"
         ]
         _check(
             len(measured_llm_spans) == len(llm_spans),

@@ -202,7 +202,7 @@ def test_harbor_request_measurements_time_matching_llm_steps(tmp_path: Path) -> 
     assert llm_span["start_time"] == NOW
     assert llm_span["end_time"] == "2026-08-26T12:00:02.500000+00:00"
     metadata = cast(dict[str, Any], llm_span.get("attributes", {}).get("metadata"))
-    assert metadata["atif.timing"] == "metrics.extra.latency_ms"
+    assert metadata["atif.timing"] == "harbor.api_request_times_msec"
     assert metadata["atif.measured_latency_ms"] == 2500.0
 
 
@@ -469,6 +469,38 @@ def test_external_subagent_is_followed_and_rewritten(tmp_path: Path) -> None:
     assert {span["parent_id"] for span in roots} == {trial_root_id, *tool_ids}
     session = f"harbor:{result.trace_id}"
     assert all(span["attributes"].get("session.id") == session for span in roots)
+
+
+def test_pre_v17_unresolved_ref_does_not_capture_a_continuation(tmp_path: Path) -> None:
+    parent = trajectory()
+    parent["schema_version"] = "ATIF-v1.6"
+    parent["continued_trajectory_ref"] = "trajectory.cont-1.json"
+    parent["steps"][1]["observation"] = {
+        "results": [
+            {
+                "subagent_trajectory_ref": [
+                    {
+                        "trajectory_id": "missing-child",
+                        "session_id": "missing-session",
+                        "trajectory_path": "../missing.json",
+                    }
+                ]
+            }
+        ]
+    }
+    continuation = trajectory(session_id="producer-session-cont-1")
+    continuation["schema_version"] = "ATIF-v1.6"
+    continuation["trajectory_id"] = "continuation"
+    write(tmp_path / "task-a__1/agent/trajectory.json", parent)
+    write(tmp_path / "task-a__1/agent/trajectory.cont-1.json", continuation)
+
+    result = build(tmp_path)
+
+    assert result is not None
+    roots = agent_roots(result)
+    trial_root_id = result.spans[0]["context"]["span_id"]
+    assert len(roots) == 2
+    assert {root["parent_id"] for root in roots} == {trial_root_id}
 
 
 def test_system_handoff_without_tool_stays_at_its_causal_step(tmp_path: Path) -> None:

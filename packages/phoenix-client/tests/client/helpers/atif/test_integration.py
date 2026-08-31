@@ -136,15 +136,14 @@ class TestUploadIntegration:
             ("2025-01-15T10:00:00+00:00", "2025-01-15T10:00:05+00:00"),
             ("2025-01-15T10:00:05+00:00", "2025-01-15T10:00:08+00:00"),
         ]
-        # Same-instant events spread at 1ms offsets in causal order: the
-        # unmeasured LLM event precedes its two tools, and the last tool
-        # lands exactly on the step timestamp.
+        # Same-instant events retain the exact ATIF timestamp. Metadata carries
+        # their deterministic display order without fabricating clock values.
         assert [(span["start_time"], span["end_time"]) for span in llm_spans] == [
-            ("2025-01-15T10:00:04.998000+00:00", "2025-01-15T10:00:04.998000+00:00"),
+            ("2025-01-15T10:00:05+00:00", "2025-01-15T10:00:05+00:00"),
             ("2025-01-15T10:00:08+00:00", "2025-01-15T10:00:08+00:00"),
         ]
         assert [(span["start_time"], span["end_time"]) for span in tool_spans] == [
-            ("2025-01-15T10:00:04.999000+00:00", "2025-01-15T10:00:04.999000+00:00"),
+            ("2025-01-15T10:00:05+00:00", "2025-01-15T10:00:05+00:00"),
             ("2025-01-15T10:00:05+00:00", "2025-01-15T10:00:05+00:00"),
         ]
         assert [span["attributes"]["metadata"]["_phoenix.span_order"] for span in step_spans] == [

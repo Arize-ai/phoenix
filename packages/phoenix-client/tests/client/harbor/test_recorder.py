@@ -39,7 +39,7 @@ from phoenix.client.harbor._recorder import (
     experiment_identity,
 )
 from phoenix.client.harbor._scores import ExtractedEvaluation
-from phoenix.client.harbor._traces import HarborTrace
+from phoenix.client.harbor._traces import HarborTrace, harbor_trace_id
 
 
 def task(task_id: str, digest: str = "sha256:" + "a" * 64, **overrides: Any) -> TaskRecord:
@@ -667,24 +667,7 @@ class TestRecordExperimentRun:
             request=request,
             response=httpx.Response(409, request=request),
         )
-        existing_run = {
-            "id": "run-existing",
-            "experiment_id": "experiment-1",
-            "dataset_example_id": "node-a",
-            "repetition_number": 1,
-            "output": {
-                "harbor_trial_id": "trial-id",
-                "harbor_trial_name": "task-a__1",
-                "harbor_trial_uri": "file:///trial",
-                "task_name": "task-a",
-                "token_usage": {"input": 10, "cache": 2, "output": 4},
-                "cost_usd": 0.01,
-            },
-        }
-        experiments = FakeExperiments(
-            runs=[existing_run],
-            log_error=conflict,
-        )
+        result = trial_result()
         job = plan(
             trials=(
                 TrialSlot(
@@ -698,13 +681,32 @@ class TestRecordExperimentRun:
                 ),
             )
         )
+        existing_run = {
+            "id": "run-existing",
+            "experiment_id": "experiment-1",
+            "dataset_example_id": "node-a",
+            "repetition_number": 1,
+            "trace_id": harbor_trace_id(job, result),
+            "output": {
+                "harbor_trial_id": "trial-id",
+                "harbor_trial_name": "task-a__1",
+                "harbor_trial_uri": "file:///trial",
+                "task_name": "task-a",
+                "token_usage": {"input": 10, "cache": 2, "output": 4},
+                "cost_usd": 0.01,
+            },
+        }
+        experiments = FakeExperiments(
+            runs=[existing_run],
+            log_error=conflict,
+        )
         client = FakeClient(experiments=experiments)
         handles = await recorder(client).resolve_experiments(job, SNAPSHOT)
         recorded = await recorder(client).record_experiment_run(
             plan=job,
             snapshot=SNAPSHOT,
             experiments=handles,
-            trial_result=trial_result(),
+            trial_result=result,
         )
 
         assert recorded == existing_run

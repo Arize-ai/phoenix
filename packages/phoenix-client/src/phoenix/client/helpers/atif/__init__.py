@@ -64,7 +64,7 @@ def upload_atif_trajectories_as_spans(
 
     Converts ATIF (Agent Trajectory Interchange Format) trajectory dicts
     into Phoenix/OpenTelemetry-compatible span trees and uploads them.
-    Supports ATIF schema versions v1.0 through v1.7.
+    Supports ATIF schema versions v1.0 through v1.8.
 
     **Trace structure**
 
@@ -75,7 +75,7 @@ def upload_atif_trajectories_as_spans(
 
     - Single-turn trajectories put each operation directly under the root::
 
-        AGENT (root — input=user message, output=final agent reply)
+        AGENT (root, input=user message, output=final agent reply)
           CHAIN agent_action_1
             LLM
             TOOL
@@ -86,7 +86,7 @@ def upload_atif_trajectories_as_spans(
       spans, one per turn. A new turn starts at each follow-up user
       message::
 
-        AGENT (root — input=first user message, output=final agent reply)
+        AGENT (root, input=first user message, output=final agent reply)
           AGENT turn_1 (input=user msg 1, output=agent reply 1)
             CHAIN agent_action_1
               LLM
@@ -134,11 +134,12 @@ def upload_atif_trajectories_as_spans(
 
     **Multimodal content (v1.6+)**
 
-    Messages containing image content parts (``type: "image"`` with a
-    ``source.path`` URL) are written using the OpenInference
+    Image content parts are written using the OpenInference
     ``message.contents`` array format, with image URLs stored in
     ``message_content.image.image.url``. Text-only messages use the
-    standard ``message.content`` string attribute.
+    standard ``message.content`` string attribute. ATIF v1.8 audio references
+    retain their path, media type, and optional duration in serialized message
+    data and span metadata; the converter does not read or upload media bytes.
 
     **Copied context**
 
@@ -152,18 +153,17 @@ def upload_atif_trajectories_as_spans(
 
     ATIF gives each step one event timestamp, not a start/end interval. A
     fresh operation is therefore bounded by the preceding fresh event and
-    its own event timestamp. If a producer supplies
-    ``metrics.extra.latency_ms``, the LLM uses that measured duration within
-    the operation interval; otherwise the LLM is a zero-duration event at
-    the step timestamp. TOOL calls are also zero-duration events because
-    ATIF does not say whether calls in one step ran serially or concurrently.
-    Missing or non-monotonic clocks collapse to the preceding event rather
-    than fabricating elapsed time.
+    its own event timestamp. The general converter does not interpret
+    provider-specific ``metrics.extra`` fields as duration. An adapter may
+    supply a measured LLM duration through Phoenix-private input; otherwise
+    the LLM is a zero-duration event at the exact step timestamp. TOOL calls
+    are also zero-duration events because ATIF does not say whether calls in
+    one step ran serially or concurrently. Missing or non-monotonic clocks
+    collapse to the preceding event rather than fabricating elapsed time.
 
-    Simultaneous siblings carry an internal ``_phoenix.span_order`` metadata
-    value derived from ATIF document and array order. Phoenix can use it as a
-    display-only tie-break without changing their timestamps or claiming a
-    serial execution order.
+    When sibling timestamps still tie, an internal ``_phoenix.span_order``
+    metadata value preserves ATIF document and array order in Phoenix. It is a
+    display rule, not evidence of serial execution.
 
     **Deterministic dispatch (v1.7+)**
 
@@ -181,7 +181,6 @@ def upload_atif_trajectories_as_spans(
     - ``agent.model_name`` or step ``model_name`` → ``llm.model_name``
     - ``agent.tool_definitions`` → ``llm.tools.{i}.tool.json_schema``
     - ``reasoning_content`` → ``metadata.reasoning_content``
-    - producer ``metrics.extra.latency_ms`` → measured LLM span duration
     - ``session_id`` → ``session.id`` on all spans
 
     **Deterministic IDs**
@@ -206,7 +205,7 @@ def upload_atif_trajectories_as_spans(
     Args:
         client: A Phoenix ``Client`` instance.
         trajectories: A sequence of ATIF trajectory dicts conforming to
-            the ATIF schema (v1.0–v1.7).
+            the ATIF schema (v1.0 through v1.8).
         project_name: The Phoenix project to upload spans into.
         timeout: Request timeout in seconds.
 

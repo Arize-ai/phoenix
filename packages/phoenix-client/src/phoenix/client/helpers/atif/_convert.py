@@ -30,6 +30,8 @@ _FALLBACK_TIMESTAMP_KEY = "_phoenix_fallback_timestamp"
 _IS_CONTINUATION_KEY = "_phoenix_is_continuation"
 _CONTINUATION_INDEX_KEY = "_phoenix_continuation_index"
 _STEP_NAME_KEY = "_phoenix_step_name"
+_LLM_LATENCY_MS_KEY = "_phoenix_llm_latency_ms"
+_LLM_LATENCY_SOURCE_KEY = "_phoenix_llm_latency_source"
 _SPAN_ORDER_METADATA_KEY = "_phoenix.span_order"
 
 
@@ -179,10 +181,8 @@ def _is_compaction_step(step: Mapping[str, Any]) -> bool:
 
 
 def _measured_latency_ms(step: Mapping[str, Any]) -> Optional[float]:
-    """Return the producer-measured LLM latency for a step, if present."""
-    metrics = step.get("metrics")
-    extra = metrics.get("extra") if isinstance(metrics, Mapping) else None
-    raw_latency_ms = extra.get("latency_ms") if isinstance(extra, Mapping) else None
+    """Return adapter-supplied LLM latency without interpreting vendor metrics."""
+    raw_latency_ms = step.get(_LLM_LATENCY_MS_KEY)
     if (
         not isinstance(raw_latency_ms, (int, float))
         or isinstance(raw_latency_ms, bool)
@@ -348,7 +348,7 @@ def _stringify_message(
         return ""
     if isinstance(message, str):
         return message
-    # list[ContentPart] — concatenate text parts, placeholder for images
+    # Concatenate text parts and use a path placeholder for referenced media.
     parts: list[str] = []
     for part in message:
         if isinstance(part, str):
@@ -357,9 +357,10 @@ def _stringify_message(
             text: object = part.get("text")
             if text:
                 parts.append(str(text))
-            elif part.get("type") == "image" and isinstance(part.get("source"), dict):
+            elif part.get("type") in {"image", "audio"} and isinstance(part.get("source"), dict):
+                part_type = part["type"]
                 path = part["source"].get("path", "unknown")
-                parts.append(f"[image: {path}]")
+                parts.append(f"[{part_type}: {path}]")
     return "\n".join(parts) if parts else ""
 
 
@@ -489,6 +490,23 @@ def _build_llm_attributes(
     if _has_multimodal_content(step.get("message")):
         attrs.setdefault("metadata", {})["has_multimodal_content"] = True
 
+    message_parts = step.get("message")
+    if isinstance(message_parts, list):
+        media_parts: list[dict[str, Any]] = []
+        for index, part in enumerate(message_parts):
+            if not isinstance(part, Mapping) or part.get("type") not in {"image", "audio"}:
+                continue
+            source = part.get("source")
+            if not isinstance(source, Mapping):
+                continue
+            media_part = {"index": index, "type": part["type"]}
+            for field in ("path", "media_type", "duration_sec"):
+                if source.get(field) is not None:
+                    media_part[field] = source[field]
+            media_parts.append(media_part)
+        if media_parts:
+            attrs.setdefault("metadata", {})["atif.media_parts"] = media_parts
+
     return attrs
 
 
@@ -553,23 +571,24 @@ def _get_llm_timestamps(
     step_start: datetime,
     step_end: datetime,
 ) -> tuple[datetime, datetime, Dict[str, Any]]:
-    """Return measured LLM timing when ATIF metrics carry a latency hint.
+    """Return measured LLM timing when an adapter supplies a latency hint.
 
-    ``metrics.extra.latency_ms`` is bounded by the ATIF step interval. Without
-    that producer measurement, the LLM is represented as an event at the step
-    timestamp rather than assigned the whole interaction interval.
+    The measurement is bounded by the ATIF step interval. Without it, the LLM
+    is an event at the step timestamp rather than assigned the whole interval.
     """
     raw_latency_ms = _measured_latency_ms(step)
     if raw_latency_ms is None:
         return step_end, step_end, {"atif.timing": "event"}
 
     measured_end = step_start + timedelta(milliseconds=raw_latency_ms)
+    raw_source = step.get(_LLM_LATENCY_SOURCE_KEY)
+    timing_source = raw_source if isinstance(raw_source, str) else "adapter"
     if measured_end <= step_end:
         return (
             step_start,
             measured_end,
             {
-                "atif.timing": "metrics.extra.latency_ms",
+                "atif.timing": timing_source,
                 "atif.measured_latency_ms": raw_latency_ms,
             },
         )
@@ -577,34 +596,10 @@ def _get_llm_timestamps(
         step_start,
         step_end,
         {
-            "atif.timing": "metrics.extra.latency_ms_clamped",
+            "atif.timing": f"{timing_source}_clamped",
             "atif.measured_latency_ms": raw_latency_ms,
         },
     )
-
-
-def _event_schedule(
-    step_start: datetime,
-    step_end: datetime,
-    event_count: int,
-) -> List[datetime]:
-    """Place same-instant events at tiny ordered offsets before the step event.
-
-    ATIF records one timestamp per step, so an unmeasured LLM event and its
-    tool calls would otherwise share that instant exactly and render in
-    arbitrary waterfall order in any viewer that sorts by start time alone.
-    Spread them at most one millisecond apart within the step interval, in
-    causal order, with the last event exactly at the step's own timestamp.
-    Durations stay zero: the offsets encode order, not measured time.
-    """
-    if event_count <= 0:
-        return []
-    available = (step_end - step_start).total_seconds()
-    spacing = min(0.001, available / event_count) if available > 0 else 0.0
-    return [
-        step_end - timedelta(seconds=spacing * (event_count - 1 - index))
-        for index in range(event_count)
-    ]
 
 
 def _build_message_attributes(
@@ -708,7 +703,7 @@ def _build_message_attributes(
         prefix = f"llm.input_messages.{idx}"
         attrs[f"{prefix}.message.role"] = msg_dict["role"]
         if "_raw_parts" in msg_dict:
-            # Multimodal content — write message.contents array
+            # Write multimodal content through the message.contents array.
             attrs.update(_build_content_part_attributes(prefix, msg_dict["_raw_parts"]))
         elif "content" in msg_dict:
             attrs[f"{prefix}.message.content"] = msg_dict["content"]
@@ -905,18 +900,18 @@ def _convert_atif_trajectory_to_spans(
     Multi-turn::
 
         AGENT (root)
-          AGENT (turn 1 — input=user msg 1, output=agent reply 1)
+          AGENT (turn 1, input=user msg 1, output=agent reply 1)
             CHAIN agent_action_1
               LLM
               TOOL
-          AGENT (turn 2 — input=user msg 2, output=agent reply 2)
+          AGENT (turn 2, input=user msg 2, output=agent reply 2)
             CHAIN agent_action_2
               LLM
 
     Visible CHAIN names number fresh operational steps with deterministic
     per-label ordinals (``agent_action_N``, ``system_action_N``, or
-    ``compaction_N`` for context-management steps — the N counts steps of that
-    label only); the producer's original ``step_id`` stays in span metadata as
+    ``compaction_N`` for context-management steps. The N counts steps of that
+    label only. The producer's original ``step_id`` stays in span metadata as
     ``atif.step_id``. Continuation roots
     are labeled ``<agent> (continuation N)`` and Harbor multi-step roots are
     qualified with their step name.
@@ -927,11 +922,10 @@ def _convert_atif_trajectory_to_spans(
     prompts and never create execution spans or elapsed time.
 
     ATIF step timestamps are point events. Operation spans cover the interval
-    from the preceding fresh event to their own event. LLM spans use a
-    producer's ``metrics.extra.latency_ms`` when present and bounded by that
-    interval; otherwise LLM and TOOL spans are point events. Internal span
-    order metadata is a display tie-break for equal timestamps, not a timing
-    assertion.
+    from the preceding fresh event to their own event. LLM spans use an
+    adapter-supplied measurement when available and bounded by that interval;
+    otherwise LLM and TOOL spans are point events at the exact ATIF timestamp.
+    Internal span order metadata is the display tie-break for equal timestamps.
 
     IDs are deterministic: trace IDs usually use the run-scoped session
     identity, while span IDs use the document-scoped trajectory identity
@@ -1163,8 +1157,8 @@ def _convert_atif_trajectory_to_spans(
                 "metadata": operation_metadata,
             }
             # Pair observation results with tool calls before building the
-            # operation span so unmatched step-level observations can surface
-            # on the operation rather than disappearing. Producers such as
+            # operation span so the operation can retain unmatched step-level
+            # observations. Producers such as
             # Terminus record one combined observation for a whole step with
             # no ``source_call_id``.
             tool_calls = step.get("tool_calls", [])
@@ -1235,21 +1229,12 @@ def _convert_atif_trajectory_to_spans(
             is_deterministic_dispatch = step.get("llm_call_count") == 0
             has_llm = source == "agent" and not is_deterministic_dispatch
 
-            # Same-instant events keep causal waterfall order through tiny
-            # deterministic offsets: the unmeasured LLM event first, then tool
-            # calls in declared array order, ending at the step timestamp.
             llm_is_event = has_llm and _measured_latency_ms(step) is None
-            schedule = _event_schedule(
-                step_start,
-                step_end,
-                len(tool_calls) + (1 if llm_is_event else 0),
-            )
-            tool_event_times = schedule[1:] if llm_is_event else schedule
 
             if has_llm:
                 llm_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}")
                 if llm_is_event:
-                    llm_start = llm_end = schedule[0]
+                    llm_start = llm_end = step_end
                     llm_timing_metadata: Dict[str, Any] = {"atif.timing": "event"}
                 else:
                     llm_start, llm_end, llm_timing_metadata = _get_llm_timestamps(
@@ -1319,9 +1304,9 @@ def _convert_atif_trajectory_to_spans(
 
                 # ATIF does not record tool start/end times or whether calls in
                 # one step ran serially or concurrently. Represent each call as
-                # a zero-duration event at its scheduled offset instead of
+                # a zero-duration event at the step timestamp instead of
                 # fabricating elapsed time.
-                tool_start = tool_event_times[j]
+                tool_start = step_end
 
                 tool_span: v1.Span = {
                     "name": tc.get("function_name", "tool_call"),

@@ -1,4 +1,4 @@
-# Phoenix plugin for Harbor — design specification
+# Phoenix plugin for Harbor design specification
 
 **Status:** Proposed for prototype implementation
 
@@ -52,7 +52,7 @@ pure ATIF conversion and reparenting helpers.
 
 ### Boundaries
 
-- Harbor is the execution harness. Phoenix does not rerun these experiments or select Harbor tasks.
+- Harbor runs the agents and verifiers. Phoenix does not rerun these experiments or select Harbor tasks.
 - Harbor's verifier remains the authority for rewards. The plugin does not calculate a second aggregate reward.
 - Dataset example `output` remains an empty object. A Harbor solution is an executable way to produce an end state, not a reference response.
 - The prototype accepts one Harbor dataset or a direct-task-only job. It rejects jobs that
@@ -156,7 +156,10 @@ At `on_job_start`, the plugin:
 
 1. resolves the complete task and trial plan;
 2. synchronizes the complete dataset example snapshot;
-3. recovers or creates one experiment for each effective agent and model configuration. Recovery matches on the stored Harbor job ID and agent identity digest, not on the dataset version: other Harbor jobs sharing the dataset mint new versions between replays, and a replayed job must recover its original experiment, which stays pinned to the version it was created with. A newly created experiment is pinned to the current dataset version;
+3. recovers or creates one experiment for each effective agent and model configuration. Recovery
+   matches the stored Harbor job ID and agent identity digest. Other jobs may create new versions
+   of the same dataset between replays, so the recovered experiment stays pinned to its original
+   version. A new experiment uses the current dataset version;
 4. reads the server-assigned project name for each experiment;
 5. derives a stable repetition number for every trial; and
 6. once deferred OTLP mode is implemented, validates each agent's exporter project and endpoint. If they are invalid, the error lists the exact flags to add.
@@ -214,7 +217,7 @@ The package-internal pure conversion helpers:
 
 - validate and convert one or more trajectories;
 - return spans without uploading them;
-- preserve ATIF v1.7 sub-agent flattening and cross-document references; and
+- preserve ATIF v1.7 sub-agent flattening, valid external references, and v1.8 audio metadata; and
 - reparent every disconnected trajectory root under one Harbor-owned trial root.
 
 The conversion layer does not use a client. Harbor-specific discovery, normalization, deterministic
@@ -248,11 +251,11 @@ skipped rather than risking a shifted measurement. Producer latency wins when al
 Measured LLM spans use that duration within the source interval. Unmeasured LLMs and TOOL calls are
 zero-duration events; the converter does not infer tool serialism, concurrency, or elapsed time.
 Events that would share one step timestamp are spread at most one millisecond apart within the
-step interval, in causal order — the unmeasured LLM event, then tool calls in declared array
-order, the last landing exactly on the step's own timestamp — so start-time sorting alone shows
-the true order in any viewer. Missing and non-monotonic event clocks collapse instead of creating
-synthetic duration. Phoenix-only order metadata breaks any exact remaining ties in the trace tree
-while leaving timestamps unchanged.
+step interval. The unmeasured LLM event comes first, followed by tool calls in their declared
+array order. The last event lands on the step timestamp. This makes start-time sorting preserve
+causal order in viewers that do not read Phoenix metadata. Missing and non-monotonic clocks
+collapse instead of creating synthetic duration. Phoenix-only order metadata breaks any exact
+ties that remain in the trace tree.
 
 For each in-memory trajectory, the plugin:
 
@@ -393,7 +396,7 @@ Phoenix can calculate token cost and latency from traces. Consumers can calculat
 | Dataset | Resolved Harbor dataset identity or explicit override |
 | Example | Task ID within the dataset |
 | Example version | Full Harbor task digest |
-| Experiment | Harbor job ID, dataset version, and effective agent/model configuration |
+| Experiment | Harbor job ID and effective agent/model configuration; pinned to its creation-time dataset version |
 | Run | Experiment, example, and repetition number (1-based) |
 | Evaluation | Run and evaluation name |
 | ATIF trace | Deterministic from the complete Harbor job and logical trial identity |

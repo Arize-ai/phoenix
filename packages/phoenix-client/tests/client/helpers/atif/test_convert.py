@@ -349,20 +349,19 @@ class TestMultiToolTrajectoryConversion:
         assert "news_search" in tool_names
         assert "analyst_estimates" in tool_names
 
-    def test_measured_llm_latency_is_bounded_by_its_step(
+    def test_vendor_metric_is_not_interpreted_as_llm_timing(
         self, multi_tool_trajectory: Dict[str, Any]
     ) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
         llm_spans = [span for span in spans if span["span_kind"] == "LLM"]
 
         assert [(span["start_time"], span["end_time"]) for span in llm_spans] == [
-            ("2025-01-15T14:00:00+00:00", "2025-01-15T14:00:02.840000+00:00"),
-            ("2025-01-15T14:00:07+00:00", "2025-01-15T14:00:08.950000+00:00"),
-            ("2025-01-15T14:00:09+00:00", "2025-01-15T14:00:13.200000+00:00"),
+            ("2025-01-15T14:00:03+00:00", "2025-01-15T14:00:03+00:00"),
+            ("2025-01-15T14:00:09+00:00", "2025-01-15T14:00:09+00:00"),
+            ("2025-01-15T14:00:14+00:00", "2025-01-15T14:00:14+00:00"),
         ]
         assert all(
-            span.get("attributes", {}).get("metadata", {}).get("atif.timing")
-            == "metrics.extra.latency_ms"
+            span.get("attributes", {}).get("metadata", {}).get("atif.timing") == "event"
             for span in llm_spans
         )
 
@@ -598,8 +597,8 @@ class TestOptionalFields:
         assert spans[0]["start_time"] == "2025-01-15T10:00:00+00:00"
         assert spans[0]["end_time"] == "2025-01-15T10:00:00+00:00"
         # Copied context is this document's whole prompt, so the replayed
-        # request still serves as the root input; there is no fresh agent
-        # message to serve as output.
+        # request remains the root input; there is no fresh agent message for
+        # the output.
         assert spans[0].get("attributes", {}).get("input.value") == "old input"
         assert spans[0].get("attributes", {}).get("output.value") == ""
 
@@ -675,6 +674,42 @@ class TestMultimodalContent:
         result = _stringify_message(message)
         assert "What is in this image?" in result
         assert "[image: images/screenshot.png]" in result
+
+    def test_v1_8_audio_source_is_preserved(self) -> None:
+        audio = {
+            "type": "audio",
+            "source": {
+                "media_type": "audio/wav",
+                "path": "audio/question.wav",
+                "duration_sec": 3.2,
+            },
+        }
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.8",
+            "session_id": "audio-run",
+            "agent": {"name": "voice-agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": [audio]},
+                {"step_id": 2, "source": "agent", "message": [audio]},
+            ],
+        }
+
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        llm = next(span for span in spans if span["span_kind"] == "LLM")
+        attrs = llm.get("attributes", {})
+
+        assert attrs["output.value"] == "[audio: audio/question.wav]"
+        assert attrs["metadata"]["atif.media_parts"] == [
+            {
+                "index": 0,
+                "type": "audio",
+                "path": "audio/question.wav",
+                "media_type": "audio/wav",
+                "duration_sec": 3.2,
+            }
+        ]
+        prompt = json.loads(attrs["input.value"])
+        assert prompt[0]["content"] == [audio]
 
     def test_has_multimodal_content_with_image(self) -> None:
         message: List[Any] = [
@@ -1820,7 +1855,8 @@ class TestOperationNamingAndTiming:
                     "source": "agent",
                     "message": "fresh work",
                     "timestamp": "2025-01-15T10:00:30Z",
-                    "metrics": {"extra": {"latency_ms": 10000}},
+                    "_phoenix_llm_latency_ms": 10000,
+                    "_phoenix_llm_latency_source": "test.measurement",
                     "tool_calls": [
                         {"tool_call_id": "c1", "function_name": "bash", "arguments": {}}
                     ],
@@ -1857,7 +1893,7 @@ class TestOperationNamingAndTiming:
 
 
 class TestStepLevelObservations:
-    """Unmatched step-level observations surface on the operation span."""
+    """The operation span retains unmatched step-level observations."""
 
     def test_combined_observation_lands_on_operation_span(self) -> None:
         trajectory: Dict[str, Any] = {
@@ -1996,7 +2032,7 @@ class TestTurnGrouping:
         assert root.get("attributes", {})["input.value"] == "do the task"
 
 
-class TestEventSchedule:
+class TestEqualTimeEventOrder:
     @staticmethod
     def _trajectory(steps: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
@@ -2007,7 +2043,7 @@ class TestEventSchedule:
             "steps": steps,
         }
 
-    def test_same_instant_events_keep_causal_waterfall_order(self) -> None:
+    def test_events_keep_exact_timestamp_and_metadata_order(self) -> None:
         trajectory = self._trajectory(
             [
                 {"step_id": 1, "source": "user", "message": "go"},
@@ -2024,60 +2060,18 @@ class TestEventSchedule:
                 },
             ]
         )
-        # No user timestamp: the document opens at the agent event, so the
-        # step interval is degenerate and offsets compress to zero.
         spans = _convert_atif_trajectory_to_spans(trajectory)
         llm = next(s for s in spans if s["span_kind"] == "LLM")
         tools = [s for s in spans if s["span_kind"] == "TOOL"]
         starts = [llm["start_time"], *(t["start_time"] for t in tools)]
-        assert starts == sorted(starts)
+        assert starts == ["2025-01-15T10:00:10+00:00"] * 4
         assert all(t["start_time"] == t["end_time"] for t in tools)
-
-        # With a real interval, events spread at 1ms and stay ordered:
-        # LLM event, then tools in declared order, last tool on the step
-        # timestamp.
-        trajectory["steps"][0]["timestamp"] = "2025-01-15T10:00:00Z"
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        llm = next(s for s in spans if s["span_kind"] == "LLM")
-        tools = [s for s in spans if s["span_kind"] == "TOOL"]
-        starts = [llm["start_time"], *(t["start_time"] for t in tools)]
-        assert starts == [
-            "2025-01-15T10:00:09.997000+00:00",
-            "2025-01-15T10:00:09.998000+00:00",
-            "2025-01-15T10:00:09.999000+00:00",
-            "2025-01-15T10:00:10+00:00",
+        metadata = [
+            span.get("attributes", {}).get("metadata", {})["_phoenix.span_order"]
+            for span in [llm, *tools]
         ]
+        assert metadata == [0, 1, 2, 3]
         assert [t["name"] for t in tools] == ["bash", "bash", "done"]
-
-    def test_short_interval_compresses_event_offsets(self) -> None:
-        trajectory = self._trajectory(
-            [
-                {
-                    "step_id": 1,
-                    "source": "user",
-                    "message": "go",
-                    "timestamp": "2025-01-15T10:00:09.999000Z",
-                },
-                {
-                    "step_id": 2,
-                    "source": "agent",
-                    "message": "running",
-                    "timestamp": "2025-01-15T10:00:10Z",
-                    "tool_calls": [
-                        {"tool_call_id": "a", "function_name": "bash", "arguments": {}},
-                        {"tool_call_id": "b", "function_name": "bash", "arguments": {}},
-                    ],
-                },
-            ]
-        )
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        chain = next(s for s in spans if s["span_kind"] == "CHAIN")
-        llm = next(s for s in spans if s["span_kind"] == "LLM")
-        tools = [s for s in spans if s["span_kind"] == "TOOL"]
-        starts = [llm["start_time"], *(t["start_time"] for t in tools)]
-        assert starts == sorted(starts)
-        # Events never escape the step interval.
-        assert all(chain["start_time"] <= s <= chain["end_time"] for s in starts)
 
     def test_continuation_input_falls_back_to_copied_request(self) -> None:
         """A continuation whose prompt is entirely copied context still gets

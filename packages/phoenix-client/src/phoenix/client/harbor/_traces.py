@@ -28,6 +28,8 @@ from phoenix.client.helpers.atif._convert import (
     _CONTINUATION_INDEX_KEY,
     _FALLBACK_TIMESTAMP_KEY,
     _IS_CONTINUATION_KEY,
+    _LLM_LATENCY_MS_KEY,
+    _LLM_LATENCY_SOURCE_KEY,
     _STEP_NAME_KEY,
 )
 from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_parent
@@ -294,7 +296,8 @@ def _apply_request_times(documents: Sequence[MutableMapping[str, Any]], agent_co
 
     Some Harbor agents record request latency on ``AgentContext`` but omit it
     from ATIF. Enrichment is all-or-nothing so a partial or aggregated list can
-    never be shifted onto the wrong steps. Producer-supplied ATIF latency wins.
+    never be shifted onto the wrong steps. Phoenix-private fields keep this
+    Harbor convention out of the general ATIF schema.
     """
     context_metadata = getattr(agent_context, "metadata", None)
     if not isinstance(context_metadata, Mapping):
@@ -312,12 +315,8 @@ def _apply_request_times(documents: Sequence[MutableMapping[str, Any]], agent_co
     if llm_steps is None or len(llm_steps) != len(request_times):
         return
     for step, latency_ms in zip(llm_steps, request_times):
-        metrics = step.setdefault("metrics", {})
-        if not isinstance(metrics, MutableMapping):
-            continue
-        extra = metrics.setdefault("extra", {})
-        if isinstance(extra, MutableMapping):
-            extra.setdefault("latency_ms", latency_ms)
+        step[_LLM_LATENCY_MS_KEY] = latency_ms
+        step[_LLM_LATENCY_SOURCE_KEY] = "harbor.api_request_times_msec"
 
 
 def _load_file(
@@ -475,8 +474,10 @@ def _normalize_document(
         producer_ref_id = ref.get("trajectory_id")
         if isinstance(producer_ref_id, str) and producer_ref_id in embedded_ids:
             ref["trajectory_id"] = embedded_ids[producer_ref_id]
-        if ref.get("session_id"):
-            ref["session_id"] = _session_id(loader.trace_id)
+        # Every retained child gets a unique normalized trajectory ID. Keeping
+        # a trial-wide session ID on a pre-v1.7 reference would turn it into an
+        # ambiguous fallback key that could attach another document here.
+        ref.pop("session_id", None)
 
 
 def _resolve_file_references(

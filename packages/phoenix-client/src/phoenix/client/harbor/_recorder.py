@@ -20,7 +20,7 @@ from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import ExperimentSlice, JobPlan, canonical_digest
 from phoenix.client.harbor._naming import experiment_names, validate_experiment_naming
 from phoenix.client.harbor._scores import ExtractedEvaluation, infrastructure_failures
-from phoenix.client.harbor._traces import HarborTrace
+from phoenix.client.harbor._traces import HarborTrace, harbor_trace_id
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +203,7 @@ class PhoenixRecorder:
         experiment: ExperimentHandle,
         dataset_example_id: str,
         repetition: int,
+        expected_trace_id: str,
         trial_result: TrialResult,
     ) -> v1.ExperimentRun:
         matches = [
@@ -217,7 +218,11 @@ class PhoenixRecorder:
                 f"but returned {len(matches)} matching runs for validation."
             )
         run = matches[0]
-        if not self.can_reuse_run(run, trial_result=trial_result):
+        if not self.can_reuse_run(
+            run,
+            trial_result=trial_result,
+            expected_trace_id=expected_trace_id,
+        ):
             raise HarborPluginError(
                 f"Phoenix rejected Harbor trial {trial_result.trial_name!r} as a duplicate, "
                 "but the matching run is failed and should be writable."
@@ -267,6 +272,7 @@ class PhoenixRecorder:
                     experiment=experiment,
                     dataset_example_id=example_id,
                     repetition=slot.repetition,
+                    expected_trace_id=harbor_trace_id(plan, trial_result),
                     trial_result=trial_result,
                 )
             raise HarborPluginError(

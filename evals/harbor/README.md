@@ -57,15 +57,14 @@ harbor.trial (CHAIN)
       LLM and TOOL spans
 ```
 
-Visible names describe execution, not raw ATIF indices: fresh operational
-steps are numbered per label — `agent_action_3` is the third agent action and
-`compaction_1` the first context-management step, regardless of interleaving —
-while the producer's original `step_id` stays in span metadata as
-`atif.step_id` and global execution order lives in timestamps and
-`_phoenix.span_order`. Multi-step trajectory roots are qualified with their Harbor step
-name (`terminus-2 · step_01_aggregate`) and continuation roots are labeled
-(`terminus-2 (continuation 1)`). A step-level observation that ATIF does not tie
-to a specific tool call is preserved on the action span's output.
+Visible names describe execution instead of copying raw ATIF indices. Fresh operational
+steps are numbered within each label. `agent_action_3` is the third agent action, while
+`compaction_1` is the first context-management step. The producer's original `step_id`
+stays in span metadata as `atif.step_id`. Timestamps and `_phoenix.span_order` record
+global execution order. Multi-step trajectory roots include their Harbor step name, such
+as `terminus-2 · step_01_aggregate`. Continuation roots use names such as
+`terminus-2 (continuation 1)`. When ATIF does not tie a step observation to one tool call,
+the action span keeps that observation in its output.
 
 Every span uses one trial-scoped session ID. The top-level `harbor.trial` span records the Harbor
 job, trial, task, repetition, and imported file paths. Phoenix links the experiment run to this
@@ -123,10 +122,11 @@ Python callers can inspect the same field catalog through
 `phoenix.client.harbor.EXPERIMENT_NAME_TEMPLATE_FIELDS`. Standard format specifications work for
 the string-valued fields.
 
-The plugin identifies an experiment by its Harbor job ID, Phoenix dataset version, and agent
-configuration digest, not by its display name. Two jobs may use the same exact name without being
-treated as the same experiment. Include `{job.name}` or `{job.id}` when those jobs should also be
-easy to distinguish by name in Phoenix.
+The plugin identifies an experiment by its Harbor job ID and agent configuration digest, not by
+its display name or the dataset's latest version. A replay recovers the experiment created for
+that job even if another job has since created a new dataset version. Two jobs may use the same
+exact name without being treated as the same experiment. Include `{job.name}` or `{job.id}` when
+you want their names to be easy to distinguish in Phoenix.
 
 Both trial targets accept overrides, e.g.:
 
@@ -176,7 +176,7 @@ test suite divides coverage by the cheapest layer that can prove each behavior:
 
 | Layer | Representative cases | Contract proved |
 | --- | --- | --- |
-| Converter producer fixtures | OpenHands, Terminus, Claude Code; ATIF v1.2-v1.7; timeout, invalid output, continuation, compaction, subagents, multimodal input, parallel tools, deterministic dispatch | Format and producer variations become valid causal span trees without invented timing |
+| Converter producer fixtures | OpenHands, Terminus, Claude Code; ATIF v1.2-v1.8; timeout, invalid output, continuation, compaction, subagents, image and audio input, parallel tools, deterministic dispatch | Format and producer variations become valid causal span trees without invented timing |
 | Harbor trace builder | Single-step, per-step multi-step, native resume, simulated user, missing clocks, embedded/external/shared subagents, continuation, cyclic or invalid refs, failed trials | Trial normalization, identity, parentage, source selection, fallback time, and replay remain correct for every Harbor layout |
 | Credential-free Docker E2E | Direct regression-triage task with oracle and nop agents, repetitions, multiple agents, resume, startup failure | Dataset, experiment, evaluation, and lifecycle behavior when an agent does not produce ATIF |
 | Live ATIF Docker E2E | Terminus-2 on the three Terminal Bench tasks above | A real Harbor producer writes ATIF, request timings survive trial persistence, spans upload, and experiment runs link to readable traces |
