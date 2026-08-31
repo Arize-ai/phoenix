@@ -26,7 +26,7 @@ Phoenix runs from a prebuilt Docker image, so Railway deploys it with no build s
 | `PHOENIX_ENABLE_AUTH` | `true` |
 | `PHOENIX_SECRET` | 32+ chars, with a digit and a lowercase letter |
 
-Use `/healthz` as the healthcheck path. The first login is `admin@localhost` / `admin`, and you are required to change it. Point your application at the deployment:
+Use `/healthz` as the healthcheck path, and set the service restart policy to **On Failure** — Railway deploys services in parallel, and Phoenix exits if Postgres isn't accepting connections yet, so it comes up on a restart once the database is ready. The first login is `admin@localhost` / `admin`, and you are required to change it. Point your application at the deployment:
 
 ```python
 from phoenix.otel import register
