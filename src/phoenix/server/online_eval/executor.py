@@ -696,22 +696,24 @@ class OnlineEvalExecutor:
                 ),
                 None,
             )
-        project_session = await session.get(models.ProjectSession, unit.target_rowid)
-        if project_session is None:
-            return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
-        if project_session.project_id != project_id:
-            return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
-        if not project_session.content_complete:
-            return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
-        loaded = await load_session_eval_context(
-            session,
-            project_session_rowid=project_session.id,
-            project_id=project_id,
-            vocabulary=session_vocabularies[unit.target_rowid],
-        )
-        if not has_eligible_root_turns(loaded.applied_policy):
-            return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
-        return loaded.context, loaded.applied_policy
+        if unit.evaluation_target == "SESSION":
+            project_session = await session.get(models.ProjectSession, unit.target_rowid)
+            if project_session is None:
+                return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
+            if project_session.project_id != project_id:
+                return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
+            if not project_session.content_complete:
+                return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
+            loaded = await load_session_eval_context(
+                session,
+                project_session_rowid=project_session.id,
+                project_id=project_id,
+                vocabulary=session_vocabularies[unit.target_rowid],
+            )
+            if not has_eligible_root_turns(loaded.applied_policy):
+                return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+            return loaded.context, loaded.applied_policy
+        raise EvalExecutionError(f"unsupported online evaluation target {unit.evaluation_target!r}")
 
     def hydrate_from_snapshot(
         self,
@@ -1015,10 +1017,14 @@ class OnlineEvalExecutor:
                 annotation_table = models.SpanAnnotation
                 unique_by = ("name", "span_rowid", "identifier")
                 on_conflict = OnConflict.DO_NOTHING
-            else:
+            elif unit.evaluation_target == "SESSION":
                 annotation_table = models.ProjectSessionAnnotation
                 unique_by = ("name", "project_session_id", "identifier")
                 on_conflict = OnConflict.DO_UPDATE
+            else:
+                raise EvalExecutionError(
+                    f"unsupported online evaluation target {unit.evaluation_target!r}"
+                )
             inserted_ids: Sequence[int] = ()
 
             async def _write_annotations(session: AsyncSession) -> None:
@@ -1053,8 +1059,12 @@ class OnlineEvalExecutor:
             if self._event_queue is not None and inserted_ids:
                 if unit.evaluation_target == "SPAN":
                     self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
-                else:
+                elif unit.evaluation_target == "SESSION":
                     self._event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
+                else:
+                    raise EvalExecutionError(
+                        f"unsupported online evaluation target {unit.evaluation_target!r}"
+                    )
         if not records:
             raise EvalExecutionError("evaluator returned no results")
 
