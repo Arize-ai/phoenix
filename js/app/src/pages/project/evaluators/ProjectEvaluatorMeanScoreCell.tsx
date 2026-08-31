@@ -1,3 +1,5 @@
+import { css } from "@emotion/react";
+import type { ComponentProps, ReactNode } from "react";
 import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -63,10 +65,35 @@ type AnnotationMeanScoreLoaderProps = {
   scoreWindow: EvaluatorScoreWindow;
 };
 
+const meanScoreAlignmentCSS = css`
+  /* AnnotationScoreText insets a directed score as a padded pill; mirror
+     that inset for undirected and fallback scores so the values start at
+     the same x position on every row of the column. */
+  > .text:not([data-direction]) {
+    display: inline-block;
+    padding: var(--global-dimension-size-25) var(--global-dimension-size-100);
+  }
+`;
+
+/** Aligns a score with the pill-shaped scores on neighboring rows. */
+function AlignedScore({ children }: { children: ReactNode }) {
+  return <span css={meanScoreAlignmentCSS}>{children}</span>;
+}
+
+function CellMeanScore(props: ComponentProps<typeof MeanScore>) {
+  return (
+    <AlignedScore>
+      <MeanScore {...props} />
+    </AlignedScore>
+  );
+}
+
 const meanScoreFallback = (
-  <Text fontFamily="mono" color="text-700">
-    --
-  </Text>
+  <AlignedScore>
+    <Text fontFamily="mono" color="text-700">
+      --
+    </Text>
+  </AlignedScore>
 );
 
 /**
@@ -367,7 +394,7 @@ function AnnotationMeanScoreView({
     <TooltipTrigger delay={0}>
       <TriggerWrap>
         <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
-          <MeanScore
+          <CellMeanScore
             value={meanScore}
             positiveOptimization={getPositiveOptimizationFromConfig({
               config: annotation.config,
