@@ -13,9 +13,11 @@ import {
   Text,
 } from "@phoenix/components";
 import {
+  formatEvaluationTarget,
   isProjectEvaluatorTarget,
   MIN_EVALUATION_DELAY_SECONDS,
   toProjectEvaluatorSamplingFraction,
+  type ProjectEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
@@ -29,6 +31,7 @@ import {
   SpanFilterConditionFieldCore,
   type SpanFilterValidConditionArgs,
 } from "@phoenix/pages/project/SpanFilterConditionField";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
  * The target, sampling, delay, and filter fields wired to a scope object.
@@ -139,6 +142,16 @@ const ProjectEvaluatorEvaluationDelayField = ({
   );
 };
 
+/**
+ * The targets this form offers. TRACE is a stored target that is never
+ * scheduled, so it is deliberately unauthorable; offering it is this list plus
+ * a TRACE row in {@link FILTER_FIELDS_BY_TARGET}.
+ */
+const AUTHORABLE_PROJECT_EVALUATOR_TARGETS = [
+  "SPAN",
+  "SESSION",
+] as const satisfies readonly ProjectEvaluatorTarget[];
+
 const ProjectEvaluatorTargetField = ({
   value,
   onChange,
@@ -162,12 +175,15 @@ const ProjectEvaluatorTargetField = ({
           }
         }}
       >
-        <SegmentedControlItem id="SPAN" isDisabled={isDisabled}>
-          Span
-        </SegmentedControlItem>
-        <SegmentedControlItem id="SESSION" isDisabled={isDisabled}>
-          Session
-        </SegmentedControlItem>
+        {AUTHORABLE_PROJECT_EVALUATOR_TARGETS.map((target) => (
+          <SegmentedControlItem
+            key={target}
+            id={target}
+            isDisabled={isDisabled}
+          >
+            {formatEvaluationTarget(target)}
+          </SegmentedControlItem>
+        ))}
       </SegmentedControl>
     </Flex>
   );
@@ -263,7 +279,8 @@ const ProjectEvaluatorFilterField = ({
   onChange: (filterCondition: string) => void;
   onValidityChange?: (isValid: boolean) => void;
 }) => {
-  const isSessionTarget = targetType === "SESSION";
+  const { language, label, placeholder, emptyHint } =
+    FILTER_FIELDS_BY_TARGET[targetType];
   const [draft, setDraft] = useState(value);
   const applyValidCondition = (filterCondition: string) => {
     if (filterCondition === value) {
@@ -271,39 +288,82 @@ const ProjectEvaluatorFilterField = ({
     }
     onChange(filterCondition);
   };
+  const editor = () => {
+    switch (language) {
+      case "session":
+        return (
+          <SessionScopeFilterField
+            projectId={projectId}
+            filterCondition={draft}
+            onFilterConditionChange={setDraft}
+            onValidCondition={applyValidCondition}
+            onValidityChange={onValidityChange}
+            placeholder={placeholder}
+          />
+        );
+      case "span":
+        return (
+          <SpanFilterConditionFieldCore
+            projectId={projectId}
+            filterCondition={draft}
+            onFilterConditionChange={setDraft}
+            onValidCondition={({ condition }: SpanFilterValidConditionArgs) =>
+              applyValidCondition(condition)
+            }
+            onValidityChange={onValidityChange}
+            placeholder={placeholder}
+          />
+        );
+      default:
+        return assertUnreachable(language);
+    }
+  };
   return (
     <Flex direction="column" gap="size-50">
       <Text size="XS" weight="heavy" color="text-700">
-        {isSessionTarget ? "Session filter" : "Span filter"}
+        {label}
       </Text>
-      {isSessionTarget ? (
-        <SessionScopeFilterField
-          projectId={projectId}
-          filterCondition={draft}
-          onFilterConditionChange={setDraft}
-          onValidCondition={applyValidCondition}
-          onValidityChange={onValidityChange}
-          placeholder="num_traces >= 5"
-        />
-      ) : (
-        <SpanFilterConditionFieldCore
-          projectId={projectId}
-          filterCondition={draft}
-          onFilterConditionChange={setDraft}
-          onValidCondition={({ condition }: SpanFilterValidConditionArgs) =>
-            applyValidCondition(condition)
-          }
-          onValidityChange={onValidityChange}
-          placeholder="span_kind == 'LLM'"
-        />
-      )}
+      {editor()}
       <Text size="XS" color="text-500">
-        {isSessionTarget
-          ? "Leave empty to evaluate every session."
-          : "Leave empty to evaluate every span."}
+        {emptyHint}
       </Text>
     </Flex>
   );
+};
+
+type ProjectEvaluatorFilterField = {
+  /** The filter language the field parses, which also picks its editor. */
+  language: ProjectEvaluatorMappingSourceGrain;
+  label: string;
+  placeholder: string;
+  /** What an empty condition evaluates, said in the records' own noun. */
+  emptyHint: string;
+};
+
+const SPAN_FILTER_FIELD: ProjectEvaluatorFilterField = {
+  language: "span",
+  label: "Span filter",
+  placeholder: "span_kind == 'LLM'",
+  emptyHint: "Leave empty to evaluate every span.",
+};
+
+/**
+ * The filter each target authors, one row per target. TRACE collapses onto the
+ * span grain — see `toEvaluatorMappingSourceGrain` — so it filters spans by
+ * saying so here, rather than by falling through to the span row.
+ */
+const FILTER_FIELDS_BY_TARGET: Record<
+  ProjectEvaluatorTarget,
+  ProjectEvaluatorFilterField
+> = {
+  SPAN: SPAN_FILTER_FIELD,
+  TRACE: SPAN_FILTER_FIELD,
+  SESSION: {
+    language: "session",
+    label: "Session filter",
+    placeholder: "num_traces >= 5",
+    emptyHint: "Leave empty to evaluate every session.",
+  },
 };
 
 /**

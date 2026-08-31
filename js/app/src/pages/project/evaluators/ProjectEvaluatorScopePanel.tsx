@@ -89,7 +89,7 @@ import type {
   EvaluatorInputMapping,
   EvaluatorMappingSource,
 } from "@phoenix/types";
-import { isStringKeyedObject } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -185,7 +185,6 @@ export const ProjectEvaluatorScopePanel = (
   const { projectId, scope, codeEvaluatorId, inlineCode, requiredVariables } =
     props;
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
-  const isSessionTarget = scope.targetType === "SESSION";
   // Span and session contexts are structurally identical, so the store cannot
   // infer the grain from one; changing the target has to say so.
   const evaluatorStore = useEvaluatorStoreInstance();
@@ -217,24 +216,13 @@ export const ProjectEvaluatorScopePanel = (
       Test All
     </Button>
   );
-  return (
-    <div css={panelCSS}>
-      <div css={panelScrollCSS}>
-        {props.showScopeFields !== false ? (
-          <>
-            <Heading level={2}>Scope</Heading>
-            <ScopeEditorCard
-              projectId={projectId}
-              scope={scope}
-              onScopeChange={props.onScopeChange}
-              onFilterValidityChange={props.onFilterValidityChange}
-              timeWindow={timeWindow}
-              onTimeWindowChange={setTimeWindow}
-              isTargetDisabled={props.isTargetDisabled ?? false}
-            />
-          </>
-        ) : null}
-        {isSessionTarget ? (
+  // Every target maps onto a mapping-source grain, and the preview below
+  // reads the grain's records: TRACE collapses onto span, so a trace
+  // evaluator previews spans by way of that mapping, not by default.
+  const matchingRecords = () => {
+    switch (mappingSourceGrain) {
+      case "session":
+        return (
           <>
             <SessionInputNote />
             <Flex direction="column" gap="size-25">
@@ -312,7 +300,9 @@ export const ProjectEvaluatorScopePanel = (
               )}
             </Suspense>
           </>
-        ) : (
+        );
+      case "span":
+        return (
           <>
             <Flex direction="column" gap="size-25">
               {props.showScopeFields !== false ? (
@@ -388,7 +378,29 @@ export const ProjectEvaluatorScopePanel = (
               )}
             </Suspense>
           </>
-        )}
+        );
+      default:
+        return assertUnreachable(mappingSourceGrain);
+    }
+  };
+  return (
+    <div css={panelCSS}>
+      <div css={panelScrollCSS}>
+        {props.showScopeFields !== false ? (
+          <>
+            <Heading level={2}>Scope</Heading>
+            <ScopeEditorCard
+              projectId={projectId}
+              scope={scope}
+              onScopeChange={props.onScopeChange}
+              onFilterValidityChange={props.onFilterValidityChange}
+              timeWindow={timeWindow}
+              onTimeWindowChange={setTimeWindow}
+              isTargetDisabled={props.isTargetDisabled ?? false}
+            />
+          </>
+        ) : null}
+        {matchingRecords()}
       </div>
     </div>
   );

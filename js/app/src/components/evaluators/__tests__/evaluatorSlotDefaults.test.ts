@@ -16,19 +16,34 @@ import {
   getEvaluatorSlotSuggestedPaths,
 } from "../evaluatorSlotDefaults";
 
-const GRAINS: ProjectEvaluatorMappingSourceGrain[] = ["span", "session"];
+/**
+ * Where each grain's fixtures come from. A grain added to the union fails to
+ * compile here until it supplies its own contexts, rather than silently being
+ * checked against another grain's.
+ */
+const CONTEXTS_BY_GRAIN: Record<
+  ProjectEvaluatorMappingSourceGrain,
+  { generic: () => { context: unknown }; sample: () => { context: unknown } }
+> = {
+  span: {
+    generic: getGenericSpanEvaluationContext,
+    sample: getSampleSpanEvaluationContext,
+  },
+  session: {
+    generic: getGenericSessionEvaluationContext,
+    sample: getSampleSessionEvaluationContext,
+  },
+};
+
+const GRAINS = Object.keys(
+  CONTEXTS_BY_GRAIN
+) as ProjectEvaluatorMappingSourceGrain[];
 
 const genericContextFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
-  (grain === "span"
-    ? getGenericSpanEvaluationContext()
-    : getGenericSessionEvaluationContext()
-  ).context as unknown as Record<string, unknown>;
+  CONTEXTS_BY_GRAIN[grain].generic().context as Record<string, unknown>;
 
 const sampleContextFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
-  (grain === "span"
-    ? getSampleSpanEvaluationContext()
-    : getSampleSessionEvaluationContext()
-  ).context as unknown as Record<string, unknown>;
+  CONTEXTS_BY_GRAIN[grain].sample().context as Record<string, unknown>;
 
 /**
  * The record path that publishes the same value a slot's identity default
