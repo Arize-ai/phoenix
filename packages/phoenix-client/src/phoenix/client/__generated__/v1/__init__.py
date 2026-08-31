@@ -108,6 +108,11 @@ class ChatCompletionUsagePromptTokensDetails(TypedDict):
     cached_tokens: int
 
 
+class ChatRequestCredential(TypedDict):
+    key: Literal["GITHUB_PERSONAL_ACCESS_TOKEN"]
+    value: str
+
+
 class CodeEvaluatorUIContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
@@ -2224,6 +2229,7 @@ class ChatRequestBody(TypedDict):
     ]
     toolApprovals: NotRequired[Sequence[ToolApproval]]
     lastMessageId: NotRequired[str]
+    credentials: NotRequired[Sequence[ChatRequestCredential]]
     recordLocalTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     instrumentUserId: NotRequired[bool]

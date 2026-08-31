@@ -15,6 +15,7 @@ import {
 } from "@phoenix/components";
 import {
   AgentExperimentalSettings,
+  AgentGitHubSettings,
   AgentObservabilitySettings,
   AgentSettingsForm,
   AgentSubagentsSettings,
@@ -230,6 +231,7 @@ function PersonalSettingsSection() {
         ) : null}
         <AgentObservabilitySettings isOnSettingsPage />
       </AgentSettingsForm>
+      <AgentGitHubSettings />
     </Flex>
   );
 }
