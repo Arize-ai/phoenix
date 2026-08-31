@@ -6,15 +6,15 @@ anything unlisted. ``_check_base_tables`` does the same over ``exp.Table``
 sources. Between them sits everything else the parser can build, and for those
 there is only ``_REFUSED_NODE_CLASSES``, which is a denylist.
 
-That seam is where three defects were found in one night, all with the same
-signature: a node that looks like a function call or a table modifier but is not
-the class the check expects. ``exp.Lambda`` is how ``->`` parses inside an
-argument list, and it made ``MIN`` return the maximum. ``exp.Operator`` let
-``OPERATOR(pg_catalog.~)`` through while the same operator's ordinary spelling
-was refused. ``exp.TableSample`` was accepted and then silently discarded.
+A denylist over that seam admits by default, and what slips through has one
+signature: a node that looks like a function call or a table modifier but is
+not the class the check expects. ``exp.Lambda`` is how ``->`` parses inside an
+argument list, which turns ``MIN`` into the maximum. ``exp.Operator`` carries
+``OPERATOR(pg_catalog.~)`` past the allowlist that refuses the same operator's
+ordinary spelling. ``exp.TableSample`` is accepted and then silently discarded.
 
-None of the three was found by a check. They were found by looking, which does
-not scale and does not run in CI.
+No check reports any of the three. Finding them takes reading the node classes
+against the policy, which does not scale and does not run in CI.
 
 What this file closes, and what it does not
 -------------------------------------------
