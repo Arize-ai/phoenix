@@ -2,9 +2,11 @@
  * Switching the target back to a list whose rows are already cached remounts
  * that list with its context in hand, so the row binds the mapping source
  * before the target's grain effect has moved the store off the old grain. The
- * store turns the context away, resets to the new grain's blank default, and
- * the mapping diagnostics then read against nothing while a real context is
- * open on screen.
+ * row binds its context as the kind of record its list holds, so the store
+ * reads it as that record whichever effect lands first; a store that inferred
+ * the grain instead would turn the context away, reset to the new grain's
+ * blank default, and leave the mapping diagnostics reading against nothing
+ * while a real context is open on screen.
  */
 import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -36,9 +38,17 @@ const SPAN_ROW = {
   },
 };
 
-/** The run list under the target: it binds whichever row is open. */
-function RunListRow({ rowKey, context }: { rowKey: string; context: unknown }) {
-  useEvaluatorMappingSourceBoundToRow({ rowKey, context });
+/** The run list under the target: it binds whichever row is open, as its own grain. */
+function RunListRow({
+  grain,
+  rowKey,
+  context,
+}: {
+  grain: ProjectEvaluatorMappingSourceGrain;
+  rowKey: string;
+  context: unknown;
+}) {
+  useEvaluatorMappingSourceBoundToRow({ grain, rowKey, context });
   return null;
 }
 
@@ -60,7 +70,7 @@ function ScopePanel({
   useEffect(() => {
     store.getState().setEvaluatorMappingSourceGrain(grain);
   }, [store, grain]);
-  return <RunListRow rowKey={row.rowKey} context={row.context} />;
+  return <RunListRow grain={grain} rowKey={row.rowKey} context={row.context} />;
 }
 
 describe("toggling the target back to a cached list", () => {

@@ -377,7 +377,11 @@ export const EditCodeEvaluatorDialogContent = ({
       if (
         JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
       ) {
-        state.setEvaluatorMappingSource(next.testPayload);
+        state.setEvaluatorMappingSource({
+          // The draft was read off, and is edited against, this grain's record.
+          grain: state.evaluatorMappingSource.grain,
+          source: next.testPayload,
+        });
       }
       return { ok: true as const, output: buildSnapshot() };
     };

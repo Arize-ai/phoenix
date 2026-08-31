@@ -28,19 +28,13 @@ export type AnnotationConfig =
   | ContinuousEvaluatorAnnotationConfig
   | FreeformEvaluatorAnnotationConfig;
 
-export type EvaluatorMappingSourceState =
-  | {
-      grain: "dataset";
-      source: EvaluatorMappingSource<"dataset">;
-    }
-  | {
-      grain: "span";
-      source: EvaluatorMappingSource<"span">;
-    }
-  | {
-      grain: "session";
-      source: EvaluatorMappingSource<"session">;
-    };
+/** A mapping source and the kind of record it describes, one member per grain. */
+export type EvaluatorMappingSourceState = {
+  [TGrain in EvaluatorMappingSourceGrain]: {
+    grain: TGrain;
+    source: EvaluatorMappingSource<TGrain>;
+  };
+}[EvaluatorMappingSourceGrain];
 
 export type EvaluatorStoreProps = {
   datasetEvaluator?: {
@@ -96,10 +90,22 @@ export type EvaluatorStoreActions = {
   setDataset: (dataset: EvaluatorStoreProps["dataset"]) => void;
   /** Sets the dataset ID, or clears the dataset if null. */
   setDatasetId: (datasetId: string | null) => void;
-  /** Sets the evaluator mapping source data (input, output, reference). */
-  setEvaluatorMappingSource: (
-    evaluatorMappingSource: EvaluatorMappingSource
-  ) => void;
+  /**
+   * Sets the evaluator mapping source data (input, output, reference) as a
+   * record of the grain the caller declares it to be.
+   *
+   * Span and session sources are structurally identical, so a payload alone
+   * cannot say which record it came from. The caller binding one knows — a run
+   * list binds the kind of record it renders, a draft tool binds the kind it
+   * was authored against — so the grain travels with the payload rather than
+   * being read back off whatever the store happens to hold.
+   */
+  setEvaluatorMappingSource: <
+    TGrain extends EvaluatorMappingSourceGrain,
+  >(evaluatorMappingSource: {
+    grain: TGrain;
+    source: EvaluatorMappingSource<TGrain>;
+  }) => void;
   /**
    * Switches which kind of record the mapping source describes, resetting it to
    * that grain's default.
@@ -244,6 +250,62 @@ export const SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"s
     output: "",
     metadata: {},
   };
+
+/**
+ * How each grain reads a payload declared to be one of its records: its own
+ * fields, validated against its own vocabulary and nothing else.
+ *
+ * Metadata a grain cannot vouch for — an agent-authored payload, a context
+ * built for another record kind — is dropped for that grain's empty metadata
+ * rather than read under a vocabulary it does not speak.
+ */
+const READ_MAPPING_SOURCE_BY_GRAIN: {
+  [TGrain in EvaluatorMappingSourceGrain]: (
+    source: EvaluatorMappingSource<TGrain>
+  ) => EvaluatorMappingSource<TGrain>;
+} = {
+  dataset: ({ input, output, reference, metadata }) => ({
+    input: isStringKeyedObject(input) ? input : {},
+    output: isStringKeyedObject(output) ? output : {},
+    reference: isStringKeyedObject(reference) ? reference : {},
+    // An example's metadata is the author's own, so nothing marks it.
+    metadata: isStringKeyedObject(metadata) ? metadata : {},
+  }),
+  span: ({ input, output, metadata }) => ({
+    input,
+    output,
+    metadata:
+      isStringKeyedObject(metadata) && isStringKeyedObject(metadata.attributes)
+        ? metadata
+        : {},
+  }),
+  session: ({ input, output, metadata }) => ({
+    input,
+    output,
+    metadata:
+      isStringKeyedObject(metadata) && Array.isArray(metadata.turns)
+        ? metadata
+        : {},
+  }),
+};
+
+/** Reads a payload as the grain whoever bound it declared it to be. */
+export function readEvaluatorMappingSource<
+  TGrain extends EvaluatorMappingSourceGrain,
+>({
+  grain,
+  source,
+}: {
+  grain: TGrain;
+  source: EvaluatorMappingSource<TGrain>;
+}): EvaluatorMappingSourceState {
+  // The cast pairs a grain with its own source; the compiler tracks that only
+  // once `TGrain` is one grain, which it is at every call site.
+  return {
+    grain,
+    source: READ_MAPPING_SOURCE_BY_GRAIN[grain](source),
+  } as EvaluatorMappingSourceState;
+}
 
 /** The mapping source a grain starts from before any record is selected. */
 export function defaultEvaluatorMappingSourceState(
@@ -500,68 +562,12 @@ export const createEvaluatorStore = (
             );
           },
           setEvaluatorMappingSource(evaluatorMappingSource) {
-            const { input, output } = evaluatorMappingSource;
-            const { grain } = get().evaluatorMappingSource;
-            const metadataWith = (
-              hasRecordField: (metadata: Record<string, unknown>) => boolean
-            ): Record<string, unknown> => {
-              const metadata =
-                "metadata" in evaluatorMappingSource
-                  ? evaluatorMappingSource.metadata
-                  : undefined;
-              return isStringKeyedObject(metadata) && hasRecordField(metadata)
-                ? metadata
-                : {};
-            };
-            let nextEvaluatorMappingSource: EvaluatorMappingSourceState;
-            switch (grain) {
-              case "span":
-                nextEvaluatorMappingSource = {
-                  grain: "span",
-                  source: {
-                    input,
-                    output,
-                    metadata: metadataWith((metadata) =>
-                      isStringKeyedObject(metadata.attributes)
-                    ),
-                  },
-                };
-                break;
-              case "session":
-                nextEvaluatorMappingSource = {
-                  grain: "session",
-                  source: {
-                    input,
-                    output,
-                    metadata: metadataWith((metadata) =>
-                      Array.isArray(metadata.turns)
-                    ),
-                  },
-                };
-                break;
-              case "dataset":
-                nextEvaluatorMappingSource = {
-                  grain: "dataset",
-                  source: {
-                    input: isStringKeyedObject(input) ? input : {},
-                    output: isStringKeyedObject(output) ? output : {},
-                    reference:
-                      "reference" in evaluatorMappingSource
-                        ? evaluatorMappingSource.reference
-                        : {},
-                    metadata:
-                      "metadata" in evaluatorMappingSource &&
-                      isStringKeyedObject(evaluatorMappingSource.metadata)
-                        ? evaluatorMappingSource.metadata
-                        : {},
-                  },
-                };
-                break;
-              default:
-                assertUnreachable(grain);
-            }
             set(
-              { evaluatorMappingSource: nextEvaluatorMappingSource },
+              {
+                evaluatorMappingSource: readEvaluatorMappingSource(
+                  evaluatorMappingSource
+                ),
+              },
               undefined,
               "setEvaluatorMappingSource"
             );

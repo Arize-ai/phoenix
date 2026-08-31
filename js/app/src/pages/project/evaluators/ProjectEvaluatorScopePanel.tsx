@@ -962,6 +962,7 @@ function RecordedRunList({
     (state) => state.evaluator.inputMapping
   );
   useEvaluatorMappingSourceBoundToRow({
+    grain: recordNoun,
     rowKey: activeRow?.key ?? null,
     context: activeRow?.context,
   });
@@ -1668,42 +1669,42 @@ function getLatestMessageText(value: unknown): string | null {
  * can all return a new transcript for the same row. Keying on what the context
  * says rather than on the row's identity follows the value, not the row.
  *
- * The grain is a dependency for the same reason. The store reads its current
- * grain to decide what of a context to keep, and the target's grain effect runs
- * after this one: on a switch back to a cached target this binds first, has the
- * context turned away by the grain the store is still on, and is then reset to
- * that grain's blank default — with nothing left to re-run it.
+ * The grain comes from the list the row renders in and is bound with the
+ * context, so a target switch that remounts a cached list binds a record the
+ * store reads as what it is, whichever of this and the target's grain effect
+ * runs first.
  */
 export function useEvaluatorMappingSourceBoundToRow({
+  grain,
   rowKey,
   context,
 }: {
+  grain: ProjectEvaluatorMappingSourceGrain;
   rowKey: string | null;
   context: unknown;
 }) {
   const evaluatorStore = useEvaluatorStoreInstance();
-  const grain = useEvaluatorStore(
-    (state) => state.evaluatorMappingSource.grain
-  );
   const contextIdentity = useMemo(
     () => (context == null ? null : JSON.stringify(context)),
     [context]
   );
   const syncMappingSource = useEffectEvent(() => {
     if (hasEvaluatorMappingSourceShape(context)) {
-      evaluatorStore.getState().setEvaluatorMappingSource(context);
+      evaluatorStore
+        .getState()
+        .setEvaluatorMappingSource({ grain, source: context });
     }
   });
   useEffect(() => {
     syncMappingSource();
-  }, [rowKey, contextIdentity, grain]);
+  }, [grain, rowKey, contextIdentity]);
 }
 
 /**
  * Span and session contexts share this shape, so this cannot tell them apart —
- * the store's grain does, and the store also decides what of `metadata` to
- * keep. Only `metadata` is guaranteed to be an object by the server context
- * shape; `input`/`output` are raw attribute values.
+ * the grain the row is bound under does, and the store decides from that what
+ * of `metadata` to keep. Only `metadata` is guaranteed to be an object by the
+ * server context shape; `input`/`output` are raw attribute values.
  */
 function hasEvaluatorMappingSourceShape(
   value: unknown

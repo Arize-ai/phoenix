@@ -1,6 +1,7 @@
 import {
   createEvaluatorStore,
   SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
   type EvaluatorStoreProps,
 } from "../evaluatorStore";
 
@@ -80,22 +81,27 @@ describe("evaluatorStore mapping source grain", () => {
     });
   });
 
-  it("keeps a recorded session context under the session grain", () => {
+  it("keeps a recorded session context under the grain it was bound as", () => {
+    // The store is left on span: a session context is structurally identical to
+    // a span one, so only the grain the caller binds it under says what it is.
     const store = createFreeformStore({
       evaluatorMappingSource: {
-        grain: "session",
-        source: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+        grain: "span",
+        source: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
       },
     });
 
     store.getState().setEvaluatorMappingSource({
-      input: "hi",
-      output: "hello",
-      metadata: { duration_ms: 42, turns: [{ input: "hi" }] },
+      grain: "session",
+      source: {
+        input: "hi",
+        output: "hello",
+        metadata: { duration_ms: 42, turns: [{ input: "hi" }] },
+      },
     });
 
-    // A dataset fallthrough would coerce input/output to objects and add
-    // `reference`, silently renaming what the evaluator binds against.
+    // Read as a span, `turns` is metadata no span vocabulary names, and the
+    // context would be dropped for an empty one.
     expect(store.getState().evaluatorMappingSource).toEqual({
       grain: "session",
       source: {
