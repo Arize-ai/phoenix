@@ -16,11 +16,12 @@ export interface CompletenessEvaluatorArgs<
 }
 
 /**
- * A conversation record to judge for coverage of user intentions.
+ * A conversation record to judge for completed user requests.
  */
 export type CompletenessEvaluationRecord = {
   /**
    * The full conversation, including turns, tool calls, and tool results.
+   * Include tools for agent traces so action success can be verified.
    */
   conversation: string;
   [key: string]: unknown;
@@ -29,8 +30,8 @@ export type CompletenessEvaluationRecord = {
 /**
  * Creates a completeness evaluator.
  *
- * This function returns an evaluator that checks whether the assistant
- * addressed every distinct intention the user raised in a conversation.
+ * This function returns an evaluator that checks whether every active user
+ * request in a conversation was actually completed, not merely acknowledged.
  *
  * @param args - The arguments for creating the completeness evaluator.
  * @param args.model - The model to use for classification.

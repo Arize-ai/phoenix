@@ -32,7 +32,7 @@ describe("createCompletenessEvaluator", () => {
         labels: ["complete", "incomplete"],
         prompt: expect.arrayContaining([
           expect.objectContaining({
-            content: expect.stringContaining("every distinct intention"),
+            content: expect.stringContaining("every active request"),
           }),
         ]),
       })

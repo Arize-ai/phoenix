@@ -2,4 +2,4 @@
 "@arizeai/phoenix-evals": minor
 ---
 
-Add `createCompletenessEvaluator` to judge whether every distinct user intention in a conversation was addressed.
+Add `createCompletenessEvaluator` to judge whether every active user request in a conversation was actually completed.

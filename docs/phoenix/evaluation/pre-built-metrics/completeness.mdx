@@ -1,25 +1,26 @@
 ---
 title: "Completeness"
-description: "Assess whether the assistant addressed every distinct user intention in a conversation."
+description: "Assess whether every active user request in a conversation was actually completed."
 ---
 
 ## Overview
 
-The **Completeness** evaluator classifies whether an assistant addressed every
-distinct intention the user raised over the course of a conversation. It
-measures **breadth of coverage** — whether each separate request, question, or
-task was addressed — not whether a single overarching goal was reached.
+The **Completeness** evaluator classifies whether an assistant completed every
+active request the user made over the course of a conversation. It measures
+**finished work** — a delivered answer, a delivered artifact (including every
+required component), or an action whose success is visible in the record — not
+whether a request was merely acknowledged.
 
-A conversation can succeed at its main objective and still be incomplete when a
-secondary request is silently dropped. For example, if the user asks the
-assistant to reset a password **and** update a billing address, and the
-assistant handles only the reset, the conversation is incomplete.
+A conversation can finish its main task and still be incomplete when a
+secondary request is dropped. For example, if the user asks the assistant to
+reset a password **and** update a billing address, and the assistant only
+resets the password, the conversation is incomplete.
 
 <Info>
-Completeness is independent of correctness, quality, and task success. A
-response that engages an intention counts even if it is wrong, a refusal, a
-report that the evidence is missing, or a request for information the
-assistant needs from the user.
+Completeness does not judge correctness, quality, or whether completion was
+appropriate. A delivered answer can still be complete if it is factually wrong.
+A refusal, a clarifying question, or a report of a blocker is **not**
+completion. Withdrawn requests are listed but excluded from the decision.
 </Info>
 
 ## Supported Levels
@@ -39,15 +40,16 @@ conversation history and tool activity.
 |-------|------|-------------|
 | `conversation` | `string` | Full conversation record to judge, including turns, tool calls, and tool results. |
 
-Include early-turn requests. Render tool calls and tool results so the judge can
-tell whether a claimed action actually happened.
+Include early-turn requests. For agent traces, include tool calls and tool
+results in `conversation` so action success can be verified. If tools are
+omitted, the judge falls back to the visible dialogue.
 
 ## Output Interpretation
 
 | Property | Value | Description |
 |----------|-------|-------------|
 | `label` | `"complete"` or `"incomplete"` | Classification result |
-| `score` | `1.0` or `0.0` | `1.0` means every active intention was addressed |
+| `score` | `1.0` or `0.0` | `1.0` means every non-withdrawn intention was completed |
 | `explanation` | `string` | Judge reasoning, including an `INTENTIONS:` list |
 | `direction` | `"maximize"` | Higher aggregate scores are better |
 
@@ -124,7 +126,7 @@ import { createCompletenessEvaluator } from "@arizeai/phoenix-evals";
 const evaluator = createCompletenessEvaluator({
   model,
   promptTemplate: `Conversation: {{conversation}}
-Did the assistant address every user intention?`,
+Did the assistant complete every active user intention?`,
   choices: { complete: 1, incomplete: 0 },
 });
 ```
@@ -142,9 +144,9 @@ For model and provider options, see
 
 ## Benchmarks
 
-On a 35-example categorized synthetic benchmark using `gpt-4o-mini`, the default
-prompt achieves 0.80 accuracy, 0.80 macro precision, 0.80 macro recall, and
-0.80 macro F1. See
+On a 39-example categorized synthetic benchmark using `gpt-4o-mini`, a recent
+run of the default prompt achieved 0.92 accuracy, 0.91 macro precision, 0.92
+macro recall, and 0.92 macro F1. See
 [completeness.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/completeness.eval.ts)
 for the example set.
 

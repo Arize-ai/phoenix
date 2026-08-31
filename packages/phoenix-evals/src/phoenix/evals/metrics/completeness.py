@@ -12,17 +12,20 @@ from ..llm.prompts import PromptTemplate
 
 class CompletenessEvaluator(ClassificationEvaluator):
     """
-    An evaluator for whether an assistant addressed every distinct user
-    intention in a conversation.
+    An evaluator for whether every active user request in a conversation
+    was actually completed.
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
 
     Notes:
-        - Completeness measures whether each distinct user ask was addressed,
-          not whether the requested outcome actually happened. A refusal, a
-          missing-evidence answer, or a blocking question to the user still
-          addresses the intention.
+        - Completeness measures finished work: delivered answers, delivered
+          artifacts (including required parts), or actions whose success is
+          visible in the record. A refusal, clarifying question, or blocker
+          report is not completion. Withdrawn requests are excluded.
+        - For agent traces, include tool calls and tool results in
+          `conversation` so action success can be verified. If tools are
+          omitted, the judge falls back to the visible dialogue.
         - Returns one `Score` with `label` (complete or incomplete), `score`
           (1.0 if complete, 0.0 if incomplete), and an `explanation` from the
           LLM judge that lists each intention.
@@ -44,7 +47,7 @@ class CompletenessEvaluator(ClassificationEvaluator):
         scores = completeness_eval.evaluate(eval_input)
         print(scores)
         [Score(name='completeness', score=0.0, label='incomplete',
-            explanation='The billing-address request was never addressed.',
+            explanation='The billing-address request was never completed.',
             metadata={'model': 'gpt-4o-mini'},
             kind="llm", direction="maximize")]
 
@@ -63,8 +66,9 @@ class CompletenessEvaluator(ClassificationEvaluator):
     class CompletenessInputSchema(BaseModel):
         conversation: str = Field(
             description=(
-                "The full conversation record to judge for coverage of user intentions, "
-                "including turns, tool calls, and tool results."
+                "The full conversation record to judge, including turns, "
+                "tool calls, and tool results. Include tools for agent traces "
+                "so action success can be verified."
             ),
         )
 

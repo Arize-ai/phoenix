@@ -50,7 +50,7 @@ messages:
       5. A question to the user is not completion of the original task. Use pending_user.
       6. Safety refusals and reported blockers are not completion. Use blocked, even when the assistant behaved correctly.
       7. Do not infer whether missing information or missing context was actually necessary. If no answer/artifact/successful action was delivered, classify the observable state (pending_user, blocked, failed, or ignored). "The context/excerpt does not contain X" is blocked, even when the assistant adds related information from the document.
-      8. When tool calls or tool results appear in the provided text, they outrank claims. For each action intention, quote the matching tool result in the reason before you mark it completed. If you cannot quote a successful mutating result for that action, use failed — even if the assistant says it succeeded, and even if a different tool (a lookup) ran.
+      8. Tool results and the assistant's actual output outrank claims. Successful tool results count as completion of that action when they confirm success. Failed, contradictory, or missing mutating tool results mean failed.
       9. Completeness is independent of correctness and quality for delivered answers. A wrong or low-quality answer can still be completed only when the requested value was actually stated. That exception does not apply to tool-mediated actions, which require evidence of success, and it does not apply to artifacts or action lists that omit a required component.
 
       Put your complete analysis in your explanation. Work through the given text and list every distinct user intention you identify, one line per intention, in the order they first appear, using this exact format:
