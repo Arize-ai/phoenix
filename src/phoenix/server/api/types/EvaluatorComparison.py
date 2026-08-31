@@ -1,10 +1,15 @@
 """GraphQL types for the pairwise evaluator comparison (compare page)."""
 
-from typing import Optional
+from datetime import datetime
+from typing import Optional, Sequence
 
 import strawberry
 
-from phoenix.server.api.helpers.evaluator_comparison import ComparisonResult, SideSummary
+from phoenix.server.api.helpers.evaluator_comparison import (
+    ComparisonResult,
+    ComparisonTimeSeriesPoint,
+    SideSummary,
+)
 from phoenix.server.api.types.Evaluator import EvaluationTarget
 
 _SHARED_POPULATION = (
@@ -79,6 +84,48 @@ class EvaluatorComparisonSide:
     mean_score: Optional[float] = strawberry.field(
         description="Mean of this evaluator's non-null scores over the shared population."
     )
+    score_bin_counts: Optional[list[int]] = strawberry.field(
+        description=(
+            "Score histogram over the shared population: counts in 10 fixed bins over "
+            "the side's score domain (the config's bounds when both are set, else "
+            "[0, 1]), out-of-range scores clamped into the edge bins. Null for "
+            "categorical sides — their distribution is the confusion matrix marginal."
+        )
+    )
+    score_bin_edges: Optional[list[float]] = strawberry.field(
+        description=(
+            "The 11 bin edges scoreBinCounts is computed over; null for categorical "
+            "sides."
+        )
+    )
+
+
+@strawberry.type(description="One time bin's numbers over the shared population in that bin.")
+class EvaluatorComparisonTimeSeriesDataPoint:
+    timestamp: datetime
+    evaluated_by_both: int = strawberry.field(
+        description="Entities in this bin evaluated by both evaluators."
+    )
+    flag_rate_a: Optional[float] = strawberry.field(
+        description="Evaluator A's flag rate in this bin; null without flag semantics."
+    )
+    flag_rate_b: Optional[float] = strawberry.field(
+        description="Evaluator B's flag rate in this bin; null without flag semantics."
+    )
+    mean_score_a: Optional[float] = strawberry.field(
+        description="Mean of evaluator A's non-null scores in this bin."
+    )
+    mean_score_b: Optional[float] = strawberry.field(
+        description="Mean of evaluator B's non-null scores in this bin."
+    )
+    agreement: Optional[float] = strawberry.field(
+        description="Agreement in this bin, under the same reduction as the overall statistic."
+    )
+
+
+@strawberry.type
+class EvaluatorComparisonTimeSeries:
+    data: list[EvaluatorComparisonTimeSeriesDataPoint]
 
 
 @strawberry.type(
@@ -99,6 +146,12 @@ class ProjectEvaluatorComparison:
         description="Counts; rows follow sideA.labels, columns follow sideB.labels."
     )
     statistics: EvaluatorComparisonStatistics
+    time_series: EvaluatorComparisonTimeSeries = strawberry.field(
+        description=(
+            "Per-time-bin numbers over the shared population, with empty bins "
+            "filled throughout the requested range."
+        )
+    )
 
 
 def to_gql_comparison_side(summary: SideSummary) -> EvaluatorComparisonSide:
@@ -110,6 +163,12 @@ def to_gql_comparison_side(summary: SideSummary) -> EvaluatorComparisonSide:
         flagged_count=summary.flagged_count,
         flag_rate=summary.flag_rate,
         mean_score=summary.mean_score,
+        score_bin_counts=list(summary.score_bin_counts)
+        if summary.score_bin_counts is not None
+        else None,
+        score_bin_edges=list(summary.score_bin_edges)
+        if summary.score_bin_edges is not None
+        else None,
     )
 
 
@@ -117,6 +176,7 @@ def to_gql_comparison(
     evaluation_target: EvaluationTarget,
     coverage: EvaluatorComparisonCoverage,
     result: ComparisonResult,
+    time_series_points: Sequence[ComparisonTimeSeriesPoint],
 ) -> ProjectEvaluatorComparison:
     return ProjectEvaluatorComparison(
         evaluation_target=evaluation_target,
@@ -129,5 +189,19 @@ def to_gql_comparison(
             cohens_kappa=result.cohens_kappa,
             spearman_rho=result.spearman_rho,
             disagreement_count=result.disagreement_count,
+        ),
+        time_series=EvaluatorComparisonTimeSeries(
+            data=[
+                EvaluatorComparisonTimeSeriesDataPoint(
+                    timestamp=point.timestamp,
+                    evaluated_by_both=point.evaluated_by_both,
+                    flag_rate_a=point.flag_rate_a,
+                    flag_rate_b=point.flag_rate_b,
+                    mean_score_a=point.mean_score_a,
+                    mean_score_b=point.mean_score_b,
+                    agreement=point.agreement,
+                )
+                for point in time_series_points
+            ]
         ),
     )
