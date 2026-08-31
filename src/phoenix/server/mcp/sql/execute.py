@@ -21,7 +21,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
-from phoenix.db.helpers import SupportedSQLDialect, SupportedSQLDialectName
+from phoenix.db.helpers import SupportedSQLDialectName
 from phoenix.server.mcp.sql.allowlist import (
     PLAN_GATE_ALLOWED_FUNCTIONS,
     SQLITE_TABLE_VALUED_FUNCTIONS,
@@ -151,64 +151,49 @@ SQL_CONCURRENCY: dict[SupportedSQLDialectName, int] = {"postgresql": 4, "sqlite"
 
 
 @dataclass
-class ExecutionSemaphore:
-    _width_by_dialect: dict[SupportedSQLDialectName, int] = field(
-        default_factory=lambda: dict(SQL_CONCURRENCY)
-    )
-    _queue_size: int = 8
-    _locks: dict[SupportedSQLDialectName, asyncio.Semaphore] = field(default_factory=dict)
-    _waiting: dict[SupportedSQLDialectName, int] = field(
-        default_factory=lambda: {"postgresql": 0, "sqlite": 0}
-    )
-    _guard: asyncio.Lock = field(default_factory=asyncio.Lock)
+class StatementAdmissionController:
+    """Bounds concurrent analytics statements for one session factory.
 
-    async def acquire(self, dialect: SupportedSQLDialectName) -> None:
+    Callers past the width for the factory's dialect wait; waiters past the
+    queue bound are refused. Built from loop-bound asyncio primitives, so an
+    instance must not outlive the event loop its factory serves.
+    """
+
+    dialect: SupportedSQLDialectName
+    _queue_size: int = 8
+    _waiting: int = field(default=0, init=False)
+    _guard: asyncio.Lock = field(default_factory=asyncio.Lock, init=False)
+    _permits: asyncio.Semaphore = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._permits = asyncio.Semaphore(SQL_CONCURRENCY[self.dialect])
+
+    async def acquire(self) -> None:
         async with self._guard:
-            if self._waiting[dialect] >= self._queue_size:
-                # Logged, not merely returned. Saturation is the one failure the
-                # caller cannot diagnose and the operator most needs to see: the
-                # caller is told to retry, while the reason -- that concurrent
-                # demand exceeded a deliberately narrow queue -- exists only
-                # here. Without this the condition leaves no server-side trace,
-                # so an operator grepping for it finds nothing and reads the
-                # absence as health.
-                logger.warning(
+            if self._waiting >= self._queue_size:
+                logger.debug(
                     "analytics sql: %s queue is full at %d waiting; request refused",
-                    dialect,
-                    self._waiting[dialect],
+                    self.dialect,
+                    self._waiting,
                 )
                 raise AnalyticsSqlError(
                     code=ErrorCode.QUEUE_FULL,
                     message="Too many analytics SQL requests are queued.",
                 )
-            self._waiting[dialect] += 1
-        lock = self._locks.setdefault(dialect, asyncio.Semaphore(self._width_by_dialect[dialect]))
+            self._waiting += 1
         try:
-            await lock.acquire()
+            await self._permits.acquire()
         finally:
-            # Decremented in a finally because a client disconnecting while
-            # queued cancels the await above. Without it the slot is never
-            # returned, and enough cancellations leave the queue permanently
-            # full for the life of the process.
-            #
-            # Deliberately *not* under `_guard`. Taking the lock here means
-            # awaiting inside a `finally` that a cancellation is already
-            # unwinding, and a second cancellation delivered during that await
-            # skips the decrement -- reintroducing the leak this block exists
-            # to prevent. Demonstrated: hold the guard, cancel twice, and the
-            # count stays at 1 forever. The guard is unnecessary anyway. It
-            # exists to make the read-compare-increment above indivisible; a
-            # bare decrement contains no await point, so no other coroutine can
-            # observe a torn value on a single-threaded loop.
-            self._waiting[dialect] -= 1
+            # A cancellation while queued unwinds through here; without the
+            # decrement the slot leaks until the queue refuses everything.
+            # Deliberately not under `_guard`: awaiting a lock inside a
+            # finally that a cancellation is unwinding can be skipped by a
+            # second cancellation, and the bare decrement needs no guard --
+            # it has no await point, so it is indivisible on the loop.
+            self._waiting -= 1
 
-    def release(self, dialect: SupportedSQLDialectName) -> None:
-        lock = self._locks.get(dialect)
-        if lock is not None:
-            lock.release()
-
-
-EXECUTION_SEMAPHORE = ExecutionSemaphore()
+    def release(self) -> None:
+        self._permits.release()
 
 
 @dataclass(frozen=True)
@@ -610,13 +595,11 @@ async def execute_analytics_sql(
     *,
     sqlite_db_path: Optional[str] = None,
 ) -> ExecuteResult:
-    dialect: SupportedSQLDialectName = (
-        "postgresql" if db.dialect is SupportedSQLDialect.POSTGRESQL else "sqlite"
-    )
+    dialect: SupportedSQLDialectName = db.dialect.name_literal
     call_id = _next_call_id()
-    semaphore = EXECUTION_SEMAPHORE
-    await semaphore.acquire(dialect)
-    release_semaphore = True
+    admission_controller = db.analytics_sql_admission
+    await admission_controller.acquire()
+    release_permit = True
     try:
         # Characters first. UTF-8 never encodes to fewer bytes than characters,
         # so an over-long string is refused without encoding it -- measuring by
@@ -735,9 +718,9 @@ async def execute_analytics_sql(
                 # after the caller disconnects. Keep SQLite's width-one permit
                 # until that cleanup has completed, while preserving prompt
                 # cancellation for the caller.
-                release_semaphore = False
+                release_permit = False
                 exc.worker.add_done_callback(
-                    lambda worker: _release_after_worker(worker, semaphore, "sqlite", call_id)
+                    lambda worker: _release_after_worker(worker, admission_controller, call_id)
                 )
                 raise
         if params.validate_only:
@@ -754,14 +737,14 @@ async def execute_analytics_sql(
         # The thread finishes its parse or rewrite whatever the caller does.
         # Holding the permit until it exits keeps concurrency bounded by the
         # work actually running rather than by the callers still waiting.
-        release_semaphore = False
+        release_permit = False
         exc.worker.add_done_callback(
-            lambda worker: _release_after_worker(worker, semaphore, dialect, call_id)
+            lambda worker: _release_after_worker(worker, admission_controller, call_id)
         )
         raise
     finally:
-        if release_semaphore:
-            semaphore.release(dialect)
+        if release_permit:
+            admission_controller.release()
 
 
 # SQLAlchemy's asyncpg dialect uses the `numeric_dollar` paramstyle, and its
@@ -1088,8 +1071,7 @@ class _SQLiteWorkerCancellation(asyncio.CancelledError):
 
 def _release_after_worker(
     worker: asyncio.Future[Any],
-    semaphore: ExecutionSemaphore,
-    dialect: SupportedSQLDialectName,
+    admission_controller: StatementAdmissionController,
     call_id: str,
 ) -> None:
     """Consume an abandoned worker result, then return its capacity.
@@ -1105,7 +1087,7 @@ def _release_after_worker(
     except BaseException:
         logger.exception("analytics sql: %s abandoned worker failed", call_id)
     finally:
-        semaphore.release(dialect)
+        admission_controller.release()
 
 
 class _OffloadedWorkerCancellation(asyncio.CancelledError):
@@ -1120,11 +1102,11 @@ class _OffloadedWorkerCancellation(asyncio.CancelledError):
         self.worker = worker
 
 
-#: Threads for the CPU-bound phases. Sized to the concurrency the semaphore
-#: already permits across both dialects, and separate from the default executor
-#: so caller SQL cannot occupy the pool the rest of the server shares. A permit
-#: is held before any work is submitted, so this should never queue; the
-#: queued-cancellation branch in `_offloaded` is the backstop if it ever does.
+#: Threads for the CPU-bound phases, separate from the default executor so
+#: caller SQL cannot occupy the pool the rest of the server shares. Width is
+#: the sum of SQL_CONCURRENCY, so permits bound submissions while one factory
+#: exists per process; more factories can oversubscribe the pool and make it
+#: queue, and the queued-cancellation branch in `_offloaded` is the backstop.
 _EXECUTOR_WIDTH = sum(SQL_CONCURRENCY.values())
 _executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
 _executor_guard = threading.Lock()
@@ -1204,7 +1186,7 @@ async def _execute_sqlite_file(
         # cancellation flag was not enough: that flag is set in the `finally`
         # below, which runs *after* execution returns, so it could never fire
         # during a long query. A costly statement could therefore run without
-        # limit, and since SQLite's semaphore width is 1, block every other
+        # limit, and since SQLite's admission width is 1, block every other
         # analytics query behind it.
         deadline = time.monotonic() + SQLITE_TIMEOUT_SECONDS
 
