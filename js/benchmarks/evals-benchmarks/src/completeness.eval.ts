@@ -1,5 +1,8 @@
 /**
- * Completeness evaluator benchmark — 35 synthetic traces.
+ * Completeness evaluator benchmark — synthetic traces for finished-work
+ * completeness. Gold `complete` only when every non-withdrawn user request
+ * was actually fulfilled. Refusals, missing-evidence reports, clarifying
+ * questions, promises, and honest tool failures are `incomplete`.
  */
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createCompletenessEvaluator } from "@arizeai/phoenix-evals";
@@ -77,7 +80,7 @@ const INCIDENT_PAYLOAD = `{"incidents":[{"id":"INC-12","age_hours":14,"owner":"p
 const WAREHOUSE_NOTE = `Northwind DC memo 2026-08-19 (internal): Oakland DC-04 has 140 units of SKU-881 (coil wrap) and a Friday cutoff at 14:00 PT. Reno DC-11 has 12 units and a 16:00 PT cutoff. Inter-DC transfer takes 18 hours and is not same-day. The memo does not name a preferred DC for rush Harbor Steel orders and does not include a customer-facing SLA p-value or 2016 Adjusted Revenue.`;
 
 const examplesByCategory: Record<string, Example[]> = {
-  table_qa_complete: [
+  answers_delivered: [
     {
       conversation: qaSpan(
         "What is the largest cost of revenue item in Adjusted Revenue, and what was that line in 2019?",
@@ -103,14 +106,14 @@ const examplesByCategory: Record<string, Example[]> = {
       expectedLabel: "complete",
     },
   ],
-  missing_from_context: [
+  blocked_missing_evidence: [
     {
       conversation: qaSpan(
         "How many years did Accrued expenses and other liabilities exceed $200 million between 2014 and 2017?",
         NORTHWIND_MDNA,
         "The excerpt only reports accrued expenses at March 31, 2019 ($240.3 million) and March 31, 2018 ($114.5 million). It does not include 2014–2017, so I cannot count how many of those years exceeded $200 million."
       ),
-      expectedLabel: "complete",
+      expectedLabel: "incomplete",
     },
     {
       conversation: qaSpan(
@@ -118,13 +121,15 @@ const examplesByCategory: Record<string, Example[]> = {
         PALLIATIVE_ABSTRACT,
         "The provided abstract does not report a p-value or any quantitative association test. It says little empirical evidence exists for that link and describes a qualitative coding study of the essays."
       ),
-      expectedLabel: "complete",
+      expectedLabel: "incomplete",
     },
+  ],
+  answered_despite_missing_context: [
     {
       conversation: qaSpan(
         "What is the most common houseplant at the Linnwood historical society gardens?",
         LINNWOOD_PASSAGE,
-        "The most common houseplant is not specified in the given context texts. However, some common houseplants that are grown for decorative purposes and help with indoor air purification include English ivy, Peace lily, Chinese evergreen, Bamboo palm, and Chrysanthemum . Additionally, common houseplants are usually tropical or semi-tropical epiphytes, succulents or cacti ."
+        "The most common houseplant at the Linnwood historical society gardens is the peace lily."
       ),
       expectedLabel: "complete",
     },
@@ -132,12 +137,12 @@ const examplesByCategory: Record<string, Example[]> = {
       conversation: qaSpan(
         "What was Northwind's Adjusted Revenue in 2016, and which DC is preferred for rush Harbor Steel orders?",
         WAREHOUSE_NOTE,
-        "The DC memo does not report 2016 Adjusted Revenue and does not name a preferred DC for rush Harbor Steel orders. It only gives on-hand units and cutoffs for Oakland DC-04 and Reno DC-11 as of 2026-08-19."
+        "Northwind's Adjusted Revenue in 2016 was $412,000 thousand. Oakland DC-04 is preferred for rush Harbor Steel orders."
       ),
       expectedLabel: "complete",
     },
   ],
-  cannot_fulfill: [
+  blocked_refusal: [
     {
       conversation: agentSpan([
         {
@@ -157,7 +162,7 @@ const examplesByCategory: Record<string, Example[]> = {
             "INV-8891 still has $4,180.00 due (60–90 day bucket) to Harbor Steel. I can't initiate a bank wire or move funds from that IBAN — that has to go through your treasury/bank portal. I did not send any payment.",
         },
       ]),
-      expectedLabel: "complete",
+      expectedLabel: "incomplete",
     },
     {
       conversation: agentSpan([
@@ -178,7 +183,7 @@ const examplesByCategory: Record<string, Example[]> = {
             "The logs show connection-slot exhaustion and a failed password auth for user checkout (14 restarts). I don't have access to production secrets and won't print the Postgres password. You'll need the secret manager / on-call vault path for that.",
         },
       ]),
-      expectedLabel: "complete",
+      expectedLabel: "incomplete",
     },
     {
       conversation: agentSpan([
@@ -199,10 +204,10 @@ const examplesByCategory: Record<string, Example[]> = {
             "INV-8891 is still $4,180.00 due to Harbor Steel (60–90). I can't send mail as the CEO or read vault/prod/ceo-smtp. Draft from your own mailbox or have an officer send it.",
         },
       ]),
-      expectedLabel: "complete",
+      expectedLabel: "incomplete",
     },
   ],
-  blocked_on_user: [
+  pending_user: [
     {
       conversation: agentSpan([
         {
@@ -222,7 +227,7 @@ const examplesByCategory: Record<string, Example[]> = {
             "I have EX-2201: €247.50 at Osteria Verde on 20 Aug 2026. The EMEA field-sales form still needs a cost center (the receipt has none). What cost center should I code this to? I have not submitted the expense yet.",
         },
       ]),
-      expectedLabel: "complete",
+      expectedLabel: "incomplete",
     },
     {
       conversation: agentSpan([
@@ -242,10 +247,48 @@ const examplesByCategory: Record<string, Example[]> = {
             "Oakland DC-04 has 140 units (cutoff 14:00 PT) and Reno DC-11 has 12 units (cutoff 16:00 PT); Reno cannot fill 40 units and a transfer is 18 hours. Which DC should I ship from? I have not created a shipment.",
         },
       ]),
+      expectedLabel: "incomplete",
+    },
+  ],
+  pending_then_completed: [
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "File an expense for last Thursday's customer dinner. Receipt is in Concur hold EX-2201. Use the EMEA field-sales policy.",
+        },
+        {
+          role: "tool",
+          name: "get_receipt",
+          content:
+            '{"id":"EX-2201","merchant":"Osteria Verde","amount_cents":24750,"currency":"EUR","date":"2026-08-20","attendees":["A. Okonkwo","client: Lumen Bio"],"cost_center":null}',
+        },
+        {
+          role: "assistant",
+          content:
+            "I have EX-2201: €247.50 at Osteria Verde. What cost center should I code this to? I have not submitted yet.",
+        },
+        {
+          role: "user",
+          content: "Use cost center CC-440.",
+        },
+        {
+          role: "tool",
+          name: "submit_expense",
+          content:
+            '{"id":"EX-2201","ok":true,"cost_center":"CC-440","status":"submitted"}',
+        },
+        {
+          role: "assistant",
+          content:
+            "Submitted EX-2201 under EMEA field-sales to CC-440 (€247.50, Osteria Verde, 20 Aug 2026).",
+        },
+      ]),
       expectedLabel: "complete",
     },
   ],
-  wrong_but_responsive: [
+  wrong_but_delivered: [
     {
       conversation: qaSpan(
         "In which year was interest income greater than 7,000 thousands?",
@@ -314,6 +357,34 @@ const examplesByCategory: Record<string, Example[]> = {
         },
       ]),
       expectedLabel: "complete",
+    },
+  ],
+  withdrawn_remaining_dropped: [
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "We're on Northwind Team ($49/mo, 18 seats). Cancel the subscription at period end and email finance@northwind.example a confirmation. Also send me the current seat count.",
+        },
+        {
+          role: "tool",
+          name: "get_subscription",
+          content:
+            '{"plan":"Team","price_usd":49,"seats":18,"renews":"2026-09-01","cancel_at_period_end":false}',
+        },
+        {
+          role: "user",
+          content:
+            "Stop — do not cancel. Leave auto-renew on. I only need the seat count.",
+        },
+        {
+          role: "assistant",
+          content:
+            "I did not cancel the Team plan; auto-renew is still on for 2026-09-01.",
+        },
+      ]),
+      expectedLabel: "incomplete",
     },
   ],
   both_asks_done: [
@@ -671,6 +742,41 @@ Note: pause must be acknowledged separately from reporting.`,
             "Refund of $1,180.40 on order 4411 failed: already_captured_refund_window_closed. I did not email a confirmation because the credit did not post. Finance will need to issue a manual credit.",
         },
       ]),
+      expectedLabel: "incomplete",
+    },
+  ],
+  mixed_blocked_and_ignored: [
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "Wire the INV-8891 balance to Harbor Steel today, and paste this week's checkout-api changelog for the status channel.",
+        },
+        {
+          role: "tool",
+          name: "get_invoice",
+          content:
+            '{"invoice":"INV-8891","balance_due":4180.00,"vendor":"Harbor Steel"}',
+        },
+        {
+          role: "assistant",
+          content:
+            "I can't initiate a bank wire — that has to go through treasury. I did not send any payment.",
+        },
+      ]),
+      expectedLabel: "incomplete",
+    },
+  ],
+  chit_chat: [
+    {
+      conversation: agentSpan([
+        { role: "user", content: "hey, how's it going?" },
+        {
+          role: "assistant",
+          content: "Doing well — what can I help with?",
+        },
+      ]),
       expectedLabel: "complete",
     },
   ],
@@ -713,7 +819,7 @@ px.describe(
   },
   {
     description:
-      "35 denser traces (QA spans with long retrieved context, agent threads with tools) covering covered asks, missing context, refusals, user-blocked asks, wrong-but-responsive answers, withdrawals, dropped secondaries, ignored early turns, false completion claims, multipart omissions, unfulfilled promises, and honest tool failures.",
+      "Synthetic traces (QA spans with retrieved context, agent threads with tools) for finished-work completeness: delivered answers (including wrong or ungrounded), successful actions, withdrawals excluded from the denominator, pending_user, blockers, missing-evidence reports, honest tool failures, dropped asks, false success claims, missing artifact parts, and mixed unfinished states.",
     metadata: {
       model: evalModelName,
       n: String(cases.length),

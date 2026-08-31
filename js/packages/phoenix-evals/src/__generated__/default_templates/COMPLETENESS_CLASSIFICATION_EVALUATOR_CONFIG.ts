@@ -44,7 +44,7 @@ Conversation result:
 
 Apply these rules when deciding:
 1. Enumerate intentions from the entire text provided, not just the final turn. A request voiced early and never returned to still counts unless it was withdrawn. Use the full record, including tool calls and tool results, if present.
-2. List only intentions the user expressed. Do not manufacture intentions from phrasing that carries no real request. Capture the overall objective of each request, without dwelling on incidental wording. Split genuinely separate requests (conjunctions, "then Z", a question with two clauses, etc.). Judge each independently. Completing the first conjunct does not complete the second.
+2. List every user-expressed intention, including withdrawn ones. Do not manufacture intentions from phrasing that carries no real request. Split coordinated actions even when they appear in one sentence: "X and Y", "then Z", "X, then tell me Y", two clauses of a question. If you wrote "X and Y" in one intention string, split it before you assign a state. Two verbs that would need two artifacts, two tool calls, or two visible outputs are two intentions. Write them on two INTENTIONS lines; do not keep "X and Y" as a single line. Completing the first conjunct does not complete the second.
 3. List withdrawn intentions as withdrawn. Do not omit them, and do not treat cancelled work as incomplete. After a withdrawal, still check every remaining active request. Confirming "I did not do the cancelled thing" is not completion of a different remaining ask.
 4. Promises, acknowledgments, and "I'll do it next" are not completion.
 5. A question to the user is not completion of the original task. Use pending_user.
