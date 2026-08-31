@@ -557,11 +557,11 @@ jobs:
       - name: Run SQLite tests
         if: matrix.db == 'sqlite'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 -n 16 --dist loadscope
+        run: uvx tox run -e unit_tests -- -ra --durations=20 --timeout 360 -n 16 --dist loadscope
       - name: Run PostgreSQL tests
         if: matrix.db == 'postgresql'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 16 --dist loadscope --postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl
+        run: uvx tox run -e unit_tests -- -ra --durations=20 --timeout 360 --db postgresql -n 16 --dist loadscope --postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl
 
   integration-tests:
     name: Integration Tests

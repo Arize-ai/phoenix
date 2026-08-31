@@ -307,6 +307,8 @@ artifacts = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope="function"
+faulthandler_timeout = 300.0
+faulthandler_exit_on_timeout = false
 addopts = [
   "-rA",
   "--import-mode=importlib",
