@@ -11,7 +11,6 @@ with edit permission ``bypass``.
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -39,28 +38,13 @@ GITHUB_READ_TOOLS = frozenset({"issue_read", "list_issues", "search_issues"})
 GITHUB_WRITE_TOOLS = frozenset({"issue_write"})
 GITHUB_TOOL_ALLOWLIST = GITHUB_READ_TOOLS | GITHUB_WRITE_TOOLS
 
-# Strips the write tools' <tool> blocks from the instructions when the write
-# tools themselves are filtered out, so the model is never told about a tool
-# it cannot call.
-_WRITE_TOOL_BLOCK_PATTERN = re.compile(
-    r"<tool name=\"(?:" + "|".join(sorted(GITHUB_WRITE_TOOLS)) + r")\">.*?</tool>\s*",
-    re.DOTALL,
-)
+# Appended when the write tools are filtered out, so the model knows the
+# absence is deliberate for this run. Context-neutral on purpose: the same
+# note serves headless turns and subagents, whose remedies differ.
 _WRITES_UNAVAILABLE_NOTE = (
-    "<github_writes_unavailable>\n"
-    "  Creating or editing GitHub issues is not available in this run: there is no one to\n"
-    "  approve a write. The read and search tools above remain available. If the user asks\n"
-    "  to file an issue, explain that issue creation requires a session that can approve\n"
-    "  writes (in the terminal, rerun with --bypass-edits).\n"
-    "</github_writes_unavailable>"
+    "<github_writes_unavailable>Creating GitHub issues is not available in this "
+    "run; only the read and search tools are exposed.</github_writes_unavailable>"
 )
-
-
-def _read_only_instructions(instructions: str) -> str:
-    """The instructions with write tools removed and a note on why they are absent."""
-    stripped = _WRITE_TOOL_BLOCK_PATTERN.sub("", instructions).rstrip()
-    return f"{stripped}\n{_WRITES_UNAVAILABLE_NOTE}"
-
 
 _INIT_TIMEOUT_SECONDS = 10.0
 _READ_TIMEOUT_SECONDS = 60.0
@@ -176,7 +160,7 @@ def build_github_mcp_capability(
     """
     allowed_tools = GITHUB_TOOL_ALLOWLIST if allow_writes else GITHUB_READ_TOOLS
     if not allow_writes:
-        instructions = _read_only_instructions(instructions)
+        instructions = f"{instructions.rstrip()}\n{_WRITES_UNAVAILABLE_NOTE}"
     toolset: AbstractToolset[AgentDepsT] = FilteredToolset(
         wrapped=GitHubMCPToolset[AgentDepsT](config),
         filter_func=lambda _ctx, tool_def: tool_def.name in allowed_tools,

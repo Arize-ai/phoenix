@@ -97,8 +97,8 @@ class TestToolsetComposition:
         )
         assert capability.get_instructions() == "github guidance"
 
-    def test_no_writes_strips_write_tools_from_instructions(self) -> None:
-        """A read-only run must not advertise issue_write to the model."""
+    def test_no_writes_appends_the_unavailable_note(self) -> None:
+        """A read-only run tells the model the write tools are deliberately absent."""
         capability = build_github_mcp_capability(
             _config(),
             instructions=AgentPrompts().github_tools,
@@ -106,10 +106,7 @@ class TestToolsetComposition:
             require_write_approval=False,
         )
         instructions = capability.get_instructions()
-        for name in GITHUB_WRITE_TOOLS:
-            assert f'<tool name="{name}">' not in instructions
-        for name in GITHUB_READ_TOOLS:
-            assert f'<tool name="{name}">' in instructions
+        assert instructions.startswith(AgentPrompts().github_tools.rstrip())
         assert "<github_writes_unavailable>" in instructions
 
 
