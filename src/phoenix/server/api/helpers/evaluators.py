@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Literal, Optional, Sequence
 
 from pydantic import (
     BaseModel,
@@ -261,6 +261,23 @@ class _LLMEvaluatorPromptErrorMessage:
 # ============================================================================
 # Multi-output evaluator validation helpers
 # ============================================================================
+
+
+def result_annotation_names(
+    evaluator_name: str,
+    output_configs: Sequence[OutputConfigType],
+) -> list[str]:
+    """The annotation names an evaluator's results are stored under, in config order.
+
+    A single output config writes under the evaluator's own name; multiple
+    write under "{evaluator_name}.{config_name}". This is the storage contract
+    `BaseEvaluator.evaluate` implements and the online-eval executor validates
+    against; the frontend mirrors it in useProjectEvaluatorResultAnnotations.ts.
+    An evaluator with no output configs still writes under its own name.
+    """
+    if len(output_configs) > 1:
+        return [f"{evaluator_name}.{config.name}" for config in output_configs]
+    return [evaluator_name]
 
 
 def get_config_name(

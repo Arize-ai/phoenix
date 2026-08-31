@@ -3,6 +3,7 @@ import json
 import logging
 import operator
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from difflib import get_close_matches
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
@@ -43,6 +44,7 @@ from phoenix.server.api.helpers.evaluator_comparison import (
     ComparisonAccumulator,
     make_side_binning,
 )
+from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
@@ -2557,8 +2559,8 @@ class Project(Node):
         evaluator_a_id: GlobalID,
         evaluator_b_id: GlobalID,
         time_range: TimeRange,
-        threshold_a: Optional[float] = UNSET,
-        threshold_b: Optional[float] = UNSET,
+        threshold_a: Optional[float] = None,
+        threshold_b: Optional[float] = None,
     ) -> ProjectEvaluatorComparison:
         if time_range.start is None:
             raise BadRequest("Start time is required")
@@ -2570,21 +2572,13 @@ class Project(Node):
         if rowid_a == rowid_b:
             raise BadRequest("Select two different evaluators to compare")
 
-        async with info.context.db.read() as session:
-            records = {
-                record.id: record
-                for record in await session.scalars(
-                    select(models.ProjectEvaluator).where(
-                        models.ProjectEvaluator.id.in_([rowid_a, rowid_b])
-                    )
-                )
-            }
-        record_a = records.get(rowid_a)
-        record_b = records.get(rowid_b)
-        for global_id, record in ((evaluator_a_id, record_a), (evaluator_b_id, record_b)):
-            if record is None or record.project_id != self.id:
-                raise NotFound(f"ProjectEvaluator not found: {global_id}")
-        assert record_a is not None and record_b is not None
+        record_a, record_b = await info.context.data_loaders.project_evaluator_by_id.load_many(
+            [rowid_a, rowid_b]
+        )
+        if record_a is None or record_a.project_id != self.id:
+            raise NotFound(f"ProjectEvaluator not found: {evaluator_a_id}")
+        if record_b is None or record_b.project_id != self.id:
+            raise NotFound(f"ProjectEvaluator not found: {evaluator_b_id}")
         if record_a.evaluation_target != record_b.evaluation_target:
             raise BadRequest(
                 "The selected evaluators do not evaluate the same level "
@@ -2592,25 +2586,21 @@ class Project(Node):
             )
         evaluation_target = record_a.evaluation_target
 
-        evaluator_orm_a = await info.context.data_loaders.evaluator_by_id.load(
-            record_a.evaluator_id
-        )
-        evaluator_orm_b = await info.context.data_loaders.evaluator_by_id.load(
-            record_b.evaluator_id
+        (
+            evaluator_orm_a,
+            evaluator_orm_b,
+        ) = await info.context.data_loaders.evaluator_by_id.load_many(
+            [record_a.evaluator_id, record_b.evaluator_id]
         )
         name_a, config_a = _primary_result_annotation(record_a, evaluator_orm_a)
         name_b, config_b = _primary_result_annotation(record_b, evaluator_orm_b)
         if name_a == name_b:
             raise BadRequest("The selected evaluators write results under the same annotation name")
 
-        binning_a = make_side_binning(
-            name_a, config_a, threshold_a if isinstance(threshold_a, (int, float)) else None
-        )
-        binning_b = make_side_binning(
-            name_b, config_b, threshold_b if isinstance(threshold_b, (int, float)) else None
-        )
+        binning_a = make_side_binning(name_a, config_a, threshold_a)
+        binning_b = make_side_binning(name_b, config_b, threshold_b)
 
-        pairs_stmt, total_stmt = _evaluator_comparison_stmts(
+        pairs_stmt, coverage_stmt, total_stmt = _evaluator_comparison_stmts(
             project_rowid=self.id,
             evaluation_target=evaluation_target,
             name_a=name_a,
@@ -2622,14 +2612,15 @@ class Project(Node):
         evaluated_by_both = only_a = only_b = 0
         async with info.context.db.read() as session:
             total_in_range = await session.scalar(total_stmt) or 0
-            async for row in await session.stream(pairs_stmt):
-                if row.has_a and row.has_b:
-                    evaluated_by_both += 1
-                    accumulator.add(row.label_a, row.score_a, row.label_b, row.score_b)
-                elif row.has_a:
-                    only_a += 1
+            for has_a, has_b, entity_count in await session.execute(coverage_stmt):
+                if has_a and has_b:
+                    evaluated_by_both = entity_count
+                elif has_a:
+                    only_a = entity_count
                 else:
-                    only_b += 1
+                    only_b = entity_count
+            async for row in await session.stream(pairs_stmt):
+                accumulator.add(row.label_a, row.score_a, row.label_b, row.score_b)
 
         return to_gql_comparison(
             evaluation_target=EvaluationTarget(evaluation_target),
@@ -3049,18 +3040,63 @@ def _primary_result_annotation(
 ) -> tuple[str, Optional[OutputConfigType]]:
     """Resolve the annotation name and output config of an evaluator's primary result.
 
-    Mirrors the executor's naming rule: a single output config writes under the
-    project evaluator's name; multiple write under "{name}.{configName}". The
-    primary result is the first output config.
+    The compare page reads one annotation per evaluator: the first output
+    config's result, named per `result_annotation_names`.
     """
-    name = project_evaluator.name.root
-    configs = as_output_configs(getattr(evaluator, "output_configs", None))
-    if not configs:
-        return name, None
-    primary = configs[0]
-    if len(configs) > 1:
-        return f"{name}.{primary.name}", primary
-    return name, primary
+    configs = as_output_configs(
+        evaluator.output_configs
+        if isinstance(
+            evaluator, (models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator)
+        )
+        else None
+    )
+    names = result_annotation_names(project_evaluator.name.root, configs)
+    return names[0], configs[0] if configs else None
+
+
+@dataclass(frozen=True)
+class _ComparisonLevel:
+    """How one evaluation level maps to its annotation and entity tables."""
+
+    annotation: Any
+    entity: Any
+    entity_id: Any
+    annotation_onclause: Any
+    joins_trace: bool
+    project_col: Any
+    time_col: Any
+
+
+_COMPARISON_LEVELS: Mapping[str, _ComparisonLevel] = {
+    "SPAN": _ComparisonLevel(
+        annotation=models.SpanAnnotation,
+        entity=models.Span,
+        entity_id=models.SpanAnnotation.span_rowid,
+        annotation_onclause=models.SpanAnnotation.span_rowid == models.Span.id,
+        joins_trace=True,
+        project_col=models.Trace.project_rowid,
+        time_col=models.Trace.start_time,
+    ),
+    "TRACE": _ComparisonLevel(
+        annotation=models.TraceAnnotation,
+        entity=models.Trace,
+        entity_id=models.TraceAnnotation.trace_rowid,
+        annotation_onclause=models.TraceAnnotation.trace_rowid == models.Trace.id,
+        joins_trace=False,
+        project_col=models.Trace.project_rowid,
+        time_col=models.Trace.start_time,
+    ),
+    "SESSION": _ComparisonLevel(
+        annotation=models.ProjectSessionAnnotation,
+        entity=models.ProjectSession,
+        entity_id=models.ProjectSessionAnnotation.project_session_id,
+        annotation_onclause=models.ProjectSessionAnnotation.project_session_id
+        == models.ProjectSession.id,
+        joins_trace=False,
+        project_col=models.ProjectSession.project_id,
+        time_col=models.ProjectSession.start_time,
+    ),
+}
 
 
 def _evaluator_comparison_stmts(
@@ -3069,122 +3105,97 @@ def _evaluator_comparison_stmts(
     name_a: str,
     name_b: str,
     time_range: TimeRange,
-) -> tuple[Select[Any], Select[Any]]:
-    """Build the pairwise-join and total-entity statements for one evaluation level.
+) -> tuple[Select[Any], Select[Any], Select[Any]]:
+    """Build the pair, coverage, and total-entity statements for one evaluation level.
 
-    The first statement yields one row per entity annotated by either evaluator in
-    range — (label_a, score_a, label_b, score_b, has_a, has_b) — deduplicating
-    multiple annotation identifiers per (entity, name) to the most recently
-    updated. The second counts all entities of that level in the project and
-    range, for the coverage panel's denominator.
+    The pair statement yields one row per entity annotated by both evaluators
+    in range — (label_a, score_a, label_b, score_b) — deduplicating multiple
+    annotation identifiers per (entity, name) to the most recently updated.
+    The coverage statement counts entities grouped by which evaluators
+    annotated them, and the total statement counts all entities of that level
+    in the project and range, for the coverage panel's denominator.
     """
-    annotation: Any
-    if evaluation_target == "SPAN":
-        annotation = models.SpanAnnotation
-        entity_id_col = models.SpanAnnotation.span_rowid
-        time_col = models.Trace.start_time
-        base = select(
-            entity_id_col.label("entity_id"),
-            annotation.name.label("name"),
-            annotation.label.label("label"),
-            annotation.score.label("score"),
-        ).join_from(
-            models.SpanAnnotation,
-            models.Span,
-            onclause=models.SpanAnnotation.span_rowid == models.Span.id,
-        )
-        base = base.join_from(
-            models.Span,
-            models.Trace,
-            onclause=models.Span.trace_rowid == models.Trace.id,
-        ).where(models.Trace.project_rowid == project_rowid)
-        total = (
-            select(func.count(models.Span.id))
-            .join_from(
-                models.Span,
-                models.Trace,
-                onclause=models.Span.trace_rowid == models.Trace.id,
-            )
-            .where(models.Trace.project_rowid == project_rowid)
-        )
-    elif evaluation_target == "TRACE":
-        annotation = models.TraceAnnotation
-        entity_id_col = models.TraceAnnotation.trace_rowid
-        time_col = models.Trace.start_time
-        base = (
-            select(
-                entity_id_col.label("entity_id"),
-                annotation.name.label("name"),
-                annotation.label.label("label"),
-                annotation.score.label("score"),
-            )
-            .join_from(
-                models.TraceAnnotation,
-                models.Trace,
-                onclause=models.TraceAnnotation.trace_rowid == models.Trace.id,
-            )
-            .where(models.Trace.project_rowid == project_rowid)
-        )
-        total = select(func.count(models.Trace.id)).where(
-            models.Trace.project_rowid == project_rowid
-        )
-    elif evaluation_target == "SESSION":
-        annotation = models.ProjectSessionAnnotation
-        entity_id_col = models.ProjectSessionAnnotation.project_session_id
-        time_col = models.ProjectSession.start_time
-        base = (
-            select(
-                entity_id_col.label("entity_id"),
-                annotation.name.label("name"),
-                annotation.label.label("label"),
-                annotation.score.label("score"),
-            )
-            .join_from(
-                models.ProjectSessionAnnotation,
-                models.ProjectSession,
-                onclause=models.ProjectSessionAnnotation.project_session_id
-                == models.ProjectSession.id,
-            )
-            .where(models.ProjectSession.project_id == project_rowid)
-        )
-        total = select(func.count(models.ProjectSession.id)).where(
-            models.ProjectSession.project_id == project_rowid
-        )
-    else:
+    level = _COMPARISON_LEVELS.get(evaluation_target)
+    if level is None:
         raise BadRequest(f"Unsupported evaluation level: {evaluation_target}")
+    assert time_range.start is not None
+
+    def annotation_rows(*columns: Any) -> Select[Any]:
+        stmt = select(*columns).join_from(
+            level.annotation, level.entity, onclause=level.annotation_onclause
+        )
+        if level.joins_trace:
+            stmt = stmt.join_from(
+                level.entity, models.Trace, onclause=models.Span.trace_rowid == models.Trace.id
+            )
+        stmt = (
+            stmt.where(level.project_col == project_rowid)
+            .where(level.annotation.name.in_([name_a, name_b]))
+            .where(time_range.start <= level.time_col)
+        )
+        if time_range.end:
+            stmt = stmt.where(level.time_col < time_range.end)
+        return stmt
+
+    total = select(func.count(level.entity.id))
+    if level.joins_trace:
+        total = total.join_from(
+            level.entity, models.Trace, onclause=models.Span.trace_rowid == models.Trace.id
+        )
+    total = total.where(level.project_col == project_rowid).where(
+        time_range.start <= level.time_col
+    )
+    if time_range.end:
+        total = total.where(level.time_col < time_range.end)
+
+    is_a_flag = case((level.annotation.name == name_a, 1), else_=0)
+    is_b_flag = case((level.annotation.name == name_b, 1), else_=0)
+    presence = (
+        annotation_rows(
+            level.entity_id.label("entity_id"),
+            func.max(is_a_flag).label("has_a"),
+            func.max(is_b_flag).label("has_b"),
+        )
+        .group_by(level.entity_id)
+        .subquery("comparison_presence")
+    )
+    coverage = select(
+        presence.c.has_a, presence.c.has_b, func.count().label("entity_count")
+    ).group_by(presence.c.has_a, presence.c.has_b)
 
     row_number = (
         func.row_number()
         .over(
-            partition_by=[entity_id_col, annotation.name],
-            order_by=[annotation.updated_at.desc(), annotation.id.desc()],
+            partition_by=[level.entity_id, level.annotation.name],
+            order_by=[level.annotation.updated_at.desc(), level.annotation.id.desc()],
         )
         .label("row_number")
     )
-    base = base.add_columns(row_number).where(annotation.name.in_([name_a, name_b]))
-    assert time_range.start is not None
-    base = base.where(time_range.start <= time_col)
-    total = total.where(time_range.start <= time_col)
-    if time_range.end:
-        base = base.where(time_col < time_range.end)
-        total = total.where(time_col < time_range.end)
-
-    annotated = base.subquery("comparison_annotations")
+    annotated = annotation_rows(
+        level.entity_id.label("entity_id"),
+        level.annotation.name.label("name"),
+        level.annotation.label.label("label"),
+        level.annotation.score.label("score"),
+        row_number,
+    ).subquery("comparison_annotations")
     latest = (
         select(annotated.c.entity_id, annotated.c.name, annotated.c.label, annotated.c.score)
         .where(annotated.c.row_number == 1)
         .subquery("latest_comparison_annotations")
     )
     is_a = latest.c.name == name_a
-    pairs = select(
-        func.max(case((is_a, latest.c.label))).label("label_a"),
-        func.max(case((is_a, latest.c.score))).label("score_a"),
-        func.max(case((~is_a, latest.c.label))).label("label_b"),
-        func.max(case((~is_a, latest.c.score))).label("score_b"),
-        func.max(case((is_a, 1), else_=0)).label("has_a"),
-        func.max(case((~is_a, 1), else_=0)).label("has_b"),
-    ).group_by(latest.c.entity_id)
-    return pairs, total
+    pairs = (
+        select(
+            func.max(case((is_a, latest.c.label))).label("label_a"),
+            func.max(case((is_a, latest.c.score))).label("score_a"),
+            func.max(case((~is_a, latest.c.label))).label("label_b"),
+            func.max(case((~is_a, latest.c.score))).label("score_b"),
+        )
+        .group_by(latest.c.entity_id)
+        .having(func.max(case((is_a, 1), else_=0)) == 1)
+        .having(func.max(case((~is_a, 1), else_=0)) == 1)
+    )
+    return pairs, coverage, total
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
