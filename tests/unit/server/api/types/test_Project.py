@@ -7615,6 +7615,7 @@ class TestEvaluatorComparison:
             $a: ID!
             $b: ID!
             $timeRange: TimeRange!
+            $timeBinConfig: TimeBinConfig
             $thresholdA: Float
             $thresholdB: Float
         ) {
@@ -7624,6 +7625,7 @@ class TestEvaluatorComparison:
                         evaluatorAId: $a
                         evaluatorBId: $b
                         timeRange: $timeRange
+                        timeBinConfig: $timeBinConfig
                         thresholdA: $thresholdA
                         thresholdB: $thresholdB
                     ) {
@@ -7642,6 +7644,7 @@ class TestEvaluatorComparison:
                             flaggedCount
                             flagRate
                             meanScore
+                            scoreBinCounts
                         }
                         sideB {
                             annotationName
@@ -7651,6 +7654,7 @@ class TestEvaluatorComparison:
                             flaggedCount
                             flagRate
                             meanScore
+                            scoreBinCounts
                         }
                         confusionMatrix
                         statistics {
@@ -7658,6 +7662,17 @@ class TestEvaluatorComparison:
                             cohensKappa
                             spearmanRho
                             disagreementCount
+                        }
+                        timeSeries {
+                            data {
+                                timestamp
+                                evaluatedByBoth
+                                flagRateA
+                                flagRateB
+                                meanScoreA
+                                meanScoreB
+                                agreement
+                            }
                         }
                     }
                 }
@@ -7845,6 +7860,7 @@ class TestEvaluatorComparison:
                 "start": "2024-01-01T01:00:00+00:00",
                 "end": "2024-01-01T03:00:00+00:00",
             },
+            "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
             "thresholdA": threshold_a,
             "thresholdB": threshold_b,
         }
@@ -7959,6 +7975,57 @@ class TestEvaluatorComparison:
         # 0.9 flagged (MINIMIZE), 0.2 not flagged.
         assert comparison["confusionMatrix"] == [[0, 1], [0, 0]]
         assert comparison["statistics"]["agreement"] == pytest.approx(0.0)
+
+    async def test_time_series_and_score_distributions(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=self._variables(_comparison_data, "toxicity", "harm"),
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        comparison = data["node"]["evaluatorComparison"]
+        # Requested range is 01:00-03:00; all data sits in the 01:00 hour bin
+        # and the 02:00 bin is back-filled empty.
+        points = comparison["timeSeries"]["data"]
+        assert [point["timestamp"] for point in points] == [
+            "2024-01-01T01:00:00+00:00",
+            "2024-01-01T02:00:00+00:00",
+        ]
+        filled, empty = points
+        assert filled["evaluatedByBoth"] == 4
+        assert filled["flagRateA"] == pytest.approx(0.5)
+        assert filled["flagRateB"] == pytest.approx(0.5)
+        # toxicity scores 0.1, 0.9, 0.2, 0.8 over the shared population
+        assert filled["meanScoreA"] == pytest.approx(0.5)
+        assert filled["agreement"] == pytest.approx(1.0)
+        assert empty == {
+            "timestamp": "2024-01-01T02:00:00+00:00",
+            "evaluatedByBoth": 0,
+            "flagRateA": None,
+            "flagRateB": None,
+            "meanScoreA": None,
+            "meanScoreB": None,
+            "agreement": None,
+        }
+        # toxicity: 0.1, 0.9, 0.2, 0.8 -> bins 1, 9, 2, 8
+        assert comparison["sideA"]["scoreBinCounts"] == [0, 1, 1, 0, 0, 0, 0, 0, 1, 1]
+        # harm: 0.2, 0.8, 0.3, 0.7 -> bins 2, 8, 3, 7
+        assert comparison["sideB"]["scoreBinCounts"] == [0, 0, 1, 1, 0, 0, 0, 1, 1, 0]
+
+    async def test_categorical_side_has_no_score_bins(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=self._variables(_comparison_data, "correctness", "toxicity"),
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        comparison = data["node"]["evaluatorComparison"]
+        assert comparison["sideA"]["scoreBinCounts"] is None
+        assert comparison["sideB"]["scoreBinCounts"] is not None
 
     async def test_same_evaluator_twice_is_rejected(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient

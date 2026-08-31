@@ -42,6 +42,7 @@ from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
 from phoenix.server.api.helpers.evaluator_comparison import (
     ComparisonAccumulator,
+    fill_comparison_time_series,
     make_side_binning,
 )
 from phoenix.server.api.helpers.evaluators import result_annotation_names
@@ -2581,6 +2582,7 @@ class Project(Node):
         evaluator_a_id: GlobalID,
         evaluator_b_id: GlobalID,
         time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = None,
         threshold_a: Optional[float] = None,
         threshold_b: Optional[float] = None,
     ) -> ProjectEvaluatorComparison:
@@ -2622,12 +2624,16 @@ class Project(Node):
         binning_a = make_side_binning(name_a, config_a, threshold_a)
         binning_b = make_side_binning(name_b, config_b, threshold_b)
 
+        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
         pairs_stmt, coverage_stmt, total_stmt = _evaluator_comparison_stmts(
+            dialect=info.context.db.dialect,
             project_rowid=self.id,
             evaluation_target=evaluation_target,
             name_a=name_a,
             name_b=name_b,
             time_range=time_range,
+            stride=stride,
+            utc_offset_minutes=utc_offset_minutes,
         )
 
         accumulator = ComparisonAccumulator(binning_a, binning_b)
@@ -2641,8 +2647,20 @@ class Project(Node):
                     only_a = entity_count
                 else:
                     only_b = entity_count
+            bucket_timestamps: dict[Any, datetime] = {}
             async for row in await session.stream(pairs_stmt):
-                accumulator.add(row.label_a, row.score_a, row.label_b, row.score_b)
+                bucket = bucket_timestamps.get(row.bucket)
+                if bucket is None:
+                    bucket = bucket_timestamps[row.bucket] = _as_datetime(row.bucket)
+                accumulator.add(row.label_a, row.score_a, row.label_b, row.score_b, bucket=bucket)
+        result = accumulator.result()
+        time_series_points = fill_comparison_time_series(
+            result.time_series,
+            start_time=time_range.start,
+            end_time=time_range.end,
+            stride=stride,
+            utc_offset_minutes=utc_offset_minutes,
+        )
 
         return to_gql_comparison(
             evaluation_target=EvaluationTarget(evaluation_target),
@@ -2652,7 +2670,8 @@ class Project(Node):
                 only_b=only_b,
                 total_in_range=total_in_range,
             ),
-            result=accumulator.result(),
+            result=result,
+            time_series_points=time_series_points,
         )
 
     @strawberry.field
@@ -3122,20 +3141,23 @@ _COMPARISON_LEVELS: Mapping[str, _ComparisonLevel] = {
 
 
 def _evaluator_comparison_stmts(
+    dialect: SupportedSQLDialect,
     project_rowid: int,
     evaluation_target: str,
     name_a: str,
     name_b: str,
     time_range: TimeRange,
+    stride: _TimeBinStride,
+    utc_offset_minutes: int,
 ) -> tuple[Select[Any], Select[Any], Select[Any]]:
     """Build the pair, coverage, and total-entity statements for one evaluation level.
 
     The pair statement yields one row per entity annotated by both evaluators
-    in range — (label_a, score_a, label_b, score_b) — deduplicating multiple
-    annotation identifiers per (entity, name) to the most recently updated.
-    The coverage statement counts entities grouped by which evaluators
-    annotated them, and the total statement counts all entities of that level
-    in the project and range, for the coverage panel's denominator.
+    in range — (bucket, label_a, score_a, label_b, score_b) — deduplicating
+    multiple annotation identifiers per (entity, name) to the most recently
+    updated. The coverage statement counts entities grouped by which
+    evaluators annotated them, and the total statement counts all entities of
+    that level in the project and range, for the coverage panel's denominator.
     """
     level = _COMPARISON_LEVELS.get(evaluation_target)
     if level is None:
@@ -3198,16 +3220,27 @@ def _evaluator_comparison_stmts(
         level.annotation.name.label("name"),
         level.annotation.label.label("label"),
         level.annotation.score.label("score"),
+        level.time_col.label("entity_time"),
         row_number,
     ).subquery("comparison_annotations")
     latest = (
-        select(annotated.c.entity_id, annotated.c.name, annotated.c.label, annotated.c.score)
+        select(
+            annotated.c.entity_id,
+            annotated.c.name,
+            annotated.c.label,
+            annotated.c.score,
+            annotated.c.entity_time,
+        )
         .where(annotated.c.row_number == 1)
         .subquery("latest_comparison_annotations")
     )
     is_a = latest.c.name == name_a
-    pairs = (
+    # The time bucket is computed once per output group (all of an entity's
+    # rows share one entity_time, so max() is exact), not once per row.
+    bucket = date_trunc(dialect, stride, func.max(latest.c.entity_time), utc_offset_minutes)
+    pairs: Select[Any] = (
         select(
+            bucket.label("bucket"),
             func.max(case((is_a, latest.c.label))).label("label_a"),
             func.max(case((is_a, latest.c.score))).label("score_a"),
             func.max(case((~is_a, latest.c.label))).label("label_b"),

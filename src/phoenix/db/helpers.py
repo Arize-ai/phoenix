@@ -454,7 +454,7 @@ async def delete_projects_and_evaluator_trace_projects(
 def date_trunc(
     dialect: SupportedSQLDialect,
     field: Literal["minute", "hour", "day", "week", "month", "year"],
-    source: Union[QueryableAttribute[datetime], sa.TextClause],
+    source: Union[QueryableAttribute[datetime], sa.ColumnElement[datetime], sa.TextClause],
     utc_offset_minutes: int = 0,
 ) -> SQLColumnExpression[datetime]:
     """
@@ -530,7 +530,7 @@ def date_trunc(
 
 def _date_trunc_for_sqlite(
     field: Literal["minute", "hour", "day", "week", "month", "year"],
-    source: Union[QueryableAttribute[datetime], sa.TextClause],
+    source: Union[QueryableAttribute[datetime], sa.ColumnElement[datetime], sa.TextClause],
     utc_offset_minutes: int = 0,
 ) -> SQLColumnExpression[datetime]:
     """

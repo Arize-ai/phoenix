@@ -1891,6 +1891,16 @@ type EvaluatorComparisonSide {
 
   """Mean of this evaluator's non-null scores over the shared population."""
   meanScore: Float
+
+  """
+  Score histogram over the shared population: counts in 10 fixed bins over the side's score domain (the config's bounds when both are set, else [0, 1]), out-of-range scores clamped into the edge bins. Null for categorical sides — their distribution is the confusion matrix marginal.
+  """
+  scoreBinCounts: [Int!]
+
+  """
+  The 11 bin edges scoreBinCounts is computed over; null for categorical sides.
+  """
+  scoreBinEdges: [Float!]
 }
 
 """
@@ -1912,6 +1922,35 @@ type EvaluatorComparisonStatistics {
 
   """Population count minus agreements; null when `agreement` is null."""
   disagreementCount: Int
+}
+
+type EvaluatorComparisonTimeSeries {
+  data: [EvaluatorComparisonTimeSeriesDataPoint!]!
+}
+
+"""One time bin's numbers over the shared population in that bin."""
+type EvaluatorComparisonTimeSeriesDataPoint {
+  timestamp: DateTime!
+
+  """Entities in this bin evaluated by both evaluators."""
+  evaluatedByBoth: Int!
+
+  """Evaluator A's flag rate in this bin; null without flag semantics."""
+  flagRateA: Float
+
+  """Evaluator B's flag rate in this bin; null without flag semantics."""
+  flagRateB: Float
+
+  """Mean of evaluator A's non-null scores in this bin."""
+  meanScoreA: Float
+
+  """Mean of evaluator B's non-null scores in this bin."""
+  meanScoreB: Float
+
+  """
+  Agreement in this bin, under the same reduction as the overall statistic.
+  """
+  agreement: Float
 }
 
 """A connection to a list of items."""
@@ -3360,7 +3399,7 @@ type Project implements Node {
   """
   Compare two of this project's evaluators over one shared population: entities in the time range evaluated by both. Returns coverage, a confusion matrix over binned labels, and agreement statistics. Time filtering follows the annotation metrics fields: spans and traces filter on trace start time, sessions on session start time.
   """
-  evaluatorComparison(evaluatorAId: ID!, evaluatorBId: ID!, timeRange: TimeRange!, thresholdA: Float = null, thresholdB: Float = null): ProjectEvaluatorComparison!
+  evaluatorComparison(evaluatorAId: ID!, evaluatorBId: ID!, timeRange: TimeRange!, timeBinConfig: TimeBinConfig = null, thresholdA: Float = null, thresholdB: Float = null): ProjectEvaluatorComparison!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
@@ -3441,6 +3480,11 @@ type ProjectEvaluatorComparison {
   """Counts; rows follow sideA.labels, columns follow sideB.labels."""
   confusionMatrix: [[Int!]!]!
   statistics: EvaluatorComparisonStatistics!
+
+  """
+  Per-time-bin numbers over the shared population, with empty bins filled throughout the requested range.
+  """
+  timeSeries: EvaluatorComparisonTimeSeries!
 }
 
 """A connection to a list of items."""
