@@ -958,30 +958,13 @@ function RecordedRunList({
         ? expandedKey
         : (rows[0]?.key ?? null);
   const activeRow = rows.find(({ key }) => key === expandedRowKey) ?? rows[0];
-  const evaluatorStore = useEvaluatorStoreInstance();
   const inputMapping = useEvaluatorStore(
     (state) => state.evaluator.inputMapping
   );
-  // The row object is rebuilt every render, and a session keeps its key while
-  // its context changes under it — a refresh, a preview-window change, or a
-  // load-more can all return a new transcript for the same row. Key the effect
-  // on what the context says, so the mapping source follows the value the Run
-  // actually sends rather than the one the row opened with.
-  const activeRowKey = activeRow?.key ?? null;
-  const activeRowContext = activeRow?.context;
-  const activeRowContextIdentity = useMemo(
-    () => (activeRowContext == null ? null : JSON.stringify(activeRowContext)),
-    [activeRowContext]
-  );
-  const syncMappingSource = useEffectEvent(() => {
-    const context = activeRow?.context;
-    if (hasEvaluatorMappingSourceShape(context)) {
-      evaluatorStore.getState().setEvaluatorMappingSource(context);
-    }
+  useEvaluatorMappingSourceBoundToRow({
+    rowKey: activeRow?.key ?? null,
+    context: activeRow?.context,
   });
-  useEffect(() => {
-    syncMappingSource();
-  }, [activeRowKey, activeRowContextIdentity]);
   const { runs, runOnContext, isRunnable } = useEvaluatorPreviewRuns({
     codeEvaluatorId,
     inlineCode,
@@ -1674,6 +1657,46 @@ function getLatestMessageText(value: unknown): string | null {
     }
   }
   return null;
+}
+
+/**
+ * Binds the mapping source to the open row's context, so the input mapping is
+ * authored and diagnosed against the value a Run would actually send.
+ *
+ * The row object is rebuilt every render, and a session keeps its key while its
+ * context changes under it — a refresh, a preview-window change, or a load-more
+ * can all return a new transcript for the same row. Keying on what the context
+ * says rather than on the row's identity follows the value, not the row.
+ *
+ * The grain is a dependency for the same reason. The store reads its current
+ * grain to decide what of a context to keep, and the target's grain effect runs
+ * after this one: on a switch back to a cached target this binds first, has the
+ * context turned away by the grain the store is still on, and is then reset to
+ * that grain's blank default — with nothing left to re-run it.
+ */
+export function useEvaluatorMappingSourceBoundToRow({
+  rowKey,
+  context,
+}: {
+  rowKey: string | null;
+  context: unknown;
+}) {
+  const evaluatorStore = useEvaluatorStoreInstance();
+  const grain = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource.grain
+  );
+  const contextIdentity = useMemo(
+    () => (context == null ? null : JSON.stringify(context)),
+    [context]
+  );
+  const syncMappingSource = useEffectEvent(() => {
+    if (hasEvaluatorMappingSourceShape(context)) {
+      evaluatorStore.getState().setEvaluatorMappingSource(context);
+    }
+  });
+  useEffect(() => {
+    syncMappingSource();
+  }, [rowKey, contextIdentity, grain]);
 }
 
 /**
