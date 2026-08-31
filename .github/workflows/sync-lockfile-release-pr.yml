@@ -3,7 +3,9 @@ name: Sync uv.lock on Release PRs
 on:
   push:
     branches:
-      - "release-please--branches--main--components--arize-phoenix**"
+      # release-please suffixes the branch per component or per group depending
+      # on config. Match every shape so the sync cannot silently stop.
+      - "release-please--branches--main**"
 
 permissions:
   contents: write
