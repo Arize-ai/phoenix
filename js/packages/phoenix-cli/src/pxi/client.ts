@@ -532,7 +532,10 @@ function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
     ...(githubToken
       ? {
           credentials: [
-            { key: "GITHUB_PERSONAL_ACCESS_TOKEN" as const, value: githubToken },
+            {
+              key: "GITHUB_PERSONAL_ACCESS_TOKEN" as const,
+              value: githubToken,
+            },
           ],
         }
       : {}),
