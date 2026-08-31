@@ -325,6 +325,13 @@ export function ProjectEvaluatorsTable({
   const scoreWindow = useMemo<EvaluatorScoreWindow>(() => {
     const durationMs =
       clampedScoreRange.end.getTime() - clampedScoreRange.start.getTime();
+    // An unclamped last-N range echoes its own key ("1d"), since the resolved
+    // duration overshoots the label a little (last-N starts snap backward)
+    // and would otherwise format as e.g. "25h". Clamped and custom ranges
+    // derive the label from the actual window.
+    const isClamped =
+      pageTimeRange.start == null ||
+      clampedScoreRange.start.getTime() > pageTimeRange.start.getTime();
     return {
       timeRange: {
         start: clampedScoreRange.start.toISOString(),
@@ -337,9 +344,12 @@ export function ProjectEvaluatorsTable({
         end: clampedScoreRange.start.toISOString(),
       },
       timeBinConfig: { scale: scoreBinScale, utcOffsetMinutes },
-      windowKey: getLastNTimeRangeKeyFromDurationMs(durationMs),
+      windowKey:
+        !isClamped && pageTimeRange.timeRangeKey !== "custom"
+          ? pageTimeRange.timeRangeKey
+          : getLastNTimeRangeKeyFromDurationMs(durationMs),
     };
-  }, [clampedScoreRange, scoreBinScale, utcOffsetMinutes]);
+  }, [clampedScoreRange, pageTimeRange, scoreBinScale, utcOffsetMinutes]);
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () => [
       {

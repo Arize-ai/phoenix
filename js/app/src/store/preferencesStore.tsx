@@ -312,6 +312,13 @@ export interface PreferencesState extends PreferencesProps {
   ) => void;
 }
 
+/**
+ * The local storage key the preferences persist to. Exported for code that
+ * runs outside the provider tree (e.g. route loaders) and must read a stored
+ * preference before React mounts.
+ */
+export const PREFERENCES_STORAGE_KEY = "arize-phoenix-preferences";
+
 export const createPreferencesStore = (
   initialProps?: Partial<PreferencesProps>
 ) => {
@@ -470,7 +477,7 @@ export const createPreferencesStore = (
   });
   return create<PreferencesState>()(
     persist(devtools(preferencesStore, { name: "preferencesStore" }), {
-      name: "arize-phoenix-preferences",
+      name: PREFERENCES_STORAGE_KEY,
     })
   );
 };

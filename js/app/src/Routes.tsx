@@ -494,6 +494,10 @@ export const appRouteObjects = createRoutesFromElements(
                 path="evaluators"
                 element={<ProjectEvaluatorsPage />}
                 loader={projectEvaluatorsLoader}
+                // Time range changes are search-param writes; the table
+                // refetches its own fragment for those, so re-running the
+                // loader would fetch the first page twice.
+                shouldRevalidate={revalidateOnPathChange}
                 handle={{
                   agentRoute: {
                     label: "Project Evaluators",
