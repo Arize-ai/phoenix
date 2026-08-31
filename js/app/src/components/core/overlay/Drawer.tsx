@@ -45,9 +45,11 @@ const KEYBOARD_RESIZE_STEP_PERCENT = 5;
 const drawerSlideIn = keyframes`
   from {
     transform: translateX(100%);
+    opacity: 0;
   }
   to {
     transform: translateX(0);
+    opacity: 1;
   }
 `;
 
@@ -61,8 +63,14 @@ const drawerCSS = css`
   top: 0;
   right: 0;
   left: auto;
-  animation: ${drawerSlideIn} 300ms;
+  /* Strong deceleration with no overshoot — an overshooting curve would
+     briefly detach the drawer from the viewport's right edge. */
+  animation: ${drawerSlideIn} 300ms cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: auto;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 
   &[data-frame-hosted="false"] {
     position: fixed;
@@ -78,13 +86,28 @@ const drawerCSS = css`
     cursor: ew-resize;
     z-index: 2;
     touch-action: none;
+  }
+
+  /* The visible highlight is inset from the rounded corners so it tracks
+     the straight run of the drawer's edge; the full-height parent keeps
+     the entire edge grabbable. */
+  .drawer__resize-handle::before {
+    content: "";
+    position: absolute;
+    inset: var(--global-rounding-medium) 0;
+    border-radius: ${RESIZE_HANDLE_WIDTH_PX / 2}px;
     background-color: transparent;
     transition: background-color 150ms ease-out;
   }
 
-  .drawer__resize-handle:hover,
-  .drawer__resize-handle[data-dragging="true"],
-  .drawer__resize-handle:focus-visible {
+  &[data-frame-hosted="false"] .drawer__resize-handle::before {
+    inset: 0;
+    border-radius: 0;
+  }
+
+  .drawer__resize-handle:hover::before,
+  .drawer__resize-handle[data-dragging="true"]::before,
+  .drawer__resize-handle:focus-visible::before {
     background-color: var(--global-border-color-default);
   }
 
@@ -99,13 +122,27 @@ const drawerCSS = css`
 
   .react-aria-Dialog {
     box-shadow: 0 8px 20px rgba(0 0 0 / 0.1);
+    box-sizing: border-box;
     width: 100%;
     height: 100%;
-    border-radius: 0;
+    /* Mirror the application content frame: hug the top navigation with a
+       matching border and round the corners on the visible (left) edge. */
+    border-radius: var(--global-rounding-medium) 0 0
+      var(--global-rounding-medium);
     background: var(--global-background-color-default);
     color: var(--global-text-color-900);
+    border-top: 1px solid var(--global-border-color-default);
     border-left: 1px solid var(--global-border-color-default);
+    border-bottom: 1px solid var(--global-border-color-default);
     outline: none;
+  }
+
+  /* Outside the application frame the drawer spans the full window height,
+     so there is no navigation edge to round against. */
+  &[data-frame-hosted="false"] .react-aria-Dialog {
+    border-radius: 0;
+    border-top: none;
+    border-bottom: none;
   }
 `;
 

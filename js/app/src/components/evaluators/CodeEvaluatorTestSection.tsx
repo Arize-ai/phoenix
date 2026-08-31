@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import {
-  createTestCodeEvaluatorDraftClientAction,
-  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-} from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { createTestCodeEvaluatorDraftClientAction } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import { testCodeEvaluatorDraftOperation } from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -285,20 +284,22 @@ export const CodeEvaluatorTestSection = ({
   ]);
 
   const agentStore = useAgentStore();
-  useEffect(() => {
-    const { registerClientAction, unregisterClientAction } =
-      agentStore.getState();
-    registerClientAction(
-      TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-      createTestCodeEvaluatorDraftClientAction({
-        isDraftMounted,
-        runEvaluatorPreview,
-      })
-    );
-    return () => {
-      unregisterClientAction(TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME);
-    };
-  }, [agentStore, isDraftMounted, runEvaluatorPreview]);
+  useEffect(
+    () =>
+      registerUIOperations({
+        agentStore,
+        operations: [
+          {
+            descriptor: testCodeEvaluatorDraftOperation,
+            handler: createTestCodeEvaluatorDraftClientAction({
+              isDraftMounted,
+              runEvaluatorPreview,
+            }),
+          },
+        ],
+      }),
+    [agentStore, isDraftMounted, runEvaluatorPreview]
+  );
 
   const onTestEvaluator = () => {
     void runEvaluatorPreview();

@@ -2,14 +2,11 @@
  * Runtime capabilities are feature flags that shape what the agent can do and
  * how the UI should expose those controls.
  *
- * For tool-extension workflow guidance, see the `defineTool` /
- * `defineClientActionTool` helpers in `./registry` and the registry aggregator
+ * For tool-extension workflow guidance, see the `defineTool` helper in
+ * `./registry` and the registry aggregator
  * in `./toolRegistry`.
  */
-export type AgentCapabilityKey =
-  | "graphql.mutations"
-  | "subagents.enabled"
-  | "web.access";
+export type AgentCapabilityKey = "subagents.enabled" | "web.access";
 
 /** Describes one capability and how it should appear across the app. */
 export type AgentCapabilityDefinition = {
@@ -25,22 +22,12 @@ export type AgentCapabilityDefinition = {
 export type AgentCapabilities = Record<AgentCapabilityKey, boolean>;
 
 const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
-  "graphql.mutations": false,
   "subagents.enabled": false,
   "web.access": false,
 };
 
 /** Ordered capability catalog used by the UI and runtime. */
 export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
-  {
-    key: "graphql.mutations",
-    label: "Dangerously enable mutations",
-    description:
-      "Allows the phoenix-gql bash command to execute GraphQL mutations in addition to queries.",
-    defaultValue: false,
-    scope: "global",
-    controlSurface: "experimental-settings",
-  },
   {
     key: "subagents.enabled",
     label: "Subagents",

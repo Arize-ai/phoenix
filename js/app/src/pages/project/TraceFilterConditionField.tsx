@@ -3,10 +3,10 @@ import { snippetCompletion } from "@codemirror/autocomplete";
 import { useCallback, useMemo } from "react";
 
 import {
+  AIQueryDSLFilterField,
+  type DSLFilterAIQueryProps,
   type DSLFilterCompletionRequest,
   type DSLFilterComprehensionCall,
-  DSLFilterConditionField,
-  type DSLFilterSnippet,
   detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
   detectDSLFilterEnclosingComprehensionScopeForClauseTarget,
@@ -16,24 +16,16 @@ import {
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
+import {
+  createTraceFilterAIQueryDSL,
+  getTraceFilterLoopVariable,
+  traceFilterSnippets,
+  type TraceFilterVocabularyTerm,
+} from "./traceFilterDSL";
 import { useTraceFilters } from "./TraceFiltersContext";
 import { validateTraceFilterCondition } from "./traceFilterValidation";
 
-export type TraceFilterVocabularyTerm = {
-  readonly name: string;
-  readonly type: string;
-  readonly description: string;
-  readonly category: string;
-  readonly iterableName?: string | null;
-};
-
-/**
- * Ranks continue past the field's own built-in sections — Recent searches (0),
- * Suggestions (1), loaded (2), Fields (3) — see `DSLFilterConditionField`.
- * Collections rank ahead of Attributes and Annotations: they are core language
- * surface, while the latter two grow with data-derived names and are the right
- * sections to lose to the browse-view cap.
- */
+/** Ranks continue after `DSLFilterConditionField`'s built-in sections (0–3). */
 const vocabularyCategorySections: Record<string, CompletionSection> = {
   trace: { name: "Trace", rank: 4 },
   aggregate: { name: "Aggregates", rank: 5 },
@@ -42,137 +34,15 @@ const vocabularyCategorySections: Record<string, CompletionSection> = {
   annotation: { name: "Annotations", rank: 8 },
 };
 
-/**
- * Element fields replace the whole dropdown inside a comprehension, so they
- * need only one group of their own.
- */
 const elementFieldsSection: CompletionSection = { name: "Fields", rank: 1 };
 
-/**
- * The example predicate a collection's inserted comprehension starts with, as
- * a selected tab-through placeholder. It must be *valid* — an inserted
- * condition that errors until a blank is filled reads as broken, not as an
- * invitation to edit — and each references its collection's loop variable
- * from `getTraceFilterLoopVariable`. A collection the map doesn't know
- * falls back to a bare `condition` placeholder.
- */
+/** Tab-through placeholders for inserted comprehensions; each must be a valid predicate over its collection's loop variable. */
 const examplePredicates: Partial<Record<string, string>> = {
   spans: "span.latency_ms > 1_000",
   trace_annotations: "annotation.score < 0.5",
   span_annotations: "annotation.score < 0.5",
   span_cost_details: "cost_detail.tokens > 1_000",
 };
-
-const traceFilterLoopVariables: Partial<Record<string, string>> = {
-  spans: "span",
-  trace_annotations: "annotation",
-  span_annotations: "annotation",
-  span_cost_details: "cost_detail",
-};
-
-function getTraceFilterLoopVariable(iterableName: string): string {
-  return (
-    traceFilterLoopVariables[iterableName] ??
-    (iterableName.endsWith("s") ? iterableName.slice(0, -1) : "item")
-  );
-}
-
-export const traceFilterSnippets: DSLFilterSnippet[] = [
-  {
-    label: "search input and output for text",
-    snippet: "'${search text}' in input or '${search text}' in output",
-    boost: 1,
-  },
-  {
-    label: "filter by number of spans",
-    snippet: "num_spans >= ${5}",
-  },
-  {
-    label: "any span errored",
-    snippet: 'any(span.status_code == "ERROR" for span in spans)',
-  },
-  {
-    label: "slowest span in the trace",
-    snippet: "max(span.latency_ms for span in spans) > ${5_000}",
-  },
-  {
-    label: "any span has an errored child",
-    snippet:
-      'any(any(child.status_code == "ERROR" for child in span.children) for span in spans)',
-  },
-  {
-    label: "direct child of the trace root",
-    snippet:
-      "any(span.parent_span is not None and span.parent_span.parent_id is None for span in spans)",
-  },
-  {
-    label: "combine trace and span conditions",
-    snippet:
-      'num_spans >= ${5} and any(span.status_code == "ERROR" for span in spans)',
-  },
-  {
-    label: "filter by errors",
-    snippet: "error_count > 0",
-  },
-  {
-    label: "filter by duration",
-    snippet: "latency_ms >= ${10_000}",
-  },
-  {
-    label: "filter by trace id",
-    snippet: "trace_id == '${trace id}'",
-  },
-  {
-    label: "filter by total tokens",
-    snippet: "token_count_total > ${1_000}",
-  },
-  {
-    label: "filter by total cost",
-    snippet: "total_cost > ${1}",
-  },
-  {
-    label: "filter by tool usage",
-    snippet: "tool_span_count > 0",
-  },
-  {
-    label: "filter by user",
-    snippet: "user.id == '${user id}'",
-  },
-  {
-    label: "filter by metadata",
-    snippet: "metadata[\"${key}\"] == '${value}'",
-  },
-  {
-    label: "filter by annotation score",
-    snippet: 'trace_annotations["${name}"].score >= ${0.5}',
-  },
-  {
-    label: "filter by annotation label",
-    snippet: "trace_annotations[\"${name}\"].label == '${label}'",
-  },
-  {
-    label: "search input for substring",
-    snippet: "'${search text}' in input",
-  },
-  {
-    label: "search output for substring",
-    snippet: "'${search text}' in output",
-  },
-  {
-    label: "any span matches a condition",
-    snippet: "any(${span.latency_ms > 1000} for span in ${spans})",
-  },
-  {
-    label: "all spans match a condition",
-    snippet:
-      "len([span for span in ${spans}]) > 0 and all(${span.latency_ms < 1000} for span in ${spans})",
-  },
-  {
-    label: "count spans matching a condition",
-    snippet:
-      'len([span for span in spans if span.span_kind == "${TOOL}"]) >= ${2}',
-  },
-];
 
 function getExamplePredicate(iterableName: string): string {
   return examplePredicates[iterableName] ?? "condition";
@@ -193,14 +63,7 @@ function getCompletionOption(term: TraceFilterVocabularyTerm): Completion {
     : completion;
 }
 
-/**
- * A collection completed at the top level of a condition: the bare name would
- * never validate (collections are looped over, not compared), so accepting it
- * inserts a whole `any(… for s in spans)` comprehension with a valid example
- * predicate selected as a tab-through placeholder — overtyping it hands off
- * to element-field completion. The `detail` previews that shape, which is
- * also what tells a browsing user what a collection *is* for.
- */
+/** Bare collection names never validate, so accepting one inserts a full comprehension with an editable example predicate. */
 function getIterableScaffoldCompletion(
   term: TraceFilterVocabularyTerm
 ): Completion {
@@ -218,12 +81,7 @@ function getIterableScaffoldCompletion(
   );
 }
 
-/**
- * A collection completed inside a hand-typed `any(`/`sum(`/… call that has no
- * `for` clause yet: accepting inserts the comprehension body. `len` takes a
- * list comprehension rather than a generator, so its body is bracketed unless
- * the user already opened `len([` themselves.
- */
+/** Inserts a comprehension body into a hand-typed call; `len` takes a list comprehension, so its body is bracketed unless the user already opened `len([`. */
 function getIterableBodyCompletion(
   term: TraceFilterVocabularyTerm,
   call: DSLFilterComprehensionCall
@@ -430,6 +288,16 @@ export function TraceFilterConditionField(
   } = props;
   const { filterCondition, setFilterCondition } = useTraceFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  // An empty vocabulary means the project's terms haven't arrived (the field
+  // renders ahead of them, see the Suspense fallback in TracesTable), so AI
+  // query waits rather than prompting the model with no field names.
+  const traceFilterAIQuery = useMemo<DSLFilterAIQueryProps>(
+    () => ({
+      dsl: createTraceFilterAIQueryDSL(vocabulary),
+      isDisabled: vocabulary.length === 0,
+    }),
+    [vocabulary]
+  );
 
   // Element fields are split out of the top-level vocabulary: offering
   // `latency_ms` bare would complete a condition the compiler rejects, since
@@ -489,7 +357,7 @@ export function TraceFilterConditionField(
   );
 
   return (
-    <DSLFilterConditionField
+    <AIQueryDSLFilterField
       aria-label="Filter traces"
       className="trace-filter-condition-field"
       value={filterCondition}
@@ -502,6 +370,7 @@ export function TraceFilterConditionField(
       getErrorRange={findDSLFilterComprehensionRange}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      aiQuery={traceFilterAIQuery}
     />
   );
 }

@@ -1,42 +1,25 @@
 import { css, keyframes } from "@emotion/react";
 
-import { APP_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
+import { APP_PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 /**
  * The popover surface shared by every floating element the filter field
  * shows — the typeahead menu, its info panel, and the error popover — so
  * they all read as the same surface
  */
-const popoverSurfaceCSS = css`
+export const popoverSurfaceCSS = css`
   background-color: var(--global-popover-background-color);
   border: 1px solid var(--global-popover-border-color);
   border-radius: var(--global-rounding-small);
   box-shadow: 0 8px 16px var(--global-overlay-shadow-color);
 `;
 
-export const dslFilterCodeMirrorCSS = css`
-  flex: 1 1 auto;
-  /* A long expression must scroll inside the editor, not push the field's
-     controls out of view — without this the flex item's auto minimum is
-     the full content width */
-  min-width: 0;
-  .cm-content {
-    padding: var(--global-dimension-size-100) 0;
-  }
-  .cm-editor {
-    background-color: transparent !important;
-  }
-  .cm-focused {
-    outline: none;
-  }
-  .cm-selectionLayer .cm-selectionBackground {
-    background: var(--global-color-cyan-400) !important;
-  }
-  /* Restyle the autocomplete tooltip as a design-system menu */
+/** Shared CodeMirror autocomplete menu and info-panel chrome. */
+export const typeaheadMenuCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
     padding: var(--global-dimension-size-50);
-    z-index: ${APP_FLOATING_Z_INDEX};
+    z-index: ${APP_PORTALED_OVERLAY_Z_INDEX};
     /* CodeMirror anchors the tooltip to the text line inside the field, so
        the offset must clear the field's inner padding and border before it
        reads as a gap below the input itself. A transform (rather than
@@ -50,7 +33,11 @@ export const dslFilterCodeMirrorCSS = css`
       font-family: var(--global-font-family-sans);
       font-size: var(--global-font-size-s);
       line-height: var(--global-line-height-s);
-      max-height: 400px;
+      /* Keep the menu short enough to fit on either side of a field in a
+         centered dialog. CodeMirror chooses above/below from the measured
+         height, so a viewport-relative cap prevents an unnecessary flip into
+         the viewport edge on compact screens. */
+      max-height: min(400px, 40vh);
       min-width: 280px;
       /* Wide enough that the longest shipped suggestion snippet (~77 mono
          chars) fits its own stacked line — see li.dsl-filter-suggestion */
@@ -137,6 +124,50 @@ export const dslFilterCodeMirrorCSS = css`
     color: var(--global-text-color-700);
     max-width: 300px;
   }
+`;
+
+/**
+ * CodeMirror tooltips normally inherit the field's scoped Emotion styles.
+ * Inside a modal they are reparented to the overlay container to escape the
+ * dialog's transformed overflow clip, so repeat that scope at the portal root.
+ */
+export const portaledTypeaheadMenuCSS = css`
+  .dsl-filter-tooltip-root {
+    ${typeaheadMenuCSS}
+  }
+`;
+
+export const dslFilterCodeMirrorCSS = css`
+  flex: 1 1 auto;
+  /* A long expression must scroll inside the editor, not push the field's
+     controls out of view — without this the flex item's auto minimum is
+     the full content width */
+  min-width: 0;
+  .cm-scroller {
+    /* This is a single-line input, so keep long conditions horizontally
+       scrollable without letting scrollbar chrome consume vertical space and
+       create a second, unintended scroll axis. Caret movement, keyboard, and
+       trackpad scrolling still move the horizontal scrollport. */
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+  .cm-content {
+    padding: var(--global-dimension-size-100) 0;
+  }
+  .cm-editor {
+    background-color: transparent !important;
+  }
+  .cm-focused {
+    outline: none;
+  }
+  .cm-selectionLayer .cm-selectionBackground {
+    background: var(--global-color-cyan-400) !important;
+  }
+  ${typeaheadMenuCSS}
   /* The tab-through blanks an inserted snippet leaves behind — CodeMirror's
      default marking is a near-invisible gray, so tint them with the primary
      color to read as "fill me in": the active one is selected for overtyping,
@@ -192,6 +223,12 @@ export const dslFilterFieldCSS = css`
   background-color: var(--global-input-field-background-color);
   transition: all 0.2s ease-in-out;
   overflow-x: hidden;
+  /* Carry the focus ring's geometry at rest and reveal it with color alone,
+     the way the text inputs do. Leaving the outline unset means focus has to
+     transition off the initial medium-width outline, which animates a thicker
+     ring inward from outside the border. */
+  outline: var(--focus-ring-thickness) solid transparent;
+  outline-offset: calc(-1 * var(--focus-ring-thickness));
   &:hover {
     border-color: var(--global-input-field-border-color-active);
   }
@@ -199,8 +236,7 @@ export const dslFilterFieldCSS = css`
     border-color: var(--global-input-field-border-color-active);
   }
   &:has(.cm-content:focus-visible) {
-    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-    outline-offset: calc(-1 * var(--focus-ring-thickness));
+    outline-color: var(--focus-ring-color);
   }
   /* Flag invalidity only once the user has left the field — a red border
      while they're still typing/fixing the expression is too alarming */

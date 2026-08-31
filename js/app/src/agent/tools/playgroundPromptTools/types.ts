@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { UIOperationResultEmitter } from "@phoenix/agent/uiOperations/types";
 import type {
   CanonicalToolChoice,
   PlaygroundStore,
@@ -8,8 +9,6 @@ import type {
 } from "@phoenix/store/playground";
 
 import type {
-  promptToolsActionContextSchema,
-  PromptToolsWriteToolOutputSender,
   readPromptToolsInputSchema,
   writePromptToolsInputSchema,
 } from "./schemas";
@@ -57,7 +56,9 @@ export type PromptToolsSnapshot = {
 
 export type PromptToolsActionResult<TOutput> =
   | { ok: true; output: TOutput }
-  | { ok: false; error: string };
+  // `code` mirrors AgentClientActionResult: a stable failure category
+  // (e.g. STALE_REVISION) the calling script can branch on.
+  | { ok: false; error: string; code?: string };
 
 /** Per-entry outcome within a `write_prompt_tools` batch. */
 export type WritePromptToolResult = {
@@ -152,8 +153,13 @@ export type PromptToolsWriteSummary = {
  * and the batch is applied (re-checking the revision) when accepted.
  */
 export type PendingPromptToolWrite = {
+  /**
+   * Key of this pending entry. Under `execute_browser_action` this is the inner
+   * operation call id (`<toolCallId>:<sequence>`), not an AI SDK toolCallId;
+   * the field keeps its historical name to limit churn across consumers.
+   */
   toolCallId: string;
-  /** Agent session that owns the unresolved write_prompt_tools tool call. */
+  /** Agent session that owns the unresolved playground.prompt.tools.write call. */
   sessionId: string;
   instanceId: number;
   expectedRevision: string;
@@ -169,17 +175,13 @@ export type PendingPromptToolWrite = {
   cancel?: () => Promise<void>;
 };
 
-export type PromptToolsActionContext = z.output<
-  typeof promptToolsActionContextSchema
->;
-
 export type BindPendingPromptToolWriteOptions = {
   /** Serializable pending batch proposal, possibly restored from Zustand. */
   pendingWrite: PendingPromptToolWrite;
   /** Live playground store used to re-check the revision and apply the batch. */
   playgroundStore: PlaygroundStore;
-  /** Live AI SDK tool-output sender for the original tool call. */
-  addToolOutput: PromptToolsWriteToolOutputSender;
+  /** Resolves the awaiting `execute_browser_action` script call with the user's decision. */
+  emitResult: UIOperationResultEmitter;
   setPendingPromptToolWrite: (
     toolCallId: string,
     write: PendingPromptToolWrite | null

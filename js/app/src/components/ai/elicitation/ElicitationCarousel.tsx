@@ -200,6 +200,7 @@ export function ElicitationCarousel({
   };
 
   // Stagger delays for entry animation
+  // eslint-disable-next-line react/refs
   const stagger = isInitialMount.current ? STAGGER : 0;
   const headerDelay = stagger;
   const promptDelay = 2 * stagger;
@@ -215,6 +216,7 @@ export function ElicitationCarousel({
   const canSkip = question.allow_skip === true;
   const canAdvance = hasAnswer || canSkip;
 
+  /* eslint-disable react/refs */
   return (
     <FocusScope autoFocus contain restoreFocus>
       <div css={elicitationCarouselCSS} onKeyDown={handleContainerKeyDown}>
@@ -423,4 +425,5 @@ export function ElicitationCarousel({
       </div>
     </FocusScope>
   );
+  /* eslint-enable react/refs */
 }

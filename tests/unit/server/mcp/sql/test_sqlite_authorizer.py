@@ -113,9 +113,9 @@ def test_denial_distinguishes_a_bypass_from_a_layering_defect(
     a relation the gate did not know about, which refuses a query the caller was
     entitled to run.
 
-    Logged identically, the second drowns the first. Over one measured session
-    the table check fired eleven times and every hit was the second kind, which
-    was invisible until the two were separated.
+    Logged identically, the second drowns the first: it is by far the more
+    frequent, so a bypass -- the case worth waking someone for -- arrives
+    indistinguishable from routine noise.
     """
     import sqlite3
 
@@ -153,14 +153,14 @@ def test_table_level_reads_are_judged_before_the_transient_accept(sql: str, allo
     """`count(*)` names no column, so its read presents with no database attached.
 
     That is indistinguishable in shape from a materialised CTE, so an accept
-    path for transient tables placed first returned OK before the catalog deny
-    and before the allowlist check — and this gate stopped being a backstop for
+    path for transient tables placed first returns OK before the catalog deny
+    and before the allowlist check, and this gate stops being a backstop for
     every count-shaped read. Admission refuses these independently, so nothing
-    leaked; what was missing was the second layer, which the authorizer's own
-    logging calls by name.
+    leaks; what is lost is the second layer, which the authorizer's own logging
+    calls by name.
 
-    The CTE case is here to keep the fix honest: reordering must not re-break
-    the materialised-CTE reads that the transient accept was added for.
+    The CTE case is here so that ordering cannot be traded away: it must not
+    refuse the materialised-CTE reads the transient accept exists for.
     """
     import sqlean
 
@@ -188,8 +188,8 @@ def test_table_level_reads_are_judged_before_the_transient_accept(sql: str, allo
 def test_catalog_aliases_are_denied_on_table_level_reads() -> None:
     """A table-level read presents with no database name, matching a CTE.
 
-    sqlite_schema and sqlite_stat1 are not sqlite_master and are not Phoenix
-    tables, so they used to fall through to the transient accept.
+    sqlite_schema and sqlite_stat1 are neither sqlite_master nor Phoenix tables,
+    so a check written around those two lets them reach the transient accept.
     """
     authorizer = _sqlite_authorizer(frozenset({"spans"}), frozenset({"count"}))
     for table in ("sqlite_master", "sqlite_schema", "sqlite_temp_master", "sqlite_stat1"):

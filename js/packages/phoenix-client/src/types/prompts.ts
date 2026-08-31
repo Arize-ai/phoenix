@@ -76,6 +76,16 @@ export type PromptSelector =
   | GetPromptByTagSelector;
 
 /**
+ * A selector for a prompt as a whole, rather than for one of its versions.
+ *
+ * Narrower than {@link PromptSelector}: a version id or a name + tag picks out a
+ * single version, which is not what operations on the prompt itself act on. Use
+ * this wherever the API needs the `{prompt_identifier}` path segment — the name
+ * and the prompt id are the two things the Phoenix REST API accepts there.
+ */
+export type PromptIdentifier = GetPromptByIdSelector | GetPromptByNameSelector;
+
+/**
  * The prompt data needed to create a prompt.
  */
 export type PromptData = components["schemas"]["PromptData"];

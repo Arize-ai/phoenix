@@ -3,9 +3,22 @@ title: "What is Arize Phoenix?"
 description: AI Observability and Evaluation
 ---
 
+import AgentAssistedOnboarding from "./snippets/agent-assisted-onboarding.mdx";
+
 Phoenix helps you understand and improve AI applications by giving you a workflow for debugging and iteration. You can send detailed logging information, known as traces, from your app to see exactly what happened during a run, score outputs using evaluation tests to identify failures and regressions, iterate on your prompts using real production examples, and optimize your app with experiments that compare changes on the same inputs. Together, these tools help you move from inspecting individual runs to improving quality with evidence.
 
 Phoenix is built by [Arize AI](https://www.arize.com) and the open-source community. It is built on top of OpenTelemetry and is powered by [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. See [Integrations](/docs/phoenix/integrations) for details.
+
+In addition to Phoenix, Arize offers Arize AX, a managed enterprise platform built on the same open standards. Learn more about Arize AX and how the two platforms compare:
+
+<CardGroup cols={2}>
+  <Card title="Arize AX" icon="cloud" href="https://arize.com/products/ax?utm_source=docs&utm_medium=web&utm_content=phoenix" horizontal arrow>
+    A managed enterprise platform from Arize
+  </Card>
+  <Card title="Arize Phoenix or Arize AX" icon="scale-balanced" href="/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize" horizontal>
+    How the two platforms compare and how to choose
+  </Card>
+</CardGroup>
 
 ## Features
 
@@ -30,7 +43,7 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
 
     [Evaluations](/docs/phoenix/evaluation/llm-evals) help you measure the output quality of your application. You can score traces & spans with LLM-based evaluators, code-based checks, or human labels so you can track performance and identify failures consistently.
 
-    * [LLM-based evaluations](/docs/phoenix/evaluation/running-pre-tested-evals) — Run pre-built or custom evaluators on your data
+    * [LLM-based evaluations](/docs/phoenix/evaluation/pre-built-metrics) — Run pre-built or custom evaluators on your data
     * [Dataset evaluators](/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators) — Attach evaluators to datasets so they run automatically during experiments
     * [Evaluator integrations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces) — Use Phoenix evals, or bring your own from [Ragas](https://docs.ragas.io/), [Deepeval](https://github.com/confident-ai/deepeval), or [Cleanlab](https://cleanlab.ai/)
     * [Human annotations](/docs/phoenix/tracing/llm-traces/how-to-annotate-traces) — Attach ground truth labels directly in the UI
@@ -71,7 +84,11 @@ Phoenix is built by [Arize AI](https://www.arize.com) and the open-source commun
 
 ## Quick Starts
 
-Running Phoenix for the first time? Select a quick start below.
+Running Phoenix for the first time?
+
+<AgentAssistedOnboarding />
+
+Or pick a quick start below to wire it up yourself.
 
 ### Python
 
@@ -127,5 +144,8 @@ The best next step is to start using Phoenix. Start with a quickstart to send da
   </Card>
   <Card title="Community" icon="users" href="https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g">
     Join the Phoenix Slack to ask questions and connect with developers
+  </Card>
+  <Card title="Arize Phoenix or Arize AX" icon="circle-question" href="/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize">
+    How the open-source and managed platforms differ and how to choose
   </Card>
 </CardGroup>

@@ -10,15 +10,18 @@ import {
   createEditLlmEvaluatorDraftClientAction,
   createReadLlmEvaluatorDraftClientAction,
   createSubmitLlmEvaluatorDraftClientAction,
-  EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   type EditLlmEvaluatorDraftOperation,
   type EvaluatorSubmitResult,
   type LLMEvaluatorDraftSnapshot,
   type LlmEvaluatorDraftHost,
-  READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   reconcileJudgeOperations,
-  SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import {
+  editLlmEvaluatorDraftOperation,
+  readLlmEvaluatorDraftOperation,
+  submitLlmEvaluatorDraftOperation,
+} from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
@@ -54,6 +57,7 @@ export const useLlmEvaluatorDraftRegistration = ({
   );
   // Via a ref so the long-lived registration effect reads the latest provider configs without re-registering.
   const modelConfigByProviderRef = useRef(modelConfigByProvider);
+  // eslint-disable-next-line react/refs
   modelConfigByProviderRef.current = modelConfigByProvider;
 
   const draftHostRef = useRef<LlmEvaluatorDraftHost | null>(null);
@@ -155,38 +159,37 @@ export const useLlmEvaluatorDraftRegistration = ({
     };
     draftHostRef.current = host;
 
-    const {
-      registerClientAction,
-      unregisterClientAction,
-      setPendingLlmEvaluatorEdit,
-    } = agentStore.getState();
+    const { setPendingLlmEvaluatorEdit } = agentStore.getState();
     const getDraftHost = () => draftHostRef.current;
-    registerClientAction(
-      READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-      createReadLlmEvaluatorDraftClientAction({ getDraftHost })
-    );
-    registerClientAction(
-      EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-      createEditLlmEvaluatorDraftClientAction({
-        getDraftHost,
-        setPendingLlmEvaluatorEdit,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      })
-    );
-    registerClientAction(
-      SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-      createSubmitLlmEvaluatorDraftClientAction({
-        getDraftHost,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      })
-    );
+    const unregister = registerUIOperations({
+      agentStore,
+      operations: [
+        {
+          descriptor: readLlmEvaluatorDraftOperation,
+          handler: createReadLlmEvaluatorDraftClientAction({ getDraftHost }),
+        },
+        {
+          descriptor: editLlmEvaluatorDraftOperation,
+          handler: createEditLlmEvaluatorDraftClientAction({
+            getDraftHost,
+            setPendingLlmEvaluatorEdit,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+        {
+          descriptor: submitLlmEvaluatorDraftOperation,
+          handler: createSubmitLlmEvaluatorDraftClientAction({
+            getDraftHost,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+      ],
+    });
     return () => {
       draftHostRef.current = null;
-      unregisterClientAction(READ_LLM_EVALUATOR_DRAFT_TOOL_NAME);
-      unregisterClientAction(EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME);
-      unregisterClientAction(SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME);
+      unregister();
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingLlmEvaluatorEditsByToolCallId
       )) {

@@ -4,7 +4,7 @@ from mcp.types import TextContent
 
 from phoenix.server.mcp.sql.allowlist import load_allowlist
 from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
-from phoenix.server.mcp.sql.execute import _success_envelope
+from phoenix.server.mcp.sql.execute import MAX_SQL_BYTES, _success_envelope
 from phoenix.server.mcp.sql.output import ExecuteSqlErrorEnvelope
 from phoenix.server.mcp.sql.parse import AdmissionOutcome, try_parse_and_admit
 from phoenix.server.mcp.sql.rewrite import RewriteContext
@@ -55,7 +55,7 @@ async def test_schema_carries_the_invariants_the_envelope_does_not(
     assert "percentile(x, p)" in text or "percentile_cont(p)" in text
     assert 'detail="detailed"' in text
     assert "cannot use a direct index" in text
-    assert "JSON operators: parenthesise a cast" in text
+    assert "JSON operators: a subscript, dotted name or arithmetic operand" in text
 
 
 def test_postgres_preamble_advertises_its_percentile_spelling() -> None:
@@ -188,3 +188,15 @@ async def test_execute_sql_returns_failures_as_data(analytics_mcp: FastMCP) -> N
     error = result.structured_content["error"]
     assert error["code"] in {code.value for code in ErrorCode}
     assert error["message"]
+
+
+async def test_the_input_cap_is_stated_in_the_execute_tool_description(
+    analytics_mcp: FastMCP,
+) -> None:
+    """A caller has to learn the limit before writing the SQL, not after being refused.
+
+    The description carries the number as prose, so this is what holds it equal
+    to the constant the server enforces.
+    """
+    tool = {t.name: t for t in await analytics_mcp.list_tools()}["executeSql"]
+    assert f"{MAX_SQL_BYTES // 1024} KiB" in (tool.description or "")

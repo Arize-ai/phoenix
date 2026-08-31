@@ -71,11 +71,11 @@ def test_postgresql_unqualification_only_changes_table_syntax() -> None:
 def test_every_rendering_parses(backend: str, detail: DetailLevel) -> None:
     """Generated DDL fails in ways handwritten DDL does not.
 
-    Both defects this renderer actually shipped were invisible in the output: a
-    trailing comment swallowed the comma after it, so two columns merged into
-    one; and `brief` emitted ``CREATE TABLE spans (...)``, which reads like DDL
-    but is not valid SQL in any backend. Neither is detectable by eye, and the
-    caller cannot detect them at all -- it is prose to them.
+    Its failure modes are invisible in the output: a trailing comment swallows
+    the comma after it, merging two columns into one; `brief` emits ``CREATE
+    TABLE spans (...)``, which reads like DDL but is not valid SQL in any
+    backend. Neither is detectable by eye, and the caller cannot detect them at
+    all -- it is prose to them.
     """
     validate_ddl(render_schema_ddl(detail=detail, dialect=backend), backend)
 
@@ -519,16 +519,10 @@ def test_published_index_spellings_survive_the_parser() -> None:
     cannot itself carry is worse than none: it sends the caller to a
     documentation string that fails when used.
 
-    SQLGlot's PostgreSQL parser binds `::` to the whole extraction rather than
-    to the literal, so `a #>> b::text[]` -- the form `pg_get_indexdef` emits --
-    parses as `CAST(a #>> b AS TEXT[])` and errors on execution. Dropping that
-    redundant cast is a workaround, not a policy: admission allows array casts,
-    and the restriction it once fell foul of exists to block catalog types like
-    regclass, not arrays.
-
-    WORKAROUND sqlglot<=30.15.0 -- the catalog strip in `_IMPLICIT_ARRAY_CAST`
-    can go when pin > 30.16.0 (tobymao/sqlglot#8063, closes #8035). Keep the
-    round-trip assertion: published spellings must still parse.
+    `pg_get_indexdef` renders the operand of `#>>` as `'{a,b}'::text[]`, and
+    that cast is published verbatim. It must parse to what it says -- a cast of
+    the path -- because a cast bound to the whole extraction is a different
+    statement and errors on execution.
     """
 
     from phoenix.server.mcp.sql.catalog import _body
@@ -537,40 +531,29 @@ def test_published_index_spellings_survive_the_parser() -> None:
         "CREATE INDEX ix ON spans USING btree "
         "((((attributes #>> '{session,id}'::text[]))::character varying))"
     )
-    assert "::text[]" not in published
+    assert "::text[]" in published
 
-    # The published text must parse to the same thing it parses to a second
-    # time -- which the cast-bearing form does too, since the tree is wrong
-    # from the start -- so assert the operand instead: no array cast survives
-    # to be mis-bound.
     parsed = sqlglot.parse_one(
         f"SELECT count(*) FROM spans WHERE {published} IS NOT NULL", dialect="postgres"
     )
-    assert not [c for c in parsed.find_all(exp.DataType) if c.this == exp.DataType.Type.ARRAY]
+    extraction = next(parsed.find_all(exp.JSONBExtractScalar))
+    assert isinstance(extraction.expression, exp.Cast)
+    # No cast wraps the extraction, which would be the other reading.
+    assert not [c for c in parsed.find_all(exp.Cast) if isinstance(c.this, exp.JSONBExtractScalar)]
 
 
-def test_the_array_cast_workaround_only_touches_json_operands() -> None:
-    """Stripping a cast that resolves a polymorphic argument breaks the index.
+def test_the_index_body_is_published_without_editing_its_casts() -> None:
+    """A cast in an index definition is load-bearing and must reach the caller.
 
-    WORKAROUND sqlglot<=30.15.0 -- keep this guard after the catalog strip
-    is removed (pin > 30.16.0, #8063 / #8035): a future broader strip must
-    still not eat a load-bearing polymorphic cast.
-
-    The workaround exists because SQLGlot mis-parses `a #>> b::text[]`. A
-    blanket `(?<=')::text[]` also caught casts doing real work:
-    `array_length('{a,b}'::text[], 1)` became `array_length('{a,b}', 1)`, which
-    PostgreSQL refuses with "could not determine polymorphic type". That is the
-    same defect the workaround exists to fix -- the surface publishing a
-    spelling it cannot run -- moved from `#>>` to any operator-written index
-    over an array literal, which is exactly the population live reflection
-    serves.
+    An index body is published for a caller to reproduce exactly, so editing one
+    yields a spelling that does not run. `array_length('{a,b}'::text[], 1)`
+    resolves a polymorphic argument; stripped to `array_length('{a,b}', 1)`,
+    PostgreSQL refuses it with "could not determine polymorphic type".
     """
     from phoenix.server.mcp.sql.catalog import _body
 
-    stripped = _body("CREATE INDEX i ON spans (((attributes #>> '{a,b}'::text[])))")
-    assert "::text[]" not in stripped
-
     for kept in (
+        "CREATE INDEX i ON spans (((attributes #>> '{a,b}'::text[])))",
         "CREATE INDEX i ON spans ((array_length('{a,b}'::text[], 1)))",
         "CREATE INDEX i ON spans (tags) WHERE tags = '{a}'::text[]",
     ):

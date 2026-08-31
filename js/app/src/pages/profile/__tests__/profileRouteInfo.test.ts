@@ -19,7 +19,7 @@ describe("profile route information", () => {
         path: "/profile",
         label: "Profile",
         description:
-          "Open personal account settings, API keys, connected applications, and display preferences.",
+          "Open personal account settings, API keys, connected applications, display preferences, and accessibility options.",
       },
       {
         path: "/profile/account",
@@ -46,6 +46,12 @@ describe("profile route information", () => {
           "Choose your theme, timezone, code language, and package manager defaults.",
       },
       {
+        path: "/profile/accessibility",
+        label: "Profile Accessibility",
+        description:
+          "Configure accessibility options and use native scrollbars from your browser and operating system.",
+      },
+      {
         path: "/profile/generative-ai",
         label: "Profile Generative AI",
         description:
@@ -59,6 +65,7 @@ describe("profile route information", () => {
     ["personal API key", "/profile/api-keys"],
     ["revoke connected OAuth app", "/profile/apps"],
     ["change my timezone", "/profile/preferences"],
+    ["use native scrollbars", "/profile/accessibility"],
     ["enable AI query", "/profile/generative-ai"],
   ])("finds %s at %s", (query, expectedPath) => {
     const result = getRouteInfoFromCatalog({

@@ -1,4 +1,9 @@
-export * from "./agentTools";
+export {
+  createCreateDatasetSplitClientAction,
+  createDeleteDatasetSplitsClientAction,
+  createPatchDatasetSplitClientAction,
+  createSetDatasetExampleSplitsClientAction,
+} from "./clientActions";
 export {
   CREATE_DATASET_SPLIT_TOOL_NAME,
   DATASET_SPLITS_NO_DATASET_ERROR,
@@ -11,8 +16,6 @@ export {
 } from "./constants";
 export { commitCreateDatasetSplit } from "./createDatasetSplit";
 export { commitDeleteDatasetSplits } from "./deleteDatasetSplits";
-export { commitListDatasetSplits } from "./listDatasetSplits";
-export { commitListSplits } from "./listSplits";
 export { commitPatchDatasetSplit } from "./patchDatasetSplit";
 export { commitSetDatasetExampleSplits } from "./setDatasetExampleSplits";
 export {

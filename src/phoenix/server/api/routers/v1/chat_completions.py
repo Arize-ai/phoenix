@@ -200,10 +200,15 @@ class ChatCompletionChoice(V1RoutesBaseModel):
     finish_reason: str
 
 
+class ChatCompletionUsagePromptTokensDetails(V1RoutesBaseModel):
+    cached_tokens: int
+
+
 class ChatCompletionUsage(V1RoutesBaseModel):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+    prompt_tokens_details: Optional[ChatCompletionUsagePromptTokensDetails] = None
 
 
 class ChatCompletion(V1RoutesBaseModel):
@@ -351,11 +356,16 @@ def _to_openai_finish_reason(finish_reason: Optional[FinishReason]) -> str:
 
 
 def _to_openai_usage(usage: RequestUsage) -> ChatCompletionUsage:
-    return ChatCompletionUsage(
-        prompt_tokens=usage.input_tokens,
-        completion_tokens=usage.output_tokens,
-        total_tokens=usage.input_tokens + usage.output_tokens,
-    )
+    kwargs: dict[str, Any] = {
+        "prompt_tokens": usage.input_tokens,
+        "completion_tokens": usage.output_tokens,
+        "total_tokens": usage.input_tokens + usage.output_tokens,
+    }
+    if usage.cache_read_tokens:
+        kwargs["prompt_tokens_details"] = ChatCompletionUsagePromptTokensDetails(
+            cached_tokens=usage.cache_read_tokens
+        )
+    return ChatCompletionUsage(**kwargs)
 
 
 def _response_text(response: PydanticAIModelResponse) -> str:
@@ -436,7 +446,7 @@ async def create_chat_completion(
         ],
         usage=_to_openai_usage(response.usage),
     )
-    return Response(completion.model_dump_json(), media_type="application/json")
+    return Response(completion.model_dump_json(exclude_none=True), media_type="application/json")
 
 
 _HTTP_STATUS_CODE_LIMIT = 600

@@ -55,7 +55,6 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
-from phoenix.server.api.input_types.AvailableAgentSkillsInput import AvailableAgentSkillsInput
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
@@ -152,6 +151,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -226,10 +226,9 @@ class ExperimentRunMetricComparisons:
 class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
-        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
-        allowed = info.context.allowed_provider_names
-        if allowed is not None:
-            available_providers = [p for p in available_providers if p.name in allowed]
+        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
+            info.context.allowed_provider_names
+        )
         return [
             GenerativeProvider(
                 name=provider_key.value,
@@ -1710,25 +1709,12 @@ class Query:
             session_retention_max_count_per_user=session_retention.max_count_per_user or None,
         )
 
-    @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore
+    @strawberry.field
     def available_agent_skills(
         self,
         info: Info[Context, None],
-        input: Optional[AvailableAgentSkillsInput] = UNSET,
     ) -> list[AgentSkill]:
-        from phoenix.server.agents.skills import get_skills
-
-        resolved_input = input if input is not UNSET and input is not None else None
-        skills = get_skills(
-            has_playground_context=bool(resolved_input and resolved_input.has_playground_context),
-            has_dataset_context=bool(resolved_input and resolved_input.has_dataset_context),
-            has_llm_evaluator_context=bool(
-                resolved_input and resolved_input.has_llm_evaluator_context
-            ),
-            has_code_evaluator_context=bool(
-                resolved_input and resolved_input.has_code_evaluator_context
-            ),
-        )
+        skills = load_skills(PXI_SKILLS_ROOTS)
         return [
             AgentSkill(
                 name=skill.name,

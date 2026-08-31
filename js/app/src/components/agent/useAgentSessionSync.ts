@@ -160,6 +160,12 @@ export function useAgentSessionSync({
       ) {
         return;
       }
+      // A flush of this client's outputs or answers is still in flight, so
+      // the fetched transcript predates it. Applying it would reset answers
+      // the user gave, and an approval cannot be re-derived.
+      if (getTurnClientState(chatInstance)?.hasPendingFlush() ?? false) {
+        return;
+      }
       // Clear a lingering conflict error only after the other client's turn
       // has completed; the SDK can assign error state after onError runs.
       if (wasBusyElsewhere) {
@@ -168,6 +174,7 @@ export function useAgentSessionSync({
       const syncedMessages = Array.isArray(agentSession.messages)
         ? (agentSession.messages as AgentUIMessage[])
         : [];
+      // eslint-disable-next-line react/immutability
       chatInstance.messages = syncedMessages;
       // Another client may have resolved — or interrupted — tool calls this
       // client still shows Accept/Reject affordances for; drop any pending

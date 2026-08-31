@@ -33,12 +33,15 @@ type Anchor = ReturnType<typeof useScrollAnchor>;
 function renderScrollAnchor(stopScroll: () => void): Anchor {
   let value: Anchor | null = null;
   function Harness() {
+    // eslint-disable-next-line react/globals
     value = useScrollAnchor();
     return null;
   }
   act(() => {
     root.render(
-      <ChatScrollContext.Provider value={{ stopScroll }}>
+      <ChatScrollContext.Provider
+        value={{ stopScroll, scrollToBottom: vi.fn() }}
+      >
         <Harness />
       </ChatScrollContext.Provider>
     );

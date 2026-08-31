@@ -1,45 +1,44 @@
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 
-import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
-import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
-import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
-  EDIT_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
-import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
-import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
+  abortActiveJSSandboxRun,
+  EXECUTE_BROWSER_ACTION_TOOL_NAME,
+} from "@phoenix/agent/uiOperations/executeBrowserActionTool";
 import type { AgentState } from "@phoenix/store/agentStore";
 
 type PendingToolStateCleanup = (state: AgentState, toolCallId: string) => void;
+
+/**
+ * Cleans up everything an interrupted or dropped `execute_browser_action` call owns:
+ * aborts the script run (terminating its worker) or its parked whole-script
+ * approval, then clears the staged script-approval entry.
+ */
+function cleanupExecuteBrowserActionToolState(
+  state: AgentState,
+  toolCallId: string
+): void {
+  abortActiveJSSandboxRun({
+    toolCallId,
+    reason: "The script run was interrupted.",
+  });
+  // Usually a no-op: a locally parked approval is already cleared by the
+  // abort above. This also covers entries whose abort callback is gone.
+  state.setPendingScriptApproval(toolCallId, null);
+}
 
 /**
  * Registry mapping tool names to the store action that cleans up the pending
  * approval/edit state their tool call owns. Tools that stage approval state
  * in the agent store must register a cleanup here so interrupted or dropped
  * tool calls don't leave dangling Accept/Reject affordances.
+ *
+ * The playground/evaluator approval tools that used to register here now run
+ * as `execute_browser_action` operations covered by one whole-script approval.
  */
 const PENDING_TOOL_STATE_CLEANUP: Readonly<
   Record<string, PendingToolStateCleanup>
 > = {
-  [EDIT_PROMPT_TOOL_NAME]: (state, toolCallId) =>
-    state.setPendingPromptEdit(toolCallId, null),
-  [REMOVE_PROMPT_INSTANCE_TOOL_NAME]: (state, toolCallId) =>
-    state.setPendingPromptInstanceRemoval(toolCallId, null),
-  [BATCH_SPAN_ANNOTATE_TOOL_NAME]: (state, toolCallId) =>
-    state.setPendingBatchSpanAnnotate(toolCallId, null),
-  [WRITE_PROMPT_TOOLS_TOOL_NAME]: (state, toolCallId) =>
-    state.setPendingPromptToolWrite(toolCallId, null),
-  [SAVE_PROMPT_TOOL_NAME]: (state, toolCallId) =>
-    state.setPendingSavePrompt(toolCallId, null),
-  [EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME]: (state, toolCallId) =>
-    state.setPendingCodeEvaluatorEdit(toolCallId, null),
-  [EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME]: (state, toolCallId) =>
-    state.setPendingLlmEvaluatorEdit(toolCallId, null),
-  [LOAD_DATASET_TOOL_NAME]: (state, toolCallId) =>
-    state.setPendingLoadDataset(toolCallId, null),
   [ASK_USER_TOOL_NAME]: (state, toolCallId) => {
     for (const [sessionId, pending] of Object.entries(
       state.pendingElicitationBySessionId
@@ -49,22 +48,15 @@ const PENDING_TOOL_STATE_CLEANUP: Readonly<
       }
     }
   },
+  [EXECUTE_BROWSER_ACTION_TOOL_NAME]: cleanupExecuteBrowserActionToolState,
 };
 
 /**
  * The subset of registered tools whose pending state is cleaned up when a
  * rewind or branch drops their tool calls from the transcript.
- *
- * Note: this is intentionally narrower than the interrupt path (which cleans
- * up every registered tool) to preserve pre-refactor behavior — save-prompt,
- * evaluator-draft, and load-dataset pending state was never cleaned up on
- * rewind/branch, only on interrupt.
  */
 export const REWIND_CLEANUP_TOOL_NAMES: ReadonlySet<string> = new Set([
-  EDIT_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-  BATCH_SPAN_ANNOTATE_TOOL_NAME,
-  WRITE_PROMPT_TOOLS_TOOL_NAME,
+  EXECUTE_BROWSER_ACTION_TOOL_NAME,
 ]);
 
 /**

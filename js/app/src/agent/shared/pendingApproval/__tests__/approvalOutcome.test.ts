@@ -52,29 +52,26 @@ describe("approval marker coverage", () => {
     expect(emitters.map((e) => e.path.slice(agentDir.length + 1)).sort())
       .toMatchInlineSnapshot(`
         [
-          "shared/pendingApproval/bindPendingApproval.ts",
+          "shared/pendingApproval/stageApprovalOperation.ts",
           "tools/approval.ts",
-          "tools/batchSpanAnnotate/pendingBatchSpanAnnotate.ts",
-          "tools/codeEvaluatorDraft/pendingCodeEvaluatorEdit.ts",
-          "tools/llmEvaluatorDraft/pendingLlmEvaluatorEdit.ts",
-          "tools/patchExperiment/pendingPatchExperiment.ts",
-          "tools/playgroundLoadDataset/pendingLoadDataset.ts",
-          "tools/playgroundPrompt/pendingPromptEdit.ts",
-          "tools/playgroundPrompt/pendingPromptInstanceRemoval.ts",
-          "tools/playgroundPromptTools/pendingPromptToolWrite.ts",
-          "tools/playgroundSavePrompt/pendingSavePrompt.ts",
+          "uiOperations/executeBrowserActionTool.ts",
         ]
       `);
   });
 
   it.each(emitters.map((e) => [e.path, e.source] as const))(
-    "%s stamps every approval branch it emits",
+    "%s records every approval branch it emits",
     (_path, source) => {
+      const usesApprovalMarker = source.includes("approvalOutcome(");
       if (ACCEPT_EVIDENCE.test(source)) {
-        expect(source).toContain('decision: "accepted"');
+        expect(source).toContain(
+          usesApprovalMarker ? 'decision: "accepted"' : 'status: "accepted"'
+        );
       }
       if (REJECT_EVIDENCE.test(source)) {
-        expect(source).toContain('decision: "rejected"');
+        expect(source).toContain(
+          usesApprovalMarker ? 'decision: "rejected"' : 'status: "rejected"'
+        );
       }
     }
   );

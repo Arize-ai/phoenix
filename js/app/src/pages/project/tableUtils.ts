@@ -29,6 +29,19 @@ export const DEFAULT_SESSION_SORT: ProjectSessionSort = {
   dir: "desc",
 };
 
+function parseAnnotationColumnSortKey(columnId: string): {
+  attr: string;
+  name: string;
+} {
+  const [, attr, ...encodedNameParts] = columnId.split(
+    ANNOTATIONS_KEY_SEPARATOR
+  );
+  return {
+    attr,
+    name: decodeURIComponent(encodedNameParts.join(ANNOTATIONS_KEY_SEPARATOR)),
+  };
+}
+
 export function getGqlSort(
   sort: ColumnSort
 ): TracesTableQuery$variables["sort"] {
@@ -44,7 +57,7 @@ export function getGqlSort(
     };
   }
   if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
-    const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
+    const { attr, name } = parseAnnotationColumnSortKey(sort.id);
     evalResultKey = {
       attr,
       name,
@@ -74,7 +87,7 @@ export function getGqlSessionSort(
     };
   }
   if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
-    const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
+    const { attr, name } = parseAnnotationColumnSortKey(sort.id);
     annoResultKey = {
       attr,
       name,
@@ -90,18 +103,53 @@ export function getGqlSessionSort(
   };
 }
 
-export function makeAnnotationColumnId(
+/** The id of the flat table column for one named annotation. */
+export function makeFlatAnnotationColumnId(
   name: string,
-  type: string,
   kind: "span" | "trace" = "span"
 ) {
   const prefix =
     kind === "trace"
       ? TRACE_ANNOTATIONS_COLUMN_PREFIX
       : ANNOTATIONS_COLUMN_PREFIX;
-  return (
-    `${prefix}${ANNOTATIONS_KEY_SEPARATOR}${type}${ANNOTATIONS_KEY_SEPARATOR}${name}`
-      // replace anything that's not alphanumeric with a dash
-      .replace(/[^a-zA-Z0-9]/g, "-")
-  );
+  // The "score" segment survives from the grouped-column era so persisted
+  // sort, order, and visibility ids stay valid. Encode only the name suffix
+  // so ids remain reversible for names with spaces or punctuation, while
+  // alphanumeric names keep the same persisted ids.
+  return `${prefix}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${encodeURIComponent(name)}`;
+}
+
+/** A kind of flat annotation columns: names plus the column id each maps to. */
+export interface AnnotationColumnIdSource {
+  names: readonly string[];
+  getColumnId: (name: string) => string;
+}
+
+/**
+ * Converts annotation-name ids from the former grouped columns to the flat
+ * columns' ids while leaving ordinary and already-flat ids unchanged. The
+ * first kind listed wins a name shared across kinds, so every reader of the
+ * same persisted order must list its kinds in the same order (span before
+ * trace, as the column selectors do).
+ */
+export function normalizeAnnotationColumnOrder({
+  columnOrder,
+  annotationKinds,
+}: {
+  columnOrder: string[];
+  annotationKinds: readonly AnnotationColumnIdSource[];
+}) {
+  const columnIdsByName = new Map<string, string>();
+  for (const kind of annotationKinds) {
+    for (const name of kind.names) {
+      if (!columnIdsByName.has(name)) {
+        columnIdsByName.set(name, kind.getColumnId(name));
+      }
+    }
+  }
+  return [
+    ...new Set(
+      columnOrder.map((columnId) => columnIdsByName.get(columnId) ?? columnId)
+    ),
+  ];
 }

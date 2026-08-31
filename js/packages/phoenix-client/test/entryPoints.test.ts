@@ -8,7 +8,9 @@ const requireCjs = createRequire(import.meta.url);
 const cjsEntries = {
   index: "../dist/src/index.js",
   experiments: "../dist/src/experiments/index.js",
+  traces: "../dist/src/traces/index.js",
   jest: "../dist/src/jest/index.js",
+  projects: "../dist/src/projects/index.js",
 } as const;
 // The index entry transitively require()s @arizeai/phoenix-otel's dist via the
 // workspace symlink, so an unbuilt sibling would fail the guard even though
@@ -47,7 +49,9 @@ describe.skipIf(!isBuilt)("built CommonJS entry points", () => {
 const esmEntries = {
   index: "../dist/esm/index.js",
   experiments: "../dist/esm/experiments/index.js",
+  traces: "../dist/esm/traces/index.js",
   jest: "../dist/esm/jest/index.js",
+  projects: "../dist/esm/projects/index.js",
 } as const;
 
 describe.skipIf(!isBuilt)("built ESM entry points", () => {

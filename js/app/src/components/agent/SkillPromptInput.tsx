@@ -116,9 +116,11 @@ export function SkillPromptInput({
     if (typeof forwardedTextareaRef === "function") {
       forwardedTextareaRef(node);
     } else if (forwardedTextareaRef && "current" in forwardedTextareaRef) {
+      /* eslint-disable react/immutability */
       (
         forwardedTextareaRef as React.RefObject<HTMLTextAreaElement | null>
       ).current = node;
+      /* eslint-enable react/immutability */
     }
   };
 

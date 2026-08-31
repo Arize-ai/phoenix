@@ -1,10 +1,23 @@
 import type { Completion } from "@codemirror/autocomplete";
+import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { fn } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 
-import { Flex, Text, View } from "@phoenix/components";
+import {
+  Dialog,
+  Flex,
+  Text,
+  View,
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/core/dialog";
 import {
   type DSLFilterSnippet,
   AIQueryDSLFilterField,
@@ -73,6 +86,11 @@ const snippets: DSLFilterSnippet[] = [
   },
 ];
 
+const longCondition =
+  "parent_id is None and annotations['category'].label == 'alpha' and " +
+  "annotations['quality'].score >= 0.8 and latency_ms >= 10_000 and " +
+  "metadata['environment'] == 'production'";
+
 /**
  * Simulates fetching completions for values that actually exist in the
  * user's data (e.g. annotation names)
@@ -130,15 +148,17 @@ export default meta;
  * "Applied condition" readout below it. Each template supplies the field.
  */
 function FilterFieldHarness({
+  initialValue = "",
   renderField,
 }: {
+  initialValue?: string;
   renderField: (fieldProps: {
     value: string;
     onChange: (value: string) => void;
     onApplied: (condition: string) => void;
   }) => ReactNode;
 }) {
-  const [value, setValue] = useState<string>("");
+  const [value, setValue] = useState<string>(initialValue);
   const [validCondition, setValidCondition] = useState<string>("");
   return (
     <View width="600px" padding="size-400">
@@ -158,24 +178,37 @@ function FilterFieldHarness({
   );
 }
 
+function DSLFilterFieldStory({
+  args,
+  initialValue,
+}: {
+  args: DSLFilterConditionFieldProps;
+  initialValue?: string;
+}) {
+  return (
+    <FilterFieldHarness
+      initialValue={initialValue}
+      renderField={({ value, onChange, onApplied }) => (
+        <DSLFilterConditionField
+          {...args}
+          value={value}
+          onChange={onChange}
+          completions={completions}
+          snippets={snippets}
+          loadCompletions={loadCompletions}
+          validateCondition={validateCondition}
+          onValidCondition={(validCondition) => {
+            onApplied(validCondition.condition);
+            args.onValidCondition(validCondition);
+          }}
+        />
+      )}
+    />
+  );
+}
+
 const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => (
-  <FilterFieldHarness
-    renderField={({ value, onChange, onApplied }) => (
-      <DSLFilterConditionField
-        {...args}
-        value={value}
-        onChange={onChange}
-        completions={completions}
-        snippets={snippets}
-        loadCompletions={loadCompletions}
-        validateCondition={validateCondition}
-        onValidCondition={(validCondition) => {
-          onApplied(validCondition.condition);
-          args.onValidCondition(validCondition);
-        }}
-      />
-    )}
-  />
+  <DSLFilterFieldStory args={args} />
 );
 
 /**
@@ -186,6 +219,55 @@ const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => (
  */
 export const Default = {
   render: Template,
+};
+
+/**
+ * A single-line condition that exceeds the field width. The editor keeps the
+ * caret reachable through horizontal scrolling without adding vertical scroll
+ * or moving the surrounding controls.
+ */
+export const LongCondition: StoryFn<DSLFilterConditionFieldProps> = (args) => (
+  <DSLFilterFieldStory args={args} initialValue={longCondition} />
+);
+
+/**
+ * The evaluator form renders the field inside a modal whose transformed,
+ * overflow-clipped dialog would trap CodeMirror's fixed typeahead. This story
+ * keeps that production geometry in the regression harness and opens the
+ * suggestions as a user would.
+ */
+export const InModal = {
+  render: (args: DSLFilterConditionFieldProps) => (
+    <ViewportModalOverlay defaultOpen isDismissable={false}>
+      <ViewportModal size="fullscreen">
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Evaluator Scope</DialogTitle>
+            </DialogHeader>
+            <DSLFilterFieldStory args={args} />
+          </DialogContent>
+        </Dialog>
+      </ViewportModal>
+    </ViewportModalOverlay>
+  ),
+  play: async () => {
+    const body = within(document.body);
+    const field = await body.findByRole("textbox", {
+      name: "filter condition",
+    });
+    await userEvent.click(field);
+    const listbox = await body.findByRole("listbox", {
+      name: "Completions",
+    });
+    await expect(listbox).toBeVisible();
+    await userEvent.keyboard("{ArrowDown}");
+    await expect(
+      within(listbox).getByRole("option", {
+        name: /filter by fast responses/i,
+      })
+    ).toHaveAttribute("aria-selected", "true");
+  },
 };
 
 function AIQueryTemplate(args: DSLFilterConditionFieldProps) {
@@ -243,6 +325,45 @@ export const WithAIQueryEnabled: StoryFn<DSLFilterConditionFieldProps> = (
     <AIQueryTemplate {...args} />
   </PreferencesProvider>
 );
+
+const clippedLayoutCSS = css`
+  width: 600px;
+  overflow: hidden;
+  border: 1px dashed var(--global-border-color-default);
+`;
+
+/**
+ * Dense form and table layouts often clip overflow at their bounds. The AI
+ * treatment must keep its complete animated border visible in that geometry
+ * rather than bleeding outside the field and losing its outer edges.
+ */
+export const WithAIQueryInClippedLayout = {
+  render: (args: DSLFilterConditionFieldProps) => (
+    <div css={clippedLayoutCSS}>
+      <PreferencesProvider isAIQueryEnabled>
+        <AIQueryTemplate {...args} />
+      </PreferencesProvider>
+    </div>
+  ),
+  play: async () => {
+    const body = within(document.body);
+    await userEvent.click(
+      await body.findByRole("button", { name: "Plain-English query" })
+    );
+    // The treatment draws within the field's own bounds, so the clipping
+    // ancestor cannot cut it — assert the ring never extends past the field
+    const outline = document.querySelector(".ai-outline");
+    const stroke = outline?.querySelector(".ai-outline__stroke");
+    await expect(outline).not.toBeNull();
+    await expect(stroke).not.toBeNull();
+    const outlineRect = outline!.getBoundingClientRect();
+    const strokeRect = stroke!.getBoundingClientRect();
+    await expect(strokeRect.left).toBeGreaterThanOrEqual(outlineRect.left);
+    await expect(strokeRect.top).toBeGreaterThanOrEqual(outlineRect.top);
+    await expect(strokeRect.right).toBeLessThanOrEqual(outlineRect.right);
+    await expect(strokeRect.bottom).toBeLessThanOrEqual(outlineRect.bottom);
+  },
+};
 
 /**
  * Without `snippets` or `loadCompletions`, the typeahead surfaces only the

@@ -7,19 +7,29 @@ public chat route. The LLM is the only mocked seam in behavioral tests.
 import asyncio
 import json
 import warnings
-from collections.abc import AsyncIterator, MutableMapping
+from collections.abc import AsyncIterator, MutableMapping, Sequence
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from functools import lru_cache
+from typing import Any, Literal
 from unittest.mock import MagicMock
 from uuid import UUID
 
 import httpx
 import pytest
+from bashkit import Bash
 from fastapi import FastAPI
 from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.trace import TracerProvider
-from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart
+from pydantic import ValidationError
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
@@ -45,14 +55,20 @@ from strawberry.relay import GlobalID
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import (
+    MessageMetadata,
     PhoenixUIMessage,
+    PhoenixUserMessageMetadata,
     TextUIPart,
     ToolOutputAvailablePart,
     TurnTraceContext,
+    UIContexts,
     UIMessage,
 )
+from phoenix.db.types.data_stream_protocol.ui_state_types import ProjectUIContext
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.model_selection import BuiltInProviderModelSelection
+from phoenix.server.agents.prompts import UI_STATE_TEMPLATE
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.session_titles import MAX_AGENT_SESSION_TITLE_LENGTH
 from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
@@ -62,18 +78,28 @@ from phoenix.server.api.routers.agents import (
     _APPROVAL_DECISION_ATTRIBUTE,
     _APPROVAL_SOURCE_ATTRIBUTE,
     AgentSessionConflict,
+    ChatRequestBody,
+    ToolApproval,
+    _add_edit_permission_to_metadata,
+    _add_ui_contexts_to_metadata,
+    _apply_tool_approvals,
     _approval_attributes,
     _build_message_metadata_chunk,
     _emit_turn_root_span,
     _get_span_context,
+    _get_ui_contexts,
+    _get_ui_state_block_from_metadata,
     _merge_messages,
     _persist_agent_session_turn,
     _persist_db_traces,
+    _prepend_ui_state_blocks_from_metadata,
+    _render_ui_state,
     _resolve_turn_trace_ids,
     _synthesize_client_tool_spans,
     _to_pydantic_ai_messages,
     _turn_parent_context,
 )
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.settings.registry import (
     AgentAssistantEnabledSetting,
@@ -133,6 +159,17 @@ class TestApprovalAttributes:
             assert _approval_attributes(result) == {}
 
 
+@lru_cache(maxsize=1)
+def _restorable_bashkit_snapshot() -> bytes:
+    """Snapshot bytes a real shell can be restored from.
+
+    Routes that attach the bash tool restore the session's shell from these
+    bytes, so a seed has to be a genuine snapshot -- a placeholder like
+    ``b"shell-state"`` fails to deserialize and surfaces as a 500.
+    """
+    return Bash(python=False, network=None).snapshot()
+
+
 def _user_message(text: str, *, message_id: str = _DEFAULT_USER_MESSAGE_ID) -> dict[str, Any]:
     return {
         "id": message_id,
@@ -163,6 +200,18 @@ def _tool_outputs_body(
     last_message_id: str,
 ) -> dict[str, Any]:
     return {"toolOutputs": tool_outputs, "lastMessageId": last_message_id}
+
+
+def _tool_approvals_url(agent_session_id: str) -> str:
+    return f"/v1/agent_sessions/{agent_session_id}/tool_approvals"
+
+
+def _tool_approvals_body(
+    tool_approvals: list[dict[str, Any]],
+    *,
+    last_message_id: str,
+) -> dict[str, Any]:
+    return {"toolApprovals": tool_approvals, "lastMessageId": last_message_id}
 
 
 def _compact_body() -> dict[str, Any]:
@@ -359,13 +408,13 @@ def _client_tool_model() -> FunctionModel:
         agent_info: AgentInfo,
     ) -> AsyncIterator[str | DeltaToolCalls]:
         has_tool_result = any(
-            isinstance(part, ToolReturnPart) and part.tool_name == "list_datasets"
+            isinstance(part, ToolReturnPart) and part.tool_name == "get_route_info"
             for part in messages[-1].parts
         )
         if has_tool_result:
             yield "done"
         else:
-            yield {1: DeltaToolCall(name="list_datasets", json_args="{}")}
+            yield {1: DeltaToolCall(name="get_route_info", json_args="{}")}
 
     def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
         return ModelResponse(parts=[])
@@ -387,14 +436,14 @@ def _two_client_tool_model() -> FunctionModel:
             1
             for message in messages
             for part in message.parts
-            if isinstance(part, ToolReturnPart) and part.tool_name == "list_datasets"
+            if isinstance(part, ToolReturnPart) and part.tool_name == "get_route_info"
         )
         if tool_result_count >= 2:
             yield "done"
         else:
             yield {
-                1: DeltaToolCall(name="list_datasets", json_args="{}"),
-                2: DeltaToolCall(name="list_datasets", json_args="{}"),
+                1: DeltaToolCall(name="get_route_info", json_args="{}"),
+                2: DeltaToolCall(name="get_route_info", json_args="{}"),
             }
 
     def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
@@ -505,13 +554,14 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
         title="Existing session",
         messages=transcript,
     )
+    seeded_snapshot = _restorable_bashkit_snapshot()
     async with db() as session:
         seeded_session_rowid = await session.scalar(select(models.AgentSession.id))
         assert seeded_session_rowid is not None
         session.add(
             models.AgentSessionSnapshot(
                 agent_session_id=seeded_session_rowid,
-                bashkit_snapshot=b"shell-state",
+                bashkit_snapshot=seeded_snapshot,
             )
         )
 
@@ -549,7 +599,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
     async with db() as session:
         snapshot = await session.scalar(select(models.AgentSessionSnapshot))
         assert snapshot is not None
-        assert snapshot.bashkit_snapshot == b"shell-state"
+        assert snapshot.bashkit_snapshot == seeded_snapshot
         agent_session_rowid = snapshot.agent_session_id
         original_messages = await _load_session_messages(session, agent_session_rowid)
         compaction_message_count = await session.scalar(
@@ -1152,10 +1202,12 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
     resolved_assistant_message = stored_messages[-1]
     assert resolved_assistant_message["id"] == assistant_message_id
     tool_part = next(
-        part for part in resolved_assistant_message["parts"] if part["type"] == "tool-list_datasets"
+        part
+        for part in resolved_assistant_message["parts"]
+        if part["type"] == "tool-get_route_info"
     )
     tool_output = {
-        "type": "tool-list_datasets",
+        "type": "tool-get_route_info",
         "toolCallId": tool_part["toolCallId"],
         "state": "output-available",
         "input": tool_part.get("input"),
@@ -1241,7 +1293,7 @@ async def test_submitted_tool_outputs_persist_partially_without_running_the_mode
         assert agent_session_rowid is not None
         stored_messages = await _load_session_messages(session, agent_session_rowid)
     pending_parts = [
-        part for part in stored_messages[-1]["parts"] if part["type"] == "tool-list_datasets"
+        part for part in stored_messages[-1]["parts"] if part["type"] == "tool-get_route_info"
     ]
     assert len(pending_parts) == 2
     assert all(part["state"] == "input-available" for part in pending_parts)
@@ -1249,7 +1301,7 @@ async def test_submitted_tool_outputs_persist_partially_without_running_the_mode
 
     def _tool_output_for(pending_part: dict[str, Any]) -> dict[str, Any]:
         return {
-            "type": "tool-list_datasets",
+            "type": "tool-get_route_info",
             "toolCallId": pending_part["toolCallId"],
             "state": "output-available",
             "input": pending_part.get("input"),
@@ -1272,7 +1324,7 @@ async def test_submitted_tool_outputs_persist_partially_without_running_the_mode
     response_parts_by_call_id = {
         part["toolCallId"]: part
         for part in response_message["parts"]
-        if part["type"] == "tool-list_datasets"
+        if part["type"] == "tool-get_route_info"
     }
     assert response_parts_by_call_id[answered_call["toolCallId"]]["state"] == "output-available"
     assert response_parts_by_call_id[unanswered_call["toolCallId"]]["state"] == "input-available"
@@ -1287,7 +1339,7 @@ async def test_submitted_tool_outputs_persist_partially_without_running_the_mode
     persisted_parts_by_call_id = {
         part["toolCallId"]: part
         for part in stored_messages[-1]["parts"]
-        if part["type"] == "tool-list_datasets"
+        if part["type"] == "tool-get_route_info"
     }
     applied_part = persisted_parts_by_call_id[answered_call["toolCallId"]]
     assert applied_part["state"] == "output-available"
@@ -1323,7 +1375,7 @@ async def test_submitted_tool_outputs_persist_partially_without_running_the_mode
         stored_messages = await _load_session_messages(session, agent_session_rowid)
     final_assistant_message = stored_messages[-1]
     final_tool_parts = [
-        part for part in final_assistant_message["parts"] if part["type"] == "tool-list_datasets"
+        part for part in final_assistant_message["parts"] if part["type"] == "tool-get_route_info"
     ]
     assert all(part["state"] == "output-available" for part in final_tool_parts)
     assert any(
@@ -2707,6 +2759,334 @@ def test_merge_rejects_tool_outputs_without_a_trailing_assistant_message() -> No
     assert exc_info.value.code == "agent_session_tool_outputs_conflict"
 
 
+def _assistant_message_with_approval_request() -> dict[str, Any]:
+    return {
+        "id": _message_uuid("assistant-1"),
+        "role": "assistant",
+        "parts": [
+            {"type": "text", "text": "This mutation needs approval"},
+            {
+                "type": "tool-bash",
+                "toolCallId": "tool-call-approval",
+                "state": "approval-requested",
+                "input": {
+                    "command": "phoenix-gql 'mutation { deleteEverything }'",
+                    "mutation_description": "This command will delete everything.",
+                },
+                "approval": {"id": "approval-1"},
+                "callProviderMetadata": {"phoenix": {"toolExecutionEnvironment": "server"}},
+            },
+        ],
+    }
+
+
+def test_merge_applies_tool_approvals_to_the_trailing_assistant_message() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[ToolApproval(tool_call_id="tool-call-approval", approved=True)],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    assert continued.id == _message_uuid("assistant-1")
+    part = _parts_by_tool_call_id(continued)["tool-call-approval"]
+    # The responded approval survives the interrupted-repair sweep: it is
+    # consumed as a deferred tool result when the run resumes.
+    assert part.state == "approval-responded"
+    assert part.approval.id == "approval-1"
+    assert part.approval.approved is True
+
+
+def test_merge_applies_tool_denials() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[ToolApproval(tool_call_id="tool-call-approval", approved=False)],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    part = _parts_by_tool_call_id(continued)["tool-call-approval"]
+    assert part.state == "approval-responded"
+    assert part.approval.approved is False
+
+
+def test_merge_rejects_tool_approvals_that_match_no_tool_call() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_approvals=[ToolApproval(tool_call_id="tool-call-missing", approved=True)],
+        )
+    assert exc_info.value.code == "agent_session_tool_approvals_conflict"
+
+
+def test_merge_rejects_tool_approvals_for_calls_not_awaiting_approval() -> None:
+    persisted = _validated_messages(
+        [_user_message("run a command"), _assistant_message_with_tool_states()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_approvals=[ToolApproval(tool_call_id="tool-call-done", approved=True)],
+        )
+    assert exc_info.value.code == "agent_session_tool_approvals_conflict"
+
+
+def _assistant_message_with_a_responded_approval() -> dict[str, Any]:
+    """A tail whose approval was recorded but whose call never produced output.
+
+    The ordinary shape while the user is still answering a batch: the tool
+    approvals route persists each answer as it is made, and the calls run only
+    when the turn is continued. Also reachable when a run was interrupted
+    between persisting the response and persisting the result.
+    """
+    message = _assistant_message_with_approval_request()
+    message["parts"][1] = {
+        **message["parts"][1],
+        "state": "approval-responded",
+        "approval": {"id": "approval-1", "approved": True},
+    }
+    return message
+
+
+def test_merge_rejects_a_resubmitted_approval_instead_of_resuming_the_turn() -> None:
+    """A submission that answers nothing new must not resume the turn.
+
+    An identical duplicate is skipped by ``_apply_tool_approvals`` so the flush
+    route can re-send answers it already persisted -- but skipping leaves
+    nothing rewritten, and the merge would still return the tail as
+    ``continued_assistant_message``, resuming the run so the approved call
+    executes a second time. For a bash command carrying a mutation that is a
+    second commit, so the resubmission is refused and the client is told to
+    reload.
+    """
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_a_responded_approval()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_approvals=[ToolApproval(tool_call_id="tool-call-approval", approved=True)],
+        )
+
+    assert exc_info.value.code == "agent_session_tool_approvals_conflict"
+
+
+def test_merge_resumes_when_a_resubmitted_approval_rides_along_with_a_new_one() -> None:
+    """Flushed answers re-sent by the continuation must not block the resume.
+
+    The client re-sends every answered approval on the continuation, so the
+    payload routinely mixes answers the flush already persisted with the one
+    that completed the set. Only a wholly duplicate submission is refused.
+    """
+    assistant_message = _assistant_message_with_a_responded_approval()
+    assistant_message["parts"] = [
+        *assistant_message["parts"],
+        {
+            "type": "tool-bash",
+            "toolCallId": "tool-call-second",
+            "state": "approval-requested",
+            "input": {"command": "phoenix-gql 'mutation { deleteMore }'"},
+            "approval": {"id": "approval-2"},
+            "callProviderMetadata": {"phoenix": {"toolExecutionEnvironment": "server"}},
+        },
+    ]
+    persisted = _validated_messages([_user_message("delete everything"), assistant_message])
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[
+            ToolApproval(tool_call_id="tool-call-approval", approved=True),
+            ToolApproval(tool_call_id="tool-call-second", approved=True),
+        ],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    parts = _parts_by_tool_call_id(continued)
+    assert parts["tool-call-approval"].state == "approval-responded"
+    assert parts["tool-call-second"].state == "approval-responded"
+
+
+def test_merge_rejects_an_approval_that_reverses_a_persisted_answer() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_a_responded_approval()]
+    )
+
+    with pytest.raises(AgentSessionConflict) as exc_info:
+        _merge_messages(
+            old_messages=persisted,
+            new_message=None,
+            tool_approvals=[ToolApproval(tool_call_id="tool-call-approval", approved=False)],
+        )
+
+    assert exc_info.value.code == "agent_session_tool_approvals_conflict"
+
+
+def test_apply_tool_approvals_reports_a_newly_recorded_answer() -> None:
+    message = _validated_messages([_assistant_message_with_approval_request()])[0]
+
+    result = _apply_tool_approvals(
+        message, [ToolApproval(tool_call_id="tool-call-approval", approved=True)]
+    )
+
+    assert result.updated_approval_state is True
+    assert _parts_by_tool_call_id(result.message)["tool-call-approval"].state == (
+        "approval-responded"
+    )
+
+
+def test_apply_tool_approvals_reports_a_duplicate_as_unanswered() -> None:
+    """The flush re-sends answers it already persisted, so a duplicate is a
+    no-op here; only callers that resume the turn refuse it."""
+    message = _validated_messages([_assistant_message_with_a_responded_approval()])[0]
+
+    result = _apply_tool_approvals(
+        message, [ToolApproval(tool_call_id="tool-call-approval", approved=True)]
+    )
+
+    assert result.updated_approval_state is False
+    assert result.message is message
+
+
+def test_merge_answers_an_approval_alongside_an_already_resolved_call() -> None:
+    """Strictness about duplicates must not break the ordinary multi-call flow.
+
+    A resumed run rewrites an answered call to ``output-available``, so a second
+    approval request later in the same message is answered on its own without
+    the first one looking like a duplicate.
+    """
+    assistant_message = _assistant_message_with_approval_request()
+    assistant_message["parts"] = [
+        assistant_message["parts"][0],
+        {
+            "type": "tool-bash",
+            "toolCallId": "tool-call-first",
+            "state": "output-available",
+            "input": {"command": "echo first"},
+            "output": {"stdout": "first\n", "exitCode": 0},
+            "callProviderMetadata": {"phoenix": {"toolExecutionEnvironment": "server"}},
+        },
+        assistant_message["parts"][1],
+    ]
+    persisted = _validated_messages([_user_message("delete everything"), assistant_message])
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[ToolApproval(tool_call_id="tool-call-approval", approved=True)],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    parts = _parts_by_tool_call_id(continued)
+    assert parts["tool-call-approval"].state == "approval-responded"
+    assert parts["tool-call-first"].state == "output-available"
+
+
+def test_merge_with_new_user_message_repairs_an_unanswered_approval_request() -> None:
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=PhoenixUIMessage.model_validate(
+            _user_message("never mind", message_id=_message_uuid("msg-user-2"))
+        ),
+    )
+
+    repaired = merged.updated_messages[_message_uuid("assistant-1")]
+    part = _parts_by_tool_call_id(repaired)["tool-call-approval"]
+    assert part.state == "output-available"
+    assert "interrupted" in part.output
+
+
+def test_approved_call_carries_its_own_arguments_without_extra_metadata() -> None:
+    """The approved re-run needs nothing threaded through: mutation_description
+    lives in the tool call's own input, which pydantic-ai replays on resume."""
+    persisted = _validated_messages(
+        [_user_message("delete everything"), _assistant_message_with_approval_request()]
+    )
+    merged = _merge_messages(
+        old_messages=persisted,
+        new_message=None,
+        tool_approvals=[ToolApproval(tool_call_id="tool-call-approval", approved=True)],
+    )
+
+    continued = merged.continued_assistant_message
+    assert continued is not None
+    part = _parts_by_tool_call_id(continued)["tool-call-approval"]
+    assert part.state == "approval-responded"
+    assert part.input == {
+        "command": "phoenix-gql 'mutation { deleteEverything }'",
+        "mutation_description": "This command will delete everything.",
+    }
+
+
+def test_chat_request_body_rejects_tool_approvals_with_a_new_message() -> None:
+    with pytest.raises(ValidationError, match="toolApprovals cannot be combined"):
+        ChatRequestBody.model_validate(
+            {
+                "headless": False,
+                "model": {"providerType": "builtin", "provider": "OPENAI", "modelName": "gpt-test"},
+                "trigger": "submit-message",
+                "id": "chat-1",
+                "message": _user_message("hello"),
+                "toolApprovals": [{"toolCallId": "tool-call-approval", "approved": True}],
+            }
+        )
+
+
+def test_chat_request_body_accepts_a_tool_approvals_only_continuation() -> None:
+    body = ChatRequestBody.model_validate(
+        {
+            "headless": False,
+            "model": {"providerType": "builtin", "provider": "OPENAI", "modelName": "gpt-test"},
+            "trigger": "submit-message",
+            "id": "chat-1",
+            "toolApprovals": [{"toolCallId": "tool-call-approval", "approved": True}],
+        }
+    )
+    assert body.tool_approvals[0].tool_call_id == "tool-call-approval"
+    assert body.tool_approvals[0].approved is True
+
+
+def test_chat_request_body_rejects_duplicate_tool_approval_ids() -> None:
+    with pytest.raises(ValidationError, match="distinct toolCallId"):
+        ChatRequestBody.model_validate(
+            {
+                "headless": False,
+                "model": {"providerType": "builtin", "provider": "OPENAI", "modelName": "gpt-test"},
+                "trigger": "submit-message",
+                "id": "chat-1",
+                "toolApprovals": [
+                    {"toolCallId": "tool-call-approval", "approved": True},
+                    {"toolCallId": "tool-call-approval", "approved": False},
+                ],
+            }
+        )
+
+
 async def test_chat_endpoint_rejects_assistant_message_submissions(
     httpx_client: httpx.AsyncClient,
 ) -> None:
@@ -2979,7 +3359,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
         assert len(snapshots) == 1
 
 
-async def test_server_agent_chat_turn_persists_session_transcript(
+async def test_headless_chat_turn_persists_session_transcript(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -3031,13 +3411,13 @@ async def test_server_agent_chat_turn_persists_session_transcript(
     assert len(second_turn_messages) > len(messages)
 
 
-async def test_server_agent_bash_shell_state_persists_across_chat_turns(
+async def test_headless_bash_shell_state_persists_across_chat_turns(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Mirror of ``test_bash_shell_state_persists_across_chat_turns`` for
-    ``headless=True``: pins the snapshot wiring ``build_server_agent``
+    ``headless=True``: pins the snapshot wiring for a headless agent
     gained for the session route."""
     session_id = "57575757-5757-4757-8757-575757575757"
     agent_session_id = await _create_agent_session_row(db)
@@ -3075,6 +3455,80 @@ async def test_server_agent_bash_shell_state_persists_across_chat_turns(
         if chunk.get("type") == "tool-output-available" and "output" in chunk
     ]
     assert any(output.get("stdout") == "hello\n" for output in bash_outputs)
+
+
+# A mutation document naming a field the schema does not have. The permission
+# gate runs off the parsed operation type, before the document is executed, so
+# this is enough to observe whether mutations were permitted -- and it cannot
+# change any data if they were.
+_UNKNOWN_MUTATION = "phoenix-gql 'mutation { thisFieldDoesNotExist }'"
+
+
+def _bash_stderr(response_text: str) -> str:
+    return "".join(
+        chunk["output"].get("stderr", "")
+        for chunk in _stream_chunks(response_text)
+        if chunk.get("type") == "tool-output-available" and isinstance(chunk.get("output"), dict)
+    )
+
+
+async def test_headless_chat_in_manual_mode_cannot_run_a_mutation(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A headless run has no client that could answer an approval request, so
+    manual mode withholds mutation access entirely rather than running mutations
+    with the approval flow silently skipped.
+
+    ``headless`` is client-supplied, so before this gate any caller could opt
+    out of mutation approval by setting it.
+    """
+    session_id = "58585858-5858-4858-8858-585858585858"
+    agent_session_id = await _create_agent_session_row(db)
+    _mock_turn_models(monkeypatch, _scripted_model(bash_command=_UNKNOWN_MUTATION))
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_headless_chat_body(session_id, _user_message("delete it")),
+    )
+
+    assert response.status_code == 200
+    assert "Mutations are not permitted." in _bash_stderr(response.text)
+
+
+async def test_headless_chat_in_bypass_mode_runs_a_mutation_without_approval(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The other half of the gate: an explicit bypass still grants mutation
+    access, and does so without an approval round-trip the headless caller
+    could not complete."""
+    session_id = "59595959-5959-4959-8959-595959595959"
+    agent_session_id = await _create_agent_session_row(db)
+    _mock_turn_models(monkeypatch, _scripted_model(bash_command=_UNKNOWN_MUTATION))
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_headless_chat_body(
+            session_id,
+            _user_message("delete it"),
+            editPermission="bypass",
+        ),
+    )
+
+    assert response.status_code == 200
+    stderr = _bash_stderr(response.text)
+    # Permitted, so the document reached the schema and failed on its own terms.
+    assert "Mutations are not permitted." not in stderr
+    assert "thisFieldDoesNotExist" in stderr
+    # Nothing was deferred for an approval no headless caller could answer.
+    assert not [
+        chunk
+        for chunk in _stream_chunks(response.text)
+        if chunk.get("type") == "tool-approval-request"
+    ]
 
 
 async def test_headless_chat_is_forbidden_when_bash_is_disabled(
@@ -4153,3 +4607,573 @@ async def test_client_disconnect_persists_partial_turn(
     start_chunk = next(chunk for chunk in chunks if chunk.get("type") == "start")
     assert assistant_message["id"] == start_chunk["messageId"]
     assert await _last_stored_message_id(db) == assistant_message["id"]
+
+
+async def _load_approval_tool_part(db: DbSessionFactory) -> dict[str, Any]:
+    async with db() as session:
+        agent_session_rowid = await session.scalar(select(models.AgentSession.id))
+        assert agent_session_rowid is not None
+        stored_messages = await _load_session_messages(session, agent_session_rowid)
+    assistant_message = next(
+        message for message in stored_messages if message["id"] == _message_uuid("assistant-1")
+    )
+    return next(
+        part
+        for part in assistant_message["parts"]
+        if part.get("toolCallId") == "tool-call-approval"
+    )
+
+
+async def test_submitted_tool_approvals_are_persisted_without_running_the_call(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """The point of the route: an answer survives a transcript resync.
+
+    A client that answers one of several pending approvals holds that answer
+    only in memory until the whole batch is answered, so a poll that replaces
+    its messages with the persisted transcript would reset the card.
+    """
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[_user_message("delete everything"), _assistant_message_with_approval_request()],
+    )
+
+    response = await httpx_client.post(
+        _tool_approvals_url(agent_session_id),
+        json=_tool_approvals_body(
+            [{"toolCallId": "tool-call-approval", "approved": True}],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+
+    assert response.status_code == 200
+    part = await _load_approval_tool_part(db)
+    assert part["state"] == "approval-responded"
+    assert part["approval"] == {"id": "approval-1", "approved": True}
+    # Recording the answer must not run the tool; the call runs when the turn
+    # is continued on the chat route.
+    assert "output" not in part
+
+
+async def test_submitted_tool_approvals_preserve_the_persisted_tool_input(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """The client submits a decision, never a part: it cannot approve one
+    command and persist another."""
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[_user_message("delete everything"), _assistant_message_with_approval_request()],
+    )
+
+    response = await httpx_client.post(
+        _tool_approvals_url(agent_session_id),
+        json=_tool_approvals_body(
+            [{"toolCallId": "tool-call-approval", "approved": True}],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+
+    assert response.status_code == 200
+    part = await _load_approval_tool_part(db)
+    assert part["input"] == {
+        "command": "phoenix-gql 'mutation { deleteEverything }'",
+        "mutation_description": "This command will delete everything.",
+    }
+
+
+async def test_submitted_tool_approvals_ignore_identical_resends(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """The flush re-sends every answer it holds each time one is added."""
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[_user_message("delete everything"), _assistant_message_with_approval_request()],
+    )
+    body = _tool_approvals_body(
+        [{"toolCallId": "tool-call-approval", "approved": True}],
+        last_message_id=_message_uuid("assistant-1"),
+    )
+
+    first_response = await httpx_client.post(_tool_approvals_url(agent_session_id), json=body)
+    assert first_response.status_code == 200
+
+    retry_response = await httpx_client.post(_tool_approvals_url(agent_session_id), json=body)
+    assert retry_response.status_code == 200
+
+    part = await _load_approval_tool_part(db)
+    assert part["approval"] == {"id": "approval-1", "approved": True}
+
+
+async def test_submitted_tool_approvals_reject_a_reversal(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[_user_message("delete everything"), _assistant_message_with_approval_request()],
+    )
+
+    first_response = await httpx_client.post(
+        _tool_approvals_url(agent_session_id),
+        json=_tool_approvals_body(
+            [{"toolCallId": "tool-call-approval", "approved": True}],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+    assert first_response.status_code == 200
+
+    reversal_response = await httpx_client.post(
+        _tool_approvals_url(agent_session_id),
+        json=_tool_approvals_body(
+            [{"toolCallId": "tool-call-approval", "approved": False}],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+
+    assert reversal_response.status_code == 409
+    assert reversal_response.json()["code"] == "agent_session_tool_approvals_conflict"
+    part = await _load_approval_tool_part(db)
+    assert part["approval"] == {"id": "approval-1", "approved": True}
+
+
+async def test_submitted_tool_approvals_reject_a_call_not_awaiting_approval(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[_user_message("run a command"), _assistant_message_with_tool_states()],
+    )
+
+    response = await httpx_client.post(
+        _tool_approvals_url(agent_session_id),
+        json=_tool_approvals_body(
+            [{"toolCallId": "tool-call-done", "approved": True}],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "agent_session_tool_approvals_conflict"
+
+
+async def test_submitted_tool_approvals_reject_a_stale_last_message_id(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[_user_message("delete everything"), _assistant_message_with_approval_request()],
+    )
+
+    response = await httpx_client.post(
+        _tool_approvals_url(agent_session_id),
+        json=_tool_approvals_body(
+            [{"toolCallId": "tool-call-approval", "approved": True}],
+            last_message_id=_message_uuid("assistant-stale"),
+        ),
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "agent_session_messages_stale"
+
+
+async def test_submitted_tool_approvals_reject_a_non_boolean_answer(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """``approved`` is the gate on approval-required tools, so it is strict."""
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[_user_message("delete everything"), _assistant_message_with_approval_request()],
+    )
+
+    response = await httpx_client.post(
+        _tool_approvals_url(agent_session_id),
+        json=_tool_approvals_body(
+            [{"toolCallId": "tool-call-approval", "approved": "true"}],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+
+    assert response.status_code == 422
+    part = await _load_approval_tool_part(db)
+    assert part["state"] == "approval-requested"
+
+
+async def test_submitted_tool_approvals_reject_duplicate_tool_call_ids(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    agent_session_id = await _create_agent_session_row(
+        db,
+        title="Already titled",
+        messages=[_user_message("delete everything"), _assistant_message_with_approval_request()],
+    )
+
+    response = await httpx_client.post(
+        _tool_approvals_url(agent_session_id),
+        json=_tool_approvals_body(
+            [
+                {"toolCallId": "tool-call-approval", "approved": True},
+                {"toolCallId": "tool-call-approval", "approved": False},
+            ],
+            last_message_id=_message_uuid("assistant-1"),
+        ),
+    )
+
+    assert response.status_code == 422
+
+
+def _ui_state_user_message(
+    text: str,
+    *,
+    message_id: str,
+    ui_contexts: UIContexts | None,
+    edit_permission: Literal["manual", "bypass"] = "manual",
+) -> PhoenixUIMessage:
+    """A stored user message carrying the UI state frozen when it was written."""
+    return PhoenixUIMessage(
+        id=message_id,
+        role="user",
+        metadata=MessageMetadata(
+            phoenix=PhoenixUserMessageMetadata(
+                type="user",
+                current_date_time="2026-01-01T00:00:00Z",
+                time_zone="UTC",
+                ui_contexts=ui_contexts,
+                edit_permission=edit_permission,
+            )
+        ),
+        parts=[TextUIPart(type="text", text=text)],
+    )
+
+
+def _ui_contexts(project_node_id: str | None = None) -> UIContexts:
+    contexts = ResolvedContexts()
+    if project_node_id is not None:
+        contexts.project = ProjectUIContext(type="project", project_node_id=project_node_id)
+    return _get_ui_contexts(contexts)
+
+
+def _rendered_blocks(messages: Sequence[PhoenixUIMessage]) -> dict[str, list[str]]:
+    """Map each message id to the ``<phoenix_ui_state>`` blocks injected into it."""
+    return {
+        message.id: [
+            part.text
+            for part in message.parts
+            if isinstance(part, TextUIPart) and part.text.startswith("<phoenix_ui_state>")
+        ]
+        for message in messages
+    }
+
+
+class TestUIStateBlockInjection:
+    """Blocks are decided from stored snapshots alone.
+
+    Deciding from the live request would inject only at the tail, so turn N's
+    block would disappear when turn N+1 arrived and every earlier turn's bytes
+    would move. The agent's answers would not change, which is why it is
+    asserted rather than left to be noticed.
+    """
+
+    def test_earlier_turns_render_identically_as_the_conversation_grows(self) -> None:
+        first = _ui_state_user_message(
+            "one", message_id=_message_uuid("u1"), ui_contexts=_ui_contexts("UHJvamVjdDox")
+        )
+        second = _ui_state_user_message(
+            "two", message_id=_message_uuid("u2"), ui_contexts=_ui_contexts("UHJvamVjdDoy")
+        )
+        third = _ui_state_user_message(
+            "three", message_id=_message_uuid("u3"), ui_contexts=_ui_contexts()
+        )
+
+        at_turn_one = _rendered_blocks(_prepend_ui_state_blocks_from_metadata([first]))
+        at_turn_two = _rendered_blocks(_prepend_ui_state_blocks_from_metadata([first, second]))
+        at_turn_three = _rendered_blocks(
+            _prepend_ui_state_blocks_from_metadata([first, second, third])
+        )
+
+        assert at_turn_one[first.id] == at_turn_two[first.id] == at_turn_three[first.id]
+        assert at_turn_two[second.id] == at_turn_three[second.id]
+        assert len(at_turn_three[third.id]) == 1
+
+    def test_first_turn_always_emits_a_block(self) -> None:
+        message = _ui_state_user_message(
+            "hello", message_id=_message_uuid("u1"), ui_contexts=_ui_contexts()
+        )
+
+        [rendered] = _prepend_ui_state_blocks_from_metadata([message])
+
+        assert len(_rendered_blocks([rendered])[message.id]) == 1
+
+    def test_unchanged_state_costs_nothing(self) -> None:
+        ui_contexts = _ui_contexts("UHJvamVjdDox")
+        first = _ui_state_user_message(
+            "one", message_id=_message_uuid("u1"), ui_contexts=ui_contexts
+        )
+        second = _ui_state_user_message(
+            "two", message_id=_message_uuid("u2"), ui_contexts=ui_contexts
+        )
+
+        blocks = _rendered_blocks(_prepend_ui_state_blocks_from_metadata([first, second]))
+
+        assert len(blocks[first.id]) == 1
+        assert blocks[second.id] == []
+
+    def test_block_precedes_the_user_text(self) -> None:
+        message = _ui_state_user_message(
+            "hello", message_id=_message_uuid("u1"), ui_contexts=_ui_contexts()
+        )
+
+        [rendered] = _prepend_ui_state_blocks_from_metadata([message])
+
+        assert isinstance(rendered.parts[0], TextUIPart)
+        assert rendered.parts[0].text.startswith("<phoenix_ui_state>")
+        assert [part.text for part in rendered.parts[1:] if isinstance(part, TextUIPart)] == [
+            "hello"
+        ]
+
+    def test_the_stored_message_is_left_untouched(self) -> None:
+        """The injected copy is model-facing only, so nothing has to be stripped
+        back out of the transcript on the read paths."""
+        message = _ui_state_user_message(
+            "hello", message_id=_message_uuid("u1"), ui_contexts=_ui_contexts()
+        )
+
+        _prepend_ui_state_blocks_from_metadata([message])
+
+        assert len(message.parts) == 1
+
+    def test_messages_without_a_snapshot_pass_through_without_resetting(self) -> None:
+        """Compaction checkpoints and pre-existing transcripts have no snapshot;
+        they must neither gain a block nor make the next turn re-emit one."""
+        ui_contexts = _ui_contexts("UHJvamVjdDox")
+        first = _ui_state_user_message(
+            "one", message_id=_message_uuid("u1"), ui_contexts=ui_contexts
+        )
+        legacy = _ui_state_user_message("two", message_id=_message_uuid("u2"), ui_contexts=None)
+        third = _ui_state_user_message(
+            "three", message_id=_message_uuid("u3"), ui_contexts=ui_contexts
+        )
+
+        blocks = _rendered_blocks(_prepend_ui_state_blocks_from_metadata([first, legacy, third]))
+
+        assert len(blocks[first.id]) == 1
+        assert blocks[legacy.id] == []
+        assert blocks[third.id] == []
+
+    def test_a_transcript_with_no_snapshots_is_returned_unchanged(self) -> None:
+        messages = [
+            _ui_state_user_message("one", message_id=_message_uuid("u1"), ui_contexts=None),
+            _ui_state_user_message("two", message_id=_message_uuid("u2"), ui_contexts=None),
+        ]
+
+        assert _prepend_ui_state_blocks_from_metadata(messages) == messages
+
+    def test_the_frozen_snapshot_survives_persistence(self) -> None:
+        """Freezing is only real if it survives the database round trip."""
+        ui_contexts = _ui_contexts("UHJvamVjdDox")
+        message = _ui_state_user_message(
+            "one", message_id=_message_uuid("u1"), ui_contexts=ui_contexts
+        )
+
+        restored = PhoenixUIMessage.model_validate(
+            message.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        )
+
+        assert (
+            _rendered_blocks(_prepend_ui_state_blocks_from_metadata([restored]))[message.id]
+            == _rendered_blocks(_prepend_ui_state_blocks_from_metadata([message]))[message.id]
+        )
+
+
+class TestUIStateMetadata:
+    def test_the_server_overwrites_whatever_the_client_sent(self) -> None:
+        """The stored ``ui_state`` must be what the server resolved and showed
+        the model, so a client-supplied value is never trusted."""
+        message = _ui_state_user_message(
+            "hello",
+            message_id=_message_uuid("u1"),
+            ui_contexts=_get_ui_contexts(ResolvedContexts()),
+            edit_permission="bypass",
+        )
+        resolved = _get_ui_contexts(
+            ResolvedContexts(
+                project=ProjectUIContext(type="project", project_node_id="UHJvamVjdDox")
+            )
+        )
+
+        _add_ui_contexts_to_metadata(message, resolved)
+        _add_edit_permission_to_metadata(message, "manual")
+
+        assert _get_ui_state_block_from_metadata(message) == _render_ui_state(
+            resolved, "manual", template=UI_STATE_TEMPLATE
+        )
+
+    def test_a_message_without_phoenix_metadata_is_left_alone(self) -> None:
+        message = PhoenixUIMessage(
+            id=_message_uuid("u1"),
+            role="user",
+            parts=[TextUIPart(type="text", text="hello")],
+        )
+
+        _add_ui_contexts_to_metadata(message, _ui_contexts())
+        _add_edit_permission_to_metadata(message, "manual")
+
+        assert _get_ui_state_block_from_metadata(message) is None
+        assert _prepend_ui_state_blocks_from_metadata([message]) == [message]
+
+
+def _browser_user_message(text: str, *, message_id: str) -> dict[str, Any]:
+    """A user message shaped the way the browser sends one."""
+    return {
+        "id": message_id,
+        "role": "user",
+        "metadata": {
+            "phoenix": {
+                "type": "user",
+                "currentDateTime": "2026-01-01T00:00:00Z",
+                "timeZone": "UTC",
+            }
+        },
+        "parts": [{"type": "text", "text": text}],
+    }
+
+
+def _recording_model(seen: list[list[ModelMessage]]) -> FunctionModel:
+    """A model double that records the messages it was handed on each request."""
+
+    async def stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        seen.append(messages)
+        yield "done"
+
+    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[ToolCallPart(tool_name="summary", args={"summary": "t"})])
+
+    return FunctionModel(function=function, stream_function=stream_function)
+
+
+def _user_prompt_contents(messages: list[ModelMessage]) -> list[list[str]]:
+    """The text items of each user turn, in order.
+
+    The adapter collects a user message's text parts into one ``UserPromptPart``
+    whose content is a list when there is more than one — the shape a turn
+    carrying a state block takes.
+    """
+    contents: list[list[str]] = []
+    for message in messages:
+        if not isinstance(message, ModelRequest):
+            continue
+        for part in message.parts:
+            if not isinstance(part, UserPromptPart):
+                continue
+            content = part.content
+            if isinstance(content, str):
+                contents.append([content])
+            else:
+                contents.append([item for item in content if isinstance(item, str)])
+    return contents
+
+
+async def test_chat_turn_carries_ui_state_on_the_message_not_the_system_prompt(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End to end: the block rides on the user's turn and keeps saying the same
+    thing after the user navigates away."""
+    first_turn: list[list[ModelMessage]] = []
+    second_turn: list[list[ModelMessage]] = []
+    _mock_turn_models(
+        monkeypatch,
+        _recording_model(first_turn),
+        _recording_model(second_turn),
+    )
+    agent_session_id = await _create_agent_session_row(db, title="Already titled")
+
+    first_message_id = _message_uuid("ui-state-1")
+    first_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            agent_session_id,
+            _browser_user_message("first", message_id=first_message_id),
+            contexts=[{"type": "project", "projectNodeId": "UHJvamVjdDox"}],
+        ),
+    )
+    assert first_response.status_code == 200
+
+    [first_messages] = first_turn
+    [first_prompt] = _user_prompt_contents(first_messages)
+    assert first_prompt[0].startswith("<phoenix_ui_state>")
+    assert '"projectNodeId": "UHJvamVjdDox"' in first_prompt[0]
+    assert first_prompt[-1] == "first"
+    instructions = "\n".join(
+        message.instructions
+        for message in first_messages
+        if isinstance(message, ModelRequest) and message.instructions
+    )
+    assert "<phoenix_project_context>" in instructions
+    assert "UHJvamVjdDox" not in instructions
+
+    second_response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            agent_session_id,
+            _browser_user_message("second", message_id=_message_uuid("ui-state-2")),
+            contexts=[{"type": "dataset", "datasetNodeId": "RGF0YXNldDox"}],
+            lastMessageId=await _last_stored_message_id(db),
+        ),
+    )
+    assert second_response.status_code == 200
+
+    [second_messages] = second_turn
+    replayed_first, second_prompt = _user_prompt_contents(second_messages)
+    assert replayed_first == first_prompt
+    assert '"datasetNodeId": "RGF0YXNldDox"' in second_prompt[0]
+    assert second_prompt[-1] == "second"
+
+
+async def test_the_persisted_user_message_records_the_turns_ui_state(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The snapshot is stored on the message, not re-derived per request, which
+    keeps an earlier turn's block from moving under the model."""
+    _mock_turn_models(monkeypatch, _recording_model([]))
+    agent_session_id = await _create_agent_session_row(db, title="Already titled")
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            agent_session_id,
+            _browser_user_message("hello", message_id=_message_uuid("ui-state-1")),
+            contexts=[{"type": "project", "projectNodeId": "UHJvamVjdDox"}],
+            editPermission="bypass",
+        ),
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        stored = await _load_session_messages(
+            session,
+            from_global_id_with_expected_type(GlobalID.from_id(agent_session_id), "AgentSession"),
+        )
+    [user_message] = [message for message in stored if message["role"] == "user"]
+    phoenix_metadata = user_message["metadata"]["phoenix"]
+    assert phoenix_metadata["uiContexts"]["project"]["projectNodeId"] == "UHJvamVjdDox"
+    assert phoenix_metadata["editPermission"] == "bypass"

@@ -16,13 +16,14 @@ import {
   StateEffect,
   StateField,
 } from "@codemirror/state";
-import { css } from "@emotion/react";
+import { css, Global } from "@emotion/react";
 import CodeMirror, {
   type BasicSetupOptions,
   Decoration,
   type DecorationSet,
   EditorView,
   keymap,
+  tooltips,
 } from "@uiw/react-codemirror";
 import type { ReactNode, Ref } from "react";
 import {
@@ -59,6 +60,7 @@ import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
   dslFilterFieldCSS,
+  portaledTypeaheadMenuCSS,
 } from "./styles";
 
 /**
@@ -568,6 +570,16 @@ export function DSLFilterConditionField<
     [ariaLabel]
   );
 
+  // A centered modal transforms and overflow-clips its dialog. That makes
+  // CodeMirror's fixed tooltip relative to the dialog and hides the
+  // completion menu outside the input's row. Reparent all editor tooltips to
+  // the modal overlay: they stay in the modal's interaction subtree while
+  // escaping the dialog's clip. The parent is discovered once the editor
+  // mounts (see onCreateEditor) and lives in the extensions array — an
+  // appended config would be silently dropped by the root reconfigure that
+  // any extensions change dispatches.
+  const [tooltipParent, setTooltipParent] = useState<HTMLElement | null>(null);
+
   // The extensions must be referentially stable across renders — a new
   // array causes a CodeMirror reconfigure, which resets the in-flight
   // completion state (e.g. the dropdown opened by focusing the field).
@@ -577,8 +589,16 @@ export function DSLFilterConditionField<
   // while the variant is on (a variant flip reconfigures the editor either
   // way).
   const extensions = useMemo(() => {
+    const tooltipReparent = tooltipParent
+      ? [tooltips({ parent: tooltipParent })]
+      : [];
     if (variant === "prose") {
-      return [...composedExtensions, singleLineKeymap, contentAttributes];
+      return [
+        ...composedExtensions,
+        singleLineKeymap,
+        contentAttributes,
+        ...tooltipReparent,
+      ];
     }
     // Fetch loaded completions at most once per focus, retrying on failure
     // the next time the dropdown opens
@@ -638,12 +658,15 @@ export function DSLFilterConditionField<
         }
       }),
       contentAttributes,
+      ...tooltipReparent,
       autocompletion({
         override: [
           ...completionSources,
           createDSLFilterCompletionSource(staticOptions),
+          // eslint-disable-next-line react/refs
           ...(loadCompletionsOnce
-            ? [createDSLFilterCompletionSource(loadCompletionsOnce)]
+            ? // eslint-disable-next-line react/refs
+              [createDSLFilterCompletionSource(loadCompletionsOnce)]
             : []),
         ],
         selectOnOpen: false,
@@ -664,6 +687,7 @@ export function DSLFilterConditionField<
     completionSources,
     getContextualCompletions,
     contentAttributes,
+    tooltipParent,
   ]);
 
   // Anchor the error to the sub-expression it came from once validation has
@@ -717,6 +741,7 @@ export function DSLFilterConditionField<
     // The last validation no longer describes what's in the field — drop any
     // stale error or warnings so the field isn't flagged mid-edit. Status
     // only shows once the current text has settled and been validated.
+    // eslint-disable-next-line react/set-state-in-effect
     setErrorMessage(null);
     setWarnings([]);
 
@@ -824,6 +849,7 @@ export function DSLFilterConditionField<
       className={classNames("dsl-filter-condition-field", className)}
       css={dslFilterFieldCSS}
     >
+      <Global styles={portaledTypeaheadMenuCSS} />
       <Flex direction="row" alignItems="center">
         {leadingVisual ?? (
           <Icon svg={<Icons.ListFilter />} className="filter-icon" />
@@ -835,6 +861,13 @@ export function DSLFilterConditionField<
           readOnly={isReadOnly}
           onCreateEditor={(editorView) => {
             editorViewRef.current = editorView;
+            const overlay = editorView.dom.closest<HTMLElement>(
+              '[data-overlay-container="modal"]'
+            );
+            if (overlay) {
+              overlay.classList.add("dsl-filter-tooltip-root");
+              setTooltipParent(overlay);
+            }
           }}
           onFocus={() => {
             // Refresh the loaded completions each time the user returns to

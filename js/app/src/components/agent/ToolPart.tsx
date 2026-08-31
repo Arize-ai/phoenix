@@ -38,22 +38,18 @@ import {
 import { LIST_DATASETS_TOOL_NAME } from "@phoenix/agent/tools/listDatasets";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { PATCH_EXPERIMENT_TOOL_NAME } from "@phoenix/agent/tools/patchExperiment";
-import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
-import {
-  EDIT_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
-import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
-import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import {
   parseSetSpansFilterInput,
   SET_SPANS_FILTER_TOOL_NAME,
 } from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
+import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/uiOperations/executeBrowserActionTool";
+import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/uiOperations/searchBrowserActionsTool";
 import { Icon, Icons } from "@phoenix/components";
 import { revealOnHoverCSS } from "@phoenix/components/core/styles";
 import type { Variant } from "@phoenix/components/core/types";
 import { MarkdownBlock } from "@phoenix/components/markdown";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -76,6 +72,7 @@ import {
   formatBatchSpanAnnotateState,
   getBatchSpanAnnotateToolPreview,
 } from "./BatchSpanAnnotateToolDetails";
+import { useChatScrollContext } from "./ChatScrollContext";
 import {
   CreateDatasetToolDetails,
   getCreateDatasetToolPreview,
@@ -103,16 +100,15 @@ import {
   getEditLlmEvaluatorDraftToolPreview,
 } from "./EditLLMEvaluatorDraftToolDetails";
 import {
-  EditPromptToolDetails,
-  formatEditPromptState,
-  getEditPromptToolPreview,
-} from "./EditPromptToolDetails";
+  ExecuteBrowserActionToolDetails,
+  formatExecuteBrowserActionState,
+  getExecuteBrowserActionToolPreview,
+} from "./ExecuteBrowserActionToolDetails";
 import {
-  formatLoadDatasetState,
-  getLoadDatasetStatusVariant,
-  getLoadDatasetToolPreview,
-  LoadDatasetToolDetails,
-} from "./LoadDatasetToolDetails";
+  getLoadSkillReferenceToolPreview,
+  LOAD_SKILL_REFERENCE_TOOL_NAME,
+  LoadSkillReferenceToolDetails,
+} from "./LoadSkillReferenceToolDetails";
 import {
   getLoadSkillToolPreview,
   LOAD_SKILL_TOOL_NAME,
@@ -124,24 +120,12 @@ import {
   getPatchExperimentToolPreview,
   PatchExperimentToolDetails,
 } from "./PatchExperimentToolDetails";
-import {
-  getReadSkillResourceToolPreview,
-  READ_SKILL_RESOURCE_TOOL_NAME,
-  ReadSkillResourceToolDetails,
-} from "./ReadSkillResourceToolDetails";
-import {
-  formatRemovePromptInstanceState,
-  getRemovePromptInstanceStatusVariant,
-  getRemovePromptInstanceToolPreview,
-  RemovePromptInstanceToolDetails,
-} from "./RemovePromptInstanceToolDetails";
-import {
-  formatSavePromptState,
-  getSavePromptStatusVariant,
-  getSavePromptToolPreview,
-  SavePromptToolDetails,
-} from "./SavePromptToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
+import {
+  getSearchUIToolPreview,
+  SearchUIToolDetails,
+} from "./SearchUIToolDetails";
+import { ToolApprovalRequest } from "./ToolApprovalRequest";
 import { ToolExecutionSummary } from "./ToolExecutionSummary";
 import { getToolIconKey } from "./toolIconConfig";
 import {
@@ -159,11 +143,6 @@ import {
   stringifyToolValue,
 } from "./toolPartTypes";
 import { useToolDisclosure } from "./useToolDisclosure";
-import {
-  formatWritePromptToolsState,
-  getWritePromptToolsToolPreview,
-  WritePromptToolsToolDetails,
-} from "./WritePromptToolsToolDetails";
 
 /**
  * Re-export the message part type for consumers that need it for grouping.
@@ -271,6 +250,39 @@ export const toolPartCSS = css`
   .tool-part__code {
     flex: 1;
     min-width: 0;
+  }
+
+  .tool-part__text {
+    font-family: var(--global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+  }
+
+  /* Key–value rows for approval summaries: labels in the quiet color, values
+     as prose, structured values as scoped code blocks. */
+  .tool-part__kv {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: var(--global-dimension-size-200);
+    row-gap: var(--global-dimension-size-50);
+    font-family: var(--global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+
+    dt {
+      color: var(--tool-call-quiet-color);
+      white-space: nowrap;
+    }
+
+    dd {
+      margin: 0;
+      min-width: 0;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
   }
 
   .tool-part__summary {
@@ -504,15 +516,20 @@ export function ToolPart({
 }
 
 /**
- * Smoothly scrolls `element` to the top of its nearest scrollable ancestor,
- * scrolling only that container.
+ * Reveals `element` at the top of its nearest scrollable ancestor with a
+ * single instant write, scrolling only that container.
  *
- * Unlike the native `Element.scrollIntoView`, which scrolls every scrollable
- * ancestor (and can move the whole page/layout), this confines the scroll to
- * the chat message list. The native behavior previously bubbled up to the
- * floating panel's `overflow: hidden` flex column, clipping the panel header
- * and leaving a gap beneath the footer when a tool part auto-opened for
- * approval. Does nothing when no scrollable ancestor is found.
+ * Two deliberate constraints, both learned the hard way:
+ * - Only the nearest scroll container moves. Native `Element.scrollIntoView`
+ *   scrolls every ancestor, which previously shifted the floating panel's
+ *   `overflow: hidden` frame and clipped its header/footer.
+ * - The write is instant, not smooth. The transcript's policy is that
+ *   programmatic scrolls are single synchronous assignments (see
+ *   `useChatFollowScroll`): a multi-frame smooth animation here left a moving
+ *   baseline for the expand/collapse scroll anchor to measure against and a
+ *   second writer for user gestures to fight.
+ *
+ * Does nothing when no scrollable ancestor is found.
  *
  * @param element - The element to bring into view within its scroll container.
  */
@@ -523,11 +540,10 @@ function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
   }
   const parentRect = scrollParent.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
-  // Distance to scroll so the element's top sits near the top of the viewport
-  // with a small margin for context.
+  // Land the element's top near the top of the viewport with a small margin
+  // for context.
   const topMargin = 16;
-  const delta = elementRect.top - parentRect.top - topMargin;
-  scrollParent.scrollBy({ top: delta, behavior: "smooth" });
+  scrollParent.scrollTop += elementRect.top - parentRect.top - topMargin;
 }
 
 /**
@@ -581,12 +597,20 @@ function ToolInvocationPartDetails({
   defaultOpen?: boolean;
 }) {
   const toolName = getToolName(part);
-  const uiBehavior = getAgentToolUIBehavior(toolName);
+  const UIBehavior = getAgentToolUIBehavior(toolName);
+  const chatScrollContext = useChatScrollContext();
   const hasAutoOpenedRef = useRef(false);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const { preview, stateLabel, statusVariant, details, variant, quietLabel } =
     getToolPresentation(toolName, part);
-  const shouldAutoOpen = shouldAutoOpenToolPart(part);
+  // Store-driven open request: set when this call stages a user-facing
+  // approval (see `requestToolPartOpen`), so Accept/Reject is never hidden
+  // behind a collapsed disclosure. It layers under the same manual-toggle
+  // override as the static heuristic — a card the user closed stays closed.
+  const isOpenRequested = useAgentContext((state) =>
+    Boolean(state.toolPartOpenRequests[part.toolCallId])
+  );
+  const shouldAutoOpen = isOpenRequested || shouldAutoOpenToolPart(part);
   const {
     ref: detailsRef,
     isOpen: isRenderedOpen,
@@ -600,15 +624,25 @@ function ToolInvocationPartDetails({
       return;
     }
     hasAutoOpenedRef.current = true;
-    if (uiBehavior?.scrollIntoViewOnMount !== true) {
+    if (UIBehavior?.scrollIntoViewOnMount !== true) {
       return;
     }
+    // Release follow-bottom before scrolling the card into view; otherwise
+    // the next streaming resize would immediately pin the transcript back to
+    // the bottom and hide the approval again. Same policy as
+    // `useScrollAnchor.capture` for manual toggles.
+    chatScrollContext?.stopScroll();
     requestAnimationFrame(() => {
       if (detailsRef.current) {
         scrollElementIntoViewWithinScrollParent(detailsRef.current);
       }
     });
-  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount, detailsRef]);
+  }, [
+    shouldAutoOpen,
+    UIBehavior?.scrollIntoViewOnMount,
+    detailsRef,
+    chatScrollContext,
+  ]);
 
   const isQuiet = variant === "quiet";
   const showQuietSummary = isQuiet && !isRenderedOpen;
@@ -678,9 +712,12 @@ function ToolInvocationPartDetails({
 }
 
 function shouldAutoOpenToolPart(part: ToolInvocationPart): boolean {
+  if (part.state === "approval-requested") {
+    return true;
+  }
   const toolName = getToolName(part);
-  const uiBehavior = getAgentToolUIBehavior(toolName);
-  if (uiBehavior?.autoOpen !== true) {
+  const UIBehavior = getAgentToolUIBehavior(toolName);
+  if (UIBehavior?.autoOpen !== true) {
     return false;
   }
   // Stay collapsed while arguments are still streaming in. Auto-open tools
@@ -859,6 +896,7 @@ function GenericToolDetails({ part }: { part: ToolInvocationPart }) {
       <ToolPartExpandableSection>
         <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
       </ToolPartExpandableSection>
+      <ToolApprovalRequest part={part} />
       {part.state === "output-available" ? (
         <>
           <ToolPartLabel>Output</ToolPartLabel>
@@ -1033,6 +1071,20 @@ function getToolPresentation(
 } {
   const statusVariant = getStatusVariant(part.state);
   switch (toolName) {
+    case EXECUTE_BROWSER_ACTION_TOOL_NAME:
+      return {
+        preview: getExecuteBrowserActionToolPreview(part),
+        stateLabel: formatExecuteBrowserActionState(part),
+        statusVariant,
+        details: <ExecuteBrowserActionToolDetails part={part} />,
+      };
+    case SEARCH_BROWSER_ACTIONS_TOOL_NAME:
+      return {
+        preview: getSearchUIToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <SearchUIToolDetails part={part} />,
+      };
     case "bash":
       return {
         preview: getBashToolPreview(part),
@@ -1050,42 +1102,6 @@ function getToolPresentation(
         details: <AskUserToolDetails part={part} />,
       };
     }
-    case EDIT_PROMPT_TOOL_NAME:
-      return {
-        preview: getEditPromptToolPreview(part),
-        stateLabel: formatEditPromptState(part),
-        statusVariant,
-        details: <EditPromptToolDetails part={part} />,
-      };
-    case WRITE_PROMPT_TOOLS_TOOL_NAME:
-      return {
-        preview: getWritePromptToolsToolPreview(part),
-        stateLabel: formatWritePromptToolsState(part),
-        statusVariant,
-        details: <WritePromptToolsToolDetails part={part} />,
-      };
-    case SAVE_PROMPT_TOOL_NAME:
-      return {
-        preview: getSavePromptToolPreview(part),
-        stateLabel: formatSavePromptState(part),
-        statusVariant: getSavePromptStatusVariant(part) ?? statusVariant,
-        details: <SavePromptToolDetails part={part} />,
-      };
-    case REMOVE_PROMPT_INSTANCE_TOOL_NAME:
-      return {
-        preview: getRemovePromptInstanceToolPreview(part),
-        stateLabel: formatRemovePromptInstanceState(part),
-        statusVariant:
-          getRemovePromptInstanceStatusVariant(part) ?? statusVariant,
-        details: <RemovePromptInstanceToolDetails part={part} />,
-      };
-    case LOAD_DATASET_TOOL_NAME:
-      return {
-        preview: getLoadDatasetToolPreview(part),
-        stateLabel: formatLoadDatasetState(part),
-        statusVariant: getLoadDatasetStatusVariant(part) ?? statusVariant,
-        details: <LoadDatasetToolDetails part={part} />,
-      };
     case CREATE_DATASET_TOOL_NAME:
       return {
         preview: getCreateDatasetToolPreview(part),
@@ -1213,12 +1229,12 @@ function getToolPresentation(
         quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
       };
     }
-    case READ_SKILL_RESOURCE_TOOL_NAME:
+    case LOAD_SKILL_REFERENCE_TOOL_NAME:
       return {
-        preview: getReadSkillResourceToolPreview(part),
+        preview: getLoadSkillReferenceToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        details: <ReadSkillResourceToolDetails part={part} />,
+        details: <LoadSkillReferenceToolDetails part={part} />,
       };
     case NATIVE_WEB_SEARCH_TOOL_NAME:
     case NATIVE_WEB_FETCH_TOOL_NAME:

@@ -1,3 +1,4 @@
+import binascii
 import gzip
 import zlib
 from collections import defaultdict
@@ -11,7 +12,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, or_, select, update
+from sqlalchemy import delete, insert, or_, select, tuple_, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -25,6 +26,11 @@ from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+)
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
@@ -113,6 +119,22 @@ def _to_trace_data(
     )
 
 
+_CURSOR_SORT_TYPES: dict[str, CursorSortColumnDataType] = {
+    "start_time": CursorSortColumnDataType.DATETIME,
+    "latency_ms": CursorSortColumnDataType.FLOAT,
+}
+
+
+def _parse_trace_cursor(cursor: str, sort: str) -> Cursor:
+    try:
+        parsed = Cursor.from_string(cursor)
+    except (binascii.Error, KeyError, UnicodeDecodeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail="Invalid cursor") from error
+    if parsed.sort_column is None or parsed.sort_column.type is not _CURSOR_SORT_TYPES[sort]:
+        raise HTTPException(status_code=422, detail="Invalid cursor")
+    return parsed
+
+
 @router.get(
     "/projects/{project_identifier}/traces",
     operation_id="listProjectTraces",
@@ -137,7 +159,10 @@ async def list_project_traces(
     limit: int = Query(
         default=100, gt=0, le=1000, description="Maximum number of traces to return"
     ),
-    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Trace GlobalID)"),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Pagination cursor returned by a previous request",
+    ),
     include_spans: bool = Query(
         default=False,
         description=(
@@ -160,10 +185,11 @@ async def list_project_traces(
         project = await get_project_by_identifier(session, project_identifier)
         project_rowid = project.id
 
-        # Build query with sort order
-        stmt = select(models.Trace).filter(models.Trace.project_rowid == project_rowid)
-
         sort_col = models.Trace.latency_ms if sort == "latency_ms" else models.Trace.start_time
+        # Select the database value because latency is rounded in SQL but not in Python.
+        stmt = select(models.Trace, sort_col.label("sort_value")).filter(
+            models.Trace.project_rowid == project_rowid
+        )
         if order == "asc":
             stmt = stmt.order_by(sort_col.asc(), models.Trace.id.asc())
         else:
@@ -207,27 +233,33 @@ async def list_project_traces(
             stmt = stmt.where(models.Trace.start_time < normalize_datetime(end_time, timezone.utc))
 
         if cursor:
-            try:
-                cursor_rowid = int(GlobalID.from_id(cursor).node_id)
-                if order == "desc":
-                    stmt = stmt.where(models.Trace.id <= cursor_rowid)
-                else:
-                    stmt = stmt.where(models.Trace.id >= cursor_rowid)
-            except (ValueError, TypeError):
-                raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
+            parsed_cursor = _parse_trace_cursor(cursor, sort)
+            assert parsed_cursor.sort_column is not None
+            key = tuple_(sort_col, models.Trace.id)
+            bound = (parsed_cursor.sort_column.value, parsed_cursor.rowid)
+            stmt = stmt.where(key < bound if order == "desc" else key > bound)
 
         stmt = stmt.limit(limit + 1)
-        traces = (await session.scalars(stmt)).all()
+        rows = (await session.execute(stmt)).all()
 
-        if not traces:
+        if not rows:
             return GetTracesResponseBody(next_cursor=None, data=[])
 
         next_cursor: Optional[str] = None
-        if len(traces) == limit + 1:
-            last_trace = traces[-1]
-            next_cursor = str(GlobalID(TraceNodeType.__name__, str(last_trace.id)))
-            traces = traces[:-1]
+        if len(rows) == limit + 1:
+            last_trace, last_sort_value = rows[-2]
+            next_cursor = str(
+                Cursor(
+                    rowid=last_trace.id,
+                    sort_column=CursorSortColumn(
+                        type=_CURSOR_SORT_TYPES[sort],
+                        value=last_sort_value,
+                    ),
+                )
+            )
+            rows = rows[:-1]
 
+        traces = [trace for trace, _ in rows]
         trace_rowids = [t.id for t in traces]
 
         # Batch-fetch leaf-LLM token counts (one query per page, not per row)

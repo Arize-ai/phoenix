@@ -3,7 +3,10 @@ import { graphql, useFragment } from "react-relay";
 
 import { Flex } from "@phoenix/components";
 import type { AnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";
-import { AnnotationSummaryTokens } from "@phoenix/components/annotation/AnnotationSummaryTokens";
+import {
+  AnnotationSummaryTokens,
+  AnnotationSummaryValueToken,
+} from "@phoenix/components/annotation/AnnotationSummaryTokens";
 import type { Annotation } from "@phoenix/components/annotation/types";
 import { Divider } from "@phoenix/components/core/layout";
 
@@ -65,6 +68,13 @@ type AnnotationSummaryGroupProps = {
   renderEmptyState?: () => ReactNode;
 };
 
+type AnnotationSummaryGroupTokenProps = Omit<
+  AnnotationSummaryGroupProps,
+  "renderEmptyState"
+> & {
+  annotationName: string;
+};
+
 /**
  * Lays out annotation summary stacks as peer columns alongside other header
  * metrics. The group owns its optional leading divider so empty groups do not
@@ -109,6 +119,29 @@ export const AnnotationSummaryGroupTokens = ({
   return (
     <AnnotationSummaryTokens
       summaries={summariesWithTokens}
+      annotationTargetType="span"
+      annotationsByName={annotationsByName}
+      annotationConfigsByName={annotationConfigsByName}
+      showFilterActions={showFilterActions}
+      renderFilterActions={renderFilterActions}
+    />
+  );
+};
+
+export const AnnotationSummaryGroupToken = ({
+  span,
+  annotationName,
+  annotationConfigsByName,
+  showFilterActions = false,
+  renderFilterActions,
+}: AnnotationSummaryGroupTokenProps) => {
+  const { sortedSummariesByName, annotationsByName } =
+    useAnnotationSummaryGroup(span);
+  return (
+    <AnnotationSummaryValueToken
+      annotationName={annotationName}
+      annotationTargetType="span"
+      sortedSummariesByName={sortedSummariesByName}
       annotationsByName={annotationsByName}
       annotationConfigsByName={annotationConfigsByName}
       showFilterActions={showFilterActions}

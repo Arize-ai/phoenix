@@ -927,9 +927,19 @@ def _compile_condition(
             validated = ast.parse(source, mode="eval")
         except ValueError:
             # A NUL in the source, which CPython 3.10 reports as `ValueError`
-            # rather than `SyntaxError` (3.11+ raises the latter, normalized by
-            # `_format_syntax_error` at the boundary).
+            # rather than `SyntaxError`.
             raise SyntaxError("condition cannot contain a NUL character") from None
+        except SyntaxError as error:
+            # From 3.11 on the same NUL arrives as a `SyntaxError` carrying the
+            # tokenizer's wording ("source code string cannot contain null
+            # bytes"), which describes source code the user never wrote. The
+            # rewrite has to happen here rather than at a caller's boundary:
+            # `SessionFilter` raises out of this function directly, so nothing
+            # downstream would reword it. Every other syntax error is the
+            # parser describing the user's own text and passes through raw.
+            if "null bytes" in (error.msg or ""):
+                raise SyntaxError("condition cannot contain a NUL character") from None
+            raise
         _validate_expression(validated, source, bindings, valid_eval_names=valid_annotation_names)
         _validate_semantics(validated, source, bindings)
         source, aliased_annotation_relations = _apply_eval_aliasing(source, bindings)
@@ -1089,9 +1099,11 @@ class SpanFilter:
         try:
             root = ast.parse(source, mode="eval")
         except ValueError as error:
-            # A NUL anywhere in the source, which `ast.parse` reports as a
+            # A NUL anywhere in the source, which CPython 3.10 reports as a
             # `ValueError` rather than a `SyntaxError`. Callers catch only the
-            # latter, so it would escape as a server error.
+            # latter, so it would escape as a server error. From 3.11 on the
+            # same NUL is already a `SyntaxError`, reworded by the
+            # `_format_syntax_error` boundary in `__post_init__`.
             raise SyntaxError("condition cannot contain a NUL character") from error
         _validate_expression(root, source)
         # Derived from the tree parsed just above rather than from the source
@@ -1141,8 +1153,19 @@ class SpanFilter:
         # a measured PostgreSQL regression (see `query.py`). An `OR ... parent_id IS
         # NULL` form is intentionally NOT used here.
         parent_span = aliased(models.Span)
+        # `Span` is named explicitly rather than left to auto-correlation, which omits
+        # only a relation the immediately enclosing query selects from. This subquery
+        # sits one level deeper than that whenever the same condition also reads an
+        # annotation, because the whole predicate is then evaluated inside a correlated
+        # `EXISTS`. Re-rendered there, `spans` is an unconstrained cross join and the
+        # test collapses to "no span anywhere has a parent" -- false for any non-empty
+        # project, so `parent_span is None and <annotation>` matched nothing at all and
+        # the `is not None` form matched everything.
         parent_exists = (
-            sqlalchemy.select(1).where(parent_span.span_id == models.Span.parent_id).exists()
+            sqlalchemy.select(1)
+            .where(parent_span.span_id == models.Span.parent_id)
+            .correlate(models.Span)
+            .exists()
         )
         predicate = eval(
             self.compiled,

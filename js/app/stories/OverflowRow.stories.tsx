@@ -1,7 +1,8 @@
 import type { Meta, StoryFn } from "@storybook/react";
-import { useState } from "react";
+import { Fragment, type ReactNode, useState } from "react";
 
 import { Flex, OverflowRow, Switch, Token, View } from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 
 const meta: Meta = {
   title: "Core/Utility/OverflowRow",
@@ -35,17 +36,33 @@ const COLORS = [
   "var(--global-color-chartreuse-600)",
 ];
 
-const Tokens = () => (
+/**
+ * With `boxless`, each token renders behind a `StopPropagation` guard — a
+ * boxless `display: contents` wrapper, the structure the annotation pills
+ * render through. The row must resolve through the wrappers to find the boxes.
+ */
+const Tokens = ({ boxless = false }: { boxless?: boolean }) => (
   <>
-    {LABELS.map((label, index) => (
-      <Token key={label} color={COLORS[index % COLORS.length]} size="M">
-        {label}
-      </Token>
-    ))}
+    {LABELS.map((label, index) => {
+      const Wrapper = boxless ? StopPropagation : Fragment;
+      return (
+        <Wrapper key={label}>
+          <Token color={COLORS[index % COLORS.length]} size="M">
+            {label}
+          </Token>
+        </Wrapper>
+      );
+    })}
   </>
 );
 
-const Template = ({ width }: { width: number }) => {
+const Template = ({
+  width,
+  children = <Tokens />,
+}: {
+  width: number;
+  children?: ReactNode;
+}) => {
   const [isExpanded, setIsExpanded] = useState(false);
   return (
     <Flex direction="column" gap="size-200">
@@ -59,9 +76,7 @@ const Template = ({ width }: { width: number }) => {
         padding="size-100"
         width={`${width}px`}
       >
-        <OverflowRow isExpanded={isExpanded}>
-          <Tokens />
-        </OverflowRow>
+        <OverflowRow isExpanded={isExpanded}>{children}</OverflowRow>
       </View>
     </Flex>
   );
@@ -78,3 +93,10 @@ export const FitsWithoutOverflow: StoryFn = () => <Template width={900} />;
  * rendering cut off.
  */
 export const BadgeOnly: StoryFn = () => <Template width={80} />;
+
+/** Items behind boxless event guards still clamp behind the badge. */
+export const BoxlessItemWrappers: StoryFn = () => (
+  <Template width={320}>
+    <Tokens boxless />
+  </Template>
+);

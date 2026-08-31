@@ -1143,6 +1143,16 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
                     pass
                 elif event.type == "response.custom_tool_call_input.delta":
                     pass
+                elif event.type == "response.shell_call_command.added":
+                    pass
+                elif event.type == "response.shell_call_command.delta":
+                    pass
+                elif event.type == "response.shell_call_command.done":
+                    pass
+                elif event.type == "response.shell_call_output_content.delta":
+                    pass
+                elif event.type == "response.shell_call_output_content.done":
+                    pass
                 elif TYPE_CHECKING:
                     assert_never(event.type)
 
@@ -2071,6 +2081,11 @@ def _anthropic_beta_headers_for_tools(
     return {"anthropic-beta": ",".join(betas)}
 
 
+# `messages.create()` accepts no sampling parameters. `extra_body` merges them into
+# the request JSON, which is how the models that support them receive them.
+_ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
+
+
 # Anthropic models that use adaptive thinking (`thinking: {"type": "adaptive"}`).
 # These models removed `temperature`, `top_p`, `top_k`, and extended thinking
 # (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
@@ -2235,12 +2250,14 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
         extra_body: dict[str, Any] | None = None
         if invocation_parameters:
             anthropic_params = invocation_parameters.anthropic
+            # Sampling parameters reach the request JSON through `extra_body`.
+            sampling_params: dict[str, Any] = {}
             if isinstance(anthropic_params.temperature, float):
-                params["temperature"] = anthropic_params.temperature
+                sampling_params["temperature"] = anthropic_params.temperature
             if isinstance(anthropic_params.stop_sequences, list):
                 params["stop_sequences"] = anthropic_params.stop_sequences
             if isinstance(anthropic_params.top_p, float):
-                params["top_p"] = anthropic_params.top_p
+                sampling_params["top_p"] = anthropic_params.top_p
             output_config_in = anthropic_params.output_config
             if isinstance(output_config_in, PromptAnthropicOutputConfig):
                 if output_config is None:
@@ -2263,8 +2280,11 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                 if thinking.display:
                     adaptive_param["display"] = thinking.display
                 params["thinking"] = adaptive_param
+            # A configured `extra_body` overrides the sampling parameters above.
             if isinstance(anthropic_params.extra_body, dict):
-                extra_body = anthropic_params.extra_body
+                extra_body = {**sampling_params, **anthropic_params.extra_body}
+            elif sampling_params:
+                extra_body = sampling_params
 
         if output_config is not None:
             params["output_config"] = output_config
@@ -2282,7 +2302,15 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                 span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
         input_value: dict[str, Any] = dict(params)
         if extra_body:
-            input_value["extra_body"] = extra_body
+            # Sampling parameters are top-level fields on the wire, so record them as
+            # such; the nested entry is for keys the caller asked to pass through.
+            input_value.update(
+                {k: v for k, v in extra_body.items() if k in _ANTHROPIC_SAMPLING_PARAM_KEYS}
+            )
+            if passthrough := {
+                k: v for k, v in extra_body.items() if k not in _ANTHROPIC_SAMPLING_PARAM_KEYS
+            }:
+                input_value["extra_body"] = passthrough
         span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
         span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
         input_value.pop("messages", None)

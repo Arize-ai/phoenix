@@ -9,7 +9,7 @@ import {
   DEFAULT_JUDGE_MODEL,
 } from "./constants";
 import type { PxiTurn } from "./types";
-import { expectOK, getSpanToolName, getUiMessageToolNames } from "./utils";
+import { expectOK, getSpanToolName, getUIMessageToolNames } from "./utils";
 
 export type { PxiTurn } from "./types";
 
@@ -76,7 +76,6 @@ async function installAgentDefaults({ page }: { page: Page }) {
               hasAcknowledgedConsent: false,
             },
             capabilities: {
-              "graphql.mutations": false,
               "web.access": false,
             },
           },
@@ -278,10 +277,10 @@ export class PxiDriver {
       traceId: persisted.traceId as string,
     };
     const calledTools = await this.getToolNamesForTrace(turn.traceId);
-    const uiCalledTools = getUiMessageToolNames(turn.parts);
+    const UICalledTools = getUIMessageToolNames(turn.parts);
     return {
       ...turn,
-      calledTools: [...new Set([...calledTools, ...uiCalledTools])],
+      calledTools: [...new Set([...calledTools, ...UICalledTools])],
     };
   }
 

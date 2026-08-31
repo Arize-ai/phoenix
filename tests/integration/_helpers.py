@@ -2228,6 +2228,9 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/sessions/fake-id-{}"),
     # Traces (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/traces"),
+    # Model providers
+    (200, "GET", "v1/model_providers"),
+    (200, "GET", "v1/custom_model_providers"),
     # Viewer (authenticated user profile)
     (200, "GET", "v1/user"),
     # API keys (the authenticated user's own personal keys)
@@ -2242,6 +2245,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "POST", "v1/users"),
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
+    (422, "PATCH", "v1/projects/fake-id-{}/retention"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
     (422, "PUT", "v1/secrets"),
     (200, "GET", "v1/system/api_keys"),
@@ -2265,6 +2269,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/projects"),
     (422, "POST", "v1/projects/fake-id-{}/spans"),
     (422, "POST", "v1/prompts"),
+    (422, "POST", "v1/prompts/fake-id-{}/versions"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
     (422, "POST", "v1/session_annotations"),
     (422, "POST", "v1/session_notes"),

@@ -27,7 +27,7 @@ export function getSpanToolName(span: unknown): string | null {
   return null;
 }
 
-export function getUiMessageToolNames(parts: unknown[]): string[] {
+export function getUIMessageToolNames(parts: unknown[]): string[] {
   return parts.flatMap((part) => {
     if (typeof part !== "object" || part === null) {
       return [];

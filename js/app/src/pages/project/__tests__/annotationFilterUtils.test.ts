@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   getAnnotationTooltipFilters,
+  getSessionAnnotationTooltipFilters,
+  getTraceAnnotationTooltipFilters,
   getTraceSpanAnnotationTooltipFilters,
 } from "../annotationFilterUtils";
 
@@ -40,6 +42,29 @@ describe("getAnnotationTooltipFilters", () => {
           "(annotations['quality'].label != \"say \\\"yes\\\"\\\\\" or annotations['quality'].label is None)",
       },
     ]);
+  });
+});
+
+describe("annotation summary filter accessors", () => {
+  it("targets trace annotations from a trace or span filter", () => {
+    expect(
+      getTraceAnnotationTooltipFilters({ name: "quality", score: 0.5 })
+    ).toContainEqual({
+      filterName: "equals",
+      filterCondition: "trace_annotations['quality'].score == 0.5",
+    });
+  });
+
+  it("targets session annotations from a session filter", () => {
+    expect(
+      getSessionAnnotationTooltipFilters({
+        name: "quality",
+        label: "accepted",
+      })
+    ).toContainEqual({
+      filterName: "match",
+      filterCondition: "session_annotations['quality'].label == \"accepted\"",
+    });
   });
 });
 

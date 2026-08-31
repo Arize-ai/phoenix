@@ -7,6 +7,8 @@ description: >
   changing its wheel matrix, or touching its publish path. Trigger on any change under
   packages/phoenix-sqlean/, .github/workflows/phoenix-sqlean-*.yml, or the sqlean jobs in
   .github/workflows/publish.yaml.
+metadata:
+  internal: true
 ---
 
 # phoenix-sqlean
