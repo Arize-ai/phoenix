@@ -145,7 +145,9 @@ function ProjectEvaluatorMenuItems({
       <Menu
         aria-label={menuLabel}
         onAction={(action) => {
-          if (action === "createEvaluator") {
+          if (action === "browseGallery") {
+            navigate(paths.gallery);
+          } else if (action === "createEvaluator") {
             navigate(creationPaths.newLlm);
           } else if (action === "createCodeEvaluator") {
             navigate(creationPaths.newCode);
@@ -155,8 +157,8 @@ function ProjectEvaluatorMenuItems({
         {shouldShowGalleryLink ? (
           <MenuSection>
             <MenuItem
+              id="browseGallery"
               leadingContent={<Icon svg={<Icons.Grid />} />}
-              href={paths.gallery}
             >
               Browse eval gallery
             </MenuItem>
