@@ -111,8 +111,11 @@ another trace cannot leak elements into a predicate.
 Both `Project.spans` query paths use probe lowering: the trace-start-time paginator and the
 general span listing are limited page queries, so correlated predicates can stop after
 satisfying the limit. Aggregate subqueries remain bounded by the candidate project, time
-range, and trace IDs. Scan lowering remains the helper default for future unbounded analytical
-callers; both lowerings must agree with the Python reference evaluator.
+range, and trace IDs. Scan-lowered comprehension subqueries use the same bounds. `all()` keeps
+its correlated `NOT EXISTS` shape under both lowerings because an uncorrelated `NOT IN` must
+materialize every counterexample and cannot be planned as an anti-join efficiently. Scan lowering
+remains the helper default for future unbounded analytical callers; both lowerings must agree with
+the Python reference evaluator.
 
 Filtering composes with the existing trace paginator before representative-root selection.
 It therefore preserves one edge per trace, trace-start-time window semantics, cursor behavior,

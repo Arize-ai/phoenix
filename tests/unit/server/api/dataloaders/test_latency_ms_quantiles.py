@@ -1,15 +1,23 @@
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal, cast
 
 import numpy as np
 import pandas as pd
 import pytest
-from sqlalchemy import select
+from sqlalchemy import Select, select
+from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.engine.interfaces import Dialect
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.server.api.dataloaders import latency_ms_quantile
 from phoenix.server.api.dataloaders.latency_ms_quantile import Key, LatencyMsQuantileDataLoader
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
+
+_SQLITE_DIALECT = cast(Dialect, sqlite.dialect())
+_POSTGRESQL_DIALECT = cast(Dialect, postgresql.dialect())  # type: ignore[no-untyped-call]
 
 
 async def test_latency_ms_quantiles_p25_p50_p75(
@@ -65,3 +73,51 @@ async def test_latency_ms_quantiles_p25_p50_p75(
     ]
     actual = await LatencyMsQuantileDataLoader(db)._load_fn(keys)
     assert actual == pytest.approx(expected, 1e-7)
+
+
+@pytest.mark.parametrize(
+    "dialect",
+    [_SQLITE_DIALECT, _POSTGRESQL_DIALECT],
+)
+async def test_trace_filter_compiles_to_correlated_span_exists(
+    dialect: Dialect,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    statements: list[Select[Any]] = []
+
+    async def capture_statement(
+        session: Any,
+        base_stmt: Select[Any],
+        latency_column: Any,
+        params: Any,
+    ) -> AsyncIterator[tuple[int, float]]:
+        statements.append(base_stmt)
+        if False:
+            yield 0, 0.0
+
+    monkeypatch.setattr(latency_ms_quantile, "_get_results_sqlite", capture_statement)
+    segment: latency_ms_quantile.Segment = (
+        "trace",
+        (None, None),
+        'status_code == "ERROR"',
+        None,
+    )
+    params = {(7, 0.5): [0]}
+    assert not [
+        result
+        async for result in latency_ms_quantile._get_results(
+            SupportedSQLDialect.SQLITE,
+            cast(Any, None),
+            segment,
+            params,
+        )
+    ]
+
+    assert len(statements) == 1
+    sql = str(
+        statements[0].compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+    ).lower()
+    assert "exists (select 1" in sql
+    assert "spans.trace_rowid = traces.id" in sql
+    assert "traces.id in (select" not in sql
+    assert "select distinct spans.trace_rowid" not in sql

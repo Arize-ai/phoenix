@@ -515,6 +515,10 @@ _REDUCTION_FUNCTIONS: typing.Mapping[str, typing.Any] = MappingProxyType(
 def _comprehension_bindings(
     stmt: Select[typing.Any],
     specs: typing.Iterable[ComprehensionSpec],
+    candidate_trace_rowids: typing.Optional[typing.Collection[int]],
+    project_rowids: typing.Optional[typing.Sequence[int]],
+    start_time: typing.Optional[typing.Any],
+    end_time: typing.Optional[typing.Any],
     lowering: FilterLowering,
 ) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
     aliases = count()
@@ -660,15 +664,23 @@ def _comprehension_bindings(
 
         def scan(*columns: typing.Any) -> Select[typing.Any]:
             element_stmt = apply_joins(select(*columns).select_from(scope.element), iterable, scope)
+            if candidate_trace_rowids is not None:
+                element_stmt = element_stmt.where(element_trace_key.in_(candidate_trace_rowids))
+            if project_rowids is not None or start_time is not None or end_time is not None:
+                trace_scope = aliased(models.Trace, name="trace_scope")
+                element_stmt = element_stmt.join(trace_scope, trace_scope.id == element_trace_key)
+                if project_rowids is not None:
+                    element_stmt = element_stmt.where(trace_scope.project_rowid.in_(project_rowids))
+                if start_time is not None:
+                    element_stmt = element_stmt.where(trace_scope.start_time >= start_time)
+                if end_time is not None:
+                    element_stmt = element_stmt.where(trace_scope.start_time < end_time)
             if spec.condition is not None:
                 element_stmt = element_stmt.where(eval(spec.condition, element_globals))
             return element_stmt
 
         if spec.kind == "any":
             return models.Trace.id.in_(scan(element_trace_key).where(predicate))
-        if spec.kind == "all":
-            # Every trace correlation key is non-null, so no nullable-key guard is needed.
-            return models.Trace.id.not_in(scan(element_trace_key).where(predicate.is_not(True)))
         value = func.count() if spec.kind == "len" else _REDUCTION_FUNCTIONS[spec.kind](predicate)
         return scan(element_trace_key.label(TRACE_ROWID), value.label(VALUE)).group_by(
             element_trace_key
@@ -681,6 +693,10 @@ def _comprehension_bindings(
             continue
         if lowering != "scan":
             raise ValueError(f"Unknown filter lowering: {lowering}")
+        if spec.kind == "all":
+            # `all` keeps the correlated NOT EXISTS shape under both lowerings.
+            bindings_map[spec.name] = build(spec)
+            continue
         lowered = build_scan(spec)
         if spec.kind in QUANTIFIER_NAMES:
             bindings_map[spec.name] = lowered
@@ -783,7 +799,11 @@ class TraceFilter:
         stmt, comprehension_bindings = _comprehension_bindings(
             stmt,
             self._comprehensions,
-            lowering,
+            candidate_trace_rowids=candidate_trace_rowids,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+            lowering=lowering,
         )
         extra_bindings = {
             **self._literal_bindings,

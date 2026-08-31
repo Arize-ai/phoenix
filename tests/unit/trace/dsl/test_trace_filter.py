@@ -394,6 +394,49 @@ def test_scan_aggregate_subquery_is_scoped_to_candidates_project_and_time() -> N
     assert "trace_scope.start_time <" in sql
 
 
+@pytest.mark.parametrize("dialect", [_SQLITE_DIALECT, _POSTGRESQL_DIALECT])
+def test_trace_filter_all_keeps_correlated_shape_under_scan_lowering(
+    dialect: Dialect,
+) -> None:
+    sql = str(
+        TraceFilter('all(s.status_code == "OK" for s in spans)')(
+            select(models.Trace.id),
+            project_rowids=[7],
+            lowering="scan",
+        ).compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    assert "not (exists" in sql
+    assert "not in (select" not in sql
+    assert "spans_0.trace_rowid = traces.id" in sql
+
+
+@pytest.mark.parametrize("dialect", [_SQLITE_DIALECT, _POSTGRESQL_DIALECT])
+def test_scan_comprehension_subqueries_are_scoped_to_candidates_project_and_time(
+    dialect: Dialect,
+) -> None:
+    start_time = FIXTURE_TRACES[0].start_time
+    sql = str(
+        TraceFilter(
+            'any(s.status_code == "ERROR" for s in spans) '
+            "and len([s for s in spans if s.span_kind == 'LLM']) > 0"
+        )(
+            select(models.Trace.id),
+            candidate_trace_rowids=[11, 12],
+            project_rowids=[7],
+            start_time=start_time,
+            end_time=start_time + timedelta(hours=1),
+            lowering="scan",
+        ).compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    assert sql.count("join traces as trace_scope") == 2
+    assert sql.count("trace_scope.project_rowid in (7)") == 2
+    assert sql.count("trace_scope.start_time >=") == 2
+    assert sql.count("trace_scope.start_time <") == 2
+    assert sql.count("trace_rowid in (11, 12)") == 2
+
+
 def test_trace_page_filter_uses_probe_lowering() -> None:
     sql = str(
         apply_trace_filter_to_page(
