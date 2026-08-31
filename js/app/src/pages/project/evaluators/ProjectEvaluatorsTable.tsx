@@ -420,7 +420,7 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => {
           const { prompt, promptVersionTag } = row.original.evaluator;
           if (!prompt) {
-            return <Text color="text-700">—</Text>;
+            return <Text color="text-700">--</Text>;
           }
           return (
             <PromptCell
@@ -437,7 +437,7 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => {
           const promptVersion = row.original.evaluator.promptVersion;
           if (!promptVersion) {
-            return <Text color="text-700">—</Text>;
+            return <Text color="text-700">--</Text>;
           }
           const { modelName, modelProvider } = promptVersion;
           const providerIsValid = isModelProvider(modelProvider);
@@ -485,7 +485,7 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => {
           const language = row.original.evaluator.language;
           if (!language) {
-            return <Text color="text-700">—</Text>;
+            return <Text color="text-700">--</Text>;
           }
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
@@ -502,7 +502,7 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => {
           const sandboxConfig = row.original.evaluator.sandboxConfig;
           if (!sandboxConfig) {
-            return <Text color="text-700">—</Text>;
+            return <Text color="text-700">--</Text>;
           }
           return (
             <SandboxConfigLabel
