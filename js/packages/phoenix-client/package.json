@@ -57,6 +57,10 @@
       "import": "./dist/esm/projects/index.js",
       "require": "./dist/src/projects/index.js"
     },
+    "./users": {
+      "import": "./dist/esm/users/index.js",
+      "require": "./dist/src/users/index.js"
+    },
     "./traces": {
       "import": "./dist/esm/traces/index.js",
       "require": "./dist/src/traces/index.js"
