@@ -37,6 +37,7 @@ jobs:
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
       filter_dsl: ${{ steps.filter.outputs.filter_dsl }}
+      mcp_skills: ${{ steps.filter.outputs.mcp_skills }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -83,6 +84,10 @@ jobs:
               - "js/app/src/pages/project/sessionFilterDSL.ts"
               - "src/phoenix/trace/dsl/**"
               - "scripts/ci/check_filter_dsl_snippets.py"
+            mcp_skills:
+              - ".agents/skills/**"
+              - "src/phoenix/server/mcp/skills/**"
+              - "src/phoenix/server/mcp/skills-lock.json"
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}
@@ -97,6 +102,7 @@ jobs:
           UV_LOCK: ${{ steps.filter.outputs.uv_lock }}
           JSON_CANONICALIZATION_SCHEMA: ${{ steps.filter.outputs.json_canonicalization_schema }}
           FILTER_DSL: ${{ steps.filter.outputs.filter_dsl }}
+          MCP_SKILLS: ${{ steps.filter.outputs.mcp_skills }}
         run: |
           echo "ipynb: $IPYNB"
           echo "ipynb_files: $IPYNB_FILES"
@@ -110,6 +116,7 @@ jobs:
           echo "uv_lock: $UV_LOCK"
           echo "json_canonicalization_schema: $JSON_CANONICALIZATION_SCHEMA"
           echo "filter_dsl: $FILTER_DSL"
+          echo "mcp_skills: $MCP_SKILLS"
 
   phoenix-client:
     name: Phoenix Client
@@ -419,6 +426,27 @@ jobs:
         run: make codegen-prompts
       - name: Check for changes
         run: git diff --exit-code
+
+  mcp-skills:
+    name: Compile MCP Skills
+    needs: changes
+    if: ${{ needs.changes.outputs.mcp_skills == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: lts/*
+      - name: Compile MCP Skills
+        run: make mcp-skills
+      - name: Check for changes
+        run: |
+          git add -A
+          git diff --cached --exit-code
 
   check-lockfile:
     name: Check uv.lock is up to date
@@ -750,6 +778,7 @@ jobs:
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts
+      - mcp-skills
       - check-lockfile
       - type-check
       - unit-tests
