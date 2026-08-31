@@ -141,7 +141,7 @@
     "@anthropic-ai/sdk": "^0.35.0",
     "ai": "^7.0.0",
     "jest": ">=27",
-    "openai": "^6.10.0",
+    "openai": "^6.10.0 || ^7.0.0",
     "vitest": ">=1"
   },
   "peerDependenciesMeta": {
