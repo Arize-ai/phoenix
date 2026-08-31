@@ -40,10 +40,15 @@ describe("Sparkline", () => {
     expect(paths).toHaveLength(2);
   });
 
-  it("marks an isolated value with a dot", () => {
-    render([null, 0.5, null]);
-    expect(container.querySelectorAll("path")).toHaveLength(0);
+  it("marks a gap-isolated value with a dot beside the line", () => {
+    render([0.2, 0.4, null, 0.9]);
+    expect(container.querySelectorAll("path")).toHaveLength(1);
     expect(container.querySelectorAll("circle")).toHaveLength(1);
+  });
+
+  it("renders nothing for a single value, which has no trend to show", () => {
+    render([null, 0.5, null]);
+    expect(container.querySelector("svg")).toBeNull();
   });
 
   it("draws a flat series as a midline", () => {

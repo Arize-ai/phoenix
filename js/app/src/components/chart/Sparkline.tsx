@@ -40,7 +40,9 @@ function getSegments({
   height: number;
 }): { x: number; y: number }[][] {
   const present = values.filter((value): value is number => value != null);
-  if (present.length === 0) {
+  // A single value carries no trend, and a lone dot reads as an artifact
+  // rather than a chart, so a sparkline needs at least two values to draw.
+  if (present.length < 2) {
     return [];
   }
   const min = Math.min(...present);
@@ -51,8 +53,7 @@ function getSegments({
     max === min
       ? height / 2
       : VERTICAL_PADDING + (1 - (value - min) / (max - min)) * drawableHeight;
-  const toX = (index: number) =>
-    values.length === 1 ? width / 2 : (index / (values.length - 1)) * width;
+  const toX = (index: number) => (index / (values.length - 1)) * width;
   const segments: { x: number; y: number }[][] = [];
   let segment: { x: number; y: number }[] = [];
   values.forEach((value, index) => {
@@ -74,7 +75,8 @@ function getSegments({
 /**
  * A small inline line chart for table cells and stat tiles: a single series,
  * no axes and no interaction. Detail belongs in the surrounding component's
- * tooltip. Renders nothing when every value is null.
+ * tooltip. Renders nothing when fewer than two bins carry values — a single
+ * point has no trend to show.
  */
 export function Sparkline({
   values,
