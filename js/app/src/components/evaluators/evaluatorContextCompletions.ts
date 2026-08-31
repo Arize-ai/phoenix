@@ -102,16 +102,16 @@ export function buildEvaluatorContextCandidates(
       entry.status === "unresolved"
         ? UNSET_COMPLETION_TYPE
         : entry.isContainer
-        ? CONTAINER_COMPLETION_TYPE
-        : "variable",
+          ? CONTAINER_COMPLETION_TYPE
+          : "variable",
     // Only a sampled record can preview a value; before one is picked the
     // name alone is the whole offer, and "not set" would be a lie.
     detail:
       entry.status === "resolved"
         ? toMemberPreview(entry.value)
         : entry.status === "unresolved"
-        ? "not set"
-        : "",
+          ? "not set"
+          : "",
     // A name that needs no explaining shows no info pane.
     info: entry.description ?? "",
     section: recordSection,
@@ -170,8 +170,8 @@ function getEvaluatorInputDetail({
   return provenance.kind === "path" && provenance.path !== entry.name
     ? `← ${provenance.path}`
     : entry.status === "resolved" && evaluationContext.hasSampledRecord
-    ? toMemberPreview(entry.value)
-    : "";
+      ? toMemberPreview(entry.value)
+      : "";
 }
 
 function capitalize(word: string): string {

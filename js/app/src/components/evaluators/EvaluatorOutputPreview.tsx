@@ -3,10 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
-import {
-  createTestLlmEvaluatorDraftClientAction,
-  TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-} from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { createTestLlmEvaluatorDraftClientAction } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import { testLlmEvaluatorDraftOperation } from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -195,18 +194,18 @@ export const EvaluatorOutputPreview = () => {
     if (!isLlmEvaluator) {
       return undefined;
     }
-    const { registerClientAction, unregisterClientAction } =
-      agentStore.getState();
-    registerClientAction(
-      TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-      createTestLlmEvaluatorDraftClientAction({
-        isDraftMounted: () => true,
-        runEvaluatorPreview,
-      })
-    );
-    return () => {
-      unregisterClientAction(TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME);
-    };
+    return registerUIOperations({
+      agentStore,
+      operations: [
+        {
+          descriptor: testLlmEvaluatorDraftOperation,
+          handler: createTestLlmEvaluatorDraftClientAction({
+            isDraftMounted: () => true,
+            runEvaluatorPreview,
+          }),
+        },
+      ],
+    });
   }, [agentStore, isLlmEvaluator, runEvaluatorPreview]);
 
   const onTestEvaluator = () => {

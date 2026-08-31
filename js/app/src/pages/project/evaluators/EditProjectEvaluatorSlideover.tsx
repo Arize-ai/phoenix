@@ -605,10 +605,10 @@ function EditCodeProjectEvaluator({
                 sourceCode.trim().length === 0
                   ? "Source code is required."
                   : sandboxConfigId == null
-                  ? "Sandbox configuration is required."
-                  : outputConfigErrors.length
-                  ? outputConfigErrors.join("\n")
-                  : undefined;
+                    ? "Sandbox configuration is required."
+                    : outputConfigErrors.length
+                      ? outputConfigErrors.join("\n")
+                      : undefined;
               if (validationError) {
                 setError(validationError);
                 return;

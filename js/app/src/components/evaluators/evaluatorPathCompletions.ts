@@ -1,5 +1,6 @@
 import type { CompletionSection } from "@codemirror/autocomplete";
 
+import { TYPEAHEAD_COMPLETION_CLASS_PREFIX } from "@phoenix/components/filter/styles";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import {
@@ -10,7 +11,6 @@ import {
   parsePathSegmentRanges,
   unescapeQuotedPathKey,
 } from "@phoenix/utils/objectUtils";
-import { TYPEAHEAD_COMPLETION_CLASS_PREFIX } from "@phoenix/components/filter/styles";
 
 /** A member name being typed, up to and including the empty one. */
 const PARTIAL_MEMBER_PATTERN = /^(?:[A-Za-z_][A-Za-z0-9_]*)?$/;
@@ -134,7 +134,7 @@ export function getEvaluatorPathCursor(
       containerEnd = splitAt;
       partial =
         quotedKey === undefined
-          ? index ?? ""
+          ? (index ?? "")
           : unescapeQuotedPathKey(quotedKey);
       from = splitAt + (quotedKey === undefined ? 1 : 2);
     } else if (PARTIAL_MEMBER_PATTERN.test(fragment)) {

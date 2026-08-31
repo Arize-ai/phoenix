@@ -149,7 +149,7 @@ export function LLMProjectEvaluatorDetails({
                 {name}:{" "}
                 {typeof value === "string"
                   ? value
-                  : safelyStringifyJSON(value).json ?? ""}
+                  : (safelyStringifyJSON(value).json ?? "")}
               </Text>
             ))}
           </Flex>

@@ -23,15 +23,18 @@ import {
   createEditCodeEvaluatorDraftClientAction,
   createReadCodeEvaluatorDraftClientAction,
   createSubmitCodeEvaluatorDraftClientAction,
-  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type EditCodeEvaluatorDraftOperation,
   type EvaluatorSubmitResult,
   fromOutputConfigDraft,
-  READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type SandboxConfigIndex,
-  SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   toOutputConfigDrafts,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import {
+  editCodeEvaluatorDraftOperation,
+  readCodeEvaluatorDraftOperation,
+  submitCodeEvaluatorDraftOperation,
+} from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -391,39 +394,38 @@ export const EditCodeEvaluatorDialogContent = ({
     };
     draftHostRef.current = host;
 
-    const {
-      registerClientAction,
-      unregisterClientAction,
-      setPendingCodeEvaluatorEdit,
-    } = agentStore.getState();
+    const { setPendingCodeEvaluatorEdit } = agentStore.getState();
     const getDraftHost = () => draftHostRef.current;
-    registerClientAction(
-      READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-      createReadCodeEvaluatorDraftClientAction({ getDraftHost })
-    );
-    registerClientAction(
-      EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-      createEditCodeEvaluatorDraftClientAction({
-        getDraftHost,
-        setPendingCodeEvaluatorEdit,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      })
-    );
-    registerClientAction(
-      SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-      createSubmitCodeEvaluatorDraftClientAction({
-        getDraftHost,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      })
-    );
+    const unregister = registerUIOperations({
+      agentStore,
+      operations: [
+        {
+          descriptor: readCodeEvaluatorDraftOperation,
+          handler: createReadCodeEvaluatorDraftClientAction({ getDraftHost }),
+        },
+        {
+          descriptor: editCodeEvaluatorDraftOperation,
+          handler: createEditCodeEvaluatorDraftClientAction({
+            getDraftHost,
+            setPendingCodeEvaluatorEdit,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+        {
+          descriptor: submitCodeEvaluatorDraftOperation,
+          handler: createSubmitCodeEvaluatorDraftClientAction({
+            getDraftHost,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+      ],
+    });
     return () => {
       draftHostRef.current = null;
       handleSubmitRef.current = null;
-      unregisterClientAction(READ_CODE_EVALUATOR_DRAFT_TOOL_NAME);
-      unregisterClientAction(EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
-      unregisterClientAction(SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+      unregister();
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingCodeEvaluatorEditsByToolCallId
       )) {
@@ -492,8 +494,8 @@ export const EditCodeEvaluatorDialogContent = ({
       selectedSandboxConfigId != null
         ? selectedSandboxConfigId
         : mode === "create" || hasSandboxChanged
-        ? null
-        : undefined;
+          ? null
+          : undefined;
     return onSubmit({
       language,
       sourceCode,
@@ -1189,11 +1191,11 @@ const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
   }
 
   const threshold =
-    "threshold" in outputConfig ? outputConfig.threshold ?? null : null;
+    "threshold" in outputConfig ? (outputConfig.threshold ?? null) : null;
   const lowerBound =
-    "lowerBound" in outputConfig ? outputConfig.lowerBound ?? null : null;
+    "lowerBound" in outputConfig ? (outputConfig.lowerBound ?? null) : null;
   const upperBound =
-    "upperBound" in outputConfig ? outputConfig.upperBound ?? null : null;
+    "upperBound" in outputConfig ? (outputConfig.upperBound ?? null) : null;
   const optimizationDirection = outputConfig.optimizationDirection;
   const isThresholdDisabled = optimizationDirection === "NONE";
 
@@ -1201,8 +1203,8 @@ const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
     optimizationDirection === "MAXIMIZE"
       ? "Scores at or above this value display as good; lower scores display as bad."
       : optimizationDirection === "MINIMIZE"
-      ? "Scores at or below this value display as good; higher scores display as bad."
-      : "Combined with the optimization direction, this is the cutoff used to visually distinguish “good” from “bad” scores.";
+        ? "Scores at or below this value display as good; higher scores display as bad."
+        : "Combined with the optimization direction, this is the cutoff used to visually distinguish “good” from “bad” scores.";
 
   return (
     <Flex direction="column" gap="size-200">

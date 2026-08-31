@@ -34,18 +34,18 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
-import {
-  AnnotationPreviewCard,
-  AnnotationPreviewPopoverButton,
-  AnnotationPreviewSkeletonCard,
-} from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import {
   EVALUATOR_METADATA_SLOT,
   materializeEvaluatorContext,
 } from "@phoenix/components/evaluators/evaluatorContext";
 import { buildEvaluatorContextCandidates } from "@phoenix/components/evaluators/evaluatorContextCompletions";
+import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
+import {
+  AnnotationPreviewCard,
+  AnnotationPreviewPopoverButton,
+  AnnotationPreviewSkeletonCard,
+} from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import {
   EVALUATOR_SLOT_NAMES,
@@ -714,7 +714,7 @@ function SessionRunList({
         isSample: false,
         unavailableReason:
           session.sessionEvaluationContext == null
-            ? "This session has no evaluable transcript."
+            ? "This session has no turns to evaluate."
             : undefined,
         metric: formatSessionMetric(
           session.numTraces,
@@ -722,15 +722,15 @@ function SessionRunList({
         ),
       }))
     : sample
-    ? [
-        {
-          key: SAMPLE_ROW_KEY,
-          name: "Sample session",
-          context: sample.context,
-          isSample: true,
-        },
-      ]
-    : [];
+      ? [
+          {
+            key: SAMPLE_ROW_KEY,
+            name: "Sample session",
+            context: sample.context,
+            isSample: true,
+          },
+        ]
+      : [];
   return (
     <RecordedRunList
       rows={rows}
@@ -882,16 +882,16 @@ function SpanRunList({
         isSample: false,
       }))
     : sample
-    ? [
-        {
-          key: SAMPLE_ROW_KEY,
-          name: `Sample ${sample.spanKind} span`,
-          spanKind: sample.spanKind.toLowerCase(),
-          context: sample.context,
-          isSample: true,
-        },
-      ]
-    : [];
+      ? [
+          {
+            key: SAMPLE_ROW_KEY,
+            name: `Sample ${sample.spanKind} span`,
+            spanKind: sample.spanKind.toLowerCase(),
+            context: sample.context,
+            isSample: true,
+          },
+        ]
+      : [];
   return (
     <RecordedRunList
       rows={rows}
@@ -955,8 +955,8 @@ function RecordedRunList({
     expandedKey === null
       ? null
       : expandedKey != null && rows.some(({ key }) => key === expandedKey)
-      ? expandedKey
-      : rows[0]?.key ?? null;
+        ? expandedKey
+        : (rows[0]?.key ?? null);
   const activeRow = rows.find(({ key }) => key === expandedRowKey) ?? rows[0];
   const evaluatorStore = useEvaluatorStoreInstance();
   const inputMapping = useEvaluatorStore(

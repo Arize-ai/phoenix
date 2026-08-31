@@ -213,8 +213,8 @@ function materializeVocabularyEntry({
     status: isResolved
       ? "resolved"
       : hasSampledRecord
-      ? "unresolved"
-      : "unverifiable",
+        ? "unresolved"
+        : "unverifiable",
     ...(isResolved ? { value: boundMetadata[variable.name] } : {}),
     provenance: { kind: "path", path },
     description: variable.description,

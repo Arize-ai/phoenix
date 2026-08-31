@@ -215,8 +215,8 @@ function createEvaluatorPathCompletionSource({
         ...(completion.section === SUGGESTED_PATH_SECTION
           ? { boost: 99 - index }
           : completion.boost != null
-          ? { boost: completion.boost }
-          : {}),
+            ? { boost: completion.boost }
+            : {}),
         section: completion.section,
         apply: (
           view: EditorView,

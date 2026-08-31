@@ -84,8 +84,7 @@ export function parsePathSegmentRanges(
     if (bracket) {
       const [matched, quotedKey, index] = bracket;
       segments.push({
-        key:
-          quotedKey === undefined ? index : unescapeQuotedPathKey(quotedKey),
+        key: quotedKey === undefined ? index : unescapeQuotedPathKey(quotedKey),
         from: offset,
         to: offset + matched.length,
       });

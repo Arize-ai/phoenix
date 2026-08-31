@@ -205,9 +205,9 @@ export type EvaluatorMappingSourceByGrain = {
 };
 
 export type EvaluatorMappingSource<
-  TGrain extends EvaluatorMappingSourceGrain = EvaluatorMappingSourceGrain
+  TGrain extends EvaluatorMappingSourceGrain = EvaluatorMappingSourceGrain,
 > = EvaluatorMappingSourceByGrain[TGrain];
 
 export type EvaluatorMappingSourceField<
-  TGrain extends EvaluatorMappingSourceGrain
+  TGrain extends EvaluatorMappingSourceGrain,
 > = keyof EvaluatorMappingSourceByGrain[TGrain];

@@ -101,7 +101,7 @@ export function getSampleSpanEvaluationContext(): SampleSpanEvaluationContext {
 
 /** A grain's shape with no values: what exists, never what it holds. */
 export type GenericEvaluationContext<
-  TGrain extends "span" | "session" = "span" | "session"
+  TGrain extends "span" | "session" = "span" | "session",
 > = {
   context: EvaluatorMappingSource<TGrain>;
 };

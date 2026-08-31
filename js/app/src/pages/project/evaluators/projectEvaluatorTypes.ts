@@ -1,18 +1,17 @@
 import { formatDistanceToNow } from "date-fns";
 
 import type { BadgeVariant } from "@phoenix/components/core/badge";
-import type { MetricChartTableView } from "@phoenix/pages/project/constants";
-
-import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
-import type {
-  EvaluatorInputMapping,
-  EvaluatorMappingSourceGrain,
-} from "@phoenix/types";
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import type { MetricChartTableView } from "@phoenix/pages/project/constants";
+import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import {
   EVALUATOR_MAPPING_SOURCE_GRAINS,
   getEvaluatorMetadataEntryNames,
 } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import type {
+  EvaluatorInputMapping,
+  EvaluatorMappingSourceGrain,
+} from "@phoenix/types";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
@@ -269,29 +268,29 @@ export function getProjectEvaluatorStatus({
           explanation: getSchedulabilityExplanation(schedulabilityReason),
         }
       : runSummary.status === "FAILING"
-      ? {
-          label: "Failing",
-          variant: "danger" as const,
-          explanation: "The most recent evaluation failed.",
-        }
-      : runSummary.status === "HEALTHY"
-      ? {
-          label: "Healthy",
-          variant: "success" as const,
-          explanation: "Evaluations are running and producing annotations.",
-        }
-      : runSummary.status === "QUEUED"
-      ? {
-          label: "Queued",
-          variant: "info" as const,
-          explanation: "Evaluations are waiting to run.",
-        }
-      : {
-          label: "Never ran",
-          variant: "default" as const,
-          explanation:
-            "No evaluations have been scheduled for this evaluator yet.",
-        };
+        ? {
+            label: "Failing",
+            variant: "danger" as const,
+            explanation: "The most recent evaluation failed.",
+          }
+        : runSummary.status === "HEALTHY"
+          ? {
+              label: "Healthy",
+              variant: "success" as const,
+              explanation: "Evaluations are running and producing annotations.",
+            }
+          : runSummary.status === "QUEUED"
+            ? {
+                label: "Queued",
+                variant: "info" as const,
+                explanation: "Evaluations are waiting to run.",
+              }
+            : {
+                label: "Never ran",
+                variant: "default" as const,
+                explanation:
+                  "No evaluations have been scheduled for this evaluator yet.",
+              };
   return { ...status, color: STATUS_COLOR_BY_VARIANT[status.variant] };
 }
 
@@ -360,8 +359,8 @@ export function getProjectEvaluatorMappingDiagnostics({
           resolution.status === "unverifiable"
             ? "unverified"
             : resolution.status === "unresolved"
-            ? missingStatus(variable)
-            : "resolved",
+              ? missingStatus(variable)
+              : "resolved",
         source: "path",
       };
     }
