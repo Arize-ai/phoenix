@@ -35,16 +35,16 @@ class AgentAssistantEnabledSetting(BaseModel):
 class AgentGitHubSetting(BaseModel):
     """Whether the PXI GitHub tools (backed by GitHub's MCP server) are enabled at runtime.
 
-    Defaults to ``False``: the capability writes to an external service under
-    stored credentials, so each workspace opts in deliberately. The
-    PHOENIX_AGENTS_DISABLE_GITHUB env var is the deploy-time ceiling; this
-    setting is the admin-runtime knob below it. Disabling never deletes stored
-    tokens; it makes them unusable until re-enabled.
+    Defaults to ``True`` so the capability works out of the box once a token is
+    configured — without any token it is inert, so the default grants nothing
+    by itself. The PHOENIX_AGENTS_DISABLE_GITHUB env var is the deploy-time
+    ceiling; this setting is the admin-runtime knob below it. Disabling never
+    deletes stored tokens; it makes them unusable until re-enabled.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True, validate_assignment=True)
 
-    enabled: bool = Field(default=False)
+    enabled: bool = Field(default=True)
 
 
 DEFAULT_AGENT_SESSION_MAX_IDLE_DAYS = 30

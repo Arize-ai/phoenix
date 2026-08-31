@@ -293,13 +293,14 @@ task you are on.
 
 When PXI surfaces a real defect — a bad span, a broken eval, a Phoenix bug — it
 can search for duplicates and file a GitHub issue directly, linking the traces
-and spans the finding came from. The capability is **off by default** and is
-backed by [GitHub's hosted MCP server](https://github.com/github/github-mcp-server).
+and spans the finding came from. The capability is backed by
+[GitHub's hosted MCP server](https://github.com/github/github-mcp-server). It
+is enabled by default but **inert until a token is connected** — admins can
+turn it off for the workspace under **Settings → Assistant → System settings →
+GitHub tools**, or deployments can remove it entirely with
+`PHOENIX_AGENTS_DISABLE_GITHUB`.
 
-1. **Admin: turn it on.** In **Settings → Assistant → System settings**, enable
-   **GitHub tools**. The section only appears when the deployment allows
-   external resources and `PHOENIX_AGENTS_DISABLE_GITHUB` is unset.
-2. **Connect a token.** Each user can add their own
+1. **Connect a token.** Each user can add their own
    [fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
    — scope it to **Issues read/write** on the repositories you file into — under
    **Settings → Assistant → Personal settings → GitHub**. For a repository owned
@@ -312,7 +313,7 @@ backed by [GitHub's hosted MCP server](https://github.com/github/github-mcp-serv
    and issues are filed **as you**. Admins can additionally set a shared
    **workspace token** (stored encrypted on the server) used when a user has no
    personal token. A personal token always wins.
-3. **Terminal client.** Add `githubPersonalAccessToken` to your profile in
+2. **Terminal client.** Add `githubPersonalAccessToken` to your profile in
    `~/.px/settings.json` to use your token from `px pxi`.
 
 Creating an issue is approval-gated: PXI shows the exact repository, title, and

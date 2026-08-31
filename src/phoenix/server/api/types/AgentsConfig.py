@@ -47,7 +47,7 @@ class AgentsConfig:
     github_enabled: bool = strawberry.field(
         description=(
             "Whether the PXI GitHub tools are effectively enabled: requires the "
-            "`agent.assistant.github` system setting to be on (default off), "
+            "`agent.assistant.github` system setting to be on (default on), "
             "PHOENIX_AGENTS_DISABLE_GITHUB to be unset, and external resources "
             "to be allowed."
         ),
