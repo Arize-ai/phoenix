@@ -79,9 +79,9 @@ PERMITTED = [
     # SQLite materialises a CTE when it carries GROUP BY, ORDER BY, DISTINCT or
     # LIMIT, and reports reads of the materialised result as reads of a table
     # named after the alias. Admission sees a CTE and permits it; the authorizer
-    # saw a table nobody allowlisted and refused it. The inlinable case passed,
-    # so the gap was invisible to any corpus that tested CTEs generically --
-    # each materialising clause is listed separately for that reason.
+    # sees a table nobody allowlisted. An inlined CTE reports the underlying
+    # table and passes, so a corpus that tests CTEs generically cannot reach
+    # this -- each materialising clause is therefore listed separately.
     pytest.param(
         "WITH t AS (SELECT span_kind, COUNT(*) AS c FROM spans GROUP BY span_kind) "
         "SELECT COUNT(*) AS v FROM t",
@@ -134,9 +134,9 @@ PERMITTED = [
         id="nth_value",
     ),
     pytest.param("SELECT ntile(4) OVER (ORDER BY id) AS v FROM spans", id="ntile"),
-    # The JSON family. These are the ones that were admitted and then refused:
-    # json_extract because rendering turns it into an operator, json_each because
-    # a table-valued function reads a pseudo-table rather than calling a function.
+    # The JSON family, where admission and the authorizer see different things:
+    # rendering turns json_extract into an operator, and json_each reads a
+    # pseudo-table rather than calling a function.
     pytest.param("SELECT json_extract(attributes, '$.a.b') AS v FROM spans", id="json_extract"),
     pytest.param("SELECT key AS v FROM spans, json_each(attributes)", id="json_each"),
     pytest.param(
@@ -449,17 +449,17 @@ async def test_queue_slot_is_returned_when_a_waiter_is_cancelled() -> None:
 
 
 async def test_queue_slot_is_returned_when_a_waiter_is_cancelled_twice() -> None:
-    """One cancellation was survivable; a second during the unwind was not.
+    """A second cancellation arriving during the unwind must still return the slot.
 
-    The decrement used to run under the same lock the admission check holds, so
-    it awaited inside a `finally` that a cancellation was already unwinding. A
-    second cancellation delivered during that await skipped it, and the slot was
-    gone for the life of the process -- the identical denial of service the test
-    above exists to prevent, reachable whenever the lock happened to be held.
+    Releasing the slot under the lock the admission check holds means awaiting
+    inside a `finally` that a cancellation is already unwinding. A second
+    cancellation delivered during that await skips the release, and the slot is
+    gone for the life of the process -- the denial of service the single-
+    cancellation test above exists to prevent, reachable whenever the lock is
+    held.
 
-    The comment on that decrement asserted the `finally` made a leak
-    impossible. It did not, which is why this case is separate: the single
-    cancellation above passed throughout.
+    A `finally` alone does not make the leak impossible, which is why this case
+    is separate: a single cancellation passes either way.
     """
     import asyncio
 
@@ -522,8 +522,7 @@ async def test_newly_allowed_function_executes(
 ) -> None:
     """Admitting a function is not the same as being able to run it.
 
-    Each of these was refused until the allowlist was widened, and widening it
-    only settles the parser's view. The engine still has to accept the rendered
+    Widening the allowlist settles only the parser's view. The engine still has to accept the rendered
     spelling, which is not always the one the caller wrote -- group_concat is
     emitted as string_agg on PostgreSQL, from the same node class.
     """
@@ -588,12 +587,12 @@ async def test_partial_flag_is_honest_at_the_boundary(
 ) -> None:
     """A result of exactly N rows must not claim it was truncated.
 
-    While the injected limit equalled the reported one, the row that would prove
-    truncation was never fetched, so an exactly-complete result was reported
-    identically to a truncated one. An agent acts on that flag by paginating or
-    narrowing a query that was already complete. The rewrite now asks for one
-    row more than the caller wants and the consumer drops it, which is what
-    makes the distinction observable.
+    An injected limit equal to the reported one never fetches the row that would
+    prove truncation, so an exactly-complete result reports identically to a
+    truncated one. An agent acts on that flag by paginating or narrowing a query
+    that is already complete. The rewrite asks for one row more than the caller
+    wants and the consumer drops it, which is what makes the distinction
+    observable.
 
     The rows are seeded here and the query is scoped to them by name. A
     boundary test needs to know exactly how many rows exist, so it cannot read
@@ -666,6 +665,26 @@ async def test_negative_sqlite_limit_cannot_disable_the_work_cap(
     assert "LIMIT 3" in result.envelope.applied.executed
 
 
+#: Wall-clock seconds and the same span in milliseconds, per seeded span.
+#:
+#: Asserted by value rather than by being non-zero, because non-zero does not
+#: discriminate: truncating to whole seconds, resolving the column against the
+#: wrong relation, and comparing timestamps as text all return numbers that pass
+#: it. The sub-second spans carry the precision claim -- under whole-second
+#: arithmetic span-1 reads 1.0 and the other two read 0.0.
+ELAPSED_BY_SPAN = [
+    ("span-1", 1.5, 1500.0),
+    ("span-2", 0.65, 650.0),
+    ("span-3", 0.1, 100.0),
+]
+
+#: SQLite reaches elapsed time through julianday, whose result carries
+#: representation noise at the seventh significant figure. This bound clears
+#: that by two orders of magnitude while staying far tighter than the precision
+#: loss it exists to detect, which moves 1500 to 1000.
+ELAPSED_TOLERANCE = 1e-4
+
+
 async def test_sqlite_timestamp_subtraction_returns_elapsed_seconds(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:
@@ -674,16 +693,34 @@ async def test_sqlite_timestamp_subtraction_returns_elapsed_seconds(
         db,
         ExecuteParams(
             sql=(
-                "SELECT end_time - start_time AS duration, latency_ms "
-                "FROM spans WHERE span_id = 'span-1'"
+                "SELECT span_id, end_time - start_time AS duration, latency_ms "
+                "FROM spans ORDER BY span_id"
             )
         ),
         sqlite_db_path=db_path,
     )
-    assert result.envelope.rows
-    duration, latency_ms = result.envelope.rows[0]
-    assert duration != 0
-    assert latency_ms != 0
+    assert [row[0] for row in result.envelope.rows] == [s for s, _, _ in ELAPSED_BY_SPAN]
+    for (span_id, seconds, millis), row in zip(ELAPSED_BY_SPAN, result.envelope.rows):
+        assert row[1] == pytest.approx(seconds, rel=ELAPSED_TOLERANCE), span_id
+        assert row[2] == pytest.approx(millis, rel=ELAPSED_TOLERANCE), span_id
+
+
+async def test_sqlite_latency_predicate_selects_by_elapsed_milliseconds(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """A threshold between the seeded durations must divide them where it falls.
+
+    The predicate form is what a truncating implementation gets wrong while the
+    projected form still looks right: span-1 truncated to 1000 fails `> 1000`
+    and disappears, leaving an empty result that no non-empty check would catch.
+    """
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT span_id FROM spans WHERE latency_ms > 1000 ORDER BY span_id"),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.rows == [["span-1"]]
 
 
 async def test_no_window_is_imposed_when_none_is_asked_for(
@@ -691,20 +728,18 @@ async def test_no_window_is_imposed_when_none_is_asked_for(
 ) -> None:
     """A query with no bounds reads all of history, and the envelope says so.
 
-    The surface used to inject a trailing seven-day window. It could not bound a
-    determined caller, since defeating it cost one parameter, and for everyone
-    else it answered a different question than the one asked while reporting
-    success. Across roughly twenty-five cold-agent runs every caller noticed it
-    and worked around it, so it protected nobody and charged everybody a round
-    trip. The row and byte caps bound the answer; the statement deadline bounds
-    the work.
+    An implicit trailing window cannot bound a determined caller -- defeating one
+    costs a single parameter -- while for everyone else it answers a different
+    question than the one asked and reports success. Bounding belongs to limits
+    that do not change the question: the row and byte caps bound the answer, and
+    the statement deadline bounds the work.
     """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(
         db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path
     )
-    # Absent entirely, rather than present with null bounds: reporting a window
-    # that was never imposed is what made the old default so easy to miss.
+    # Absent entirely, rather than present with null bounds: a reported window
+    # that was never imposed reads as one that was.
     assert "time_window" not in result.envelope.applied.model_dump(exclude_none=True)
     assert "time_bounds" not in result.envelope.applied.rewrites
 
@@ -978,6 +1013,10 @@ POSTGRES_JSON_SURFACE = [
         "FROM spans",
         id="computed_key_nested_accessor",
     ),
+    # A key holding an apostrophe, and the root-only path. Both are emissions
+    # the generator gets wrong on its own, so both have to reach the engine.
+    pytest.param("SELECT '{\"c''d\":7}'::jsonb -> 'c''d' AS v FROM spans", id="quoted_key"),
+    pytest.param("SELECT json_extract('{\"a\":1}'::jsonb, '$') AS v FROM spans", id="root_path"),
     # The array-constructor spelling of a `#>` path, which reaches the same
     # value as `#> '{a,b}'`.
     pytest.param(
@@ -1043,12 +1082,86 @@ async def test_portable_function_classes_are_executable_on_sqlite(
 ) -> None:
     """A class in the portable allowlist must also be in the authorizer's set.
 
-    exp.Upper, exp.Length, exp.CurrentTimestamp and exp.CurrentDate were
-    admitted by the parser policy and denied by the SQLite authorizer, so each
-    worked on PostgreSQL and was refused here -- the divergence the two
-    policies exist to prevent, and the one the allowlist comment claims the
-    liveness suite makes fail loudly. It did not, because no case covered them.
+    A class the parser policy admits but the authorizer denies works on
+    PostgreSQL and is refused here -- the divergence the two policies exist to
+    prevent. The allowlist comment claims this suite makes that fail loudly,
+    which holds only for classes a case actually executes, so every portable
+    class carries one.
     """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
     assert result.envelope.row_count > 0
+
+
+DISTINCT_ON_SHAPES = [
+    pytest.param("SELECT DISTINCT ON (name) id FROM spans ORDER BY name, id", id="single-key"),
+    pytest.param("SELECT DISTINCT ON ((name)) id FROM spans ORDER BY name, id", id="parenthesised"),
+    pytest.param("SELECT DISTINCT ON (name, id) id FROM spans ORDER BY name, id", id="multi-key"),
+]
+
+
+@pytest.mark.postgres_only
+@pytest.mark.parametrize("sql", DISTINCT_ON_SHAPES)
+async def test_distinct_on_executes(analytics_postgres_db: DbSessionFactory, sql: str) -> None:
+    """`DISTINCT ON (expr)` is a key list, not a row constructor.
+
+    A one-element parenthesised list is a record constructor almost everywhere
+    it appears, and is rewritten to `ROW(expr)` so PostgreSQL reads it as one.
+    In `DISTINCT ON` the same text is grammar, and `ROW` there is a syntax
+    error, so admission accepted a statement the engine then rejected.
+
+    Executed rather than rendered: admission accepting the shape says nothing
+    about whether the emitted SQL parses.
+    """
+    result = await execute_analytics_sql(analytics_postgres_db, ExecuteParams(sql=sql))
+    assert result.envelope.row_count > 0
+
+
+@pytest.mark.postgres_only
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        pytest.param("status_code", [["span-3"], ["span-1"]], id="two-groups"),
+        pytest.param("trace_rowid", [["span-1"]], id="one-group"),
+    ],
+)
+async def test_distinct_on_collapses_duplicate_keys(
+    analytics_postgres_db: DbSessionFactory, key: str, expected: list[list[str]]
+) -> None:
+    """The key list must select one row per distinct key, not merely execute.
+
+    Keys are chosen where the seeded spans repeat a value, so the row count
+    drops. A key that is unique per row leaves the result indistinguishable
+    from no de-duplication at all.
+
+    Rows are compared in engine order, which the trailing `ORDER BY` fixes: the
+    surviving row of each group is the first under that ordering, so the
+    expectation covers which row wins as well as how many.
+    """
+    result = await execute_analytics_sql(
+        analytics_postgres_db,
+        ExecuteParams(sql=f"SELECT DISTINCT ON ({key}) span_id FROM spans ORDER BY {key}, span_id"),
+    )
+    assert result.envelope.rows == expected
+
+
+@pytest.mark.postgres_only
+async def test_interval_predicate_selects_by_elapsed_time(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    """A threshold between the seeded durations must divide them where it falls.
+
+    The counterpart to the SQLite predicate test: the same question asked in the
+    spelling PostgreSQL accepts, so a divergence in either engine's elapsed-time
+    arithmetic shows up as a different set of spans rather than as an error.
+    """
+    result = await execute_analytics_sql(
+        analytics_postgres_db,
+        ExecuteParams(
+            sql=(
+                "SELECT span_id FROM spans "
+                "WHERE end_time - start_time > INTERVAL '1 second' ORDER BY span_id"
+            )
+        ),
+    )
+    assert result.envelope.rows == [["span-1"]]

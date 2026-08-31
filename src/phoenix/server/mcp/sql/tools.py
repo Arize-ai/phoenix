@@ -21,6 +21,7 @@ from phoenix.server.mcp.sql.execute import (
     DEFAULT_ROW_LIMIT,
     MAX_RESPONSE_BYTES,
     MAX_ROW_LIMIT,
+    MAX_SQL_BYTES,
     ExecuteParams,
     execute_analytics_sql,
 )
@@ -91,7 +92,8 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         )
     backstop = "statement_timeout" if dialect == "postgresql" else "sqlite_progress_handler"
     lines.append(
-        f"-- read-only. {DEFAULT_ROW_LIMIT} rows by default, {MAX_ROW_LIMIT} max; "
+        f"-- read-only. {MAX_SQL_BYTES // 1024} KiB of SQL per call; "
+        f"{DEFAULT_ROW_LIMIT} rows by default, {MAX_ROW_LIMIT} max; "
         f"{BYTE_LIMIT} bytes per row; {MAX_RESPONSE_BYTES} per response; {backstop} deadline."
     )
     lines.append("-- Not snapshot-isolated: identical SQL may differ under concurrent ingestion.")
@@ -266,6 +268,10 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
 
         Returns either the columns, rows, and applied limits, or an error
         envelope when the SQL cannot be accepted.
+
+        A statement may be at most 2 KiB of SQL, measured in UTF-8 bytes.
+        Longer ones are refused unexecuted, so split the work rather than
+        generating one long statement.
 
         `row_count_is_partial` is the authoritative answer to whether the result
         was truncated by either row or response-byte limits. One row beyond the

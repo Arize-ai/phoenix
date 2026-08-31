@@ -9987,7 +9987,7 @@ export interface operations {
                 order?: "asc" | "desc";
                 /** @description Maximum number of traces to return */
                 limit?: number;
-                /** @description Pagination cursor (Trace GlobalID) */
+                /** @description Pagination cursor returned by a previous request */
                 cursor?: string | null;
                 /** @description If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible. */
                 include_spans?: boolean;

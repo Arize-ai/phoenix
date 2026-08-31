@@ -1,0 +1,71 @@
+---
+title: "Projects"
+description: "List projects and manage project retention-policy assignments"
+---
+
+The projects module lists Phoenix projects and assigns existing trace retention policies to them.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/projects/getProjects.ts</code></li>
+    <li><code>src/projects/setProjectRetentionPolicy.ts</code></li>
+    <li><code>src/types/projects.ts</code></li>
+  </ul>
+</section>
+
+## List Projects
+
+`getProjects` handles cursor pagination automatically. Use `nameContains` for a case-insensitive, server-side substring filter.
+
+```ts
+import { getProjects } from "@arizeai/phoenix-client/projects";
+
+const projects = await getProjects({ nameContains: "support" });
+
+for (const project of projects) {
+  console.log(`${project.name} (${project.id})`);
+}
+```
+
+## Assign A Retention Policy
+
+`setProjectRetentionPolicy` accepts a project name or project GlobalID and the GlobalID of an existing trace retention policy.
+
+```ts
+import { setProjectRetentionPolicy } from "@arizeai/phoenix-client/projects";
+
+const assignment = await setProjectRetentionPolicy({
+  projectName: "support-bot",
+  policyId: "UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI=",
+});
+
+console.log(assignment.project_id, assignment.policy_id);
+```
+
+You can select the project with `projectName`, `projectId`, or the shorthand `project`. `projectId` must be the project's GlobalID.
+
+This helper only changes which existing retention policy the project uses. It does not create, read, update, or delete retention policies; policy CRUD is outside the TypeScript client's projects helper.
+
+## Reset To The Default Policy
+
+Pass `null` as `policyId` to remove the explicit assignment and return the project to Phoenix's default retention policy.
+
+```ts
+await setProjectRetentionPolicy({
+  projectId: "UHJvamVjdDox",
+  policyId: null,
+});
+```
+
+Assigning or resetting a retention policy requires an admin when authentication is enabled. Invalid policy GlobalIDs produce a `422` response, while callers without permission receive `403`; both are surfaced as `HttpError` instances by the client.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/projects/getProjects.ts</code></li>
+    <li><code>src/projects/setProjectRetentionPolicy.ts</code></li>
+    <li><code>src/projects/index.ts</code></li>
+    <li><code>src/types/projects.ts</code></li>
+  </ul>
+</section>
