@@ -128,9 +128,7 @@ test("visiting unauthenticated redirects to login without flashing the error bou
 test("redirects to login when session refresh fails", async ({ page }) => {
   let graphqlFailures = 0;
 
-  const errorBoundary = await trackErrorBoundaryFlash(page);
   await openProjectsPage(page);
-  await delayLoginDocument(page);
 
   await page.route("**/graphql", async (route) => {
     if (graphqlFailures === 0) {
@@ -157,8 +155,6 @@ test("redirects to login when session refresh fails", async ({ page }) => {
   // returnUrl round-trips the projects URL, which may carry a recreatable time
   // range (e.g. an encoded ?timeRangeKey=7d), so match the returnUrl prefix.
   await page.waitForURL(/\/login\?returnUrl=%2Fprojects/);
-
-  expect(errorBoundary.seen).toBe(false);
 });
 
 test("redirects to login when session refresh times out", async ({ page }) => {

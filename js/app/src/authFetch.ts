@@ -57,6 +57,25 @@ export function isRedirectingToLoginError(error: unknown): boolean {
   );
 }
 
+let redirectingToLogin = false;
+
+/**
+ * True once this document has been pointed at the login page. From that moment
+ * until the login page's document takes over, any error that surfaces is
+ * teardown noise — e.g. Firefox rejects fetches interrupted by the navigation
+ * with a TypeError rather than an AbortError — so error surfaces should render
+ * a neutral pending state instead of an error page.
+ */
+export function isRedirectingToLogin(): boolean {
+  return redirectingToLogin;
+}
+
+function startLoginRedirect(cause: unknown): RedirectingToLoginError {
+  redirectingToLogin = true;
+  window.location.href = createLoginRedirectUrl();
+  return new RedirectingToLoginError({ cause });
+}
+
 /**
  * A wrapper around fetch that retries the request if the server returns a 401.
  */
@@ -81,14 +100,18 @@ export async function authFetch(
       // defensively: a non-ok response here also means the session is gone.
       const response = await refreshTokens();
       if (!response.ok) {
-        window.location.href = createLoginRedirectUrl();
-        throw new RedirectingToLoginError();
+        throw startLoginRedirect(error);
       }
       return fetch(input, init);
     }
     if (error instanceof Error && error.name === "AbortError") {
       // This is triggered when the controller is aborted
       throw error;
+    }
+    if (redirectingToLogin) {
+      // The document is being torn down for the login handoff; a fetch
+      // interrupted by that navigation is not a real failure.
+      throw new RedirectingToLoginError({ cause: error });
     }
   }
   throw new Error("An unexpected error occurred while fetching data");
@@ -131,11 +154,10 @@ export async function refreshTokens(): Promise<Response> {
   try {
     return await refreshPromise;
   } catch (error) {
-    window.location.href = createLoginRedirectUrl();
-    // Navigation is already underway, but this document keeps running until
-    // the login page loads. Reject with a dedicated error so error surfaces
-    // can show a neutral "redirecting" state instead of flashing an error
-    // page during the handoff.
-    throw new RedirectingToLoginError({ cause: error });
+    // Navigation starts here, but this document keeps running until the login
+    // page loads. Reject with a dedicated error so error surfaces can show a
+    // neutral "redirecting" state instead of flashing an error page during
+    // the handoff.
+    throw startLoginRedirect(error);
   }
 }

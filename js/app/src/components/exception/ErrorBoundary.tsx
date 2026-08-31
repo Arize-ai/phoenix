@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import { Component } from "react";
 
-import { isRedirectingToLoginError } from "@phoenix/authFetch";
+import {
+  isRedirectingToLogin,
+  isRedirectingToLoginError,
+} from "@phoenix/authFetch";
 
-import { Loading } from "../core/loading/Loading";
 import { BugReportErrorBoundaryFallback } from "./BugReportErrorBoundaryFallback";
 import type { ErrorBoundaryFallbackComponent } from "./types";
 type ErrorBoundaryProps = {
@@ -35,10 +37,16 @@ export class ErrorBoundary extends Component<
 
   render() {
     if (this.state.hasError) {
-      if (isRedirectingToLoginError(this.state.error)) {
-        // The browser is already navigating to the login page; show a neutral
-        // pending state instead of an error while the handoff completes.
-        return <Loading />;
+      if (
+        isRedirectingToLoginError(this.state.error) ||
+        isRedirectingToLogin()
+      ) {
+        // The browser is already navigating to the login page; render nothing
+        // rather than an error while the handoff completes. The flag check
+        // also covers errors from fetches interrupted by that navigation,
+        // which some browsers reject with a generic error rather than an
+        // AbortError.
+        return null;
       }
       const errorMessage: string | null =
         this.state.error instanceof Error ? this.state.error.message : null;
