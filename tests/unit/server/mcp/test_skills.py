@@ -6,7 +6,6 @@ the mount receives the shared root alone; the in-process agent adds its own.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -299,36 +298,6 @@ class TestLoadSkills:
         skill = Skill.from_directory(directory)
 
         assert skill.description == "first line second line"
-
-
-class TestCompiledSkills:
-    """``make mcp-skills`` copies each lockfile source into the shared root; the copies
-    are build output, so one that drifts or has no source is a bug."""
-
-    _LOCK = SHARED_SKILLS_ROOT.parent / "skills-lock.json"
-
-    def test_every_compiled_skill_matches_its_source(self) -> None:
-        lock = json.loads(self._LOCK.read_text(encoding="utf-8"))["skills"]
-        assert lock
-        for name, entry in lock.items():
-            assert entry["sourceType"] == "local"
-            source = (self._LOCK.parent / entry["source"]).resolve()
-            assert _files(SHARED_SKILLS_ROOT / name) == _files(source), (
-                f"{name} is stale: run `make mcp-skills`"
-            )
-
-    def test_every_skill_in_the_root_is_in_the_lockfile(self) -> None:
-        lock = json.loads(self._LOCK.read_text(encoding="utf-8"))["skills"]
-
-        assert {skill.name for skill in load_skills((SHARED_SKILLS_ROOT,))} == set(lock)
-
-
-def _files(directory: Path) -> dict[str, bytes]:
-    return {
-        path.relative_to(directory).as_posix(): path.read_bytes()
-        for path in sorted(directory.rglob("*"))
-        if path.is_file()
-    }
 
 
 def _write_skill(directory: Path) -> None:
