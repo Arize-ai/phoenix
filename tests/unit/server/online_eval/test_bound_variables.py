@@ -72,6 +72,21 @@ def _mirrored_string_array(declaration: str) -> set[str]:
     return set(re.findall(r'"([^"]+)"', block.group(1)))
 
 
+def _mirrored_grain_table(declaration: str) -> dict[str, str]:
+    """Which per-grain declaration each grain of one lookup table points at."""
+    source = _MIRROR.read_text(encoding="utf-8")
+    block = re.search(
+        rf"const {declaration}: Record<.*?> = \{{(.*?)^\}};",
+        source,
+        re.DOTALL | re.MULTILINE,
+    )
+    assert block is not None, (
+        f"No `{declaration}` lookup in {_MIRROR.name}. If it was renamed or "
+        "restructured, update this test to read the new shape."
+    )
+    return dict(re.findall(r"^\s*(\w+):\s*(\w+),", block.group(1), re.MULTILINE))
+
+
 # A new grain (or a new mirrored shape) is one row here: without its row, the
 # frontend can gain or lose a whole list and nothing fails.
 _MIRRORED_NAME_SETS = [
@@ -83,12 +98,40 @@ _MIRRORED_NAME_SETS = [
     ),
 ]
 
+# Every grain the authoring surface routes, and the declaration it routes to.
+# A grain added on one side only is invisible to the pair checks above, which
+# see registered declarations and nothing else.
+_GRAIN_TABLES = ("BOUND_VARIABLES_BY_GRAIN", "METADATA_FIELDS_BY_GRAIN")
+
+_REGISTERED_MIRROR_DECLARATIONS = frozenset(str(param.values[1]) for param in _MIRRORED_NAME_SETS)
+
 _MIRRORED_STRING_ARRAYS = [
     pytest.param(SESSION_TURN_FIELD_NAMES, "SESSION_TURN_FIELDS", id="session-turn-fields"),
     pytest.param(
         SPAN_ANNOTATION_ENTRY_FIELD_NAMES, "SPAN_ANNOTATION_FIELDS", id="span-annotation-fields"
     ),
 ]
+
+
+@pytest.mark.parametrize("grain_table", _GRAIN_TABLES)
+def test_every_grain_is_held_to_a_server_vocabulary(grain_table: str) -> None:
+    """A grain the editor offers but this test never mirrors is the gap itself.
+
+    The pair checks read the declarations ``_MIRRORED_NAME_SETS`` names, so a
+    grain added to the authoring surface without its row there drifts freely.
+    This reads the grains off the editor's own lookup tables instead.
+    """
+    unregistered = {
+        grain: ts_declaration
+        for grain, ts_declaration in _mirrored_grain_table(grain_table).items()
+        if ts_declaration not in _REGISTERED_MIRROR_DECLARATIONS
+    }
+    assert not unregistered, (
+        f"`{grain_table}` in {_MIRROR.name} routes grains this test does not "
+        f"check: {unregistered}. Add a `_MIRRORED_NAME_SETS` row pairing each "
+        "declaration with its phoenix.server.online_eval.bound_variables "
+        "constant, so the grain's names are held to what an evaluation binds."
+    )
 
 
 @pytest.mark.parametrize("server_names,ts_declaration", _MIRRORED_NAME_SETS)
