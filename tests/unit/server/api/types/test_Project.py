@@ -7798,12 +7798,12 @@ class TestEvaluatorComparison:
                 ]
             )
 
-            session.add(
-                models.ProjectSessionAnnotation(
+            def session_annotation(name: str, score: float) -> models.ProjectSessionAnnotation:
+                return models.ProjectSessionAnnotation(
                     project_session_id=project_session.id,
-                    name="session_quality",
+                    name=name,
                     label=None,
-                    score=0.9,
+                    score=score,
                     explanation=None,
                     metadata_={},
                     annotator_kind="CODE",
@@ -7811,20 +7811,12 @@ class TestEvaluatorComparison:
                     source="API",
                     user_id=None,
                 )
-            )
-            session.add(
-                models.ProjectSessionAnnotation(
-                    project_session_id=project_session.id,
-                    name="session_quality_two",
-                    label=None,
-                    score=0.2,
-                    explanation=None,
-                    metadata_={},
-                    annotator_kind="CODE",
-                    identifier="",
-                    source="API",
-                    user_id=None,
-                )
+
+            session.add_all(
+                [
+                    session_annotation("session_quality", 0.9),
+                    session_annotation("session_quality_two", 0.2),
+                ]
             )
 
         return {
@@ -7857,16 +7849,42 @@ class TestEvaluatorComparison:
             "thresholdB": threshold_b,
         }
 
-    async def test_categorical_versus_continuous(
-        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
-    ) -> None:
+    async def _compare(
+        self,
+        gql_client: AsyncGraphQLClient,
+        ids: dict[str, Any],
+        a: str,
+        b: str,
+        threshold_a: Optional[float] = None,
+        threshold_b: Optional[float] = None,
+    ) -> dict[str, Any]:
         response = await gql_client.execute(
             query=self.QUERY,
-            variables=self._variables(_comparison_data, "correctness", "toxicity"),
+            variables=self._variables(ids, a, b, threshold_a, threshold_b),
         )
         assert not response.errors
         assert (data := response.data) is not None
-        comparison = data["node"]["evaluatorComparison"]
+        comparison: dict[str, Any] = data["node"]["evaluatorComparison"]
+        return comparison
+
+    async def _compare_expecting_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        ids: dict[str, Any],
+        a: str,
+        b: str,
+    ) -> str:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=self._variables(ids, a, b),
+        )
+        assert response.errors
+        return response.errors[0].message
+
+    async def test_categorical_versus_continuous(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        comparison = await self._compare(gql_client, _comparison_data, "correctness", "toxicity")
         assert comparison["evaluationTarget"] == "SPAN"
         assert comparison["coverage"] == {
             "evaluatedByBoth": 4,
@@ -7898,13 +7916,7 @@ class TestEvaluatorComparison:
     async def test_continuous_versus_continuous_has_spearman(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        response = await gql_client.execute(
-            query=self.QUERY,
-            variables=self._variables(_comparison_data, "toxicity", "harm"),
-        )
-        assert not response.errors
-        assert (data := response.data) is not None
-        comparison = data["node"]["evaluatorComparison"]
+        comparison = await self._compare(gql_client, _comparison_data, "toxicity", "harm")
         assert comparison["coverage"] == {
             "evaluatedByBoth": 4,
             "onlyA": 1,
@@ -7921,15 +7933,9 @@ class TestEvaluatorComparison:
     async def test_threshold_override_rebins(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        response = await gql_client.execute(
-            query=self.QUERY,
-            variables=self._variables(
-                _comparison_data, "correctness", "toxicity", threshold_b=0.85
-            ),
+        comparison = await self._compare(
+            gql_client, _comparison_data, "correctness", "toxicity", threshold_b=0.85
         )
-        assert not response.errors
-        assert (data := response.data) is not None
-        comparison = data["node"]["evaluatorComparison"]
         assert comparison["sideB"]["threshold"] == pytest.approx(0.85)
         assert comparison["sideB"]["flaggedCount"] == 1
         assert comparison["confusionMatrix"] == [[0, 2], [1, 1]]
@@ -7940,13 +7946,9 @@ class TestEvaluatorComparison:
     async def test_session_level_comparison(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        response = await gql_client.execute(
-            query=self.QUERY,
-            variables=self._variables(_comparison_data, "session_evaluator", "session_quality_two"),
+        comparison = await self._compare(
+            gql_client, _comparison_data, "session_evaluator", "session_quality_two"
         )
-        assert not response.errors
-        assert (data := response.data) is not None
-        comparison = data["node"]["evaluatorComparison"]
         assert comparison["evaluationTarget"] == "SESSION"
         assert comparison["coverage"] == {
             "evaluatedByBoth": 1,
@@ -7961,29 +7963,23 @@ class TestEvaluatorComparison:
     async def test_same_evaluator_twice_is_rejected(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        response = await gql_client.execute(
-            query=self.QUERY,
-            variables=self._variables(_comparison_data, "toxicity", "toxicity"),
+        message = await self._compare_expecting_error(
+            gql_client, _comparison_data, "toxicity", "toxicity"
         )
-        assert response.errors
-        assert "two different evaluators" in response.errors[0].message
+        assert "two different evaluators" in message
 
     async def test_mismatched_levels_are_rejected(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        response = await gql_client.execute(
-            query=self.QUERY,
-            variables=self._variables(_comparison_data, "correctness", "session_evaluator"),
+        message = await self._compare_expecting_error(
+            gql_client, _comparison_data, "correctness", "session_evaluator"
         )
-        assert response.errors
-        assert "same level" in response.errors[0].message
+        assert "same level" in message
 
     async def test_evaluator_from_another_project_is_not_found(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
-        response = await gql_client.execute(
-            query=self.QUERY,
-            variables=self._variables(_comparison_data, "correctness", "foreign"),
+        message = await self._compare_expecting_error(
+            gql_client, _comparison_data, "correctness", "foreign"
         )
-        assert response.errors
-        assert "not found" in response.errors[0].message
+        assert "not found" in message

@@ -45,6 +45,7 @@ from phoenix.db.types.prompts import (
     TextContentPart,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundClient,
@@ -354,10 +355,12 @@ class LLMEvaluator(BaseEvaluator):
                 )
             categorical_configs.append(config)
 
-        multi_output = len(categorical_configs) > 1
         configs_by_name: dict[str, CategoricalOutputConfig] = {
             config.name: config for config in categorical_configs
         }
+        annotation_name_by_config_name = dict(
+            zip(configs_by_name, result_annotation_names(name, categorical_configs))
+        )
 
         tracer_ = tracer or NoOpTracer()
 
@@ -523,7 +526,7 @@ class LLMEvaluator(BaseEvaluator):
                         }
                         score = scores_by_label.get(label)
                         explanation = args.get("explanation")
-                        annotation_name = f"{name}.{matched_config.name}" if multi_output else name
+                        annotation_name = annotation_name_by_config_name[matched_config.name]
                         end_time = datetime.now(timezone.utc)
                         results.append(
                             EvaluationResult(
@@ -642,10 +645,9 @@ class BuiltInEvaluator(BaseEvaluator):
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
-        multi_output = len(output_configs) > 1
         results: list[EvaluationResult] = []
-        for config in output_configs:
-            annotation_name = f"{name}.{config.name}" if multi_output else name
+        annotation_names = result_annotation_names(name, output_configs)
+        for annotation_name, config in zip(annotation_names, output_configs):
             result = await self._evaluate(
                 context=context,
                 input_mapping=input_mapping,
@@ -3146,8 +3148,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 record_exception=False,
                 set_status_on_exception=False,
             ) as parse_span:
-                for config in output_configs:
-                    annotation_name = f"{name}.{config.name}" if multi_output else name
+                for annotation_name, config in zip(
+                    result_annotation_names(name, output_configs), output_configs
+                ):
                     if parse_error is not None:
                         any_coerce_error = True
                         last_coerce_error = parse_error

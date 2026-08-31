@@ -41,6 +41,7 @@ from phoenix.server.api.evaluators import (
     LLMEvaluator,
     get_builtin_evaluator_by_key,
 )
+from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.dml_event import (
     DmlEvent,
@@ -956,15 +957,12 @@ class OnlineEvalExecutor:
             raise EvalExecutionError(errored[0]["error"]) from errored[0].get("error_exc")
         if hydrated.evaluator_kind != "BUILTIN":
             # Built-ins retain their evaluator-defined result-name contract.
-            multi_output = len(hydrated.output_configs) > 1
-            output_configs_by_name = {
-                (
-                    f"{hydrated.annotation_name}.{config.name}"
-                    if multi_output
-                    else hydrated.annotation_name
-                ): config
-                for config in hydrated.output_configs
-            }
+            output_configs_by_name = dict(
+                zip(
+                    result_annotation_names(hydrated.annotation_name, hydrated.output_configs),
+                    hydrated.output_configs,
+                )
+            )
             returned_name_counts = Counter(result["name"] for result in results)
             invalid_counts = {
                 name: returned_name_counts.get(name, 0)

@@ -51,11 +51,35 @@ class TestMakeSideBinning:
         assert binning.bin(None, 0.49) == UNFLAGGED_LABEL
         assert binning.bin(None, None) is None
 
-    def test_continuous_maximize_flags_below_threshold(self) -> None:
+    def test_continuous_maximize_flags_at_or_below_threshold(self) -> None:
         config = _continuous_config(direction=OptimizationDirection.MAXIMIZE)
         binning = make_side_binning("correctness", config, None)
         assert binning.bin(None, 0.2) == FLAGGED_LABEL
-        assert binning.bin(None, 0.5) == UNFLAGGED_LABEL
+        assert binning.bin(None, 0.5) == FLAGGED_LABEL  # at the pivot is not good
+        assert binning.bin(None, 0.51) == UNFLAGGED_LABEL
+
+    def test_pivot_falls_back_to_bounds_midpoint(self) -> None:
+        config = ContinuousOutputConfig(
+            type="CONTINUOUS",
+            name="rating",
+            optimization_direction=OptimizationDirection.MINIMIZE,
+            lower_bound=1.0,
+            upper_bound=5.0,
+        )
+        binning = make_side_binning("rating", config, None)
+        assert binning.threshold == pytest.approx(3.0)
+        assert binning.bin(None, 3.0) == FLAGGED_LABEL
+        assert binning.bin(None, 2.9) == UNFLAGGED_LABEL
+
+    def test_categorical_label_at_pivot_is_never_flagged(self) -> None:
+        config = _categorical_config(
+            direction=OptimizationDirection.MAXIMIZE,
+            values=[("high", 1.0), ("mid", 0.5), ("low", 0.0)],
+        )
+        binning = make_side_binning("verdict", config, None)
+        # Pivot is the midpoint of the value scores (0.5); "mid" sits on it.
+        assert binning.threshold == pytest.approx(0.5)
+        assert binning.flagged_label_set == frozenset({"low"})
 
     def test_missing_config_defaults_to_flag_at_or_above_half(self) -> None:
         binning = make_side_binning("mystery", None, None)
