@@ -160,6 +160,20 @@ class TestHarnessGeneration:
         )
         exec(compile(harness, "<harness>", "exec"), {})
 
+    def test_python_harness_non_finite_inputs_survive_user_shadowing(self) -> None:
+        """A user-defined `nan`/`inf` must not corrupt `_inputs` — the math import
+        comes after the user source, so the real values win."""
+        runner, _ = _make_runner(
+            source_code=("nan = 'shadow'\ninf = 'shadow'\ndef evaluate(**kw): return kw\n")
+        )
+        harness = runner._build_python_harness({"x": float("nan"), "y": float("inf")})
+        namespace: dict[str, object] = {}
+        exec(compile(harness, "<harness>", "exec"), namespace)
+        result = namespace["_result"]
+        assert isinstance(result, dict)
+        assert result["x"] != result["x"], "x should be the real float nan"
+        assert result["y"] == float("inf")
+
     def test_typescript_harness_contains_source_code(self) -> None:
         runner, _ = _make_runner(
             source_code="function evaluate(x) { return 1; }", language="TYPESCRIPT"

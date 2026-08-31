@@ -2603,10 +2603,12 @@ class CodeEvaluatorRunner(BaseEvaluator):
     def _build_python_harness(self, mapped_inputs: dict[str, Any]) -> str:
         # repr(float("nan")) is the bare token `nan`, not a literal -- needs `nan`/`inf`
         # bound or NaN/Infinity inputs blow up with NameError before evaluate() even runs.
+        # The import comes after the user source so a user-defined `nan`/`inf` can't
+        # shadow the binding when `_inputs` is evaluated.
         return (
-            f"from math import inf, nan\n"
             f"{self._source_code}\n\n"
             f"import json as _json\n"
+            f"from math import inf, nan\n"
             f"_inputs = {mapped_inputs!r}\n"
             f"_result = evaluate(**_inputs)\n"
             f"print('{PHOENIX_RESULT_BEGIN}')\n"
