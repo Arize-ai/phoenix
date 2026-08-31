@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d1d290fdb2f6dfd61971259e958cf747>>
+ * @generated SignedSource<<7126131f2228a83767832b12e69a81a3>>
  * @lightSyntaxTransform
  */
 
@@ -50,14 +50,35 @@ v3 = {
   "name": "name",
   "storageKey": null
 },
-v4 = [
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "lowerBound",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "upperBound",
+  "storageKey": null
+},
+v7 = [
   {
     "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
   }
 ],
-v5 = [
+v8 = [
   {
     "alias": null,
     "args": null,
@@ -250,6 +271,18 @@ return {
                     {
                       "alias": null,
                       "args": null,
+                      "concreteType": "Project",
+                      "kind": "LinkedField",
+                      "name": "project",
+                      "plural": false,
+                      "selections": [
+                        (v2/*:: as any*/)
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
                       "concreteType": null,
                       "kind": "LinkedField",
                       "name": "evaluator",
@@ -260,6 +293,92 @@ return {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "kind",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": null,
+                          "kind": "LinkedField",
+                          "name": "outputConfigs",
+                          "plural": true,
+                          "selections": [
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v3/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "annotationType",
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "AnnotationConfigBase",
+                              "abstractKey": "__isAnnotationConfigBase"
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v4/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": "CategoricalAnnotationValue",
+                                  "kind": "LinkedField",
+                                  "name": "values",
+                                  "plural": true,
+                                  "selections": [
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "kind": "ScalarField",
+                                      "name": "label",
+                                      "storageKey": null
+                                    },
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "kind": "ScalarField",
+                                      "name": "score",
+                                      "storageKey": null
+                                    }
+                                  ],
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "CategoricalAnnotationConfig",
+                              "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v4/*:: as any*/),
+                                (v5/*:: as any*/),
+                                (v6/*:: as any*/)
+                              ],
+                              "type": "ContinuousAnnotationConfig",
+                              "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v4/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "threshold",
+                                  "storageKey": null
+                                },
+                                (v5/*:: as any*/),
+                                (v6/*:: as any*/)
+                              ],
+                              "type": "FreeformAnnotationConfig",
+                              "abstractKey": null
+                            }
+                          ],
                           "storageKey": null
                         },
                         {
@@ -386,14 +505,14 @@ return {
                         (v2/*:: as any*/),
                         {
                           "alias": null,
-                          "args": (v4/*:: as any*/),
+                          "args": (v7/*:: as any*/),
                           "kind": "ScalarField",
                           "name": "traceCount",
                           "storageKey": null
                         },
                         {
                           "alias": null,
-                          "args": (v4/*:: as any*/),
+                          "args": (v7/*:: as any*/),
                           "concreteType": "SpanCostSummary",
                           "kind": "LinkedField",
                           "name": "costSummary",
@@ -406,7 +525,7 @@ return {
                               "kind": "LinkedField",
                               "name": "total",
                               "plural": false,
-                              "selections": (v5/*:: as any*/),
+                              "selections": (v8/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -416,7 +535,7 @@ return {
                               "kind": "LinkedField",
                               "name": "prompt",
                               "plural": false,
-                              "selections": (v5/*:: as any*/),
+                              "selections": (v8/*:: as any*/),
                               "storageKey": null
                             },
                             {
@@ -426,7 +545,7 @@ return {
                               "kind": "LinkedField",
                               "name": "completion",
                               "plural": false,
-                              "selections": (v5/*:: as any*/),
+                              "selections": (v8/*:: as any*/),
                               "storageKey": null
                             }
                           ],
@@ -436,7 +555,7 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "args": (v4/*:: as any*/),
+                  "args": (v7/*:: as any*/),
                   "argumentDefinitions": [
                     (v0/*:: as any*/)
                   ]

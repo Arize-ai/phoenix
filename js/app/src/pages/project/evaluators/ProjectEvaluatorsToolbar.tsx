@@ -13,6 +13,7 @@ const PROJECT_EVALUATOR_COLUMNS = [
   { id: "name", label: "name", isVisibilityToggleDisabled: true },
   { id: "status", label: "status" },
   { id: "kind", label: "kind" },
+  { id: "meanScore", label: "mean score" },
   { id: "prompt", label: "prompt" },
   { id: "model", label: "model" },
   { id: "cost", label: "total cost" },

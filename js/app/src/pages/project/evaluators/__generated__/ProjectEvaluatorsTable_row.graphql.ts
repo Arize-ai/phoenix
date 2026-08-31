@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3a122b10c85f5315587b50cbc7627731>>
+ * @generated SignedSource<<ca9d42f4b44fc5eb17187c6dd13ce046>>
  * @lightSyntaxTransform
  */
 
@@ -8,10 +8,12 @@
 // @ts-nocheck
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
+export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
 export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TRACE_TARGET_UNSUPPORTED";
 export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
@@ -23,6 +25,18 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly evaluator: {
     readonly kind: EvaluatorKind;
     readonly language?: Language;
+    readonly outputConfigs: ReadonlyArray<{
+      readonly annotationType?: AnnotationType;
+      readonly lowerBound?: number | null;
+      readonly name?: string;
+      readonly optimizationDirection?: OptimizationDirection;
+      readonly threshold?: number | null;
+      readonly upperBound?: number | null;
+      readonly values?: ReadonlyArray<{
+        readonly label: string;
+        readonly score: number | null;
+      }>;
+    }>;
     readonly prompt?: {
       readonly id: string;
       readonly name: string;
@@ -45,6 +59,9 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly filterCondition: string;
   readonly id: string;
   readonly name: string;
+  readonly project: {
+    readonly id: string;
+  };
   readonly runSummary: {
     readonly evaluatedCount: number;
     readonly failedCount: number;
@@ -68,6 +85,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "23584063f4ee4332cc6f4ee85b256554";
+(node as any).hash = "e33ecb1b1c41d055af0f39cf68dc81be";
 
 export default node;

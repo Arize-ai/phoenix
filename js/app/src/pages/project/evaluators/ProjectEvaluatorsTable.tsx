@@ -28,6 +28,11 @@ import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { TimeRangeISOStrings } from "@phoenix/components/datetime";
+import { useTimeRange } from "@phoenix/components/datetime";
+import {
+  clampTimeRangeToMaxDuration,
+  getLastNTimeRangeKeyFromDurationMs,
+} from "@phoenix/components/datetime/utils";
 import {
   EvaluatorAverageCost,
   EvaluatorCost,
@@ -48,13 +53,18 @@ import {
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { ONE_DAY_MS } from "@phoenix/constants/timeConstants";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
+import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
+import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
+import { ProjectEvaluatorMeanScoreCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
@@ -63,6 +73,7 @@ import {
   formatEvaluationTargetPlural,
   formatSamplingRate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { getProjectEvaluatorResultAnnotations } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;
@@ -71,6 +82,16 @@ const PAGE_SIZE = 30;
  * table so a project that's just getting started keeps seeing it.
  */
 const GALLERY_PROMO_MAX_EVALUATOR_COUNT = 15;
+/**
+ * The mean score column aggregates over at most this much of the page time
+ * range, keeping the per-row annotation scans bounded on long ranges.
+ */
+const MAX_SCORE_WINDOW_MS = 30 * ONE_DAY_MS;
+
+/** Labels for columns whose header is not a plain string. */
+const COLUMN_LABELS: Record<string, string> = {
+  meanScore: "mean score",
+};
 
 const scrollableAreaCSS = css`
   flex: 1 1 auto;
@@ -101,8 +122,39 @@ const readRow = (
           evaluatedCount
           failedCount
         }
+        # The evaluated project, whose annotations carry the evaluator's scores
+        project {
+          id
+        }
         evaluator {
           kind
+          # Selections must cover getProjectEvaluatorResultAnnotations, which
+          # resolves the names and optimization metadata of the annotations the
+          # evaluator writes for the mean score column.
+          outputConfigs {
+            ... on AnnotationConfigBase {
+              name
+              annotationType
+            }
+            ... on CategoricalAnnotationConfig {
+              optimizationDirection
+              values {
+                label
+                score
+              }
+            }
+            ... on ContinuousAnnotationConfig {
+              optimizationDirection
+              lowerBound
+              upperBound
+            }
+            ... on FreeformAnnotationConfig {
+              optimizationDirection
+              threshold
+              lowerBound
+              upperBound
+            }
+          }
           ... on LLMEvaluator {
             prompt {
               id
@@ -257,6 +309,37 @@ export function ProjectEvaluatorsTable({
     (projectEvaluatorId: string) => navigate(paths.edit(projectEvaluatorId)),
     [navigate, paths]
   );
+  const { timeRange: pageTimeRange } = useTimeRange();
+  const utcOffsetMinutes = useUTCOffsetMinutes();
+  // Memoized so an open-ended range resolves "now" once per range change
+  // instead of minting new query variables (and refetches) every render.
+  const clampedScoreRange = useMemo(
+    () =>
+      clampTimeRangeToMaxDuration({
+        value: pageTimeRange,
+        maxDurationMs: MAX_SCORE_WINDOW_MS,
+      }),
+    [pageTimeRange]
+  );
+  const scoreBinScale = useTimeBinScale({ timeRange: clampedScoreRange });
+  const scoreWindow = useMemo<EvaluatorScoreWindow>(() => {
+    const durationMs =
+      clampedScoreRange.end.getTime() - clampedScoreRange.start.getTime();
+    return {
+      timeRange: {
+        start: clampedScoreRange.start.toISOString(),
+        end: clampedScoreRange.end.toISOString(),
+      },
+      previousTimeRange: {
+        start: new Date(
+          clampedScoreRange.start.getTime() - durationMs
+        ).toISOString(),
+        end: clampedScoreRange.start.toISOString(),
+      },
+      timeBinConfig: { scale: scoreBinScale, utcOffsetMinutes },
+      windowKey: getLastNTimeRangeKeyFromDurationMs(durationMs),
+    };
+  }, [clampedScoreRange, scoreBinScale, utcOffsetMinutes]);
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () => [
       {
@@ -287,6 +370,31 @@ export function ProjectEvaluatorsTable({
         size: 80,
         cell: ({ row }) => (
           <EvaluatorKindToken kind={row.original.evaluator.kind} />
+        ),
+      },
+      {
+        id: "meanScore",
+        header: () => (
+          <Flex direction="row" gap="size-50" alignItems="baseline">
+            <span title="Mean score of the annotations this evaluator produced in the selected time range (at most the last 30 days), with the change vs. the previous window.">
+              mean score
+            </span>
+            <Text size="XS" fontFamily="mono" color="text-500">
+              {scoreWindow.windowKey}
+            </Text>
+          </Flex>
+        ),
+        size: 170,
+        cell: ({ row }) => (
+          <ProjectEvaluatorMeanScoreCell
+            projectId={row.original.project.id}
+            evaluationTarget={row.original.evaluationTarget}
+            annotations={getProjectEvaluatorResultAnnotations({
+              name: row.original.name,
+              outputConfigs: row.original.evaluator.outputConfigs,
+            })}
+            scoreWindow={scoreWindow}
+          />
         ),
       },
       {
@@ -460,7 +568,7 @@ export function ProjectEvaluatorsTable({
         ),
       },
     ],
-    [projectId, openEditSlideover, paths]
+    [projectId, openEditSlideover, paths, scoreWindow]
   );
   const columnVisibility = useProjectEvaluatorsTableContext(
     (state) => state.columnVisibility
@@ -572,7 +680,7 @@ export function ProjectEvaluatorsTable({
                     label={
                       typeof header.column.columnDef.header === "string"
                         ? header.column.columnDef.header
-                        : undefined
+                        : COLUMN_LABELS[header.column.id]
                     }
                     style={{
                       width: `calc(var(--header-${header.id}-size) * 1px)`,
