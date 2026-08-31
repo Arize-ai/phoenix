@@ -3,7 +3,7 @@ import { Suspense, useState } from "react";
 import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Skeleton, Text, View } from "@phoenix/components";
+import { Flex, Loading, Text, View } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
@@ -28,7 +28,7 @@ export function ProjectEvaluatorsPage() {
         min-height: 0;
       `}
     >
-      <Suspense fallback={<ProjectEvaluatorsPageSkeleton />}>
+      <Suspense fallback={<Loading />}>
         <ProjectEvaluatorsTableProvider>
           <ProjectEvaluatorsPageContent
             projectId={projectId}
@@ -113,26 +113,6 @@ function ProjectEvaluatorsPageContent({
         initialFilter=""
         initialTimeRange={initialTimeRange}
       />
-    </>
-  );
-}
-
-function ProjectEvaluatorsPageSkeleton() {
-  return (
-    <>
-      <View
-        padding="size-100"
-        borderBottomWidth="thin"
-        borderBottomColor="default"
-        flex="none"
-      >
-        <Flex justifyContent="end">
-          <Skeleton width={140} height={40} animation="wave" />
-        </Flex>
-      </View>
-      <View padding="size-100">
-        <Skeleton width="100%" height={180} animation="wave" />
-      </View>
     </>
   );
 }
