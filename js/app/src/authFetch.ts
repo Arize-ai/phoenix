@@ -1,5 +1,3 @@
-import invariant from "tiny-invariant";
-
 import { BASE_URL } from "@phoenix/config";
 
 import { createLoginRedirectUrl } from "./utils/routingUtils";
@@ -30,6 +28,35 @@ class RefreshTimeoutError extends Error {
   }
 }
 
+const REDIRECTING_TO_LOGIN_ERROR_NAME = "RedirectingToLoginError";
+
+/**
+ * Thrown after the browser has already been pointed at the login page
+ * (`window.location.href = createLoginRedirectUrl()`). Navigation via
+ * `window.location.href` is asynchronous — the current document keeps running
+ * until the login page's document replaces it — so the pending request still
+ * needs to reject to unblock its caller. Error surfaces (the router's
+ * errorElement, ErrorBoundary fallbacks) should treat this error as "redirect
+ * in progress" and render a neutral pending state rather than an error page.
+ */
+export class RedirectingToLoginError extends Error {
+  constructor(options?: ErrorOptions) {
+    super("Redirecting to log in", options);
+    this.name = REDIRECTING_TO_LOGIN_ERROR_NAME;
+  }
+}
+
+/**
+ * Detects a {@link RedirectingToLoginError}. Checks the error's name rather
+ * than using `instanceof` so the detection is robust to the class being
+ * duplicated across bundles.
+ */
+export function isRedirectingToLoginError(error: unknown): boolean {
+  return (
+    error instanceof Error && error.name === REDIRECTING_TO_LOGIN_ERROR_NAME
+  );
+}
+
 /**
  * A wrapper around fetch that retries the request if the server returns a 401.
  */
@@ -48,12 +75,15 @@ export async function authFetch(
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       // If the server returns a 401, we should try to refresh the token
-      // If not successful, the user will be redirected to the login page
+      // If not successful, refreshTokens starts the login redirect and throws
+      // RedirectingToLoginError, which propagates out of this function.
+      // refreshTokens only resolves with an ok response, but guard
+      // defensively: a non-ok response here also means the session is gone.
       const response = await refreshTokens();
-      invariant(
-        response.ok,
-        `Failed to authenticate. Please visit ${createLoginRedirectUrl()} to login.`
-      );
+      if (!response.ok) {
+        window.location.href = createLoginRedirectUrl();
+        throw new RedirectingToLoginError();
+      }
       return fetch(input, init);
     }
     if (error instanceof Error && error.name === "AbortError") {
@@ -102,6 +132,10 @@ export async function refreshTokens(): Promise<Response> {
     return await refreshPromise;
   } catch (error) {
     window.location.href = createLoginRedirectUrl();
-    throw error;
+    // Navigation is already underway, but this document keeps running until
+    // the login page loads. Reject with a dedicated error so error surfaces
+    // can show a neutral "redirecting" state instead of flashing an error
+    // page during the handoff.
+    throw new RedirectingToLoginError({ cause: error });
   }
 }
