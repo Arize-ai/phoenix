@@ -4,12 +4,12 @@
     "phoenix-axial-coding": {
       "source": "../../../../.agents/skills/phoenix-axial-coding",
       "sourceType": "local",
-      "computedHash": "ea4d4e85367dbbaff25b6ce3a3ce6f2fd0be3714dcddaaa9654db93adf7ff104"
+      "computedHash": "3122d5ca8174ba2a7393dcf2f4a1b23e6a34a2702bb34ca7c5b2495617829b6e"
     },
     "phoenix-open-coding": {
       "source": "../../../../.agents/skills/phoenix-open-coding",
       "sourceType": "local",
-      "computedHash": "97d04c73c5ed62e2ef7db20b18e92009425cc285642cf6abfee2323528a2312b"
+      "computedHash": "0abf12cefe9a41abaf955a1c57513d8f1d7c4b350ed5a1ab6b9c03fbf766274e"
     }
   }
 }
