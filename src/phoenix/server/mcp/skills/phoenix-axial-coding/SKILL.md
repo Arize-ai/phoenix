@@ -14,11 +14,11 @@ Group open-ended observations into structured failure taxonomies. Axial coding t
 
 **Reach for this whenever** the user has observations and needs structure — e.g., "what categories of failures do we have", "what should I build evals for", "how do I prioritize fixes", "group these notes", "MECE breakdown", or any framing that asks for categories or counts grounded in real traces rather than invented top-down.
 
-> **Tooling.** The commands below use the [`px` CLI](../phoenix-cli/SKILL.md). When working through the Phoenix MCP server instead — for example from an agent connected to `/mcp` — use its equivalent tools to list traces, spans, or sessions, add notes, and write annotations. The method is the same; only the calls differ.
+> **Tooling.** This skill is tooling-agnostic. Use whatever Phoenix access the current environment provides — the Phoenix MCP server's tools, the REST API (`/v1`), a client SDK, or a CLI — to read entities and write annotations. The workflow below names each operation and the server semantics it relies on; map them onto the tools at hand.
 
 ## Coding annotation identifier (reuse the open-coding value)
 
-Reuse the **coding annotation identifier** chosen in open coding — every `annotate` call below passes `--identifier "$CODING_ANNOTATION_IDENTIFIER"` explicitly. In a fresh shell or fresh agent invocation, set `CODING_ANNOTATION_IDENTIFIER` to the same value (recoverable from the wrap-up UI URL or by listing `.px/coding/*.jsonl`); don't mint a new id. See [phoenix-open-coding#coding-annotation-identifier-pick-this-first](../phoenix-open-coding/SKILL.md#coding-annotation-identifier-pick-this-first) for the rationale and the sanitization rule.
+Reuse the **coding annotation identifier** chosen in open coding — every annotation write below carries it explicitly. In a fresh shell or fresh agent invocation, set `CODING_ANNOTATION_IDENTIFIER` to the same value (recoverable from the wrap-up UI URL or by listing `.px/coding/*.jsonl`); don't mint a new id. See [phoenix-open-coding#coding-annotation-identifier-pick-this-first](../phoenix-open-coding/SKILL.md#coding-annotation-identifier-pick-this-first) for the rationale and the sanitization rule.
 
 > **Workflow term vs. server annotation name.** The skill calls this value the **coding annotation identifier**; the server annotation NAME used for the UI filter stays `coding_session_id` for data compatibility. Don't try to rename the server-side key.
 
@@ -48,7 +48,7 @@ Whichever level you write the axial label on, write the matching `coding_session
 3. **Pattern** — group notes with common themes
 4. **Name** — create actionable category names
 5. **Attribute** — decide what level each category lives at; an axial label can move up (trace → session) or down (trace → span) from the source note's level to the level the pattern actually implicates
-6. **Record** — `px {trace,span,session} annotate ... --name axial_coding_category --label <cat> --identifier "$CODING_ANNOTATION_IDENTIFIER"`, add/update one JSONL sidecar row for the label, then write the matching `coding_session_id` UI-filter annotation
+6. **Record** — write an `axial_coding_category` annotation on the entity carrying the category label and the coding annotation identifier, add/update one JSONL sidecar row for the label, then write the matching `coding_session_id` UI-filter annotation
 7. **Quantify** — count failures per category from `$AXIAL_SIDECAR`
 
 ## Example Taxonomy
@@ -80,9 +80,9 @@ Open-coding wrote one JSONL line per note to `$NOTES_SIDECAR` (`.px/coding/${SLU
 
 **Missing-file behavior.** An absent `$NOTES_SIDECAR` means open coding hasn't run for this coding annotation identifier in this CWD — stop and run open coding first, do not silently treat it as zero notes.
 
-**Malformed lines.** Each line is independently parseable JSON. If `jq` reports a parse error, fix or drop that line manually; do not edit other lines.
+**Malformed lines.** Each line is independently parseable JSON. On a parse error, fix or drop that line manually; do not edit other lines.
 
-**Notes outside this run.** The sidecar only carries notes this CWD wrote. To pull notes another reviewer or earlier run wrote, fetch them via `px {trace,span,session} list --include-notes` (embeds notes into row output) — the workflow's sidecar is intentionally per-CWD-per-coding-identifier.
+**Notes outside this run.** The sidecar only carries notes this CWD wrote. To pull notes another reviewer or earlier run wrote, fetch them from the server — notes are annotations with the reserved name `note`, so fetch entities with their notes included, or list annotations filtered to that name — the workflow's sidecar is intentionally per-CWD-per-coding-identifier.
 
 ### 2. Group — synthesize categories
 
@@ -90,7 +90,7 @@ Review the note text collected above. Manually identify recurring themes and dra
 
 ### 3. Record — write axial-coding labels
 
-Write one annotation per entity using `px {trace,span,session} annotate`, passing `--identifier "$CODING_ANNOTATION_IDENTIFIER"` explicitly on every call, and record one JSONL row in `$AXIAL_SIDECAR` so [Quantify](#4-quantify--count-per-category-from-the-axial-sidecar) below can count without a server round-trip. The level can differ from where the source note lives — see [Recording](#recording) below.
+Write one annotation per entity at the level the label belongs at, carrying the coding annotation identifier explicitly on every write, and record one JSONL row in `$AXIAL_SIDECAR` so [Quantify](#4-quantify--count-per-category-from-the-axial-sidecar) below can count without a server round-trip. The level can differ from where the source note lives — see [Recording](#recording) below.
 
 ### 4. Quantify — count per category from the axial sidecar
 
@@ -100,85 +100,73 @@ Same missing-file and malformed-line rules as `$NOTES_SIDECAR`: a missing axial 
 
 ## Recording
 
-Use the matching annotate command for the level the **label** belongs at — which may differ from where the source note lives (see [Choosing the unit](#choosing-the-unit)). Every call carries `--identifier "$CODING_ANNOTATION_IDENTIFIER"` and `--format raw --no-progress`, and is paired with a JSONL row in `$AXIAL_SIDECAR`.
+Write the annotation at the level the **label** belongs at — which may differ from where the source note lives (see [Choosing the unit](#choosing-the-unit)). Every write carries the coding annotation identifier and is paired with a JSONL row in `$AXIAL_SIDECAR`.
 
-**Axial sidecar JSONL line shape (one per `annotate`):**
+**Axial sidecar JSONL line shape (one per annotation write):**
 
 ```json
 {"entity_kind":"trace","entity_id":"<trace-id>","annotation_name":"axial_coding_category","axial_label":"<label>","explanation":"<optional explanation>","identifier":"<original identifier value, unsanitized>","ts":"<ISO-8601 UTC>"}
 ```
 
 Fields:
-- `entity_kind` — `"trace"`, `"span"`, or `"session"` (matches the `annotate` subcommand)
-- `entity_id` — the entity argument passed to `annotate`
+- `entity_kind` — `"trace"`, `"span"`, or `"session"` (matches the level the annotation was written at)
+- `entity_id` — the entity the annotation was written on
 - `annotation_name` — always `"axial_coding_category"` for axial labels (the workflow's reserved annotation name)
-- `axial_label` — the `--label` value, verbatim; this is what [Quantify](#4-quantify--count-per-category-from-the-axial-sidecar) groups on
-- `explanation` — optional, but include it when the `annotate` call used `--explanation`
+- `axial_label` — the annotation's label value, verbatim; this is what [Quantify](#4-quantify--count-per-category-from-the-axial-sidecar) groups on
+- `explanation` — optional, but include it when the annotation carried an explanation
 - `identifier` — the **original** `$CODING_ANNOTATION_IDENTIFIER` value, unsanitized; the sanitized form lives only in the filename
 - `ts` — ISO-8601 UTC timestamp of the local append
 
-If you revise a label for the same entity under the same coding annotation identifier, either replace that row or append a newer row. When duplicate `(entity_kind, entity_id, annotation_name)` rows exist, the newest `ts` is the current label. This matches the server upsert behavior of `annotate --identifier`.
+If you revise a label for the same entity under the same coding annotation identifier, either replace that row or append a newer row. When duplicate `(entity_kind, entity_id, annotation_name)` rows exist, the newest `ts` is the current label. This matches the server upsert behavior of identifier-carrying annotation writes.
 
-Minimal trace example:
+Minimal trace example — write a trace annotation with:
 
-```bash
-px trace annotate <trace-id> \
-  --name axial_coding_category \
-  --label answered_off_topic \
-  --explanation "asked about returns; answer covered shipping" \
-  --annotator-kind HUMAN \
-  --identifier "$CODING_ANNOTATION_IDENTIFIER" \
-  --format raw --no-progress
-```
+- **name**: `axial_coding_category`
+- **label**: `answered_off_topic`
+- **explanation**: "asked about returns; answer covered shipping"
+- **annotator kind**: `HUMAN`
+- **identifier**: the coding annotation identifier
 
-Then add a matching JSONL row to `$AXIAL_SIDECAR` using the line shape above. For span or session labels, change `entity_kind`, `entity_id`, and the `px` subcommand accordingly.
+Then add a matching JSONL row to `$AXIAL_SIDECAR` using the line shape above. For span or session labels, write at that level instead and change `entity_kind` and `entity_id` accordingly.
 
-Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-kind` (`HUMAN`, `LLM`, `CODE`), `--identifier`. There is no `--sync` flag — the CLI passes `sync=true` itself.
+Annotation fields the server accepts: name, label, optional score and explanation, annotator kind (`HUMAN`, `LLM`, `CODE`), and identifier. Writes upsert on `(entity_id, name, identifier)`. When writing through REST, pass the `sync=true` query param so the row is applied before the response returns (the default is async enqueueing).
+
+**Write paths:** REST `POST /v1/trace_annotations`, `/v1/span_annotations`, `/v1/session_annotations` (body: `{data: [{trace_id|span_id|session_id, name, annotator_kind, identifier, result: {label, score, explanation}}]}`), or `@arizeai/phoenix-client`'s `addSpanAnnotation` / `addSessionAnnotation` (no `addTraceAnnotation` is exported today — use REST for trace-level labels). The GraphQL endpoint rejects mutations.
 
 ### UI-filter annotation
 
-Write a `coding_session_id` annotation at the same level as the axial label — see [phoenix-open-coding#ui-filter-annotation](../phoenix-open-coding/SKILL.md#ui-filter-annotation) for why the Phoenix UI filter requires a name-based annotation rather than the bare `--identifier`. If open coding already wrote `coding_session_id` on the same entity, this call upserts (idempotent). The annotation NAME `coding_session_id` is unchanged; only the workflow's spoken term is "coding annotation identifier".
+Write a `coding_session_id` annotation at the same level as the axial label — see [phoenix-open-coding#ui-filter-annotation](../phoenix-open-coding/SKILL.md#ui-filter-annotation) for why the Phoenix UI filter requires a name-based annotation rather than the bare identifier. If open coding already wrote `coding_session_id` on the same entity, this write upserts (idempotent). The annotation NAME `coding_session_id` is unchanged; only the workflow's spoken term is "coding annotation identifier".
 
-```bash
-# Same level as the axial label above
-px trace annotate <trace-id> \
-  --name coding_session_id \
-  --label "$CODING_ANNOTATION_IDENTIFIER" \
-  --identifier "$CODING_ANNOTATION_IDENTIFIER"
-# or px span annotate / px session annotate at matching levels
-```
+On the same entity as the axial label, write an annotation with:
+
+- **name**: `coding_session_id`
+- **label**: the coding annotation identifier value
+- **identifier**: the coding annotation identifier value
 
 ### Recording discipline
 
-Axial coding categorizes the entities you took notes on during open coding. Use `$NOTES_SIDECAR` as the source of candidate entities and write labels only after reading the note text and surrounding trace/span/session context. Do **not** filter by `--status-code ERROR` — that captures only spans where Python raised, which excludes most failure modes (hallucination, wrong tone, retrieval miss). See [phoenix-open-coding](../phoenix-open-coding/SKILL.md#inspection) for the full reasoning.
-
-**Fallback paths:** REST `POST /v1/{trace,span,session}_annotations` and `@arizeai/phoenix-client`'s `addSpanAnnotation` / `addSessionAnnotation` (no `addTraceAnnotation` is exported today — use REST or `px trace annotate`). The GraphQL endpoint rejects mutations.
+Axial coding categorizes the entities you took notes on during open coding. Use `$NOTES_SIDECAR` as the source of candidate entities and write labels only after reading the note text and surrounding trace/span/session context. Do **not** select entities by error status — that captures only spans where an exception was raised, which excludes most failure modes (hallucination, wrong tone, retrieval miss). See [phoenix-open-coding](../phoenix-open-coding/SKILL.md#inspection) for the full reasoning.
 
 ## Wrapping up
 
-After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's **spans** table filtered by the `coding_session_id` annotation. The search param is `spanFilterCondition`, which only applies on the `/spans` tab — the traces tab compiles a trace filter it keeps in component state, so the same link at `/traces` renders unfiltered behind a "Traces now use trace-level filters" notice. The spans tab compiles a **span** filter, so the accessor must match the level the annotation was written at: `trace_annotations['coding_session_id']` for a trace-level run, `annotations['coding_session_id']` for a span-level run. Both mistakes fail silently (see [phoenix-open-coding](../phoenix-open-coding/SKILL.md#wrapping-up)). The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
+After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's **spans** table filtered by the `coding_session_id` annotation. The search param is `spanFilterCondition`, which only applies on the `/spans` tab — the traces tab compiles a trace filter it keeps in component state, so the same link at `/traces` renders unfiltered behind a "Traces now use trace-level filters" notice. The spans tab compiles a **span** filter, so the accessor must match the level the annotation was written at: `trace_annotations['coding_session_id']` for a trace-level run, `annotations['coding_session_id']` for a span-level run. Both mistakes fail silently (see [phoenix-open-coding](../phoenix-open-coding/SKILL.md#wrapping-up)). The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it with a GraphQL query (the GraphQL endpoint permits queries):
 
-```bash
-project_id=$(px project get "$PHOENIX_PROJECT" --format raw --no-progress | jq -r '.id')
-# Trace-level run (px trace annotate). For a span-level run (px span annotate), swap in annotations[...].
-encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
-  "trace_annotations['coding_session_id'].label == '$CODING_ANNOTATION_IDENTIFIER'")
-echo "Phoenix UI: $PHOENIX_ENDPOINT/projects/$project_id/spans?spanFilterCondition=$encoded"
+```graphql
+query { projects(first: 50) { edges { node { id name } } } }
 ```
 
-If the user wants to discard everything this run produced (open-coding notes, axial-coding labels, and `coding_session_id` annotations on the server, plus the local sidecars), three identifier-bound deletes handle the server side and one `rm` handles the local sidecars. **Confirm before running** — destructive. Each `px <entity>-annotations delete` call requires `--all` to authorize the unbounded sweep; `--identifier` only narrows. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first if not already exported:
+Then take the filter expression for the level the run annotated at —
 
-```bash
-for kind in trace span session; do
-  px "$kind-annotations" delete \
-    --identifier "$CODING_ANNOTATION_IDENTIFIER" \
-    --all -y \
-    --format raw --no-progress
-done
-rm -f "$NOTES_SIDECAR" "$AXIAL_SIDECAR"
-```
+    trace_annotations['coding_session_id'].label == '<coding annotation identifier>'   # trace-level run
+    annotations['coding_session_id'].label == '<coding annotation identifier>'         # span-level run
 
-Each `px <entity>-annotations delete` call removes notes, axial-coding labels, and `coding_session_id` annotations together because they share the underlying annotation table; the `rm` clears the local sidecars.
+— URL-encode it, and share:
+
+    <endpoint>/projects/<project-node-id>/spans?spanFilterCondition=<encoded-expression>
+
+If the user wants to discard everything this run produced (open-coding notes, axial-coding labels, and `coding_session_id` annotations on the server, plus the local sidecars), three identifier-bound deletes handle the server side and removing the sidecar files handles the local side. **Confirm before running** — destructive. For each of trace, span, and session, delete the project's annotations filtered to the coding annotation identifier — REST `DELETE /v1/projects/{project_identifier}/trace_annotations` (and `span_annotations`, `session_annotations`) with `identifier=<coding annotation identifier>`. The server requires `delete_all=true` (or an explicit `start_time`/`end_time` bound) to authorize the sweep; the identifier filter narrows but never authorizes on its own. Then remove `$NOTES_SIDECAR` and `$AXIAL_SIDECAR`.
+
+Each per-kind delete removes notes, axial-coding labels, and `coding_session_id` annotations together because they share the underlying annotation table; removing the sidecar files clears the local record.
 
 ## Agent Failure Taxonomy
 
@@ -195,8 +183,10 @@ agent_failures:
 
 To find where failures occur between agent states, identify the last non-error span before each first-error span within a trace. Note: OTel leaves most spans at `status_code == "UNSET"` and only sets `"OK"` when code explicitly does so — match `!= "ERROR"` rather than `== "OK"` so the matrix works on typical OTel data.
 
+Fetch the project's spans as a JSON array (each with its trace id, name, `status_code`, and `start_time`), then:
+
 ```bash
-px span list --format raw --no-progress | jq '
+jq '
   group_by(.context.trace_id)
   | map(
       sort_by(.start_time)
@@ -208,7 +198,7 @@ px span list --format raw --no-progress | jq '
   | group_by([.last_non_error, .first_err])
   | map({ transition: "\(.[0].last_non_error) → \(.[0].first_err)", count: length })
   | sort_by(-.count)
-'
+' spans.json
 ```
 
 Use the output to tally which state-to-state transitions are most failure-prone and add them to your taxonomy.
@@ -222,8 +212,8 @@ A useful category is:
 
 ## Principles
 
-- **One coding annotation identifier per run** — every `annotate` call and every sidecar line carries `$CODING_ANNOTATION_IDENTIFIER`, the same value open coding used; never mint a new id mid-run.
-- **Pass `--identifier` explicitly** — every `px` call gets `--identifier "$CODING_ANNOTATION_IDENTIFIER"`; do not rely on inherited env vars.
+- **One coding annotation identifier per run** — every annotation write and every sidecar line carries `$CODING_ANNOTATION_IDENTIFIER`, the same value open coding used; never mint a new id mid-run.
+- **Pass the identifier explicitly** — every server write carries the coding annotation identifier; do not rely on inherited env vars.
 - **Sidecar reads, server writes** — Gather and Quantify read `$NOTES_SIDECAR` and `$AXIAL_SIDECAR` locally; Record writes to the server and updates the sidecar. If an entity appears more than once, the newest `ts` wins.
 - **MECE** — Each failure fits ONE category.
 - **Actionable** — Categories suggest fixes.
