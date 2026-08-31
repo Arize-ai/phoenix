@@ -8,6 +8,7 @@ import {
 import {
   startTransition,
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -64,7 +65,11 @@ import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/eval
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
-import { ProjectEvaluatorMeanScoreCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
+import {
+  EvaluatorScoreWindowProvider,
+  ProjectEvaluatorMeanScoreCell,
+  ProjectEvaluatorMeanScoreHeader,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
@@ -350,6 +355,12 @@ export function ProjectEvaluatorsTable({
           : getLastNTimeRangeKeyFromDurationMs(durationMs),
     };
   }, [clampedScoreRange, pageTimeRange, scoreBinScale, utcOffsetMinutes]);
+  // Deferred so a window change — a range pick, or the live window's
+  // once-a-minute/hour re-anchor — re-renders the score cells in the
+  // background: they keep their stale content while the new window's data
+  // loads instead of all suspending to their fallbacks at once, which read
+  // as the whole column flickering.
+  const deferredScoreWindow = useDeferredValue(scoreWindow);
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () => [
       {
@@ -384,16 +395,12 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "meanScore",
-        header: () => (
-          <Flex direction="row" gap="size-50" alignItems="baseline">
-            <span title="Mean score of the annotations this evaluator produced in the selected time range (at most the last 30 days), with the change vs. the previous window.">
-              mean score
-            </span>
-            <Text size="XS" fontFamily="mono" color="text-500">
-              {scoreWindow.windowKey}
-            </Text>
-          </Flex>
-        ),
+        // The header and cell read the score window from context so the
+        // column def — and with it the cell component identity tanstack
+        // renders — stays stable when the window changes. A def that closed
+        // over the window would remount every cell on each live-range
+        // re-anchor, flashing all the suspense fallbacks at once.
+        header: () => <ProjectEvaluatorMeanScoreHeader />,
         size: 170,
         cell: ({ row }) => (
           <ProjectEvaluatorMeanScoreCell
@@ -403,7 +410,6 @@ export function ProjectEvaluatorsTable({
               name: row.original.name,
               outputConfigs: row.original.evaluator.outputConfigs,
             })}
-            scoreWindow={scoreWindow}
           />
         ),
       },
@@ -578,7 +584,7 @@ export function ProjectEvaluatorsTable({
         ),
       },
     ],
-    [projectId, openEditSlideover, paths, scoreWindow]
+    [projectId, openEditSlideover, paths]
   );
   const columnVisibility = useProjectEvaluatorsTableContext(
     (state) => state.columnVisibility
@@ -665,116 +671,123 @@ export function ProjectEvaluatorsTable({
     !isFiltered && !hasNext && rows.length < GALLERY_PROMO_MAX_EVALUATOR_COUNT;
   return (
     <div css={scrollableAreaCSS}>
-      <ColumnOrderingProvider
-        columnOrder={visibleColumnOrder}
-        onColumnOrderChange={onVisibleColumnOrderChange}
-      >
-        <table
-          css={selectableTableCSS}
-          aria-label="Project evaluators"
-          style={{
-            ...columnSizeVars,
-            width: table.getTotalSize(),
-            minWidth: "100%",
-          }}
+      {/* Deferred so window changes load in the background while the mean
+          score cells keep their content — see the note on the provider. */}
+      <EvaluatorScoreWindowProvider value={deferredScoreWindow}>
+        <ColumnOrderingProvider
+          columnOrder={visibleColumnOrder}
+          onColumnOrderChange={onVisibleColumnOrderChange}
         >
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <ColumnHeaderCell
-                    key={header.id}
-                    colSpan={header.colSpan}
-                    columnId={header.column.id}
-                    index={getColumnOrderIndex(header.column.id)}
-                    label={
-                      typeof header.column.columnDef.header === "string"
-                        ? header.column.columnDef.header
-                        : COLUMN_LABELS[header.column.id]
-                    }
-                    style={{
-                      width: `calc(var(--header-${header.id}-size) * 1px)`,
-                      ...(header.column.getIsPinned()
-                        ? {
-                            ...getCommonPinningStyles(header.column),
-                            zIndex: 3,
-                          }
-                        : {}),
-                    }}
+          <table
+            css={selectableTableCSS}
+            aria-label="Project evaluators"
+            style={{
+              ...columnSizeVars,
+              width: table.getTotalSize(),
+              minWidth: "100%",
+            }}
+          >
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <ColumnHeaderCell
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      columnId={header.column.id}
+                      index={getColumnOrderIndex(header.column.id)}
+                      label={
+                        typeof header.column.columnDef.header === "string"
+                          ? header.column.columnDef.header
+                          : COLUMN_LABELS[header.column.id]
+                      }
+                      style={{
+                        width: `calc(var(--header-${header.id}-size) * 1px)`,
+                        ...(header.column.getIsPinned()
+                          ? {
+                              ...getCommonPinningStyles(header.column),
+                              zIndex: 3,
+                            }
+                          : {}),
+                      }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <>
+                          <div
+                            style={{
+                              textAlign:
+                                header.column.columnDef.meta?.textAlign,
+                            }}
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                          </div>
+                          <div
+                            {...{
+                              onMouseDown: header.getResizeHandler(),
+                              onTouchStart: header.getResizeHandler(),
+                              className: `resizer ${
+                                header.column.getIsResizing()
+                                  ? "isResizing"
+                                  : ""
+                              }`,
+                            }}
+                          />
+                        </>
+                      )}
+                    </ColumnHeaderCell>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            {isEmpty ? (
+              <TableEmptyWrap>
+                <CompactEmptyState
+                  icon={<Icon svg={<Icons.Scale />} />}
+                  description="No evaluators"
+                  isFiltered={isFiltered}
+                />
+              </TableEmptyWrap>
+            ) : (
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => navigate(paths.details(row.original.id))}
                   >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        <div
+                    {row.getVisibleCells().map((cell) => {
+                      const colSizeVar = `--col-${cell.column.id}-size`;
+                      return (
+                        <td
+                          key={cell.id}
                           style={{
-                            textAlign: header.column.columnDef.meta?.textAlign,
+                            width: `calc(var(${colSizeVar}) * 1px)`,
+                            maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            textAlign: cell.column.columnDef.meta?.textAlign,
+                            ...(cell.column.getIsPinned()
+                              ? getCommonPinningStyles(cell.column)
+                              : {}),
                           }}
                         >
                           {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
+                            cell.column.columnDef.cell,
+                            cell.getContext()
                           )}
-                        </div>
-                        <div
-                          {...{
-                            onMouseDown: header.getResizeHandler(),
-                            onTouchStart: header.getResizeHandler(),
-                            className: `resizer ${
-                              header.column.getIsResizing() ? "isResizing" : ""
-                            }`,
-                          }}
-                        />
-                      </>
-                    )}
-                  </ColumnHeaderCell>
+                        </td>
+                      );
+                    })}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </thead>
-          {isEmpty ? (
-            <TableEmptyWrap>
-              <CompactEmptyState
-                icon={<Icon svg={<Icons.Scale />} />}
-                description="No evaluators"
-                isFiltered={isFiltered}
-              />
-            </TableEmptyWrap>
-          ) : (
-            <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={row.id}
-                  onClick={() => navigate(paths.details(row.original.id))}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const colSizeVar = `--col-${cell.column.id}-size`;
-                    return (
-                      <td
-                        key={cell.id}
-                        style={{
-                          width: `calc(var(${colSizeVar}) * 1px)`,
-                          maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          textAlign: cell.column.columnDef.meta?.textAlign,
-                          ...(cell.column.getIsPinned()
-                            ? getCommonPinningStyles(cell.column)
-                            : {}),
-                        }}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          )}
-        </table>
-      </ColumnOrderingProvider>
+              </tbody>
+            )}
+          </table>
+        </ColumnOrderingProvider>
+      </EvaluatorScoreWindowProvider>
       {hasNext ? (
         <View padding="size-100">
           <Flex justifyContent="center">

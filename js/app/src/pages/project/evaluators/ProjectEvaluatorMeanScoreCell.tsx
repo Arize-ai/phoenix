@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
 import type { ComponentProps, ReactNode } from "react";
-import { Suspense } from "react";
+import { createContext, Suspense, useContext } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import invariant from "tiny-invariant";
 
 import {
   Flex,
@@ -97,6 +98,48 @@ const meanScoreFallback = (
   </AlignedScore>
 );
 
+const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
+  null
+);
+
+/**
+ * Provides the score window to the mean score column's header and cells.
+ *
+ * Context rather than a prop threaded through the column defs: a column def
+ * closing over the window would rebuild — and, because tanstack renders the
+ * def's `cell` function as an element type, REMOUNT every cell — each time
+ * the window changes, including the live range's once-a-minute/hour
+ * re-anchor. A remounted cell's Suspense always flashes its fallback; a
+ * context update just re-renders, so a deferred window can load in the
+ * background while the cells keep their content.
+ */
+export const EvaluatorScoreWindowProvider =
+  EvaluatorScoreWindowContext.Provider;
+
+function useEvaluatorScoreWindow(): EvaluatorScoreWindow {
+  const scoreWindow = useContext(EvaluatorScoreWindowContext);
+  invariant(
+    scoreWindow != null,
+    "useEvaluatorScoreWindow requires an EvaluatorScoreWindowProvider"
+  );
+  return scoreWindow;
+}
+
+/** The mean score column's header: the label plus the window it covers. */
+export function ProjectEvaluatorMeanScoreHeader() {
+  const scoreWindow = useEvaluatorScoreWindow();
+  return (
+    <Flex direction="row" gap="size-50" alignItems="baseline">
+      <span title="Mean score of the annotations this evaluator produced in the selected time range (at most the last 30 days), with the change vs. the previous window.">
+        mean score
+      </span>
+      <Text size="XS" fontFamily="mono" color="text-500">
+        {scoreWindow.windowKey}
+      </Text>
+    </Flex>
+  );
+}
+
 /**
  * The evaluators table's mean score cell: for each annotation the evaluator
  * writes, the mean score over the (clamped) page time range, its change vs.
@@ -107,15 +150,14 @@ export function ProjectEvaluatorMeanScoreCell({
   projectId,
   evaluationTarget,
   annotations,
-  scoreWindow,
 }: {
   /** The evaluated project the evaluator's annotations land on. */
   projectId: string;
   evaluationTarget: EvaluationTarget;
   /** The annotations the evaluator writes, named the way its runs persist them. */
   annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
-  scoreWindow: EvaluatorScoreWindow;
 }) {
+  const scoreWindow = useEvaluatorScoreWindow();
   return (
     <Flex direction="column" gap="size-50">
       {annotations.map((annotation) => (
