@@ -4,13 +4,12 @@ import json
 from dataclasses import dataclass
 from typing import Any, cast
 
-from jinja2 import Template
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
 from phoenix.config import SERVER_DIR
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.types import AgentDependencies
 
 RENDER_GENERATIVE_UI_TOOL_NAME = "render_generative_ui"
@@ -56,6 +55,26 @@ DESCRIPTION = "\n".join(
             "Do not provide partial updates, JSONL patches, markdown, or prose inside "
             "`spec`; provide the full render tree in one object."
         ),
+        (
+            "Reach for this when the user asks to compare quantities across categories, "
+            "time buckets, models, spans, sessions, or trace groups, and you have enough "
+            "structured data for a small, self-contained visualization. Prefer BarChart, "
+            "VerticalBarChart, StackedBarChart, and LineChart for quantitative answers."
+        ),
+        (
+            "Keep BarChart, VerticalBarChart, and StackedBarChart `data` arrays between 2 "
+            "and 12 items, with 2 to 4 segments in each StackedBarChart bar, and keep "
+            "LineChart `lines` arrays between 1 and 4 items. A VerticalBarChart bar "
+            "supports one base value and one optional highlight value, not arbitrary "
+            "stacked subdivisions. When data density exceeds the bar chart limits, switch "
+            "to a line chart or consolidate periods, such as hourly metrics into multi-hour "
+            "chunks or monthly data into weekly summaries."
+        ),
+        (
+            "If a call fails because the chart request violates a requirement, correct the "
+            "counts or malformed data and re-render without announcing the specific limit "
+            "numbers."
+        ),
         _GENERATIVE_UI_COMPONENT_REFERENCE,
     ]
 )
@@ -89,11 +108,6 @@ RENDER_GENERATIVE_UI_TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class RenderGenerativeUICapability(AbstractStaticCapability[AgentDependencies]):
-    instructions: Template
-
+class RenderGenerativeUICapability(AbstractCapability[AgentDependencies]):
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([RENDER_GENERATIVE_UI_TOOL_DEFINITION])
-
-    def get_static_instructions(self) -> str:
-        return self.instructions.render()

@@ -117,6 +117,31 @@ class AdaptiveTokenBucket:
         self.last_error = now
         time.sleep(self.cooldown)  # block for a bit to let the rate limit reset
 
+    async def async_on_rate_limit_error(
+        self, request_start_time: float, verbose: bool = False
+    ) -> None:
+        now = time.time()
+        if request_start_time < (self.last_error + self.cooldown):
+            # do not reduce the rate for concurrent requests
+            return
+
+        original_rate = self.rate
+
+        self.rate = original_rate * self.rate_reduction_factor
+        printif(
+            verbose,
+            f"Throttling from {original_rate} RPS to {self.rate} RPS after rate limit error",
+        )
+
+        self.rate = max(self.rate, self.minimum_rate)
+
+        # reset request tokens on a rate limit error
+        self.tokens = 0
+        self.last_checked = now
+        self.last_rate_update = now
+        self.last_error = now
+        await asyncio.sleep(self.cooldown)  # non-blocking sleep for async path
+
     def max_tokens(self) -> float:
         return self.rate * self.enforcement_window
 
@@ -273,15 +298,17 @@ class RateLimiter:
             except self._rate_limit_error:
                 async with self._rate_limit_handling_lock:
                     self._rate_limit_handling.clear()  # prevent new requests from starting
-                    self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
                     try:
+                        await self._throttler.async_on_rate_limit_error(
+                            request_start_time, verbose=self._verbose
+                        )
                         for _attempt in range(self._max_rate_limit_retries):
                             try:
                                 request_start_time = time.time()
                                 await self._throttler.async_wait_until_ready()
                                 return await fn(*args, **kwargs)
                             except self._rate_limit_error:
-                                self._throttler.on_rate_limit_error(
+                                await self._throttler.async_on_rate_limit_error(
                                     request_start_time, verbose=self._verbose
                                 )
                                 continue

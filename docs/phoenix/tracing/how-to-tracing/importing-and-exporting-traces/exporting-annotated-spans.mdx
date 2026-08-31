@@ -54,6 +54,25 @@ spans = client.spans.get_spans_dataframe(
 )
 ```
 
+To filter spans by **trace-level** annotations (annotations attached to the
+trace rather than an individual span), use `trace_annotations` in place of
+`annotations`. Spans are returned when the trace they belong to carries a
+matching annotation.
+
+```python
+from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
+
+client = Client()
+query = SpanQuery().where("trace_annotations['quality'].score >= 0.5")
+# query = SpanQuery().where("trace_annotations['quality'].label == 'good'")
+
+spans = client.spans.get_spans_dataframe(
+    query=query,
+    project_identifier="default",  # you can also pass a project id
+)
+```
+
 This spans dataframe can be used to pull associated annotations.
 
 ```python

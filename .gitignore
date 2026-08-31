@@ -19,12 +19,15 @@ sdist
 phoenix.db*
 
 # Docgen
-/js/**/docs
+# Scoped to typedoc output locations: /js/**/docs would also swallow
+# source directories like js/app/src/agent/tools/docs/
+/js/docs
+/js/packages/*/docs
 
 # Data files
 *.csv
 !tests/**/fixtures/*.csv
-!app/tests/fixtures/*.csv
+!js/app/tests/fixtures/*.csv
 *.hdf
 *.hdf5
 .jcs-test-data/*
@@ -94,5 +97,16 @@ helm/charts/*.tgz
 .hypothesis
 .claude/worktrees/
 
+# Build-context artifacts copied into each task's environment
+/evals/harbor/**/*.whl
+/evals/harbor/tasks/**/environment/run_headless_agent.py
+/evals/harbor/tasks/**/environment/fetch_fixtures.py
+
 # WebAssembly binaries
-wasm/*.wasm
+**/wasm/*.wasm
+
+# Harbor run artifacts
+/jobs/
+
+# pi extensions
+.pi/extensions/

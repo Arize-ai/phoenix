@@ -105,6 +105,7 @@ All pre-built evaluators are available from the `@arizeai/phoenix-evals/llm` mod
 | Tool Invocation        | `createToolInvocationEvaluator`       | Evaluates whether the correct tool was invoked with the right arguments           |
 | Tool Selection         | `createToolSelectionEvaluator`        | Checks whether the right tool was selected for the task                           |
 | Tool Response Handling | `createToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response                               |
+| PII Detection          | `createPiiDetectionEvaluator`         | Screens a conversation record for personally identifiable information             |
 
 ```typescript
 import {

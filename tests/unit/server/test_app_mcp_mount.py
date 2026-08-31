@@ -32,6 +32,7 @@ from phoenix.server.types import (
     RefreshTokenId,
     UserId,
 )
+from phoenix.version import __version__ as phoenix_version
 from tests.unit.conftest import (
     TestBulkInserter,
     patch_batched_caller,
@@ -42,23 +43,128 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
+def _unused_db() -> DbSessionFactory:
+    """A session factory for tests that must never reach the database.
+
+    Cheaper than the `db` fixture, which builds an engine, a connection and a
+    savepoint per test -- and stricter: these tests assert mounting and
+    code-mode validation, so a session here would mean the test had started
+    measuring something else. Raising says so at the point it happens.
+    """
+
+    def _never(*_: object, **__: object) -> Any:
+        raise AssertionError("this test must not open a database session")
+
+    return DbSessionFactory(db=_never, dialect="sqlite")
+
+
 async def test_base_mcp_app_does_not_require_a_monty_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
 
-    mcp_app, sandbox = create_phoenix_mcp_app(FastAPI())
+    mcp_app, sandbox = create_phoenix_mcp_app(FastAPI(), db=_unused_db())
 
     assert sandbox is None
     async with LifespanManager(mcp_app):
         pass
 
 
+async def test_mcp_server_advertises_the_phoenix_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The handshake identifies the Phoenix build, not the FastMCP library.
+
+    FastMCP defaults an unset version to its own, which tells a client nothing
+    about the server it reached.
+    """
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
+    from fastmcp import Client
+    from fastmcp.client.transports import StreamableHttpTransport
+
+    mcp_app, _ = create_phoenix_mcp_app(FastAPI(), db=_unused_db())
+
+    def _factory(
+        headers: dict[str, str] | None = None,
+        timeout: httpx.Timeout | None = None,
+        auth: httpx.Auth | None = None,
+        # fastmcp passes this beyond the McpHttpClientFactory protocol.
+        follow_redirects: bool = True,
+    ) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=mcp_app),
+            base_url="http://testserver",
+            headers=headers,
+            follow_redirects=follow_redirects,
+        )
+
+    # The app is built with ``http_app(path="/")``, so it answers at its own root.
+    transport = StreamableHttpTransport(
+        url="http://testserver/",
+        httpx_client_factory=_factory,
+    )
+    async with LifespanManager(mcp_app), Client(transport) as client:
+        assert client.initialize_result is not None
+        assert client.initialize_result.serverInfo.version == phoenix_version
+
+
+async def test_the_mount_serves_no_skills(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Skills are PXI-only for now: the ``/mcp`` mount neither advertises them in
+    the handshake nor mounts the tools that load them."""
+    monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
+    from fastmcp import Client
+    from fastmcp.client.transports import StreamableHttpTransport
+
+    mcp_app, _ = create_phoenix_mcp_app(FastAPI(), db=_unused_db())
+
+    def _factory(
+        headers: dict[str, str] | None = None,
+        timeout: httpx.Timeout | None = None,
+        auth: httpx.Auth | None = None,
+        follow_redirects: bool = True,
+    ) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=mcp_app),
+            base_url="http://testserver",
+            headers=headers,
+            follow_redirects=follow_redirects,
+        )
+
+    transport = StreamableHttpTransport(url="http://testserver/", httpx_client_factory=_factory)
+    async with LifespanManager(mcp_app), Client(transport) as client:
+        assert client.initialize_result is not None
+        instructions = client.initialize_result.instructions
+        tool_names = {tool.name for tool in await client.list_tools()}
+
+    assert instructions is None
+    assert tool_names.isdisjoint({"load_skill", "load_skill_reference"})
+
+
+async def test_the_agents_own_server_adds_the_pxi_skills(
+    db: DbSessionFactory,
+) -> None:
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=db,
+            authentication_enabled=False,
+            serve_ui=False,
+            bulk_inserter_factory=TestBulkInserter,
+        )
+
+    instructions = app.state.pxi_mcp_server.instructions
+    assert "<name>phoenix-graphql</name>" in instructions
+    assert "<name>project-overview</name>" not in instructions
+
+
 def test_code_mode_requires_a_monty_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
 
     with pytest.raises(ValueError, match="Monty runtime is required when MCP code mode is enabled"):
-        create_phoenix_mcp_app(FastAPI())
+        create_phoenix_mcp_app(FastAPI(), db=_unused_db())
 
 
 async def test_shared_monty_runtime_is_torn_down_after_the_mcp_server_drains(
@@ -197,6 +303,69 @@ async def test_mcp_server_not_mounted_by_default(
         )
         assert app.state.mcp_http_app is None
         assert not any(getattr(r, "path", None) == MCP_MOUNT_PATH for r in app.routes)
+
+
+class TestAgentMCPServerIsIndependentOfTheMount:
+    """The agent's server shares the mount's derivation but not its lifetime or
+    configuration."""
+
+    @staticmethod
+    async def _create_app(db: DbSessionFactory) -> FastAPI:
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_grpc_server())
+            return create_app(
+                db=db,
+                authentication_enabled=False,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+            )
+        raise AssertionError("unreachable")
+
+    async def test_built_even_when_the_mount_is_disabled(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
+
+        app = await self._create_app(db)
+
+        assert app.state.mcp_http_app is None
+        assert app.state.pxi_mcp_server is not None
+
+    async def test_absent_when_the_assistant_is_disabled(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The tools follow the assistant, not the mount."""
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
+        monkeypatch.setattr("phoenix.server.app.get_env_disable_agent_assistant", lambda: True)
+
+        app = await self._create_app(db)
+
+        assert app.state.pxi_mcp_server is None
+
+    async def test_surface_is_read_only(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Against the real ``/v1`` spec rather than a stand-in.
+
+        Code mode hides the derived tools behind ``execute``, so this asserts on
+        the derivation the agent's server is built from. That the sandbox catalog
+        reflects it is covered in ``test_phoenix_mcp``.
+        """
+        from phoenix.server.mcp_server import build_phoenix_mcp_server
+
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
+
+        app = await self._create_app(db)
+        assert app.state.pxi_mcp_server is not None
+        derived, _ = build_phoenix_mcp_server(app, code_mode=False, read_only=True, db=_unused_db())
+        tools = await derived.list_tools()
+
+        assert tools, "expected the /v1 spec to yield tools"
+        for tool in tools:
+            if tool.annotations is None:  # the group meta-tools carry their own
+                continue
+            assert tool.annotations.readOnlyHint is True, f"{tool.name} is not read-only"
 
 
 async def test_mcp_code_mode_replaces_tool_surface(

@@ -37,12 +37,13 @@ The client will automatically read environment variables from your environment, 
 
 The following environment variables are used:
 
-- `PHOENIX_HOST` - The base URL of the Phoenix API.
+- `PHOENIX_ENDPOINT` - The base URL of your Phoenix. This is the canonical setting for the client.
 - `PHOENIX_API_KEY` - The API key to use for authentication.
 - `PHOENIX_CLIENT_HEADERS` - Custom headers to add to all requests. A JSON stringified object.
+- `PHOENIX_COLLECTOR_ENDPOINT` - Read by the OTel SDK for trace export, usually the same URL as `PHOENIX_ENDPOINT`. The client uses it for API access when `PHOENIX_ENDPOINT` is unset.
 
 ```bash
-PHOENIX_HOST='http://localhost:12345' PHOENIX_API_KEY='xxxxxx' pnpx tsx examples/list_datasets.ts
+PHOENIX_ENDPOINT='http://localhost:12345' PHOENIX_API_KEY='xxxxxx' pnpx tsx examples/list_datasets.ts
 # emits the following request:
 # GET http://localhost:12345/v1/datasets
 # headers: {
@@ -430,7 +431,7 @@ const sessionTraces = await getTraces({
 | `sort`         | `"start_time" \| "latency_ms"` | Sort field                                 |
 | `order`        | `"asc" \| "desc"`              | Sort direction                             |
 | `limit`        | `number`                       | Maximum number of traces to return         |
-| `cursor`       | `string \| null`               | Pagination cursor (Trace GlobalID)         |
+| `cursor`       | `string \| null`               | Pagination cursor                          |
 | `includeSpans` | `boolean`                      | Include full span details for each trace   |
 | `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)     |
 
@@ -728,6 +729,55 @@ await addSessionNote({
   },
 });
 ```
+
+## Projects
+
+The `@arizeai/phoenix-client` package provides a `projects` export for listing projects and managing their retention-policy assignments.
+
+### Fetching Projects
+
+Use `getProjects` to list projects. Pagination is handled for you.
+
+```ts
+import { getProjects } from "@arizeai/phoenix-client/projects";
+
+// List every project
+const projects = await getProjects();
+
+for (const project of projects) {
+  console.log(`Project: ${project.name} (${project.id})`);
+}
+```
+
+Pass `nameContains` to filter by a case-insensitive substring of the project name. The filter is applied server-side and requires Phoenix server `17.16.0` or newer.
+
+```ts
+const agentProjects = await getProjects({ nameContains: "agent" });
+```
+
+### Assigning a Retention Policy
+
+Use `setProjectRetentionPolicy` to assign an existing trace retention policy by GlobalID. Select the project by name or GlobalID.
+
+```ts
+import { setProjectRetentionPolicy } from "@arizeai/phoenix-client/projects";
+
+await setProjectRetentionPolicy({
+  projectName: "support-bot",
+  policyId: "UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI=",
+});
+```
+
+Pass `policyId: null` to reset the project to Phoenix's default retention policy:
+
+```ts
+await setProjectRetentionPolicy({
+  projectId: "UHJvamVjdDox",
+  policyId: null,
+});
+```
+
+This helper only changes a project's assignment to an existing policy. Creating, reading, updating, and deleting retention policies is outside the scope of the TypeScript projects helper.
 
 ## Examples
 

@@ -21,7 +21,7 @@ Capture screenshots of the Phoenix UI to visually document a feature in a pull r
 
 ### Step 1: Build the frontend
 
-The Phoenix backend serves the built frontend from `src/phoenix/server/static/`. Build it from the `app/` directory:
+The Phoenix backend serves the built frontend from `src/phoenix/server/static/`. Build it from the `js/app/` directory:
 
 ```bash
 cd <repo-root>/app

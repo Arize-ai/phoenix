@@ -56,7 +56,7 @@ interface SetupMcpCommandOptions {
   local?: boolean;
   /**
    * `--endpoint <url>`: Phoenix base URL. Overrides the active profile and
-   * `PHOENIX_HOST`; when omitted the endpoint is inferred and (interactively)
+   * `PHOENIX_ENDPOINT`; when omitted the endpoint is inferred and (interactively)
    * confirmable.
    *
    * @example "https://phoenix.example.com"
@@ -221,7 +221,7 @@ export function createSetupMcpCommand(): Command {
   command
     .description(
       "Register the Phoenix remote MCP server with a coding agent.\n" +
-        "The endpoint is inferred from --endpoint, the active profile, or PHOENIX_HOST."
+        "The endpoint is inferred from --endpoint, the active profile, or PHOENIX_ENDPOINT."
     )
     .option(
       "--agent <agent>",

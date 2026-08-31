@@ -36,7 +36,7 @@ npm install
 Create a `.env` file in this directory:
 
 ```env
-PHOENIX_HOST=https://app.phoenix.arize.com/s/your-space
+PHOENIX_ENDPOINT=https://app.phoenix.arize.com/s/your-space
 PHOENIX_API_KEY=your-phoenix-api-key
 OPENAI_API_KEY=your-openai-api-key
 ```

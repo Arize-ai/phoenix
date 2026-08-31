@@ -1,5 +1,11 @@
 # Span Filter DSL
 
+> This spec (with its conformance tests) is the authority on what the language accepts. The
+> **user-facing** grammar reference is the public
+> [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions)
+> doc — a curated derivative of this spec, not a second authority. Keep them in sync when the
+> accepted grammar changes.
+
 Reference for the filter-condition language implemented in
 `src/phoenix/trace/dsl/filter.py`.
 
@@ -304,11 +310,19 @@ three-valued logic `name not in ['a', None]` is never true for *any* row, which
 silently empties the result set. Missing values are tested with `is None` /
 `is not None`.
 
-Substring containment is **case-sensitive** on both backends (`strpos` on
-PostgreSQL, `text_contains` on SQLite), with one exception: a literal needle
-searched against a case-folded enum field is uppercased first, so
-`'llm' in span_kind` matches where `'llm' in name` would not — see
-[Field names](#field-names).
+Substring containment is **case-insensitive** on both backends (both operands
+are lower-cased before a `LIKE`-style containment test). This matches the
+session filter grain, so the same-looking query answers the same way in the
+spans and sessions views; the cross-grain reasoning is recorded in
+`session-filter-dsl.md` under *Case*. Equality (`==` / `!=`) and membership in
+a literal list stay exact. Case-folded enum fields need no needle handling
+under this rule — `'llm' in span_kind` and `'LLM' in span_kind` already match
+the same rows — while enum *equality* still uppercases its literal, so
+`span_kind == 'llm'` keeps matching (see [Field names](#field-names)).
+
+> Compatibility note: containment was case-sensitive (`strpos` /
+> `text_contains`) until the session filter DSL shipped. A saved filter using `in` returns the
+> same rows or more, never fewer; one using `not in` returns the same rows or fewer, never more.
 
 ### Casts
 
@@ -1530,10 +1544,10 @@ go looking for a grammar that does not exist.
 | `src/phoenix/db/models.py` | `SafeJsonFloat`, `SafeJsonBoolean`, `TextContains` — the dialect-specific SQL the guarantees compile to |
 | `src/phoenix/server/api/types/Project.py` | `validateSpanFilterCondition`, `analyzeSpanFilterCondition` |
 | `src/phoenix/server/api/exceptions.py` | Filter errors (`SpanFilterError`, `ExperimentRunFilterConditionSyntaxError`) → GraphQL error mapping |
-| `app/src/components/filter/DSLFilterConditionField.tsx` | Debounced field, error badge |
-| `app/src/pages/project/spanFilterValidation.ts` | Client validation + cache |
-| `app/src/pages/project/spanFilterSeed.ts` | Mount-time seed classification |
-| `app/src/pages/project/SpanFilterErrorFallback.tsx` | Error-boundary fallback |
+| `js/app/src/components/filter/DSLFilterConditionField.tsx` | Debounced field, error badge |
+| `js/app/src/pages/project/spanFilterValidation.ts` | Client validation + cache |
+| `js/app/src/pages/project/spanFilterSeed.ts` | Mount-time seed classification |
+| `js/app/src/pages/project/SpanFilterErrorFallback.tsx` | Error-boundary fallback |
 | `tests/unit/trace/dsl/test_filter.py` | Grammar, type, dialect, and execution tests |
 | `tests/unit/trace/dsl/test_filter_spec_conformance.py` | Executable form of this document's accept/reject tables |
 | `tests/unit/trace/dsl/test_filter_error_messages.py` | Pins the user-facing messages above |

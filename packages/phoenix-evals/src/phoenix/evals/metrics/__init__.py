@@ -3,10 +3,12 @@ from .correctness import CorrectnessEvaluator
 from .document_relevance import DocumentRelevanceEvaluator
 from .exact_match import exact_match
 from .faithfulness import FaithfulnessEvaluator
-from .hallucination import HallucinationEvaluator  # Deprecated alias
+from .hallucination import HallucinationEvaluator
 from .matches_regex import MatchesRegex
+from .pii_detection import PiiDetectionEvaluator
 from .precision_recall import PrecisionRecallFScore
 from .refusal import RefusalEvaluator
+from .retrieval_relevance import RetrievalRelevanceEvaluator
 from .tool_invocation import ToolInvocationEvaluator
 from .tool_response_handling import ToolResponseHandlingEvaluator
 from .tool_selection import ToolSelectionEvaluator
@@ -19,10 +21,12 @@ __all__ = [
     "DocumentRelevanceEvaluator",
     "exact_match",
     "FaithfulnessEvaluator",
-    "HallucinationEvaluator",  # Deprecated: use FaithfulnessEvaluator
+    "HallucinationEvaluator",
     "MatchesRegex",
+    "PiiDetectionEvaluator",
     "PrecisionRecallFScore",
     "RefusalEvaluator",
+    "RetrievalRelevanceEvaluator",
     "ToolInvocationEvaluator",
     "ToolResponseHandlingEvaluator",
     "ToolSelectionEvaluator",

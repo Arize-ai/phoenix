@@ -33,8 +33,10 @@ jobs:
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
       migrations: ${{ steps.filter.outputs.migrations }}
+      ddl: ${{ steps.filter.outputs.ddl }}
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
+      filter_dsl: ${{ steps.filter.outputs.filter_dsl }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -67,11 +69,20 @@ jobs:
               - "tox.ini"
             migrations:
               - "src/phoenix/db/migrations/versions/**"
+            ddl:
+              - "src/phoenix/db/migrations/**"
+              - "src/phoenix/db/ddl/*.sql"
+              - "scripts/ddl/**"
             json_canonicalization_schema:
               - "src/phoenix/vendor/json_canonicalization_scheme/**/*.py"
             uv_lock:
               - "**/pyproject.toml"
               - "uv.lock"
+            filter_dsl:
+              - "js/app/src/pages/project/traceFilterDSL.ts"
+              - "js/app/src/pages/project/sessionFilterDSL.ts"
+              - "src/phoenix/trace/dsl/**"
+              - "scripts/ci/check_filter_dsl_snippets.py"
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}
@@ -82,8 +93,10 @@ jobs:
           PHOENIX_EVALS: ${{ steps.filter.outputs.phoenix_evals }}
           PHOENIX_OTEL: ${{ steps.filter.outputs.phoenix_otel }}
           MIGRATIONS: ${{ steps.filter.outputs.migrations }}
+          DDL: ${{ steps.filter.outputs.ddl }}
           UV_LOCK: ${{ steps.filter.outputs.uv_lock }}
           JSON_CANONICALIZATION_SCHEMA: ${{ steps.filter.outputs.json_canonicalization_schema }}
+          FILTER_DSL: ${{ steps.filter.outputs.filter_dsl }}
         run: |
           echo "ipynb: $IPYNB"
           echo "ipynb_files: $IPYNB_FILES"
@@ -93,8 +106,10 @@ jobs:
           echo "phoenix_evals: $PHOENIX_EVALS"
           echo "phoenix_otel: $PHOENIX_OTEL"
           echo "migrations: $MIGRATIONS"
+          echo "ddl: $DDL"
           echo "uv_lock: $UV_LOCK"
           echo "json_canonicalization_schema: $JSON_CANONICALIZATION_SCHEMA"
+          echo "filter_dsl: $FILTER_DSL"
 
   phoenix-client:
     name: Phoenix Client
@@ -117,7 +132,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - run: uvx tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
@@ -141,7 +156,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - run: uvx tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
@@ -164,7 +179,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - run: uvx tox run -e phoenix_otel -- -ra -x
 
   test-json-canonicalization-schema:
@@ -200,7 +215,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Install make (Windows)
         if: runner.os == 'Windows'
         run: choco install make --no-progress -y
@@ -234,7 +249,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Clean Jupyter notebooks
         run: make clean-notebooks
       - run: git diff --exit-code
@@ -260,10 +275,42 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Build GraphQL schema
         run: make schema-graphql
       - run: git diff --exit-code
+
+  check-filter-dsl-snippets:
+    name: Check Filter DSL Snippets
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.filter_dsl == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/ci/
+            requirements/
+            src/phoenix/
+            packages/
+            js/app/src/pages/project/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.12.5"
+      - name: Check UI filter DSL snippets against the Python filters
+        run: make check-filter-dsl-snippets
 
   doctests:
     name: Doctests
@@ -286,7 +333,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Run doctests
         run: make doctest
 
@@ -311,9 +358,39 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Build OpenAPI schema
         run: make schema-openapi
+      - run: git diff --exit-code
+
+  build-ddl-schema:
+    name: Build DDL Schema
+    needs: changes
+    if: ${{ needs.changes.outputs.ddl == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.12.5"
+      - name: Create virtual environment
+        # `make schema-ddl` installs its dependencies with `uv pip install`,
+        # which requires an existing environment.
+        run: uv venv
+      - name: Compile DDL schema
+        run: make schema-ddl
       - run: git diff --exit-code
 
   codegen-prompts:
@@ -337,7 +414,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Compile Prompts
         run: make codegen-prompts
       - name: Check for changes
@@ -365,7 +442,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Check lockfile is up to date
         run: uv lock --check
 
@@ -389,7 +466,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Run formatter and linter
         run: |
           make format-python
@@ -426,7 +503,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Sync dependencies
         run: uv sync --frozen
       - name: Type check all Python code
@@ -465,7 +542,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Install PostgreSQL (product floor)
         if: matrix.db == 'postgresql'
         # The floor version from the PGDG repository, not whatever the
@@ -539,7 +616,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 16
@@ -578,7 +655,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'
@@ -634,7 +711,7 @@ jobs:
       fail-fast: false
       matrix:
         py: ["3.10"]
-        pkg: [openai, anthropic]
+        pkg: [openai, anthropic, google_genai]
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -651,7 +728,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.11.12"
+          version: "0.12.5"
       - name: Run canary tests for ${{ matrix.pkg }}
         run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
 
@@ -665,7 +742,9 @@ jobs:
       - phoenix-otel
       - clean-jupyter-notebooks
       - build-graphql-schema
+      - check-filter-dsl-snippets
       - build-openapi-schema
+      - build-ddl-schema
       - codegen-prompts
       - check-lockfile
       - type-check

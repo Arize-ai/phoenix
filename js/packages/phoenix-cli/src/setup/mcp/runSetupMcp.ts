@@ -66,7 +66,7 @@ export const COPY = {
     "Enter a full http:// or https:// URL (e.g. http://localhost:6006).",
   endpointUnusable: (value: string) =>
     `The resolved endpoint "${value}" ${ENDPOINT_REQUIREMENT}. ` +
-    "Fix PHOENIX_HOST or the active profile, or pass --endpoint <url>.",
+    "Fix PHOENIX_ENDPOINT or the active profile, or pass --endpoint <url>.",
   usingEndpoint: (url: string) =>
     `Registering the Phoenix MCP server at ${url}`,
   scopePrompt: "Where should the MCP server be configured?",
@@ -202,7 +202,7 @@ async function resolveEndpoint(
 ): Promise<string> {
   // Headless, or endpoint pinned by flag: take the resolved value as-is.
   if (inputs.headless || inputs.endpointExplicit) {
-    // The value may come from PHOENIX_HOST or a profile, which nothing has
+    // The value may come from an endpoint env var or a profile, which nothing has
     // validated yet — refuse it as bad input rather than let
     // `normalizeEndpoint`'s TypeError get misreported as a network error.
     if (!isEndpointUrl(inputs.endpoint)) {

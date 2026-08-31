@@ -57,6 +57,15 @@ export const CANCEL_OUTRO = [
 
 export const OUTRO_TITLE = "You're set up.";
 
+/**
+ * Closing line for a run that instrumented but never saw a trace. Setup's
+ * definition of done is API-verified data flow, so the frame must not close on
+ * "You're set up." when the one thing it verifies did not happen — everything
+ * before this point is configuration, and configuration is not tracing.
+ */
+export const OUTRO_TITLE_NOT_VERIFIED =
+  "Setup finished, but no trace arrived — tracing is not confirmed working yet.";
+
 export const OUTRO_BODY = SUPPORT_LINKS;
 
 // ---------------------------------------------------------------------------
@@ -126,7 +135,7 @@ export const ENDPOINT = {
   headlessNeedsEndpoint: [
     "Missing endpoint. Provide one of:",
     "  --endpoint <url>",
-    "  PHOENIX_HOST=<url> (or PHOENIX_COLLECTOR_ENDPOINT=<url>)",
+    "  PHOENIX_ENDPOINT=<url> (or PHOENIX_COLLECTOR_ENDPOINT=<url>)",
   ].join("\n"),
 } as const;
 
@@ -266,6 +275,13 @@ export const VERIFY = {
     ].join("\n"),
   received: (tracesUrl: string) =>
     `✓ Traces are flowing. View them: ${tracesUrl}`,
+  /**
+   * Emitted when the span search never came back with an answer. Distinct from
+   * "no traces yet" on purpose: this is setup unable to look, not the app
+   * failing to emit, and the two have opposite remediations.
+   */
+  unreachable: (endpoint: string) =>
+    `! Could not reach Phoenix at ${endpoint} to check for traces — check the endpoint and credentials in .env.phoenix. Traces may be arriving even though this could not confirm it.`,
   timeoutMessage: "No traces have arrived yet. Keep watching?",
   keepWatchingLabel: "Keep watching",
   finishLabel: "Finish setup — I'll verify later",
@@ -276,6 +292,13 @@ export const VERIFY = {
   notVerifiedBody: (tracesUrl: string) =>
     [
       `Your first trace will appear at ${tracesUrl}`,
+      "",
+      // The failure mode that looks like success: an exporter pointed at the
+      // base URL POSTs to the wrong path, and batching swallows the error.
+      "Most often the exporter is posting to the wrong URL. An exporter that POSTs to",
+      "exactly the URL it is given needs the full OTLP URL, /v1/traces included — build",
+      "it in code from the endpoint variable.",
+      "",
       `Not seeing traces? ${DOCS.troubleshooting}`,
     ].join("\n"),
 } as const;
@@ -422,5 +445,32 @@ export const HEADLESS = {
       "  1. Export the vars:   set -a; source .env.phoenix; set +a",
       `  2. Instrument your app: ${DOCS.instrumentationIndex}`,
       `  3. Watch for traces:  ${tracesUrl}`,
+    ].join("\n"),
+  /**
+   * Next steps for a verified run. Still carries the export line: the trace
+   * came from the process setup handed the credentials to, so the user's own
+   * shell has them nowhere yet, and stdout is the only place a headless run
+   * says so.
+   */
+  verifiedNextSteps: (tracesUrl: string) =>
+    [
+      `✓ Traces are flowing. View them: ${tracesUrl}`,
+      "",
+      "To send traces from a new shell: set -a; source .env.phoenix; set +a",
+    ].join("\n"),
+  /**
+   * Next steps for a run that instrumented and saw nothing arrive. Separate
+   * from `nextSteps` because "instrument your app" is the wrong instruction
+   * here — the app was instrumented, and the exporter is what to look at.
+   */
+  notVerifiedNextSteps: (tracesUrl: string) =>
+    [
+      "The app was instrumented, but no trace arrived — do not treat tracing as working yet.",
+      "",
+      "Next steps:",
+      "  1. Export the vars:  set -a; source .env.phoenix; set +a",
+      "  2. Run your app so it makes one LLM call.",
+      `  3. Watch for traces: ${tracesUrl}`,
+      `  Still nothing? ${DOCS.troubleshooting}`,
     ].join("\n"),
 } as const;

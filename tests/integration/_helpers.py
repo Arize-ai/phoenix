@@ -2201,6 +2201,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/experiments/fake-id-{}/incomplete-evaluations"),
     (422, "GET", "v1/experiments/fake-id-{}/json"),
     (422, "GET", "v1/experiments/fake-id-{}/csv"),
+    (422, "GET", "v1/experiments/fake-id-{}/tags"),
     # Prompts
     (200, "GET", "v1/prompts"),
     (200, "GET", "v1/prompts/fake-id-{}/versions"),
@@ -2227,6 +2228,9 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/sessions/fake-id-{}"),
     # Traces (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/traces"),
+    # Model providers
+    (200, "GET", "v1/model_providers"),
+    (200, "GET", "v1/custom_model_providers"),
     # Viewer (authenticated user profile)
     (200, "GET", "v1/user"),
     # API keys (the authenticated user's own personal keys)
@@ -2241,6 +2245,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "POST", "v1/users"),
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
+    (422, "PATCH", "v1/projects/fake-id-{}/retention"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
     (422, "PUT", "v1/secrets"),
     (200, "GET", "v1/system/api_keys"),
@@ -2248,7 +2253,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "DELETE", "v1/system/api_keys/fake-id-{}"),
 )
 
-# Write operations blocked for viewers (POST/PUT/DELETE)
+# Write operations blocked for viewers (POST/PUT/PATCH/DELETE)
 # Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
 _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     # POST routes
@@ -2256,12 +2261,15 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/dataset_labels"),
     (400, "POST", "v1/datasets/upload"),
     (422, "POST", "v1/datasets/fake-id-{}/experiments"),
+    (422, "POST", "v1/datasets/fake-id-{}/splits"),
     (422, "POST", "v1/document_annotations"),
     (422, "POST", "v1/experiment_evaluations"),
     (422, "POST", "v1/experiments/fake-id-{}/runs"),
+    (422, "POST", "v1/experiments/fake-id-{}/tags"),
     (422, "POST", "v1/projects"),
     (422, "POST", "v1/projects/fake-id-{}/spans"),
     (422, "POST", "v1/prompts"),
+    (422, "POST", "v1/prompts/fake-id-{}/versions"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
     (422, "POST", "v1/session_annotations"),
     (422, "POST", "v1/session_notes"),
@@ -2271,6 +2279,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/trace_annotations"),
     (422, "POST", "v1/trace_notes"),
     (415, "POST", "v1/traces"),
+    (422, "POST", "v1/traces/transfer"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
     (404, "PUT", "v1/projects/{0}/annotation_configs/{0}"),
@@ -2280,13 +2289,17 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     # PATCH routes
     (422, "PATCH", "v1/experiments/fake-id-{}"),
     (422, "PATCH", "v1/dataset_labels/fake-id-{}"),
+    (422, "PATCH", "v1/prompts/fake-id-{}"),
+    (422, "PATCH", "v1/datasets/fake-id-{}/splits/test-split"),
     # DELETE routes
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
     (404, "DELETE", "v1/projects/{0}/annotation_configs/{0}"),
     (422, "DELETE", "v1/dataset_labels/fake-id-{}"),
     (422, "DELETE", "v1/datasets/fake-id-{}/labels/test-label"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}/splits/test-split"),
     (422, "DELETE", "v1/experiments/fake-id-{}"),
+    (422, "DELETE", "v1/experiments/fake-id-{}/tags/test-tag"),
     (404, "DELETE", "v1/sessions/fake-id-{}"),
     (404, "DELETE", "v1/spans/fake-id-{}"),
     (404, "DELETE", "v1/prompts/fake-id-{}"),
@@ -2305,6 +2318,11 @@ _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS = (
     (422, "POST", "v1/user/api_keys"),
     (422, "DELETE", "v1/user/api_keys/fake-id-{}"),
 )
+
+
+# POST endpoints that write nothing and are intentionally available to every
+# authenticated role, viewers included
+_VIEWER_ALLOWED_WRITE_OPERATIONS = ((422, "POST", "v1/chat/completions"),)
 
 
 # Credential issuance requires a human session (or, where supported, the admin secret).
@@ -2375,6 +2393,7 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
             _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+            _VIEWER_ALLOWED_WRITE_OPERATIONS,
         )
     }
 
@@ -2386,6 +2405,7 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
         path = re.sub(r"\{[^}]*\}", "{id}", path)
         path = re.sub(r"/tags/test-tag$", "/tags/{id}", path)
         path = re.sub(r"/labels/test-label$", "/labels/{id}", path)
+        path = re.sub(r"/splits/test-split$", "/splits/{id}", path)
         return path
 
     # Map normalized paths back to original paths for error reporting
@@ -2411,7 +2431,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
                 f"  - GET routes → _COMMON_RESOURCE_ENDPOINTS\n"
                 f"  - Admin-only routes (users, project CRUD) → _ADMIN_ONLY_ENDPOINTS\n"
                 f"  - Viewer-blocked writes → _VIEWER_BLOCKED_WRITE_OPERATIONS\n"
-                f"  - Viewer credential self-service → _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS\n\n"
+                f"  - Viewer credential self-service → _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS\n"
+                f"  - Viewer-allowed writes (e.g. LLM proxy) → _VIEWER_ALLOWED_WRITE_OPERATIONS\n\n"
                 f"Format: (expected_status_code, method, endpoint_path)\n"
                 f'Example: (404, "GET", "v1/projects/fake-id-{{}}") or (422, "POST", "v1/datasets/upload")'
             )
@@ -2422,8 +2443,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             error_parts.append(
                 f"Routes in test constants but NOT in server (removed?):\n{routes_str}\n\n"
                 f"Remove these from _COMMON_RESOURCE_ENDPOINTS, _ADMIN_ONLY_ENDPOINTS,\n"
-                f"_VIEWER_BLOCKED_WRITE_OPERATIONS, or "
-                f"_VIEWER_ALLOWED_CREDENTIAL_OPERATIONS in _helpers.py"
+                f"_VIEWER_BLOCKED_WRITE_OPERATIONS, _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,\n"
+                f"or _VIEWER_ALLOWED_WRITE_OPERATIONS in _helpers.py"
             )
         raise AssertionError("Endpoint coverage is incomplete!\n\n" + "\n\n".join(error_parts))
 

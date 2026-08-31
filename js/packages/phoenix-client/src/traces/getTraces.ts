@@ -22,7 +22,7 @@ export interface GetTracesParams extends ClientFn {
   order?: "asc" | "desc";
   /** Maximum number of traces to return */
   limit?: number;
-  /** Pagination cursor (Trace GlobalID) */
+  /** Pagination cursor */
   cursor?: string | null;
   /** If true, include full span details for each trace */
   includeSpans?: boolean;

@@ -378,7 +378,9 @@ async def test_filter_for_not_none(
     )
 
 
-async def test_filter_for_substring_case_sensitive_not_glob_not_like(
+@pytest.mark.parametrize("needle", ["y%*", "Y%*"])
+async def test_filter_for_substring_ignores_case_not_glob_not_like(
+    needle: str,
     db: DbSessionFactory,
     default_project: Any,
     abc_project: Any,
@@ -387,13 +389,13 @@ async def test_filter_for_substring_case_sensitive_not_glob_not_like(
         SpanQuery()
         .select("input.value")
         .where(
-            "'y%*' in input.value",
+            f"'{needle}' in input.value",
         )
     )
     expected = pd.DataFrame(
         {
-            "context.span_id": ["456"],
-            "input.value": ["xy%*z"],
+            "context.span_id": ["345", "456"],
+            "input.value": ["XY%*Z", "xy%*z"],
         }
     ).set_index("context.span_id")
     async with db() as session:
@@ -404,7 +406,9 @@ async def test_filter_for_substring_case_sensitive_not_glob_not_like(
     )
 
 
-async def test_filter_for_not_substring_case_sensitive_not_glob_not_like(
+@pytest.mark.parametrize("needle", ["y%*", "Y%*"])
+async def test_filter_for_not_substring_ignores_case_not_glob_not_like(
+    needle: str,
     db: DbSessionFactory,
     default_project: Any,
     abc_project: Any,
@@ -413,13 +417,39 @@ async def test_filter_for_not_substring_case_sensitive_not_glob_not_like(
         SpanQuery()
         .select("input.value")
         .where(
-            "'y%*' not in input.value",
+            f"'{needle}' not in input.value",
         )
     )
     expected = pd.DataFrame(
         {
-            "context.span_id": ["234", "345"],
-            "input.value": ["xy%z*", "XY%*Z"],
+            "context.span_id": ["234"],
+            "input.value": ["xy%z*"],
+        }
+    ).set_index("context.span_id")
+    async with db() as session:
+        actual = await session.run_sync(sq, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+async def test_filter_for_equality_stays_case_sensitive(
+    db: DbSessionFactory,
+    default_project: Any,
+    abc_project: Any,
+) -> None:
+    sq = (
+        SpanQuery()
+        .select("input.value")
+        .where(
+            "input.value == 'xy%*z'",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["456"],
+            "input.value": ["xy%*z"],
         }
     ).set_index("context.span_id")
     async with db() as session:

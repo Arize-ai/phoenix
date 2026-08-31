@@ -35,7 +35,11 @@ import {
   PROGRESS_PREFIX,
 } from "./logging";
 import { resumeEvaluation } from "./resumeEvaluation";
-import { cleanupOwnedTracerProvider } from "./tracing";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+  MISSING_BASE_URL_MESSAGE,
+} from "./tracing";
 
 /**
  * Error thrown when task is aborted due to a failure in stopOnFirstError mode.
@@ -182,14 +186,15 @@ async function handleFetchError(
  */
 function setupTracer({
   projectName,
-  baseUrl,
+  traceExportUrl,
   headers,
   useBatchSpanProcessor,
   diagLogLevel,
   setGlobalTracerProvider,
 }: {
   projectName: string | null;
-  baseUrl: string;
+  /** Where spans are exported; omit to let `register()` read the environment. */
+  traceExportUrl?: string;
   headers?: Record<string, string>;
   useBatchSpanProcessor: boolean;
   diagLogLevel?: DiagLogLevel;
@@ -205,7 +210,7 @@ function setupTracer({
 
   const provider = register({
     projectName,
-    url: baseUrl,
+    url: traceExportUrl,
     headers,
     batch: useBatchSpanProcessor,
     diagLogLevel,
@@ -307,15 +312,12 @@ export async function resumeExperiment({
 
   // Get base URL for tracing and URL generation
   const baseUrl = client.config.baseUrl;
-  invariant(
-    baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
-  );
+  invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
 
   // Initialize tracer (only if experiment has a project_name)
   const tracerSetup = setupTracer({
     projectName: experiment.projectName,
-    baseUrl,
+    traceExportUrl: getTraceExportUrl(client.config),
     headers: client.config.headers
       ? toObjectHeaders(client.config.headers)
       : undefined,

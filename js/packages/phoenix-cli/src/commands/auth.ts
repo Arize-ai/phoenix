@@ -559,7 +559,7 @@ async function authLogoutHandler(options: AuthLogoutOptions): Promise<void> {
   const profile = getProfileByName(settingsFile, targetProfileName);
   const refreshToken = profile?.entry.oauthTokens?.refreshToken;
   // Revoke against the endpoint stored on the profile — the server that
-  // issued the tokens — never a --endpoint/PHOENIX_HOST override, which would
+  // issued the tokens — never a --endpoint/env-var endpoint override, which would
   // leak the refresh token to a host that never issued it.
   const issuingEndpoint = profile?.entry.endpoint;
   if (refreshToken && issuingEndpoint) {
