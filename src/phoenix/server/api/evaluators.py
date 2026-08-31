@@ -5,6 +5,7 @@ import logging
 import re
 import traceback as _traceback
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar, cast
@@ -85,6 +86,7 @@ from phoenix.server.sandbox.types import (
     SandboxRuntimeContext,
     UnsupportedOperation,
 )
+from phoenix.utilities.template_formatters import ParsedVariables
 
 logger = logging.getLogger(__name__)
 
@@ -300,38 +302,19 @@ class LLMEvaluator(BaseEvaluator):
     @property
     def input_schema(self) -> dict[str, Any]:
         formatter = get_template_formatter(self._template_format)
-        section_vars: set[str] = set()
-        string_vars: set[str] = set()
+        parsed: list[ParsedVariables] = []
 
         for msg in self._template.messages:
             if isinstance(msg.content, str):
-                parsed = formatter.parse_with_types(msg.content)
-                section_vars.update(parsed.section_variables())
-                string_vars.update(parsed.string_variables())
+                parsed.append(formatter.parse_with_types(msg.content))
             elif isinstance(msg.content, list):
                 for part in msg.content:
                     if isinstance(part, TextContentPart):
-                        parsed = formatter.parse_with_types(part.text)
-                        section_vars.update(parsed.section_variables())
-                        string_vars.update(parsed.string_variables())
+                        parsed.append(formatter.parse_with_types(part.text))
             else:
                 assert_never(msg.content)
 
-        # Section vars get empty schema (accepts any type), string vars get type: string
-        # Sort iteration order for deterministic key ordering in the resulting dict
-        properties: dict[str, dict[str, Any]] = {}
-        for var in sorted(section_vars):
-            properties[var] = {}  # Empty schema accepts any JSON type
-        for var in sorted(string_vars):
-            if var not in section_vars:  # Section type takes precedence
-                properties[var] = {"type": "string"}
-
-        all_vars = section_vars | string_vars
-        return {
-            "type": "object",
-            "properties": properties,
-            "required": sorted(all_vars),
-        }
+        return input_schema_from_parsed_variables(parsed)
 
     async def evaluate(
         self,
@@ -1100,6 +1083,20 @@ def apply_input_mapping(
     return result
 
 
+class _JSONRenderedDict(dict[str, Any]):
+    """
+    A mapping a template can both walk into and name on its own.
+
+    A variable a dotted token reads into has to reach the renderer as a mapping,
+    so it cannot be serialized up front the way a string variable is. Naming the
+    same variable on its own then renders it, and this renders it as JSON rather
+    than as a Python repr.
+    """
+
+    def __str__(self) -> str:
+        return json.dumps(self, default=str)
+
+
 def cast_template_variable_types(
     *,
     template_variables: dict[str, Any],
@@ -1120,6 +1117,8 @@ def cast_template_variable_types(
                     if isinstance(value, (dict, list))
                     else str(value)
                 )
+            elif prop_type is None and isinstance(value, dict):
+                casted_template_variables[key] = _JSONRenderedDict(value)
 
     return casted_template_variables
 
@@ -1135,6 +1134,45 @@ def validate_template_variables(
         raise ValueError(f"Input validation failed: {e.message}")
 
 
+def input_schema_from_parsed_variables(
+    parsed_variables: Iterable[ParsedVariables],
+) -> dict[str, Any]:
+    """
+    Build an evaluator input schema from the variables a template names.
+
+    A template variable is bound by its root name, so `{{input}}` and
+    `{{input.input}}` both require one variable named `input`. What the schema
+    says about that variable is what the root has to hold for the template to
+    render:
+    - A variable a section or a dotted token reads into gets an empty schema, so
+      it accepts any JSON type and reaches the renderer with its structure
+      intact for the section or the path to walk.
+    - A variable named on its own gets {"type": "string"}, so a whole entity
+      bound to it is serialized before it lands in the prompt.
+    """
+    structured_vars: set[str] = set()
+    string_vars: set[str] = set()
+    for parsed in parsed_variables:
+        structured_vars.update(parsed.section_variables())
+        structured_vars.update(parsed.traversed_variables())
+        string_vars.update(parsed.string_variables())
+
+    # Sort iteration order for deterministic key ordering in the resulting dict
+    properties: dict[str, dict[str, Any]] = {}
+    for var in sorted(structured_vars):
+        properties[var] = {}  # Empty schema accepts any JSON type
+    for var in sorted(string_vars):
+        if var not in structured_vars:
+            properties[var] = {"type": "string"}
+
+    all_vars = structured_vars | string_vars
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": sorted(all_vars),
+    }
+
+
 def infer_input_schema_from_template(
     *,
     template: PromptChatTemplateInput,
@@ -1142,38 +1180,14 @@ def infer_input_schema_from_template(
 ) -> dict[str, Any]:
     """
     Infer the input schema from an evaluator template.
-
-    Uses parse_with_types() to detect variable types:
-    - Section variables ({{#name}} or {{^name}}) get empty schema (accepts any JSON type)
-    - String variables ({{name}}) get {"type": "string"} schema
     """
     formatter = get_template_formatter(template_format)
-    section_vars: set[str] = set()
-    string_vars: set[str] = set()
-
-    for msg in template.messages:
-        content = msg.content
-        for part in content:
-            if isinstance(part.text, TextContentValueInput):
-                parsed = formatter.parse_with_types(part.text.text)
-                section_vars.update(parsed.section_variables())
-                string_vars.update(parsed.string_variables())
-
-    # Section vars get empty schema (accepts any type), string vars get type: string
-    # Sort iteration order for deterministic key ordering in the resulting dict
-    properties: dict[str, dict[str, Any]] = {}
-    for var in sorted(section_vars):
-        properties[var] = {}  # Empty schema accepts any JSON type
-    for var in sorted(string_vars):
-        if var not in section_vars:  # Section type takes precedence
-            properties[var] = {"type": "string"}
-
-    all_vars = section_vars | string_vars
-    return {
-        "type": "object",
-        "properties": properties,
-        "required": sorted(all_vars),
-    }
+    return input_schema_from_parsed_variables(
+        formatter.parse_with_types(part.text.text)
+        for msg in template.messages
+        for part in msg.content
+        if isinstance(part.text, TextContentValueInput)
+    )
 
 
 def evaluation_result_to_model(
