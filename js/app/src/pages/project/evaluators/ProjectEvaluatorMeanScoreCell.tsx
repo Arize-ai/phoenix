@@ -385,10 +385,12 @@ function AnnotationMeanScoreView({
       : optimizationDirection === "MAXIMIZE"
         ? delta > 0
         : delta < 0;
+  // Plain 2-decimal magnitude: formatFloat's scientific notation for tiny
+  // values reads as noise on a difference (e.g. "▲ 8.13e-3").
   const deltaText =
     delta == null
       ? null
-      : `${delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} ${formatFloat(Math.abs(delta))}`;
+      : `${delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} ${Math.abs(delta).toFixed(2)}`;
   const sparkValues =
     series?.data.map((point) => {
       const binSummary = point.annotationSummaries.find(
