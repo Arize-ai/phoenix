@@ -1,6 +1,6 @@
 ---
 name: phoenix-cli
-description: Debug LLM applications using the Phoenix CLI. Fetch traces, spans, and sessions, annotate them, analyze errors, inspect datasets, review experiments, query annotation configs, and use the GraphQL API. Use whenever the user works with a Phoenix instance from the terminal. For structured trace review, pair it with phoenix-open-coding and phoenix-axial-coding.
+description: Debug LLM applications using the Phoenix CLI. Fetch traces, spans, and sessions, annotate them, analyze errors, inspect datasets, review experiments, query annotation configs, and use the GraphQL API. Use whenever the user works with a Phoenix instance from the terminal.
 license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
@@ -163,11 +163,6 @@ default (URL-only config, browser login on first use); pass `--header "Name:
 value"` (repeatable) for an API-key bearer fallback — for Codex a
 `Authorization: Bearer ${VAR}` header becomes `bearer_token_env_var`. `--format
 raw` prints `{"endpoint","url","serverName","agent","scope","auth","file?"}`.
-
-## Workflows
-
-**"What do I do after instrumenting?" / "Where do I focus?" / "What's going wrong?"**
-[phoenix-open-coding](../phoenix-open-coding/SKILL.md) → [phoenix-axial-coding](../phoenix-axial-coding/SKILL.md) → build evals for the top categories. Both skills tag every artifact with one shared coding annotation identifier passed as `--identifier` on each `px` call; that is what the `--identifier` flags on the annotation commands below are for.
 
 ## Auth
 
