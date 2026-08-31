@@ -346,6 +346,16 @@ describe("resolveEvaluatorPath", () => {
     });
   });
 
+  it("rejects an inherited property the server's JSONPath cannot reach", () => {
+    const path = "metadata.toString";
+
+    expect(resolveEvaluatorPath({ source: { metadata: {} }, path })).toEqual({
+      status: "unresolved",
+      range: { from: 9, to: 17 },
+    });
+    expect(path.slice(9, 17)).toBe("toString");
+  });
+
   it("reads an index out of a list, and rejects one past its end", () => {
     expect(
       resolveEvaluatorPath({

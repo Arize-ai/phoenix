@@ -482,7 +482,10 @@ function readMember(
       ? { exists: true, value: container[index] }
       : { exists: false, value: undefined };
   }
-  if (isStringKeyedObject(container) && key in container) {
+  // Own keys only: the server resolves these paths with JSONPath, which never
+  // walks the prototype chain, so `in` would preview `metadata.toString` as
+  // resolved and the run would then raise on a path that names nothing.
+  if (isStringKeyedObject(container) && Object.hasOwn(container, key)) {
     return { exists: true, value: container[key] };
   }
   return { exists: false, value: undefined };
