@@ -1,3 +1,4 @@
+import binascii
 import gzip
 import zlib
 from collections import defaultdict
@@ -52,7 +53,6 @@ from .utils import (
     ResponseBody,
     add_errors_to_responses,
     get_project_by_identifier,
-    parse_cursor,
 )
 
 router = APIRouter(tags=["traces"])
@@ -119,15 +119,20 @@ def _to_trace_data(
     )
 
 
-#: Cursor sort-column type per `sort` field, so a cursor minted under one sort
-#: field is rejected rather than compared against the other's column. The
-#: rejection rests on the two types differing: a `sort` field added with a type
-#: already listed here would be indistinguishable from the one it shares, and a
-#: cursor would cross between them silently.
 _CURSOR_SORT_TYPES: dict[str, CursorSortColumnDataType] = {
     "start_time": CursorSortColumnDataType.DATETIME,
     "latency_ms": CursorSortColumnDataType.FLOAT,
 }
+
+
+def _parse_trace_cursor(cursor: str, sort: str) -> Cursor:
+    try:
+        parsed = Cursor.from_string(cursor)
+    except (binascii.Error, KeyError, UnicodeDecodeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail="Invalid cursor") from error
+    if parsed.sort_column is None or parsed.sort_column.type is not _CURSOR_SORT_TYPES[sort]:
+        raise HTTPException(status_code=422, detail="Invalid cursor")
+    return parsed
 
 
 @router.get(
@@ -156,10 +161,7 @@ async def list_project_traces(
     ),
     cursor: Optional[str] = Query(
         default=None,
-        description=(
-            "Pagination cursor from a previous response's next_cursor. Valid only "
-            "for a request that repeats the same query parameters."
-        ),
+        description="Pagination cursor returned by a previous request",
     ),
     include_spans: bool = Query(
         default=False,
@@ -183,9 +185,8 @@ async def list_project_traces(
         project = await get_project_by_identifier(session, project_identifier)
         project_rowid = project.id
 
-        # Build query with sort order. The sort column is selected alongside the
-        # entity so the cursor can carry the value the database emitted for it.
         sort_col = models.Trace.latency_ms if sort == "latency_ms" else models.Trace.start_time
+        # Select the database value because latency is rounded in SQL but not in Python.
         stmt = select(models.Trace, sort_col.label("sort_value")).filter(
             models.Trace.project_rowid == project_rowid
         )
@@ -232,11 +233,8 @@ async def list_project_traces(
             stmt = stmt.where(models.Trace.start_time < normalize_datetime(end_time, timezone.utc))
 
         if cursor:
-            parsed_cursor = parse_cursor(cursor, sort_column_type=_CURSOR_SORT_TYPES[sort])
+            parsed_cursor = _parse_trace_cursor(cursor, sort)
             assert parsed_cursor.sort_column is not None
-            # Keyset predicate over the query's full ordering key: `sort_col` is
-            # not unique and the row id does not order the result, so the pair is
-            # compared as a tuple.
             key = tuple_(sort_col, models.Trace.id)
             bound = (parsed_cursor.sort_column.value, parsed_cursor.rowid)
             stmt = stmt.where(key < bound if order == "desc" else key > bound)
@@ -249,8 +247,6 @@ async def list_project_traces(
 
         next_cursor: Optional[str] = None
         if len(rows) == limit + 1:
-            # `limit + 1` rows were fetched; the extra one belongs to the next
-            # page, so the cursor marks the last row of this one.
             last_trace, last_sort_value = rows[-2]
             next_cursor = str(
                 Cursor(

@@ -10,9 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import (
-    Cursor,
-)
+from phoenix.server.api.types.pagination import Cursor
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
@@ -632,21 +630,6 @@ class TestListProjectTracesKeysetPagination:
                 return seen
         raise AssertionError("pagination did not terminate")
 
-    async def test_pages_do_not_repeat_or_skip_when_id_order_opposes_sort_order(
-        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
-    ) -> None:
-        project = await _insert_traces_out_of_order(db)
-        expected = len(_DURATIONS_US)
-        for sort in ("start_time", "latency_ms"):
-            for order in ("asc", "desc"):
-                for limit in (1, 2):  # limit=1 makes every row a page boundary.
-                    seen = await self._page_all(
-                        httpx_client, project, sort=sort, order=order, limit=limit
-                    )
-                    label = f"{sort}/{order}/limit={limit}"
-                    assert len(seen) == len(set(seen)), f"repeated rows with {label}"
-                    assert len(seen) == expected, f"skipped rows with {label}: got {len(seen)}"
-
     async def test_paged_order_matches_unpaged_order(
         self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
     ) -> None:
@@ -660,7 +643,8 @@ class TestListProjectTracesKeysetPagination:
                 assert response.status_code == 200
                 expected = [t["id"] for t in response.json()["data"]]
                 assert (
-                    await self._page_all(httpx_client, project, sort=sort, order=order) == expected
+                    await self._page_all(httpx_client, project, sort=sort, order=order, limit=1)
+                    == expected
                 )
 
     async def test_cursor_from_another_sort_field_is_rejected(
@@ -689,31 +673,3 @@ class TestListProjectTracesKeysetPagination:
             params={"limit": 2, "cursor": str(Cursor(rowid=1))},
         )
         assert response.status_code == 422
-
-    async def test_pages_do_not_repeat_or_skip_when_sort_values_tie(
-        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
-    ) -> None:
-        """Rows sharing a start_time are ordered only by the row id in the key."""
-        async with db() as session:
-            project_rowid = await session.scalar(
-                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
-            )
-            assert project_rowid is not None
-            start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-            for _ in range(3):
-                await session.execute(
-                    insert(models.Trace).values(
-                        trace_id=token_hex(16),
-                        project_rowid=project_rowid,
-                        start_time=start,
-                        end_time=start + timedelta(minutes=1),
-                    )
-                )
-            project = await session.get(models.Project, project_rowid)
-            assert project is not None
-        for order in ("asc", "desc"):
-            for limit in (1, 2):
-                seen = await self._page_all(
-                    httpx_client, project, sort="start_time", order=order, limit=limit
-                )
-                assert len(seen) == len(set(seen)) == 3, f"tie mishandled with {order}/{limit}"

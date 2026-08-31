@@ -4704,10 +4704,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor from a previous response's next_cursor. Valid only for a request that repeats the same query parameters.",
+              "description": "Pagination cursor returned by a previous request",
               "title": "Cursor"
             },
-            "description": "Pagination cursor from a previous response's next_cursor. Valid only for a request that repeats the same query parameters."
+            "description": "Pagination cursor returned by a previous request"
           },
           {
             "name": "include_spans",
