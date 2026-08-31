@@ -120,13 +120,10 @@ def test_session_bindings_flavor_audit() -> None:
         "span_annotations",
         "span_cost_details",
     }
-    # The span grain iterates too, and with the same comprehension vocabulary -- one family,
-    # one flavor. Its collection is registered under a bare key like every other grain's,
-    # which is what claiming `cost_details` out of the attribute namespace bought.
+    # Span and session filters use the same comprehension functions and bare iterable names.
     assert SPAN_BINDINGS.quantifiers == SESSION_BINDINGS.quantifiers
     assert set(SPAN_BINDINGS.iterables) == {"cost_details"}
     assert all("." not in key for key in SPAN_BINDINGS.iterables)
-    # The session grain, which reserves no root, keeps its bare keys.
     assert all("." not in key for key in SESSION_BINDINGS.iterables)
     assert SESSION_BINDINGS.exists_names == frozenset({"any_input", "any_output"})
     assert "any_input" not in SESSION_BINDINGS.names

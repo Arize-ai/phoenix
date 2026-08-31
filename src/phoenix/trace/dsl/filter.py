@@ -21,9 +21,6 @@ from phoenix.db.models import SafeJsonBoolean, SafeJsonFloat
 
 NameMap: TypeAlias = typing.Mapping[str, "sqlalchemy.SQLColumnExpression[typing.Any]"]
 
-# Declared here rather than beside the inference rules that consume it, because the
-# reserved-root declarations below type their members with it. As a forward reference it
-# degrades the `NamedTuple` synthesized from those declarations.
 FilterValueType: TypeAlias = typing.Literal["boolean", "datetime", "number", "string", "null"]
 
 _VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation")
@@ -168,40 +165,12 @@ _STRICT_ROOT_KEYWORD = "parent_id"
 
 
 def _span_cost_binding(member: str) -> str:
-    """The internal name a cost member resolves to and is bound to at eval time.
-
-    Deliberately unspellable: the translator rewrites the user's spelling to this, so the
-    name the user types stays free of the eval globals and an attribute key spelled the
-    same way cannot collide with the column bound here.
-    """
+    """Return an eval binding that cannot collide with a user-supplied name."""
     return f"__span_cost_{member}__"
 
 
-# These read this span's own cost row. Cost lives on `span_costs`, not on `spans`, so they
-# are not columns of the filtered row -- they are bound per-instance against an aliased
-# outer join (see `SpanFilter.__call__`), which is also why they are absent from
-# `_FLOAT_NAMES` and so from `Projector`'s namespace.
-#
-# Every one coalesces to 0, matching the session grain's rollups ("0 when no cost is
-# configured, never null") so one name means one thing across grains. That holds exactly
-# here: the trace and session `total_cost` sum the same `span_costs` column this reads, so
-# the three names are those rollups at a scope of one span, not a parallel measurement.
-#
-# The set is cost and nothing else, which is narrower than the cost row. `models.SpanCost`
-# also stores `total_tokens`, `prompt_tokens` and `completion_tokens`, and those were
-# members here until the question was asked the other way round: what asked for them?
-# Nothing did. #14008 asks for cost, and the grains it names as prior art expose these
-# three cost names and no token name -- `cost_summary_by_session` computes the token totals
-# and the session vocabulary declines to serve them. Three names bought nothing the issue
-# requested, and they were the three costliest to claim, being the literal OpenAI usage
-# keys and so the likeliest of these to already name a real span attribute.
-#
-# Dropping them costs the divisor in `total_cost / total_tokens`, which is what replaced
-# the `*_cost_per_token` hybrids as the spelling of a rate. The rate survives without it:
-# `sum(d.cost for d in cost_details) / sum(d.tokens for d in cost_details)` is the same
-# quantity from the same row, because `SpanCost.append_detail` accumulates precisely those
-# sums, and `SUM` skips NULLs where the accumulator's truthiness guards do. Verbose, and
-# paid for by four claimed names instead of seven.
+# Cost scalars are bound from `span_costs` at evaluation time and are intentionally absent
+# from `_FLOAT_NAMES`, whose columns are also available to `Projector`. Missing values are 0.
 _SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
     {
         "total_cost": "number",
@@ -210,9 +179,7 @@ _SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
     }
 )
 _SPAN_COST_DETAILS = "cost_details"
-# The per-token-type rows behind this span's cost. Element fields stay nullable rather than
-# coalescing: unlike the rollups above, a detail row's `cost` being absent is a fact about
-# that row, and the family's rule is that a missing value fails every comparison.
+# Detail fields remain nullable; a missing element value fails every comparison.
 _COST_DETAIL_FIELDS: typing.Mapping[str, str] = MappingProxyType(
     {
         "token_type": "string",
@@ -292,15 +259,9 @@ class _FilterBindings:
     # Dotted spellings accepted as shorthands for a root-span attribute key, e.g. `user.id`.
     # Under `strict_semantics` every other dotted root is rejected.
     attribute_proxies: frozenset[str] = frozenset()
-    # How a top-level name is described when it appears where an element field belongs, e.g.
-    # "`latency_ms` is a span-level term, not a cost_details element field". Only the
-    # adjective varies between grains; the sentence around it is shared. The default is the
-    # grain-agnostic wording, which a grain overrides only to name its own vocabulary.
+    # Noun used when reporting a top-level name referenced from an element scope.
     term_noun: str = "top-level"
-    # Numeric names the grain resolves like any other bound name but binds per-instance at
-    # call time, because they live on a related row rather than on the filtered one. Kept
-    # out of `float_names` because those are columns `Projector` can also select; these are
-    # not columns of the filtered row at all. See `SpanFilter.__call__`.
+    # Numeric names bound from related rows when the filter is applied to a statement.
     deferred_number_names: frozenset[str] = frozenset()
     allow_outer_element_references: bool = False
     allow_datetime_reductions: bool = False
@@ -347,10 +308,7 @@ class _IterableGrammar(typing.NamedTuple):
     element_bindings: _FilterBindings
     nested: typing.Mapping[str, str] = MappingProxyType({})
     related: typing.Mapping[str, _FilterBindings] = MappingProxyType({})
-    # How the elements are reached, for grains whose comprehensions are lowered by
-    # `_comprehension_bindings` below. `scope` receives a select already reading from the
-    # aliased `model` and returns it joined and correlated to the row being filtered. The
-    # session grain lowers its own comprehensions and leaves both unset.
+    # `scope` joins and correlates a select that already reads from an alias of `model`.
     model: typing.Optional[typing.Any] = None
     scope: typing.Optional[typing.Callable[[typing.Any, typing.Any], typing.Any]] = None
 
@@ -366,20 +324,7 @@ class ElementFieldReference(typing.NamedTuple):
 
 
 def _cost_detail_bindings() -> _FilterBindings:
-    """The language a predicate inside `for x in cost_details` compiles against.
-
-    Strict and closed, unlike the span grain around it. The outer dialect is permissive
-    because it predates the family and its accepted surface is a compatibility promise;
-    this scope is new, has no stored conditions to honour, and so gets the family's
-    established comprehension dialect -- unknown names rejected with a suggestion, every
-    sub-expression typed before SQL is built.
-
-    `strict_semantics` here is what asks for that typed pass, and `_validate_semantics`
-    reads it from these bindings rather than the grain's -- the two flags answer different
-    questions, and a permissive grain can only delegate one scope at a time. Setting it
-    without that wiring would be inert, which it was: element predicates reached SQL
-    untyped, so `sum(x.token_type ...)` compiled to SUM over a text column.
-    """
+    """Return the closed, strictly typed language for cost-detail elements."""
 
     def columns(kind: str) -> NameMap:
         return MappingProxyType(
@@ -412,25 +357,10 @@ def _cost_detail_bindings() -> _FilterBindings:
 
 
 def _scope_cost_details(stmt: typing.Any, element: typing.Any) -> typing.Any:
-    """Join an aliased `SpanCostDetail` to its cost row and correlate that to this span.
+    """Join cost details and correlate them to the filtered span.
 
-    The `SpanCost` alias is defensive rather than load-bearing on any shape found so far.
-    The hazard it was written against -- SQLAlchemy correlating a caller's `span_costs`
-    instead of adding one here, widening the predicate to every span's details -- does not
-    reproduce, because the explicit `join()` puts the table in this subquery's own FROM
-    either way and the inner reference shadows the outer one. Removing the alias changes
-    the SQL and not the rows.
-
-    It stays because that reasoning depends on the join staying explicit, and it is pinned
-    structurally rather than behaviourally for the same reason: see
-    `test_cost_details_subquery_aliases_its_own_join`, which asserts the emitted SQL because
-    no result-level assertion can tell the two apart.
-
-    `Span`, by contrast, is correlated explicitly because auto-correlation only omits a
-    relation the immediately enclosing query selects from. This subquery is nested one
-    deeper than that whenever the same condition also reads an annotation, and `spans`
-    would then be re-rendered here as a cross join -- reading as "any span at all has a
-    matching detail" rather than "this one does".
+    The cost alias cannot collide with a caller's join. Explicit span correlation prevents
+    nested annotation predicates from rendering `spans` as an unconstrained cross join.
     """
     span_cost = aliased(models.SpanCost)
     return (
@@ -653,22 +583,12 @@ def _is_predicate_shaped(
 
 
 def _comprehension_example(kind: str, bindings: _FilterBindings) -> str:
-    """A worked example for `kind` that this validator actually accepts.
-
-    Per-kind because the three families take different arguments, and an example that is
-    rejected is worse than none: a single template sent `len(name)` through three more
-    errors before the user reached a working expression -- a generator where `len` needs a
-    list, then a predicate where it counts elements.
-
-    The collection is named whenever the grain declares exactly one, since a placeholder is
-    only useful when there is a choice to make.
-    """
+    """Return a valid example for the requested comprehension function."""
     collection = next(iter(bindings.iterables)) if len(bindings.iterables) == 1 else "<collection>"
     if kind in QUANTIFIER_NAMES:
         return f'{kind}(x.<field> == "..." for x in {collection})'
     if kind == "len":
-        # Inherited from CPython, where `len(genexp)` raises: `len` counts elements, so its
-        # element is the loop variable itself and its argument is a list comprehension.
+        # `len` accepts a list comprehension, not a generator expression.
         return f"{kind}([x for x in {collection}])"
     return f"{kind}(x.<field> for x in {collection})"
 
@@ -1106,9 +1026,8 @@ class _CompiledCondition(typing.NamedTuple):
     """Safe values bound by the translator (e.g. datetime literals) that must be
     present in the eval globals for the compiled expression to evaluate."""
     comprehensions: tuple["ComprehensionSpec", ...] = ()
-    namespace_members: frozenset[str] = frozenset()
-    """Reserved-root members the condition referenced. Empty unless the grain declares a
-    root namespace, and the signal a caller uses to skip that namespace's join entirely."""
+    referenced_deferred_numbers: frozenset[str] = frozenset()
+    """Deferred numeric bindings referenced by the condition."""
 
 
 def _compile_condition(
@@ -1185,7 +1104,7 @@ def _compile_condition(
         aliased_annotation_attributes,
         translator.literal_bindings,
         comprehensions,
-        frozenset(translator.namespace_members),
+        frozenset(translator.referenced_deferred_numbers),
     )
 
 
@@ -1226,22 +1145,10 @@ def _join_span_cost(
     stmt: Select[typing.Any],
     members: typing.AbstractSet[str],
 ) -> tuple[Select[typing.Any], typing.Any, dict[str, typing.Any]]:
-    """Outer-join this span's cost row and bind the `span.` members the condition referenced.
+    """Join the filtered span's cost row and bind referenced cost scalars.
 
-    Aliased deliberately, for the same reason the annotation relations are: callers apply a
-    span filter to statements that may already join `span_costs` for their own aggregation
-    (`span_cost_summary_by_project` does), and an unaliased join would collide with theirs.
-
-    This join is 1:1 only because the writers make it so, not because the schema says so --
-    `span_costs.span_rowid` is indexed but not unique. `insert_span` upserts with
-    `OnConflict.DO_NOTHING` and the bulk loader skips cost calculation when that returns no
-    row, and `tracers.py` attaches one cost per new span, so no path produces a second row
-    today. If one ever did, this join would multiply: a filtered `select(Span)` would return
-    the span once per cost row, and `span_cost_summary_by_project` would inflate the totals
-    it aggregates. Neither failure raises. Whoever changes a cost write path owns this.
-
-    Joined only when a member was referenced, so the conditions that ask nothing about cost
-    -- nearly all of them -- pay nothing for the namespace existing.
+    The alias avoids collisions with caller-owned joins. The join is added only when the
+    condition references a cost scalar.
     """
     span_cost = aliased(models.SpanCost)
     stmt = stmt.outerjoin(span_cost, onclause=span_cost.span_rowid == models.Span.id)
@@ -1270,18 +1177,7 @@ def _comprehension_bindings(
     specs: typing.Iterable[ComprehensionSpec],
     bindings: _FilterBindings,
 ) -> dict[str, typing.Any]:
-    """Build each extracted comprehension as a correlated subquery over its element table.
-
-    Correlated only. The session grain also has an uncorrelated `scan` lowering, because a
-    session aggregates over thousands of spans and paying a probe per session row is the
-    cost it exists to avoid; a span's own collections are small and one hop away, so the
-    correlated shape is the whole story here. That also sidesteps the `NOT IN` anti-set
-    blowup the scan lowering has for `all(...)`, which is not a shape this can produce.
-
-    Parameterized by `bindings` rather than by a grain, so the seam is the one a lowering
-    shared across grains would use: what varies is the iterable's model and how it
-    correlates, both declared on `_IterableGrammar`.
-    """
+    """Build correlated subqueries for extracted comprehensions."""
     result: dict[str, typing.Any] = {}
     for spec in specs:
         grammar = bindings.iterables[spec.iterable]
@@ -1366,7 +1262,7 @@ class SpanFilter:
     _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
     _literal_bindings: dict[str, typing.Any] = field(init=False, repr=False)
     _comprehensions: tuple[ComprehensionSpec, ...] = field(init=False, repr=False)
-    _namespace_members: frozenset[str] = field(init=False, repr=False)
+    _referenced_deferred_numbers: frozenset[str] = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
         return bool(self.condition)
@@ -1402,15 +1298,8 @@ class SpanFilter:
         object.__setattr__(self, "condition", self.condition.strip())
         if not (source := self.condition):
             return
-        # The same parse -> validate -> translate -> compile path the session grain
-        # runs, parameterized by `SPAN_BINDINGS`. Sharing it is what lets a construct
-        # added to the compiler reach every grain at once, rather than being ported by
-        # hand into a second implementation that then drifts.
         compiled_condition = _compile_condition(source, SPAN_BINDINGS, None)
-        # Derived from the tree validation ran against -- pre-aliasing, so the scope
-        # analysis sees the condition as written -- rather than from the source again,
-        # so a caller holding a filter is spared a parse of its own. Taken from a
-        # condition known to be valid, so invalid input is never analyzed for nothing.
+        # Analyze the validated, pre-aliasing tree so scope reflects the user's expression.
         object.__setattr__(self, "root_scope", _scope_or_none(compiled_condition.validated.body))
         object.__setattr__(self, "translated", compiled_condition.translated)
         object.__setattr__(self, "compiled", compiled_condition.compiled)
@@ -1426,7 +1315,11 @@ class SpanFilter:
         )
         object.__setattr__(self, "_literal_bindings", compiled_condition.literal_bindings)
         object.__setattr__(self, "_comprehensions", compiled_condition.comprehensions)
-        object.__setattr__(self, "_namespace_members", compiled_condition.namespace_members)
+        object.__setattr__(
+            self,
+            "_referenced_deferred_numbers",
+            compiled_condition.referenced_deferred_numbers,
+        )
 
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
@@ -1461,8 +1354,10 @@ class SpanFilter:
         # The cost relation is joined to the outer statement, so a predicate that reads it
         # from inside the annotation `EXISTS` has to correlate it as well; see there.
         correlated: list[typing.Any] = [models.Span]
-        if self._namespace_members:
-            stmt, span_cost, cost_bindings = _join_span_cost(stmt, self._namespace_members)
+        if self._referenced_deferred_numbers:
+            stmt, span_cost, cost_bindings = _join_span_cost(
+                stmt, self._referenced_deferred_numbers
+            )
             extra_bindings.update(cost_bindings)
             correlated.append(span_cost)
         if self._comprehensions:
@@ -1964,10 +1859,7 @@ def _get_named_filter_value_type(name: str) -> typing.Optional[FilterValueType]:
         return "number"
     if name in _DATETIME_NAMES:
         return "datetime"
-    # Cost members are typed here rather than from a column, because they are bound
-    # per-instance against a joined row. Validation runs ahead of translation and so sees
-    # the name the user wrote, never the internal name it resolves to: `total_cost > '100'`
-    # must reject exactly as `latency_ms > '100'` does.
+    # Deferred cost scalars use declared types because they have no `Span` column.
     if name in _SPAN_COST_SCALARS:
         return _SPAN_COST_SCALARS[name]
     return None
@@ -1977,14 +1869,7 @@ def _validate_operand_types(
     expression: ast.Expression,
     delegated: typing.AbstractSet[int] = frozenset(),
 ) -> None:
-    """Span-vocabulary operand rules, skipping any scope that types itself.
-
-    ``delegated`` carries the nodes inside a comprehension whose element language runs its own
-    typed pass. These rules key on the grain's names, so inside such a scope they see element
-    fields as untyped and reject valid predicates -- `any(not x.is_prompt for x in ...)` reads
-    as "not a condition" here while the same field bare is accepted. Whichever pass owns a
-    scope owns it whole.
-    """
+    """Validate span-level operands outside delegated element scopes."""
     for node in ast.walk(expression.body):
         if id(node) in delegated:
             continue
@@ -2561,9 +2446,7 @@ class _FilterTranslator(_ProjectionTranslator):
         super().__init__(reserved_keywords, bindings)
         self._string_keywords = frozenset(string_keywords)
         self.literal_bindings: dict[str, typing.Any] = {}
-        self.namespace_members: set[str] = set()
-        """Reserved-root members the condition referenced, so the caller joins their table
-        only when one was actually used."""
+        self.referenced_deferred_numbers: set[str] = set()
 
     @property
     def _containment_function(self) -> str:
@@ -2583,10 +2466,7 @@ class _FilterTranslator(_ProjectionTranslator):
                 "or `parent_span is not None`"
             )
         if node.id in self._bindings.deferred_number_names:
-            # Rewritten to the internal name its column is bound to. Every downstream type
-            # check keys on syntax shape, and a resolved name is the same shape as any other
-            # bound name, so casting, coercion, and containment behave as for `latency_ms`.
-            self.namespace_members.add(node.id)
+            self.referenced_deferred_numbers.add(node.id)
             return ast.Name(id=_span_cost_binding(node.id), ctx=ast.Load())
         return super().visit_Name(node)
 
@@ -3089,16 +2969,7 @@ def _symbol(op: ast.AST) -> str:
 
 
 def _element_scope_error(node: ast.expr, scope: "_ElementScope") -> SyntaxError:
-    """Reject a name that only means something outside the comprehension it was written in.
-
-    An element scope binds element columns and nothing else -- no attribute namespace, no
-    grain columns, no legacy spellings. Anything else typed here would compile and then
-    raise `NameError` when the query is built, outside the `SpanFilterError` boundary, so
-    this is the one place that has to catch it.
-
-    Which is also why the message never suggests `attributes[...]`: that spelling is exactly
-    what fails this way, and advising it would hand the user the crash instead of the fix.
-    """
+    """Reject references outside a comprehension's element scope."""
     source = _ellipsize(ast.unparse(node), 80)
     fields = _disjunction(sorted(scope.grammar.element_bindings.binding_names))
     return SyntaxError(
@@ -3267,11 +3138,7 @@ class _SemanticPolicy:
         if _is_annotation(node.value, self._bindings):
             return "float" if node.attr == "score" else "string"
         if scopes:
-            # Nothing dotted resolves in an element scope except the loop variable, handled
-            # above. This has to come before the legacy and proxy lookups rather than after:
-            # both resolve to *grain* bindings, which the element eval globals do not carry,
-            # so letting them through here types the expression and then raises `NameError`
-            # when the query is built.
+            # Only loop-variable attributes are available inside element scopes.
             raise _element_scope_error(node, scopes[-1])
         source = ast.unparse(node)
         if replacement := self._bindings.legacy_replacements.get(source):
@@ -3534,13 +3401,7 @@ class _SemanticPolicy:
 
 
 def _delegates_element_scope(bindings: _FilterBindings) -> bool:
-    """Whether a permissive grain declares a strict language for its collections' elements.
-
-    The two flags answer different questions. The grain's own ``strict_semantics`` is about a
-    surface that already has stored conditions, so the span grain must leave it off. An
-    iterable's element bindings describe a scope that is new and owes nothing, which is why it
-    can be strict inside a permissive grain -- and why the flag has to be read from there.
-    """
+    """Return whether a permissive grain has strictly typed element scopes."""
     return not bindings.strict_semantics and any(
         grammar.element_bindings.strict_semantics for grammar in bindings.iterables.values()
     )
@@ -3550,11 +3411,7 @@ def _comprehension_calls(
     expression: ast.Expression,
     bindings: _FilterBindings,
 ) -> typing.Iterator[tuple[ast.Call, str]]:
-    """Every accepted reduction/quantifier call, with its kind.
-
-    Only ever top-level: a comprehension inside a comprehension is rejected by
-    :func:`_validate_comprehensions` before this runs, so a walk cannot find a nested one.
-    """
+    """Yield each accepted top-level comprehension call and its function name."""
     for node in ast.walk(expression.body):
         if (
             isinstance(node, ast.Call)
@@ -3574,11 +3431,7 @@ def _validate_semantics(
         return
     if not _delegates_element_scope(bindings):
         return
-    # The element scope gets the typed pass its bindings ask for, while the grain around it
-    # keeps the permissive dialect its stored conditions depend on. Without this the flag on
-    # those bindings means nothing and the scope silently inherits the outer dialect it was
-    # written to opt out of -- which is how `sum(x.token_type ...)` reached SQL as SUM over a
-    # text column, and how a mistyped loop variable reached `__call__` as a `NameError`.
+    # Apply strict typing only to delegated element scopes.
     policy = _SemanticPolicy(bindings)
     for call, kind in _comprehension_calls(expression, bindings):
         policy._comprehension(call, kind, ())
@@ -3593,12 +3446,7 @@ def _validate_expression(
 ) -> None:
     """Validate the expression's structure, names, attributes, and operand types.
 
-    Annotation *name* existence is deliberately not validated: an unknown name
-    is valid and matches nothing, exactly as an unknown attribute path does --
-    the schemaless contract. A dormant hook that could have checked names
-    against the project at validation time was removed: it had no caller, and
-    as a hard gate it would have made a condition's validity depend on the
-    live annotation table rather than on the text.
+    Annotation names are schemaless: unknown names are valid and match nothing.
     """
     if not isinstance(expression, ast.Expression):
         raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
@@ -3726,11 +3574,7 @@ def _validate_expression(
         source_segment = ast.unparse(node)
         raise SyntaxError(f"invalid expression: {source_segment}")
     if not bindings.strict_semantics:
-        # Grains with `strict_semantics` run their own bindings-aware typed
-        # pass (`_validate_semantics`); the span-vocabulary operand rules here
-        # would second-guess it with span-shaped wording. A permissive grain
-        # can delegate the same way for a single scope -- see
-        # `_delegates_element_scope`.
+        # Strict grains and delegated element scopes use their own typed pass.
         delegated: frozenset[int] = frozenset()
         if _delegates_element_scope(bindings):
             delegated = frozenset(

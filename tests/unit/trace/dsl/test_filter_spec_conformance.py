@@ -114,10 +114,7 @@ ACCEPTED = [
     # would silently change this condition's meaning -- every new *name* is a
     # breaking change -- so its current meaning is pinned here on purpose.
     "parent == 'x'",
-    # The cost names read this span's own cost row. Claiming them broke every bare
-    # spelling in the list -- `total_cost` used to read `attributes['total_cost']` --
-    # taken deliberately and silently, which is the cost of bare names. The subscript
-    # spelling survives and is pinned below; it is the migration for anyone affected.
+    # Cost names read the current span's cost row.
     "total_cost > 0.1",
     "prompt_cost + completion_cost == total_cost",
     # Cost only: the token columns beside it on `span_costs` are not members, so
@@ -125,63 +122,37 @@ ACCEPTED = [
     "total_tokens > 100",
     # The rate has no member of its own; two reductions express it, guarded by `nullif`.
     "sum(d.cost for d in cost_details) / sum(d.tokens for d in cost_details) > 0.0001",
-    # `span` is an ordinary attribute key again -- nothing is reserved, so this reads the
-    # attribute it always did.
     "attributes['span'] == 'x'",
-    # The cost members are bare names, resolved ahead of the attribute namespace.
     "total_cost > 1",
-    # `cost_details` iterates the per-token-type rows behind that cost, with the same
-    # comprehension vocabulary the session grain uses -- one family, one flavor.
+    # `cost_details` iterates the per-token rows for the current span.
     "any(d.cost > 1 for d in cost_details)",
     "all(d.is_prompt for d in cost_details)",
     "sum(d.tokens for d in cost_details if d.token_type == 'input') > 1000",
     "len([d for d in cost_details]) > 2",
     "max(d.cost_per_token for d in cost_details) > 0.001",
     "any(d.cost > 1 for d in cost_details) and total_cost > 5",
-    # A boolean element field is a condition on its own, and stays one under `not` and
-    # inside `and`. These three used to disagree: the bare form was accepted while the
-    # other two were refused as "not a condition", because the span-vocabulary operand
-    # rules cannot see element fields and were still walking this scope.
+    # Boolean element fields remain conditions under boolean operators.
     "all(d.is_prompt for d in cost_details)",
     "any(not d.is_prompt for d in cost_details)",
     "any(d.cost > 0 and d.is_prompt for d in cost_details)",
-    # A membership list is exempt from numeric coercion because the element language has
-    # already typed its elements against the needle -- pinned here so the exemption and the
-    # pass it relies on cannot drift apart.
+    # Membership lists are type-checked without numeric coercion.
     "any(d.cost in [1, 2] for d in cost_details)",
-    # `span` carries no meaning of its own, so it is available as a loop variable like any
-    # other identifier.
     "any(span.cost > 1 for span in cost_details)",
     "any(span.cost > 1 for span in cost_details) and total_cost > 5",
-    # Annotation aliasing rewrites the source text and re-parses before translation. These
-    # pin that the rewrite leaves cost references intact, scalar and comprehension alike.
+    # Annotation aliasing preserves scalar and comprehension cost references.
     "annotations['q'].score > 0.5 and total_cost > 1",
     "annotations['q'].score > 0.5 and any(d.cost > 1 for d in cost_details)",
 ]
 
 # Every form the spec documents as rejected, with the reason it documents.
 REJECTED = [
-    # `cost_details` is a collection, so it iterates and does nothing else -- the same
-    # rule the session grain's `spans` follows.
     ("cost_details > 1", "can only be iterated"),
     ("any(d.nope > 1 for d in cost_details)", "invalid field `d.nope`"),
-    # Unshadowed, `span` is not the loop variable, so this reaches out of the element
-    # scope. The shadowed spelling is accepted -- see ACCEPTED.
+    # Element scopes cannot reference an unbound loop variable.
     ("any(span.cost > 1 for d in cost_details)", "is not reachable"),
-    # Inside a comprehension the element language types itself, and it is the family's
-    # strict dialect rather than the permissive one around it. Each of these compiled to
-    # SQL before that pass was wired up: the first two reached `__call__` as a `NameError`,
-    # and the rest reached the database as a comparison no backend agrees about.
-    #
-    # Note what the first two do *not* say. Advising `attributes[...]` would be the natural
-    # span-grain wording and is wrong here -- an attribute path inside a comprehension
-    # compiles and then fails at query-build time, so a rejection must never steer a user
-    # into it.
+    # Element scopes are closed and strictly typed.
     ("any(d.cost > 0 for detail in cost_details)", "`d.cost` is not reachable"),
-    # Nothing dotted or subscripted reaches out of an element scope, whatever it would have
-    # meant outside: the attribute namespace, a legacy spelling, and a cast over one all
-    # reject here. Each of these typed and compiled before, then raised `NameError` when the
-    # query was built -- the element eval globals bind element columns and nothing else.
+    # Dotted and subscripted outer-scope references are also rejected.
     ("any(d.cost > attributes['x'] for d in cost_details)", "is not reachable"),
     ("any(d.cost > metadata['x'] for d in cost_details)", "is not reachable"),
     ("any(d.cost > float(attributes['x']) for d in cost_details)", "is not reachable"),
@@ -195,18 +166,12 @@ REJECTED = [
     ("sum(d.token_type for d in cost_details) > 0", "reduces numbers"),
     ("any(d.is_prompt == 'yes' for d in cost_details)", "cannot compare"),
     ("any(d.cost in ['a', 'b'] for d in cost_details)", "a list is all text or all numbers"),
-    # Casting inside the element scope follows the family dialect too, which is stricter
-    # than the span grain's own: `int(...)` is refused outright rather than aliased to
-    # `float(...)`, and casting a term to the type it already has is a no-op the strict
-    # dialect names. Outside a comprehension all three still compile, unchanged.
+    # Element casts use strict semantics.
     ("any(int(d.cost) > 1 for d in cost_details)", "would not truncate"),
     ("any(float(d.cost) > 1 for d in cost_details)", "cannot cast a number"),
     ("any(str(d.token_type) == 'a' for d in cost_details)", "cannot cast text"),
     # An `if` clause is a condition, so a bare text field is not one.
     ("sum(d.cost for d in cost_details if d.token_type) > 1", "expected a condition"),
-    # A resolved member is typed identically on both sides of the compiler, so it
-    # rejects exactly as a bare column does -- the two encodings of one rule, pinned
-    # against each other (`latency_ms > '100'` is the same row, below).
     ("total_cost > '100'", "cannot compare"),
     # no implicit numeric coercion
     ("latency_ms > '100'", "cannot compare"),
@@ -288,15 +253,7 @@ REJECTED = [
     ("parent_span == 'LLM'", "can only be compared to None"),
     # an empty eval name can never match an annotation
     ("evals[''] == 'x'", "missing eval name"),
-    # calls other than the three casts
-    # Still rejected, but by the comprehension rules rather than the call whitelist: `len`
-    # is a reduction at this grain now, so the message names what it takes instead of
-    # calling the whole expression invalid.
-    #
-    # The example is pinned, not just the prefix, because a per-kind example is the whole
-    # point of it: one shared template used to suggest a generator here, which `len`
-    # rejects, and a predicate element for `sum`/`max`/`min`, which reduce a value. Each
-    # suggestion is now a form this validator accepts.
+    # Error examples are valid for their comprehension function.
     (
         "len(name) > 1",
         r"takes a comprehension over cost_details, e\.g\. `len\(\[x for x in cost_details\]\)`",
@@ -320,10 +277,7 @@ SCOPES = [
     ("parent_id is not None", None),
     ("parent_id is None or span_kind == 'LLM'", None),
     ("span_kind == 'LLM'", None),
-    # Scope verdicts are observable semantics (principle 8) and the UI picks metric columns
-    # from them, so the new forms are pinned too: a root predicate still binds every row it
-    # is conjoined with, and neither a reserved-root member nor a comprehension claims
-    # root-ness on its own.
+    # Cost expressions do not affect root-span scope.
     ("parent_id is None and total_cost > 1", "strict"),
     ("parent_span is None and any(d.cost > 1 for d in cost_details)", "orphan_aware"),
     ("total_cost > 1", None),
