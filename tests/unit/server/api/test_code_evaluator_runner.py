@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any, ClassVar, Optional, cast
 from unittest.mock import AsyncMock
 
@@ -153,7 +154,6 @@ class TestHarnessGeneration:
         assert "Paris" in harness
 
     def test_python_harness_executes_with_non_finite_float_inputs(self) -> None:
-        """Regression test for NameError on nan/inf inputs, see _build_python_harness."""
         runner, _ = _make_runner()
         harness = runner._build_python_harness(
             {"nan": float("nan"), "pos_inf": float("inf"), "neg_inf": float("-inf")}
@@ -161,8 +161,6 @@ class TestHarnessGeneration:
         exec(compile(harness, "<harness>", "exec"), {})
 
     def test_python_harness_non_finite_inputs_survive_user_shadowing(self) -> None:
-        """A user-defined `nan`/`inf` must not corrupt `_inputs` — the math import
-        comes after the user source, so the real values win."""
         runner, _ = _make_runner(
             source_code=("nan = 'shadow'\ninf = 'shadow'\ndef evaluate(**kw): return kw\n")
         )
@@ -171,7 +169,8 @@ class TestHarnessGeneration:
         exec(compile(harness, "<harness>", "exec"), namespace)
         result = namespace["_result"]
         assert isinstance(result, dict)
-        assert result["x"] != result["x"], "x should be the real float nan"
+        x = result["x"]
+        assert isinstance(x, float) and math.isnan(x)
         assert result["y"] == float("inf")
 
     def test_typescript_harness_contains_source_code(self) -> None:
