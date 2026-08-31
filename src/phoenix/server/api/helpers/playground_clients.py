@@ -1622,9 +1622,14 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
 
             tool_config = ToolConfigurationTypeDef(tools=tool_list)
 
+            # The Converse API has no disable-parallel-tool-use setting, so
+            # tools.disable_parallel_tool_calls cannot be honored here.
+            send_tools = True
             if tc := tools.tool_choice:
                 if tc.type == "none":
-                    pass
+                    # Converse has no "none" tool choice; withholding the
+                    # tools entirely is the only way to prevent tool calls.
+                    send_tools = False
                 elif tc.type == "zero_or_more":
                     tool_config["toolChoice"] = ToolChoiceTypeDef(auto={})
                 elif tc.type == "one_or_more":
@@ -1636,7 +1641,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
                 elif TYPE_CHECKING:
                     assert_never(tc.type)
 
-            request["toolConfig"] = tool_config
+            if send_tools:
+                request["toolConfig"] = tool_config
 
         if response_format:
             json_schema = JsonSchemaDefinitionTypeDef(

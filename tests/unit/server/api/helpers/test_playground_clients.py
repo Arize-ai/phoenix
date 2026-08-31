@@ -20,6 +20,7 @@ from opentelemetry.trace import INVALID_SPAN, StatusCode, Tracer
 from pydantic import SecretStr
 
 from phoenix.db import models
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.experiment_config import OpenAIConnectionConfig
 from phoenix.db.types.model_provider import LLMClientFactory, ModelProvider
 from phoenix.db.types.prompts import (
@@ -66,6 +67,26 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from tests.unit.vcr import CustomVCR
+
+
+def _null_client_factory(provider: str) -> LLMClientFactory[Any]:
+    @asynccontextmanager
+    async def create_client() -> AsyncIterator[Any]:
+        yield None
+
+    return LLMClientFactory(create_client, (provider, "test"))
+
+
+def _function_tool(strict: bool = UNDEFINED) -> PromptToolFunction:
+    return PromptToolFunction(
+        type="function",
+        function=PromptToolFunctionDefinition(
+            name="correctness",
+            description="Evaluate correctness",
+            parameters={"type": "object", "properties": {"label": {"type": "string"}}},
+            strict=strict,
+        ),
+    )
 
 
 class TestGoogleStreamingClient:
@@ -497,12 +518,8 @@ class TestOpenAIBaseStreamingClient:
 
 class TestAnthropicStreamingClient:
     def test_specific_tool_choice_includes_tool_definitions(self) -> None:
-        @asynccontextmanager
-        async def create_client() -> AsyncIterator[Any]:
-            yield None
-
         client: Any = AnthropicClient(
-            client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+            client_factory=_null_client_factory("anthropic"),
             model_name="claude-3-5-sonnet-latest",
             provider="anthropic",
         )
@@ -566,12 +583,8 @@ class TestAnthropicStreamingClient:
         assert extra_headers is None
 
     def _anthropic_client(self) -> Any:
-        @asynccontextmanager
-        async def create_client() -> AsyncIterator[Any]:
-            yield None
-
         return AnthropicClient(
-            client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+            client_factory=_null_client_factory("anthropic"),
             model_name="claude-3-5-sonnet-latest",
             provider="anthropic",
         )
@@ -590,17 +603,6 @@ class TestAnthropicStreamingClient:
         )
         return dict(params)
 
-    @staticmethod
-    def _function_tool(strict: Any = None) -> PromptToolFunction:
-        kwargs: dict[str, Any] = {
-            "name": "correctness",
-            "description": "Evaluate correctness",
-            "parameters": {"type": "object", "properties": {"label": {"type": "string"}}},
-        }
-        if strict is not None:
-            kwargs["strict"] = strict
-        return PromptToolFunction(type="function", function=PromptToolFunctionDefinition(**kwargs))
-
     def test_specific_tool_choice_survives_disable_parallel_tool_calls(self) -> None:
         """Disabling parallel tool use must not downgrade a specific tool choice to `auto`."""
         params = self._anthropic_params(
@@ -610,7 +612,7 @@ class TestAnthropicStreamingClient:
                     type="specific_function", function_name="correctness"
                 ),
                 disable_parallel_tool_calls=True,
-                tools=[self._function_tool()],
+                tools=[_function_tool()],
             )
         )
         assert params["tool_choice"] == {
@@ -626,7 +628,7 @@ class TestAnthropicStreamingClient:
                 type="tools",
                 tool_choice=PromptToolChoiceNone(type="none"),
                 disable_parallel_tool_calls=True,
-                tools=[self._function_tool()],
+                tools=[_function_tool()],
             )
         )
         assert params["tool_choice"] == {"type": "none"}
@@ -637,7 +639,7 @@ class TestAnthropicStreamingClient:
             PromptTools(
                 type="tools",
                 disable_parallel_tool_calls=True,
-                tools=[self._function_tool()],
+                tools=[_function_tool()],
             )
         )
         assert params["tool_choice"] == {"type": "auto", "disable_parallel_tool_use": True}
@@ -645,22 +647,25 @@ class TestAnthropicStreamingClient:
     def test_function_tool_strict_is_forwarded(self) -> None:
         """The stored prompt tool's `strict` setting must reach the Anthropic request."""
         params = self._anthropic_params(
-            PromptTools(type="tools", tools=[self._function_tool(strict=True)])
+            PromptTools(type="tools", tools=[_function_tool(strict=True)])
         )
         assert params["tools"][0]["strict"] is True
 
+    def test_function_tool_strict_false_is_forwarded(self) -> None:
+        """An explicit `strict=False` must be sent, not treated as unset."""
+        params = self._anthropic_params(
+            PromptTools(type="tools", tools=[_function_tool(strict=False)])
+        )
+        assert params["tools"][0]["strict"] is False
+
     def test_function_tool_omits_strict_when_unset(self) -> None:
         """`strict` is optional; an unset value must not be sent."""
-        params = self._anthropic_params(PromptTools(type="tools", tools=[self._function_tool()]))
+        params = self._anthropic_params(PromptTools(type="tools", tools=[_function_tool()]))
         assert "strict" not in params["tools"][0]
 
     def test_raw_computer_tools_add_anthropic_beta_header(self) -> None:
-        @asynccontextmanager
-        async def create_client() -> AsyncIterator[Any]:
-            yield None
-
         client: Any = AnthropicClient(
-            client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+            client_factory=_null_client_factory("anthropic"),
             model_name="claude-3-5-sonnet-latest",
             provider="anthropic",
         )
@@ -753,12 +758,8 @@ TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
 
 class TestBedrockClient:
     def _converse_request(self, tools: PromptTools) -> dict[str, Any]:
-        @asynccontextmanager
-        async def create_client() -> AsyncIterator[Any]:
-            yield None
-
         client: Any = BedrockClient(
-            client_factory=LLMClientFactory(create_client, ("aws", "test")),
+            client_factory=_null_client_factory("aws"),
             model_name="anthropic.claude-3-5-sonnet-20240620-v1:0",
             provider="aws",
         )
@@ -776,28 +777,36 @@ class TestBedrockClient:
         )
         return dict(request)
 
-    @staticmethod
-    def _function_tool(strict: Any = None) -> PromptToolFunction:
-        kwargs: dict[str, Any] = {
-            "name": "correctness",
-            "description": "Evaluate correctness",
-            "parameters": {"type": "object", "properties": {"label": {"type": "string"}}},
-        }
-        if strict is not None:
-            kwargs["strict"] = strict
-        return PromptToolFunction(type="function", function=PromptToolFunctionDefinition(**kwargs))
+    def test_tool_choice_none_withholds_tool_config(self) -> None:
+        """Converse has no `none` tool choice; the tools must be withheld entirely."""
+        request = self._converse_request(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceNone(type="none"),
+                tools=[_function_tool()],
+            )
+        )
+        assert "toolConfig" not in request
 
     def test_function_tool_strict_is_forwarded(self) -> None:
         """The stored prompt tool's `strict` setting must reach the Bedrock toolSpec."""
         request = self._converse_request(
-            PromptTools(type="tools", tools=[self._function_tool(strict=True)])
+            PromptTools(type="tools", tools=[_function_tool(strict=True)])
         )
         tool_spec = request["toolConfig"]["tools"][0]["toolSpec"]
         assert tool_spec["strict"] is True
 
+    def test_function_tool_strict_false_is_forwarded(self) -> None:
+        """An explicit `strict=False` must be sent, not treated as unset."""
+        request = self._converse_request(
+            PromptTools(type="tools", tools=[_function_tool(strict=False)])
+        )
+        tool_spec = request["toolConfig"]["tools"][0]["toolSpec"]
+        assert tool_spec["strict"] is False
+
     def test_function_tool_omits_strict_when_unset(self) -> None:
         """`strict` is optional; an unset value must not be sent."""
-        request = self._converse_request(PromptTools(type="tools", tools=[self._function_tool()]))
+        request = self._converse_request(PromptTools(type="tools", tools=[_function_tool()]))
         tool_spec = request["toolConfig"]["tools"][0]["toolSpec"]
         assert "strict" not in tool_spec
 

@@ -608,6 +608,8 @@ class _ToolConversion:
                 }
                 if "description" in function:
                     param["description"] = function["description"]
+                if "strict" in function and isinstance(function["strict"], bool):
+                    param["strict"] = function["strict"]
                 yield param
             elif tool["type"] == "raw":
                 # Vendor passthrough: forward the raw dict as a ToolUnionParam
@@ -634,6 +636,8 @@ class _ToolConversion:
                 if "description" in tool_param:
                     function["description"] = tool_param["description"]
                 function["parameters"] = tool_param["input_schema"]
+                if "strict" in tool_param and isinstance(tool_param["strict"], bool):
+                    function["strict"] = tool_param["strict"]
                 yield v1.PromptToolFunction(type="function", function=function)
             else:
                 yield v1.PromptToolRaw(type="raw", raw=dict(cast(Mapping[str, Any], tool)))
