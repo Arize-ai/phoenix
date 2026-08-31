@@ -134,17 +134,30 @@ _DOCSTRING_SECTION = re.compile(
     r"\n\s*(?:Args|Arguments|Parameters|Returns|Raises|Yields|Example[s]?|Note[s]?)\s*:",
 )
 
+_MCP_OPERATION_DESCRIPTIONS = {
+    "spanSearch": (
+        "Return whole span records in OTLP form within a project. Each span includes its full "
+        "attributes, so use executeSql to count, group, average, or rank spans instead of "
+        "paging and reducing them."
+    ),
+    "getSpans": (
+        "Return whole span records within a project. Each span includes its full attributes, "
+        "so use executeSql to count, group, average, or rank spans instead of paging and "
+        "reducing them."
+    ),
+}
+
 
 def _agent_facing_description(route: Any, component: Any) -> Optional[str]:
-    """A concise, agent-facing description for a generated tool.
+    """Return a concise MCP description for a generated OpenAPI component.
 
-    FastMCP builds the tool description from the OpenAPI ``description`` (the endpoint
-    docstring) in preference to the ``summary``. Docstrings here are written for human
-    API consumers: they carry ``Args:``/``Returns:`` sections and source indentation
-    that are noise on a tool surface an agent pays for by the token. Prefer the route's
-    curated one-line ``summary``; when absent, fall back to the first paragraph of the
-    docstring with structured sections and indentation stripped.
+    Operation overrides keep agent-specific guidance out of the REST schema. Other
+    routes use the summary, then the first prose paragraph of the description.
     """
+    operation_id = getattr(route, "operation_id", None)
+    if operation_id in _MCP_OPERATION_DESCRIPTIONS:
+        return _MCP_OPERATION_DESCRIPTIONS[operation_id]
+
     summary = (getattr(route, "summary", "") or "").strip()
     if summary:
         return summary
@@ -336,26 +349,31 @@ def _read_only(
     return build
 
 
-#: Handed to `CodeMode` so the sandbox's limits are stated before they are hit
-#: rather than discovered by hitting them. Each one costs a full round trip to
-#: learn: the program is written, the data is fetched, and the failure arrives
-#: after the work is paid for. The state note is the most expensive of them --
-#: fetching into a variable and reading it in the next call is the single most
-#: common failure in benchmarking, and the usual recovery is to paste the fetched
-#: rows back in as literals, which spends the context the sandbox exists to save.
-_EXECUTE_DESCRIPTION = """Run Python in a sandbox. `call_tool(name, params)` is the only \
-function in scope; import nothing.
+_MAX_CODE_MODE_TOOL_CALLS = 50
+
+
+def _execute_description(sandbox_provider: MontyPoolSandboxProvider, *, max_tool_calls: int) -> str:
+    """Build the CodeMode description from its effective limits."""
+    limit_descriptions: list[str] = []
+    if (max_memory := sandbox_provider.limits.get("max_memory")) is not None:
+        limit_descriptions.append(f"{max_memory / 1_000_000:g} MB of memory")
+    limit_descriptions.append(f"{max_tool_calls} `call_tool` invocations")
+    if (max_duration_secs := sandbox_provider.limits.get("max_duration_secs")) is not None:
+        limit_descriptions.append(f"{max_duration_secs:g} seconds of execution")
+    limits = ", ".join(limit_descriptions)
+    return f"""Run Python in a sandbox. `call_tool(name, params)` is the only \
+tool-calling function in scope.
 
 Nothing survives between calls: each `execute` starts empty, so a variable set in \
 one call does not exist in the next. Do the fetching and the reducing in the same \
-program and return only the result.
+program. End the code with `return <value>` to produce the tool result. Raised \
+exceptions indicate failure and must not carry successful results.
 
-The standard library is unavailable -- no `collections`, no `json`, no `datetime`. \
-Use built-in types: a dict for counting, `sorted(...)` for ranking.
+A restricted standard library is importable (`json`, `re`, `datetime`, and similar); \
+filesystem, network, environment, subprocess, and third-party packages are unavailable.
 
-Limits, per call: 100 MB of memory, 50 `call_tool` invocations, 30 seconds of \
-execution. Paging a whole project reaches all three; for counting, grouping or \
-averaging, one `executeSql` query returns the answer instead of the records."""
+Limits per call: {limits}. For counting, grouping, or averaging, prefer one `executeSql` query to \
+paging records."""
 
 
 class _CodeModeWithDirectSkillTools(CodeMode):
@@ -401,15 +419,19 @@ def _build_code_mode(
         The transform to install and its FastMCP sandbox adapter.
     """
     sandbox_provider = MontyPoolSandboxProvider(runtime=runtime, consumer=consumer)
+    max_tool_calls = _MAX_CODE_MODE_TOOL_CALLS
     return (
         _CodeModeWithDirectSkillTools(
-            execute_description=_EXECUTE_DESCRIPTION,
+            execute_description=_execute_description(
+                sandbox_provider, max_tool_calls=max_tool_calls
+            ),
             discovery_tools=[
                 _read_only(Search()),
                 _read_only(GetSchemas()),
                 _read_only(GetTags()),
                 _read_only(ListTools()),
             ],
+            max_tool_calls=max_tool_calls,
             sandbox_provider=sandbox_provider,
         ),
         sandbox_provider,

@@ -740,12 +740,8 @@ def _to_any_value(value: Any) -> OtlpAnyValue:
     "/projects/{project_identifier}/spans/otlpv1",
     operation_id="spanSearch",
     summary="Search spans with simple filters (no DSL)",
-    # Same cost as getSpans, in OTLP shape: whole records, all attributes. The
-    # name invites use as a query tool, so it says here what a query costs.
-    description="Return whole span records in OTLP form within a project, filtered by "
-    "time range, with cursor-based pagination. Each span includes its full attributes, "
-    "so a page is large; to count, group, average or rank spans, use executeSql instead "
-    "of paging and reducing them.",
+    description="Return spans within a project filtered by time range. "
+    "Supports cursor-based pagination.",
     responses=add_errors_to_responses([404, 422]),
 )
 async def span_search_otlpv1(
@@ -927,14 +923,8 @@ async def span_search_otlpv1(
     "/projects/{project_identifier}/spans",
     operation_id="getSpans",
     summary="List spans with simple filters (no DSL)",
-    # Says what a page costs, because the caller cannot see it: each span
-    # carries its full attributes, so a page is tens of kilobytes and paging a
-    # project is the whole table. Counting, grouping or averaging over spans is
-    # `executeSql` -- one aggregate instead of every record.
-    description="Return whole span records within a project, filtered by time range, "
-    "with cursor-based pagination. Each span includes its full attributes, so a page "
-    "is large; to count, group, average or rank spans, use executeSql instead of "
-    "paging and reducing them.",
+    description="Return spans within a project filtered by time range. "
+    "Supports cursor-based pagination.",
     responses=add_errors_to_responses([404, 422]),
 )
 async def span_search(
