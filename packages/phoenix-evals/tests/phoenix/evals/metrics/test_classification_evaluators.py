@@ -68,6 +68,8 @@ ALL_EVALUATORS = [
             ),
         },
         id="CompletenessEvaluator",
+    ),
+    pytest.param(
         RetrievalRelevanceEvaluator,
         {"input": "Q", "context": "C"},
         id="RetrievalRelevanceEvaluator",
