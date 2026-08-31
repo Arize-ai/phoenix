@@ -5946,6 +5946,24 @@
       ]
     },
     {
+      "name": "groq/qwen/qwen3.8-27b",
+      "name_pattern": "qwen/qwen3\\.8-27b",
+      "source": "litellm",
+      "provider": "groq",
+      "token_prices": [
+        {
+          "base_rate": 8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "moonshot/kimi-k2-0711-preview",
       "name_pattern": "kimi-k2-0711-preview",
       "source": "litellm",
@@ -6094,6 +6112,28 @@
         },
         {
           "base_rate": 1.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "moonshot/kimi-k2.7-code",
+      "name_pattern": "kimi-k2\\.7-code",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 9.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.9e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -7463,6 +7503,29 @@
     {
       "name": "together_ai/zai-org/GLM-5.2",
       "name_pattern": "zai-org/GLM-5\\.2",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/zai-org/GLM-5.3",
+      "name_pattern": "zai-org/GLM-5\\.3",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
