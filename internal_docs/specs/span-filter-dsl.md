@@ -236,15 +236,18 @@ Bare cost names resolve before dynamic attributes:
 `span` has no reserved meaning and may be used as a loop variable:
 `any(span.cost > 1 for span in cost_details)`.
 
-Span and session filters use parallel cost vocabularies with different scopes:
+Span, trace, and session filters expose the same cost data at their respective grains:
 
-| Capability | Span filter | Session filter |
-|---|---|---|
-| Scalar names | `total_cost`, `prompt_cost`, `completion_cost` | Same |
-| Scalar scope | Current span | Sum across the session |
-| Missing scalar | `0` | `0` |
-| Detail collection | `cost_details` | `span_cost_details` |
-| Detail fields | `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token` | Same |
+| Capability | Span filter | Trace filter | Session filter |
+|---|---|---|---|
+| Scalar names | `total_cost`, `prompt_cost`, `completion_cost` | Same | Same |
+| Scalar scope | Current span | Sum across the trace | Sum across the session |
+| Missing scalar | `0` | `0` | `0` |
+| Detail collection | `cost_details` | `span_cost_details` | `span_cost_details` |
+| Detail scope | Current span | All spans in the trace | All spans in the session |
+| Nested detail collection | None | `spans.cost_details` | None |
+| Detail fields | `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token` | Same | Same |
+| Collection functions | `any`, `all`, `len`, `sum`, `min`, `max` | Same | Same |
 
 Cost scalars coalesce to `0`; a span without a cost row satisfies
 `total_cost == 0`. Cost-detail fields remain nullable and follow the comparison
