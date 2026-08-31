@@ -117,6 +117,12 @@ async def _matching(db: DbSessionFactory, condition: str) -> list[str]:
         pytest.param("total_cost > 0.05 and name == 'cheap'", ["cheap"], id="with-span-column"),
         # Exercises two cost bindings and missing-row coalescing in one expression.
         pytest.param("prompt_cost + completion_cost > 0.5", ["priced"], id="sum"),
+        # Cost arithmetic against a cost scalar; the absent row matches via 0 + 0 == 0.
+        pytest.param(
+            "prompt_cost + completion_cost == total_cost",
+            ["cheap", "priced", "uncosted", "untokenized"],
+            id="sum-vs-scalar",
+        ),
     ],
 )
 async def test_cost_members_filter_rows(
@@ -179,6 +185,15 @@ async def test_cost_per_token_is_expressible_as_division(
 def test_span_cost_is_joined_only_when_referenced(condition: str, joined: bool) -> None:
     stmt = SpanFilter(condition)(select(models.Span.id).join(models.Trace))
     assert ("span_costs" in str(stmt.compile())) is joined
+
+
+def test_cost_scalar_arithmetic_stays_numeric() -> None:
+    # A `String` cast here errors on PostgreSQL and compares text on SQLite.
+    stmt = SpanFilter("prompt_cost + completion_cost == total_cost")(
+        select(models.Span.id).join(models.Trace)
+    )
+    sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+    assert "CAST" not in sql, sql
 
 
 async def test_span_cost_join_does_not_collide_with_a_caller_join(

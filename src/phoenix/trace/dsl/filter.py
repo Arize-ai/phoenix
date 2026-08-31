@@ -164,9 +164,12 @@ _PARENT_IS_NOT_NULL = "__parent_is_not_null__"
 _STRICT_ROOT_KEYWORD = "parent_id"
 
 
+_SPAN_COST_BINDING_PREFIX = "__span_cost_"
+
+
 def _span_cost_binding(member: str) -> str:
     """Return an eval binding that cannot collide with a user-supplied name."""
-    return f"__span_cost_{member}__"
+    return f"{_SPAN_COST_BINDING_PREFIX}{member}__"
 
 
 # Cost scalars are bound from `span_costs` at evaluation time and are intentionally absent
@@ -2368,6 +2371,7 @@ def _is_float(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Call
             node.id in bindings.float_names
             or node.id in bindings.aggregate_names
             or node.id.startswith(_REDUCTION_RESULT_PREFIX)
+            or node.id.startswith(_SPAN_COST_BINDING_PREFIX)
         )
         or _is_cast(node, "Float")
         or _is_float_constant(node)
