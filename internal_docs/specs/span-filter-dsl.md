@@ -145,9 +145,12 @@ grain declares one collection, `cost_details`.
 The outer surface is permissive because its accepted conditions are a
 compatibility promise; a collection scope is new and owes nothing, so it gets
 the family's typed dialect — every sub-expression resolves to a type before SQL
-is built, and a mismatch is rejected by name. `any(x.cost > 'abc' for x in
-cost_details)` is refused here and `latency_ms > '100'` is not, and that
-asymmetry is deliberate.
+is built, and an unknown element field is rejected by name. For example,
+`any(x.cots > 1 for x in cost_details)` reports the misspelled field, while the
+unknown top-level name in `totl_cost > 1` retains the outer grain's legacy
+meaning as a dynamic attribute path. That asymmetry is deliberate. Known typed
+mismatches such as `x.cost > '100'` and `latency_ms > '100'` are rejected in
+both scopes.
 
 Three consequences worth stating, because each is stricter than the enclosing
 grain:
@@ -264,28 +267,18 @@ addition: a name is only free to claim if no semantic convention defines it —
 `session_id` in particular is a real OpenInference key
 (`SpanAttributes.SESSION_ID`).
 
-**Cross-grain convention.** A grain-scoped rollup carries the grain prefix only
-where the grain requires one. The session grain spells the same concept bare
-(`total_cost`), because `reject_unbound_names=True` left those names free; the
-span grain cannot, because a bare name there already resolves to an attribute
-path. So the rule is *not* "every grain prefixes" — it is that a permissive
-grain reserves a root and a strict grain does not need to. A new grain should
-follow whichever half its `reject_unbound_names` puts it in, rather than
-matching whichever grain shipped most recently.
+**Cross-grain convention.** The session and span grains both spell these
+concepts as bare names. The difference is compatibility cost: the session
+grain rejects unknown names, so its cost names were free to add; the span grain
+resolves unknown names as attribute paths, so each newly claimed bare name
+changes the meaning of that legacy spelling. Future additions to the span
+vocabulary must evaluate that tradeoff individually.
 
-Once a root is reserved, adding members to it later is additive: an unknown
-member already errors, so admitting one cannot change what an accepted
-condition meant.
-
-**Traversal past a member** (`total_cost.x`, `span['total_cost']`) is
-rejected: the root exposes its fields directly and nothing further.
-
-The root **can** be shadowed by a loop variable, following Python's scoping
-rather than departing from it. In `any(span.cost > 1 for span in
-cost_details)` the `span` on the right of `in` is the root — Python
-evaluates the outermost `for` clause's iterable in the enclosing scope — and
-every other `span` in the line is the element. Inside such a comprehension the
-filtered row is unreachable, exactly as a shadowed name is in Python.
+The reservation is exact to the bare identifiers. A dotted spelling such as
+`total_cost.x` or `span.total_cost` remains a dynamic attribute path; neither
+traverses the joined cost value. `span` has no reserved meaning and remains
+available as a loop variable, as in
+`any(span.cost > 1 for span in cost_details)`.
 
 **Missing values.** Every cost member coalesces to `0`, matching the session
 grain's rollups so that one name means one thing across grains — a span with no
