@@ -104,8 +104,9 @@ def decrypt_workspace_secret(
     try:
         return SecretStr(decrypt(encrypted).decode())
     except ValueError:
+        # The message is fixed text: no key material, no ciphertext, and no
+        # token-named variables that scanners could mistake for a value.
         logger.warning(
-            "Stored %s secret could not be decrypted; falling back to the environment",
-            GITHUB_PAT_SECRET_KEY,
+            "Stored workspace GitHub token could not be decrypted; falling back to the environment"
         )
         return None
