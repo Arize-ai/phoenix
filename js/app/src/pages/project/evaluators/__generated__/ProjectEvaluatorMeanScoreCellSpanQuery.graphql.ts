@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<226c56c2ee0275d2e28740cb5f6fe3ac>>
+ * @generated SignedSource<<b3099665e24c77aab67c60b7e7d584d7>>
  * @lightSyntaxTransform
  */
 
@@ -35,6 +35,7 @@ export type ProjectEvaluatorMeanScoreCellSpanQuery$data = {
           readonly meanScore: number | null;
           readonly name: string;
         }>;
+        readonly timestamp: string;
       }>;
     };
     readonly summary?: {
@@ -214,6 +215,13 @@ v9 = {
             {
               "alias": null,
               "args": null,
+              "kind": "ScalarField",
+              "name": "timestamp",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
               "concreteType": "AnnotationSummary",
               "kind": "LinkedField",
               "name": "annotationSummaries",
@@ -310,16 +318,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c96b304033374707e95c83bf48ff7499",
+    "cacheID": "b7dd5dae78ffb4176ebd1779d58b3619",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorMeanScoreCellSpanQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorMeanScoreCellSpanQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $previousTimeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      summary: spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n        meanScore\n        count\n        scoreCount\n        labelCount\n        labelFractions {\n          label\n          fraction\n        }\n      }\n      previousSummary: spanAnnotationSummary(annotationName: $annotationName, timeRange: $previousTimeRange) {\n        meanScore\n      }\n      series: spanAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          annotationSummaries {\n            name\n            meanScore\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorMeanScoreCellSpanQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $previousTimeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      summary: spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n        meanScore\n        count\n        scoreCount\n        labelCount\n        labelFractions {\n          label\n          fraction\n        }\n      }\n      previousSummary: spanAnnotationSummary(annotationName: $annotationName, timeRange: $previousTimeRange) {\n        meanScore\n      }\n      series: spanAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "200468cb2d30608b0175fafeec0e5872";
+(node as any).hash = "8b21b4b1c5529d61bc07d7ff456a4367";
 
 export default node;

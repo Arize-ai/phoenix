@@ -15,7 +15,7 @@ import {
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { Sparkline } from "@phoenix/components/chart";
+import { Sparkline, useBinTimeTickFormatter } from "@phoenix/components/chart";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import type { ProjectEvaluatorMeanScoreCellSessionQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCellSessionQuery.graphql";
@@ -51,6 +51,7 @@ type AnnotationSummaryData = {
 
 type SeriesData = {
   readonly data: ReadonlyArray<{
+    readonly timestamp: string;
     readonly annotationSummaries: ReadonlyArray<{
       readonly name: string;
       readonly meanScore: number | null | undefined;
@@ -202,6 +203,7 @@ function SpanAnnotationMeanScore(props: AnnotationMeanScoreLoaderProps) {
               timeBinConfig: $timeBinConfig
             ) {
               data {
+                timestamp
                 annotationSummaries {
                   name
                   meanScore
@@ -217,7 +219,7 @@ function SpanAnnotationMeanScore(props: AnnotationMeanScoreLoaderProps) {
   return (
     <AnnotationMeanScoreView
       annotation={props.annotation}
-      windowKey={props.scoreWindow.windowKey}
+      scoreWindow={props.scoreWindow}
       summary={data.project.summary}
       previousMeanScore={data.project.previousSummary?.meanScore}
       series={data.project.series}
@@ -262,6 +264,7 @@ function TraceAnnotationMeanScore(props: AnnotationMeanScoreLoaderProps) {
               timeBinConfig: $timeBinConfig
             ) {
               data {
+                timestamp
                 annotationSummaries {
                   name
                   meanScore
@@ -277,7 +280,7 @@ function TraceAnnotationMeanScore(props: AnnotationMeanScoreLoaderProps) {
   return (
     <AnnotationMeanScoreView
       annotation={props.annotation}
-      windowKey={props.scoreWindow.windowKey}
+      scoreWindow={props.scoreWindow}
       summary={data.project.summary}
       previousMeanScore={data.project.previousSummary?.meanScore}
       series={data.project.series}
@@ -322,6 +325,7 @@ function SessionAnnotationMeanScore(props: AnnotationMeanScoreLoaderProps) {
               timeBinConfig: $timeBinConfig
             ) {
               data {
+                timestamp
                 annotationSummaries {
                   name
                   meanScore
@@ -337,7 +341,7 @@ function SessionAnnotationMeanScore(props: AnnotationMeanScoreLoaderProps) {
   return (
     <AnnotationMeanScoreView
       annotation={props.annotation}
-      windowKey={props.scoreWindow.windowKey}
+      scoreWindow={props.scoreWindow}
       summary={data.project.summary}
       previousMeanScore={data.project.previousSummary?.meanScore}
       series={data.project.series}
@@ -347,17 +351,21 @@ function SessionAnnotationMeanScore(props: AnnotationMeanScoreLoaderProps) {
 
 function AnnotationMeanScoreView({
   annotation,
-  windowKey,
+  scoreWindow,
   summary,
   previousMeanScore,
   series,
 }: {
   annotation: ProjectEvaluatorResultAnnotation;
-  windowKey: string;
+  scoreWindow: EvaluatorScoreWindow;
   summary: AnnotationSummaryData | null | undefined;
   previousMeanScore: number | null | undefined;
   series: SeriesData | null | undefined;
 }) {
+  const { windowKey } = scoreWindow;
+  const binTimeFormatter = useBinTimeTickFormatter({
+    scale: scoreWindow.timeBinConfig.scale,
+  });
   const meanScore = summary?.meanScore;
   const hasScore = typeof meanScore === "number";
   const hasLabels = (summary?.labelFractions.length ?? 0) > 0;
@@ -391,63 +399,80 @@ function AnnotationMeanScoreView({
         : null;
     }) ?? [];
   return (
-    <TooltipTrigger delay={0}>
-      <TriggerWrap>
-        <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
-          <CellMeanScore
-            value={meanScore}
-            positiveOptimization={getPositiveOptimizationFromConfig({
-              config: annotation.config,
-              score: meanScore,
-            })}
-          />
-          {deltaText != null ? (
-            <Text
-              size="XS"
-              fontFamily="mono"
-              flex="none"
-              color={
-                isImprovement == null
-                  ? "text-500"
-                  : isImprovement
-                    ? "success"
-                    : "danger"
-              }
-            >
-              {deltaText}
+    <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
+      {/* The score and delta carry the summary breakdown; the sparkline sits
+          outside the trigger so its hover shows per-point detail instead. */}
+      <TooltipTrigger delay={0}>
+        <TriggerWrap>
+          <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+            <CellMeanScore
+              value={meanScore}
+              positiveOptimization={getPositiveOptimizationFromConfig({
+                config: annotation.config,
+                score: meanScore,
+              })}
+            />
+            {deltaText != null ? (
+              <Text
+                size="XS"
+                fontFamily="mono"
+                flex="none"
+                color={
+                  isImprovement == null
+                    ? "text-500"
+                    : isImprovement
+                      ? "success"
+                      : "danger"
+                }
+              >
+                {deltaText}
+              </Text>
+            ) : null}
+          </Flex>
+        </TriggerWrap>
+        <RichTooltip placement="bottom">
+          <Flex direction="column" gap="size-50">
+            <SummaryValueBreakdown
+              annotationName={annotation.name}
+              labelFractions={summary?.labelFractions}
+              meanScore={meanScore}
+              annotationConfig={annotation.config}
+              count={summary?.count}
+              scoreCount={summary?.scoreCount}
+              labelCount={summary?.labelCount}
+            />
+            {deltaText != null ? (
+              <Text size="S" color="text-700">
+                {deltaText} vs. the previous {windowKey}
+              </Text>
+            ) : null}
+          </Flex>
+        </RichTooltip>
+      </TooltipTrigger>
+      <Sparkline
+        values={sparkValues}
+        aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
+        renderPointDetail={(index) => {
+          const point = series?.data[index];
+          const value = sparkValues[index];
+          if (point == null || value == null) {
+            return null;
+          }
+          return (
+            <Text size="S">
+              {binTimeFormatter(new Date(point.timestamp))} · μ{" "}
+              {formatFloat(value)}
             </Text>
-          ) : null}
-          <Sparkline
-            values={sparkValues}
-            aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
-            color={
-              isImprovement == null
-                ? "var(--global-color-gray-500)"
-                : isImprovement
-                  ? "var(--global-color-success)"
-                  : "var(--global-color-danger)"
-            }
-          />
-        </Flex>
-      </TriggerWrap>
-      <RichTooltip placement="bottom">
-        <Flex direction="column" gap="size-50">
-          <SummaryValueBreakdown
-            annotationName={annotation.name}
-            labelFractions={summary?.labelFractions}
-            meanScore={meanScore}
-            annotationConfig={annotation.config}
-            count={summary?.count}
-            scoreCount={summary?.scoreCount}
-            labelCount={summary?.labelCount}
-          />
-          {deltaText != null ? (
-            <Text size="S" color="text-700">
-              {deltaText} vs. the previous {windowKey}
-            </Text>
-          ) : null}
-        </Flex>
-      </RichTooltip>
-    </TooltipTrigger>
+          );
+        }}
+        color={
+          isImprovement == null
+            ? "var(--global-color-gray-500)"
+            : isImprovement
+              ? "var(--global-color-success)"
+              : "var(--global-color-danger)"
+        }
+      />
+    </Flex>
   );
 }

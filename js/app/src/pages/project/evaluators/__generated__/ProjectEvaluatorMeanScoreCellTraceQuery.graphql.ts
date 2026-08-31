@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f0274bad2fd6058c356ace90d9f32fa7>>
+ * @generated SignedSource<<997333f0ea78053146bc52cb9f9e2128>>
  * @lightSyntaxTransform
  */
 
@@ -35,6 +35,7 @@ export type ProjectEvaluatorMeanScoreCellTraceQuery$data = {
           readonly meanScore: number | null;
           readonly name: string;
         }>;
+        readonly timestamp: string;
       }>;
     };
     readonly summary?: {
@@ -214,6 +215,13 @@ v9 = {
             {
               "alias": null,
               "args": null,
+              "kind": "ScalarField",
+              "name": "timestamp",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
               "concreteType": "AnnotationSummary",
               "kind": "LinkedField",
               "name": "annotationSummaries",
@@ -310,16 +318,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5461828e3312374339041db649cad9b5",
+    "cacheID": "f67a21611fac0684a2ad068e5c24ff38",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorMeanScoreCellTraceQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorMeanScoreCellTraceQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $previousTimeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      summary: traceAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n        meanScore\n        count\n        scoreCount\n        labelCount\n        labelFractions {\n          label\n          fraction\n        }\n      }\n      previousSummary: traceAnnotationSummary(annotationName: $annotationName, timeRange: $previousTimeRange) {\n        meanScore\n      }\n      series: traceAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          annotationSummaries {\n            name\n            meanScore\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorMeanScoreCellTraceQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $previousTimeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      summary: traceAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n        meanScore\n        count\n        scoreCount\n        labelCount\n        labelFractions {\n          label\n          fraction\n        }\n      }\n      previousSummary: traceAnnotationSummary(annotationName: $annotationName, timeRange: $previousTimeRange) {\n        meanScore\n      }\n      series: traceAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3decec95866152c2aaa315b4e9fcc4ad";
+(node as any).hash = "0b57d757139322fd3fe0727248d8071d";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8c9a418e497164082f8be4a4832e59a7>>
+ * @generated SignedSource<<cd4280df6448f2d165f1d04a4f1cdff0>>
  * @lightSyntaxTransform
  */
 
@@ -35,6 +35,7 @@ export type ProjectEvaluatorMeanScoreCellSessionQuery$data = {
           readonly meanScore: number | null;
           readonly name: string;
         }>;
+        readonly timestamp: string;
       }>;
     };
     readonly summary?: {
@@ -214,6 +215,13 @@ v9 = {
             {
               "alias": null,
               "args": null,
+              "kind": "ScalarField",
+              "name": "timestamp",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
               "concreteType": "AnnotationSummary",
               "kind": "LinkedField",
               "name": "annotationSummaries",
@@ -310,16 +318,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "142dcf3b367dded4f3108103d31aed33",
+    "cacheID": "d806a8ce295c6a531cc77a7b63d0503c",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorMeanScoreCellSessionQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorMeanScoreCellSessionQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $previousTimeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      summary: sessionAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n        meanScore\n        count\n        scoreCount\n        labelCount\n        labelFractions {\n          label\n          fraction\n        }\n      }\n      previousSummary: sessionAnnotationSummary(annotationName: $annotationName, timeRange: $previousTimeRange) {\n        meanScore\n      }\n      series: sessionAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          annotationSummaries {\n            name\n            meanScore\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorMeanScoreCellSessionQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $previousTimeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      summary: sessionAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n        meanScore\n        count\n        scoreCount\n        labelCount\n        labelFractions {\n          label\n          fraction\n        }\n      }\n      previousSummary: sessionAnnotationSummary(annotationName: $annotationName, timeRange: $previousTimeRange) {\n        meanScore\n      }\n      series: sessionAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7d39dfeb039eb44d3efac1a5a62dd36a";
+(node as any).hash = "fd60d1150254848947c26c26146517ae";
 
 export default node;
