@@ -4704,10 +4704,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Trace GlobalID)",
+              "description": "Pagination cursor returned by a previous request",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Trace GlobalID)"
+            "description": "Pagination cursor returned by a previous request"
           },
           {
             "name": "include_spans",
