@@ -141,36 +141,21 @@ declared element fields. `len` takes a list comprehension, the rest take a
 generator — inherited from CPython, where `len` needs a sized argument. The
 grain declares one collection, `cost_details`.
 
-**Inside a comprehension the dialect is strict**, unlike the grain around it.
-The outer surface is permissive because its accepted conditions are a
-compatibility promise; a collection scope is new and owes nothing, so it gets
-the family's typed dialect — every sub-expression resolves to a type before SQL
-is built, and an unknown element field is rejected by name. For example,
-`any(x.cots > 1 for x in cost_details)` reports the misspelled field, while the
-unknown top-level name in `totl_cost > 1` retains the outer grain's legacy
-meaning as a dynamic attribute path. That asymmetry is deliberate. Known typed
-mismatches such as `x.cost > '100'` and `latency_ms > '100'` are rejected in
-both scopes.
+The `cost_details` element scope is closed and strictly typed:
 
-Three consequences worth stating, because each is stricter than the enclosing
-grain:
+- Only the loop variable's declared fields are available. Span names,
+  `attributes[...]`, `metadata[...]`, and compatibility aliases are rejected.
+  Compare span values outside the comprehension, for example
+  `total_cost > 1 and any(d.cost > 0 for d in cost_details)`.
+- Unknown fields and typed mismatches are rejected. For example, `d.cots`
+  reports an unknown field and `d.cost > '100'` reports incompatible types.
+- `int(...)` is unsupported, and casting a value to its existing type is
+  rejected as a no-op.
+- Each `if` clause must be a condition; a bare text field is not valid.
 
-- **Nothing reaches out of the scope.** The loop variable's fields are the whole
-  vocabulary. `attributes[...]`, `metadata[...]`, a legacy spelling like
-  `context.span_id`, and a grain name like `latency_ms` or `total_cost` are all
-  rejected — compare them outside and conjoin instead:
-  `total_cost > 1 and any(...)`. This is enforcement, not style: the eval
-  globals for a comprehension bind element columns and nothing else, so anything
-  else that typed here would compile and then raise when the query is built,
-  outside the error boundary.
-- **Casts follow the family, not the grain.** `int(...)` is refused outright
-  rather than aliased to `float(...)`, and casting a term to the type it already
-  has is refused as a no-op. All three still compile outside a comprehension.
-- **An `if` clause is a condition**, so a bare text field is not one.
-
-A rejection here never suggests `attributes[...]`, for the same reason: that
-spelling is precisely what fails this way, so the advice would hand the user the
-crash instead of the fix.
+At the top level, unknown names resolve to dynamic attribute paths.
+Therefore `totl_cost > 1` is valid, while the same unknown name inside a
+`cost_details` comprehension is rejected.
 
 Empty-collection results follow CPython: `all(())` is true, `len(())` and
 `sum(())` are `0`. `max(())`/`min(())` raise in Python and are NULL here, which
@@ -226,13 +211,11 @@ demand — see [Cost names](#cost-names)):
 that look like span columns, such as `events` — resolves to an attribute path,
 not a column. `events == 'x'` compiles to a comparison against
 `attributes['events']` and has nothing to do with the `events` column on the
-table. The cost names are the newest entries on it: each one was an attribute
-path until it was added.
+table.
 
-Reading the vocabulary out of the code is easy to get wrong here. `_NAMES` is
-the **evaluation namespace** handed to `eval`, and it binds `attributes` and
-`events` because the compiled expression needs them; it is not the set of names
-a user may write. The user-facing vocabulary is
+`_NAMES` is the **evaluation namespace** handed to `eval`, not the set of names
+a user may write. It includes `attributes` and `events` because compiled
+expressions require them. The user-facing vocabulary is
 `_STRING_NAMES ∪ _FLOAT_NAMES ∪ _DATETIME_NAMES ∪ _FLOAT_ATTRIBUTES` plus the
 reserved keyword and the cost names — exactly the list above. The cost names are
 likewise absent from `_NAMES`: they are bound per-instance against an aliased
@@ -240,73 +223,35 @@ join, which is also why `Projector` does not resolve them.
 
 ### Cost names
 
-The cost members are ordinary bare names: they sit in the same vocabulary as
-`latency_ms` and resolve ahead of the dynamic attribute namespace. That makes
-adding them a **breaking change** (§6 of the design principles), and a quieter
-one than most:
+Bare cost names resolve before dynamic attributes:
 
-| Kind | Example | Resolves to |
-|---|---|---|
-| Backward-compatibility alias | `context.span_id` | a name that also has a bare spelling |
-| Attribute path | `llm.token_count.total` | *into* the dynamic namespace |
-| Grain vocabulary | `latency_ms`, `total_cost` | a column or joined value, ahead of the dynamic namespace |
+| Spelling | Resolves to |
+|---|---|
+| `total_cost` | the current span's cost scalar |
+| `cost_details` | the current span's per-token cost rows |
+| `attributes['total_cost']` | the flat span attribute named `total_cost` |
+| `span.total_cost` | the dynamic attribute path `attributes['span']['total_cost']` |
+| `totl_cost` | the dynamic attribute path `attributes['totl_cost']` |
 
-Four names — the three costs and `cost_details` — moved from the second row to
-the third. A stored condition that keyed an attribute of one of those names does
-not error: it silently starts reading the span's own cost instead. The subscript
-spelling is untouched and is the migration for anyone affected —
-`attributes['total_cost']` reads the flat key `$."total_cost"` it always did.
-
-Closure was the alternative and was not taken. Reserving a dotted root (`span.`,
-over a closed member set) would have kept these off the bare namespace entirely
-and made a misspelling answerable by name, at the cost of a loud break on every
-`span.x` spelling. Bare names were chosen for ergonomics; the price is that
-`totl_cost` falls back to an attribute path that matches nothing and says
-nothing, exactly as any other misspelled bare name does. Note for any future
-addition: a name is only free to claim if no semantic convention defines it —
-`session_id` in particular is a real OpenInference key
-(`SpanAttributes.SESSION_ID`).
-
-**Cross-grain convention.** The session and span grains both spell these
-concepts as bare names. The difference is compatibility cost: the session
-grain rejects unknown names, so its cost names were free to add; the span grain
-resolves unknown names as attribute paths, so each newly claimed bare name
-changes the meaning of that legacy spelling. Future additions to the span
-vocabulary must evaluate that tradeoff individually.
-
-The reservation is exact to the bare identifiers. A dotted spelling such as
-`total_cost.x` or `span.total_cost` remains a dynamic attribute path; neither
-traverses the joined cost value. `span` has no reserved meaning and remains
-available as a loop variable, as in
+`span` has no reserved meaning and may be used as a loop variable:
 `any(span.cost > 1 for span in cost_details)`.
 
-**Missing values.** Every cost member coalesces to `0`, matching the session
-grain's rollups so that one name means one thing across grains — a span with no
-cost row answers `total_cost == 0`. That correspondence is exact rather than
-approximate: the trace and session `total_cost` sum the same `span_costs` column
-these read, so the span names are those rollups at a scope of one span. Element fields of `cost_details` are
-the exception and stay nullable — a detail row's missing `cost` is a fact about
-that row, not about the span, so it fails every comparison per [Unknown
-types](#unknown-types).
+Span and session filters use parallel cost vocabularies with different scopes:
 
-**Token counts have no member, and neither does cost per token.**
-`models.SpanCost` stores `total_tokens`, `prompt_tokens` and `completion_tokens`
-alongside the costs, and carries `*_cost_per_token` hybrids; all six were part of
-this vocabulary and none of them are now. A name here is not free — each is
-claimed out of the attribute namespace, where claiming it silently changes what a
-stored condition keying that attribute meant — so each has to be asked for.
+| Capability | Span filter | Session filter |
+|---|---|---|
+| Scalar names | `total_cost`, `prompt_cost`, `completion_cost` | Same |
+| Scalar scope | Current span | Sum across the session |
+| Missing scalar | `0` | `0` |
+| Detail collection | `cost_details` | `span_cost_details` |
+| Detail fields | `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token` | Same |
 
-The ratios were dropped first, as sugar for `a / b`. The token members went with
-them once the same question was put the other way round: what asked for these?
-Nothing did. [#14008](https://github.com/Arize-ai/phoenix/issues/14008) asks for
-cost, and the grains it names as prior art expose three cost names and no token
-name — `cost_summary_by_session` computes the token totals and the session
-vocabulary declines to serve them. They were also the three costliest names in
-the set to claim, being the literal OpenAI `usage` keys and so the likeliest here
-to already name a real span attribute.
+Cost scalars coalesce to `0`; a span without a cost row satisfies
+`total_cost == 0`. Cost-detail fields remain nullable and follow the comparison
+rules in [Unknown types](#unknown-types).
 
-A rate is still expressible, and a span's token counts were always reachable
-without these:
+The span vocabulary has no cost-row token-count scalar or aggregate
+cost-per-token scalar. Use these expressions instead:
 
 | Want | Spelling |
 |---|---|
@@ -315,18 +260,9 @@ without these:
 | Tokens, this span alone | `attributes['llm']['token_count']['total']` |
 | Tokens, this span and descendants | `cumulative_llm_token_count_total` |
 
-The reduction pair is the same quantity the dropped members held, not an
-approximation of it: `SpanCost.append_detail` accumulates `total_cost` and
-`total_tokens` as precisely those two sums, and `SUM` skips NULLs where the
-accumulator's truthiness guards do. The divisor still passes through the DSL's
-`nullif` guard, so the rate is NULL — never a division error, never a rate of
-`0` — for both cases a rate can be undefined, no cost row and zero tokens.
-
-Note that the two token spellings read span attributes, not `span_costs`. They
-are a different lineage, materialized by a different path, and the fourth row is
-a subtree rollup rather than a leaf. Any future move to serve
-`SpanCost.total_tokens` under a name should not reuse a `token_count_*` spelling
-from another grain, which would put one name on two measurements.
+The ratio denominator is wrapped in `nullif`, so missing or zero tokens produce
+NULL instead of a division error or a rate of `0`. The token expressions read
+span attributes; `cumulative_llm_token_count_total` includes descendants.
 
 ### Backward-compatibility aliases
 
@@ -1024,8 +960,7 @@ decision should be made knowing it.
   (see principle 6). If the field vocabulary is expected to grow — and
   observability schemas do — the strategy (a reserved namespace such as
   `span.<field>`, or freezing the vocabulary outright) has to be picked while
-  choosing is still possible. The cost names spent one such collision already:
-  see [Cost names](#cost-names).
+  choosing is still possible.
 
 ---
 
