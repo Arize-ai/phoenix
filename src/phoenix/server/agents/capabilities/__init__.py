@@ -7,6 +7,10 @@ from phoenix.server.agents.capabilities.docs_mcp import (
     MintlifyDocsMCPCapability,
     MintlifyDocsMCPServer,
 )
+from phoenix.server.agents.capabilities.github_mcp import (
+    GitHubMCPCapability,
+    build_github_mcp_capability,
+)
 from phoenix.server.agents.capabilities.native_tool_retry import (
     NativeToolRetryCapability,
 )
@@ -23,6 +27,8 @@ from phoenix.server.agents.capabilities.tools.external import (
 __all__ = [
     "AnthropicPromptCacheCapability",
     "build_anthropic_prompt_cache_capability",
+    "GitHubMCPCapability",
+    "build_github_mcp_capability",
     "MintlifyDocsMCPCapability",
     "MintlifyDocsMCPServer",
     "NativeToolRetryCapability",

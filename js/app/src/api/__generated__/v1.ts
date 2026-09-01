@@ -2425,6 +2425,11 @@ export interface components {
              */
             lastMessageId?: string | null;
             /**
+             * Credentials
+             * @description Client-held credentials for optional integrations (e.g. the user's own GitHub personal access token under the key ``GITHUB_PERSONAL_ACCESS_TOKEN``), used only for the duration of the turn and never persisted. Unknown keys are rejected.
+             */
+            credentials?: components["schemas"]["ChatRequestCredential"][];
+            /**
              * Recordlocaltraces
              * @default false
              */
@@ -2440,6 +2445,28 @@ export interface components {
              * @default false
              */
             instrumentUserId?: boolean;
+        };
+        /**
+         * ChatRequestCredential
+         * @description One client-held credential riding the request for the duration of a turn.
+         *
+         *     The value is ephemeral: it is injected server-side as transport auth for
+         *     the matching integration and is never persisted, traced, or echoed. It is
+         *     top-level on the request body — never part of the message — so it cannot
+         *     reach the session transcript.
+         */
+        ChatRequestCredential: {
+            /**
+             * Key
+             * @description The credential's secret-key name.
+             * @constant
+             */
+            key: "GITHUB_PERSONAL_ACCESS_TOKEN";
+            /**
+             * Value
+             * Format: password
+             */
+            value: string;
         };
         /** CodeEvaluatorUIContext */
         CodeEvaluatorUIContext: {

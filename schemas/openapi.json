@@ -11138,6 +11138,14 @@
             "title": "Lastmessageid",
             "description": "The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` \u2014 the client should refetch the session before retrying."
           },
+          "credentials": {
+            "items": {
+              "$ref": "#/components/schemas/ChatRequestCredential"
+            },
+            "type": "array",
+            "title": "Credentials",
+            "description": "Client-held credentials for optional integrations (e.g. the user's own GitHub personal access token under the key ``GITHUB_PERSONAL_ACCESS_TOKEN``), used only for the duration of the turn and never persisted. Unknown keys are rejected."
+          },
           "recordLocalTraces": {
             "type": "boolean",
             "title": "Recordlocaltraces",
@@ -11163,6 +11171,29 @@
         ],
         "title": "ChatRequestBody",
         "description": "Assistant chat submit request payload."
+      },
+      "ChatRequestCredential": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "const": "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "title": "Key",
+            "description": "The credential's secret-key name."
+          },
+          "value": {
+            "type": "string",
+            "format": "password",
+            "title": "Value",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "ChatRequestCredential",
+        "description": "One client-held credential riding the request for the duration of a turn.\n\nThe value is ephemeral: it is injected server-side as transport auth for\nthe matching integration and is never persisted, traced, or echoed. It is\ntop-level on the request body \u2014 never part of the message \u2014 so it cannot\nreach the session transcript."
       },
       "CodeEvaluatorUIContext": {
         "properties": {

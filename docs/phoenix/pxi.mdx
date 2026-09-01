@@ -289,6 +289,25 @@ the [Phoenix roadmap milestone](https://github.com/Arize-ai/phoenix/milestone/13
 Because skills are context-aware, PXI surfaces the right one for the page and
 task you are on.
 
+## File GitHub issues
+
+When PXI surfaces a real defect, it can search for duplicates and file a
+GitHub issue that links the relevant traces and spans, backed by
+[GitHub's hosted MCP server](https://github.com/github/github-mcp-server).
+
+To enable it, add a
+[fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+with **Issues read/write** access under **Settings → Assistant → Personal
+settings → GitHub**. The token stays in your browser — Phoenix never persists
+it — and issues are filed as you. Admins can set a shared workspace token as a
+fallback, or turn the feature off under **Settings → Assistant → System
+settings → GitHub tools**. In the terminal, set `githubPersonalAccessToken` in
+your `~/.px/settings.json` profile; issue creation there requires
+`--bypass-edits`.
+
+Creating an issue is approval-gated: PXI shows the exact repository, title,
+and body before anything is posted.
+
 ## You stay in control
 
 Agent assistance is opt-in. PXI can be turned off completely, runs under an
@@ -472,6 +491,9 @@ present, so it does not offer an action that cannot succeed on your current page
   | `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including the Phoenix docs MCP lookups. |
   | `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` | Disable PXI's web search/fetch tools while leaving other external resources available. |
   | `PHOENIX_AGENTS_DISABLE_BASH=true` | Remove PXI's server-side bash tool. This strips bash from the assistant, disables subagents (and hides the subagents toggle in **Settings → Assistant**), and rejects the headless terminal agent, which depends on it. To turn PXI off entirely use `PHOENIX_DISABLE_AGENT_ASSISTANT`. |
+  | `PHOENIX_AGENTS_DISABLE_GITHUB=true` | Disable PXI's GitHub issue tools and hide the GitHub settings UI. |
+  | `PHOENIX_AGENTS_GITHUB_MCP_URL` | Base URL of the GitHub MCP server (default `https://api.githubcopilot.com/mcp/`). Point at a self-hosted `github-mcp-server` for GitHub Enterprise Server or air-gapped deployments. |
+  | `GITHUB_PERSONAL_ACCESS_TOKEN` | Server-side fallback GitHub token, used when a request carries no personal token and no workspace secret is configured. |
   | `PHOENIX_AGENTS_FORCE_TRACING=true` | Force local PXI tracing, remote trace export, and signed-in user email attribution for every user, regardless of workspace or browser settings. Configure the remote collector variables below before enabling it. |
   | `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` | Remote collector endpoint for assistant trace export. |
   | `PHOENIX_AGENTS_COLLECTOR_API_KEY` | API key for the remote collector, if required. |

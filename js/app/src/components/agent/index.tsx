@@ -5,6 +5,7 @@ export {
   AgentSubagentsSettings,
   AgentWebAccessSettings,
 } from "./AgentExperimentalSettings";
+export { AgentGitHubSettings } from "./AgentGitHubSettings";
 export { SystemSettingsWarning } from "./SystemSettingsWarning";
 export { AgentChatPanel, FloatingAgentChatPanel } from "./AgentChatPanel";
 export { ASSISTANT_RAIL_PANEL_ID } from "./AgentChatPanelView";

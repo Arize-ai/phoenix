@@ -35,8 +35,10 @@ from phoenix.config import (
 )
 from phoenix.db.types.data_stream_protocol import PhoenixAssistantMessageMetadata
 from phoenix.server.agents.agent_factory import build_agent, build_agent_tracer
+from phoenix.server.agents.config import AgentsEnvConfig
 from phoenix.server.agents.context import ChatContext, resolve_contexts
 from phoenix.server.agents.exceptions import AgentError
+from phoenix.server.agents.github import GitHubMCPConfig, resolve_github_mcp_config
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
@@ -217,6 +219,16 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
             and get_env_phoenix_agents_web_access_enabled()
         )
         subagents_enabled = _subagents_enabled(resolved_contexts)
+        # The legacy body is fed wholesale to the adapter as run_input, so it
+        # deliberately carries no request credentials; only the workspace
+        # secret or environment token applies here. Writes stay unavailable
+        # unless edit permission is "bypass" (this route is always headless).
+        github_mcp_config: GitHubMCPConfig | None = None
+        if AgentsEnvConfig.from_env().allows_github(request.app.state.system_settings.agent_github):
+            async with request.app.state.db.read() as session:
+                github_mcp_config = await resolve_github_mcp_config(
+                    session, request.app.state.decrypt, {}
+                )
         agent = build_agent(
             name="PXIAgent",
             headless=True,
@@ -227,6 +239,7 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
             event_queue=request.state.event_queue,
             docs_mcp_server=request.app.state.docs_mcp_server,
             phoenix_mcp_server=request.app.state.pxi_mcp_server,
+            github_mcp_config=github_mcp_config,
             principal=phoenix_user,
             enable_web_access=web_access_enabled,
             edit_permission=body.edit_permission,
