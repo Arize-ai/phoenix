@@ -72,6 +72,37 @@ def _stub_code_mode_startup_check(request: FixtureRequest, monkeypatch: pytest.M
     monkeypatch.setattr("phoenix.server.monty_runtime.MontyRuntime.probe_runtime", _skip)
 
 
+@pytest.fixture(autouse=True)
+def _stub_wasm_prefetch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app lifespan pre-fetches the sandbox WASM binary through a cache
+    directory shared by every xdist worker, with a network download on a miss
+    -- contention and I/O that do not fit inside asgi_lifespan's 5s startup
+    budget. Stubbed suite-wide; the download tests call it directly."""
+
+    async def _skip() -> None:
+        return None
+
+    monkeypatch.setattr("phoenix.server.app.prefetch_wasm_binary_if_needed", _skip)
+
+
+@pytest.fixture(autouse=True)
+def _widened_app_lifespan_budgets(monkeypatch: pytest.MonkeyPatch) -> None:
+    """asgi_lifespan's default five-second budgets are routinely exceeded by
+    app startup under full worker contention: setups measure eight seconds and
+    more at the tail of the suite. Several test modules construct
+    LifespanManager directly, so the default is widened once here; explicit
+    arguments still win, and the per-test timeout bounds a genuine hang."""
+    original = LifespanManager.__init__
+
+    def widened(self: Any, app: Any, *args: Any, **kwargs: Any) -> None:
+        if not args:
+            kwargs.setdefault("startup_timeout", 30)
+            kwargs.setdefault("shutdown_timeout", 30)
+        original(self, app, *args, **kwargs)
+
+    monkeypatch.setattr(LifespanManager, "__init__", widened)
+
+
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
     db = config.getoption("--db")
     if db == "sqlite":
