@@ -27,9 +27,9 @@ export interface UpdateDatasetSplitParams extends ClientFn {
   color?: UpdateDatasetSplitRequestBody["color"];
   /** JSON metadata that replaces the existing metadata. */
   metadata?: UpdateDatasetSplitRequestBody["metadata"];
-  /** Dataset example GlobalIDs to add. Existing memberships are no-ops. */
+  /** Dataset example GlobalIDs or user-provided IDs to add. Existing memberships are no-ops. */
   addExampleIds?: UpdateDatasetSplitRequestBody["add_example_ids"];
-  /** Dataset example GlobalIDs to remove. Missing memberships are no-ops. */
+  /** Dataset example GlobalIDs or user-provided IDs to remove. Missing memberships are no-ops. */
   removeExampleIds?: UpdateDatasetSplitRequestBody["remove_example_ids"];
 }
 
@@ -47,8 +47,8 @@ export interface UpdateDatasetSplitParams extends ClientFn {
  * @param params.description - A new description, or null to clear it.
  * @param params.color - A new hex color for the split.
  * @param params.metadata - JSON metadata that replaces the existing metadata.
- * @param params.addExampleIds - Dataset example GlobalIDs to add.
- * @param params.removeExampleIds - Dataset example GlobalIDs to remove.
+ * @param params.addExampleIds - Dataset example GlobalIDs or user-provided IDs to add.
+ * @param params.removeExampleIds - Dataset example GlobalIDs or user-provided IDs to remove.
  * @returns The updated dataset split.
  * @throws {HttpError} If the dataset, split, or an example does not exist, the
  * name is already in use, or the request is invalid.

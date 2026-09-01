@@ -25,7 +25,7 @@ export interface CreateDatasetSplitParams extends ClientFn {
   color?: CreateDatasetSplitRequestBody["color"];
   /** Arbitrary JSON metadata for the split. */
   metadata?: CreateDatasetSplitRequestBody["metadata"];
-  /** Dataset example GlobalIDs with which to seed the split. */
+  /** Dataset example GlobalIDs or user-provided IDs with which to seed the split. */
   exampleIds?: CreateDatasetSplitRequestBody["example_ids"];
 }
 
@@ -39,7 +39,7 @@ export interface CreateDatasetSplitParams extends ClientFn {
  * @param params.description - An optional description of the split.
  * @param params.color - An optional hex color for the split.
  * @param params.metadata - Arbitrary JSON metadata for the split.
- * @param params.exampleIds - Dataset example GlobalIDs with which to seed the split.
+ * @param params.exampleIds - Dataset example GlobalIDs or user-provided IDs with which to seed the split.
  * @returns The created dataset split.
  * @throws {HttpError} If the dataset or an example does not exist, the name is
  * already in use, or the request is invalid.
