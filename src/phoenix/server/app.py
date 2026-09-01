@@ -714,6 +714,13 @@ def _lifespan(
                 try:
                     await stack.enter_async_context(docs_mcp_server)
                 except Exception:
+                    # Detach it so the degradation is real. The assistant reads
+                    # ``app.state.docs_mcp_server`` per request and attaches the
+                    # docs capability whenever it is not ``None``; leaving the
+                    # failed server there makes every turn re-attempt the
+                    # handshake, stall until the deadline, and then fail the
+                    # turn instead of answering without docs tools.
+                    app.state.docs_mcp_server = None
                     logger.warning(
                         "Failed to initialize docs MCP server; continuing without docs capability.",
                         exc_info=True,
