@@ -8,7 +8,6 @@ import {
 import {
   startTransition,
   useCallback,
-  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -404,12 +403,6 @@ export function ProjectEvaluatorsTable({
     (projectEvaluatorId: string) => navigate(paths.edit(projectEvaluatorId)),
     [navigate, paths]
   );
-  // Deferred so a window change — a range pick, or the live window's
-  // once-a-minute/hour re-anchor — re-renders the score cells in the
-  // background: they keep their stale content while the new window's data
-  // loads instead of all suspending to their fallbacks at once, which read
-  // as the whole column flickering.
-  const deferredScoreWindow = useDeferredValue(scoreWindow);
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () => [
       {
@@ -718,9 +711,7 @@ export function ProjectEvaluatorsTable({
     !isFiltered && !hasNext && rows.length < GALLERY_PROMO_MAX_EVALUATOR_COUNT;
   return (
     <div css={scrollableAreaCSS}>
-      {/* Deferred so window changes load in the background while the mean
-          score cells keep their content — see the note on the provider. */}
-      <EvaluatorScoreWindowProvider value={deferredScoreWindow}>
+      <EvaluatorScoreWindowProvider value={scoreWindow}>
         <ColumnOrderingProvider
           columnOrder={visibleColumnOrder}
           onColumnOrderChange={onVisibleColumnOrderChange}
