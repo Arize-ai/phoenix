@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 7.7.1
+
+### Patch Changes
+
+- 1cdff14: Expose cumulative prompt, completion, and total token counts on the high-level `Session` objects returned by `getSession` and `listSessions`.
+
 ## 7.7.0
 
 ### Minor Changes
