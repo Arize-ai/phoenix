@@ -95,6 +95,7 @@ export const confusionMatrixCSS = css`
     align-items: center;
     justify-content: center;
     text-align: center;
+    padding-block-end: var(--global-dimension-size-50);
   }
 
   .confusion-matrix__column-header--total,
@@ -108,7 +109,7 @@ export const confusionMatrixCSS = css`
     align-items: center;
     justify-content: flex-end;
     text-align: right;
-    padding-inline-end: var(--global-dimension-size-100);
+    padding-inline-end: var(--global-dimension-size-150);
     max-width: var(--global-dimension-size-2000);
   }
 
@@ -163,6 +164,13 @@ export const confusionMatrixCSS = css`
   .confusion-matrix__total .confusion-matrix__percentage {
     color: var(--global-text-color-500);
     opacity: 1;
+  }
+
+  /* The nested legend sits flush against the container's bottom-left corner
+   * otherwise; standalone legends are left to their surrounding layout */
+  .confusion-matrix-legend {
+    padding-block-start: var(--global-dimension-size-50);
+    padding-inline-start: var(--global-dimension-size-100);
   }
 
   .confusion-matrix__quadrant {
