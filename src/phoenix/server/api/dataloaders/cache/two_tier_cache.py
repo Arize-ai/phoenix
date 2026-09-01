@@ -44,6 +44,15 @@ class TwoTierCache(
         if sub_cache := self._cache.get(section):
             sub_cache.clear()
 
+    def invalidate_matching(self, predicate: Callable[[_Section], bool]) -> None:
+        """Drop every section the predicate matches, e.g. all of one project's.
+
+        The matching sections are collected before any deletion so correctness
+        doesn't depend on the cache's delete-during-iteration semantics.
+        """
+        for section in [s for s in self._cache.keys() if predicate(s)]:
+            del self._cache[section]
+
     def get(self, key: _Key) -> Optional["Future[_Result]"]:
         section, sub_key = self._cache_key(key)
         if not (sub_cache := self._cache.get(section)):

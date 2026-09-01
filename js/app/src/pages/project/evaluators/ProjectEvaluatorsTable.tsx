@@ -66,7 +66,10 @@ import {
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
-import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
+import {
+  getEvaluatorScoreWindow,
+  isSameEvaluatorScoreWindow,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
 import {
@@ -343,11 +346,10 @@ export function ProjectEvaluatorsTable({
       const hasInitialTimeRange =
         timeRange.start === initialTimeRange.start &&
         timeRange.end === initialTimeRange.end;
-      const hasInitialScoreWindow =
-        scoreWindow.timeRange.start === initialScoreWindow.timeRange.start &&
-        scoreWindow.timeRange.end === initialScoreWindow.timeRange.end &&
-        scoreWindow.timeBinConfig.scale ===
-          initialScoreWindow.timeBinConfig.scale;
+      const hasInitialScoreWindow = isSameEvaluatorScoreWindow(
+        scoreWindow,
+        initialScoreWindow
+      );
       const hasInitialIncludeMeanScore =
         includeMeanScore === initialIncludeMeanScore;
       // Avoid a duplicate request only when the rows supplied by the owner

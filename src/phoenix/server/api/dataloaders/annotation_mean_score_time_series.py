@@ -59,14 +59,16 @@ class AnnotationMeanScoreTimeSeriesCache(
 ):
     """Sections match AnnotationSummaryCache's `(project, name, kind)`, so the
     same annotation-write events invalidate both caches. Live windows are sent
-    open-ended with hour-snapped starts, so sub-keys stay stable between snap
-    boundaries and entries stay useful for the whole main-cache TTL.
+    open-ended with snapped starts (to the hour for day-scale keys, finer for
+    shorter ones), so sub-keys hold still between snap boundaries and
+    day-scale entries stay useful for the whole main-cache TTL.
     """
 
     def __init__(self) -> None:
         super().__init__(
-            # TTL=3600 (1-hour) because window starts snap to the hour, so an
-            # entry older than that no longer matches any live window anyway.
+            # TTL=3600 (1-hour): day-scale window starts snap to the hour, so
+            # an entry older than that no longer matches any live window;
+            # shorter windows snap finer and churn their sub-keys sooner.
             main_cache=TTLCache(maxsize=64 * 32 * 2, ttl=3600),
             # LRU, not LFU: a user hops between a handful of windows, and
             # under LFU a fresh window's key enters at frequency 1 — the
@@ -80,9 +82,7 @@ class AnnotationMeanScoreTimeSeriesCache(
         )
 
     def invalidate_project(self, project_rowid: ProjectRowId) -> None:
-        for section in self._cache.keys():
-            if section[0] == project_rowid:
-                del self._cache[section]
+        self.invalidate_matching(lambda section: section[0] == project_rowid)
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
         (
