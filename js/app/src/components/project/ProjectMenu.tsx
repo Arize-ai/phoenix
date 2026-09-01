@@ -21,6 +21,7 @@ import type { MenuButtonProps } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { StylableProps } from "@phoenix/components/core/types";
+import { ErrorBoundary } from "@phoenix/components/exception";
 
 import type { ProjectMenu_projects$key } from "./__generated__/ProjectMenu_projects.graphql";
 import type { ProjectMenuProjectsQuery } from "./__generated__/ProjectMenuProjectsQuery.graphql";
@@ -74,9 +75,10 @@ function ProjectMenuButton({
 
 /**
  * A menu button that resolves the selected project's name by id. Used when
- * the name is not available from data already fetched, e.g. when the route
- * was entered client-side (so the route loader never fetched the selected
- * project) and the project is not in the loaded pages of the connection.
+ * the name is not available from data already fetched, i.e. when the selected
+ * project is not in the loaded pages of the connection. Must be rendered
+ * inside an error boundary: the query fails when the selected project no
+ * longer exists (e.g. a stale id for a deleted project).
  */
 function SelectedProjectMenuButton({
   projectId,
@@ -126,17 +128,7 @@ export function ProjectMenu({
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 50 }
           filter: { type: "ProjectFilter", defaultValue: null }
-          hasSelectedProject: { type: "Boolean!" }
-          selectedProjectId: { type: "ID!" }
         ) {
-          selectedProject: node(id: $selectedProjectId)
-            @include(if: $hasSelectedProject) {
-            __typename
-            id
-            ... on Project {
-              name
-            }
-          }
           projects(first: $first, after: $after, filter: $filter)
             @connection(key: "ProjectMenu_projects") {
             edges {
@@ -154,28 +146,8 @@ export function ProjectMenu({
     );
 
   const projects = data.projects.edges.map((edge) => edge.project);
-  const selectedProjectFromMenu = projects.find(
-    (project) => project.id === selectedProjectId
-  );
-  const selectedProjectFromRoute: SelectedProject | null =
-    data.selectedProject?.__typename === "Project" &&
-    data.selectedProject.id === selectedProjectId &&
-    typeof data.selectedProject.name === "string"
-      ? {
-          id: data.selectedProject.id,
-          name: data.selectedProject.name,
-        }
-      : null;
-  const selectedProject = selectedProjectFromMenu ?? selectedProjectFromRoute;
-  const selectedProjectVariables = selectedProjectId
-    ? {
-        hasSelectedProject: true,
-        selectedProjectId,
-      }
-    : {
-        hasSelectedProject: false,
-        selectedProjectId: "",
-      };
+  const selectedProject: SelectedProject | null =
+    projects.find((project) => project.id === selectedProjectId) ?? null;
   const projectFilter = search ? { col: "name" as const, value: search } : null;
   const displayProjectName = selectedProjectId
     ? (selectedProject?.name ??
@@ -198,7 +170,6 @@ export function ProjectMenu({
           after: null,
           first: PAGE_SIZE,
           filter: value ? { col: "name", value } : null,
-          ...selectedProjectVariables,
         },
         { fetchPolicy: "store-and-network" }
       );
@@ -216,7 +187,6 @@ export function ProjectMenu({
           after: null,
           first: PAGE_SIZE,
           filter: null,
-          ...selectedProjectVariables,
         },
         { fetchPolicy: "store-and-network" }
       );
@@ -232,23 +202,39 @@ export function ProjectMenu({
       }}
     >
       {selectedProjectId && displayProjectName == null ? (
-        <Suspense
-          fallback={
+        // The error boundary keeps a stale id (e.g. a deleted project) from
+        // crashing the page: the menu falls back to its placeholder so the
+        // user can pick a different project. Keyed so the boundary resets
+        // when the selection changes.
+        <ErrorBoundary
+          key={selectedProjectId}
+          fallback={() => (
             <ProjectMenuButton
               css={propCSS}
               placeholder={placeholder}
               projectName={null}
               size={size}
             />
-          }
+          )}
         >
-          <SelectedProjectMenuButton
-            css={propCSS}
-            placeholder={placeholder}
-            projectId={selectedProjectId}
-            size={size}
-          />
-        </Suspense>
+          <Suspense
+            fallback={
+              <ProjectMenuButton
+                css={propCSS}
+                placeholder={placeholder}
+                projectName={null}
+                size={size}
+              />
+            }
+          >
+            <SelectedProjectMenuButton
+              css={propCSS}
+              placeholder={placeholder}
+              projectId={selectedProjectId}
+              size={size}
+            />
+          </Suspense>
+        </ErrorBoundary>
       ) : (
         <ProjectMenuButton
           css={propCSS}
@@ -303,7 +289,6 @@ export function ProjectMenu({
                 loadNext(PAGE_SIZE, {
                   UNSTABLE_extraVariables: {
                     filter: projectFilter,
-                    ...selectedProjectVariables,
                   },
                 });
               }
