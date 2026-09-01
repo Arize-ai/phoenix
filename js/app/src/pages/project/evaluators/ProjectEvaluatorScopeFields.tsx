@@ -12,10 +12,13 @@ import {
   SliderNumberField,
   Text,
 } from "@phoenix/components";
+import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import {
+  dropOtherGrainEntityPathMappings,
   formatEvaluationTarget,
   isProjectEvaluatorTarget,
   MIN_EVALUATION_DELAY_SECONDS,
+  toEvaluatorMappingSourceGrain,
   toProjectEvaluatorSamplingFraction,
   type ProjectEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
@@ -56,11 +59,25 @@ export const ProjectEvaluatorScopeFieldGroup = ({
   children?: ReactNode;
 }) => {
   const isSessionTarget = scope.targetType === "SESSION";
-  // Spans and sessions are filtered in different languages, so a condition
-  // written for one target cannot carry over to the other.
+  const evaluatorStore = useEvaluatorStoreInstance();
+  // A target change is the one act that moves a form between kinds of record,
+  // so everything written against the old kind changes here with it: the
+  // filter (a different language), the store's grain (span and session
+  // contexts are structurally identical, so the store cannot infer it), and
+  // mapping paths rooted at a name the new record does not carry (a path that
+  // matches nothing fails the evaluation).
   const handleTargetChange = (targetType: ProjectEvaluatorTarget) => {
     if (targetType === scope.targetType) {
       return;
+    }
+    const grain = toEvaluatorMappingSourceGrain(targetType);
+    if (grain !== toEvaluatorMappingSourceGrain(scope.targetType)) {
+      const state = evaluatorStore.getState();
+      state.setEvaluatorMappingSourceGrain(grain);
+      state.setPathMapping(
+        dropOtherGrainEntityPathMappings(state.evaluator.inputMapping, grain)
+          .pathMapping
+      );
     }
     onScopeChange({ ...scope, targetType, filterCondition: "" });
   };

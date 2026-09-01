@@ -76,7 +76,6 @@ import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/projec
 import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
-  dropOtherGrainEntityPathMappings,
   getProjectEvaluatorMappingDiagnostics,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorMappingSourceGrain,
@@ -227,27 +226,8 @@ export const ProjectEvaluatorScopePanel = (
   const { projectId, scope, codeEvaluatorId, inlineCode, requiredVariables } =
     props;
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
-  const evaluatorStore = useEvaluatorStoreInstance();
   const mappingSourceGrain = toEvaluatorMappingSourceGrain(scope.targetType);
   const scopeFields = props.showScopeFields !== false ? props : null;
-  // Span and session contexts are structurally identical, so the store cannot
-  // infer the grain from one; a target change says so here, in the same act.
-  // A path written against the previous kind of record names a root the new
-  // one does not have, and a path that matches nothing fails the evaluation.
-  const handleScopeChange = (nextScope: ProjectEvaluatorScope) => {
-    const nextGrain = toEvaluatorMappingSourceGrain(nextScope.targetType);
-    if (nextGrain !== mappingSourceGrain) {
-      const state = evaluatorStore.getState();
-      state.setEvaluatorMappingSourceGrain(nextGrain);
-      state.setPathMapping(
-        dropOtherGrainEntityPathMappings(
-          state.evaluator.inputMapping,
-          nextGrain
-        ).pathMapping
-      );
-    }
-    scopeFields?.onScopeChange(nextScope);
-  };
   // The run list below the Suspense boundary owns the records and the run
   // machinery; it hands the header's Test All button the latest run-all
   // closure through this ref and reports readiness through the state.
@@ -289,7 +269,7 @@ export const ProjectEvaluatorScopePanel = (
             <ScopeEditorCard
               projectId={projectId}
               scope={scope}
-              onScopeChange={handleScopeChange}
+              onScopeChange={scopeFields.onScopeChange}
               onFilterValidityChange={scopeFields.onFilterValidityChange}
               timeWindow={timeWindow}
               onTimeWindowChange={setTimeWindow}
