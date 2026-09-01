@@ -107,10 +107,10 @@ jobs:
       - name: Build frontend
         working-directory: ./js
         run: pnpm install --frozen-lockfile && pnpm --filter 'phoenix-ui...' run build
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: "3.10"
-          version: "0.12.7"
+          version-file: "pyproject.toml"
       - name: Build distribution
         run: rm -rf dist && uv build
       - name: Verify bundled UI assets in wheel
@@ -215,11 +215,11 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ steps.ref.outputs.ref }}
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         if: steps.check.outputs.needed == 'true'
         with:
           python-version: "3.10"
-          version: "0.12.7"
+          version-file: "pyproject.toml"
       - run: uv build
         if: steps.check.outputs.needed == 'true'
         working-directory: ${{ matrix.path }}
@@ -541,10 +541,10 @@ jobs:
       - name: Build frontend
         working-directory: ./js
         run: pnpm install --frozen-lockfile && pnpm --filter 'phoenix-ui...' run build
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: "3.10"
-          version: "0.12.7"
+          version-file: "pyproject.toml"
           enable-cache: false
       - name: Stamp dev version
         env:
@@ -612,11 +612,11 @@ jobs:
           # Pin to the exact commit detected by preview-changes (see preview-phoenix).
           ref: ${{ needs.preview-changes.outputs.sha }}
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         if: steps.check.outputs.needed == 'true'
         with:
           python-version: "3.10"
-          version: "0.12.7"
+          version-file: "pyproject.toml"
           enable-cache: false
       - name: Stamp dev version
         if: steps.check.outputs.needed == 'true'
