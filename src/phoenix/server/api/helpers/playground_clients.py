@@ -1404,6 +1404,7 @@ class TogetherClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
+        "anthropic.claude-fable-5-1",
         "anthropic.claude-fable-5",
         "anthropic.claude-opus-5",
         "anthropic.claude-opus-4-8",
@@ -2099,6 +2100,7 @@ _ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 # (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
 # surface; sending any of them returns a 400.
 ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
+    "claude-fable-5-1",
     "claude-fable-5",
     "claude-opus-5",
     "claude-opus-4-8",
