@@ -15,7 +15,7 @@ from pandas import DataFrame
 from sqlalchemy import Select, case, desc, distinct, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy.orm import InstrumentedAttribute, with_polymorphic
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
 from sqlalchemy.sql.sqltypes import String
@@ -427,6 +427,30 @@ class Project(Node):
             stmt = stmt.where(sqlalchemy_cast(column, String).ilike(f"%{value}%"))
         async with info.context.db.read() as session:
             records = list(await session.scalars(stmt))
+            evaluators_by_id: dict[int, models.Evaluator] = {}
+            if records:
+                evaluator_model = with_polymorphic(
+                    models.Evaluator,
+                    [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+                )
+                evaluators_by_id = {
+                    evaluator.id: evaluator
+                    for evaluator in await session.scalars(
+                        select(evaluator_model).where(
+                            evaluator_model.id.in_(
+                                {record.evaluator_id for record in records}
+                            )
+                        )
+                    )
+                }
+        # A project evaluator and its evaluator are deleted in one transaction,
+        # so a row whose evaluator has vanished was deleted between the two
+        # reads. Drop it — and pre-warm the loader the `evaluator` field reads
+        # from — so a deletion that lands mid-request omits the entity instead
+        # of erroring the whole connection.
+        records = [record for record in records if record.evaluator_id in evaluators_by_id]
+        for evaluator in evaluators_by_id.values():
+            info.context.data_loaders.evaluator_by_id.prime(evaluator.id, evaluator)
         return connection_from_list(
             data=[ProjectEvaluator(id=record.id, db_record=record) for record in records],
             args=args,
