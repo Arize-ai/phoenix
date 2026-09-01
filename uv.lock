@@ -542,6 +542,7 @@ dependencies = [
 [package.optional-dependencies]
 aws = [
     { name = "aioboto3" },
+    { name = "aiobotocore" },
     { name = "types-aiobotocore-bedrock-runtime" },
 ]
 azure = [
@@ -550,6 +551,7 @@ azure = [
 ]
 container = [
     { name = "aioboto3" },
+    { name = "aiobotocore" },
     { name = "aiohttp" },
     { name = "anthropic" },
     { name = "azure-identity" },
@@ -702,6 +704,8 @@ dev = [
 requires-dist = [
     { name = "aioboto3", marker = "extra == 'aws'" },
     { name = "aioboto3", marker = "extra == 'container'" },
+    { name = "aiobotocore", marker = "extra == 'aws'", specifier = ">=3.2.0" },
+    { name = "aiobotocore", marker = "extra == 'container'", specifier = ">=3.2.0" },
     { name = "aiohttp", marker = "extra == 'azure'" },
     { name = "aiohttp", marker = "extra == 'container'" },
     { name = "aioitertools" },
@@ -794,7 +798,7 @@ provides-extras = ["aws", "azure", "container", "daytona", "e2b", "evals", "expe
 [package.metadata.requires-dev]
 dev = [
     { name = "aioboto3" },
-    { name = "aiobotocore", specifier = ">=3.1.1" },
+    { name = "aiobotocore", specifier = ">=3.2.0" },
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "anthropic", specifier = ">=1,<2" },
     { name = "arize", specifier = ">=8.1.0" },

@@ -1730,14 +1730,11 @@ export function toCanonicalToolDefinition(
   // OpenAI Chat Completions: { type: "function", function: { name, description?, parameters, strict? } }
   const openai = openAIChatCompletionsToolDefinitionSchema.safeParse(raw);
   if (openai.success) {
-    const fn = openai.data.function as Record<string, unknown>;
     return {
       name: openai.data.function.name,
       description: openai.data.function.description ?? null,
       parameters: canonicalParameters(openai.data.function.parameters),
-      // strict lives at the function level in the actual API but isn't in
-      // our looseObject schema — extract safely.
-      strict: typeof fn.strict === "boolean" ? fn.strict : null,
+      strict: openai.data.function.strict ?? null,
     };
   }
   // OpenAI Responses API: flat { type: "function", name, parameters, strict, description? }
@@ -1757,7 +1754,7 @@ export function toCanonicalToolDefinition(
       name: anthropic.data.name,
       description: anthropic.data.description ?? null,
       parameters: canonicalParameters(anthropic.data.input_schema),
-      strict: null,
+      strict: anthropic.data.strict ?? null,
     };
   }
   // AWS: { toolSpec: { name, description, inputSchema: { json } } }
@@ -1769,7 +1766,7 @@ export function toCanonicalToolDefinition(
       name: spec.name,
       description: spec.description ?? null,
       parameters: canonicalParameters(spec.inputSchema.json),
-      strict: null,
+      strict: spec.strict ?? null,
     };
   }
   // Gemini: { name, description?, parameters? | parameters_json_schema? }
@@ -1825,6 +1822,7 @@ export function getToolDefinitionDisplay(
         description: toolDefinition.description,
       }),
       input_schema: parametersSchemaWithObjectType(toolDefinition.parameters),
+      ...(toolDefinition.strict != null && { strict: toolDefinition.strict }),
     };
   }
   if (provider === "AWS") {
@@ -1837,6 +1835,7 @@ export function getToolDefinitionDisplay(
         inputSchema: {
           json: parametersSchemaWithObjectType(toolDefinition.parameters),
         },
+        ...(toolDefinition.strict != null && { strict: toolDefinition.strict }),
       },
     };
   }

@@ -31,6 +31,7 @@ import {
   getToolsFromAttributes,
   getResponseFormatFromAttributes,
   getToolChoiceFromAttributes,
+  getToolDefinitionDisplay,
   getToolName,
   getVariablesMapFromInstances,
   inferOpenAIApiTypeFromRawToolDefinitions,
@@ -38,6 +39,7 @@ import {
   isOpenAIResponsesSpan,
   processAttributeToolCalls,
   promptToolFromGraphQL,
+  toCanonicalToolDefinition,
   toolFromEditorJSON,
   toolToPromptToolInput,
   transformSpanAttributesToPlaygroundInstance,
@@ -2214,6 +2216,62 @@ describe("toolFromEditorJSON", () => {
       })
     ).toBeNull();
   });
+
+  it("should convert Anthropic-shaped editor JSON with strict into a function tool", () => {
+    const value = {
+      name: "get_weather",
+      description: "Get weather",
+      input_schema: {
+        type: "object",
+        properties: { location: { type: "string" } },
+        required: ["location"],
+      },
+      strict: true,
+    };
+
+    expect(toolFromEditorJSON({ value, id: 1, editorType: "json" })).toEqual({
+      kind: "function",
+      id: 1,
+      editorType: "json",
+      definition: {
+        name: "get_weather",
+        description: "Get weather",
+        parameters: {
+          type: "object",
+          properties: { location: { type: "string" } },
+          required: ["location"],
+        },
+        strict: true,
+      },
+    });
+  });
+});
+
+describe("tool definition strict round-trip", () => {
+  const buildCanonicalTool = (strict: boolean): CanonicalToolDefinition => ({
+    name: "get_weather",
+    description: "Get weather",
+    parameters: {
+      type: "object",
+      properties: { city: { type: "string" } },
+      required: ["city"],
+    },
+    strict,
+  });
+
+  it.each([
+    ["ANTHROPIC", true],
+    ["ANTHROPIC", false],
+    ["AWS", true],
+    ["AWS", false],
+  ] as const)(
+    "should preserve strict through the %s editor display and back (strict: %s)",
+    (provider, strict) => {
+      const canonicalTool = buildCanonicalTool(strict);
+      const display = getToolDefinitionDisplay(canonicalTool, provider);
+      expect(toCanonicalToolDefinition(display)).toEqual(canonicalTool);
+    }
+  );
 });
 
 describe("getPromptTemplateVariablesFromAttributes", () => {

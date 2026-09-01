@@ -1616,13 +1616,20 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
                 )
                 if fn.description:
                     tool_spec["description"] = fn.description
+                if isinstance(fn.strict, bool):
+                    tool_spec["strict"] = fn.strict
                 tool_list.append(ToolTypeDef(toolSpec=tool_spec))
 
             tool_config = ToolConfigurationTypeDef(tools=tool_list)
 
+            # The Converse API has no disable-parallel-tool-use setting, so
+            # tools.disable_parallel_tool_calls cannot be honored here.
+            send_tools = True
             if tc := tools.tool_choice:
                 if tc.type == "none":
-                    pass
+                    # Converse has no "none" tool choice; withholding the
+                    # tools entirely is the only way to prevent tool calls.
+                    send_tools = False
                 elif tc.type == "zero_or_more":
                     tool_config["toolChoice"] = ToolChoiceTypeDef(auto={})
                 elif tc.type == "one_or_more":
@@ -1634,7 +1641,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
                 elif TYPE_CHECKING:
                     assert_never(tc.type)
 
-            request["toolConfig"] = tool_config
+            if send_tools:
+                request["toolConfig"] = tool_config
 
         if response_format:
             json_schema = JsonSchemaDefinitionTypeDef(
@@ -2212,7 +2220,7 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                     params["tool_choice"] = choice_tool
                 else:
                     assert_never(tc.type)
-            if tools.disable_parallel_tool_calls:
+            elif tools.disable_parallel_tool_calls:
                 params["tool_choice"] = ToolChoiceAutoParam(
                     type="auto", disable_parallel_tool_use=True
                 )
@@ -2230,6 +2238,8 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                     )
                     if f.description:
                         t["description"] = f.description
+                    if isinstance(f.strict, bool):
+                        t["strict"] = f.strict
                     tool_list.append(t)
                 params["tools"] = tool_list
                 extra_headers = _anthropic_beta_headers_for_tools(tool_list)
