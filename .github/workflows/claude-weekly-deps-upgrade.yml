@@ -480,8 +480,13 @@ jobs:
            steps.upgrade_js.outcome == 'failure' ||
            steps.verify.outcome == 'failure') &&
           steps.claude_fix.outcome != 'success'
+        env:
+          UPGRADE_PY: ${{ steps.upgrade_py.outcome }}
+          UPGRADE_JS: ${{ steps.upgrade_js.outcome }}
+          VERIFY: ${{ steps.verify.outcome }}
+          CLAUDE_FIX: ${{ steps.claude_fix.outcome }}
         run: |
-          echo "::error::A step failed and was not healed (upgrade-python=${{ steps.upgrade_py.outcome }}, upgrade-js=${{ steps.upgrade_js.outcome }}, verify=${{ steps.verify.outcome }}, claude-fix=${{ steps.claude_fix.outcome }})."
+          echo "::error::A step failed and was not healed (upgrade-python=$UPGRADE_PY, upgrade-js=$UPGRADE_JS, verify=$VERIFY, claude-fix=$CLAUDE_FIX)."
           exit 1
 
   slack-notification:
