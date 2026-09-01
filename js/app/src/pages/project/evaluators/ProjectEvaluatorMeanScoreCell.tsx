@@ -50,7 +50,7 @@ const meanScoreAlignmentCSS = css`
   /* AnnotationScoreText insets a directed score as a padded pill; mirror
      that inset for undirected and fallback scores so the values start at
      the same x position on every row of the column. */
-  > .text:not([data-direction]) {
+  > .text:not(:has([data-direction])) {
     display: inline-block;
     padding: var(--global-dimension-size-25) var(--global-dimension-size-100);
   }
