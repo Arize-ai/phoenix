@@ -60,15 +60,11 @@ Phoenix is vendor and language agnostic with out-of-the-box support for popular 
 
 Phoenix runs practically anywhere, including your local machine, a containerized deployment, or in the cloud. See [Environments](https://arize.com/docs/phoenix/environments) for a walkthrough of each option, or jump straight into the [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
-## Arize Phoenix and Arize AX
-
-Arize Phoenix and [Arize AX](https://arize.com/products/ax/) are complementary AI observability and evaluation platforms from Arize. Phoenix is open-source, self-hosted, and free to use; Arize AX is a managed AI engineering platform for teams that want hosted infrastructure, managed scale, enterprise support, monitoring, dashboards, and compliance features.
-
-Both platforms use OpenTelemetry and OpenInference, so applications instrumented for Phoenix can send the same traces to Arize AX without changing instrumentation. Choose Phoenix when you want open-source control and self-hosting; choose Arize AX when you want a managed commercial platform. For a full comparison, see [Arize Phoenix or Arize AX](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> [!NOTE]
+> Phoenix is open-source and self-hosted. For a managed platform, Arize offers [Arize AX](https://arize.com/products/ax/) — the same OpenTelemetry/OpenInference instrumentation works with both. See the [full comparison](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Table of Contents
 
-- [Arize Phoenix and Arize AX](#arize-phoenix-and-arize-ax)
 - [Run Locally](#run-locally)
 - [Trace Your Application](#trace-your-application)
 - [Deploy](#deploy)
