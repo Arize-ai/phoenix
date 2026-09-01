@@ -307,46 +307,59 @@ function EvaluatorGallery() {
   }, [requestedItemKeyToScroll, requestedSectionToScroll]);
 
   useEffect(() => {
-    const scrollRegion = galleryScrollRegionRef.current;
-    if (!scrollRegion) return undefined;
-    // Snapshot the mounted headings so observer entries can be mapped back to
-    // the category selection used by the sidebar and compact picker.
-    const headingsByElement = new Map<Element, GallerySection>(
-      sections
-        .map((section) => [headingRefs.current.get(section), section] as const)
-        .filter(
-          (entry): entry is [HTMLElement, GallerySection] => entry[0] != null
-        )
-    );
-    if (headingsByElement.size === 0) return undefined;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // More than one heading can occupy the active top band. The uppermost
-        // one represents the category the user is currently reading.
-        const topmostVisibleEntry = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
-          .at(0);
-        // The final heading cannot reach the top band when the scroll port is
-        // at its limit, so treat the bottom as belonging to the last category.
-        const isAtScrollEnd =
-          scrollRegion.scrollTop + scrollRegion.clientHeight >=
-          scrollRegion.scrollHeight - 1;
-        const section = isAtScrollEnd
-          ? sections.at(-1)
-          : topmostVisibleEntry
-            ? headingsByElement.get(topmostVisibleEntry.target)
-            : undefined;
-        if (section) {
-          setActiveSection(section);
-        }
-      },
-      { root: scrollRegion, rootMargin: SCROLL_SPY_ROOT_MARGIN }
-    );
-    // Observe every mounted category heading and release them together when
-    // the category collection changes or the gallery unmounts.
-    headingsByElement.forEach((_section, heading) => observer.observe(heading));
-    return () => observer.disconnect();
+    let observer: IntersectionObserver | undefined;
+    // Wait for React Aria to mount its collection headings before snapshotting
+    // the refs used by the scroll spy.
+    const animationFrameId = requestAnimationFrame(() => {
+      const scrollRegion = galleryScrollRegionRef.current;
+      if (!scrollRegion) return;
+      // Snapshot the mounted headings so observer entries can be mapped back to
+      // the category selection used by the sidebar and compact picker.
+      const headingsByElement = new Map<Element, GallerySection>(
+        sections
+          .map(
+            (section) => [headingRefs.current.get(section), section] as const
+          )
+          .filter(
+            (entry): entry is [HTMLElement, GallerySection] => entry[0] != null
+          )
+      );
+      if (headingsByElement.size === 0) return;
+      const createdObserver = new IntersectionObserver(
+        (entries) => {
+          // More than one heading can occupy the active top band. The uppermost
+          // one represents the category the user is currently reading.
+          const topmostVisibleEntry = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+            .at(0);
+          // The final heading cannot reach the top band when the scroll port is
+          // at its limit, so treat the bottom as belonging to the last category.
+          const isAtScrollEnd =
+            scrollRegion.scrollTop + scrollRegion.clientHeight >=
+            scrollRegion.scrollHeight - 1;
+          const section = isAtScrollEnd
+            ? sections.at(-1)
+            : topmostVisibleEntry
+              ? headingsByElement.get(topmostVisibleEntry.target)
+              : undefined;
+          if (section) {
+            setActiveSection(section);
+          }
+        },
+        { root: scrollRegion, rootMargin: SCROLL_SPY_ROOT_MARGIN }
+      );
+      observer = createdObserver;
+      // Observe every mounted category heading and release them together when
+      // the category collection changes or the gallery unmounts.
+      headingsByElement.forEach((_section, heading) =>
+        createdObserver.observe(heading)
+      );
+    });
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      observer?.disconnect();
+    };
   }, [sections]);
 
   const setSelectedItem = (itemKey: string) => {
@@ -644,7 +657,10 @@ function EvaluatorGallery() {
 
       <aside className="project-evaluator-gallery__details" aria-live="polite">
         {selectedItem?.kind === "custom" ? (
-          <ErrorBoundary fallback={EvaluatorDetailsError}>
+          <ErrorBoundary
+            key={selectedItem.evaluator.id}
+            fallback={EvaluatorDetailsError}
+          >
             <Suspense fallback={<EvaluatorDetailsSkeleton />}>
               <CustomEvaluatorDetails
                 evaluator={selectedItem.evaluator}

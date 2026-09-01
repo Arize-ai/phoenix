@@ -401,24 +401,24 @@ function AttachCodeProjectEvaluatorDialog({
               inputMapping: null,
             },
           },
-          updater: (relayStore) => {
-            const galleryConnection = ConnectionHandler.getConnection(
-              relayStore.getRoot(),
-              PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY,
-              { excludeProjectId: projectId }
-            );
-            if (galleryConnection) {
-              ConnectionHandler.deleteNode(
-                galleryConnection,
-                creationMode.evaluatorId
-              );
-            }
-          },
           onCompleted: (_response, errors) => {
             if (errors?.length) {
               setError(errors.map(({ message }) => message).join("\n"));
               return;
             }
+            environment.commitUpdate((relayStore) => {
+              const galleryConnection = ConnectionHandler.getConnection(
+                relayStore.getRoot(),
+                PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY,
+                { excludeProjectId: projectId }
+              );
+              if (galleryConnection) {
+                ConnectionHandler.deleteNode(
+                  galleryConnection,
+                  creationMode.evaluatorId
+                );
+              }
+            });
             void refetchProjectEvaluators({
               environment,
               projectId,
