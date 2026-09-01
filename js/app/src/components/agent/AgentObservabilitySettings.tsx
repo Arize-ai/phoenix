@@ -81,7 +81,7 @@ export function AgentTraceSavingSettingRow({
   return (
     <li>
       <SettingsSwitchRow
-        title="Save assistant session traces in this Phoenix instance"
+        title="Save session traces"
         titleExtra={
           <TraceInfoTip>
             Traces are unredacted and include prompts, replies, tool calls, tool
@@ -138,7 +138,7 @@ export function AgentTraceExportSettingRow({
   return (
     <li>
       <SettingsSwitchRow
-        title="Exporting traces"
+        title="Export session traces"
         titleExtra={
           <TraceInfoTip>
             Exported traces are unredacted and include prompts, replies, tool

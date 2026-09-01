@@ -47,7 +47,7 @@ export function SettingsAgentsPage() {
       <Flex direction="column" gap="size-200">
         <Flex direction="row" alignItems="center" gap="size-100">
           <Heading level={2} weight="heavy">
-            Assistant settings - PXI
+            Assistant settings
           </Heading>
           <DocumentationHelp topic="pxi">
             Configure Phoenix Intelligence and personal assistant preferences.

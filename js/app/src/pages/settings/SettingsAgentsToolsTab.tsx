@@ -96,8 +96,8 @@ function AdminGithubWorkspaceTokenSetting() {
         <Flex direction="column" gap="size-100">
           <Text color="text-500" size="S">
             {githubWorkspaceTokenConfigured
-              ? "A shared workspace token is configured. Issues filed by users without a personal token are created under its identity. The token is stored encrypted and never displayed; paste a new one below to replace it."
-              : "Optional: add a shared workspace token used when a user has not connected a personal token. Use a fine-grained personal access token with Issues read/write access to the repositories issues are filed into. Stored encrypted on the server and never displayed again."}
+              ? "A workspace token is configured. Users without a personal token file issues under its identity. Paste a new token to replace it; the stored token is never displayed."
+              : "Optional fallback for users without a personal token. Use a fine-grained personal access token with Issues read/write access to the target repositories. Stored encrypted and never displayed."}
           </Text>
           <Controller
             name="token"
