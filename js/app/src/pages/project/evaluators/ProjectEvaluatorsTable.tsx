@@ -84,7 +84,7 @@ const PAGE_SIZE = 30;
  */
 const GALLERY_PROMO_MAX_EVALUATOR_COUNT = 15;
 /** Labels for columns whose header is not a plain string. */
-const COLUMN_LABELS: Record<string, string> = {
+const COLUMN_LABELS: Partial<Record<string, string>> = {
   meanScore: "mean score",
 };
 
@@ -321,15 +321,14 @@ export function ProjectEvaluatorsTable({
     (state) => state.columnVisibility["meanScore"] !== false
   );
   // Latched: once the mean score column has been shown, keep fetching its
-  // data so hiding and re-showing it does not churn the connection.
+  // data so hiding and re-showing it does not churn the connection. Set
+  // during render (not in an effect) so the latch lands in the same pass.
   const [includeMeanScore, setIncludeMeanScore] = useState(
     initialIncludeMeanScore || isMeanScoreColumnVisible
   );
-  useEffect(() => {
-    if (isMeanScoreColumnVisible) {
-      setIncludeMeanScore(true);
-    }
-  }, [isMeanScoreColumnVisible]);
+  if (isMeanScoreColumnVisible && !includeMeanScore) {
+    setIncludeMeanScore(true);
+  }
   const hasComparedInitialQueryInputs = useRef(false);
   // Filtered server-side; a client-side filter would only see the loaded page.
   useEffect(() => {

@@ -319,6 +319,14 @@ export interface PreferencesState extends PreferencesProps {
  */
 export const PREFERENCES_STORAGE_KEY = "arize-phoenix-preferences";
 
+/**
+ * The last-N range applied when no preference has been persisted. Route
+ * loaders that resolve the range before React mounts (e.g. the project
+ * evaluators loader) fall back to this same value so their query variables
+ * match the ones TimeRangeProvider resolves on mount.
+ */
+export const DEFAULT_LAST_N_TIME_RANGE_KEY: LastNTimeRangeKey = "7d";
+
 export const createPreferencesStore = (
   initialProps?: Partial<PreferencesProps>
 ) => {
@@ -336,7 +344,7 @@ export const createPreferencesStore = (
         type: "setTraceStreamingEnabled",
       });
     },
-    lastNTimeRangeKey: "7d",
+    lastNTimeRangeKey: DEFAULT_LAST_N_TIME_RANGE_KEY,
     setLastNTimeRangeKey: (lastNTimeRangeKey) => {
       set({ lastNTimeRangeKey });
     },
