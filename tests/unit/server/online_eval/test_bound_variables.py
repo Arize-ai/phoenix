@@ -5,8 +5,9 @@ names in :mod:`phoenix.server.online_eval.bound_variables` so the evaluator
 editor can order and describe them without asking the server, and an evaluation
 context reads the span names straight off the span document. Nothing generates
 any of those lists from another, so these tests are the seam that holds them
-together: a name the filter language gains or loses fails here until the
-frontend list and the span document are edited to match.
+together: the frontend's own per-grain lookup tables decide what gets checked,
+so a name, or a whole grain, added on one side fails here until the other side
+is edited to match.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ import pytest
 
 from phoenix.db import models
 from phoenix.server.api.helpers.dataset_helpers import get_span_annotations_by_name
+from phoenix.server.online_eval import bound_variables
 from phoenix.server.online_eval.bound_variables import (
     SESSION_BOUND_VARIABLE_NAMES,
     SESSION_METADATA_FIELD_NAMES,
@@ -87,23 +89,24 @@ def _mirrored_grain_table(declaration: str) -> dict[str, str]:
     return dict(re.findall(r"^\s*(\w+):\s*(\w+),", block.group(1), re.MULTILINE))
 
 
-# A new grain (or a new mirrored shape) is one row here: without its row, the
-# frontend can gain or lose a whole list and nothing fails.
-_MIRRORED_NAME_SETS = [
-    pytest.param(SPAN_BOUND_VARIABLE_NAMES, "SPAN_BOUND_VARIABLES", id="span-vocabulary"),
-    pytest.param(SESSION_BOUND_VARIABLE_NAMES, "SESSION_BOUND_VARIABLES", id="session-vocabulary"),
-    pytest.param(SPAN_METADATA_FIELD_NAMES, "SPAN_METADATA_FIELDS", id="span-record-fields"),
-    pytest.param(
-        SESSION_METADATA_FIELD_NAMES, "SESSION_METADATA_FIELDS", id="session-record-fields"
-    ),
-]
+# The frontend's lookup tables decide what is checked: each grain they route is
+# paired with the `<GRAIN>_BOUND_VARIABLE_NAMES` or `<GRAIN>_METADATA_FIELD_NAMES`
+# constant of the same grain, so a grain added there is checked without a change
+# here.
+_MIRRORED_GRAIN_TABLES = (
+    ("BOUND_VARIABLES_BY_GRAIN", "BOUND_VARIABLE_NAMES", "vocabulary"),
+    ("METADATA_FIELDS_BY_GRAIN", "METADATA_FIELD_NAMES", "record-fields"),
+)
 
-# Every grain the authoring surface routes, and the declaration it routes to.
-# A grain added on one side only is invisible to the pair checks above, which
-# see registered declarations and nothing else.
-_GRAIN_TABLES = ("BOUND_VARIABLES_BY_GRAIN", "METADATA_FIELDS_BY_GRAIN")
 
-_REGISTERED_MIRROR_DECLARATIONS = frozenset(str(param.values[1]) for param in _MIRRORED_NAME_SETS)
+def _mirrored_name_sets() -> list[Any]:
+    """Every grain the authoring surface routes, and the constant it answers to."""
+    return [
+        pytest.param(f"{grain.upper()}_{suffix}", ts_declaration, id=f"{grain}-{label}")
+        for table, suffix, label in _MIRRORED_GRAIN_TABLES
+        for grain, ts_declaration in _mirrored_grain_table(table).items()
+    ]
+
 
 _MIRRORED_STRING_ARRAYS = [
     pytest.param(SESSION_TURN_FIELD_NAMES, "SESSION_TURN_FIELDS", id="session-turn-fields"),
@@ -113,31 +116,16 @@ _MIRRORED_STRING_ARRAYS = [
 ]
 
 
-@pytest.mark.parametrize("grain_table", _GRAIN_TABLES)
-def test_every_grain_is_held_to_a_server_vocabulary(grain_table: str) -> None:
-    """A grain the editor offers but this test never mirrors is the gap itself.
-
-    The pair checks read the declarations ``_MIRRORED_NAME_SETS`` names, so a
-    grain added to the authoring surface without its row there drifts freely.
-    This reads the grains off the editor's own lookup tables instead.
-    """
-    unregistered = {
-        grain: ts_declaration
-        for grain, ts_declaration in _mirrored_grain_table(grain_table).items()
-        if ts_declaration not in _REGISTERED_MIRROR_DECLARATIONS
-    }
-    assert not unregistered, (
-        f"`{grain_table}` in {_MIRROR.name} routes grains this test does not "
-        f"check: {unregistered}. Add a `_MIRRORED_NAME_SETS` row pairing each "
-        "declaration with its phoenix.server.online_eval.bound_variables "
-        "constant, so the grain's names are held to what an evaluation binds."
-    )
-
-
-@pytest.mark.parametrize("server_names,ts_declaration", _MIRRORED_NAME_SETS)
+@pytest.mark.parametrize("server_constant,ts_declaration", _mirrored_name_sets())
 def test_vocabulary_and_record_fields_match_the_authoring_surface(
-    server_names: frozenset[str], ts_declaration: str
+    server_constant: str, ts_declaration: str
 ) -> None:
+    server_names: frozenset[str] | None = getattr(bound_variables, server_constant, None)
+    assert server_names is not None, (
+        f"`{ts_declaration}` in {_MIRROR.name} is routed for a grain with no "
+        f"`{server_constant}` in phoenix.server.online_eval.bound_variables. "
+        "Declare it there so the grain's names are held to what an evaluation binds."
+    )
     assert _mirrored_names(ts_declaration) == set(server_names), (
         f"`{ts_declaration}` in {_MIRROR.name} no longer matches the names an "
         "evaluation binds. Edit that list so the editor offers exactly what the "
