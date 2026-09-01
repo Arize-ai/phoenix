@@ -19,7 +19,8 @@ export interface SparklineProps {
    * position whether or not it carries a value, so sparklines that share a
    * time axis align vertically when scanned across rows. Null marks a bin
    * with no value; the line breaks there rather than interpolating across
-   * the gap, and a gap-isolated value draws as a dot.
+   * the gap, and an isolated value draws as a dot. A full-width baseline
+   * track marks the axis, so sparse marks read as points in time on it.
    */
   values: ReadonlyArray<number | null>;
   /** Stroke color, e.g. a design token var. */
@@ -40,6 +41,11 @@ export interface SparklineProps {
 const DRAWING_WIDTH = 64;
 /** Keeps the stroke from clipping at the extremes. */
 const VERTICAL_PADDING = 2;
+/**
+ * The axis the marks sit on. Recessive like a chart grid line: it anchors
+ * sparse marks to the shared time axis without competing with the series.
+ */
+const TRACK_COLOR = "var(--global-color-gray-300)";
 
 type SparklinePoint = {
   x: number;
@@ -52,8 +58,7 @@ type SparklinePoint = {
  * The line as scaled points: values plotted top-to-bottom by magnitude and
  * left-to-right by bin position over the full bin axis — empty bins keep
  * their x slot rather than being squeezed out, so sparklines sharing a time
- * axis align vertically across rows. Null when fewer than two bins carry
- * values — a single point has no trend to draw.
+ * axis align vertically across rows. Null when no bin carries a value.
  */
 function getPoints({
   values,
@@ -65,14 +70,17 @@ function getPoints({
   const present = values.flatMap((value, index) =>
     value == null ? [] : [{ value, index }]
   );
-  if (present.length < 2) {
+  if (present.length === 0) {
     return null;
   }
   const min = Math.min(...present.map((point) => point.value));
   const max = Math.max(...present.map((point) => point.value));
   const drawableHeight = height - 2 * VERTICAL_PADDING;
   return present.map(({ value, index }) => ({
-    x: (index / (values.length - 1)) * DRAWING_WIDTH,
+    x:
+      values.length === 1
+        ? DRAWING_WIDTH / 2
+        : (index / (values.length - 1)) * DRAWING_WIDTH,
     // A flat series draws as a midline rather than dividing by zero
     y:
       max === min
@@ -105,14 +113,14 @@ function getSegments(points: SparklinePoint[]): SparklinePoint[][] {
 }
 
 /**
- * A small inline line chart for table cells and stat tiles: a single series,
- * no axes, stretching to fill the width its container gives it. Bins keep
- * their position on the axis and the line breaks at empty bins, so gaps are
- * visible and sparklines sharing a time axis align across rows. With
+ * A small inline line chart for table cells and stat tiles: a single series
+ * over a recessive baseline track, stretching to fill the width its container
+ * gives it. Bins keep their position on the axis and the line breaks at empty
+ * bins, so gaps are visible, sparse values read as points in time on the
+ * track, and sparklines sharing a time axis align across rows. With
  * `renderPointDetail`, hovering marks the nearest point and shows its detail
  * in a tooltip; further detail belongs to the surrounding component. Renders
- * nothing when fewer than two bins carry values — a single point has no
- * trend to show.
+ * nothing when no bin carries a value.
  */
 export function Sparkline({
   values,
@@ -179,6 +187,15 @@ export function Sparkline({
         }
       >
         {ariaLabel != null ? <title id={titleId}>{ariaLabel}</title> : null}
+        {/* The baseline track: the full time axis, drawn under the marks so
+            sparse data reads as points on it rather than floating fragments */}
+        <path
+          d={`M 0 ${(height - 0.5).toFixed(2)} L ${DRAWING_WIDTH} ${(height - 0.5).toFixed(2)}`}
+          fill="none"
+          stroke={TRACK_COLOR}
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
         {getSegments(points).map((segment) =>
           segment.length === 1 ? (
             // A gap-isolated value has no line to join; a zero-length
