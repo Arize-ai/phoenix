@@ -1719,7 +1719,7 @@ export function useEvaluatorMappingSourceBoundToRow({
  */
 function hasEvaluatorMappingSourceShape(
   value: unknown
-): value is EvaluatorMappingSource<"span" | "session"> {
+): value is EvaluatorMappingSource<ProjectEvaluatorMappingSourceGrain> {
   return isStringKeyedObject(value) && isStringKeyedObject(value.metadata);
 }
 

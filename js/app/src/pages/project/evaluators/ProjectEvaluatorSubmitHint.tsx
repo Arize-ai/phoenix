@@ -1,7 +1,6 @@
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import {
   toEvaluatorMappingSourceGrain,
-  toMappingSourceGrainNoun,
   type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
@@ -21,9 +20,7 @@ export const useProjectEvaluatorSubmitHint = ({
     return `Name your evaluator to ${submitLabel}`;
   }
   if (!isFilterValid) {
-    const filterNoun = toMappingSourceGrainNoun(
-      toEvaluatorMappingSourceGrain(targetType)
-    );
+    const filterNoun = toEvaluatorMappingSourceGrain(targetType);
     return `Fix the ${filterNoun} filter to ${submitLabel}`;
   }
   return undefined;

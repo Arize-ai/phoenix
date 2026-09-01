@@ -36,7 +36,7 @@ export type MaterializedEvaluatorContextEntry = {
 
 export type MaterializedEvaluatorContext = {
   grain: ProjectEvaluatorMappingSourceGrain;
-  /** False while the store contains only its generic source skeleton. */
+  /** False while the store holds only the grain's default source. */
   hasSampledRecord: boolean;
   /**
    * The three values the evaluator receives, by name. Paths an authoring tool
@@ -76,8 +76,8 @@ export function materializeEvaluatorContext({
   const recordMetadata = isStringKeyedObject(source[EVALUATOR_METADATA_SLOT])
     ? source[EVALUATOR_METADATA_SLOT]
     : {};
-  // A sampled record is one whose vocabulary carries values; the generic
-  // skeleton names every field and holds none of them.
+  // A sampled record is one whose vocabulary carries values; the store's
+  // default source holds none.
   const hasSampledRecord = boundVariables.some(
     ({ name }) => recordMetadata[name] != null
   );

@@ -167,24 +167,6 @@ export function toEvaluatorMappingSourceGrain(
   }
 }
 
-/**
- * What a grain's records are called in prose — "reads a path on the span",
- * "Fix the session filter". Exhaustive so a grain added to the union names
- * itself here instead of inheriting whichever noun an else branch held.
- */
-export function toMappingSourceGrainNoun(
-  grain: ProjectEvaluatorMappingSourceGrain
-): string {
-  switch (grain) {
-    case "span":
-      return "span";
-    case "session":
-      return "session";
-    default:
-      return assertUnreachable(grain);
-  }
-}
-
 export function toProjectEvaluatorSamplingFraction(percent: number): number {
   return Math.min(100, Math.max(0, percent)) / 100;
 }

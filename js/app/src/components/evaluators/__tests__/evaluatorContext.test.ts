@@ -6,14 +6,9 @@ import {
   getEvaluatorMetadataEntries,
 } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import {
-  getGenericSessionEvaluationContext,
-  getSampleSessionEvaluationContext,
-} from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
-import {
-  getGenericSpanEvaluationContext,
-  getSampleSpanEvaluationContext,
-} from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
+import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
+import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
+import { SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT } from "@phoenix/store/evaluatorStore";
 import type {
   EvaluatorMappingSource,
   EvaluatorInputMapping,
@@ -107,16 +102,16 @@ describe("materializeEvaluatorContext", () => {
   });
 
   it("holds back every preview until a record has been sampled", () => {
-    const genericContext = materializeEvaluatorContext({
+    const unsampledContext = materializeEvaluatorContext({
       grain: "span",
       evaluatorMappingSource: {
         grain: "span",
-        source: getGenericSpanEvaluationContext().context,
+        source: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
       },
       inputMapping: UNMAPPED,
     });
 
-    expect(genericContext).toMatchObject({
+    expect(unsampledContext).toMatchObject({
       hasSampledRecord: false,
       evaluatorInputs: [
         { name: "input", status: "unverifiable" },
@@ -125,7 +120,7 @@ describe("materializeEvaluatorContext", () => {
       ],
     });
     expect(
-      genericContext?.vocabulary.every(
+      unsampledContext?.vocabulary.every(
         ({ status }) => status === "unverifiable"
       )
     ).toBe(true);
@@ -208,38 +203,23 @@ describe("the preview binds what a live run binds", () => {
   const clientContexts: {
     label: string;
     grain: ProjectEvaluatorMappingSourceGrain;
-    source: EvaluatorMappingSource<"span" | "session">;
-    isSampled: boolean;
+    source: EvaluatorMappingSource<ProjectEvaluatorMappingSourceGrain>;
   }[] = [
     {
       label: "sample span",
       grain: "span",
       source: getSampleSpanEvaluationContext().context,
-      isSampled: true,
-    },
-    {
-      label: "generic span",
-      grain: "span",
-      source: getGenericSpanEvaluationContext().context,
-      isSampled: false,
     },
     {
       label: "sample session",
       grain: "session",
       source: getSampleSessionEvaluationContext().context,
-      isSampled: true,
-    },
-    {
-      label: "generic session",
-      grain: "session",
-      source: getGenericSessionEvaluationContext().context,
-      isSampled: false,
     },
   ];
 
   it.each(clientContexts)(
     "$label carries the whole binding surface",
-    ({ grain, source, isSampled }) => {
+    ({ grain, source }) => {
       const materialized = materializeEvaluatorContext({
         grain,
         evaluatorMappingSource:
@@ -266,25 +246,23 @@ describe("the preview binds what a live run binds", () => {
       expect(materialized?.vocabulary.map(({ name }) => name)).toEqual(
         metadataNames.map((name) => `metadata.${name}`)
       );
-      expect(materialized?.hasSampledRecord).toBe(isSampled);
-      // Declared types drive the container badge and the generic skeleton's
-      // placeholders, so a sampled value has to actually be that type.
-      if (isSampled) {
-        for (const { name, type } of getEvaluatorMetadataEntries(grain)) {
-          const value = source.metadata[name];
-          if (value === null) {
-            continue; // a scalar the sampled record legitimately lacks
-          }
-          if (type === "object") {
-            expect(value, `metadata.${name}`).toBeTypeOf("object");
-            expect(Array.isArray(value), `metadata.${name}`).toBe(false);
-          } else if (type === "list") {
-            expect(Array.isArray(value), `metadata.${name}`).toBe(true);
-          } else if (type === "number") {
-            expect(value, `metadata.${name}`).toBeTypeOf("number");
-          } else {
-            expect(value, `metadata.${name}`).toBeTypeOf("string");
-          }
+      expect(materialized?.hasSampledRecord).toBe(true);
+      // Declared types drive the container badge, so a sampled value has to
+      // actually be that type.
+      for (const { name, type } of getEvaluatorMetadataEntries(grain)) {
+        const value = source.metadata[name];
+        if (value === null) {
+          continue; // a scalar the sampled record legitimately lacks
+        }
+        if (type === "object") {
+          expect(value, `metadata.${name}`).toBeTypeOf("object");
+          expect(Array.isArray(value), `metadata.${name}`).toBe(false);
+        } else if (type === "list") {
+          expect(Array.isArray(value), `metadata.${name}`).toBe(true);
+        } else if (type === "number") {
+          expect(value, `metadata.${name}`).toBeTypeOf("number");
+        } else {
+          expect(value, `metadata.${name}`).toBeTypeOf("string");
         }
       }
       // Entry shapes inside the containers mirror the server's constants.

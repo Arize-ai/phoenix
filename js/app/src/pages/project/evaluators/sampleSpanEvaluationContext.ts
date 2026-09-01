@@ -1,4 +1,3 @@
-import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import type { EvaluatorMappingSource } from "@phoenix/types";
 
 /** Mirrors the server's `span_eval_context()`. */
@@ -97,38 +96,4 @@ const LLM_SAMPLE: SampleSpanEvaluationContext = {
 /** The span a scope with no matching records is previewed against. */
 export function getSampleSpanEvaluationContext(): SampleSpanEvaluationContext {
   return LLM_SAMPLE;
-}
-
-/** A grain's shape with no values: what exists, never what it holds. */
-export type GenericEvaluationContext<
-  TGrain extends "span" | "session" = "span" | "session",
-> = {
-  context: EvaluatorMappingSource<TGrain>;
-};
-
-/**
- * The completion popup and the bindings list build from this valueless
- * skeleton; the sample above exists only as a runnable demo record.
- */
-export function genericMetadata(
-  grain: "span" | "session"
-): Record<string, unknown> {
-  return Object.fromEntries(
-    getEvaluatorMetadataEntries(grain).map(({ name, type }) => [
-      name,
-      type === "object" ? {} : type === "list" ? [] : null,
-    ])
-  );
-}
-
-const GENERIC_SPAN_CONTEXT: GenericEvaluationContext<"span"> = {
-  context: {
-    input: null,
-    output: null,
-    metadata: genericMetadata("span"),
-  },
-};
-
-export function getGenericSpanEvaluationContext(): GenericEvaluationContext<"span"> {
-  return GENERIC_SPAN_CONTEXT;
 }

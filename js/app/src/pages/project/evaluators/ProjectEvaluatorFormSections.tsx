@@ -9,10 +9,7 @@ import type {
   ProjectEvaluatorMappingSourceGrain,
   ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import {
-  toEvaluatorMappingSourceGrain,
-  toMappingSourceGrainNoun,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { toEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
  * The left definition panel for an LLM project evaluator; the matching-span
@@ -71,7 +68,7 @@ const ProjectEvaluatorInputMappingSection = ({
 }: {
   grain: ProjectEvaluatorMappingSourceGrain;
 }) => {
-  const recordNoun = toMappingSourceGrainNoun(grain);
+  const recordNoun = grain;
   return (
     <Flex direction="column" gap="size-200" marginTop="size-200">
       <Flex direction="column" gap="size-100">

@@ -1,12 +1,6 @@
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import {
-  getGenericSessionEvaluationContext,
-  getSampleSessionEvaluationContext,
-} from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
-import {
-  getGenericSpanEvaluationContext,
-  getSampleSpanEvaluationContext,
-} from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
+import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
+import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 
 import { materializeEvaluatorContext } from "../evaluatorContext";
 import { resolveEvaluatorPath } from "../evaluatorPathCompletions";
@@ -17,33 +11,24 @@ import {
 } from "../evaluatorSlotDefaults";
 
 /**
- * Where each grain's fixtures come from. A grain added to the union fails to
- * compile here until it supplies its own contexts, rather than silently being
+ * Where each grain's sample record comes from. A grain added to the union
+ * fails to compile here until it supplies its own, rather than silently being
  * checked against another grain's.
  */
-const CONTEXTS_BY_GRAIN: Record<
+const SAMPLE_CONTEXT_BY_GRAIN: Record<
   ProjectEvaluatorMappingSourceGrain,
-  { generic: () => { context: unknown }; sample: () => { context: unknown } }
+  () => { context: unknown }
 > = {
-  span: {
-    generic: getGenericSpanEvaluationContext,
-    sample: getSampleSpanEvaluationContext,
-  },
-  session: {
-    generic: getGenericSessionEvaluationContext,
-    sample: getSampleSessionEvaluationContext,
-  },
+  span: getSampleSpanEvaluationContext,
+  session: getSampleSessionEvaluationContext,
 };
 
 const GRAINS = Object.keys(
-  CONTEXTS_BY_GRAIN
+  SAMPLE_CONTEXT_BY_GRAIN
 ) as ProjectEvaluatorMappingSourceGrain[];
 
-const genericContextFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
-  CONTEXTS_BY_GRAIN[grain].generic().context as Record<string, unknown>;
-
 const sampleContextFor = (grain: ProjectEvaluatorMappingSourceGrain) =>
-  CONTEXTS_BY_GRAIN[grain].sample().context as Record<string, unknown>;
+  SAMPLE_CONTEXT_BY_GRAIN[grain]().context as Record<string, unknown>;
 
 /**
  * The record path that publishes the same value a slot's identity default
@@ -107,14 +92,17 @@ describe("evaluator slot defaults", () => {
     for (const grain of GRAINS) {
       for (const path of EVALUATOR_SLOT_NAMES) {
         expect(
-          resolveEvaluatorPath({ source: genericContextFor(grain), path })
+          resolveEvaluatorPath({ source: sampleContextFor(grain), path })
         ).toMatchObject({ status: "resolved" });
       }
     }
   });
 
   it("pins worked examples of what each slot's mapping can reach", () => {
-    const paths = (grain: "span" | "session", slotName: EvaluatorSlotName) =>
+    const paths = (
+      grain: ProjectEvaluatorMappingSourceGrain,
+      slotName: EvaluatorSlotName
+    ) =>
       getEvaluatorSlotSuggestedPaths(grain, slotName).map(({ path }) => path);
 
     expect(paths("span", "input")).toEqual([

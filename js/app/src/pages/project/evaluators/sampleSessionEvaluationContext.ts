@@ -1,6 +1,3 @@
-import { SESSION_TURN_FIELDS } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
-import type { GenericEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
-import { genericMetadata } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import type { EvaluatorMappingSource } from "@phoenix/types";
 
 /**
@@ -67,27 +64,4 @@ const SESSION_SAMPLE: SampleSessionEvaluationContext = {
 
 export function getSampleSessionEvaluationContext(): SampleSessionEvaluationContext {
   return SESSION_SAMPLE;
-}
-
-/**
- * The session's standard fields with no values, mirroring the span grain's
- * generic context: the completion popup and bindings list build from this
- * skeleton, and one empty turn keeps the turn shape drillable. The sample
- * above exists only as a runnable demo record.
- */
-const GENERIC_SESSION_CONTEXT: GenericEvaluationContext<"session"> = {
-  context: {
-    input: null,
-    output: null,
-    metadata: {
-      ...genericMetadata("session"),
-      turns: [
-        Object.fromEntries(SESSION_TURN_FIELDS.map((field) => [field, null])),
-      ],
-    },
-  },
-};
-
-export function getGenericSessionEvaluationContext(): GenericEvaluationContext<"session"> {
-  return GENERIC_SESSION_CONTEXT;
 }
