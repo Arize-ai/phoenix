@@ -4,7 +4,7 @@ from typing import Any, Literal, Optional, Type, Union
 
 import pandas as pd
 from aioitertools.itertools import groupby
-from cachetools import LFUCache, TTLCache
+from cachetools import LRUCache, TTLCache
 from sqlalchemy import Select, and_, case, distinct, func, or_, select
 from sqlalchemy.orm import InstrumentedAttribute
 from strawberry.dataloader import AbstractCache, DataLoader
@@ -82,7 +82,13 @@ class AnnotationSummaryCache(
             # interval endpoints are rounded down to the hour by the UI, so anything
             # older than an hour most likely won't be a cache-hit anyway.
             main_cache=TTLCache(maxsize=64 * 32 * 2, ttl=3600),
-            sub_cache_factory=lambda: LFUCache(maxsize=2 * 2),
+            # LRU, not LFU: each viewed window contributes two sub-keys (the
+            # window and its previous-window comparison), and under LFU a
+            # fresh window enters at frequency 1 — the immediate eviction
+            # victim while stale high-frequency windows squat, so switching
+            # ranges could permanently miss. LRU keeps the recently viewed
+            # windows, which is the actual access pattern.
+            sub_cache_factory=lambda: LRUCache(maxsize=2 * 2),
         )
 
     def invalidate_project(self, project_rowid: ProjectRowId) -> None:
