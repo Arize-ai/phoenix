@@ -257,7 +257,9 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
               code evaluator.
             </Alert>
           ) : null}
-          {isInitialSandboxUnavailable && !hasNoSandboxConfigs ? (
+          {isInitialSandboxUnavailable &&
+          selectedSandboxConfigId == null &&
+          !hasNoSandboxConfigs ? (
             <Alert variant="warning" banner>
               The original evaluator&apos;s sandbox is unavailable. Select a
               sandbox before creating this evaluator.
