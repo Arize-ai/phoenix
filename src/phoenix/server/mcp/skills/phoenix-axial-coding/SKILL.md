@@ -102,19 +102,16 @@ failure_taxonomy:
 
 ## Wrapping up
 
-Share the Phoenix UI link with the user: the project's **spans** table filtered by the coding annotation identifier. Three details the UI enforces, each failing silently as an unfiltered table:
+Share Phoenix UI links with the user: one per level — span, trace, session — that actually carries this run's annotations, filtered to the run's work. Skip levels with none. Each tab reads its filter from its own search param; an unrecognized or misspelled param is silently dropped, leaving an unfiltered table.
 
-- The search param is `spanFilterCondition`; unrecognized params are dropped.
-- Link to the `/spans` tab, not `/traces` — the traces tab keeps its trace filter in component state with no URL param of its own.
-- The accessor must match the level the annotations were written at: `trace_annotations[...]` for a trace-level run, `annotations[...]` for a span-level run. A mismatch joins the wrong annotation table and matches nothing.
+The filter DSLs cannot compare an annotation's `identifier` — an accessor exposes only `.label`, `.score`, `.explanation`, or bare existence — so filter on the run's annotation names instead: a bare accessor like `annotations['<annotation-name>']` matches entities where that annotation exists. The per-run annotation name keeps the axial clause precise; `note` is a shared name, so the notes clause also matches other reviewers' notes.
 
-Then take the filter expression for the level the run annotated at — the notes and axial labels carry the identifier themselves, so filter on those annotation names directly:
+| Level annotated | Tab and search param | Filter expression |
+| --- | --- | --- |
+| span | `/spans?spanFilterCondition=` | `annotations['note'] or annotations['<annotation-name>']` |
+| trace | `/traces?traceFilterCondition=` | `trace_annotations['note'] or trace_annotations['<annotation-name>']` |
+| session | `/sessions?sessionFilterCondition=` | `session_annotations['note'] or session_annotations['<annotation-name>']` |
 
-    trace_annotations['note'].identifier == '<id>' or trace_annotations['<annotation-name>'].identifier == '<id>'   # trace-level run
-    annotations['note'].identifier == '<id>' or annotations['<annotation-name>'].identifier == '<id>'               # span-level run
-    # session-level run: no filterable link exists — the sessions tab keeps its filter in component state, and the
-    # span filter DSL has no session-annotation accessor — so share the plain project link instead
+URL-encode each expression into its tab's param:
 
-— URL-encode it, and share:
-
-    <endpoint>/projects/<project-node-id>/spans?spanFilterCondition=<encoded-expression>
+    <endpoint>/projects/<project-node-id>/<tab>?<param>=<encoded-expression>
