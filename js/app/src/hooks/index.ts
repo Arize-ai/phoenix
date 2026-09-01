@@ -17,4 +17,5 @@ export * from "./useLatestPhoenixVersion";
 export * from "./usePersistedState";
 export * from "./useOwnedPreloadedQuery";
 export * from "./useLabelFilterSearchParams";
+export * from "./useFilterSearchParam";
 export * from "./useMediaQuery";
