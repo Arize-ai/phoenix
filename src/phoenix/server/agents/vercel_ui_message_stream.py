@@ -235,6 +235,7 @@ async def process_ui_message_stream(
         elif isinstance(chunk, ReasoningStartChunk):
             reasoning_part = ReasoningUIPart(
                 type="reasoning",
+                id=chunk.id,
                 text="",
                 provider_metadata=chunk.provider_metadata,
                 state="streaming",
