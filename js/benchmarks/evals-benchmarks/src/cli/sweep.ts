@@ -1,14 +1,10 @@
 /**
  * Eval-library benchmark sweep entry point.
  *
- * Step 1 runs a single baked-in suite (same as `pnpm evals` for one file)
- * and stamps Phoenix experiment name + metadata with sweep coordinates.
+ * Each --models value is one Vitest process / Phoenix experiment on the same
+ * dataset. Prompt and format stay at the baked-in defaults.
  *
- *   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity
- *
- * Requires Phoenix reachable (tracking on) and `OPENAI_API_KEY`. Expect a
- * named experiment on the suite dataset, e.g.
- * `toxicity / gpt-4o-mini / default / default`.
+ *   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --models gpt-4o-mini,gpt-4o
  */
 import { spawn } from "node:child_process";
 import { delimiter, join } from "node:path";
@@ -16,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   buildSweepEnv,
-  resolveSweepPlan,
+  resolveSweepPlans,
   SweepCliError,
   SWEEP_HELP,
 } from "./config.js";
@@ -62,17 +58,23 @@ async function main(): Promise<void> {
     process.stdout.write(SWEEP_HELP);
     return;
   }
-  const plan = resolveSweepPlan({ flags, srcDir });
-  const sweepEnv = buildSweepEnv({
-    experimentName: plan.experimentName,
-    coordinates: plan.coordinates,
-  });
-  const exitCode = await runVitest({
-    evalFile: plan.evalFile,
-    env: { ...process.env, ...sweepEnv },
-  });
-  if (exitCode !== 0) {
-    process.exitCode = exitCode;
+  const plans = resolveSweepPlans({ flags, srcDir });
+  let failed = false;
+  for (const plan of plans) {
+    const sweepEnv = buildSweepEnv({
+      experimentName: plan.experimentName,
+      coordinates: plan.coordinates,
+    });
+    const exitCode = await runVitest({
+      evalFile: plan.evalFile,
+      env: { ...process.env, ...sweepEnv },
+    });
+    if (exitCode !== 0) {
+      failed = true;
+    }
+  }
+  if (failed) {
+    process.exitCode = 1;
   }
 }
 

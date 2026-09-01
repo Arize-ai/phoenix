@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
-import { DEFAULT_EVAL_MODEL } from "../model.js";
+import { DEFAULT_EVAL_MODEL } from "../resolveEvalModel.js";
 
 export const DEFAULT_PROMPT_TECHNIQUE = "default";
 export const DEFAULT_DATA_FORMAT = "default";
@@ -21,20 +21,21 @@ export class SweepCliError extends Error {
 export const SWEEP_HELP = `Usage:
   pnpm --filter evals-benchmarks sweep -- --evaluator <id> [options]
 
-Run one eval-library benchmark as a Phoenix experiment, stamped with sweep
-coordinates. Tracking is on (same as \`pnpm evals\`). Matrix execution is not
-implemented yet: omit --models/--prompts/--formats, or pass a single value
-each. Multiple values error instead of silently running one cell.
+Run eval-library benchmarks as Phoenix experiments. Each --models value is one
+experiment on the same dataset (sequential Vitest runs). --prompts and --formats
+are still single-value only; omit them to use the baked-in prompt and format.
 
 Options:
   --evaluator <id>   Required. Benchmark id (filename without ${EVAL_FILE_SUFFIX}).
-  --models <list>    Comma-separated judge models (reserved; not applied yet).
-  --prompts <list>   Comma-separated prompt techniques (reserved; not applied yet).
-  --formats <list>   Comma-separated data formats (reserved; not applied yet).
+  --models <list>    Comma-separated judge models (default: EVAL_MODEL or gpt-4o-mini).
+                     Use provider:model when the id is ambiguous (e.g. anthropic:claude-sonnet-4-5).
+  --prompts <list>   Prompt techniques (reserved; at most one value).
+  --formats <list>   Data formats (reserved; at most one value).
   -h, --help         Show this help.
 
-Example (step 1 — baked-in config only):
+Examples:
   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity
+  pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --models gpt-4o-mini,gpt-4o
 `;
 
 export type SweepCliFlags = {
@@ -102,33 +103,30 @@ export function resolveEvalFile({
 }
 
 /**
- * Reject multi-value axis flags until matrix execution exists.
+ * Prompt and format axes are still single-value. Models may be a list.
  */
-export function assertSingleCellAxes({
-  models,
+export function assertSingleValueAxes({
   prompts,
   formats,
 }: {
-  models: string[];
   prompts: string[];
   formats: string[];
 }): void {
-  const hasMatrix =
-    models.length > 1 || prompts.length > 1 || formats.length > 1;
-  if (!hasMatrix) {
+  const hasUnimplementedMatrix = prompts.length > 1 || formats.length > 1;
+  if (!hasUnimplementedMatrix) {
     return;
   }
   throw new SweepCliError(
     [
-      "Model × prompt × format sweeps are not implemented yet.",
-      "Pass at most one value each for --models, --prompts, and --formats,",
-      "or omit those flags to run the baked-in evaluator configuration.",
+      "Prompt and format sweeps are not implemented yet.",
+      "Pass at most one value each for --prompts and --formats,",
+      "or omit those flags. --models may list multiple judges.",
     ].join(" ")
   );
 }
 
 /**
- * Coordinates for the baked-in cell. Axis flags are not applied in step 1.
+ * Coordinates for one sweep cell. Prompt/format stay at the baked-in default.
  */
 export function buildSweepCoordinates({
   evalModelName = process.env.EVAL_MODEL ?? DEFAULT_EVAL_MODEL,
@@ -156,7 +154,7 @@ export function buildExperimentName({
 }
 
 /**
- * Env vars the vitest harness reads for experiment identity.
+ * Env vars the child Vitest process uses for judge model and experiment identity.
  */
 export function buildSweepEnv({
   experimentName,
@@ -166,36 +164,21 @@ export function buildSweepEnv({
   coordinates: SweepCoordinates;
 }): Record<string, string> {
   return {
+    EVAL_MODEL: coordinates.model,
     PHOENIX_EXPERIMENT_NAME: experimentName,
     PHOENIX_EXPERIMENT_METADATA: JSON.stringify(coordinates),
   };
 }
 
-/**
- * Build the single-cell sweep plan from CLI flags.
- */
-export function resolveSweepPlan({
-  flags,
-  srcDir,
+function buildPlanForModel({
+  evaluator,
+  evalFile,
   evalModelName,
 }: {
-  flags: SweepCliFlags;
-  srcDir: string;
-  evalModelName?: string;
+  evaluator: string;
+  evalFile: string;
+  evalModelName: string;
 }): SweepPlan {
-  if (flags.help) {
-    throw new SweepCliError(SWEEP_HELP, 0);
-  }
-  const evaluator = flags.evaluator?.trim();
-  if (!evaluator) {
-    throw new SweepCliError(`Missing required --evaluator.\n\n${SWEEP_HELP}`);
-  }
-  assertSingleCellAxes({
-    models: splitCsvList(flags.models),
-    prompts: splitCsvList(flags.prompts),
-    formats: splitCsvList(flags.formats),
-  });
-  const evalFile = resolveEvalFile({ evaluator, srcDir });
   const coordinates = buildSweepCoordinates({ evalModelName });
   const experimentName = buildExperimentName({ evaluator, coordinates });
   return {
@@ -205,4 +188,35 @@ export function resolveSweepPlan({
     experimentName,
     experimentMetadata: coordinates,
   };
+}
+
+/**
+ * Build one sweep cell per judge model from CLI flags.
+ */
+export function resolveSweepPlans({
+  flags,
+  srcDir,
+  evalModelName = process.env.EVAL_MODEL ?? DEFAULT_EVAL_MODEL,
+}: {
+  flags: SweepCliFlags;
+  srcDir: string;
+  evalModelName?: string;
+}): SweepPlan[] {
+  if (flags.help) {
+    throw new SweepCliError(SWEEP_HELP, 0);
+  }
+  const evaluator = flags.evaluator?.trim();
+  if (!evaluator) {
+    throw new SweepCliError(`Missing required --evaluator.\n\n${SWEEP_HELP}`);
+  }
+  const models = splitCsvList(flags.models);
+  assertSingleValueAxes({
+    prompts: splitCsvList(flags.prompts),
+    formats: splitCsvList(flags.formats),
+  });
+  const evalFile = resolveEvalFile({ evaluator, srcDir });
+  const modelNames = models.length > 0 ? models : [evalModelName];
+  return modelNames.map((modelName) =>
+    buildPlanForModel({ evaluator, evalFile, evalModelName: modelName })
+  );
 }

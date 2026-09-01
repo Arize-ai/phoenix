@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_EVAL_MODEL } from "../model.js";
+import { DEFAULT_EVAL_MODEL } from "../resolveEvalModel.js";
 import {
-  assertSingleCellAxes,
+  assertSingleValueAxes,
   buildExperimentName,
   buildSweepCoordinates,
   buildSweepEnv,
@@ -13,7 +13,7 @@ import {
   DEFAULT_PROMPT_TECHNIQUE,
   listEvaluators,
   resolveEvalFile,
-  resolveSweepPlan,
+  resolveSweepPlans,
   splitCsvList,
   SweepCliError,
 } from "./config.js";
@@ -105,25 +105,29 @@ describe("listEvaluators / resolveEvalFile", () => {
   });
 });
 
-describe("assertSingleCellAxes", () => {
-  it("allows omitted or single-value axes", () => {
+describe("assertSingleValueAxes", () => {
+  it("allows omitted or single-value prompt/format", () => {
     expect(() =>
-      assertSingleCellAxes({ models: [], prompts: [], formats: [] })
+      assertSingleValueAxes({ prompts: [], formats: [] })
     ).not.toThrow();
     expect(() =>
-      assertSingleCellAxes({
-        models: ["gpt-4o-mini"],
+      assertSingleValueAxes({
         prompts: ["zero-shot"],
         formats: ["raw"],
       })
     ).not.toThrow();
   });
 
-  it("rejects a matrix", () => {
+  it("rejects a prompt or format matrix", () => {
     expect(() =>
-      assertSingleCellAxes({
-        models: ["gpt-4o-mini", "gpt-4o"],
+      assertSingleValueAxes({
         prompts: ["zero-shot", "few-shot"],
+        formats: ["raw"],
+      })
+    ).toThrow(/not implemented yet/);
+    expect(() =>
+      assertSingleValueAxes({
+        prompts: ["zero-shot"],
         formats: ["raw", "messages"],
       })
     ).toThrow(/not implemented yet/);
@@ -131,7 +135,7 @@ describe("assertSingleCellAxes", () => {
 });
 
 describe("coordinates and env", () => {
-  it("stamps the baked-in default cell", () => {
+  it("stamps the cell model and sets EVAL_MODEL for the child process", () => {
     const coordinates = buildSweepCoordinates({
       evalModelName: DEFAULT_EVAL_MODEL,
     });
@@ -144,45 +148,72 @@ describe("coordinates and env", () => {
       "toxicity / gpt-4o-mini / default / default"
     );
     expect(buildSweepEnv({ experimentName: "n", coordinates })).toEqual({
+      EVAL_MODEL: DEFAULT_EVAL_MODEL,
       PHOENIX_EXPERIMENT_NAME: "n",
       PHOENIX_EXPERIMENT_METADATA: JSON.stringify(coordinates),
     });
   });
 });
 
-describe("resolveSweepPlan", () => {
-  it("requires --evaluator and plans a single vitest file", () => {
+describe("resolveSweepPlans", () => {
+  it("requires --evaluator and plans a single vitest file when --models is omitted", () => {
     const srcDir = writeEvalFiles({ ids: ["toxicity"] });
-    expect(() => resolveSweepPlan({ flags: { help: false }, srcDir })).toThrow(
+    expect(() => resolveSweepPlans({ flags: { help: false }, srcDir })).toThrow(
       /Missing required --evaluator/
     );
 
-    const plan = resolveSweepPlan({
+    const plans = resolveSweepPlans({
       flags: { help: false, evaluator: "toxicity" },
       srcDir,
       evalModelName: "gpt-4o-mini",
     });
-    expect(plan.evalFile).toBe(join("src", "toxicity.eval.ts"));
-    expect(plan.experimentName).toBe(
+    expect(plans).toHaveLength(1);
+    expect(plans[0]?.evalFile).toBe(join("src", "toxicity.eval.ts"));
+    expect(plans[0]?.experimentName).toBe(
       "toxicity / gpt-4o-mini / default / default"
     );
-    expect(plan.experimentMetadata).toEqual({
+    expect(plans[0]?.experimentMetadata).toEqual({
       model: "gpt-4o-mini",
       promptTechnique: "default",
       dataFormat: "default",
     });
   });
 
-  it("errors when axis flags request a matrix", () => {
+  it("emits one plan per --models value", () => {
+    const srcDir = writeEvalFiles({ ids: ["toxicity"] });
+    const plans = resolveSweepPlans({
+      flags: {
+        help: false,
+        evaluator: "toxicity",
+        models: "gpt-4o-mini,gpt-4o",
+      },
+      srcDir,
+    });
+    expect(plans.map((plan) => plan.experimentName)).toEqual([
+      "toxicity / gpt-4o-mini / default / default",
+      "toxicity / gpt-4o / default / default",
+    ]);
+    expect(plans.map((plan) => plan.coordinates.model)).toEqual([
+      "gpt-4o-mini",
+      "gpt-4o",
+    ]);
+    expect(
+      buildSweepEnv({
+        experimentName: plans[1]!.experimentName,
+        coordinates: plans[1]!.coordinates,
+      }).EVAL_MODEL
+    ).toBe("gpt-4o");
+  });
+
+  it("errors when --prompts or --formats request a matrix", () => {
     const srcDir = writeEvalFiles({ ids: ["toxicity"] });
     expect(() =>
-      resolveSweepPlan({
+      resolveSweepPlans({
         flags: {
           help: false,
           evaluator: "toxicity",
-          models: "gpt-4o-mini,gpt-4o,claude-sonnet-5",
+          models: "gpt-4o-mini,gpt-4o",
           prompts: "zero-shot,few-shot",
-          formats: "raw,messages",
         },
         srcDir,
       })

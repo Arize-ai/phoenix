@@ -13,6 +13,8 @@
     "test:cli": "vitest run --config vitest.cli.config.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.111",
+    "@ai-sdk/google": "^3.0.119",
     "@ai-sdk/openai": "^3.0.99",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*"
