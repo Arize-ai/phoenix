@@ -97,7 +97,6 @@ export type DSLFilterSnippet = {
 
 const pythonLanguage = python();
 
-/** Sentence-cases a subject noun for the start of a message. */
 function capitalize(text: string): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 }

@@ -56,7 +56,6 @@ describe("toCodeEvaluatorAccessor", () => {
         isAbsent: true,
       })
     ).toBe("?.attributes");
-    // A key that is not an identifier is bracketed in both languages.
     expect(
       toCodeEvaluatorAccessor({
         language: "TYPESCRIPT",

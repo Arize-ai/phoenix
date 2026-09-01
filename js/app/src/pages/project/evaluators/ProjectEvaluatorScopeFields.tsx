@@ -52,7 +52,6 @@ export const ProjectEvaluatorScopeFieldGroup = ({
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   onFilterValidityChange?: (isValid: boolean) => void;
   isTargetDisabled?: boolean;
-  /** Grow the sampling slider to fill the row. */
   fillSampling?: boolean;
   children?: ReactNode;
 }) => {

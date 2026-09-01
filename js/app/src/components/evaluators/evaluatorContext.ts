@@ -57,11 +57,6 @@ export type MaterializedEvaluatorContext = {
 /**
  * Resolves what an evaluator receives, for the authoring tools that offer and
  * preview it.
- *
- * @param params - context inputs
- * @param params.grain - record kind the editor is authoring against
- * @param params.evaluatorMappingSource - grain-tagged sampled mapping source
- * @param params.inputMapping - current evaluator input mapping
  */
 export function materializeEvaluatorContext({
   grain,
@@ -155,7 +150,6 @@ function materializeEvaluatorInput({
     };
   }
 
-  // An unmapped slot binds the context key of the same name.
   return (
     mapped ??
     materializePath({

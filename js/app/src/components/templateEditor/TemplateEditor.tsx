@@ -88,7 +88,6 @@ export const TemplateEditor = ({
       default:
         assertUnreachable(templateFormat);
     }
-    // Add autocomplete when something can be suggested and templating is enabled
     if (
       (evaluationContext !== null || (availablePaths?.length ?? 0) > 0) &&
       !readOnly &&

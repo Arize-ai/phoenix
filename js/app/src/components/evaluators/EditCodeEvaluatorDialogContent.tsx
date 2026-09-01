@@ -378,7 +378,6 @@ export const EditCodeEvaluatorDialogContent = ({
         JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
       ) {
         state.setEvaluatorMappingSource({
-          // The draft was read off, and is edited against, this grain's record.
           grain: state.evaluatorMappingSource.grain,
           source: next.testPayload,
         });
@@ -651,10 +650,6 @@ export const EditCodeEvaluatorDialogContent = ({
   );
 };
 
-/**
- * Top-of-panel form for the evaluator's identifying metadata:
- * Name, Language, Sandbox, and Description.
- */
 const EvaluatorMetadataForm = ({
   language,
   onLanguageChange,

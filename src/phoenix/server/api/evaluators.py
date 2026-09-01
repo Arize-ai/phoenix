@@ -1178,9 +1178,6 @@ def infer_input_schema_from_template(
     template: PromptChatTemplateInput,
     template_format: PromptTemplateFormat,
 ) -> dict[str, Any]:
-    """
-    Infer the input schema from an evaluator template.
-    """
     formatter = get_template_formatter(template_format)
     return input_schema_from_parsed_variables(
         formatter.parse_with_types(part.text.text)

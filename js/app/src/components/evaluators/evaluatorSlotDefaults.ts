@@ -1,6 +1,5 @@
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
-/** The three inputs every evaluator receives. */
 export const EVALUATOR_SLOT_NAMES = ["input", "output", "metadata"] as const;
 
 export type EvaluatorSlotName = (typeof EVALUATOR_SLOT_NAMES)[number];
@@ -10,7 +9,6 @@ type BySlot<T> = Record<
   Record<EvaluatorSlotName, T>
 >;
 
-/** A pinned example path and the one line shown beside it when highlighted. */
 export type EvaluatorSlotSuggestedPath = {
   path: string;
   description: string;

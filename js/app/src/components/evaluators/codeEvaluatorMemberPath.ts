@@ -13,7 +13,6 @@ import {
  */
 const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*/;
 const WHOLE_IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
-/** Everything a member expression can be written with, in either language. */
 const EXPRESSION_CHARS = /[A-Za-z0-9_$."'?[\]\\]/;
 const COMPLETE_SUBSCRIPT_PATTERN =
   /^\[\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|(\d+))\s*\]/;

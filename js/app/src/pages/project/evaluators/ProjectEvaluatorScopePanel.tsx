@@ -1269,7 +1269,6 @@ const contextViewerCSS = css`
 
 type BindingRow = {
   keyword: string;
-  /** The path the value is read from; every binding has one. */
   path?: string;
   /** One line on the name, shown on hover. */
   description?: string;

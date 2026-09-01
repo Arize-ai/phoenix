@@ -36,7 +36,6 @@ const SESSION_SOURCE: Record<string, unknown> = {
   },
 };
 
-/** Stands in for the shared candidate tree the surfaces feed this. */
 const ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
   {
     key: "input",
@@ -58,7 +57,6 @@ const ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
   },
 ];
 
-/** The session grain's tree, whose turns sit flat at `metadata.turns`. */
 const SESSION_ROOT_CANDIDATES: EvaluatorPathCompletion[] = [
   {
     key: "metadata.turns",
@@ -262,7 +260,6 @@ describe("getEvaluatorPathCompletions", () => {
       toMemberSection("metadata.attributes", PATH_MEMBER_SECTION_RANK)
     );
 
-    // The name alone still matches the root row it always did.
     expect(completionsFor("attributes")?.completions).toEqual(ROOT_CANDIDATES);
 
     expect(
@@ -372,7 +369,6 @@ describe("resolveEvaluatorPath", () => {
   });
 
   it("holds back on paths nothing here can check", () => {
-    // No record sampled yet
     expect(resolveEvaluatorPath({ source: {}, path: "metadata.nope" })).toEqual(
       { status: "unverifiable" }
     );

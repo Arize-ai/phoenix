@@ -13,8 +13,6 @@ import {
 
 describe("the default source a new code evaluator opens on", () => {
   it("names only what its grain hands the evaluator", () => {
-    // A dataset example carries a reference and a generated `EvaluatorParams`
-    // footer to annotate against; a span or a session carries neither.
     expect(getDefaultCodeEvaluatorSource("TYPESCRIPT", "dataset")).toContain(
       "function evaluate({ output, reference, input, metadata }: EvaluatorParams)"
     );

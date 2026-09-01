@@ -111,8 +111,6 @@ function applyCompletion({
   return state.doc.toString();
 }
 
-// CodeMirror only queries the source as characters arrive, so a variable site
-// the author left empty has to be recognized and the menu opened for it.
 describe("isAtEmptyTemplateVariable", () => {
   it("recognizes a variable site with nothing typed into it", () => {
     const cases: [string, TemplateFormat, boolean][] = [

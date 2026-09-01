@@ -121,8 +121,6 @@ describe("code evaluator completions", () => {
     })(new CompletionContext(state, source.length, explicit));
   }
 
-  // A parameter is a name, so only the three the evaluator is handed can be
-  // one; everything under them is reached in the body.
   it("offers only the evaluator's own inputs in the signature", () => {
     expect(completeAt("def evaluate(")?.options.map((o) => o.label)).toEqual([
       "input",
@@ -143,8 +141,6 @@ describe("code evaluator completions", () => {
     });
   });
 
-  // Nothing under an undeclared parameter can be written, so nothing under it
-  // is offered.
   it("offers nothing from a parameter the signature does not declare", () => {
     expect(completeAt("def evaluate(input):\n    value = latency")).toBeNull();
   });
@@ -168,8 +164,6 @@ describe("code evaluator completions", () => {
     });
   });
 
-  // The rewritten expression is rooted at a parameter, so an undeclared one
-  // leaves nothing that could be written.
   it("offers nothing from a record name whose slot is not declared", () => {
     expect(
       completeAt("def evaluate(input):\n    value = attributes.", false)
@@ -253,8 +247,6 @@ describe("code evaluator signature completions", () => {
     );
   }
 
-  // A row replaces the name the cursor is in, so a name corrected from the
-  // middle is rewritten rather than doubled.
   it("rewrites the parameter name the cursor sits inside", () => {
     expect(
       acceptAt({
@@ -272,8 +264,6 @@ describe("code evaluator signature completions", () => {
     ).toBe("function evaluate({ input }) {\n  return 1;\n}\n");
   });
 
-  // Both languages put a space after a separator and inside a destructure, so
-  // a row landing against one supplies the space the author has not typed.
   it("spaces a name off the separator it lands against", () => {
     expect(
       acceptAt({
@@ -355,8 +345,6 @@ describe("code evaluator signature completions", () => {
   });
 });
 
-// CodeMirror only queries the source as characters arrive, so a parameter the
-// author has not typed into has to be recognized and the menu opened for it.
 describe("isAtEmptySignatureName", () => {
   it("recognizes a parameter with nothing typed into it", () => {
     const cases: [string, "PYTHON" | "TYPESCRIPT", boolean][] = [

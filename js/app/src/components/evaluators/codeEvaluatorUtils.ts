@@ -89,11 +89,6 @@ type CodeEvaluatorCompletionPosition = "signature" | "body" | null;
 
 /**
  * Locates the cursor in the top-level `evaluate` declaration CodeMirror parsed.
- *
- * @param params - editor position inputs
- * @param params.language - evaluator source language
- * @param params.state - current CodeMirror state
- * @param params.pos - cursor offset in the document
  */
 export function getCodeEvaluatorCompletionPosition({
   language,
@@ -152,11 +147,6 @@ export type CodeEvaluatorSignatureNameSlot = {
  * The name slot the cursor sits in, or null where the signature is not naming
  * a parameter — inside a default value, an annotation, or a variadic, none of
  * which bind one of the evaluator's inputs.
- *
- * @param params - editor position inputs
- * @param params.language - evaluator source language
- * @param params.state - current CodeMirror state
- * @param params.pos - cursor offset in the document
  */
 export function getCodeEvaluatorSignatureNameSlot({
   language,

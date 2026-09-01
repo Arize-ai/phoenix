@@ -17,13 +17,11 @@ import {
   toTypeaheadCompletionClass,
 } from "@phoenix/components/filter/styles";
 
-/** The three inputs every evaluator receives, in slot order. */
 export const EVALUATOR_INPUT_SECTION: CompletionSection = {
   name: "Evaluator input",
   rank: 1,
 };
 
-/** The record's own names, under the vocabulary of the record kind. */
 export const RECORD_SECTION_BY_GRAIN: Record<
   MaterializedEvaluatorContext["grain"],
   CompletionSection
@@ -38,7 +36,6 @@ export const UNSET_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}unset`
 /** A row whose detail reads as prose rather than as a value. */
 export const HINT_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}hint`;
 
-/** The row class the shared typeahead chrome styles a completion with. */
 export function toEvaluatorCompletionClass(completion: Completion): string {
   return toTypeaheadCompletionClass(completion.type);
 }
@@ -112,7 +109,6 @@ export function buildEvaluatorContextCandidates(
         : entry.status === "unresolved"
           ? "not set"
           : "",
-    // A name that needs no explaining shows no info pane.
     info: entry.description ?? "",
     section: recordSection,
     boost: 100 - index,

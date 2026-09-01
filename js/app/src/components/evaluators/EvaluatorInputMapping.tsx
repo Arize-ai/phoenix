@@ -128,7 +128,6 @@ export const useEvaluatorInputMappingControlsForm = ({
   return form;
 };
 
-/** A control that was never filled in reports an empty value, not an entry. */
 function pruneEmpty<T>(mapping: Record<string, T>): Record<string, T> {
   return Object.fromEntries(
     Object.entries(mapping).filter(

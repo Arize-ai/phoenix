@@ -45,7 +45,6 @@ import { flattenObject } from "@phoenix/utils/jsonUtils";
 /** The body's drill menu offers nothing beside the level it opened. */
 const CODE_MEMBER_SECTION_RANK = 1;
 
-/** Generates a human-readable type description for a value. */
 function getTypeDescription(value: unknown): string {
   if (value === null) return "null";
   if (value === undefined) return "undefined";
@@ -67,7 +66,6 @@ function getTypeDescription(value: unknown): string {
   return typeof value;
 }
 
-/** Creates the existing member-path and language-helper options. */
 export function createCompletionOptions({
   mappingSource,
   language,
@@ -594,7 +592,6 @@ function getAccessorEnd({
   return state.doc.sliceString(end, end + 1) === "]" ? end + 1 : end;
 }
 
-/** Creates the autocompletion extension for the code evaluator editor. */
 export function createEvaluatorAutocompletion({
   mappingSource,
   language,

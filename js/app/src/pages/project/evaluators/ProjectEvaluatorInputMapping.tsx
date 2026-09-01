@@ -43,9 +43,6 @@ export const ProjectEvaluatorInputMapping = ({
           control={control}
           setValue={setValue}
           pathOptions={[]}
-          // A project evaluator's mapping is stored on the evaluator, not on
-          // the record, so a pinned constant would travel with it; every input
-          // is authored as a path.
           allowsLiteral={false}
           renderPathInput={({
             value,

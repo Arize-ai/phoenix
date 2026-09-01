@@ -43,12 +43,6 @@ const MEMBER_NAME_PATTERN = /^\w*$/;
  * The menu shown inside a template variable while a project evaluator is being
  * authored: what the evaluator receives, what the record supplies, and the
  * level below whichever of them the cursor has drilled into.
- *
- * @param params - completion inputs
- * @param params.evaluationContext - the evaluator's materialized inputs
- * @param params.templateFormat - the format the template is written in
- * @param params.variable - the open template variable the cursor sits in
- * @param params.sectionStack - Mustache sections the cursor is nested inside
  */
 export function getEvaluatorTemplateCompletions({
   evaluationContext,

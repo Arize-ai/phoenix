@@ -26,7 +26,6 @@ import {
 import type { EvaluatorSlotName } from "./evaluatorSlotDefaults";
 import { getEvaluatorSlotSuggestedPaths } from "./evaluatorSlotDefaults";
 
-/** What the badge says about a path that names something the record lacks. */
 const UNRESOLVED_PATH_MESSAGE = "No such field";
 
 const NO_COMPLETIONS: Completion[] = [];
@@ -45,7 +44,6 @@ const evaluatorPathFieldCSS = css`
   .cm-editor {
     padding-left: var(--global-dimension-size-100);
   }
-  /* The slot's default, standing in for the path the author has not written */
   .cm-placeholder {
     color: var(--global-text-color-500);
   }
@@ -78,7 +76,6 @@ export function EvaluatorPathField({
   isInvalid: boolean;
   errorMessage?: string;
   ariaLabel: string;
-  /** The sampled evaluation context a path is resolved against. */
   evaluatorMappingSource: EvaluatorMappingSourceState;
   grain: ProjectEvaluatorMappingSourceGrain;
   slotName: EvaluatorSlotName;
@@ -206,8 +203,6 @@ function createEvaluatorPathCompletionSource({
       options: result.completions.map((completion, index) => ({
         label: completion.key,
         ...(completion.preview ? { detail: completion.preview } : {}),
-        // What a row reaches, shown beside the highlighted one — the same slot
-        // the filter box's suggestion hints render through.
         ...(completion.description ? { info: completion.description } : {}),
         type: completion.type ?? "property",
         // Suggestions keep their configured order — the plain narrowing

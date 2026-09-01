@@ -52,7 +52,6 @@ export function ProjectEvaluatorMetrics({
   onTimeRangeSelected,
 }: {
   projectEvaluator: ProjectEvaluatorMetrics_projectEvaluator$key;
-  /** The page's selected time range, shared with the overview stats strip. */
   timeRange: TimeRange;
   /** Called when a brush selection on a panel narrows the range. */
   onTimeRangeSelected: (timeRange: TimeRange) => void;

@@ -26,10 +26,6 @@ const PARTIAL_SUBSCRIPT_PATTERN = /^\[(?:'((?:[^'\\]|\\.)*)|(\d*))?$/;
  */
 export const MAX_BROWSE_MEMBERS = 30;
 
-/**
- * The members a level offers: capped while the user is browsing it with
- * nothing typed, whole once they start narrowing.
- */
 export function capBrowsedMembers<T>({
   members,
   isBrowsing,
@@ -71,7 +67,6 @@ export type EvaluatorPathMember = {
   isIndex: boolean;
 };
 
-/** The members of `value`, as the paths that read them. */
 export function getEvaluatorPathMembers(
   value: unknown,
   parentPath: string
@@ -207,11 +202,6 @@ export function reachEvaluatorContainerPath({
   return null;
 }
 
-/**
- * What a row shows to the right of the member name: the value the member holds
- * on the sampled record, or what kind of thing it is when the member is a
- * branch to drill into rather than a value to read.
- */
 /** A row that can be drilled with `.` — styled with a trailing chevron. */
 export const CONTAINER_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}container`;
 
@@ -314,7 +304,6 @@ export function toMemberSection(
 /** Where a drill level sits among the path field's own groups. */
 export const PATH_MEMBER_SECTION_RANK = 3;
 
-/** What a pinned suggestion supplies: the path and its one-line description. */
 export type EvaluatorSlotSuggestedPathLike = {
   path: string;
   description: string;

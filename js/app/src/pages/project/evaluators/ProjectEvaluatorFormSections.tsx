@@ -66,10 +66,6 @@ export const ProjectLlmEvaluatorFormSections = ({
   );
 };
 
-/**
- * The three inputs an evaluator receives, and — where the experiment currently
- * places it — the list of values its record supplies by name.
- */
 const ProjectEvaluatorInputMappingSection = ({
   grain,
 }: {
