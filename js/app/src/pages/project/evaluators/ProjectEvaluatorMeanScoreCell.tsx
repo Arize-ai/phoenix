@@ -17,34 +17,18 @@ import {
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { Sparkline, useBinTimeTickFormatter } from "@phoenix/components/chart";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
+import type { ProjectEvaluatorsTable_scores$data } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 /**
- * One annotation's score aggregates as the row fragment selects them from
+ * One annotation's score aggregates as the scores fragment selects them from
  * `ProjectEvaluator.annotationScoreMetrics`.
  */
-export type EvaluatorAnnotationScoreMetricsData = {
-  readonly annotationName: string;
-  readonly summary: {
-    readonly meanScore: number | null | undefined;
-    readonly count: number;
-    readonly scoreCount: number;
-    readonly labelCount: number;
-    readonly labelFractions: ReadonlyArray<{
-      readonly label: string;
-      readonly fraction: number;
-    }>;
-  } | null;
-  readonly previousSummary: {
-    readonly meanScore: number | null | undefined;
-  } | null;
-  readonly series: ReadonlyArray<{
-    readonly timestamp: string;
-    readonly meanScore: number | null | undefined;
-  }>;
-};
+export type EvaluatorAnnotationScoreMetricsData = NonNullable<
+  ProjectEvaluatorsTable_scores$data["annotationScoreMetrics"]
+>[number];
 
 const meanScoreAlignmentCSS = css`
   /* AnnotationScoreText insets a directed score as a padded pill; mirror

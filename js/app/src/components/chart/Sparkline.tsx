@@ -15,8 +15,11 @@ const sparklineCSS = css`
 
 export interface SparklineProps {
   /**
-   * One value per time bin, in time order. Null marks a bin with no value;
-   * the line connects straight through such gaps.
+   * One value per time bin, in time order. Every bin occupies its own x
+   * position whether or not it carries a value, so sparklines that share a
+   * time axis align vertically when scanned across rows. Null marks a bin
+   * with no value; the line breaks there rather than interpolating across
+   * the gap, and a gap-isolated value draws as a dot.
    */
   values: ReadonlyArray<number | null>;
   /** Stroke color, e.g. a design token var. */
@@ -47,9 +50,10 @@ type SparklinePoint = {
 
 /**
  * The line as scaled points: values plotted top-to-bottom by magnitude and
- * left-to-right by bin position, with the first and last populated bins
- * pinned to the edges so the line always spans the full width. Null when
- * fewer than two bins carry values — a single point has no trend to draw.
+ * left-to-right by bin position over the full bin axis — empty bins keep
+ * their x slot rather than being squeezed out, so sparklines sharing a time
+ * axis align vertically across rows. Null when fewer than two bins carry
+ * values — a single point has no trend to draw.
  */
 function getPoints({
   values,
@@ -67,10 +71,8 @@ function getPoints({
   const min = Math.min(...present.map((point) => point.value));
   const max = Math.max(...present.map((point) => point.value));
   const drawableHeight = height - 2 * VERTICAL_PADDING;
-  const firstIndex = present[0].index;
-  const lastIndex = present[present.length - 1].index;
   return present.map(({ value, index }) => ({
-    x: ((index - firstIndex) / (lastIndex - firstIndex)) * DRAWING_WIDTH,
+    x: (index / (values.length - 1)) * DRAWING_WIDTH,
     // A flat series draws as a midline rather than dividing by zero
     y:
       max === min
@@ -81,8 +83,32 @@ function getPoints({
 }
 
 /**
+ * Points split into one polyline per contiguous run of populated bins, so
+ * the line breaks at gaps instead of drawing through them. A run of one is
+ * a gap-isolated point, rendered as a dot.
+ */
+function getSegments(points: SparklinePoint[]): SparklinePoint[][] {
+  const segments: SparklinePoint[][] = [];
+  let segment: SparklinePoint[] = [];
+  for (const point of points) {
+    if (
+      segment.length > 0 &&
+      point.index !== segment[segment.length - 1].index + 1
+    ) {
+      segments.push(segment);
+      segment = [];
+    }
+    segment.push(point);
+  }
+  segments.push(segment);
+  return segments;
+}
+
+/**
  * A small inline line chart for table cells and stat tiles: a single series,
- * no axes, stretching to fill the width its container gives it. With
+ * no axes, stretching to fill the width its container gives it. Bins keep
+ * their position on the axis and the line breaks at empty bins, so gaps are
+ * visible and sparklines sharing a time axis align across rows. With
  * `renderPointDetail`, hovering marks the nearest point and shows its detail
  * in a tooltip; further detail belongs to the surrounding component. Renders
  * nothing when fewer than two bins carry values — a single point has no
@@ -153,21 +179,39 @@ export function Sparkline({
         }
       >
         {ariaLabel != null ? <title id={titleId}>{ariaLabel}</title> : null}
-        <path
-          d={points
-            .map(
-              (point, index) =>
-                `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
-            )
-            .join(" ")}
-          fill="none"
-          stroke={color}
-          strokeWidth={1.3}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          // The svg stretches horizontally; keep the stroke width uniform
-          vectorEffect="non-scaling-stroke"
-        />
+        {getSegments(points).map((segment) =>
+          segment.length === 1 ? (
+            // A gap-isolated value has no line to join; a zero-length
+            // round-capped stroke renders as a dot that keeps its shape
+            // under the svg's non-uniform stretching.
+            <path
+              key={segment[0].index}
+              d={`M ${segment[0].x.toFixed(2)} ${segment[0].y.toFixed(2)} l 0.01 0`}
+              fill="none"
+              stroke={color}
+              strokeWidth={3}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : (
+            <path
+              key={segment[0].index}
+              d={segment
+                .map(
+                  (point, index) =>
+                    `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
+                )
+                .join(" ")}
+              fill="none"
+              stroke={color}
+              strokeWidth={1.3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              // The svg stretches horizontally; keep the stroke width uniform
+              vectorEffect="non-scaling-stroke"
+            />
+          )
+        )}
         {hoveredPoint != null ? (
           // A zero-length round-capped stroke renders as a dot that, unlike a
           // circle, keeps its shape under the svg's non-uniform stretching.
