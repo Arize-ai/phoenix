@@ -34,6 +34,21 @@ HARBOR_ATIF_TASKS = (
     "terminal-bench/cancel-async-tasks",
     "terminal-bench/fix-git",
 )
+HARBOR_ATIF_COMPACTION_TASK = "terminal-bench/fix-git"
+HARBOR_ATIF_COMPACTION_SOURCE_PATHS = {
+    "agent/trajectory.json",
+    "agent/trajectory.cont-1.json",
+    "agent/trajectory.summarization-1-answers.json",
+    "agent/trajectory.summarization-1-questions.json",
+    "agent/trajectory.summarization-1-summary.json",
+}
+HARBOR_ATIF_COMPACTION_AGENTS = {
+    "terminus-2",
+    "terminus-2 (continuation 1)",
+    "terminus-2-summarization-answers",
+    "terminus-2-summarization-questions",
+    "terminus-2-summarization-summary",
+}
 
 
 def _check(condition: bool, message: str) -> None:
@@ -295,6 +310,141 @@ def _expected_atif_source_paths(
     return tuple(path.relative_to(trial_dir).as_posix() for path in paths if path.is_file())
 
 
+def _run_atif_compaction_case(
+    wheel: Path,
+    endpoint: str,
+    jobs_dir: Path,
+    client: Client,
+    *,
+    job_name: str,
+) -> None:
+    compaction_job_name = f"{job_name}-compaction"
+    command = _harbor_command(
+        wheel,
+        endpoint,
+        jobs_dir,
+        [
+            "-d",
+            HARBOR_ATIF_DATASET,
+            "-i",
+            HARBOR_ATIF_COMPACTION_TASK,
+            "-a",
+            "terminus-2",
+            "-m",
+            HARBOR_ATIF_MODEL,
+            "--ae",
+            "OPENAI_API_KEY=${OPENAI_API_KEY}",
+            "--ak",
+            "max_turns=2",
+            "--ak",
+            "proactive_summarization_threshold=271500",
+            "--ak",
+            'trajectory_config={"linear_history":true}',
+            "-e",
+            "docker",
+            "-n",
+            "1",
+            "-r",
+            "0",
+            "--job-name",
+            compaction_job_name,
+        ],
+        trace_mode="atif",
+    )
+    _print_plugin_warnings(
+        _run(command, description="Terminus-2 records compaction and continuation ATIF traces")
+    )
+
+    job_dir = jobs_dir / compaction_job_name
+    trial_dirs = sorted(path for path in job_dir.iterdir() if path.is_dir())
+    _check(len(trial_dirs) == 1, repr(trial_dirs))
+    trial_dir = trial_dirs[0]
+    written_source_paths = {
+        path.relative_to(trial_dir).as_posix()
+        for path in (trial_dir / "agent").glob("trajectory*.json")
+    }
+    _check(
+        HARBOR_ATIF_COMPACTION_SOURCE_PATHS <= written_source_paths,
+        f"forced compaction wrote {sorted(written_source_paths)!r}",
+    )
+
+    dataset = _find_dataset(client, HARBOR_ATIF_DATASET_NAME)
+    experiments = _job_experiments(client, dataset["id"], compaction_job_name)
+    _check(len(experiments) == 1, repr(experiments))
+    experiment = experiments[0]
+    runs = _runs(client, experiment["id"])
+    _check(len(runs) == 1, repr(runs))
+    trace_id = runs[0].get("trace_id")
+    _check(isinstance(trace_id, str) and len(trace_id) == 32, repr(runs[0]))
+    project_name = experiment.get("project_name")
+    _check(bool(project_name), repr(experiment))
+    spans = client.spans.get_spans(
+        project_identifier=str(project_name),
+        trace_ids=[trace_id],
+        limit=10_000,
+    )
+    _check(bool(spans), f"forced compaction trace {trace_id} has no spans")
+    roots = [span for span in spans if span.get("parent_id") is None]
+    _check(len(roots) == 1 and roots[0]["name"] == "harbor.trial", repr(roots))
+    root_metadata = _span_metadata(roots[0])
+    _check(
+        HARBOR_ATIF_COMPACTION_SOURCE_PATHS <= set(root_metadata.get("atif_source_paths") or ()),
+        repr(root_metadata),
+    )
+    spans_by_id = {span["context"]["span_id"]: span for span in spans}
+    _check(
+        all(span.get("parent_id") in spans_by_id for span in spans if span.get("parent_id")),
+        "forced compaction trace contains an unresolved parent",
+    )
+    _check(
+        all(span["attributes"].get("session.id") == f"harbor:{trace_id}" for span in spans),
+        "forced compaction trace does not share one trial session",
+    )
+    agent_spans = [span for span in spans if span["span_kind"] == "AGENT"]
+    _check(
+        HARBOR_ATIF_COMPACTION_AGENTS == {span["name"] for span in agent_spans},
+        repr(agent_spans),
+    )
+    continuation = next(
+        span for span in agent_spans if span["name"] == "terminus-2 (continuation 1)"
+    )
+    _check(
+        _span_metadata(continuation).get("is_continuation") is True
+        and _span_metadata(continuation).get("continuation_index") == 1,
+        repr(continuation),
+    )
+    compaction_spans = [span for span in spans if span["name"] == "compaction_1"]
+    _check(len(compaction_spans) == 1, repr(compaction_spans))
+    _check(
+        _span_metadata(compaction_spans[0]).get("atif.context_management") is True,
+        repr(compaction_spans[0]),
+    )
+    span_ids_before = set(spans_by_id)
+    run_ids_before = {run["id"] for run in runs}
+    evaluations_before = _evaluation_state(endpoint, experiment["id"])
+
+    _print_plugin_warnings(_run(command, description="forced compaction resume is idempotent"))
+    replayed_experiments = _job_experiments(client, dataset["id"], compaction_job_name)
+    replayed_spans = client.spans.get_spans(
+        project_identifier=str(project_name),
+        trace_ids=[trace_id],
+        limit=10_000,
+    )
+    _check(
+        [item["id"] for item in replayed_experiments] == [experiment["id"]],
+        repr(replayed_experiments),
+    )
+    _check(_run_ids(client, experiment["id"]) == run_ids_before, repr(runs))
+    _check(
+        {span["context"]["span_id"] for span in replayed_spans} == span_ids_before,
+        "Forced compaction resume changed the trace span set",
+    )
+    _check(
+        _evaluation_state(endpoint, experiment["id"]) == evaluations_before,
+        "Forced compaction resume changed evals",
+    )
+
+
 def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
     _check(bool(os.environ.get("OPENAI_API_KEY")), "OPENAI_API_KEY is required")
     jobs_dir = root / "jobs"
@@ -509,6 +659,14 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         "Second resume changed the trace span set",
     )
     _check(_evaluation_state(endpoint, experiment["id"]) == evaluations_before, "Evals changed")
+
+    _run_atif_compaction_case(
+        wheel,
+        endpoint,
+        jobs_dir,
+        client,
+        job_name=job_name,
+    )
 
 
 def _run_matrix(root: Path, wheel: Path, endpoint: str) -> None:

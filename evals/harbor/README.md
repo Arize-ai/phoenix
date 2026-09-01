@@ -102,6 +102,17 @@ and startup failures with Harbor 0.21.0. Successful runs remove their temporary 
 runs print and retain the workspace path for investigation. Set `HARBOR_E2E_KEEP=1` to retain a
 successful run as well.
 
+Run the credentialed Terminus-2 ATIF matrix with:
+
+```bash
+OPENAI_API_KEY=... make harbor-plugin-e2e-atif
+```
+
+This target records three Terminal-Bench trials in one experiment and a forced summarization
+trial in a second experiment. The latter verifies the compaction span, continuation trajectory,
+and three summarizer subagent trajectories on every run. Set `HARBOR_E2E_ENDPOINT` to reuse a
+running Phoenix server; otherwise the target starts an isolated server.
+
 Browse job results in a local web viewer:
 
 ```bash
