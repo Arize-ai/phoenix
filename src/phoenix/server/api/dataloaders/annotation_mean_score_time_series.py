@@ -7,21 +7,23 @@ its score series in a single query.
 
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Literal, NamedTuple, Type, Union
+from typing import Any, Literal, NamedTuple, Optional, Type, Union
 
+from cachetools import LFUCache, TTLCache
 from sqlalchemy import Select, or_, select
-from strawberry.dataloader import DataLoader
+from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import date_trunc
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
+from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.types import DbSessionFactory
 
 Kind: TypeAlias = Literal["span", "trace", "session"]
 ProjectRowId: TypeAlias = int
-TimeInterval: TypeAlias = tuple[datetime, datetime]
+TimeInterval: TypeAlias = tuple[datetime, Optional[datetime]]
 Stride: TypeAlias = Literal["minute", "hour", "day", "week", "month", "year"]
 UtcOffsetMinutes: TypeAlias = int
 AnnotationName: TypeAlias = str
@@ -48,13 +50,52 @@ def _segment(key: Key) -> tuple[Segment, AnnotationName]:
     return (kind, project_rowid, interval, stride, utc_offset_minutes), annotation_name
 
 
+_Section: TypeAlias = tuple[ProjectRowId, AnnotationName, Kind]
+_SubKey: TypeAlias = tuple[TimeInterval, Stride, UtcOffsetMinutes]
+
+
+class AnnotationMeanScoreTimeSeriesCache(
+    TwoTierCache[Key, Result, _Section, _SubKey],
+):
+    """Sections match AnnotationSummaryCache's `(project, name, kind)`, so the
+    same annotation-write events invalidate both caches. Live windows are sent
+    open-ended with hour-snapped starts, so sub-keys stay stable between snap
+    boundaries and entries stay useful for the whole main-cache TTL.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            # TTL=3600 (1-hour) because window starts snap to the hour, so an
+            # entry older than that no longer matches any live window anyway.
+            main_cache=TTLCache(maxsize=64 * 32 * 2, ttl=3600),
+            # A couple of windows times a couple of bin scales per section.
+            sub_cache_factory=lambda: LFUCache(maxsize=2 * 2),
+        )
+
+    def invalidate_project(self, project_rowid: ProjectRowId) -> None:
+        for section in self._cache.keys():
+            if section[0] == project_rowid:
+                del self._cache[section]
+
+    def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
+        (
+            (kind, project_rowid, interval, stride, utc_offset_minutes),
+            annotation_name,
+        ) = _segment(key)
+        return (project_rowid, annotation_name, kind), (interval, stride, utc_offset_minutes)
+
+
 class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
     """Loads `{bucket: (mean_score, scored_entity_count)}` for one annotation
     name; empty buckets are absent and left for the caller to fill along its
     time axis."""
 
-    def __init__(self, db: DbSessionFactory) -> None:
-        super().__init__(load_fn=self._load_fn)
+    def __init__(
+        self,
+        db: DbSessionFactory,
+        cache_map: Optional[AbstractCache[Key, Result]] = None,
+    ) -> None:
+        super().__init__(load_fn=self._load_fn, cache_map=cache_map)
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
@@ -174,7 +215,10 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
         )
         stmt = stmt.where(annotation_model.name.in_(annotation_names))
         stmt = stmt.where(start_time <= bucket_time_column)
-        stmt = stmt.where(bucket_time_column < end_time)
+        if end_time is not None:
+            # An absent end means "up to now": leaving the range open keeps
+            # the cache key stable while writes invalidate stale entries.
+            stmt = stmt.where(bucket_time_column < end_time)
         return build_entity_weighted_annotation_metrics_stmt(stmt)
 
 
