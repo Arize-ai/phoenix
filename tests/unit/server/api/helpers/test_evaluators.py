@@ -34,6 +34,7 @@ from phoenix.db.types.model_provider import (
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptMessage,
+    PromptMessageRole,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
     PromptResponseFormatJSONSchema,
@@ -1218,7 +1219,7 @@ class TestDottedTemplateTokenBinding:
         template = PromptChatTemplateInput(
             messages=[
                 PromptMessageInput(
-                    role="USER",
+                    role=PromptMessageRole.USER,
                     content=[ContentPartInput(text=TextContentValueInput(text=template_text))],
                 )
             ]
@@ -1247,7 +1248,7 @@ class TestDottedTemplateTokenBinding:
         template = PromptChatTemplateInput(
             messages=[
                 PromptMessageInput(
-                    role="USER",
+                    role=PromptMessageRole.USER,
                     content=[
                         ContentPartInput(
                             text=TextContentValueInput(text="{{input.input}} {{input}} {{output}}")
