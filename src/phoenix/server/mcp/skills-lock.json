@@ -4,7 +4,7 @@
     "phoenix-axial-coding": {
       "source": "../../../../.agents/skills/phoenix-axial-coding",
       "sourceType": "local",
-      "computedHash": "830d41f05043eb51ce4eb326aea98d7d54b299302923af0f4b3189b56ab3c3d0"
+      "computedHash": "82eca52eb77a0d66e40f520c0430499e13c32cba51f450fc66ecf758fda2fabe"
     },
     "phoenix-open-coding": {
       "source": "../../../../.agents/skills/phoenix-open-coding",
