@@ -89,7 +89,7 @@ export type ProjectEvaluatorCreationMode =
   | { kind: "scratch" }
   | { kind: "newCode" }
   | {
-      kind: "copy";
+      kind: "copyLlm";
       initialState: SeededLlmEvaluatorInitialState;
     }
   | {
@@ -120,7 +120,7 @@ function getProjectEvaluatorCreationTitle(
   if (creationMode.kind === "newCode") {
     return "Create new code evaluator";
   }
-  if (creationMode.kind === "copy") {
+  if (creationMode.kind === "copyLlm") {
     return `Copy LLM evaluator “${creationMode.initialState.name}”`;
   }
   if (creationMode.kind === "copyCode") {
@@ -161,7 +161,7 @@ function CreateProjectEvaluatorDialogForMode(
   const { creationMode } = props;
   if (
     creationMode.kind === "scratch" ||
-    creationMode.kind === "copy" ||
+    creationMode.kind === "copyLlm" ||
     creationMode.kind === "template"
   ) {
     const defaultMessages =
@@ -232,11 +232,11 @@ const CreateProjectEvaluatorDialog = ({
       } satisfies EvaluatorStoreProps;
     }
     const seededState =
-      creationMode.kind === "copy" || creationMode.kind === "template"
+      creationMode.kind === "copyLlm" || creationMode.kind === "template"
         ? creationMode.initialState
         : undefined;
     const defaultEvaluatorName =
-      creationMode.kind === "copy"
+      creationMode.kind === "copyLlm"
         ? creationMode.initialState.name
           ? `${creationMode.initialState.name} copy`
           : DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName

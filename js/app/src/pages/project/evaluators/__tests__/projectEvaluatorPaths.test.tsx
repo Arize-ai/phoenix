@@ -83,7 +83,7 @@ describe("useProjectEvaluatorPaths", () => {
       "/projects/project-1/evaluators/new/code?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
     );
     expect(output?.getAttribute("data-list-copy-llm")).toBe(
-      "/projects/project-1/evaluators/new/copy/Evaluator%3Allm%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
+      "/projects/project-1/evaluators/new/copy-llm/Evaluator%3Allm%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
     );
     expect(output?.getAttribute("data-list-copy-code")).toBe(
       "/projects/project-1/evaluators/new/copy-code/Evaluator%3Acode%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
@@ -98,7 +98,7 @@ describe("useProjectEvaluatorPaths", () => {
       "/projects/project-1/evaluator-gallery/new/code?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
     );
     expect(output?.getAttribute("data-gallery-copy-llm")).toBe(
-      "/projects/project-1/evaluator-gallery/new/copy/Evaluator%3Allm%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
+      "/projects/project-1/evaluator-gallery/new/copy-llm/Evaluator%3Allm%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
     );
     expect(output?.getAttribute("data-gallery-copy-code")).toBe(
       "/projects/project-1/evaluator-gallery/new/copy-code/Evaluator%3Acode%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"

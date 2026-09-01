@@ -61,7 +61,7 @@ export function useProjectEvaluatorPaths() {
       newCode: withCurrentSearch(`${parentPath}/new/code`),
       copyLlm: (evaluatorId: string) =>
         withCurrentSearch(
-          `${parentPath}/new/copy/${encodeURIComponent(evaluatorId)}`
+          `${parentPath}/new/copy-llm/${encodeURIComponent(evaluatorId)}`
         ),
       copyCode: (evaluatorId: string) =>
         withCurrentSearch(

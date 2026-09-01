@@ -530,7 +530,7 @@ export const appRouteObjects = createRoutesFromElements(
                   }}
                 />
                 <Route
-                  path="new/copy/:evaluatorId"
+                  path="new/copy-llm/:evaluatorId"
                   element={<CopyLlmProjectEvaluatorPage />}
                   handle={{
                     agentRoute: {
@@ -614,7 +614,7 @@ export const appRouteObjects = createRoutesFromElements(
                 }}
               />
               <Route
-                path="new/copy/:evaluatorId"
+                path="new/copy-llm/:evaluatorId"
                 element={<CopyLlmProjectEvaluatorPage />}
                 handle={{
                   agentRoute: {

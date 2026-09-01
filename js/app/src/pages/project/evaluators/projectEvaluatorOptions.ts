@@ -222,7 +222,7 @@ export function buildCopyLlmCreationMode(
   return {
     ok: true,
     mode: {
-      kind: "copy",
+      kind: "copyLlm",
       initialState: {
         name: evaluator.name,
         description: evaluator.description ?? "",
