@@ -17,12 +17,6 @@ import { GITHUB_PAT_CREDENTIAL_KEY } from "@phoenix/store/agentStore";
 
 import { SystemSettingsWarning } from "./SystemSettingsWarning";
 
-const settingRowCSS = css`
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-medium);
-  background: var(--global-background-color-primary);
-`;
-
 const settingBodyCSS = css`
   display: flex;
   flex-direction: column;
@@ -39,6 +33,9 @@ type GitHubTokenFormValues = {
  * personal access token so PXI files issues as them. The token is stored only
  * in this browser and rides each chat request ephemerally — it is never
  * persisted server-side.
+ *
+ * Renders a plain `<li>`; the enclosing list decides whether the row is a
+ * standalone card or part of a grouped card.
  */
 export function AgentGitHubSettings() {
   const isAdmin = useIsAdminOrAuthDisabled();
@@ -86,7 +83,7 @@ export function AgentGitHubSettings() {
   };
 
   return (
-    <div css={settingRowCSS}>
+    <li>
       <div css={settingBodyCSS}>
         <Flex direction="column" gap="size-75">
           <Text weight="heavy" size="M">
@@ -152,6 +149,6 @@ export function AgentGitHubSettings() {
       {!githubEnabled ? (
         <SystemSettingsWarning isAdmin={isAdmin} isOnSettingsPage />
       ) : null}
-    </div>
+    </li>
   );
 }

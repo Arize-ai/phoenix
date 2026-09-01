@@ -1,7 +1,11 @@
 export { AgentSettingsForm } from "./AgentSettingsForm";
-export { AgentObservabilitySettings } from "./AgentObservabilitySettings";
 export {
-  AgentExperimentalSettings,
+  AgentObservabilitySettings,
+  AgentTraceAttributionSettingRow,
+  AgentTraceExportSettingRow,
+  AgentTraceSavingSettingRow,
+} from "./AgentObservabilitySettings";
+export {
   AgentSubagentsSettings,
   AgentWebAccessSettings,
 } from "./AgentExperimentalSettings";

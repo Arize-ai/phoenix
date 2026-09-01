@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a27f38ae0a9cdb46877c288e63acf314>>
+ * @generated SignedSource<<2ce140e0f9a67b7015c446bf280d501f>>
  * @lightSyntaxTransform
  */
 
@@ -12,18 +12,18 @@ export type SetAgentTraceRecordingInput = {
   allowLocalTraces: boolean;
   allowRemoteExport: boolean;
 };
-export type SettingsAgentsWorkspaceCardSetTraceRecordingMutation$variables = {
+export type SettingsAgentsTracingTabSetAgentTraceRecordingMutation$variables = {
   input: SetAgentTraceRecordingInput;
 };
-export type SettingsAgentsWorkspaceCardSetTraceRecordingMutation$data = {
+export type SettingsAgentsTracingTabSetAgentTraceRecordingMutation$data = {
   readonly setAgentTraceRecording: {
     readonly allowLocalTraces: boolean;
     readonly allowRemoteExport: boolean;
   };
 };
-export type SettingsAgentsWorkspaceCardSetTraceRecordingMutation = {
-  response: SettingsAgentsWorkspaceCardSetTraceRecordingMutation$data;
-  variables: SettingsAgentsWorkspaceCardSetTraceRecordingMutation$variables;
+export type SettingsAgentsTracingTabSetAgentTraceRecordingMutation = {
+  response: SettingsAgentsTracingTabSetAgentTraceRecordingMutation$data;
+  variables: SettingsAgentsTracingTabSetAgentTraceRecordingMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -72,7 +72,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsAgentsWorkspaceCardSetTraceRecordingMutation",
+    "name": "SettingsAgentsTracingTabSetAgentTraceRecordingMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -81,20 +81,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "SettingsAgentsWorkspaceCardSetTraceRecordingMutation",
+    "name": "SettingsAgentsTracingTabSetAgentTraceRecordingMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "12d8e45409795fa51183e2733cb0cb94",
+    "cacheID": "5227d11bb82845968f994a5c646131f1",
     "id": null,
     "metadata": {},
-    "name": "SettingsAgentsWorkspaceCardSetTraceRecordingMutation",
+    "name": "SettingsAgentsTracingTabSetAgentTraceRecordingMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsAgentsWorkspaceCardSetTraceRecordingMutation(\n  $input: SetAgentTraceRecordingInput!\n) {\n  setAgentTraceRecording(input: $input) {\n    allowLocalTraces\n    allowRemoteExport\n  }\n}\n"
+    "text": "mutation SettingsAgentsTracingTabSetAgentTraceRecordingMutation(\n  $input: SetAgentTraceRecordingInput!\n) {\n  setAgentTraceRecording(input: $input) {\n    allowLocalTraces\n    allowRemoteExport\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a3d1ce0f69b4d309a16e1d06100506dc";
+(node as any).hash = "bb81043422e4ab129b1c5982c3a7a010";
 
 export default node;

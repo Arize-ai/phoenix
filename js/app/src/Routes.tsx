@@ -1128,7 +1128,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Agent Settings",
                 description:
-                  "Configure the assistant, PXI enablement, agent model, edit approvals, experiment flags, trace collection, and manage saved assistant sessions.",
+                  "Configure the assistant across topical tabs: General (enable assistant, floating button, temporary chats, assistant model), Tools (web search, subagents, GitHub token, MCP), Permissions (assistant access, edit approvals), Tracing & privacy (trace saving, export, attribution), and Chats & data (retention rules, saved assistant sessions). Deep-linkable via the tab search param.",
               },
             }}
           />
