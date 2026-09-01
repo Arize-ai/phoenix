@@ -212,7 +212,7 @@ test.describe.serial("Projects", () => {
     await expect(page).toHaveURL(EVALUATORS_URL);
 
     await expect(
-      page.getByRole("heading", { name: "Evaluators", exact: true })
+      page.getByRole("region", { name: "Evaluator categories" })
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Browse eval gallery" })
