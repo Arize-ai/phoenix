@@ -576,12 +576,18 @@ jobs:
           uv tool install py-spy
           (
             sleep 2700
-            echo '::group::watchdog: suite still running after 45m — py-spy dumps'
+            echo '::group::watchdog: suite still running after 45m'
             sudo dmesg 2>/dev/null | grep -iE 'oom|killed process' | tail -20 || true
-            for pid in $(pgrep -f pytest); do
-              echo "=== pid $pid ==="
-              sudo "$(command -v py-spy)" dump --pid "$pid" --native || true
+            # Full process snapshot: xdist workers are execnet bootstraps whose
+            # cmdline never mentions pytest, so match interpreters by name.
+            ps -eo pid,ppid,rss,etime,stat,wchan:30,args | grep -E '[p]ython|[p]g_ctl|[t]ox' || true
+            for pid in $(pgrep python); do
+              echo "=== py-spy pid $pid ==="
+              sudo "$(command -v py-spy)" dump --pid "$pid" --native ||
+                sudo "$(command -v py-spy)" dump --pid "$pid" --nonblocking || true
             done
+            echo 'watchdog: SIGABRT so faulthandler prints stacks and the job fails with evidence'
+            sudo pkill -ABRT python || true
             echo '::endgroup::'
           ) &
           watchdog=$!
