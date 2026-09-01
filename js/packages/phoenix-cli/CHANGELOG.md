@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 1.16.5
+
+### Patch Changes
+
+- 3a836f7: recommend claude-fable-5-1 for PXI sessions
+
 ## 1.16.4
 
 ### Patch Changes
