@@ -81,22 +81,9 @@ class TestGenerativeModelStore:
         gql_client: AsyncGraphQLClient,
         daemon_cycles: _DaemonCycleController,
     ) -> None:
-        """
-        Drive the daemon through controlled fetch cycles and verify that:
+        """Step the daemon through initial load, update, delete, and a cycle with no changes."""
 
-        1. The first cycle loads existing models into the lookup.
-        2. A later cycle picks up a model update.
-        3. A later cycle removes a soft-deleted model from the lookup.
-        4. Every successful cycle advances _last_fetch_time, including a cycle
-           with no new mutations.
-
-        The incremental where-clause is not observable here: its 10-second
-        clock-skew buffer refetches every row this test touches, so phase 4
-        asserts cursor advancement only, and a full-refetch implementation
-        would pass this test as well.
-        """
-
-        # PHASE 1: Create initial models
+        # Create initial models
         result1 = await gql_client.execute(
             query=self.MUTATIONS,
             operation_name="CreateModel",
@@ -178,7 +165,7 @@ class TestGenerativeModelStore:
             assert store._last_fetch_time is not None
             first_fetch_time = store._last_fetch_time
 
-            # PHASE 2: Update a model; the next cycle must pick up the change
+            # Update a model; the next cycle must pick up the change
             await asyncio.sleep(0.01)
 
             update_result = await gql_client.execute(
@@ -220,7 +207,7 @@ class TestGenerativeModelStore:
             assert store._last_fetch_time > first_fetch_time
             second_fetch_time = store._last_fetch_time
 
-            # PHASE 3: Delete a model; the next cycle must drop it from the lookup
+            # Delete a model; the next cycle must drop it from the lookup
             await asyncio.sleep(0.01)
 
             delete_result = await gql_client.execute(
@@ -244,7 +231,7 @@ class TestGenerativeModelStore:
             assert store._last_fetch_time > second_fetch_time
             third_fetch_time = store._last_fetch_time
 
-            # PHASE 4: A cycle with no new mutations still advances the cursor
+            # A cycle with no new mutations still advances the cursor
             await asyncio.sleep(0.01)
 
             await daemon_cycles.run_cycle("fetch with no new mutations")
