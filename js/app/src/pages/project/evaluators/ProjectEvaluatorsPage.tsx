@@ -6,6 +6,7 @@ import invariant from "tiny-invariant";
 
 import { Flex, Skeleton, Text, View } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
+import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import type { ProjectEvaluatorsPageQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsPageQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
@@ -26,11 +27,13 @@ export function ProjectEvaluatorsPage() {
       `}
     >
       <Suspense fallback={<ProjectEvaluatorsPageSkeleton />}>
-        <ProjectEvaluatorsPageContent
-          projectId={projectId}
-          filter={filter}
-          onFilterChange={setFilter}
-        />
+        <ProjectEvaluatorsTableProvider>
+          <ProjectEvaluatorsPageContent
+            projectId={projectId}
+            filter={filter}
+            onFilterChange={setFilter}
+          />
+        </ProjectEvaluatorsTableProvider>
       </Suspense>
       {/* The create and edit slideovers, each on its own nested route. The
           copy and attach routes suspend while loading the evaluator they are
