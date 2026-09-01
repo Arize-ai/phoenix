@@ -1464,19 +1464,68 @@ class TestContinuationMerging:
 class TestHarborGoldenFiles:
     """Tests against real Harbor golden trajectory files from the harbor-framework/harbor repo."""
 
-    # -- OpenHands v1.5 --
+    @pytest.mark.parametrize(
+        ("fixture_name", "expected_kinds"),
+        [
+            (
+                "harbor_openhands.json",
+                {"AGENT": 1, "CHAIN": 2, "LLM": 2, "TOOL": 2},
+            ),
+            (
+                "harbor_terminus2_summarization.json",
+                {"AGENT": 3, "CHAIN": 8, "LLM": 7, "TOOL": 7},
+            ),
+            (
+                "harbor_terminus2_continuation.json",
+                {"AGENT": 1, "CHAIN": 4, "LLM": 3},
+            ),
+            (
+                "harbor_terminus2_continuation_cont1.json",
+                {"AGENT": 1, "CHAIN": 4, "LLM": 4},
+            ),
+            (
+                "harbor_terminus2_invalid_json.json",
+                {"AGENT": 1, "CHAIN": 4, "LLM": 4, "TOOL": 3},
+            ),
+            (
+                "harbor_terminus2_timeout.json",
+                {"AGENT": 1, "CHAIN": 3, "LLM": 3, "TOOL": 3},
+            ),
+            (
+                "harbor_terminus2_sub_summary.json",
+                {"AGENT": 1, "CHAIN": 1, "LLM": 1},
+            ),
+            (
+                "harbor_terminus2_sub_answers.json",
+                {"AGENT": 1, "CHAIN": 1, "LLM": 1},
+            ),
+            (
+                "harbor_terminus2_sub_questions.json",
+                {"AGENT": 1, "CHAIN": 1, "LLM": 1},
+            ),
+        ],
+        ids=[
+            "openhands",
+            "terminus2-summarization",
+            "terminus2-continuation",
+            "terminus2-continuation-cont1",
+            "terminus2-invalid-json",
+            "terminus2-timeout",
+            "terminus2-sub-summary",
+            "terminus2-sub-answers",
+            "terminus2-sub-questions",
+        ],
+    )
+    def test_golden_trajectory_span_shape(
+        self,
+        fixture_name: str,
+        expected_kinds: Dict[str, int],
+    ) -> None:
+        spans = _convert_atif_trajectory_to_spans(_load_fixture(fixture_name))
 
-    def test_openhands_converts_without_error(self) -> None:
-        trajectory = _load_fixture("harbor_openhands.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 6 steps: 1 system, 1 user, 2 system, 2 agent (with 1 tool call each).
-        # Single turn (leading system step + user grouped together).
-        assert len(spans) == 7
-        kinds = _span_kind_counts(spans)
-        assert kinds["AGENT"] == 1
-        assert kinds["CHAIN"] == 2
-        assert kinds["LLM"] == 2
-        assert kinds["TOOL"] == 2
+        assert _span_kind_counts(spans) == expected_kinds
+
+    # -- OpenHands v1.5 --
 
     def test_openhands_has_tool_definitions(self) -> None:
         trajectory = _load_fixture("harbor_openhands.json")
@@ -1496,17 +1545,6 @@ class TestHarborGoldenFiles:
         assert "parent_id" not in root
 
     # -- Terminus-2: summarization (10 steps, subagent refs) --
-
-    def test_terminus2_summarization_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_summarization.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 10 steps (2 user, 1 system, 7 agent, 7 tool calls) -> 2 turns (multi-turn)
-        assert len(spans) == 25
-        kinds = _span_kind_counts(spans)
-        assert kinds["AGENT"] == 3
-        assert kinds["LLM"] == 7
-        assert kinds["TOOL"] == 7
-        assert kinds["CHAIN"] == 8
 
     def test_terminus2_summarization_subagent_refs_detected(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_summarization.json")
@@ -1536,37 +1574,11 @@ class TestHarborGoldenFiles:
 
     # -- Terminus-2: continuation --
 
-    def test_terminus2_continuation_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_continuation.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        assert len(spans) == 8
-        kinds = _span_kind_counts(spans)
-        assert kinds["AGENT"] == 1
-        assert kinds["CHAIN"] == 4
-
     def test_terminus2_continuation_has_continued_ref(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_continuation.json")
         assert "continued_trajectory_ref" in trajectory
 
-    def test_terminus2_cont1_multi_turn(self) -> None:
-        """Copied handoff history does not become fresh execution turns."""
-        trajectory = _load_fixture("harbor_terminus2_continuation_cont1.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        assert len(spans) == 9
-        kinds = _span_kind_counts(spans)
-        assert kinds["AGENT"] == 1
-        assert kinds["LLM"] == 4
-        assert kinds["CHAIN"] == 4
-
     # -- Terminus-2: invalid JSON (error recovery, reasoning_content) --
-
-    def test_terminus2_invalid_json_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_invalid_json.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        assert len(spans) == 12
-        kinds = _span_kind_counts(spans)
-        assert kinds["TOOL"] == 3
-        assert kinds["CHAIN"] == 4
 
     def test_terminus2_invalid_json_has_reasoning(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_invalid_json.json")
@@ -1578,33 +1590,6 @@ class TestHarborGoldenFiles:
             if s.get("attributes", {}).get("metadata", {}).get("reasoning_content")
         ]
         assert len(reasoning_spans) > 0
-
-    # -- Terminus-2: timeout --
-
-    def test_terminus2_timeout_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_timeout.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        assert len(spans) == 10
-        kinds = _span_kind_counts(spans)
-        assert kinds["TOOL"] == 3
-        assert kinds["CHAIN"] == 3
-
-    # -- Subagent child trajectories --
-
-    def test_terminus2_sub_summary_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_sub_summary.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        assert len(spans) == 3
-
-    def test_terminus2_sub_answers_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_sub_answers.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        assert len(spans) == 3
-
-    def test_terminus2_sub_questions_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_sub_questions.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        assert len(spans) == 3
 
 
 class TestRealWorldTrajectories:
