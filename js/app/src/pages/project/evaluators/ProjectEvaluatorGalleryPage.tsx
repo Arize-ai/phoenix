@@ -90,7 +90,7 @@ type CustomEvaluator = {
   readonly description: string | null;
 };
 
-type SelectedGalleryItem =
+type GalleryItem =
   | { kind: "custom"; evaluator: CustomEvaluator }
   | { kind: "template"; template: ProjectEvaluatorTemplate };
 
@@ -143,6 +143,18 @@ const getCustomEvaluatorItemKey = (id: string) => `custom:${id}`;
 const getTemplateItemKey = (name: string) => `template:${name}`;
 const getCustomEvaluatorKind = (evaluator: CustomEvaluator) =>
   evaluator.__typename === "LLMEvaluator" ? "LLM" : "CODE";
+
+function getGalleryItemKey(item: GalleryItem): string {
+  return item.kind === "custom"
+    ? getCustomEvaluatorItemKey(item.evaluator.id)
+    : getTemplateItemKey(item.template.name);
+}
+
+function getGalleryItemSection(item: GalleryItem): GallerySection {
+  return item.kind === "custom"
+    ? CUSTOM_EVALUATORS_SECTION
+    : getGalleryCategory(item.template.category);
+}
 
 export function ProjectEvaluatorGalleryPage() {
   return (
@@ -208,6 +220,19 @@ function EvaluatorGallery() {
       ),
     [categories, templates]
   );
+  const galleryItems: GalleryItem[] = [
+    ...customEvaluators.map((evaluator) => ({
+      kind: "custom" as const,
+      evaluator,
+    })),
+    ...templates.map((template) => ({
+      kind: "template" as const,
+      template,
+    })),
+  ];
+  const galleryItemsByKey = new Map(
+    galleryItems.map((item) => [getGalleryItemKey(item), item])
+  );
   const sections = useMemo<GallerySection[]>(
     () =>
       hasCustomEvaluators
@@ -233,45 +258,41 @@ function EvaluatorGallery() {
     requestedCategoryParam && categories.includes(requestedCategoryParam)
       ? requestedCategoryParam
       : undefined;
-  const requestedTemplate = templates.find(
-    ({ name }) => name === requestedTemplateName
-  );
-  const requestedEvaluator = customEvaluators.find(
-    ({ id }) => id === requestedEvaluatorId
-  );
-  const requestedItemKeyToScroll = requestedEvaluator
-    ? getCustomEvaluatorItemKey(requestedEvaluator.id)
-    : requestedTemplate
-      ? getTemplateItemKey(requestedTemplate.name)
-      : undefined;
-  const requestedTemplateCategory = requestedTemplate
-    ? getGalleryCategory(requestedTemplate.category)
+
+  // URL selections are optional deep links. Resolve them through the same item
+  // index that backs card selection so invalid or stale values are harmless.
+  let requestedItem: GalleryItem | undefined;
+  if (requestedEvaluatorId) {
+    requestedItem = galleryItemsByKey.get(
+      getCustomEvaluatorItemKey(requestedEvaluatorId)
+    );
+  }
+  if (!requestedItem && requestedTemplateName) {
+    requestedItem = galleryItemsByKey.get(
+      getTemplateItemKey(requestedTemplateName)
+    );
+  }
+
+  const requestedItemKeyToScroll = requestedItem
+    ? getGalleryItemKey(requestedItem)
     : undefined;
-  const requestedSectionToScroll = requestedEvaluator
-    ? CUSTOM_EVALUATORS_SECTION
-    : (requestedTemplateCategory ?? requestedCategory);
-  const selectedItem: SelectedGalleryItem | undefined = requestedEvaluator
-    ? { kind: "custom", evaluator: requestedEvaluator }
-    : requestedTemplate
-      ? { kind: "template", template: requestedTemplate }
-      : requestedCategory
-        ? (() => {
-            const template = templatesByCategory.get(requestedCategory)?.[0];
-            return template
-              ? { kind: "template" as const, template }
-              : undefined;
-          })()
-        : customEvaluators[0]
-          ? { kind: "custom", evaluator: customEvaluators[0] }
-          : templates[0]
-            ? { kind: "template", template: templates[0] }
-            : undefined;
-  const selectedItemKey =
-    selectedItem?.kind === "custom"
-      ? getCustomEvaluatorItemKey(selectedItem.evaluator.id)
-      : selectedItem?.kind === "template"
-        ? getTemplateItemKey(selectedItem.template.name)
-        : undefined;
+  const requestedSectionToScroll = requestedItem
+    ? getGalleryItemSection(requestedItem)
+    : requestedCategory;
+  const requestedCategoryTemplate = requestedCategory
+    ? templatesByCategory.get(requestedCategory)?.[0]
+    : undefined;
+  const requestedCategoryItem: GalleryItem | undefined =
+    requestedCategoryTemplate
+      ? { kind: "template", template: requestedCategoryTemplate }
+      : undefined;
+
+  // Prefer deep-linked content, then fall back to the first available card.
+  const selectedItem =
+    requestedItem ?? requestedCategoryItem ?? galleryItems[0];
+  const selectedItemKey = selectedItem
+    ? getGalleryItemKey(selectedItem)
+    : undefined;
 
   // Section headings double as scroll-spy targets, so the sidebar can track
   // whichever gallery section is currently in view.
@@ -292,7 +313,7 @@ function EvaluatorGallery() {
   };
 
   // Keep the scroll position synchronized with gallery deep links. Prefer the
-  // requested template and fall back to its category when no card is available.
+  // requested card and fall back to its section when no card is available.
   useEffect(() => {
     // Wait for the route commit and React Aria collection layout before moving
     // the scroll port; otherwise router scroll restoration can win this race.
@@ -370,28 +391,23 @@ function EvaluatorGallery() {
     };
   }, [sections]);
 
-  const setSelectedItem = (itemKey: string) => {
+  const setSelectedItem = (item: GalleryItem) => {
     setSearchParams((currentSearchParams) => {
       const nextSearchParams = new URLSearchParams(currentSearchParams);
-      const evaluator = customEvaluators.find(
-        ({ id }) => getCustomEvaluatorItemKey(id) === itemKey
-      );
-      if (evaluator) {
-        nextSearchParams.set(PROJECT_EVALUATOR_PARAM, evaluator.id);
+      if (item.kind === "custom") {
+        nextSearchParams.set(PROJECT_EVALUATOR_PARAM, item.evaluator.id);
         nextSearchParams.delete(PROJECT_EVALUATOR_CATEGORY_PARAM);
         nextSearchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
       } else {
-        const template = templates.find(
-          ({ name }) => getTemplateItemKey(name) === itemKey
+        nextSearchParams.set(
+          PROJECT_EVALUATOR_CATEGORY_PARAM,
+          getGalleryCategory(item.template.category)
         );
-        if (template) {
-          nextSearchParams.set(
-            PROJECT_EVALUATOR_CATEGORY_PARAM,
-            getGalleryCategory(template.category)
-          );
-          nextSearchParams.set(PROJECT_EVALUATOR_TEMPLATE_PARAM, template.name);
-          nextSearchParams.delete(PROJECT_EVALUATOR_PARAM);
-        }
+        nextSearchParams.set(
+          PROJECT_EVALUATOR_TEMPLATE_PARAM,
+          item.template.name
+        );
+        nextSearchParams.delete(PROJECT_EVALUATOR_PARAM);
       }
       return nextSearchParams;
     });
@@ -520,27 +536,25 @@ function EvaluatorGallery() {
             if (selection === "all") return;
             const itemKey = selection.keys().next().value;
             if (typeof itemKey === "string") {
-              setSelectedItem(itemKey);
+              const item = galleryItemsByKey.get(itemKey);
+              if (item) {
+                setSelectedItem(item);
+              }
             }
           }}
           onAction={(key) => {
             if (typeof key !== "string") return;
-            const evaluator = customEvaluators.find(
-              ({ id }) => getCustomEvaluatorItemKey(id) === key
-            );
-            if (evaluator) {
+            const item = galleryItemsByKey.get(key);
+            if (item?.kind === "custom") {
               navigate(
-                getCustomEvaluatorKind(evaluator) === "LLM"
-                  ? paths.galleryCreation.copyLlm(evaluator.id)
-                  : paths.galleryCreation.attachCode(evaluator.id)
+                getCustomEvaluatorKind(item.evaluator) === "LLM"
+                  ? paths.galleryCreation.copyLlm(item.evaluator.id)
+                  : paths.galleryCreation.attachCode(item.evaluator.id)
               );
               return;
             }
-            const template = templates.find(
-              ({ name }) => getTemplateItemKey(name) === key
-            );
-            if (template) {
-              navigate(paths.galleryNewLlmFromTemplate(template.name));
+            if (item?.kind === "template") {
+              navigate(paths.galleryNewLlmFromTemplate(item.template.name));
             }
           }}
         >
