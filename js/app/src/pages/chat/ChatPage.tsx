@@ -1,4 +1,5 @@
 import { css, keyframes } from "@emotion/react";
+import type { ChatStatus } from "ai";
 import { Suspense, useRef, useState } from "react";
 import {
   Group,
@@ -328,6 +329,76 @@ function getDefaultModel({
   return builtin ? toSelection(builtin) : null;
 }
 
+function ChatMessages({
+  messages,
+  status,
+  onRegenerate,
+}: {
+  messages: DirectChatMessage[];
+  status: ChatStatus;
+  onRegenerate: () => void;
+}) {
+  const hasChatSettled = status === "ready" || status === "error";
+  return messages.map((message, index) => {
+    const isLast = index === messages.length - 1;
+    if (message.role === "user") {
+      return <ChatUserMessage key={message.id} message={message} />;
+    }
+    return (
+      <ChatAssistantMessage
+        key={message.id}
+        message={message}
+        isStreaming={isLast && status === "streaming"}
+        showActions={!isLast || hasChatSettled}
+        pinToolbar={isLast && hasChatSettled}
+        onRegenerate={isLast && hasChatSettled ? onRegenerate : undefined}
+      />
+    );
+  });
+}
+
+function ChatStatusMessage({
+  status,
+  downloadProgress,
+  error,
+  canRetry,
+  onRetry,
+}: {
+  status: ChatStatus;
+  downloadProgress: number | null;
+  error: string | null;
+  canRetry: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <>
+      {status === "submitted" ? (
+        <div className="chat-page__thinking">
+          <Shimmer size="S" color="text-500" fontStyle="italic">
+            {downloadProgress != null
+              ? `Downloading the on-device model… ${Math.round(downloadProgress * 100)}%`
+              : "Thinking..."}
+          </Shimmer>
+        </div>
+      ) : null}
+      {error != null ? (
+        <Alert
+          variant="danger"
+          extra={
+            canRetry ? (
+              <Button size="S" onPress={onRetry}>
+                Retry
+              </Button>
+            ) : undefined
+          }
+        >
+          {error}
+        </Alert>
+      ) : null}
+    </>
+  );
+}
+
 function ChatSurface() {
   // Chat sends through the server's chat-completions proxy, which
   // authenticates with server-side credentials only — browser-local keys
@@ -394,7 +465,6 @@ function ChatSurface() {
   });
 
   const showsEmptyState = messages.length === 0;
-  const hasChatSettled = status === "ready" || status === "error";
   const modelDisplayName =
     model?.kind === "browser"
       ? (getBrowserBuiltInModel()?.modelName ?? "Browser AI")
@@ -463,47 +533,18 @@ function ChatSurface() {
           <div className="chat-page__scroll" ref={scrollRef}>
             <div className="chat-page__messages" ref={contentRef}>
               {showsEmptyState && <ChatEmptyHero model={model} />}
-              {messages.map((message, index) => {
-                const isLast = index === messages.length - 1;
-                if (message.role === "user") {
-                  return <ChatUserMessage key={message.id} message={message} />;
-                }
-                return (
-                  <ChatAssistantMessage
-                    key={message.id}
-                    message={message}
-                    isStreaming={isLast && status === "streaming"}
-                    showActions={!isLast || hasChatSettled}
-                    pinToolbar={isLast && hasChatSettled}
-                    onRegenerate={
-                      isLast && hasChatSettled ? handleRegenerate : undefined
-                    }
-                  />
-                );
-              })}
-              {status === "submitted" && (
-                <div className="chat-page__thinking">
-                  <Shimmer size="S" color="text-500" fontStyle="italic">
-                    {downloadProgress != null
-                      ? `Downloading the on-device model… ${Math.round(downloadProgress * 100)}%`
-                      : "Thinking..."}
-                  </Shimmer>
-                </div>
-              )}
-              {error != null && (
-                <Alert
-                  variant="danger"
-                  extra={
-                    model ? (
-                      <Button size="S" onPress={handleRegenerate}>
-                        Retry
-                      </Button>
-                    ) : undefined
-                  }
-                >
-                  {error}
-                </Alert>
-              )}
+              <ChatMessages
+                messages={messages}
+                status={status}
+                onRegenerate={handleRegenerate}
+              />
+              <ChatStatusMessage
+                status={status}
+                downloadProgress={downloadProgress}
+                error={error}
+                canRetry={model != null}
+                onRetry={handleRegenerate}
+              />
             </div>
           </div>
           <div className="chat-page__input">

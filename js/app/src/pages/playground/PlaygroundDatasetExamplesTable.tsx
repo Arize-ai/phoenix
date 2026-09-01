@@ -949,6 +949,7 @@ export function PlaygroundDatasetExamplesTable({
 
   const onNext = useCallback(
     (instanceId: number) =>
+      // oxlint-disable-next-line complexity -- Subscription events update several independent progress and result stores.
       (response?: PlaygroundDatasetExamplesTableSubscription$data | null) => {
         if (response == null) {
           return;

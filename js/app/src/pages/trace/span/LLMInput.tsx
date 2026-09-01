@@ -43,6 +43,83 @@ import {
  * messages, tools, raw input, and prompts. The prompt template and invocation
  * parameters render as collapsed cards at the top of the input messages.
  */
+function getLLMInputSubtitle({
+  modelName,
+  provider,
+  toolCount,
+}: {
+  modelName: string | null;
+  provider: string | null;
+  toolCount: number;
+}): ReactNode {
+  if (modelName == null && toolCount === 0) return null;
+  const normalizedProvider = provider?.toUpperCase();
+  const providerIcon =
+    modelName != null &&
+    typeof normalizedProvider === "string" &&
+    isModelProvider(normalizedProvider) ? (
+      <GenerativeProviderIcon provider={normalizedProvider} height={16} />
+    ) : null;
+  return (
+    <Flex direction="row" gap="size-100" alignItems="center">
+      {providerIcon}
+      {modelName}
+      {modelName != null && toolCount > 0 ? (
+        <span aria-hidden css={inlineDividerCSS} />
+      ) : null}
+      {toolCount > 0
+        ? `${toolCount} ${toolCount === 1 ? "tool" : "tools"}`
+        : null}
+    </Flex>
+  );
+}
+
+function getLLMInputViews({
+  hasInput,
+  hasInputMessages,
+  hasToolSchemas,
+  hasPrompts,
+}: {
+  hasInput: boolean;
+  hasInputMessages: boolean;
+  hasToolSchemas: boolean;
+  hasPrompts: boolean;
+}): LLMIOView[] {
+  const views: LLMIOView[] = [];
+  if (hasInputMessages) views.push({ id: "input-messages", label: "Messages" });
+  if (hasToolSchemas) views.push({ id: "tools", label: "Tools" });
+  if (hasInput) views.push({ id: "input", label: "Raw" });
+  if (hasPrompts) views.push({ id: "prompts", label: "Prompts" });
+  return views;
+}
+
+function getLLMInputCopyText({
+  view,
+  input,
+  inputMessages,
+  toolSchemas,
+  prompts,
+}: {
+  view: LLMIOView["id"] | null | undefined;
+  input: SpanIOValue | null;
+  inputMessages: AttributeMessage[];
+  toolSchemas: string[];
+  prompts: string[];
+}): string | null {
+  switch (view) {
+    case "input-messages":
+      return formatJSONForCopy(inputMessages);
+    case "tools":
+      return formatJSONStringsForCopy(toolSchemas);
+    case "input":
+      return input?.value ?? null;
+    case "prompts":
+      return formatTextListForCopy(prompts);
+    default:
+      return null;
+  }
+}
+
 export function LLMInput({
   modelName,
   provider,
@@ -68,27 +145,7 @@ export function LLMInput({
   invocationParameters: string;
 }) {
   const toolCount = toolSchemas.length;
-  let subTitleEl: ReactNode = null;
-  if (modelName != null || toolCount > 0) {
-    const normalizedProvider = provider?.toUpperCase();
-    // Only show a provider icon when the provider is known
-    const providerIcon =
-      modelName != null &&
-      typeof normalizedProvider === "string" &&
-      isModelProvider(normalizedProvider) ? (
-        <GenerativeProviderIcon provider={normalizedProvider} height={16} />
-      ) : null;
-    subTitleEl = (
-      <Flex direction="row" gap="size-100" alignItems="center">
-        {providerIcon}
-        {modelName}
-        {modelName != null && toolCount > 0 && (
-          <span aria-hidden css={inlineDividerCSS} />
-        )}
-        {toolCount > 0 && `${toolCount} ${toolCount === 1 ? "tool" : "tools"}`}
-      </Flex>
-    );
-  }
+  const subTitleEl = getLLMInputSubtitle({ modelName, provider, toolCount });
 
   const hasInput = input != null && input.value != null;
   const hasInputMessages = inputMessages.length > 0;
@@ -97,11 +154,12 @@ export function LLMInput({
   const hasInvocationParams =
     Object.keys(safelyParseJSON(invocationParameters).json || {}).length > 0;
 
-  const views: LLMIOView[] = [];
-  if (hasInputMessages) views.push({ id: "input-messages", label: "Messages" });
-  if (hasLLMToolSchemas) views.push({ id: "tools", label: "Tools" });
-  if (hasInput) views.push({ id: "input", label: "Raw" });
-  if (hasPrompts) views.push({ id: "prompts", label: "Prompts" });
+  const views = getLLMInputViews({
+    hasInput,
+    hasInputMessages,
+    hasToolSchemas: hasLLMToolSchemas,
+    hasPrompts,
+  });
   const { view, setView } = useLLMIOView(views);
 
   // Collapsed cards shown above the input messages (input-only context)
@@ -137,21 +195,13 @@ export function LLMInput({
 
   // Whatever the card is showing is what its copy button copies, so the reader
   // never has to switch views to get at the content in front of them
-  let copyText: string | null = null;
-  switch (view) {
-    case "input-messages":
-      copyText = formatJSONForCopy(inputMessages);
-      break;
-    case "tools":
-      copyText = formatJSONStringsForCopy(toolSchemas);
-      break;
-    case "input":
-      copyText = input?.value ?? null;
-      break;
-    case "prompts":
-      copyText = formatTextListForCopy(prompts);
-      break;
-  }
+  const copyText = getLLMInputCopyText({
+    view,
+    input,
+    inputMessages,
+    toolSchemas,
+    prompts,
+  });
 
   return (
     <MarkdownDisplayProvider>
