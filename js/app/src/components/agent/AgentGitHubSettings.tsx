@@ -7,6 +7,8 @@ import {
   CredentialInput,
   Flex,
   Form,
+  Icon,
+  Icons,
   Label,
   Text,
 } from "@phoenix/components";
@@ -64,7 +66,9 @@ export function AgentGitHubSettings() {
     values: { token: savedToken },
   });
 
-  if (!githubServerEnabled) {
+  // Even while the server-level flag is off, a token saved earlier must stay
+  // purgeable — only hide the row entirely when there is nothing to remove.
+  if (!githubServerEnabled && !savedToken) {
     return null;
   }
 
@@ -86,9 +90,12 @@ export function AgentGitHubSettings() {
     <li>
       <div css={settingBodyCSS}>
         <Flex direction="column" gap="size-75">
-          <Text weight="heavy" size="M">
-            GitHub
-          </Text>
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <Icon svg={<Icons.GitHub />} />
+            <Text weight="heavy" size="M">
+              Personal GitHub token
+            </Text>
+          </Flex>
           <Text color="text-500">
             Connect a fine-grained personal access token with Issues read/write
             access so the assistant can search and file GitHub issues as you.
@@ -103,50 +110,64 @@ export function AgentGitHubSettings() {
               : "No token saved in this browser."}
           </Text>
         </Flex>
-        <Form>
-          <Flex direction="column" gap="size-100">
-            <Controller
-              name="token"
-              control={control}
-              render={({ field: { name, onChange, onBlur, value } }) => (
-                <CredentialField
-                  name={name}
-                  value={value ?? ""}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  isDisabled={!githubEnabled}
-                >
-                  <Label>Personal access token</Label>
-                  <CredentialInput placeholder="github_pat_..." />
-                </CredentialField>
-              )}
-            />
-            <Flex direction="row" gap="size-100" justifyContent="end">
-              {savedToken ? (
-                // Removal only clears this browser's local storage, so it
-                // stays available even while the admin toggle is off — a user
-                // must always be able to purge their own stored token.
+        {githubServerEnabled ? (
+          <Form onSubmit={handleSubmit(onSubmit)}>
+            <Flex direction="column" gap="size-100">
+              <Controller
+                name="token"
+                control={control}
+                render={({ field: { name, onChange, onBlur, value } }) => (
+                  <CredentialField
+                    name={name}
+                    value={value ?? ""}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    isDisabled={!githubEnabled}
+                  >
+                    <Label>Personal access token</Label>
+                    <CredentialInput placeholder="github_pat_..." />
+                  </CredentialField>
+                )}
+              />
+              <Flex direction="row" gap="size-100" justifyContent="end">
+                {savedToken ? (
+                  // Removal only clears this browser's local storage, so it
+                  // stays available even while the admin toggle is off — a user
+                  // must always be able to purge their own stored token.
+                  <Button
+                    size="S"
+                    variant="danger"
+                    onPress={() => onSubmit({ token: "" })}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
                 <Button
                   size="S"
-                  variant="danger"
-                  onPress={() => onSubmit({ token: "" })}
+                  variant={isDirty ? "primary" : "default"}
+                  onPress={() => handleSubmit(onSubmit)()}
+                  isDisabled={!githubEnabled || !isDirty}
                 >
-                  Remove
+                  Save
                 </Button>
-              ) : null}
-              <Button
-                size="S"
-                variant={isDirty ? "primary" : "default"}
-                onPress={() => handleSubmit(onSubmit)()}
-                isDisabled={!githubEnabled || !isDirty}
-              >
-                Save
-              </Button>
+              </Flex>
             </Flex>
+          </Form>
+        ) : (
+          // The env-level flag is off, so the feature UI is hidden — but the
+          // saved token must always remain purgeable from this browser.
+          <Flex direction="row" gap="size-100" justifyContent="end">
+            <Button
+              size="S"
+              variant="danger"
+              onPress={() => onSubmit({ token: "" })}
+            >
+              Remove
+            </Button>
           </Flex>
-        </Form>
+        )}
       </div>
-      {!githubEnabled ? (
+      {githubServerEnabled && !githubEnabled ? (
         <SystemSettingsWarning isAdmin={isAdmin} isOnSettingsPage />
       ) : null}
     </li>

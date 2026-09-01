@@ -57,12 +57,6 @@ export const TIME_RANGE_END_PARAM = "timeRangeEnd";
  */
 export const LABEL_ID_PARAM = "labelId";
 
-/**
- * The search param that contains the selected assistant settings tab. Keeps
- * the tab deep-linkable and preserves it across reloads.
- */
-export const SETTINGS_AGENTS_TAB_PARAM = "tab";
-
 export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
 
 export const CREATE_LLM_EVALUATOR_PARAM = "createLlmEvaluator";

@@ -1,4 +1,3 @@
-export { AgentSettingsForm } from "./AgentSettingsForm";
 export {
   AgentObservabilitySettings,
   AgentTraceAttributionSettingRow,

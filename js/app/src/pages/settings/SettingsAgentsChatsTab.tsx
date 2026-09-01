@@ -1,17 +1,23 @@
 import { css } from "@emotion/react";
 import { graphql, useMutation } from "react-relay";
+import { useLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 
 import { Flex, Input, NumberField, Text } from "@phoenix/components";
 import { useNotifyError } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+import type { settingsAgentsChatsLoaderQuery } from "./__generated__/settingsAgentsChatsLoaderQuery.graphql";
 import type { SettingsAgentsChatsTabSetAgentSessionRetentionMutation } from "./__generated__/SettingsAgentsChatsTabSetAgentSessionRetentionMutation.graphql";
-import type { SettingsAgentSessionsCard_sessions$key } from "./__generated__/SettingsAgentSessionsCard_sessions.graphql";
+import type { SettingsAgentsChatsLoaderType } from "./settingsAgentsChatsLoader";
+import { settingsAgentsChatsLoaderGql } from "./settingsAgentsChatsLoader";
 import { SettingsAgentSessionsCard } from "./SettingsAgentSessionsCard";
 import {
   SettingsAgentsSection,
+  settingsRowBodyCSS,
   settingsRowsCSS,
   SettingsSwitchRow,
   SystemBadge,
@@ -24,10 +30,10 @@ const DEFAULT_SESSION_RETENTION_MAX_IDLE_DAYS = 30;
 const DEFAULT_SESSION_RETENTION_MAX_COUNT_PER_USER = 30;
 
 const settingValueCSS = css`
+  ${settingsRowBodyCSS};
   display: flex;
   align-items: center;
   gap: var(--global-dimension-size-100);
-  padding: 0 var(--global-dimension-size-150) var(--global-dimension-size-150);
 
   .assistant-retention__value-input {
     width: var(--global-dimension-size-1000);
@@ -222,11 +228,13 @@ function SettingsAgentsRetentionSection() {
  * Chats & data tab: system-scoped retention rules for saved chats and the
  * saved assistant sessions list.
  */
-export function SettingsAgentsChatsTab({
-  query,
-}: {
-  query: SettingsAgentSessionsCard_sessions$key;
-}) {
+export function SettingsAgentsChatsTab() {
+  const loaderData = useLoaderData<SettingsAgentsChatsLoaderType>();
+  invariant(loaderData, "loaderData is required");
+  const query = useOwnedPreloadedQuery<settingsAgentsChatsLoaderQuery>({
+    query: settingsAgentsChatsLoaderGql,
+    queryRef: loaderData,
+  });
   const isAdmin = useIsAdminOrAuthDisabled();
   return (
     <Flex direction="column" gap="size-300">

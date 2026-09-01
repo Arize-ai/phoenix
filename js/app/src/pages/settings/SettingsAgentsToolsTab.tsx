@@ -1,12 +1,11 @@
-import { css } from "@emotion/react";
 import { Controller, useForm } from "react-hook-form";
-import { graphql, useMutation } from "react-relay";
+import { graphql } from "react-relay";
 
 import {
   Button,
   Flex,
   Form,
-  LinkButton,
+  Icons,
   RedactedCredentialField,
   Text,
 } from "@phoenix/components";
@@ -27,30 +26,12 @@ import {
   groupedSettingsRowsCSS,
   isServerAgentRuntimeEnabled,
   SettingsAgentsSection,
+  settingsRowBodyCSS,
   settingsRowsCSS,
   SettingsSwitchRow,
   SystemBadge,
+  useAgentsConfigMutation,
 } from "./SettingsAgentsShared";
-
-const linkRowCSS = css`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--global-dimension-size-200);
-  padding: var(--global-dimension-size-150);
-
-  .assistant-settings-row__label {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    gap: var(--global-dimension-size-75);
-    min-width: 0;
-  }
-`;
-
-const settingValueCSS = css`
-  padding: 0 var(--global-dimension-size-150) var(--global-dimension-size-150);
-`;
 
 /**
  * Workspace-wide GitHub token management. The token is stored encrypted in the
@@ -107,9 +88,11 @@ function AdminGithubWorkspaceTokenSetting() {
     });
   };
 
+  const submitToken = handleSubmit(({ token }) => commitToken(token.trim()));
+
   return (
-    <div css={settingValueCSS}>
-      <Form>
+    <div css={settingsRowBodyCSS}>
+      <Form onSubmit={submitToken}>
         <Flex direction="column" gap="size-100">
           <Text color="text-500" size="S">
             {githubWorkspaceTokenConfigured
@@ -150,15 +133,13 @@ function AdminGithubWorkspaceTokenSetting() {
                 onPress={() => commitToken(null)}
                 isDisabled={isUpserting}
               >
-                Remove workspace token
+                Remove
               </Button>
             ) : null}
             <Button
               size="S"
               variant={isDirty ? "primary" : "default"}
-              onPress={() =>
-                handleSubmit(({ token }) => commitToken(token.trim()))()
-              }
+              onPress={() => submitToken()}
               isDisabled={isUpserting || !isDirty}
             >
               {githubWorkspaceTokenConfigured ? "Replace" : "Save"}
@@ -179,44 +160,37 @@ function GithubToolsSystemSetting() {
   const githubEnabled = useAgentContext(
     (state) => state.agentsConfig.githubEnabled
   );
-  const store = useAgentStore();
-  const notifyError = useNotifyError();
 
   const [setAgentGithubEnabled, isUpdatingGithubEnabled] =
-    useMutation<SettingsAgentsToolsTabSetAgentGithubEnabledMutation>(graphql`
-      mutation SettingsAgentsToolsTabSetAgentGithubEnabledMutation(
-        $input: SetAgentGithubEnabledInput!
-      ) {
-        setAgentGithubEnabled(input: $input) {
-          enabled
-        }
+    useAgentsConfigMutation<SettingsAgentsToolsTabSetAgentGithubEnabledMutation>(
+      {
+        mutation: graphql`
+          mutation SettingsAgentsToolsTabSetAgentGithubEnabledMutation(
+            $input: SetAgentGithubEnabledInput!
+          ) {
+            setAgentGithubEnabled(input: $input) {
+              enabled
+            }
+          }
+        `,
+        errorTitle: "Failed to update GitHub tools",
+        // The env ceiling is already known true here — the row only renders
+        // when githubServerEnabled — so the DB setting is the effective state.
+        applyResponse: (response) => ({
+          githubEnabled: response.setAgentGithubEnabled.enabled,
+        }),
       }
-    `);
+    );
 
   const handleGithubEnabledChange = (next: boolean) => {
-    setAgentGithubEnabled({
-      variables: { input: { enabled: next } },
-      onCompleted: (response) => {
-        store.getState().setAgentsConfig({
-          // The env ceiling is already known true here — the row only renders
-          // when githubServerEnabled — so the DB setting is the effective state.
-          githubEnabled: response.setAgentGithubEnabled.enabled,
-        });
-      },
-      onError: (error) => {
-        const messages = getErrorMessagesFromRelayMutationError(error);
-        notifyError({
-          title: "Failed to update GitHub tools",
-          message: messages?.[0] ?? error.message,
-        });
-      },
-    });
+    setAgentGithubEnabled({ input: { enabled: next } });
   };
 
   return (
     <li>
       <SettingsSwitchRow
         title="GitHub tools"
+        icon={<Icons.GitHub />}
         titleExtra={<SystemBadge />}
         description="Lets the assistant search and file GitHub issues. Users authenticate with their own personal access token, with an optional shared workspace token as a fallback."
         isSelected={githubEnabled}
@@ -238,16 +212,22 @@ function ConnectionsSection() {
   const githubServerEnabled = useAgentContext(
     (state) => state.agentsConfig.githubServerEnabled
   );
-  if (!githubServerEnabled) {
+  const hasSavedGithubToken = useAgentContext((state) =>
+    Boolean(state.integrationCredentials[GITHUB_PAT_CREDENTIAL_KEY])
+  );
+  // While the env-level flag is off the section is hidden — unless this
+  // browser still holds a saved personal token, which must stay purgeable.
+  if (!githubServerEnabled && !hasSavedGithubToken) {
     return null;
   }
+  const showSystemSetting = isAdmin && githubServerEnabled;
   return (
     <SettingsAgentsSection
       title="Connections"
       description="Credentials the assistant uses to act on external services as you."
     >
-      <ul css={isAdmin ? groupedSettingsRowsCSS : settingsRowsCSS}>
-        {isAdmin ? <GithubToolsSystemSetting /> : null}
+      <ul css={showSystemSetting ? groupedSettingsRowsCSS : settingsRowsCSS}>
+        {showSystemSetting ? <GithubToolsSystemSetting /> : null}
         <AgentGitHubSettings />
       </ul>
     </SettingsAgentsSection>
@@ -255,9 +235,8 @@ function ConnectionsSection() {
 }
 
 /**
- * Tools tab: what the assistant is allowed to do (capabilities), the
- * credentials it acts with (connections), and where workspace-wide tool
- * sources like MCP servers are managed.
+ * Tools tab: what the assistant is allowed to do (capabilities) and the
+ * credentials it acts with (connections).
  */
 export function SettingsAgentsToolsTab() {
   return (
@@ -266,35 +245,12 @@ export function SettingsAgentsToolsTab() {
         title="Capabilities"
         description="What the assistant is allowed to do while working on your behalf."
       >
-        <Flex direction="column" gap="size-150">
-          <AgentWebAccessSettings />
-          {isServerAgentRuntimeEnabled(window.Config.agentBashDisabled) ? (
-            <AgentSubagentsSettings />
-          ) : null}
-        </Flex>
-      </SettingsAgentsSection>
-      <ConnectionsSection />
-      <SettingsAgentsSection
-        title="MCP servers"
-        description="Tools from Model Context Protocol servers are configured once for the whole workspace."
-      >
         <ul css={settingsRowsCSS}>
-          <li>
-            <div css={linkRowCSS}>
-              <span className="assistant-settings-row__label">
-                <Text weight="heavy">MCP servers</Text>
-                <Text color="text-500" size="S">
-                  Tools exposed by connected MCP servers are available to the
-                  assistant in every chat.
-                </Text>
-              </span>
-              <LinkButton size="S" to="/settings/mcp">
-                Manage MCP servers
-              </LinkButton>
-            </div>
-          </li>
+          <AgentWebAccessSettings />
+          {isServerAgentRuntimeEnabled() ? <AgentSubagentsSettings /> : null}
         </ul>
       </SettingsAgentsSection>
+      <ConnectionsSection />
     </Flex>
   );
 }

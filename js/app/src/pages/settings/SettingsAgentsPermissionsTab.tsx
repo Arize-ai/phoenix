@@ -1,20 +1,11 @@
 import { css } from "@emotion/react";
-import { graphql, useMutation } from "react-relay";
+import { graphql } from "react-relay";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  Radio,
-  RadioGroup,
-  Text,
-} from "@phoenix/components";
+import { Alert, Flex, Radio, RadioGroup, Text } from "@phoenix/components";
 import { EDIT_PERMISSION_MODES } from "@phoenix/components/agent/AgentEditPermissionMenu";
-import { useNotifyError } from "@phoenix/contexts";
-import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
 import type { AgentEditPermissionMode } from "@phoenix/store";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation } from "./__generated__/SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation.graphql";
 import {
@@ -22,6 +13,7 @@ import {
   settingsRowsCSS,
   SettingsSwitchRow,
   SystemBadge,
+  useAgentsConfigMutation,
 } from "./SettingsAgentsShared";
 
 /**
@@ -36,9 +28,23 @@ const EDIT_PERMISSION_MODE_DETAILS: Record<AgentEditPermissionMode, string> = {
     "Edits are applied without asking. Changes are still visible in the chat and can be rewound.",
 };
 
+/**
+ * The radio options share a single bordered card with a separator between
+ * rows — matching the grouped settings cards — so the group reads as one
+ * setting. Selection is shown by the radio dot alone.
+ */
 const editApprovalRadioGroupCSS = css`
   width: 100%;
-  gap: var(--global-dimension-size-150);
+  gap: 0;
+  border: 1px solid var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+  background: var(--global-background-color-primary);
+
+  .assistant-permissions__radio-label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-75);
+  }
 
   .radio {
     width: 100%;
@@ -46,31 +52,14 @@ const editApprovalRadioGroupCSS = css`
     align-items: flex-start;
     gap: var(--global-dimension-size-150);
     padding: var(--global-dimension-size-150);
-    border: 1px solid var(--global-border-color-default);
-    border-radius: var(--global-rounding-medium);
-    background: var(--global-background-color-primary);
 
     &:before {
       flex: 0 0 auto;
     }
 
-    &[data-selected] {
-      border-color: var(--global-color-primary);
+    & + .radio {
+      border-top: 1px solid var(--global-border-color-default);
     }
-  }
-`;
-
-const infoRowCSS = css`
-  display: flex;
-  align-items: flex-start;
-  gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-150);
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-medium);
-  background: var(--global-background-color-default);
-
-  .assistant-permissions__info-icon {
-    flex: 0 0 auto;
   }
 `;
 
@@ -82,37 +71,25 @@ function AssistantAccessSystemSetting() {
   const assistantEnabled = useAgentContext(
     (state) => state.agentsConfig.assistantEnabled
   );
-  const store = useAgentStore();
-  const notifyError = useNotifyError();
 
   const [setAgentAssistantEnabled, isUpdatingEnabled] =
-    useMutation<SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation>(graphql`
-      mutation SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation(
-        $input: SetAgentAssistantEnabledInput!
-      ) {
-        setAgentAssistantEnabled(input: $input) {
-          enabled
-        }
-      }
-    `);
-
-  const handleEnabledChange = (next: boolean) => {
-    setAgentAssistantEnabled({
-      variables: { input: { enabled: next } },
-      onCompleted: (response) => {
-        store.getState().setAgentsConfig({
+    useAgentsConfigMutation<SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation>(
+      {
+        mutation: graphql`
+          mutation SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation(
+            $input: SetAgentAssistantEnabledInput!
+          ) {
+            setAgentAssistantEnabled(input: $input) {
+              enabled
+            }
+          }
+        `,
+        errorTitle: "Failed to update assistant access",
+        applyResponse: (response) => ({
           assistantEnabled: response.setAgentAssistantEnabled.enabled,
-        });
-      },
-      onError: (error) => {
-        const messages = getErrorMessagesFromRelayMutationError(error);
-        notifyError({
-          title: "Failed to update assistant access",
-          message: messages?.[0] ?? error.message,
-        });
-      },
-    });
-  };
+        }),
+      }
+    );
 
   return (
     <li>
@@ -121,7 +98,9 @@ function AssistantAccessSystemSetting() {
         titleExtra={<SystemBadge />}
         description="Controls whether users can open the assistant. When off, the assistant is hidden for everyone and personal settings are unavailable."
         isSelected={assistantEnabled}
-        onChange={handleEnabledChange}
+        onChange={(next) =>
+          setAgentAssistantEnabled({ input: { enabled: next } })
+        }
         isDisabled={isUpdatingEnabled}
       />
     </li>
@@ -150,12 +129,16 @@ function EditApprovalSetting() {
     >
       {EDIT_PERMISSION_MODES.map((meta) => (
         <Radio key={meta.mode} value={meta.mode}>
-          <Flex direction="column" gap="size-75">
-            <Text weight="heavy">{meta.label}</Text>
-            <Text color="text-500" size="S">
+          {/* slot={null} opts out of RadioGroup's slotted TextContext, which
+              would otherwise reject an unslotted <Text> at render. */}
+          <span className="assistant-permissions__radio-label">
+            <Text slot={null} weight="heavy">
+              {meta.label}
+            </Text>
+            <Text slot={null} color="text-500" size="S">
               {EDIT_PERMISSION_MODE_DETAILS[meta.mode]}
             </Text>
-          </Flex>
+          </span>
         </Radio>
       ))}
     </RadioGroup>
@@ -190,17 +173,11 @@ export function SettingsAgentsPermissionsTab() {
         title="Tool approvals"
         description="Approvals for individual tool actions are handled in chat."
       >
-        <div css={infoRowCSS}>
-          <Icon
-            svg={<Icons.Info />}
-            className="assistant-permissions__info-icon"
-          />
-          <Text color="text-700" size="S">
-            Writes to Phoenix resources such as datasets, annotations, and
-            experiments always ask in chat before running. Read-only tools run
-            without approval.
-          </Text>
-        </div>
+        <Alert variant="info">
+          Writes to Phoenix resources such as datasets, annotations, and
+          experiments always ask in chat before running. Read-only tools run
+          without approval.
+        </Alert>
       </SettingsAgentsSection>
     </Flex>
   );

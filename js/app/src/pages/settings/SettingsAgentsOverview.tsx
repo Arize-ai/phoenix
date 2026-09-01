@@ -1,10 +1,9 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { Link as RouterLink, useSearchParams } from "react-router";
+import { Link as RouterLink } from "react-router";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { getEditPermissionLabel } from "@phoenix/components/agent/AgentEditPermissionMenu";
-import { SETTINGS_AGENTS_TAB_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import {
   getEffectiveAttachUserId,
@@ -14,11 +13,13 @@ import {
 
 import {
   isServerAgentRuntimeEnabled,
+  SETTINGS_AGENTS_TABS,
   SettingsAgentsSection,
   type SettingsAgentsTabId,
+  settingsAgentsTabPath,
 } from "./SettingsAgentsShared";
 
-const atAGlanceListCSS = css`
+const overviewListCSS = css`
   list-style: none;
   margin: 0;
   padding: 0;
@@ -26,7 +27,7 @@ const atAGlanceListCSS = css`
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--global-dimension-size-150);
 
-  .at-a-glance__card {
+  .assistant-overview__card {
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-100);
@@ -54,27 +55,22 @@ function onOff(isOn: boolean): string {
   return isOn ? "on" : "off";
 }
 
-function AtAGlanceCard({
+function OverviewCard({
   tabId,
-  label,
   icon,
   summary,
 }: {
   tabId: SettingsAgentsTabId;
-  label: string;
   icon: ReactNode;
   summary: string;
 }) {
-  const [searchParams] = useSearchParams();
-  // Preserve unrelated search params so the card links stay additive.
-  const nextParams = new URLSearchParams(searchParams);
-  nextParams.set(SETTINGS_AGENTS_TAB_PARAM, tabId);
+  const label =
+    SETTINGS_AGENTS_TABS.find((tab) => tab.id === tabId)?.label ?? tabId;
   return (
     <li>
       <RouterLink
-        className="at-a-glance__card"
-        to={{ search: nextParams.toString() }}
-        replace
+        className="assistant-overview__card"
+        to={settingsAgentsTabPath(tabId)}
         aria-label={`Go to ${label} settings`}
       >
         <Flex
@@ -100,10 +96,10 @@ function AtAGlanceCard({
 }
 
 /**
- * Summary grid on the General tab: one card per settings area showing that
- * area's current state; selecting a card jumps to its tab.
+ * Overview grid on the General tab: one card per settings area showing that
+ * area's current state; selecting a card goes to its tab.
  */
-export function SettingsAgentsAtAGlance() {
+export function SettingsAgentsOverview() {
   const agentsConfig = useAgentContext((state) => state.agentsConfig);
   const observability = useAgentContext((state) => state.observability);
   const capabilities = useAgentContext((state) => state.capabilities);
@@ -111,9 +107,7 @@ export function SettingsAgentsAtAGlance() {
     (state) => state.permissions.edits
   );
 
-  const isSubagentsAvailable = isServerAgentRuntimeEnabled(
-    window.Config.agentBashDisabled
-  );
+  const isSubagentsAvailable = isServerAgentRuntimeEnabled();
   const isWebSearchOn =
     agentsConfig.webAccessEnabled && capabilities["web.access"];
   const hasPersonalGithubToken = useAgentContext((state) =>
@@ -168,32 +162,25 @@ export function SettingsAgentsAtAGlance() {
   ].join(" · ");
 
   return (
-    <SettingsAgentsSection
-      title="At a glance"
-      description="The current state of each settings area. Select a card to jump to it."
-    >
-      <ul css={atAGlanceListCSS}>
-        <AtAGlanceCard
+    <SettingsAgentsSection title="Overview">
+      <ul css={overviewListCSS}>
+        <OverviewCard
           tabId="tools"
-          label="Tools"
           icon={<Icons.Wrench />}
           summary={toolsSummary}
         />
-        <AtAGlanceCard
+        <OverviewCard
           tabId="permissions"
-          label="Permissions"
           icon={<Icons.Shield />}
           summary={permissionsSummary}
         />
-        <AtAGlanceCard
+        <OverviewCard
           tabId="tracing"
-          label="Tracing & privacy"
           icon={<Icons.Trace />}
           summary={tracingSummary}
         />
-        <AtAGlanceCard
+        <OverviewCard
           tabId="chats"
-          label="Chats & data"
           icon={<Icons.Database />}
           summary={chatsSummary}
         />

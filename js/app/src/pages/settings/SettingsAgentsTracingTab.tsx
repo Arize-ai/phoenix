@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { graphql, useMutation } from "react-relay";
+import { graphql } from "react-relay";
 
 import { Flex, Text } from "@phoenix/components";
 import {
@@ -7,10 +7,8 @@ import {
   AgentTraceExportSettingRow,
   AgentTraceSavingSettingRow,
 } from "@phoenix/components/agent";
-import { useNotifyError } from "@phoenix/contexts";
-import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SettingsAgentsTracingTabSetAgentTraceRecordingMutation } from "./__generated__/SettingsAgentsTracingTabSetAgentTraceRecordingMutation.graphql";
 import {
@@ -19,12 +17,11 @@ import {
   settingsRowsCSS,
   SettingsSwitchRow,
   SystemBadge,
+  useAgentsConfigMutation,
 } from "./SettingsAgentsShared";
 
 const codeCSS = css`
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  font-family: var(--global-font-family-mono);
   font-size: 0.95em;
 `;
 
@@ -47,46 +44,35 @@ export function SettingsAgentsTracingTab() {
   const forceTracing = useAgentContext(
     (state) => state.agentsConfig.forceTracing
   );
-  const store = useAgentStore();
-  const notifyError = useNotifyError();
-
   const [setTraceRecording, isUpdatingTraceRecording] =
-    useMutation<SettingsAgentsTracingTabSetAgentTraceRecordingMutation>(graphql`
-      mutation SettingsAgentsTracingTabSetAgentTraceRecordingMutation(
-        $input: SetAgentTraceRecordingInput!
-      ) {
-        setAgentTraceRecording(input: $input) {
-          allowLocalTraces
-          allowRemoteExport
-        }
+    useAgentsConfigMutation<SettingsAgentsTracingTabSetAgentTraceRecordingMutation>(
+      {
+        mutation: graphql`
+          mutation SettingsAgentsTracingTabSetAgentTraceRecordingMutation(
+            $input: SetAgentTraceRecordingInput!
+          ) {
+            setAgentTraceRecording(input: $input) {
+              allowLocalTraces
+              allowRemoteExport
+            }
+          }
+        `,
+        errorTitle: "Failed to update trace recording",
+        applyResponse: (response) => ({
+          allowLocalTraces: response.setAgentTraceRecording.allowLocalTraces,
+          allowRemoteExport: response.setAgentTraceRecording.allowRemoteExport,
+        }),
       }
-    `);
+    );
 
   const handleTraceRecordingChange = (patch: {
     allowLocalTraces?: boolean;
     allowRemoteExport?: boolean;
   }) => {
-    const nextLocal = patch.allowLocalTraces ?? allowLocalTraces;
-    const nextRemote = patch.allowRemoteExport ?? allowRemoteExport;
     setTraceRecording({
-      variables: {
-        input: {
-          allowLocalTraces: nextLocal,
-          allowRemoteExport: nextRemote,
-        },
-      },
-      onCompleted: (response) => {
-        store.getState().setAgentsConfig({
-          allowLocalTraces: response.setAgentTraceRecording.allowLocalTraces,
-          allowRemoteExport: response.setAgentTraceRecording.allowRemoteExport,
-        });
-      },
-      onError: (error) => {
-        const messages = getErrorMessagesFromRelayMutationError(error);
-        notifyError({
-          title: "Failed to update trace recording",
-          message: messages?.[0] ?? error.message,
-        });
+      input: {
+        allowLocalTraces: patch.allowLocalTraces ?? allowLocalTraces,
+        allowRemoteExport: patch.allowRemoteExport ?? allowRemoteExport,
       },
     });
   };

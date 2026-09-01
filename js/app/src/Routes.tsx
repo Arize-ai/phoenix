@@ -29,7 +29,7 @@ import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/setti
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
 import { settingsSecretsPageLoader } from "@phoenix/pages/settings/secrets/settingsSecretsPageLoader";
-import { settingsAgentsPageLoader } from "@phoenix/pages/settings/settingsAgentsPageLoader";
+import { settingsAgentsChatsLoader } from "@phoenix/pages/settings/settingsAgentsChatsLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -110,7 +110,12 @@ import {
   settingsGeneralPageLoader,
   SettingsPage,
   SettingsPromptsPage,
+  SettingsAgentsChatsTab,
+  SettingsAgentsGeneralTab,
   SettingsAgentsPage,
+  SettingsAgentsPermissionsTab,
+  SettingsAgentsToolsTab,
+  SettingsAgentsTracingTab,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
   SupportPage,
@@ -1122,16 +1127,28 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path="agents"
             element={<SettingsAgentsPage />}
-            loader={settingsAgentsPageLoader}
             handle={{
               crumb: () => "Agents",
               agentRoute: {
                 label: "Agent Settings",
                 description:
-                  "Configure the assistant across topical tabs: General (enable assistant, floating button, temporary chats, assistant model), Tools (web search, subagents, GitHub token, MCP), Permissions (assistant access, edit approvals), Tracing & privacy (trace saving, export, attribution), and Chats & data (retention rules, saved assistant sessions). Deep-linkable via the tab search param.",
+                  "Configure the assistant across topical tabs, each a nested route: General (enable assistant, model, floating button, temporary chats), tools (web search, subagents, GitHub token), permissions (assistant access, edit approvals), tracing (trace saving, export, attribution), and chats (retention rules, saved assistant sessions).",
               },
             }}
-          />
+          >
+            <Route index element={<SettingsAgentsGeneralTab />} />
+            <Route path="tools" element={<SettingsAgentsToolsTab />} />
+            <Route
+              path="permissions"
+              element={<SettingsAgentsPermissionsTab />}
+            />
+            <Route path="tracing" element={<SettingsAgentsTracingTab />} />
+            <Route
+              path="chats"
+              element={<SettingsAgentsChatsTab />}
+              loader={settingsAgentsChatsLoader}
+            />
+          </Route>
         </Route>
         <Route
           path="/redirects/spans/:span_otel_id"

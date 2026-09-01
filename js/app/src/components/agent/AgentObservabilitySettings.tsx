@@ -1,9 +1,13 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { ContextualHelp, Switch, Text } from "@phoenix/components";
+import { ContextualHelp, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
+import {
+  SettingsSwitchRow,
+  settingsRowsCSS,
+} from "@phoenix/pages/settings/SettingsAgentsShared";
 import {
   getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
@@ -17,56 +21,14 @@ const settingsContainerCSS = css`
   gap: var(--global-dimension-size-150);
 `;
 
-const settingsListCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-150);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-
-  > li {
-    border: 1px solid var(--global-border-color-default);
-    border-radius: var(--global-rounding-medium);
-    background: var(--global-background-color-primary);
-  }
-`;
-
-const settingSwitchCSS = css`
-  width: 100%;
-  box-sizing: border-box;
-  white-space: normal;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: var(--global-dimension-size-150);
-  gap: var(--global-dimension-size-200);
-
-  .agent-observability__label {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    gap: var(--global-dimension-size-75);
-    min-width: 0;
-  }
-
-  .agent-observability__title {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-50);
-    min-width: 0;
-  }
-
-  .agent-observability__help {
-    display: inline-flex;
-    flex: 0 0 auto;
-  }
-`;
-
 const codeCSS = css`
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+  font-family: var(--global-font-family-mono);
   font-size: 0.95em;
+`;
+
+const traceInfoTipCSS = css`
+  display: inline-flex;
+  flex: 0 0 auto;
 `;
 
 const traceDetailsTooltipCSS = css`
@@ -76,7 +38,7 @@ const traceDetailsTooltipCSS = css`
 function TraceInfoTip({ children }: { children: ReactNode }) {
   return (
     <span
-      className="agent-observability__help"
+      css={traceInfoTipCSS}
       onClick={(event) => {
         event.stopPropagation();
       }}
@@ -118,32 +80,27 @@ export function AgentTraceSavingSettingRow({
   });
   return (
     <li>
-      <Switch
+      <SettingsSwitchRow
+        title="Save assistant session traces in this Phoenix instance"
+        titleExtra={
+          <TraceInfoTip>
+            Traces are unredacted and include prompts, replies, tool calls, tool
+            results, and any Phoenix data the assistant read.
+          </TraceInfoTip>
+        }
+        description={
+          <>
+            Stores full, unredacted traces in the{" "}
+            <code css={codeCSS}>{agentsConfig.assistantProjectName}</code>{" "}
+            project, visible to anyone with access to that project.
+          </>
+        }
         isSelected={effectiveRecording.ingestTraces}
         isDisabled={localTracesOffInSystemSettings || isTracingForced}
         onChange={(storeLocalTraces) => {
           setObservability({ storeLocalTraces });
         }}
-        labelPlacement="start"
-        css={settingSwitchCSS}
-      >
-        <span className="agent-observability__label">
-          <span className="agent-observability__title">
-            <Text weight="heavy" size="M">
-              Save assistant session traces in this Phoenix instance
-            </Text>
-            <TraceInfoTip>
-              Traces are unredacted and include prompts, replies, tool calls,
-              tool results, and any Phoenix data the assistant read.
-            </TraceInfoTip>
-          </span>
-          <Text color="text-500">
-            Stores full, unredacted traces in the{" "}
-            <code css={codeCSS}>{agentsConfig.assistantProjectName}</code>{" "}
-            project, visible to anyone with access to that project.
-          </Text>
-        </span>
-      </Switch>
+      />
       {localTracesOffInSystemSettings ? (
         <SystemSettingsWarning
           isAdmin={isAdmin}
@@ -180,33 +137,23 @@ export function AgentTraceExportSettingRow({
   }
   return (
     <li>
-      <Switch
+      <SettingsSwitchRow
+        title="Exporting traces"
+        titleExtra={
+          <TraceInfoTip>
+            Exported traces are unredacted and include prompts, replies, tool
+            calls, tool results, and any Phoenix data the assistant read. They
+            are sent to{" "}
+            <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
+          </TraceInfoTip>
+        }
+        description="Share session traces with the developers of Phoenix to help improve the assistant. Sent securely and never shared."
         isSelected={effectiveRecording.exportRemoteTraces}
         isDisabled={remoteExportOffInSystemSettings || isTracingForced}
         onChange={(exportRemoteTraces) => {
           setObservability({ exportRemoteTraces });
         }}
-        labelPlacement="start"
-        css={settingSwitchCSS}
-      >
-        <span className="agent-observability__label">
-          <span className="agent-observability__title">
-            <Text weight="heavy" size="M">
-              Exporting traces
-            </Text>
-            <TraceInfoTip>
-              Exported traces are unredacted and include prompts, replies, tool
-              calls, tool results, and any Phoenix data the assistant read. They
-              are sent to{" "}
-              <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
-            </TraceInfoTip>
-          </span>
-          <Text color="text-500">
-            Share session traces with the developers of Phoenix to help improve
-            the assistant. Sent securely and never shared.
-          </Text>
-        </span>
-      </Switch>
+      />
       {remoteExportOffInSystemSettings ? (
         <SystemSettingsWarning
           isAdmin={isAdmin}
@@ -240,54 +187,37 @@ export function AgentTraceAttributionSettingRow() {
   });
   return (
     <li>
-      <Switch
+      <SettingsSwitchRow
+        title="Attach your email to session traces"
+        description="Tags session traces with your Phoenix account email so sessions can be filtered by user. Applies only when you are signed in and trace saving or export is on."
         isSelected={effectiveAttachUserId}
         isDisabled={!isTracingEnabled || isTracingForced}
         onChange={(attachUserId) => {
           setObservability({ attachUserId });
         }}
-        labelPlacement="start"
-        css={settingSwitchCSS}
-      >
-        <span className="agent-observability__label">
-          <Text weight="heavy" size="M">
-            Attach your email to session traces
-          </Text>
-          <Text color="text-500">
-            Tags session traces with your Phoenix account email so sessions can
-            be filtered by user. Applies only when you are signed in and trace
-            saving or export is on.
-          </Text>
-        </span>
-      </Switch>
+      />
     </li>
   );
 }
 
-export function AgentObservabilitySettings({
-  isOnSettingsPage = false,
-}: {
-  /** See {@link SystemSettingsWarning}. */
-  isOnSettingsPage?: boolean;
-} = {}) {
+/**
+ * The observability rows as a standalone card stack, used outside the
+ * settings page (e.g. the consent gate).
+ */
+export function AgentObservabilitySettings() {
   const isTracingForced = useAgentContext(
     (state) => state.agentsConfig.forceTracing
   );
   return (
     <div css={settingsContainerCSS}>
-      {isTracingForced ? (
-        <Text color="text-500" size="S">
-          Tracing, remote export, and user attribution are enabled for all users
-          by this Phoenix deployment.
-        </Text>
-      ) : !isOnSettingsPage ? (
-        <Text color="text-500" size="S">
-          These settings apply only to this browser.
-        </Text>
-      ) : null}
-      <ul css={settingsListCSS}>
-        <AgentTraceSavingSettingRow isOnSettingsPage={isOnSettingsPage} />
-        <AgentTraceExportSettingRow isOnSettingsPage={isOnSettingsPage} />
+      <Text color="text-500" size="S">
+        {isTracingForced
+          ? "Tracing, remote export, and user attribution are enabled for all users by this Phoenix deployment."
+          : "These settings apply only to this browser."}
+      </Text>
+      <ul css={settingsRowsCSS}>
+        <AgentTraceSavingSettingRow />
+        <AgentTraceExportSettingRow />
         <AgentTraceAttributionSettingRow />
       </ul>
     </div>
