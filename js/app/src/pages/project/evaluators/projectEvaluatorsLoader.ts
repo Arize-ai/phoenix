@@ -37,6 +37,7 @@ export const projectEvaluatorsLoaderGQL = graphql`
     $filter: ProjectEvaluatorFilter
     $timeRange: TimeRange!
     $scoreTimeRange: TimeRange!
+    $scorePreviousTimeRange: TimeRange!
     $scoreTimeBinConfig: TimeBinConfig!
     $includeMeanScore: Boolean!
   ) {
@@ -48,6 +49,7 @@ export const projectEvaluatorsLoaderGQL = graphql`
             filter: $filter
             timeRange: $timeRange
             scoreTimeRange: $scoreTimeRange
+            scorePreviousTimeRange: $scorePreviousTimeRange
             scoreTimeBinConfig: $scoreTimeBinConfig
             includeMeanScore: $includeMeanScore
           )
@@ -185,6 +187,7 @@ export function projectEvaluatorsLoader(
         filter: filter ? { col: "name", value: filter } : null,
         timeRange,
         scoreTimeRange: scoreWindow.timeRange,
+        scorePreviousTimeRange: scoreWindow.previousTimeRange,
         scoreTimeBinConfig: scoreWindow.timeBinConfig,
         includeMeanScore,
       },

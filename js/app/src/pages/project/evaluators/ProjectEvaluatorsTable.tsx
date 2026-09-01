@@ -208,11 +208,13 @@ const readRow = (
       @inline
       @argumentDefinitions(
         scoreTimeRange: { type: "TimeRange!" }
+        scorePreviousTimeRange: { type: "TimeRange!" }
         scoreTimeBinConfig: { type: "TimeBinConfig!" }
         includeMeanScore: { type: "Boolean!" }
       ) {
         annotationScoreMetrics(
           timeRange: $scoreTimeRange
+          previousTimeRange: $scorePreviousTimeRange
           timeBinConfig: $scoreTimeBinConfig
         ) @include(if: $includeMeanScore) {
           annotationName
@@ -286,6 +288,7 @@ export function ProjectEvaluatorsTable({
         filter: { type: "ProjectEvaluatorFilter", defaultValue: null }
         timeRange: { type: "TimeRange!" }
         scoreTimeRange: { type: "TimeRange!" }
+        scorePreviousTimeRange: { type: "TimeRange!" }
         scoreTimeBinConfig: { type: "TimeBinConfig!" }
         includeMeanScore: { type: "Boolean!" }
       ) {
@@ -298,6 +301,7 @@ export function ProjectEvaluatorsTable({
               ...ProjectEvaluatorsTable_scores
                 @arguments(
                   scoreTimeRange: $scoreTimeRange
+                  scorePreviousTimeRange: $scorePreviousTimeRange
                   scoreTimeBinConfig: $scoreTimeBinConfig
                   includeMeanScore: $includeMeanScore
                 )
@@ -365,6 +369,7 @@ export function ProjectEvaluatorsTable({
           filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
           timeRange,
           scoreTimeRange: scoreWindow.timeRange,
+          scorePreviousTimeRange: scoreWindow.previousTimeRange,
           scoreTimeBinConfig: scoreWindow.timeBinConfig,
           includeMeanScore,
         },
@@ -388,6 +393,7 @@ export function ProjectEvaluatorsTable({
         filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
         timeRange,
         scoreTimeRange: scoreWindow.timeRange,
+        scorePreviousTimeRange: scoreWindow.previousTimeRange,
         scoreTimeBinConfig: scoreWindow.timeBinConfig,
         includeMeanScore,
       },
