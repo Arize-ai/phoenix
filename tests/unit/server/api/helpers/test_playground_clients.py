@@ -31,6 +31,7 @@ from phoenix.db.types.prompts import (
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
     PromptToolChoiceNone,
+    PromptToolChoiceOneOrMore,
     PromptToolChoiceSpecificFunctionTool,
     PromptToolChoiceZeroOrMore,
     PromptToolFunction,
@@ -621,6 +622,18 @@ class TestAnthropicStreamingClient:
             "disable_parallel_tool_use": True,
         }
 
+    def test_one_or_more_tool_choice_survives_disable_parallel_tool_calls(self) -> None:
+        """Disabling parallel tool use must not downgrade a required tool choice to `auto`."""
+        params = self._anthropic_params(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+                disable_parallel_tool_calls=True,
+                tools=[_function_tool()],
+            )
+        )
+        assert params["tool_choice"] == {"type": "any", "disable_parallel_tool_use": True}
+
     def test_tool_choice_none_survives_disable_parallel_tool_calls(self) -> None:
         """`none` means "do not call tools" and must not be turned into `auto`."""
         params = self._anthropic_params(
@@ -776,6 +789,17 @@ class TestBedrockClient:
             span=INVALID_SPAN,
         )
         return dict(request)
+
+    def test_one_or_more_tool_choice_maps_to_any(self) -> None:
+        """A required tool choice must reach Converse as `toolChoice: {any: {}}`."""
+        request = self._converse_request(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+                tools=[_function_tool()],
+            )
+        )
+        assert request["toolConfig"]["toolChoice"] == {"any": {}}
 
     def test_tool_choice_none_withholds_tool_config(self) -> None:
         """Converse has no `none` tool choice; the tools must be withheld entirely."""
