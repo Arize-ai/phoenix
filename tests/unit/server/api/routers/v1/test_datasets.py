@@ -4593,6 +4593,31 @@ async def _create_dataset_with_examples(
     return dataset_id, example_ids
 
 
+async def _create_dataset_with_user_ids(
+    httpx_client: httpx.AsyncClient,
+    name: str,
+    user_ids: list[str],
+) -> tuple[str, list[str]]:
+    """Create a dataset and return its ID and example GlobalIDs."""
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": f"Q{index}"} for index, _ in enumerate(user_ids)],
+            "outputs": [{"a": f"A{index}"} for index, _ in enumerate(user_ids)],
+            "example_ids": user_ids,
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+    examples_response = await httpx_client.get(f"/v1/datasets/{dataset_id}/examples")
+    assert examples_response.status_code == 200
+    examples = examples_response.json()["data"]["examples"]
+    assert [example["id"] for example in examples] == user_ids
+    return dataset_id, [example["node_id"] for example in examples]
+
+
 async def test_create_dataset_split_empty(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
@@ -4648,6 +4673,24 @@ async def test_create_dataset_split_with_examples(
         assert member_count == 2
 
 
+async def test_create_dataset_split_accepts_mixed_example_identifiers(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    user_ids = ["example-one", "example-two"]
+    dataset_id, global_ids = await _create_dataset_with_user_ids(
+        httpx_client, "ds_split_mixed_ids", user_ids
+    )
+    response = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={
+            "name": "mixed",
+            "example_ids": [global_ids[0], user_ids[0], user_ids[1]],
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["data"]["example_count"] == 2
+
+
 async def test_create_dataset_split_accepts_dataset_name(
     httpx_client: httpx.AsyncClient,
 ) -> None:
@@ -4697,6 +4740,21 @@ async def test_create_dataset_split_example_not_in_dataset(
         json={"name": "cross", "example_ids": other_examples},
     )
     assert response.status_code == 404
+
+
+async def test_create_dataset_split_user_id_not_in_dataset(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_a, _ = await _create_dataset_with_user_ids(
+        httpx_client, "ds_split_external_a", ["dataset-a-example"]
+    )
+    await _create_dataset_with_user_ids(httpx_client, "ds_split_external_b", ["dataset-b-example"])
+    response = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_a}/splits",
+        json={"name": "cross-external", "example_ids": ["dataset-b-example"]},
+    )
+    assert response.status_code == 404
+    assert "dataset-b-example" in response.text
 
 
 async def test_create_dataset_split_dataset_not_found(
@@ -4773,6 +4831,31 @@ async def test_update_dataset_split_add_and_remove_examples(
     assert response.status_code == 200
     # example 0 removed, examples 1 and 2 added -> 2 members
     assert response.json()["data"]["example_count"] == 2
+
+
+async def test_update_dataset_split_membership_by_user_id(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    user_ids = ["example-one", "example-two"]
+    dataset_id, _ = await _create_dataset_with_user_ids(
+        httpx_client, "ds_patch_external_membership", user_ids
+    )
+    created = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "train", "example_ids": [user_ids[0]]},
+    )
+    assert created.status_code == 201
+    split_id = created.json()["data"]["id"]
+
+    response = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_id}/splits/{split_id}",
+        json={
+            "add_example_ids": [user_ids[1]],
+            "remove_example_ids": [user_ids[0]],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["example_count"] == 1
 
 
 async def test_update_dataset_split_not_found(

@@ -25,6 +25,7 @@ const { datasetId } = await createDataset({
   description: "Support questions with expected answers",
   examples: [
     {
+      id: "order-tracking",
       input: { question: "Where is my order?" },
       output: { answer: "Use the tracking page in your account." },
       metadata: { channel: "chat" },
@@ -48,6 +49,7 @@ const dataset = await createDataset({
   description: "Support questions with expected answers",
   examples: [
     {
+      id: "order-tracking",
       input: { question: "Where is my order?" },
       output: { answer: "Use the tracking page in your account." },
     },
@@ -58,6 +60,7 @@ await appendDatasetExamples({
   dataset,
   examples: [
     {
+      id: "password-reset",
       input: { question: "How do I reset my password?" },
       output: { answer: "Use the forgot password flow." },
     },
@@ -75,8 +78,8 @@ Use `getDataset`, `getDatasetExamples`, and `getDatasetInfo` to inspect datasets
 
 Use `createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit` to
 manage train, test, validation, or other named subsets after a dataset exists.
-Select the dataset by name or GlobalID. Example membership uses the `nodeId`
-GlobalIDs returned by `getDatasetExamples`.
+Select the dataset by name or GlobalID. Example membership accepts either the
+user-provided `id` or Phoenix `nodeId` returned by `getDatasetExamples`.
 
 ```ts
 import {
@@ -91,12 +94,16 @@ const dataset = { datasetName: datasetIdentifier };
 const { examples } = await getDatasetExamples({
   dataset,
 });
+const [firstExample, secondExample] = examples;
+if (firstExample == null || secondExample == null) {
+  throw new Error("At least two examples are required to demonstrate split updates");
+}
 
 const testSplit = await createDatasetSplit({
   dataset,
   name: "test",
   description: "Held-out evaluation examples",
-  exampleIds: examples.slice(0, 2).map((example) => example.nodeId),
+  exampleIds: [firstExample.id],
 });
 
 // Only provided fields change. Adding an existing member or removing a
@@ -105,8 +112,8 @@ await updateDatasetSplit({
   dataset,
   splitId: testSplit.id,
   description: "Reviewed held-out examples",
-  addExampleIds: [examples[2].nodeId],
-  removeExampleIds: [examples[0].nodeId],
+  addExampleIds: [secondExample.id],
+  removeExampleIds: [firstExample.id],
 });
 
 // Deleting a split removes its memberships, not the underlying examples.
