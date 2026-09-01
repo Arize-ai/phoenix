@@ -1,7 +1,7 @@
 ---
 name: phoenix-open-coding
-description: Write free-form, specific notes against sampled Phoenix traces, spans, or sessions before any failure taxonomy exists. Use whenever the user wants to make sense of LLM or agent traffic but has no categories yet — "what's going wrong", "I just instrumented my app, where do I start", "review these traces", "what kinds of mistakes is the model making" — even without naming the technique. Precedes phoenix-axial-coding.
-summary: Write specific, free-form notes on sampled traces, spans, or sessions before any failure taxonomy exists.
+description: Write free-form notes against sampled Phoenix traces, spans, or sessions. Use when the user wants to make sense of LLM or agent traffic but has no categories yet — "what's going wrong with this agent", "I just instrumented my app, where do I start", "review these traces", "the chatbot keeps losing context", "what kinds of mistakes is the model making", "help me make sense of these conversations" — or any framing that needs grounded observations before categories, even without naming the technique. Precedes phoenix-axial-coding.
+summary: Write free-form notes on sampled traces, spans, or sessions.
 license: Apache-2.0
 metadata:
   author: arize-ai
@@ -10,223 +10,87 @@ metadata:
 
 # Open Coding
 
-Free-form note-writing against sampled traces, spans, or sessions, before any taxonomy exists. After you pick a sample at the right unit (see [Choosing the unit of analysis](#choosing-the-unit-of-analysis)), read each one and write a short, specific observation of what went wrong. These raw notes feed [axial coding](../phoenix-axial-coding/SKILL.md), where they get grouped into named failure categories — and ultimately into eval targets or fix priorities.
-
-**Reach for this whenever** the user wants to look at LLM traffic without a fixed taxonomy yet — e.g., "what's going wrong with this agent", "I just instrumented my app, where do I start", "review these traces", "the chatbot keeps losing context", "what kinds of mistakes is the model making", "help me make sense of these conversations", or any framing that needs grounded observations before categories.
-
-> **Tooling.** This skill is tooling-agnostic. Use whatever Phoenix access the current environment provides — the Phoenix MCP server's tools, the REST API (`/v1`), a client SDK, or a CLI — to list and read traces, spans, and sessions, add notes, and write annotations. The workflow below names each operation and the server semantics it relies on; map them onto the tools at hand.
+Free-form note-writing against sampled traces, spans, or sessions. Pick a unit, read each sampled entity, and write a short, specific observation of what went wrong. The raw notes feed axial coding (`phoenix-axial-coding`), where they get grouped into named failure categories.
 
 ## Choosing the unit of analysis
 
-The right unit — **trace, span, or session** — depends on the question and the system. Pick deliberately before recording; the choice determines whether every note and annotation below targets traces, spans, or sessions, and a wrong default is expensive to undo mid-run.
+Pick **trace, span, or session** deliberately before recording — the choice determines what every note and annotation below targets, and a wrong default is expensive to undo mid-run. The unit is where the failure modes you're investigating actually live:
 
-The unit is about **where the failure modes you're investigating actually live**:
+- **Trace** — one input → one output. Classifiers, single-shot summarizers, stateless tool-using agents, single-query RAG.
+- **Span** — one operation inside a trace. In-isolation mechanical failures (exception, tool error response, malformed output) or failures attributable on sight to one component.
+- **Session** — a sequence of traces sharing a `session.id`. Multi-turn agents where the failure is a *trajectory* — context loss across turns, goal drift, forgotten preferences — that exists only *across* traces.
 
-- **Trace** — one input → one call graph → one output. Right for classifiers, single-shot summarizers, stateless tool-using agents, single-query RAG. Failure modes that live here: wrong answer, malformed output, missed retrieval, bad tool selection within one request.
-- **Span** — one operation inside a trace. Right for in-isolation mechanical failures (an exception fired, a tool returned an error response, an output is malformed) or when you can attribute on sight to a specific component. Reach for span when the trace as a whole is fine but one piece inside it is the unit of interest.
-- **Session** — a sequence of traces sharing a `session.id`. Right for multi-turn conversational agents, agents with episodic memory, anything where the failure mode is a *trajectory*: context loss across turns, drift from the user's stated goal, the agent forgetting a stated preference, repeated user clarifications. These failures don't exist on any single trace; they only exist *across* traces.
+Three signals to read:
 
-### Diagnostic — three signals to read
+1. **User framing.** "Conversation", "agent forgot", "drift", "across turns" → session. "This trace", "wrong output" → trace. "Exception", "malformed", "the retrieval failed" → span.
 
-1. **User framing.** *Tilts session*: "conversation", "agent forgot", "drift", "memory", "across turns", "user had to repeat themselves". *Tilts trace*: "this trace", "this call", "the response was wrong", "wrong output". *Tilts span*: "exception", "error response", "malformed", "the retrieval failed".
+2. **Session wiring.** The session id lives at the root span's `session.id` attribute (not a top-level trace field); `""` means absent. List ~200 recent traces and compute how many carry a non-empty session id, how many distinct session ids appear, and the median traces per session. No session ids or median 1 → trace or span level; median 2+ → session level is plausibly right.
 
-2. **Data shape.** Probe before the loop. The session id lives at the root span's `session.id` attribute (it is *not* a top-level field on the trace), and is `""` for traces that aren't session-wired — treat empty as absent. List ~200 recent traces and compute three numbers from their root-span `session.id` values:
+3. **Turn structure.** Open one recent trace's root-span `input.value` (it may be large — filter rather than reading wholesale). A single user message → one shot; a message *array* (`[{role: user}, {role: assistant}, ...]`) → a turn of a dialogue that lives at the session level.
 
-   - `with_session` — how many traces carry a non-empty session id
-   - `distinct_sessions` — how many unique session ids appear
-   - `median_traces_per_session` — the median group size when session-carrying traces are grouped by session id
-
-   `with_session: 0` → sessions not wired; annotate at the trace level. `median_traces_per_session: 1` → single-trace sessions; still trace level. `median_traces_per_session: 5+` → sessions are meaningful; session level is plausibly right.
-
-3. **System type.** Open one recent trace and inspect the root span's `input.value` attribute (parse it as JSON if it is a serialized string). A single user message → one turn or one shot. A message *array* (`[{role: user}, {role: assistant}, ...]`) → that's a turn within a longer dialogue; the dialogue lives at the session level.
-
-### Commit out loud, then proceed
-
-State the unit explicitly before recording any note:
-
-> "Question: 'the chatbot keeps losing context'. Data: median 7 traces per session, message-array inputs. Recording at the **session** level; will drop to **trace** for single-turn observations, **span** for mechanical failures."
-
-The unit can shift if data demands it — a trace-level investigation that surfaces "the agent never remembers earlier turns" should pivot to session. Record the observation, then refocus the next batch. The unit is a starting hypothesis, not a contract.
+State the chosen unit explicitly before recording any note. It can shift if the data demands it — trace-level notes that keep surfacing "the agent never remembers earlier turns" should pivot the next batch to session. The unit is a starting hypothesis, not a contract.
 
 ## Coding annotation identifier (pick this first)
 
-Every artifact this workflow produces — open-coding notes, axial-coding labels, the local sidecar files, and the UI-filter annotation — is tagged with one **coding annotation identifier** so the run is queryable, revertible, and viewable as a unit. Pick a **descriptive, unique** identifier before recording any notes. Format suggestion:
+Every artifact this workflow produces — open-coding notes, axial-coding labels, and the local sidecar files — is tagged with one **coding annotation identifier** so the run is queryable and revertible as a unit. Pick a descriptive, unique value before recording, e.g. `coding-run:chatbot-context-loss-2026-05-06`. (The `coding-run:` prefix is a naming convention; the value is not a Phoenix session id.)
 
-    coding-run:<short-topic>-<YYYY-MM-DD>
+Pass the identifier explicitly on every server write. A shell variable is fine for readability, but do not rely on shell inheritance — many agent harnesses spawn each command in a fresh subshell.
 
-Examples: `coding-run:chatbot-context-loss-2026-05-06`, `coding-run:agent-tool-misuse-q2`. Descriptive ids carry meaning for whoever opens the data later — better than an opaque uuid. The `coding-run:` prefix is a visual convention; the value is the workflow's coding annotation identifier, not a Phoenix session id.
-
-> **Workflow term vs. server annotation name.** The skill calls this value the **coding annotation identifier**. The server-side annotation NAME used for the UI filter is unchanged — `coding_session_id` — for data compatibility with rows already written. Don't try to rename it.
-
-Pass the identifier explicitly on every server write (every note and every annotation). When working in a shell, a variable for readability is fine, but **do not rely on shell inheritance** — many agent harnesses spawn each command in a fresh subshell, so `CODING_ANNOTATION_IDENTIFIER` may not propagate.
+The local sidecar lives at `.px/coding/<sanitized-identifier>.jsonl` (CWD-relative); sanitization replaces every character outside `[a-zA-Z0-9_-]` with `-`. Uniqueness is a **local file check**, not a server query:
 
 ```bash
 CODING_ANNOTATION_IDENTIFIER="coding-run:chatbot-context-loss-2026-05-06"
-```
-
-The local sidecar lives at `.px/coding/<sanitized-identifier>.jsonl` (CWD-relative). Sanitization rule: replace any character not matching `[a-zA-Z0-9_-]` with `-` before using the value in the filename — colons, slashes, and other shell-fragile characters get normalized. For `CODING_ANNOTATION_IDENTIFIER="coding-run:chatbot-context-loss-2026-05-06"` the sidecar path is `.px/coding/coding-run-chatbot-context-loss-2026-05-06.jsonl`.
-
-Verify this run hasn't already started — uniqueness is a **local file check**, not a server query:
-
-```bash
 SLUG=$(echo -n "$CODING_ANNOTATION_IDENTIFIER" | sed 's/[^a-zA-Z0-9_-]/-/g')
-SIDECAR=".px/coding/${SLUG}.jsonl"
-test ! -f "$SIDECAR" || { echo "Sidecar already exists at $SIDECAR — pick a new identifier or delete the file"; exit 1; }
+NOTES_SIDECAR=".px/coding/${SLUG}.jsonl"
+test ! -f "$NOTES_SIDECAR" || { echo "Sidecar already exists at $NOTES_SIDECAR — pick a new identifier or delete the file"; exit 1; }
 mkdir -p .px/coding
 ```
 
-If `$SIDECAR` already exists, append a disambiguator (`-v2`, `-dustin`, etc.) to `CODING_ANNOTATION_IDENTIFIER`, re-derive `SLUG`, and re-check. The agent harness can run open coding and axial coding in independent invocations: each step re-derives `SLUG` from `CODING_ANNOTATION_IDENTIFIER` and reads/writes the same file.
+If `$NOTES_SIDECAR` already exists, append a disambiguator (`-v2`, `-dustin`, etc.) and re-check. Open coding and axial coding may run in independent invocations: each step re-derives `SLUG` from the same identifier and reads/writes the same file.
 
 ## Process
 
-1. **Pick a coding annotation identifier** — choose a descriptive value and verify the sidecar file does not yet exist (see [Coding annotation identifier](#coding-annotation-identifier-pick-this-first))
-2. **Pick the unit** — work through [Choosing the unit of analysis](#choosing-the-unit-of-analysis) and commit to trace, span, or session
-3. **Inspect** — fetch one entity at the chosen unit (trace / span / session)
-4. **Read** — input, output, exceptions, tool calls, retrieved context, and (at session level) the trajectory across child traces
-5. **Note** — write one specific sentence describing what went wrong (or skip if correct)
-6. **Record** — add a note to the entity carrying the note text and the coding annotation identifier, add/update one JSONL sidecar row for the note, then write the matching [UI-filter annotation](#ui-filter-annotation)
-7. **Iterate** — move to the next entity; repeat until the sample is exhausted or saturation hits
-8. **Hand off** — axial coding reads the sidecar directly (no shared shell required); see [Wrapping up](#wrapping-up) for the UI link
+1. **Pick a coding annotation identifier** and verify the sidecar does not yet exist
+2. **Pick the unit** — trace, span, or session
+3. **Inspect** — fetch one entity at the chosen unit and read its input, output, exceptions, tool calls, retrieved context, and (at session level) the trajectory across child traces
+4. **Note** — write one specific sentence describing what went wrong, or skip if correct
+5. **Record** — write the note to the server and append a sidecar row
+6. **Iterate** until the sample is exhausted or saturation hits
+7. **Hand off** — axial coding reads the sidecar directly
 
 ## Inspection
 
-Read context at the unit committed in [Choosing the unit](#choosing-the-unit-of-analysis):
-
 - **Trace unit** — read one trace's input → tool calls → retrieved context → output as one story.
 - **Span unit** — read one operation's input/output and surrounding spans for context.
-- **Session unit** — read the sequence of traces in order; the trajectory (turns, retrievals, tool-call patterns *across* traces) is the data, not any single trace's inputs and outputs.
+- **Session unit** — read the sequence of traces in order; the trajectory across traces is the data, not any single trace.
 
-> **Don't sample by span status `ERROR`.** OTel's `status_code` only flips to `ERROR` when an instrumentor catches a raised exception (network failure, 5xx, parse error). Hallucinations, wrong tone, retrieval misses, and bad tool selection all complete cleanly and arrive as `OK` or `UNSET`. Filtering the open-coding sample to error status excludes the population this workflow exists to surface.
+> **Don't sample by span status `ERROR`.** OTel's `status_code` only flips to `ERROR` when an instrumentor catches a raised exception. Hallucinations, wrong tone, retrieval misses, and bad tool selection all complete cleanly as `OK` or `UNSET` — filtering to error status excludes the population this workflow exists to surface.
 
-Whatever the tooling, the fetches are:
-
-- **Sample** recent traces — for each, the trace id, root span name, status, and the root span's `input.value` / `output.value` attributes. This is the unit of inspection in open coding.
-- **Expand** one trace into its spans ordered by start time — each span's id, name, status, input, and output — to read the call graph as one story.
-- **Drill** into a single span by span id when the unit is the span.
-- **Check existing notes** on entities you are about to review. Notes are stored server-side as annotations with the reserved name `note`; fetch entities with their notes included, or list annotations filtered to that name.
+Whatever the tooling, the fetches are: **sample** recent traces (trace id, root span name, status, root-span `input.value` / `output.value`); **expand** one trace into its spans ordered by start time; **drill** into a single span by id when the unit is the span; and **check existing notes** on entities you are about to review — notes are stored server-side as annotations with the reserved name `note`. As always, be aware that the data may be verbose, so take care not to blow up the context.
 
 ## Recording Notes
 
-Add the note at the unit committed in [Choosing the unit](#choosing-the-unit-of-analysis): a trace note, span note, or session note. Every write carries the note text and an explicit identifier set to the coding annotation identifier.
+For each session, trace, or span you inspect, submit a note to the server and also save a local copy. Every write should carry the note text and an explicit `identifier` set to the coding annotation identifier.
 
-Passing the coding annotation identifier does two things:
-- Tags the note row with it on the server, so the wrap-up cleanup sweep — delete annotations bound to the identifier — removes every artifact this run produced.
-- Makes the write **upsert** on `(entity_id, name='note', identifier)` — re-running open coding on the same entity within the same coding annotation identifier overwrites the prior note instead of appending a second row. (Without an identifier, the server stamps a unique auto-generated one and each write appends.)
-
-After every successful note write, record one JSONL line in `$SIDECAR`. The sidecar is what axial coding reads — no server round-trip. It is a content handoff, not code: keep it readable, inspect it directly, and use whatever simple tooling is convenient.
-
-**Sidecar JSONL line shape (one per note):**
+After every successful note write to the server, append one JSONL line to `$NOTES_SIDECAR` — the sidecar is what axial coding reads, with no server round-trip:
 
 ```json
 {"entity_kind":"trace","entity_id":"<trace-id>","note":"<text>","identifier":"<original identifier value, unsanitized>","ts":"<ISO-8601 UTC>"}
 ```
 
-Fields:
-- `entity_kind` — `"trace"`, `"span"`, or `"session"` (matches the level the note was written at)
-- `entity_id` — the entity the note was written on (trace id, span id, or session id)
-- `note` — the note text, verbatim
-- `identifier` — the **original** `$CODING_ANNOTATION_IDENTIFIER` value, unsanitized; the sanitized form lives only in the filename
-- `ts` — ISO-8601 UTC timestamp (e.g. `2026-05-08T17:14:09Z`) of the local append
-
-If you revise a note for the same entity under the same coding annotation identifier, either replace that row or append a newer row. When duplicate `(entity_kind, entity_id)` rows exist, the newest `ts` is the current note. This matches the server upsert behavior of identifier-carrying note writes.
-
-Minimal trace example — as the REST call, `POST /v1/trace_notes`:
-
-```json
-{"data": {"trace_id": "<trace-id>", "note": "Asked about returns; final answer covered shipping policy instead", "identifier": "<coding annotation identifier>"}}
-```
-
-Then add a matching JSONL row to `$SIDECAR` using the line shape above. For span or session notes, write to the span or session note endpoint instead and change `entity_kind` and `entity_id` accordingly.
-
-**Write paths:**
-
-- REST — `POST /v1/trace_notes`, `POST /v1/span_notes`, `POST /v1/session_notes`; each accepts one `{data: {trace_id|span_id|session_id, note, identifier}}` per request, and the optional `identifier` field upserts on `(entity_id, name='note', identifier)` when non-empty.
-- `@arizeai/phoenix-client` — `addTraceNote`, `addSpanNote`, and `addSessionNote` wrap the same endpoints and accept an optional `identifier` field on the note object.
-- The GraphQL endpoint rejects mutations with `"Only queries are permitted."` — write through the note endpoints (or tooling that wraps them), not GraphQL.
-
-Bulk auto-tagging by status code — listing every `ERROR`-status span and stamping the same note on each — is **not open coding**. Open coding is manual, observation-grounded, and ranges over all failure modes, not just spans where an exception was raised. Skip the bulk-by-status shortcut; it produces fewer, less informative notes than walking traces.
-
-### UI-filter annotation
-
-Every entity that receives an open-coding note (or an axial-coding label later) also needs a UI-filter annotation so the Phoenix UI can filter by coding annotation identifier. Phoenix's UI filter language is name-based, not identifier-based — there is no UI primitive for filtering by `identifier`, so an annotation whose **name** is the constant `coding_session_id` and whose **label** is the coding annotation identifier value is what the wrap-up UI link actually filters on.
-
-The annotation NAME `coding_session_id` is the load-bearing data key on the server and is **unchanged** in this rewrite. The skill's workflow term is "coding annotation identifier"; the server key stays `coding_session_id` for compatibility with rows already written.
-
-Once per touched entity, alongside the note write (and again later when axial coding labels a different entity), write an annotation on the entity at the matching level with:
-
-- **name**: `coding_session_id`
-- **label**: the coding annotation identifier value
-- **identifier**: the coding annotation identifier value
-
-(REST: `POST /v1/trace_annotations`, `/v1/span_annotations`, or `/v1/session_annotations`.)
-
-The annotation's identifier matches the coding annotation identifier, so the [wrap-up DELETE](#wrapping-up) cleans it up in the same sweep as the notes and the axial-coding labels.
-
 ## What Makes a Good Note
 
-| Weak note            | Why it's weak             | Good note                                                                  | Why it's strong                             |
-| -------------------- | ------------------------- | -------------------------------------------------------------------------- | ------------------------------------------- |
-| "Wrong answer"       | No observable detail      | "Said the store closes at 6pm but policy is 9pm"                           | Quotes observed vs. correct value           |
-| "Bad tone"           | Vague judgment            | "Used first-name greeting for an enterprise support ticket"                | Specifies the context mismatch              |
-| "Hallucination"      | Labels before observing   | "Cited a product feature ('auto-renew') that does not exist in the schema" | Describes what was fabricated               |
-| "Retrieval issue"    | Category, not observation | "Retrieved docs about shipping when the question was about returns"        | States what was retrieved vs. needed        |
-| "Model confused"     | Opaque                    | "Answered in Spanish when the user wrote in English"                       | Observable and reproducible                 |
+Write what you saw, not the category you think it belongs to — categorization happens in axial coding.
 
-Write what you saw, not the category you think it belongs to — categorization happens in [axial coding](../phoenix-axial-coding/SKILL.md). Short prefixes like `TONE:` or `FACTUAL:` are a personal shorthand, not a repo convention.
+| Weak note         | Good note                                                           |
+| ----------------- | ------------------------------------------------------------------- |
+| "Wrong answer"    | "Said the store closes at 6pm but policy is 9pm"                    |
+| "Retrieval issue" | "Retrieved docs about shipping when the question was about returns" |
 
 ## Saturation
 
-Stop writing notes when observations stop being new. Signals:
-
-- **Repeats** — the last 10–15 traces produced notes that describe failures you've already seen.
-- **Paraphrase convergence** — you catch yourself writing minor variations of earlier notes.
-- **Skips outnumber notes** — most recent traces are correct and need no note.
-
-At saturation, move on to [axial coding](../phoenix-axial-coding/SKILL.md) to group what you have. Continuing past saturation adds traces but not insight. You do not need to annotate every trace — annotating correct ones dilutes signal.
-
-## Listing what this run produced
-
-The local sidecar is the handoff record for notes written this run. Inspect it directly. Each line is one note record; if the same entity appears more than once, use the newest `ts` as the current note. Missing-file behavior: an absent sidecar means open coding has not yet started for this coding annotation identifier; treat that as zero notes, not an error. Malformed lines are line-local: fix or drop the bad line without editing neighbors.
+Stop when observations stop being new: the last 10–15 entities repeat failures you've already seen, you catch yourself paraphrasing earlier notes, or skips outnumber notes. Resist grouping into categories while still collecting; at saturation, move on to axial coding. You do not need to annotate every trace — annotating correct ones dilutes signal.
 
 ## Wrapping up
 
-When the run is done, share the Phoenix UI link with the user. The link filters the project's **spans** page by the `coding_session_id` annotation written alongside each note. Three details the UI enforces:
-
-- **The search param is `spanFilterCondition`.** An unrecognized param is dropped silently and the user lands on an unfiltered table.
-- **Link to the `/spans` tab, not `/traces`.** The traces tab now compiles a *trace* filter that lives in component state with no URL param of its own. A link that carries `spanFilterCondition` to `/traces` leaves that table unfiltered and shows a "Traces now use trace-level filters" notice; the condition only takes effect once the user switches to Spans.
-- **The spans tab compiles a *span* filter**, so the annotation accessor has to match the level the annotation was written at — `trace_annotations['coding_session_id']` for a trace-level run, `annotations['coding_session_id']` for a span-level run. A level mismatch silently joins the wrong annotation table and matches nothing.
-
-The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it with a GraphQL query (the GraphQL endpoint permits queries):
-
-```graphql
-query { projects(first: 50) { edges { node { id name } } } }
-```
-
-Then take the filter expression for the level the run annotated at —
-
-    trace_annotations['coding_session_id'].label == '<coding annotation identifier>'   # trace-level run
-    annotations['coding_session_id'].label == '<coding annotation identifier>'         # span-level run
-
-— URL-encode it, and share:
-
-    <endpoint>/projects/<project-node-id>/spans?spanFilterCondition=<encoded-expression>
-
-A session-level run has no equivalent link: the sessions tab keeps its filter in
-component state rather than the URL, so share the plain project link and, if the
-user wants the selection reproduced, the `sessionFilterCondition` GraphQL query.
-
-If the user wants to discard everything this run produced, three identifier-bound deletes handle the server side and removing the sidecar files handles the local side. **Confirm with the user before running** — this is destructive. For each of trace, span, and session, delete the project's annotations filtered to the coding annotation identifier — REST `DELETE /v1/projects/{project_identifier}/trace_annotations` (and `span_annotations`, `session_annotations`) with `identifier=<coding annotation identifier>`. The server requires `delete_all=true` (or an explicit `start_time`/`end_time` bound) to authorize the sweep; the identifier filter narrows but never authorizes on its own. Then remove `$SIDECAR` and the axial sidecar (`.px/coding/${SLUG}-axial.jsonl`).
-
-Each per-kind delete covers notes, structured annotations, and the `coding_session_id` annotation in one shot because they share the underlying annotation table.
-
-## Principles
-
-- **One coding annotation identifier per run** — every server artifact and every sidecar line carries the same `$CODING_ANNOTATION_IDENTIFIER`; never mint a per-stage id.
-- **Pass the identifier explicitly** — every server write carries the coding annotation identifier; do not rely on inherited env vars across harness-spawned subshells.
-- **Sidecar is the handoff record for notes** — axial coding reads from the local sidecar, not from the server; if an entity appears more than once, the newest `ts` wins.
-- **Free-form over structured** — do not pre-commit to a taxonomy during open coding; categories emerge in axial coding.
-- **Specific over general** — quote or paraphrase the observed failure; vague labels ("bad response") carry no signal.
-- **Context before labeling** — inspect input, output, and retrieved context before writing any note.
-- **Iterate before categorizing** — work through the full sample first; resist grouping while still collecting.
-- **Skip is valid** — a correct span needs no note; annotating everything dilutes signal.
-- **Revert is opt-in** — the wrap-up DELETE only runs after explicit user confirmation; the default path prints the UI link and stops.
+Hand off to `phoenix-axial-coding`, which reads `$NOTES_SIDECAR` directly. If the run ends here instead, follow that skill's **Wrapping up** section for the two closing moves: sharing the Phoenix UI link filtered to this run's coding annotation identifier, and — only with explicit user confirmation — the identifier-bound delete sweep plus sidecar removal that discards everything the run produced.
