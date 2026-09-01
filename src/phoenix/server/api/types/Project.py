@@ -34,7 +34,7 @@ from phoenix.db.trace_aggregates import (
 )
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
@@ -323,6 +323,18 @@ class Project(Node):
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("Project ID mismatch")
 
+    async def _load_required_field(
+        self,
+        info: Info[Context, None],
+        attr: InstrumentedAttribute[Any],
+    ) -> Any:
+        """Load a non-nullable column via the dataloader, raising NotFound if the
+        project row no longer exists (e.g. it was deleted after the ID was issued)."""
+        value = await info.context.data_loaders.project_fields.load((self.id, attr))
+        if value is None:
+            raise NotFound(f"Project not found: {self.id}")
+        return value
+
     @strawberry.field
     async def name(
         self,
@@ -331,9 +343,7 @@ class Project(Node):
         if self.db_record:
             name = self.db_record.name
         else:
-            name = await info.context.data_loaders.project_fields.load(
-                (self.id, models.Project.name),
-            )
+            name = await self._load_required_field(info, models.Project.name)
         return name
 
     @strawberry.field
@@ -360,8 +370,8 @@ class Project(Node):
         if self.db_record:
             gradient_start_color = self.db_record.gradient_start_color
         else:
-            gradient_start_color = await info.context.data_loaders.project_fields.load(
-                (self.id, models.Project.gradient_start_color),
+            gradient_start_color = await self._load_required_field(
+                info, models.Project.gradient_start_color
             )
         return gradient_start_color
 
@@ -373,8 +383,8 @@ class Project(Node):
         if self.db_record:
             gradient_end_color = self.db_record.gradient_end_color
         else:
-            gradient_end_color = await info.context.data_loaders.project_fields.load(
-                (self.id, models.Project.gradient_end_color),
+            gradient_end_color = await self._load_required_field(
+                info, models.Project.gradient_end_color
             )
         return gradient_end_color
 
@@ -1606,9 +1616,7 @@ class Project(Node):
         if self.db_record:
             created_at = self.db_record.created_at
         else:
-            created_at = await info.context.data_loaders.project_fields.load(
-                (self.id, models.Project.created_at),
-            )
+            created_at = await self._load_required_field(info, models.Project.created_at)
         return created_at
 
     @strawberry.field
@@ -1619,9 +1627,7 @@ class Project(Node):
         if self.db_record:
             updated_at = self.db_record.updated_at
         else:
-            updated_at = await info.context.data_loaders.project_fields.load(
-                (self.id, models.Project.updated_at),
-            )
+            updated_at = await self._load_required_field(info, models.Project.updated_at)
         return updated_at
 
     @strawberry.field
