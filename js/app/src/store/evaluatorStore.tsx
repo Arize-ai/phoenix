@@ -17,7 +17,7 @@ import type {
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import type { DeepPartial } from "@phoenix/typeUtils";
-import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
 /**
@@ -117,22 +117,13 @@ export type EvaluatorStoreActions = {
   setEvaluatorMappingSourceGrain: (grain: EvaluatorMappingSourceGrain) => void;
   /** Sets a single field of the evaluator mapping source. */
   setEvaluatorMappingSourceField: (
-    params:
-      | {
-          grain: "dataset";
-          field: EvaluatorMappingSourceField<"dataset">;
-          value: Record<string, unknown>;
-        }
-      | {
-          grain: "span";
-          field: EvaluatorMappingSourceField<"span">;
-          value: Record<string, unknown>;
-        }
-      | {
-          grain: "session";
-          field: EvaluatorMappingSourceField<"session">;
-          value: Record<string, unknown>;
-        }
+    params: {
+      [TGrain in EvaluatorMappingSourceGrain]: {
+        grain: TGrain;
+        field: EvaluatorMappingSourceField<TGrain>;
+        value: Record<string, unknown>;
+      };
+    }[EvaluatorMappingSourceGrain]
   ) => void;
   /** Sets the currently selected example ID within the dataset. */
   setSelectedExampleId: (selectedExampleId?: string | null) => void;
@@ -307,20 +298,22 @@ export function readEvaluatorMappingSource<
   } as EvaluatorMappingSourceState;
 }
 
+const MAPPING_SOURCE_DEFAULT_BY_GRAIN: {
+  [TGrain in EvaluatorMappingSourceGrain]: EvaluatorMappingSource<TGrain>;
+} = {
+  dataset: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  span: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  session: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+};
+
 /** The mapping source a grain starts from before any record is selected. */
 export function defaultEvaluatorMappingSourceState(
   grain: EvaluatorMappingSourceGrain
 ): EvaluatorMappingSourceState {
-  switch (grain) {
-    case "dataset":
-      return { grain, source: EVALUATOR_MAPPING_SOURCE_DEFAULT };
-    case "span":
-      return { grain, source: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT };
-    case "session":
-      return { grain, source: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT };
-    default:
-      return assertUnreachable(grain);
-  }
+  return {
+    grain,
+    source: MAPPING_SOURCE_DEFAULT_BY_GRAIN[grain],
+  } as EvaluatorMappingSourceState;
 }
 
 /**
@@ -591,40 +584,16 @@ export const createEvaluatorStore = (
               evaluatorMappingSource.grain === params.grain,
               "Evaluator mapping source grain must match the field grain"
             );
-            let nextEvaluatorMappingSource: EvaluatorMappingSourceState;
-            switch (evaluatorMappingSource.grain) {
-              case "dataset":
-                nextEvaluatorMappingSource = {
-                  grain: "dataset",
-                  source: {
-                    ...evaluatorMappingSource.source,
-                    [params.field]: params.value,
-                  },
-                };
-                break;
-              case "span":
-                nextEvaluatorMappingSource = {
-                  grain: "span",
-                  source: {
-                    ...evaluatorMappingSource.source,
-                    [params.field]: params.value,
-                  },
-                };
-                break;
-              case "session":
-                nextEvaluatorMappingSource = {
-                  grain: "session",
-                  source: {
-                    ...evaluatorMappingSource.source,
-                    [params.field]: params.value,
-                  },
-                };
-                break;
-              default:
-                assertUnreachable(evaluatorMappingSource);
-            }
             set(
-              { evaluatorMappingSource: nextEvaluatorMappingSource },
+              {
+                evaluatorMappingSource: {
+                  grain: evaluatorMappingSource.grain,
+                  source: {
+                    ...evaluatorMappingSource.source,
+                    [params.field]: params.value,
+                  },
+                } as EvaluatorMappingSourceState,
+              },
               undefined,
               "setEvaluatorMappingSourceField"
             );
