@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, ComponentType, ReactNode } from "react";
 import {
   Suspense,
   useEffect,
@@ -89,7 +89,7 @@ import type {
   EvaluatorInputMapping,
   EvaluatorMappingSource,
 } from "@phoenix/types";
-import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -172,6 +172,48 @@ type ProjectEvaluatorScopePanelScopeFieldsProps =
       showScopeFields: false;
     };
 
+type MatchedCountLineProps = {
+  projectId: string;
+  filterCondition: string;
+  timeWindow: TimeWindow;
+};
+
+type RecordRunListProps = {
+  projectId: string;
+  filterCondition: string;
+  timeWindow: TimeWindow;
+  codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
+  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
+  requiredVariables?: string[];
+  runAllRecordsRef?: { current: () => void };
+  onCanRunAllChange?: (canRunAll: boolean) => void;
+};
+
+/**
+ * What the matching-records half of the panel varies by grain: how it counts
+ * the records in scope, how it lists them, and any note it opens with. The
+ * prose around them names the grain directly.
+ */
+const MATCHING_RECORDS_BY_GRAIN: Record<
+  ProjectEvaluatorMappingSourceGrain,
+  {
+    CountLine: ComponentType<MatchedCountLineProps>;
+    RunList: ComponentType<RecordRunListProps>;
+    note?: ReactNode;
+  }
+> = {
+  span: { CountLine: MatchedSpanCountLine, RunList: SpanRunList },
+  session: {
+    CountLine: MatchedSessionCountLine,
+    RunList: SessionRunList,
+    note: <SessionInputNote />,
+  },
+};
+
+const capitalize = (word: string) =>
+  `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+
 /** Scope is committed by the form's create/save action, not by this panel. */
 export const ProjectEvaluatorScopePanel = (
   props: {
@@ -185,21 +227,27 @@ export const ProjectEvaluatorScopePanel = (
   const { projectId, scope, codeEvaluatorId, inlineCode, requiredVariables } =
     props;
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
-  // Span and session contexts are structurally identical, so the store cannot
-  // infer the grain from one; changing the target has to say so.
   const evaluatorStore = useEvaluatorStoreInstance();
   const mappingSourceGrain = toEvaluatorMappingSourceGrain(scope.targetType);
-  useEffect(() => {
-    const state = evaluatorStore.getState();
-    state.setEvaluatorMappingSourceGrain(mappingSourceGrain);
-    // A path written against the previous kind of record names a root the new
-    // one does not have, and a path that matches nothing fails the evaluation.
-    const { pathMapping } = dropOtherGrainEntityPathMappings(
-      state.evaluator.inputMapping,
-      mappingSourceGrain
-    );
-    state.setPathMapping(pathMapping);
-  }, [evaluatorStore, mappingSourceGrain]);
+  const scopeFields = props.showScopeFields !== false ? props : null;
+  // Span and session contexts are structurally identical, so the store cannot
+  // infer the grain from one; a target change says so here, in the same act.
+  // A path written against the previous kind of record names a root the new
+  // one does not have, and a path that matches nothing fails the evaluation.
+  const handleScopeChange = (nextScope: ProjectEvaluatorScope) => {
+    const nextGrain = toEvaluatorMappingSourceGrain(nextScope.targetType);
+    if (nextGrain !== mappingSourceGrain) {
+      const state = evaluatorStore.getState();
+      state.setEvaluatorMappingSourceGrain(nextGrain);
+      state.setPathMapping(
+        dropOtherGrainEntityPathMappings(
+          state.evaluator.inputMapping,
+          nextGrain
+        ).pathMapping
+      );
+    }
+    scopeFields?.onScopeChange(nextScope);
+  };
   // The run list below the Suspense boundary owns the records and the run
   // machinery; it hands the header's Test All button the latest run-all
   // closure through this ref and reports readiness through the state.
@@ -216,195 +264,112 @@ export const ProjectEvaluatorScopePanel = (
       Test All
     </Button>
   );
-  // Every target maps onto a mapping-source grain, and the preview below
-  // reads the grain's records: TRACE collapses onto span, so a trace
-  // evaluator previews spans by way of that mapping, not by default.
-  const matchingRecords = () => {
-    switch (mappingSourceGrain) {
-      case "session":
-        return (
-          <>
-            <SessionInputNote />
-            <Flex direction="column" gap="size-25">
-              {props.showScopeFields !== false ? (
-                <Flex
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  gap="size-200"
-                >
-                  <Heading level={2}>Matching sessions</Heading>
-                  {testAllButton}
-                </Flex>
-              ) : (
-                <>
-                  <Flex
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    gap="size-200"
-                  >
-                    <Heading level={2} weight="heavy">
-                      Test with a Session
-                    </Heading>
-                    <Flex direction="row" alignItems="center" gap="size-100">
-                      <TimeWindowSegmentedControl
-                        size="S"
-                        value={timeWindow.presetId}
-                        onChange={setTimeWindow}
-                      />
-                      {testAllButton}
-                    </Flex>
-                  </Flex>
-                  <Text color="text-500">
-                    Test your evaluator on recent sessions that match your
-                    scope.
-                  </Text>
-                </>
-              )}
-              <Suspense
-                fallback={
-                  <Text size="S" color="text-500">
-                    Counting matching sessions…
-                  </Text>
-                }
-              >
-                <MatchedSessionCountLine
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                />
-              </Suspense>
-            </Flex>
-            <Suspense fallback={<Loading />}>
-              {codeEvaluatorId || inlineCode ? (
-                <SessionRunList
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                  codeEvaluatorId={codeEvaluatorId}
-                  inlineCode={inlineCode}
-                  requiredVariables={requiredVariables}
-                  runAllRecordsRef={runAllRecordsRef}
-                  onCanRunAllChange={setCanRunAllRecords}
-                />
-              ) : (
-                <LlmSessionRunList
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                  requiredVariables={requiredVariables}
-                  runAllRecordsRef={runAllRecordsRef}
-                  onCanRunAllChange={setCanRunAllRecords}
-                />
-              )}
-            </Suspense>
-          </>
-        );
-      case "span":
-        return (
-          <>
-            <Flex direction="column" gap="size-25">
-              {props.showScopeFields !== false ? (
-                <Flex
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  gap="size-200"
-                >
-                  <Heading level={2}>Matching spans</Heading>
-                  {testAllButton}
-                </Flex>
-              ) : (
-                <>
-                  <Flex
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    gap="size-200"
-                  >
-                    <Heading level={2} weight="heavy">
-                      Test with a Span
-                    </Heading>
-                    <Flex direction="row" alignItems="center" gap="size-100">
-                      <TimeWindowSegmentedControl
-                        size="S"
-                        value={timeWindow.presetId}
-                        onChange={setTimeWindow}
-                      />
-                      {testAllButton}
-                    </Flex>
-                  </Flex>
-                  <Text color="text-500">
-                    Test your evaluator on recent spans that match your scope.
-                  </Text>
-                </>
-              )}
-              <Suspense
-                fallback={
-                  <Text size="S" color="text-500">
-                    Counting matching spans…
-                  </Text>
-                }
-              >
-                <MatchedSpanCountLine
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                />
-              </Suspense>
-            </Flex>
-            <Suspense fallback={<Loading />}>
-              {codeEvaluatorId || inlineCode ? (
-                <SpanRunList
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                  codeEvaluatorId={codeEvaluatorId}
-                  inlineCode={inlineCode}
-                  requiredVariables={requiredVariables}
-                  runAllRecordsRef={runAllRecordsRef}
-                  onCanRunAllChange={setCanRunAllRecords}
-                />
-              ) : (
-                <LlmSpanRunList
-                  projectId={projectId}
-                  filterCondition={scope.filterCondition}
-                  timeWindow={timeWindow}
-                  requiredVariables={requiredVariables}
-                  runAllRecordsRef={runAllRecordsRef}
-                  onCanRunAllChange={setCanRunAllRecords}
-                />
-              )}
-            </Suspense>
-          </>
-        );
-      default:
-        return assertUnreachable(mappingSourceGrain);
-    }
+  // Every target maps onto a mapping-source grain, and the preview reads the
+  // grain's records: TRACE collapses onto span, so a trace evaluator previews
+  // spans by way of that mapping, not by default.
+  const { CountLine, RunList, note } =
+    MATCHING_RECORDS_BY_GRAIN[mappingSourceGrain];
+  const records = `${mappingSourceGrain}s`;
+  const runListProps: RecordRunListProps = {
+    projectId,
+    filterCondition: scope.filterCondition,
+    timeWindow,
+    codeEvaluatorId,
+    inlineCode,
+    requiredVariables,
+    runAllRecordsRef,
+    onCanRunAllChange: setCanRunAllRecords,
   };
   return (
     <div css={panelCSS}>
       <div css={panelScrollCSS}>
-        {props.showScopeFields !== false ? (
+        {scopeFields ? (
           <>
             <Heading level={2}>Scope</Heading>
             <ScopeEditorCard
               projectId={projectId}
               scope={scope}
-              onScopeChange={props.onScopeChange}
-              onFilterValidityChange={props.onFilterValidityChange}
+              onScopeChange={handleScopeChange}
+              onFilterValidityChange={scopeFields.onFilterValidityChange}
               timeWindow={timeWindow}
               onTimeWindowChange={setTimeWindow}
-              isTargetDisabled={props.isTargetDisabled ?? false}
+              isTargetDisabled={scopeFields.isTargetDisabled ?? false}
             />
           </>
         ) : null}
-        {matchingRecords()}
+        {note}
+        <Flex direction="column" gap="size-25">
+          {scopeFields ? (
+            <Flex
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              gap="size-200"
+            >
+              <Heading level={2}>Matching {records}</Heading>
+              {testAllButton}
+            </Flex>
+          ) : (
+            <>
+              <Flex
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                gap="size-200"
+              >
+                <Heading level={2} weight="heavy">
+                  Test with a {capitalize(mappingSourceGrain)}
+                </Heading>
+                <Flex direction="row" alignItems="center" gap="size-100">
+                  <TimeWindowSegmentedControl
+                    size="S"
+                    value={timeWindow.presetId}
+                    onChange={setTimeWindow}
+                  />
+                  {testAllButton}
+                </Flex>
+              </Flex>
+              <Text color="text-500">
+                Test your evaluator on recent {records} that match your scope.
+              </Text>
+            </>
+          )}
+          <Suspense
+            fallback={
+              <Text size="S" color="text-500">
+                Counting matching {records}…
+              </Text>
+            }
+          >
+            <CountLine
+              projectId={projectId}
+              filterCondition={scope.filterCondition}
+              timeWindow={timeWindow}
+            />
+          </Suspense>
+        </Flex>
+        <Suspense fallback={<Loading />}>
+          {codeEvaluatorId || inlineCode ? (
+            <RunList {...runListProps} />
+          ) : (
+            <LlmRunList RunList={RunList} {...runListProps} />
+          )}
+        </Suspense>
       </div>
     </div>
   );
 };
+
+/** An LLM evaluator's runs also read the playground store, which only a hook reaches. */
+function LlmRunList({
+  RunList,
+  ...props
+}: Omit<RecordRunListProps, "playgroundStore"> & {
+  RunList: ComponentType<RecordRunListProps>;
+}) {
+  const playgroundStore = usePlaygroundStore();
+  return <RunList {...props} playgroundStore={playgroundStore} />;
+}
 
 /** Names the bindings a session evaluator receives, which no span vocabulary covers. */
 function SessionInputNote() {
@@ -555,11 +520,7 @@ function MatchedSpanCountLine({
   projectId,
   filterCondition,
   timeWindow,
-}: {
-  projectId: string;
-  filterCondition: string;
-  timeWindow: TimeWindow;
-}) {
+}: MatchedCountLineProps) {
   const { startIso, prose } = timeWindow;
   const matchedCount = useMatchedSpanCount({
     projectId,
@@ -582,11 +543,7 @@ function MatchedSessionCountLine({
   projectId,
   filterCondition,
   timeWindow,
-}: {
-  projectId: string;
-  filterCondition: string;
-  timeWindow: TimeWindow;
-}) {
+}: MatchedCountLineProps) {
   const { startIso, prose } = timeWindow;
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSessionCountQuery>(
     graphql`
@@ -634,16 +591,6 @@ function formatSessionMetric(numTraces: number, totalTokens: number): string {
   return `${traces} · ${totalTokens.toLocaleString()} tokens`;
 }
 
-function LlmSessionRunList(
-  props: Omit<
-    Parameters<typeof SessionRunList>[0],
-    "codeEvaluatorId" | "inlineCode" | "playgroundStore"
-  >
-) {
-  const playgroundStore = usePlaygroundStore();
-  return <SessionRunList {...props} playgroundStore={playgroundStore} />;
-}
-
 /**
  * The sessions this evaluator would run on, each carrying the same evaluation
  * context a live session evaluation binds against, so a row can be tested.
@@ -658,17 +605,7 @@ function SessionRunList({
   requiredVariables,
   runAllRecordsRef,
   onCanRunAllChange,
-}: {
-  projectId: string;
-  filterCondition: string;
-  timeWindow: TimeWindow;
-  codeEvaluatorId?: string;
-  inlineCode?: ProjectEvaluatorInlineCode;
-  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
-  requiredVariables?: string[];
-  runAllRecordsRef?: { current: () => void };
-  onCanRunAllChange?: (canRunAll: boolean) => void;
-}) {
+}: RecordRunListProps) {
   const [limit, setLimit] = useState(SESSION_LIST_PAGE_SIZE);
   // A transition keeps the current rows visible instead of collapsing the list
   // to its Suspense fallback while the wider page loads.
@@ -808,16 +745,6 @@ const SAMPLE_ROW_KEY = "__sample__";
 
 const SPAN_LIST_PAGE_SIZE = 5;
 
-function LlmSpanRunList(
-  props: Omit<
-    Parameters<typeof SpanRunList>[0],
-    "codeEvaluatorId" | "inlineCode" | "playgroundStore"
-  >
-) {
-  const playgroundStore = usePlaygroundStore();
-  return <SpanRunList {...props} playgroundStore={playgroundStore} />;
-}
-
 function SpanRunList({
   projectId,
   filterCondition,
@@ -828,17 +755,7 @@ function SpanRunList({
   requiredVariables,
   runAllRecordsRef,
   onCanRunAllChange,
-}: {
-  projectId: string;
-  filterCondition: string;
-  timeWindow: TimeWindow;
-  codeEvaluatorId?: string;
-  inlineCode?: ProjectEvaluatorInlineCode;
-  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
-  requiredVariables?: string[];
-  runAllRecordsRef?: { current: () => void };
-  onCanRunAllChange?: (canRunAll: boolean) => void;
-}) {
+}: RecordRunListProps) {
   const [limit, setLimit] = useState(SPAN_LIST_PAGE_SIZE);
   // A transition keeps the current rows visible instead of collapsing the list
   // to its Suspense fallback while the wider page loads.
