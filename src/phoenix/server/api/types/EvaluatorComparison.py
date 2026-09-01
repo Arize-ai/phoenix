@@ -94,8 +94,7 @@ class EvaluatorComparisonSide:
     )
     score_bin_edges: Optional[list[float]] = strawberry.field(
         description=(
-            "The 11 bin edges scoreBinCounts is computed over; null for categorical "
-            "sides."
+            "The 11 bin edges scoreBinCounts is computed over; null for categorical sides."
         )
     )
 
