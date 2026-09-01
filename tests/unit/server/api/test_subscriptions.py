@@ -1871,9 +1871,9 @@ class TestChatCompletionOverDatasetSubscription:
 
         The runner's token bucket starts with a single token, so the last example is
         dispatched only after the others have run. Dispatch hands the work item to the
-        daemon's task group with start_soon(), and the item's task registers its cancel
-        scope one event-loop turn later. If the previous example finishes in that turn,
-        its completion check must still see the dispatched item as pending work.
+        daemon's task group with start_soon(), so the worker that runs it only begins
+        one event-loop turn later. If the previous example finishes in that turn, its
+        completion check must still see the dispatched item as pending work.
         Otherwise the experiment completes and the subscription stream closes without
         the last result. The interleaving is pinned with events rather than timing.
         """
@@ -1903,8 +1903,9 @@ class TestChatCompletionOverDatasetSubscription:
         async def execute_and_hold_example_4(work_item: TaskWorkItem) -> None:
             await original_execute(work_item)
             if _dataset_example_id(work_item) == 4:
-                await examples_1_to_3_unregistered.wait()
-                await example_5_popped.wait()
+                with anyio.fail_after(30):  # fail rather than hang if the roles change
+                    await examples_1_to_3_unregistered.wait()
+                    await example_5_popped.wait()
 
         monkeypatch.setattr(TaskWorkItem, "execute", execute_and_hold_example_4)
 
@@ -1929,7 +1930,8 @@ class TestChatCompletionOverDatasetSubscription:
             runner: ExperimentRunner, work_item: WorkItem
         ) -> None:
             if _dataset_example_id(work_item) == 5:
-                await example_4_unregistered.wait()
+                with anyio.fail_after(30):
+                    await example_4_unregistered.wait()
             await original_run_and_release(runner, work_item)
 
         monkeypatch.setattr(

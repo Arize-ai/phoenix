@@ -17,9 +17,11 @@ from phoenix.server.daemons.experiment_runner import (
     CircuitBreaker,
     EvaluatorRunSpec,
     EvalWorkItem,
+    ExperimentRunner,
     RetryItem,
     RunningExperiment,
     TaskWorkItem,
+    WorkItem,
     _NoOpLLMClient,
 )
 from phoenix.server.monty_runtime import MontyBusy
@@ -465,12 +467,15 @@ class TestRunningExperimentQueueLogic:
     async def test_unregister_cancel_scope_cleans_in_flight_state(self) -> None:
         """Unregister always removes work item from in-flight and scope maps."""
         exp = _make_running_experiment()
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = True
         eval_item = _make_eval_work_item(exp, run_id=313, dataset_evaluator_id=1)
-        scope = anyio.CancelScope()
+        exp._eval_queue.append(eval_item)
 
-        exp.register_cancel_scope(eval_item, scope)
+        assert await exp.try_get_ready_work_item() is eval_item
         assert eval_item in exp._in_flight
         assert eval_item in exp._cancel_scopes
+        assert exp.start_execution(eval_item) is exp._cancel_scopes[eval_item]
 
         await exp.unregister_cancel_scope(eval_item)
 
@@ -479,10 +484,10 @@ class TestRunningExperimentQueueLogic:
 
     @pytest.mark.anyio
     async def test_dispatched_work_item_counts_as_in_flight_before_it_starts(self) -> None:
-        """A popped work item keeps the experiment alive until its task registers a scope.
+        """A dispatched item keeps the experiment alive until its worker has run it.
 
-        The daemon dispatches with start_soon(), so another task can finish and run a
-        completion check before the dispatched item's task has begun. The item must
+        The daemon starts workers with start_soon(), so another task can finish and run
+        a completion check before the dispatched item's worker has begun. The item must
         already count as in-flight, or the experiment completes without it.
         """
         on_done = _make_on_done()
@@ -491,31 +496,35 @@ class TestRunningExperimentQueueLogic:
         exp._eval_db_exhausted = True
         finishing = _make_task_work_item(exp, dataset_example_id=1)
         dispatched = _make_task_work_item(exp, dataset_example_id=2)
-        exp.register_cancel_scope(finishing, anyio.CancelScope())
-        exp._task_queue.append(dispatched)
+        exp._task_queue.extend([finishing, dispatched])
 
+        assert await exp.try_get_ready_work_item() is finishing
         assert await exp.try_get_ready_work_item() is dispatched
-        assert dispatched in exp._in_flight
+        assert exp.has_work()
 
-        # The other task finishes before the dispatched item's task has started.
+        # The first item's worker runs to completion before the second one's has begun.
+        with exp.start_execution(finishing):
+            pass
         await exp.unregister_cancel_scope(finishing)
 
         assert exp._active
         on_done.assert_not_called()
 
-        # The dispatched item starts and finishes; only now is the experiment complete.
-        exp.register_cancel_scope(dispatched, anyio.CancelScope())
+        # The second item's worker runs and finishes; only now is the experiment done.
+        with exp.start_execution(dispatched):
+            pass
         await exp.unregister_cancel_scope(dispatched)
 
         assert not exp._active
         on_done.assert_called_once_with(exp._experiment.id)
 
     @pytest.mark.anyio
-    async def test_register_cancel_scope_after_stop_cancels_dispatched_item(self) -> None:
-        """An item dispatched before stop() is cancelled when its task starts.
+    async def test_stop_cancels_dispatched_item_before_its_worker_starts(self) -> None:
+        """An item dispatched before stop() is cancelled when its worker enters the scope.
 
-        stop() can only cancel scopes that already exist. A dispatched item registers
-        its scope later, so registration has to cancel it and let the experiment drain.
+        The scope exists from dispatch, so stop() cancels it like any other. A worker
+        that enters it afterwards is cancelled at its first checkpoint, and the
+        experiment drains once that worker has unregistered.
         """
         exp = _make_running_experiment()
         exp._task_db_exhausted = True
@@ -527,12 +536,65 @@ class TestRunningExperimentQueueLogic:
         exp.stop()
         assert not exp._drained.is_set()
 
-        scope = anyio.CancelScope()
-        exp.register_cancel_scope(dispatched, scope)
-        assert scope.cancel_called
+        reached_past_first_checkpoint = False
+        with exp.start_execution(dispatched) as scope:
+            assert scope.cancel_called
+            await anyio.sleep(0)  # first checkpoint: the pre-entry cancel lands here
+            reached_past_first_checkpoint = True
+        assert scope.cancelled_caught
+        assert not reached_past_first_checkpoint
 
         await exp.unregister_cancel_scope(dispatched)
         assert exp._drained.is_set()
+
+    @pytest.mark.anyio
+    async def test_undispatch_puts_item_back_where_it_came_from(self) -> None:
+        """A dispatch whose worker could not start is reversed exactly.
+
+        Evals, ready retries and tasks come from different structures. A retry must go
+        back as its original RetryItem so it keeps its ready time and its ordering.
+        """
+        exp = _make_running_experiment()
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = True
+        eval_item = _make_eval_work_item(exp)
+        retry_task = _make_task_work_item(exp, dataset_example_id=1, retry_count=1)
+        retry_item = RetryItem(
+            ready_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+            work_item=retry_task,
+        )
+        task = _make_task_work_item(exp, dataset_example_id=2)
+        exp._eval_queue.append(eval_item)
+        heapq.heappush(exp._retry_heap, retry_item)
+        exp._task_queue.append(task)
+
+        async def dispatch_then_undo(expected: WorkItem) -> None:
+            dispatched = await exp.try_get_ready_work_item()
+            assert dispatched is expected
+            exp.undispatch(dispatched)
+            assert dispatched not in exp._in_flight
+            assert dispatched not in exp._cancel_scopes
+            assert exp.has_work()
+
+        async def run_to_completion(expected: WorkItem) -> None:
+            assert await exp.try_get_ready_work_item() is expected
+            with exp.start_execution(expected):
+                pass
+            await exp.unregister_cancel_scope(expected)
+
+        await dispatch_then_undo(eval_item)
+        assert list(exp._eval_queue) == [eval_item]
+        await run_to_completion(eval_item)
+
+        await dispatch_then_undo(retry_task)
+        assert exp._retry_heap == [retry_item]
+        await run_to_completion(retry_task)
+
+        await dispatch_then_undo(task)
+        assert list(exp._task_queue) == [task]
+        await run_to_completion(task)
+
+        assert not exp.has_work()
 
     @pytest.mark.anyio
     async def test_retry_or_fail_exhausted(self) -> None:
@@ -933,7 +995,6 @@ class TestRoundRobinFairness:
     @pytest.mark.anyio
     async def test_round_robin_picks_least_recently_served(self) -> None:
         """_try_get_ready_work_item in ExperimentRunner picks least-recently-served experiment."""
-        from phoenix.server.daemons.experiment_runner import ExperimentRunner
 
         runner = object.__new__(ExperimentRunner)
         runner._experiments = {}
@@ -1012,7 +1073,6 @@ class TestGracefulShutdown:
     @pytest.mark.anyio
     async def test_graceful_shutdown_stops_all(self) -> None:
         """_graceful_shutdown calls stop() on each experiment."""
-        from phoenix.server.daemons.experiment_runner import ExperimentRunner
 
         runner = object.__new__(ExperimentRunner)
         runner._experiments = {}
@@ -1031,6 +1091,84 @@ class TestGracefulShutdown:
 
         stop1.assert_called_once()
         stop2.assert_called_once()
+
+
+# ===========================================================================
+# Group 6b: Dispatch hand-off to worker tasks
+# ===========================================================================
+
+
+class TestDispatchHandOff:
+    @staticmethod
+    def _make_runner(exp: RunningExperiment) -> ExperimentRunner:
+        runner = object.__new__(ExperimentRunner)
+        runner._experiments = {exp._experiment.id: exp}
+        runner._seats = anyio.Semaphore(10)
+        return runner
+
+    @pytest.mark.anyio
+    async def test_failed_hand_off_undoes_the_dispatch(self) -> None:
+        """If no worker task can be created, the item goes back to its queue.
+
+        Otherwise it would sit in the in-flight set forever: the experiment could never
+        complete, and stop_experiment() would wait for a drain that never comes.
+        """
+        exp = _make_running_experiment()
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = True
+        task = _make_task_work_item(exp, dataset_example_id=1)
+        exp._task_queue.append(task)
+        runner = self._make_runner(exp)
+
+        dispatched = await runner._try_get_ready_work_item()
+        assert dispatched is task
+        never_entered_task_group = anyio.create_task_group()  # refuses new tasks
+
+        with pytest.raises(RuntimeError):
+            runner._hand_off(never_entered_task_group, dispatched)
+
+        assert task not in exp._in_flight
+        assert task not in exp._cancel_scopes
+        assert list(exp._task_queue) == [task]
+        assert exp.has_work()
+
+    @pytest.mark.anyio
+    async def test_stop_between_dispatch_and_worker_start_cancels_the_worker(self) -> None:
+        """A worker whose experiment was stopped before it began does no work.
+
+        The dispatch loop starts workers with start_soon(), so stop() can run after the
+        item was handed off but before the worker's first step. The worker enters the
+        scope that stop() already cancelled, is cancelled at its first checkpoint, and
+        still unregisters so the experiment drains and the seat is released.
+        """
+        exp = _make_running_experiment()
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = True
+        task = _make_task_work_item(exp, dataset_example_id=1)
+        exp._task_queue.append(task)
+        runner = self._make_runner(exp)
+        worker_started = anyio.Event()
+        ran_past_first_checkpoint = False
+
+        async def execute() -> None:
+            nonlocal ran_past_first_checkpoint
+            worker_started.set()
+            await anyio.sleep(0)
+            ran_past_first_checkpoint = True
+
+        with patch.object(task, "execute", execute):
+            await runner._seats.acquire()
+            dispatched = await runner._try_get_ready_work_item()
+            assert dispatched is task
+            async with anyio.create_task_group() as tg:
+                runner._hand_off(tg, dispatched)
+                exp.stop()  # the worker has not had its first step yet
+
+        assert worker_started.is_set()
+        assert not ran_past_first_checkpoint
+        assert task not in exp._in_flight
+        assert exp._drained.is_set()
+        assert runner._seats.value == 10
 
 
 # ===========================================================================
