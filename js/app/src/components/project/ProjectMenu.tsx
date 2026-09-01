@@ -1,4 +1,12 @@
-import { startTransition, Suspense, useState } from "react";
+import {
+  startTransition,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
 
 import {
@@ -39,6 +47,13 @@ export type ProjectMenuProps = StylableProps & {
   query: ProjectMenu_projects$key;
   selectedProjectId?: string | null;
   onProjectChange: (projectId: string) => void;
+  /**
+   * Called when the selected project's name cannot be resolved (e.g. the
+   * project was deleted). The menu itself degrades to its placeholder; use
+   * this to clean up state that references the project, such as a remembered
+   * last-selected id.
+   */
+  onSelectedProjectError?: () => void;
   placeholder?: string;
   searchPlaceholder?: string;
   size?: MenuButtonProps["size"];
@@ -82,8 +97,12 @@ function ProjectMenuButton({
  */
 function SelectedProjectMenuButton({
   projectId,
+  fetchKey,
   ...buttonProps
-}: Omit<ProjectMenuButtonProps, "projectName"> & { projectId: string }) {
+}: Omit<ProjectMenuButtonProps, "projectName"> & {
+  projectId: string;
+  fetchKey: number;
+}) {
   const data = useLazyLoadQuery<ProjectMenuSelectedProjectQuery>(
     graphql`
       query ProjectMenuSelectedProjectQuery($id: ID!) {
@@ -97,7 +116,7 @@ function SelectedProjectMenuButton({
       }
     `,
     { id: projectId },
-    { fetchPolicy: "store-or-network" }
+    { fetchPolicy: "store-or-network", fetchKey }
   );
   const projectName =
     data.node?.__typename === "Project" && typeof data.node.name === "string"
@@ -106,10 +125,26 @@ function SelectedProjectMenuButton({
   return <ProjectMenuButton projectName={projectName} {...buttonProps} />;
 }
 
+/**
+ * Error fallback for the selected-project lookup. Renders the same
+ * placeholder button and reports the failure so the caller can react (e.g.
+ * clear a remembered project id) and the menu can retry on the next open.
+ */
+function SelectedProjectMenuButtonFallback({
+  onError,
+  ...buttonProps
+}: ProjectMenuButtonProps & { onError: () => void }) {
+  useEffect(() => {
+    onError();
+  }, [onError]);
+  return <ProjectMenuButton {...buttonProps} />;
+}
+
 export function ProjectMenu({
   query,
   selectedProjectId,
   onProjectChange,
+  onSelectedProjectError,
   placeholder = "Select project",
   searchPlaceholder = "Search projects...",
   size,
@@ -118,6 +153,14 @@ export function ProjectMenu({
   const [search, setSearch] = useState("");
   const [optimisticProject, setOptimisticProject] =
     useState<SelectedProject | null>(null);
+  // Bumped to retry the selected-project lookup after a failure; the ref
+  // remembers that the last attempt failed so a retry only happens then.
+  const [selectedProjectFetchKey, setSelectedProjectFetchKey] = useState(0);
+  const selectedProjectErrorRef = useRef(false);
+  const handleSelectedProjectError = useCallback(() => {
+    selectedProjectErrorRef.current = true;
+    onSelectedProjectError?.();
+  }, [onSelectedProjectError]);
   const { contains } = useFilter({ sensitivity: "base" });
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ProjectMenuProjectsQuery, ProjectMenu_projects$key>(
@@ -145,9 +188,13 @@ export function ProjectMenu({
       query
     );
 
-  const projects = data.projects.edges.map((edge) => edge.project);
-  const selectedProject: SelectedProject | null =
-    projects.find((project) => project.id === selectedProjectId) ?? null;
+  const projects = useMemo(
+    () => data.projects.edges.map((edge) => edge.project),
+    [data.projects.edges]
+  );
+  const selectedProject = projects.find(
+    (project) => project.id === selectedProjectId
+  );
   const projectFilter = search ? { col: "name" as const, value: search } : null;
   const displayProjectName = selectedProjectId
     ? (selectedProject?.name ??
@@ -159,10 +206,7 @@ export function ProjectMenu({
   const onSearchChange = (value: string) => {
     setSearch(value);
     if (selectedProject) {
-      setOptimisticProject({
-        id: selectedProject.id,
-        name: selectedProject.name,
-      });
+      setOptimisticProject(selectedProject);
     }
     startTransition(() => {
       refetch(
@@ -193,55 +237,55 @@ export function ProjectMenu({
     });
   };
 
+  const buttonProps = {
+    css: propCSS,
+    placeholder,
+    size,
+  };
+
   return (
     <MenuTrigger
       onOpenChange={(isOpen) => {
-        if (!isOpen) {
+        if (isOpen) {
+          // Retry a previously failed selected-project lookup: a transient
+          // network error should not latch the placeholder for the rest of
+          // the session.
+          if (selectedProjectErrorRef.current) {
+            selectedProjectErrorRef.current = false;
+            setSelectedProjectFetchKey((key) => key + 1);
+          }
+        } else {
           resetSearch();
         }
       }}
     >
       {selectedProjectId && displayProjectName == null ? (
-        // The error boundary keeps a stale id (e.g. a deleted project) from
-        // crashing the page: the menu falls back to its placeholder so the
-        // user can pick a different project. Keyed so the boundary resets
-        // when the selection changes.
+        // The error boundary keeps a failed lookup (e.g. a stale id for a
+        // deleted project) from crashing the page: the menu falls back to its
+        // placeholder so the user can pick a different project. Keyed so the
+        // boundary resets when the selection changes or a retry is requested.
         <ErrorBoundary
-          key={selectedProjectId}
+          key={`${selectedProjectId}:${selectedProjectFetchKey}`}
           fallback={() => (
-            <ProjectMenuButton
-              css={propCSS}
-              placeholder={placeholder}
+            <SelectedProjectMenuButtonFallback
+              {...buttonProps}
               projectName={null}
-              size={size}
+              onError={handleSelectedProjectError}
             />
           )}
         >
           <Suspense
-            fallback={
-              <ProjectMenuButton
-                css={propCSS}
-                placeholder={placeholder}
-                projectName={null}
-                size={size}
-              />
-            }
+            fallback={<ProjectMenuButton {...buttonProps} projectName={null} />}
           >
             <SelectedProjectMenuButton
-              css={propCSS}
-              placeholder={placeholder}
+              {...buttonProps}
+              fetchKey={selectedProjectFetchKey}
               projectId={selectedProjectId}
-              size={size}
             />
           </Suspense>
         </ErrorBoundary>
       ) : (
-        <ProjectMenuButton
-          css={propCSS}
-          placeholder={placeholder}
-          projectName={displayProjectName}
-          size={size}
-        />
+        <ProjectMenuButton {...buttonProps} projectName={displayProjectName} />
       )}
       <MenuContainer placement="bottom start">
         <Autocomplete filter={contains}>
