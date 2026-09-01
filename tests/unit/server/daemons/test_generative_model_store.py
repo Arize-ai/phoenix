@@ -13,8 +13,8 @@ from tests.unit.graphql import AsyncGraphQLClient
 _CYCLE_TIMEOUT_SECONDS = 30.0
 
 
-class _DaemonCycleBarrier:
-    """Synchronizes the test with the store's fetch loop through its patched sleep.
+class _DaemonCycleController:
+    """Steps the store's fetch loop one cycle at a time through its patched sleep.
 
     The loop assigns _last_fetch_time before it sleeps, so entering sleep marks a
     finished cycle: the patched sleep signals completion, then parks the loop until
@@ -46,10 +46,10 @@ class _DaemonCycleBarrier:
 
 
 @pytest.fixture
-async def daemon_cycles() -> AsyncIterator[_DaemonCycleBarrier]:
-    barrier = _DaemonCycleBarrier()
-    with patch("phoenix.server.daemons.generative_model_store.sleep", barrier.sleep):
-        yield barrier
+async def daemon_cycles() -> AsyncIterator[_DaemonCycleController]:
+    controller = _DaemonCycleController()
+    with patch("phoenix.server.daemons.generative_model_store.sleep", controller.sleep):
+        yield controller
 
 
 class TestGenerativeModelStore:
@@ -79,7 +79,7 @@ class TestGenerativeModelStore:
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
-        daemon_cycles: _DaemonCycleBarrier,
+        daemon_cycles: _DaemonCycleController,
     ) -> None:
         """
         Drive the daemon through controlled fetch cycles and verify that:
