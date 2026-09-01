@@ -1819,7 +1819,7 @@ def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
     return None
 
 
-def _require_condition(node: ast.expr) -> None:
+def _require_condition(node: ast.AST) -> None:
     """Require `node` to be a condition rather than a value.
 
     Each operand of `and` / `or` / `not` becomes an argument of SQL `AND` / `OR`
@@ -3465,8 +3465,12 @@ def _validate_expression(
                 or isinstance(node, ast.UnaryOp)
                 and isinstance(node.op, ast.Not)
                 or _is_annotation(node, bindings)
-                or _comprehension_argument(node, bindings) is not None
             ):
+                continue
+            if _comprehension_argument(node, bindings) is not None:
+                # A quantifier is a predicate; a reduction is a number, no more a
+                # condition here than in `and` / `or` position.
+                _require_condition(node)
                 continue
             if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript, ast.Constant)):
                 # A value as the whole condition, which is the same mistake as a

@@ -473,6 +473,18 @@ async def test_cost_and_annotation_in_one_condition_read_the_same_span(
     [
         pytest.param("total_cost > '1'", "cannot compare", id="string-comparand"),
         pytest.param("cost_details > 1", "can only be iterated", id="collection-in-value-position"),
+        # A reduction is a number, not a predicate, so it cannot stand alone as
+        # the whole condition any more than in `and` / `or` position.
+        pytest.param(
+            "sum(d.cost for d in cost_details)",
+            "is not a condition",
+            id="bare-reduction-as-condition",
+        ),
+        pytest.param(
+            "len([d for d in cost_details])",
+            "is not a condition",
+            id="bare-len-as-condition",
+        ),
     ],
 )
 def test_cost_name_rejections(condition: str, message: str) -> None:

@@ -172,6 +172,8 @@ REJECTED = [
     ("any(str(d.token_type) == 'a' for d in cost_details)", "cannot cast text"),
     # An `if` clause is a condition, so a bare text field is not one.
     ("sum(d.cost for d in cost_details if d.token_type) > 1", "expected a condition"),
+    # A reduction is a number, not a predicate, so it is no condition on its own.
+    ("sum(d.cost for d in cost_details)", "is not a condition"),
     ("total_cost > '100'", "cannot compare"),
     # no implicit numeric coercion
     ("latency_ms > '100'", "cannot compare"),
