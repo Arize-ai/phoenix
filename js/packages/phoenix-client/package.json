@@ -61,9 +61,9 @@
       "import": "./dist/esm/users/index.js",
       "require": "./dist/src/users/index.js"
     },
-    "./modelProviders": {
-      "import": "./dist/esm/modelProviders/index.js",
-      "require": "./dist/src/modelProviders/index.js"
+    "./models": {
+      "import": "./dist/esm/models/index.js",
+      "require": "./dist/src/models/index.js"
     },
     "./traces": {
       "import": "./dist/esm/traces/index.js",

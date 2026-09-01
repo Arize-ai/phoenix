@@ -9,7 +9,7 @@ are available on a Phoenix deployment.
 ## List Available Providers
 
 ```ts
-import { getModelProviders } from "@arizeai/phoenix-client/modelProviders";
+import { getModelProviders } from "@arizeai/phoenix-client/models";
 
 const modelProviders = await getModelProviders();
 
@@ -31,7 +31,7 @@ To reuse an explicitly configured client, pass it to the helper:
 
 ```ts
 import { createClient } from "@arizeai/phoenix-client";
-import { getModelProviders } from "@arizeai/phoenix-client/modelProviders";
+import { getModelProviders } from "@arizeai/phoenix-client/models";
 
 const client = createClient({
   options: { baseUrl: "https://phoenix.example.com" },
@@ -45,8 +45,8 @@ providers are a separate REST resource.
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
   <ul>
-    <li><code>src/modelProviders/getModelProviders.ts</code></li>
-    <li><code>src/modelProviders/index.ts</code></li>
+    <li><code>src/models/getModelProviders.ts</code></li>
+    <li><code>src/models/index.ts</code></li>
     <li><code>src/__generated__/api/v1.ts</code></li>
   </ul>
 </section>

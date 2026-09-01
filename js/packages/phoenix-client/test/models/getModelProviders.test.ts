@@ -2,7 +2,7 @@ import { createHttp } from "@arizeai/phoenix-testing";
 import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { getModelProviders } from "../../src/modelProviders/getModelProviders";
+import { getModelProviders } from "../../src/models/getModelProviders";
 import { createTestClient } from "../testUtils";
 
 const http = createHttp();

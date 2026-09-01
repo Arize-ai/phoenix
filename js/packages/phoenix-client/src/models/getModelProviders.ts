@@ -18,7 +18,7 @@ export type GetModelProvidersParams = ClientFn;
  *
  * @example
  * ```ts
- * import { getModelProviders } from "@arizeai/phoenix-client/modelProviders";
+ * import { getModelProviders } from "@arizeai/phoenix-client/models";
  *
  * const modelProviders = await getModelProviders();
  * for (const modelProvider of modelProviders) {
