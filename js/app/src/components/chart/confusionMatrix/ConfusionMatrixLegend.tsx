@@ -15,7 +15,7 @@ export type ConfusionMatrixLegendProps = {
   /**
    * The count scale of the matrices this legend describes; names the scale
    * in the default label.
-   * @default 'log'
+   * @default 'linear'
    */
   scaleType?: ConfusionMatrixScaleType;
   /**
@@ -33,7 +33,7 @@ export type ConfusionMatrixLegendProps = {
  */
 export function ConfusionMatrixLegend({
   colorInterpolator,
-  scaleType = "log",
+  scaleType = "linear",
   label,
 }: ConfusionMatrixLegendProps) {
   const interpolator = useSequentialBlueColorInterpolator(colorInterpolator);

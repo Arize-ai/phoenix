@@ -95,11 +95,15 @@ export const Multiclass: Story = {
   },
 };
 
-export const LinearScale: Story = {
+/**
+ * The log scale keeps sparse cells visible when one dominant cell (here the
+ * 1,078 true-negatives) would wash the rest out on the default linear scale.
+ */
+export const LogScale: Story = {
   args: {
     data: binaryData,
     size: "L",
-    scaleType: "linear",
+    scaleType: "log",
     showPercentage: true,
   },
 };
@@ -110,12 +114,12 @@ export const CustomColorScale: Story = {
       <ConfusionMatrix
         data={multiclassData}
         colorInterpolator={interpolateViridis}
-        legendLabel="count · log scale · viridis"
+        legendLabel="count · linear scale · viridis"
       />
       <ConfusionMatrix
         data={multiclassData}
         colorInterpolator={interpolateMagma}
-        legendLabel="count · log scale · magma"
+        legendLabel="count · linear scale · magma"
       />
     </Flex>
   ),
@@ -215,7 +219,7 @@ export const SharedLegend: Story = {
             />
           </View>
         </Flex>
-        <ConfusionMatrixLegend label="span count · log scale" />
+        <ConfusionMatrixLegend label="span count · linear scale" />
       </Flex>
     );
   },

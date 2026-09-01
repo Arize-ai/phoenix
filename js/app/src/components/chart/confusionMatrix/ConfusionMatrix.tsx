@@ -46,8 +46,9 @@ export type ConfusionMatrixProps = {
    */
   colorInterpolator?: SequentialColorInterpolator;
   /**
-   * How counts map to color density
-   * @default 'log'
+   * How counts map to color density. Switch to 'log' when one dominant cell
+   * (typically the true-negative) washes out the rest.
+   * @default 'linear'
    */
   scaleType?: ConfusionMatrixScaleType;
   /**
@@ -187,7 +188,7 @@ export function ConfusionMatrix({
   actualLabels: actualLabelsProp,
   predictedLabels: predictedLabelsProp,
   colorInterpolator,
-  scaleType = "log",
+  scaleType = "linear",
   size = "M",
   maxCount: maxCountProp,
   positiveLabel,
