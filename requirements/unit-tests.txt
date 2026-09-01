@@ -16,6 +16,7 @@ protobuf
 psycopg[binary,pool]
 pyarrow-stubs
 pytest-postgresql
+pytest-timeout
 responses
 respx>=0.22.0
 syrupy

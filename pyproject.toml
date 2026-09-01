@@ -148,6 +148,7 @@ dev = [
   "pytest-randomly",
   "pytest-rerunfailures",
   "pytest-smtpd",
+  "pytest-timeout",
   "pytest-xdist",
   "requests",  # this is needed to type-check third-party packages
   "responses",

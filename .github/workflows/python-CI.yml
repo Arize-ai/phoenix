@@ -555,17 +555,18 @@ jobs:
           sudo apt-get -yqq install postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get -yqq install postgresql-14
-      # faulthandler_timeout makes a hung test dump every thread's stack to
-      # the log after 15 minutes instead of stalling silently until the
-      # 60-minute job timeout kills the run with no diagnostics.
+      # pytest-timeout's thread method dumps every thread's stack after 15
+      # stuck minutes and kills the wedged worker, so a hung test surfaces as
+      # a named failure instead of stalling silently until the 60-minute job
+      # timeout kills the run with no diagnostics.
       - name: Run SQLite tests
         if: matrix.db == 'sqlite'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 -n 16 --dist loadscope -o faulthandler_timeout=900
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 -n 16 --dist loadscope --timeout 900 --timeout-method thread
       - name: Run PostgreSQL tests
         if: matrix.db == 'postgresql'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 16 --dist loadscope -o faulthandler_timeout=900 --postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl
+        run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 16 --dist loadscope --timeout 900 --timeout-method thread --postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl
 
   integration-tests:
     name: Integration Tests

@@ -665,6 +665,7 @@ dev = [
     { name = "pytest-randomly" },
     { name = "pytest-rerunfailures" },
     { name = "pytest-smtpd" },
+    { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "requests" },
     { name = "responses" },
@@ -858,6 +859,7 @@ dev = [
     { name = "pytest-randomly" },
     { name = "pytest-rerunfailures" },
     { name = "pytest-smtpd" },
+    { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "requests" },
     { name = "responses" },
@@ -6650,6 +6652,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8d/35/57de31ff2bd745aafa940839125104c5150ea1d4c472946c18d99e6813fd/pytest_smtpd-0.1.0.tar.gz", hash = "sha256:e80cd7818f45192ebd8ec517a38d20098378e397e664ec0649da5b98a6e3ff09", size = 5495, upload-time = "2023-05-15T21:24:02.46Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/ca/509e8473e189e7c2702eaa8e0494f116cdb9aa5f4e4537f5dbaa93c3f096/pytest_smtpd-0.1.0-py3-none-any.whl", hash = "sha256:1249e4d0ab77120eb53bce5123200b94ab6667b52a6cb5c741a3956a254c2dd8", size = 4685, upload-time = "2023-05-15T21:24:00.815Z" },
+]
+
+[[package]]
+name = "pytest-timeout"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ac/82/4c9ecabab13363e72d880f2fb504c5f750433b2b6f16e99f4ec21ada284c/pytest_timeout-2.4.0.tar.gz", hash = "sha256:7e68e90b01f9eff71332b25001f85c75495fc4e3a836701876183c4bcfd0540a", size = 17973, upload-time = "2025-05-05T19:44:34.99Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/b6/3127540ecdf1464a00e5a01ee60a1b09175f6913f0644ac748494d9c4b21/pytest_timeout-2.4.0-py3-none-any.whl", hash = "sha256:c42667e5cdadb151aeb5b26d114aff6bdf5a907f176a007a30b940d3d865b5c2", size = 14382, upload-time = "2025-05-05T19:44:33.502Z" },
 ]
 
 [[package]]
