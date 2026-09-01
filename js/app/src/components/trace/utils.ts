@@ -1,7 +1,5 @@
 import type { ISpanItem } from "./types";
 
-const PHOENIX_SPAN_ORDER_KEY = "_phoenix.span_order";
-
 /**
  * Tree node used by trace tree renderers.
  *
@@ -44,50 +42,6 @@ export function compareTimestamps(a: string, b: string): number {
   return Math.sign(dateA.getTime() - dateB.getTime());
 }
 
-/** Return an optional producer order used only to break timestamp ties. */
-function getSpanOrder(span: ISpanItem): number | null {
-  let metadata: unknown = span.metadata;
-  if (typeof metadata === "string") {
-    try {
-      metadata = JSON.parse(metadata) as unknown;
-    } catch {
-      return null;
-    }
-  }
-  if (
-    metadata == null ||
-    typeof metadata !== "object" ||
-    Array.isArray(metadata)
-  ) {
-    return null;
-  }
-  const value = (metadata as Record<string, unknown>)[PHOENIX_SPAN_ORDER_KEY];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-/** Compare spans chronologically, then by an explicit equal-time order. */
-function compareSpans({
-  firstSpan,
-  secondSpan,
-}: {
-  firstSpan: ISpanItem;
-  secondSpan: ISpanItem;
-}): number {
-  const timestampOrder = compareTimestamps(
-    firstSpan.startTime,
-    secondSpan.startTime
-  );
-  if (timestampOrder !== 0) {
-    return timestampOrder;
-  }
-  const firstOrder = getSpanOrder(firstSpan);
-  const secondOrder = getSpanOrder(secondSpan);
-  if (firstOrder == null || secondOrder == null) {
-    return 0;
-  }
-  return Math.sign(firstOrder - secondOrder);
-}
-
 /**
  * Creates a chronologically sorted tree from a flat list of spans.
  *
@@ -98,8 +52,8 @@ function compareSpans({
  * dropping orphaned spans.
  *
  * Root spans and each node's children are sorted by `startTime` using
- * {@link compareTimestamps}, preserving sub-millisecond ordering. Exact ties
- * may use Phoenix's optional producer-order metadata as a display tie-break.
+ * {@link compareTimestamps}, preserving sub-millisecond ordering. The input
+ * order is preserved when timestamps are exactly equal.
  *
  * @typeParam TSpan - Span item type retained on each tree node.
  * @param spans - Flat span list from a single trace or trace-like collection.
@@ -132,11 +86,11 @@ export function createSpanTree<TSpan extends ISpanItem>(
   // So that the children are in the correct order
   for (const spanNode of spanMap.values()) {
     spanNode.children.sort((firstNode, secondNode) =>
-      compareSpans({ firstSpan: firstNode.span, secondSpan: secondNode.span })
+      compareTimestamps(firstNode.span.startTime, secondNode.span.startTime)
     );
   }
   rootSpans.sort((firstNode, secondNode) =>
-    compareSpans({ firstSpan: firstNode.span, secondSpan: secondNode.span })
+    compareTimestamps(firstNode.span.startTime, secondNode.span.startTime)
   );
   return rootSpans;
 }

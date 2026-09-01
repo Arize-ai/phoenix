@@ -426,17 +426,6 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
             all(span["attributes"].get("session.id") == f"harbor:{trace_id}" for span in spans),
             "ATIF trace does not share one trial session",
         )
-        converted_spans = [span for span in spans if span["context"]["span_id"] != trial_root_id]
-        _check(
-            all(
-                isinstance(
-                    _span_metadata(span).get("_phoenix.span_order"),
-                    int,
-                )
-                for span in converted_spans
-            ),
-            "ATIF upload lost deterministic equal-time display order",
-        )
         leaf_spans = [span for span in spans if span["span_kind"] in {"LLM", "TOOL"}]
         _check(bool(leaf_spans), f"ATIF trace {trace_id} has no LLM/TOOL spans")
         _check(
@@ -473,10 +462,12 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
                 for span in leaf_spans
                 if span.get("parent_id") == source_step["context"]["span_id"]
             ]
+            # REST returns trace spans by descending insertion ID. Its order is
+            # preserved here for equal timestamps by Python's stable sort, just
+            # as the trace tree preserves it in the browser.
             children.sort(
-                key=lambda span: (
-                    datetime.fromisoformat(str(span["start_time"]).replace("Z", "+00:00")),
-                    _span_metadata(span)["_phoenix.span_order"],
+                key=lambda span: datetime.fromisoformat(
+                    str(span["start_time"]).replace("Z", "+00:00")
                 )
             )
             llm_children = [span for span in children if span["span_kind"] == "LLM"]
@@ -487,19 +478,6 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
                 [_span_metadata(span).get("atif.tool_call_index") for span in tool_children]
                 == list(range(len(tool_children))),
                 "Equal-time tools do not preserve ATIF array order",
-            )
-            # Start times alone must reproduce causal order, so viewers
-            # without the metadata tie-break still render correctly.
-            by_time_only = sorted(
-                children,
-                key=lambda span: datetime.fromisoformat(
-                    str(span["start_time"]).replace("Z", "+00:00")
-                ),
-            )
-            _check(
-                [span["context"]["span_id"] for span in by_time_only]
-                == [span["context"]["span_id"] for span in children],
-                "start-time sorting does not reproduce causal event order",
             )
     # The experiment project holds exactly the traces its runs link: an
     # unlinked or foreign trace in the project means linking failed somewhere.

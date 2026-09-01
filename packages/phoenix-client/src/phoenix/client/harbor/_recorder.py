@@ -325,7 +325,14 @@ class PhoenixRecorder:
             missing = expected - stored
             if not missing:
                 return trace.trace_id
-            spans = [span for span in trace.spans if span["context"]["span_id"] in missing]
+            # The converter's list is the desired display order. Phoenix queues
+            # spans FIFO and returns trace rows by descending insertion ID, while
+            # the trace tree's timestamp sort is stable. Reverse only the upload
+            # batch so exact-time siblings retain causal and declared array order
+            # without changing their timestamps or requiring UI metadata.
+            spans = [
+                span for span in reversed(trace.spans) if span["context"]["span_id"] in missing
+            ]
             try:
                 result = await self._client.spans.log_spans(
                     project_identifier=project_name,

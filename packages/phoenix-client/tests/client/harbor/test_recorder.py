@@ -745,7 +745,10 @@ class TestConfirmTrace:
 
         assert trace_id == "a" * 32
         assert spans.logged[0]["project_identifier"] == "Experiment-project"
-        assert len(spans.logged[0]["spans"]) == 2
+        assert [item["context"]["span_id"] for item in spans.logged[0]["spans"]] == [
+            "2" * 16,
+            "1" * 16,
+        ]
         assert all(query["project_identifier"] == "Experiment-project" for query in spans.queries)
 
     async def test_complete_replay_posts_nothing(self) -> None:
@@ -759,21 +762,29 @@ class TestConfirmTrace:
         assert trace_id == "a" * 32
         assert spans.logged == []
 
-    async def test_partial_replay_posts_only_missing_spans(self) -> None:
+    async def test_partial_replay_posts_missing_spans_in_reverse_order(self) -> None:
+        trace = HarborTrace(
+            trace_id="a" * 32,
+            spans=cast(Any, (span("1" * 16), span("2" * 16), span("3" * 16))),
+            source_paths=("agent/trajectory.json",),
+        )
         spans = FakeSpans(
             query_results=[
-                [span("1" * 16)],
-                [span("1" * 16), span("2" * 16)],
+                [span("3" * 16)],
+                [span("1" * 16), span("2" * 16), span("3" * 16)],
             ]
         )
 
         trace_id = await recorder(FakeClient(spans=spans)).confirm_trace(
             experiment=ExperimentHandle("experiment-1", "test", False, "project"),
-            trace=harbor_trace(),
+            trace=trace,
         )
 
         assert trace_id == "a" * 32
-        assert [item["context"]["span_id"] for item in spans.logged[0]["spans"]] == ["2" * 16]
+        assert [item["context"]["span_id"] for item in spans.logged[0]["spans"]] == [
+            "2" * 16,
+            "1" * 16,
+        ]
 
     async def test_rejected_upload_is_fine_when_spans_already_stored(self) -> None:
         spans = FakeSpans(

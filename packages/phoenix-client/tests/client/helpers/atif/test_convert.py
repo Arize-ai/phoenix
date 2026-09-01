@@ -538,10 +538,6 @@ class TestOptionalFields:
 
         assert all(span["start_time"] == span["end_time"] for span in operation_spans)
         assert all(span["start_time"] == span["end_time"] for span in llm_spans)
-        assert [
-            span.get("attributes", {}).get("metadata", {}).get("_phoenix.span_order")
-            for span in operation_spans
-        ] == [1, 2]
 
     def test_leading_missing_timestamp_collapses_to_first_known_event(self) -> None:
         trajectory: Dict[str, Any] = {
@@ -2032,7 +2028,7 @@ class TestTurnGrouping:
         assert root.get("attributes", {})["input.value"] == "do the task"
 
 
-class TestEqualTimeEventOrder:
+class TestEqualTimeEvents:
     @staticmethod
     def _trajectory(steps: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
@@ -2043,7 +2039,7 @@ class TestEqualTimeEventOrder:
             "steps": steps,
         }
 
-    def test_events_keep_exact_timestamp_and_metadata_order(self) -> None:
+    def test_events_keep_exact_timestamp_and_declared_tool_order(self) -> None:
         trajectory = self._trajectory(
             [
                 {"step_id": 1, "source": "user", "message": "go"},
@@ -2066,11 +2062,6 @@ class TestEqualTimeEventOrder:
         starts = [llm["start_time"], *(t["start_time"] for t in tools)]
         assert starts == ["2025-01-15T10:00:10+00:00"] * 4
         assert all(t["start_time"] == t["end_time"] for t in tools)
-        metadata = [
-            span.get("attributes", {}).get("metadata", {})["_phoenix.span_order"]
-            for span in [llm, *tools]
-        ]
-        assert metadata == [0, 1, 2, 3]
         assert [t["name"] for t in tools] == ["bash", "bash", "done"]
 
     def test_continuation_input_falls_back_to_copied_request(self) -> None:

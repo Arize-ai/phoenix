@@ -40,13 +40,12 @@ def _convert_atif_trajectories_to_spans(
     ref_map = _build_subagent_ref_map(flat_trajectories)
 
     all_spans: list[v1.Span] = []
-    for document_index, trajectory in enumerate(flat_trajectories):
+    for trajectory in flat_trajectories:
         parent_ctx = _get_parent_span_context(trajectory, ref_map)
         all_spans.extend(
             _convert_atif_trajectory_to_spans(
                 trajectory,
                 parent_span_context=parent_ctx,
-                root_span_order=document_index,
             )
         )
 
@@ -161,9 +160,8 @@ def upload_atif_trajectories_as_spans(
     one step ran serially or concurrently. Missing or non-monotonic clocks
     collapse to the preceding event rather than fabricating elapsed time.
 
-    When sibling timestamps still tie, an internal ``_phoenix.span_order``
-    metadata value preserves ATIF document and array order in Phoenix. It is a
-    display rule, not evidence of serial execution.
+    The converter preserves ATIF document order and declared tool-call array
+    order. That order is not evidence of serial tool execution.
 
     **Deterministic dispatch (v1.7+)**
 

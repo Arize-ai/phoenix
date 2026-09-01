@@ -32,7 +32,6 @@ _CONTINUATION_INDEX_KEY = "_phoenix_continuation_index"
 _STEP_NAME_KEY = "_phoenix_step_name"
 _LLM_LATENCY_MS_KEY = "_phoenix_llm_latency_ms"
 _LLM_LATENCY_SOURCE_KEY = "_phoenix_llm_latency_source"
-_SPAN_ORDER_METADATA_KEY = "_phoenix.span_order"
 
 
 def _sha256_span_id(seed: str) -> str:
@@ -880,7 +879,6 @@ def _get_turn_output(
 def _convert_atif_trajectory_to_spans(
     trajectory: Mapping[str, Any],
     parent_span_context: Optional[tuple[str, str]] = None,
-    root_span_order: int = 0,
 ) -> List[v1.Span]:
     """Convert a validated ATIF trajectory into a flat list of spans.
 
@@ -925,7 +923,6 @@ def _convert_atif_trajectory_to_spans(
     from the preceding fresh event to their own event. LLM spans use an
     adapter-supplied measurement when available and bounded by that interval;
     otherwise LLM and TOOL spans are point events at the exact ATIF timestamp.
-    Internal span order metadata is the display tie-break for equal timestamps.
 
     IDs are deterministic: trace IDs usually use the run-scoped session
     identity, while span IDs use the document-scoped trajectory identity
@@ -940,8 +937,6 @@ def _convert_atif_trajectory_to_spans(
         parent_span_context: Optional (parent_span_id, parent_trace_id) tuple
             for linking child trajectories to the closest proven parent
             operation.
-        root_span_order: Stable document order used only to break equal-time
-            display ties between trajectory roots.
     """
     session_id = _trajectory_session_id(trajectory)
     agent: Mapping[str, Any] = trajectory["agent"]
@@ -1019,7 +1014,6 @@ def _convert_atif_trajectory_to_spans(
         isinstance(raw_session_id, str) and raw_session_id != _base_session_id(raw_session_id)
     )
     root_meta = dict(agent_meta)
-    root_meta[_SPAN_ORDER_METADATA_KEY] = root_span_order
     root_name = str(agent.get("name") or "agent")
     step_name = trajectory.get(_STEP_NAME_KEY)
     if isinstance(step_name, str) and step_name:
@@ -1084,8 +1078,7 @@ def _convert_atif_trajectory_to_spans(
     # operational steps: ``agent_action_3`` is the third agent action and
     # ``compaction_1`` the first compaction, regardless of interleaving. The
     # original ATIF ``step_id`` (which counts prompt context such as the user
-    # instruction) stays in metadata, and global execution order lives in
-    # timestamps and ``_phoenix.span_order``, so names never encode it.
+    # instruction) stays in metadata, so names never encode it.
     operation_names: Dict[int, str] = {}
     label_ordinals: Dict[str, int] = {}
     for i in execution_step_indices:
@@ -1113,7 +1106,6 @@ def _convert_atif_trajectory_to_spans(
                 "input.mime_type": "text/plain",
                 "output.value": _get_turn_output(steps, step_indices),
                 "output.mime_type": "text/plain",
-                "metadata": {_SPAN_ORDER_METADATA_KEY: turn_idx},
             }
             turn_span: v1.Span = {
                 "name": f"turn_{turn_idx + 1}",
@@ -1147,7 +1139,6 @@ def _convert_atif_trajectory_to_spans(
                 "atif.step_id": step_id,
                 "atif.source": source,
                 "atif.timing": "event_interval",
-                _SPAN_ORDER_METADATA_KEY: i,
             }
             if _is_compaction_step(step):
                 operation_metadata["atif.context_management"] = True
@@ -1256,7 +1247,6 @@ def _convert_atif_trajectory_to_spans(
                     llm_attrs,
                     {
                         "atif.step_id": step_id,
-                        _SPAN_ORDER_METADATA_KEY: 0,
                         **llm_timing_metadata,
                     },
                 )
@@ -1298,7 +1288,6 @@ def _convert_atif_trajectory_to_spans(
                         "atif.step_id": step_id,
                         "atif.tool_call_index": j,
                         "atif.timing": "event",
-                        _SPAN_ORDER_METADATA_KEY: j + 1,
                     },
                 )
 

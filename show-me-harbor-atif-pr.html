@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Harbor ATIF tracing</title>
+  <style>
+    :root {
+      --ink: #17203a;
+      --muted: #5e6884;
+      --paper: #f7f7fc;
+      --panel: #ffffff;
+      --line: #d9dcef;
+      --violet: #6f4bf2;
+      --violet-soft: #eeeaff;
+      --coral: #ee6b5f;
+      --coral-soft: #fff0ed;
+      --cyan: #167e98;
+      --cyan-soft: #e7f8fb;
+      --green: #247653;
+      --green-soft: #e8f7ef;
+      --amber: #93621d;
+      --amber-soft: #fff5db;
+      --red: #a73942;
+      --red-soft: #ffedef;
+      --shadow: 0 18px 55px rgba(27, 22, 72, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% -10%, #ece8ff 0, transparent 30rem),
+        radial-gradient(circle at 96% 10%, #ffe9e5 0, transparent 28rem),
+        var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    code, pre, .mono {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    .page {
+      width: min(1440px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 42px 0 64px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 32px;
+      align-items: end;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      color: var(--violet);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      width: 9px;
+      height: 9px;
+      border-radius: 3px;
+      background: var(--coral);
+      content: "";
+      transform: rotate(15deg);
+    }
+
+    h1 {
+      max-width: 900px;
+      margin: 0;
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: .98;
+      letter-spacing: -.045em;
+    }
+
+    .lede {
+      max-width: 830px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .thesis {
+      max-width: 340px;
+      padding: 18px 20px;
+      border: 1px solid #cfc7fb;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .72);
+      box-shadow: var(--shadow);
+      font-size: 14px;
+    }
+
+    .thesis strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--violet);
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .section {
+      margin-top: 22px;
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255, 255, 255, .9);
+      box-shadow: var(--shadow);
+    }
+
+    .section-heading {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 22px;
+    }
+
+    .section-number {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 10px;
+      color: #fff;
+      background: var(--ink);
+      font-weight: 800;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -.025em;
+    }
+
+    .subhead {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: minmax(320px, .9fr) 1.2fr;
+      gap: 22px;
+    }
+
+    pre {
+      height: 100%;
+      min-height: 355px;
+      margin: 0;
+      overflow: auto;
+      padding: 20px;
+      border-radius: 16px;
+      color: #e9ebff;
+      background: #1a1f39;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    .json-key { color: #aebdff; }
+    .json-string { color: #8fe3c1; }
+    .json-comment { color: #9aa3c4; }
+
+    .disk-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .mini-card {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+
+    .mini-card h3 {
+      margin: 0 0 7px;
+      font-size: 14px;
+    }
+
+    .mini-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .file-tree {
+      grid-column: 1 / -1;
+      padding: 16px 18px;
+      border-radius: 14px;
+      color: #34405f;
+      background: #f2f3fa;
+      font-size: 13px;
+      white-space: pre;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 205px;
+      padding: 16px 14px;
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--violet);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+
+    .stage::after {
+      position: absolute;
+      z-index: 2;
+      top: 48%;
+      right: -15px;
+      width: 20px;
+      color: var(--violet);
+      content: "\2192";
+      font-size: 22px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .stage:last-child::after { display: none; }
+    .stage.coral { border-top-color: var(--coral); }
+    .stage.cyan { border-top-color: var(--cyan); }
+    .stage.green { border-top-color: var(--green); }
+
+    .stage .step {
+      display: inline-block;
+      margin-bottom: 11px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .stage h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .stage code {
+      color: var(--violet);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .stage ul {
+      margin: 10px 0 0;
+      padding-left: 17px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stage li + li { margin-top: 5px; }
+
+    .decision-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .decision {
+      padding: 13px 14px;
+      border-radius: 12px;
+      background: var(--amber-soft);
+      color: #6f4c18;
+      font-size: 12px;
+    }
+
+    .decision b {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--amber);
+    }
+
+    .output-grid {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 22px;
+    }
+
+    .trace-canvas {
+      padding: 22px;
+      border-radius: 16px;
+      background: #f7f5ff;
+    }
+
+    .trace-row {
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      margin: 8px 0;
+    }
+
+    .trace-row.level-1 { margin-left: 34px; }
+    .trace-row.level-2 { margin-left: 68px; }
+    .trace-row.level-3 { margin-left: 102px; }
+    .trace-row.level-4 { margin-left: 136px; }
+
+    .connector {
+      color: #a6a9c3;
+      font-family: monospace;
+      font-size: 18px;
+      text-align: center;
+    }
+
+    .span {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid #d2cdf7;
+      border-radius: 10px;
+      background: #fff;
+      font-size: 13px;
+    }
+
+    .kind {
+      padding: 3px 7px;
+      border-radius: 6px;
+      color: #fff;
+      background: var(--violet);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .06em;
+    }
+
+    .kind.chain { background: var(--ink); }
+    .kind.llm { background: var(--cyan); }
+    .kind.tool { background: var(--coral); }
+
+    .span-note {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .shape-notes {
+      display: grid;
+      gap: 10px;
+    }
+
+    .shape-note {
+      padding: 15px;
+      border-left: 4px solid var(--violet);
+      border-radius: 10px;
+      background: var(--violet-soft);
+      font-size: 13px;
+    }
+
+    .shape-note:nth-child(2) {
+      border-left-color: var(--cyan);
+      background: var(--cyan-soft);
+    }
+
+    .shape-note:nth-child(3) {
+      border-left-color: var(--coral);
+      background: var(--coral-soft);
+    }
+
+    .shape-note:nth-child(4) {
+      border-left-color: var(--green);
+      background: var(--green-soft);
+    }
+
+    .shape-note b { display: block; margin-bottom: 4px; }
+
+    .timing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .timing-card {
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      font-size: 12px;
+    }
+
+    .timing-card b {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .timing-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .risk-table {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+    }
+
+    .risk-row {
+      display: grid;
+      grid-template-columns: .72fr 1fr 1.25fr 1fr;
+    }
+
+    .risk-row + .risk-row { border-top: 1px solid var(--line); }
+
+    .risk-row.header {
+      color: #fff;
+      background: var(--ink);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .risk-cell {
+      min-width: 0;
+      padding: 15px;
+      font-size: 12px;
+    }
+
+    .risk-cell + .risk-cell { border-left: 1px solid var(--line); }
+    .risk-row.header .risk-cell + .risk-cell { border-left-color: rgba(255, 255, 255, .18); }
+
+    .risk-cell p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .risk-name {
+      font-size: 14px;
+      font-weight: 760;
+      line-height: 1.25;
+    }
+
+    .risk-name .tag {
+      display: inline-block;
+      margin-bottom: 8px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      color: var(--violet);
+      background: var(--violet-soft);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .risk-name .tag.warn {
+      color: var(--amber);
+      background: var(--amber-soft);
+    }
+
+    .risk-name .tag.stop {
+      color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .risk-name .tag.ok {
+      color: var(--green);
+      background: var(--green-soft);
+    }
+
+    .code-map {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .code-map div {
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #f3f4fa;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .code-map code {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      margin-top: 18px;
+      padding: 0 4px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    @media (max-width: 1100px) {
+      header, .source-grid, .output-grid { grid-template-columns: 1fr; }
+      .thesis { max-width: none; }
+      .flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .stage:nth-child(3)::after { display: none; }
+      .decision-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 700px) {
+      .page { width: min(100% - 22px, 1440px); padding-top: 24px; }
+      .section { padding: 18px; }
+      .disk-options, .flow, .decision-strip, .code-map, .timing-grid { grid-template-columns: 1fr; }
+      .stage::after { display: none; }
+      .trace-row.level-1 { margin-left: 14px; }
+      .trace-row.level-2 { margin-left: 28px; }
+      .trace-row.level-3 { margin-left: 42px; }
+      .trace-row.level-4 { margin-left: 56px; }
+      .risk-table { overflow: visible; border: 0; background: transparent; }
+      .risk-row { grid-template-columns: 1fr; margin-bottom: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+      .risk-row + .risk-row { border-top: 1px solid var(--line); }
+      .risk-row.header { display: none; }
+      .risk-cell + .risk-cell { border-top: 1px solid var(--line); border-left: 0; }
+      .risk-cell::before { display: block; margin-bottom: 5px; color: var(--muted); content: attr(data-label); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+      .risk-name::before { display: none; }
+      footer { display: block; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page { width: 100%; padding: 0; }
+      .section { break-inside: avoid; box-shadow: none; }
+      header { margin-top: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <div class="eyebrow">Tracing model</div>
+        <h1>From Harbor ATIF files to one Phoenix trace</h1>
+        <p class="lede">After a Harbor trial finishes, the plugin reads its saved trajectory graph, replaces producer IDs in memory, and turns fresh ATIF operations into a causal span tree. Copied history rebuilds prompts but creates no execution spans. The Harbor adapter controls equal-time display order at upload, without invented timestamps or a Harbor-specific UI rule.</p>
+      </div>
+      <aside class="thesis">
+        <strong>Who owns what</strong>
+        Harbor runs the trial and writes ATIF. The converter builds the semantic span order. The Harbor adapter reverses the upload batch to match Phoenix's existing query order. The importer never writes to the ATIF files.
+      </aside>
+    </header>
+
+    <section class="section">
+      <div class="section-heading">
+        <span class="section-number">1</span>
+        <div>
+          <h2>ATIF saved by Harbor</h2>
+          <p class="subhead">An ATIF document is a conversation plus tool activity, not a span tree.</p>
+        </div>
+      </div>
+      <div class="source-grid">
+        <pre><span class="json-comment">// agent/trajectory.json</span>
+{
+  <span class="json-key">"schema_version"</span>: <span class="json-string">"ATIF-v1.8"</span>,
+  <span class="json-key">"session_id"</span>: <span class="json-string">"producer-session"</span>,
+  <span class="json-key">"trajectory_id"</span>: <span class="json-string">"producer-trajectory"</span>,
+  <span class="json-key">"agent"</span>: {
+    <span class="json-key">"name"</span>: <span class="json-string">"terminus-2"</span>,
+    <span class="json-key">"model_name"</span>: <span class="json-string">"gpt-5-mini"</span>
+  },
+  <span class="json-key">"steps"</span>: [
+    { <span class="json-key">"step_id"</span>: 1, <span class="json-key">"timestamp"</span>: <span class="json-string">"12:00:00Z"</span>,
+      <span class="json-key">"source"</span>: <span class="json-string">"user"</span>, <span class="json-key">"message"</span>: <span class="json-string">"Fix it"</span> },
+    { <span class="json-key">"step_id"</span>: 2, <span class="json-key">"timestamp"</span>: <span class="json-string">"12:00:05Z"</span>,
+      <span class="json-key">"source"</span>: <span class="json-string">"agent"</span>, <span class="json-key">"message"</span>: <span class="json-string">"Working"</span>,
+      <span class="json-key">"tool_calls"</span>: [{ <span class="json-key">"tool_call_id"</span>: <span class="json-string">"c1"</span>,
+                         <span class="json-key">"function_name"</span>: <span class="json-string">"shell"</span> }],
+      <span class="json-key">"observation"</span>: { <span class="json-key">"results"</span>: [
+        { <span class="json-key">"source_call_id"</span>: <span class="json-string">"c1"</span>, <span class="json-key">"content"</span>: <span class="json-string">"ok"</span> }
+      ]}}
+  ]
+}</pre>
+        <div class="disk-options">
+          <div class="mini-card">
+            <h3>Single-step trial</h3>
+            <p>Read the canonical <span class="mono">agent/trajectory.json</span>. Add <span class="mono">user-agent/trajectory.json</span> only for simulated-user trials.</p>
+          </div>
+          <div class="mini-card">
+            <h3>Multi-step, no resume</h3>
+            <p>Read one canonical file for every attempted step, in Harbor result order. Unattempted step folders are ignored.</p>
+          </div>
+          <div class="mini-card">
+            <h3>Multi-step with resume</h3>
+            <p>The last available step file is cumulative. Import only that snapshot to avoid duplicate history.</p>
+          </div>
+          <div class="mini-card">
+            <h3>Referenced graph</h3>
+            <p>Follow local continuations, embedded subagents, and file-backed subagents. Shared files load once; cycles stop.</p>
+          </div>
+          <div class="file-tree mono">trial-root/
+├── agent/trajectory.json                  # single-step canonical root
+├── user-agent/trajectory.json             # simulated user, when configured
+└── steps/
+    ├── prepare/agent/trajectory.json       # attempted step
+    └── solve/agent/trajectory.json         # final cumulative snapshot if resume=true</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <span class="section-number">2</span>
+        <div>
+          <h2>How a finished trial becomes a linked trace</h2>
+          <p class="subhead">The plugin links the experiment run last because Phoenix does not allow changes to successful runs.</p>
+        </div>
+      </div>
+      <div class="flow">
+        <article class="stage coral">
+          <span class="step">Trial end</span>
+          <h3>Terminal trial ends</h3>
+          <code>PhoenixJobPlugin._on_trial_ended</code>
+          <ul>
+            <li>Skip attempts Harbor will retry</li>
+            <li>Serialize recording with a lock</li>
+            <li>Stop sibling recording after a required-write failure</li>
+          </ul>
+        </article>
+        <article class="stage">
+          <span class="step">Discover</span>
+          <h3>Select canonical roots</h3>
+          <code>_root_locations</code>
+          <ul>
+            <li>Single, simulated-user, or multi-step layout</li>
+            <li>Resume means last cumulative snapshot</li>
+            <li>Ignore stale noncanonical files</li>
+          </ul>
+        </article>
+        <article class="stage">
+          <span class="step">Load</span>
+          <h3>Build the ATIF graph</h3>
+          <code>_load_file</code>
+          <ul>
+            <li>Path must be local JSON inside its role directory</li>
+            <li>Validate with Harbor's <span class="mono">Trajectory</span> model</li>
+            <li>Dedupe files and stop cycles</li>
+          </ul>
+        </article>
+        <article class="stage cyan">
+          <span class="step">Normalize</span>
+          <h3>Rewrite identity in memory</h3>
+          <code>_normalize_document</code>
+          <ul>
+            <li>Stable trajectory ID per role, step, file, and embedding index</li>
+            <li>One session ID per Harbor trial</li>
+            <li>Preserve producer IDs in agent metadata</li>
+          </ul>
+        </article>
+        <article class="stage cyan">
+          <span class="step">Convert</span>
+          <h3>Create one connected tree</h3>
+          <code>build_harbor_trace</code>
+          <ul>
+            <li>Fresh operations become source CHAIN spans</li>
+            <li>LLM, TOOL, and subagent work hangs below its source</li>
+            <li>Attach all roots beneath <span class="mono">harbor.trial</span></li>
+          </ul>
+        </article>
+        <article class="stage green">
+          <span class="step">Upload</span>
+          <h3>Confirm, then link</h3>
+          <code>PhoenixRecorder.confirm_trace</code>
+          <ul>
+            <li>Query expected span IDs</li>
+            <li>Upload missing spans in reverse semantic order</li>
+            <li>Pass the trace ID to <span class="mono">log_run</span> after Phoenix queues them all</li>
+          </ul>
+        </article>
+      </div>
+      <div class="decision-strip">
+        <div class="decision"><b>Tracing enabled?</b><span class="mono">trace_mode="atif"</span> is the default. <span class="mono">none</span> skips trajectory loading.</div>
+        <div class="decision"><b>Run already reusable?</b>A successful existing run skips trace construction. A run saved without a trace stays untraced.</div>
+        <div class="decision"><b>Valid roots found?</b>No valid ATIF means no trace, but the run and evaluations are still recorded.</div>
+        <div class="decision"><b>Every span accepted?</b>The plugin passes a trace ID to the run only when Phoenix queues every missing span.</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <span class="section-number">3</span>
+        <div>
+          <h2>The trace stored in Phoenix</h2>
+          <p class="subhead">Each Harbor trial gets one trace. The importer may combine several ATIF files under its root.</p>
+        </div>
+      </div>
+      <div class="output-grid">
+        <div class="trace-canvas">
+          <div class="trace-row">
+            <div class="connector">●</div>
+            <div class="span"><span class="kind chain">CHAIN</span><b>harbor.trial</b><span class="span-note">task input, run output, Harbor metadata, overall time and infra status</span></div>
+          </div>
+          <div class="trace-row level-1">
+            <div class="connector">└</div>
+            <div class="span"><span class="kind">AGENT</span><b>terminus-2 · step_01_solve</b><span class="span-note">one root per imported trajectory document</span></div>
+          </div>
+          <div class="trace-row level-2">
+            <div class="connector">├</div>
+            <div class="span"><span class="kind chain">CHAIN</span><b>agent_action_1</b><span class="span-note">fresh ATIF step 2; preceding event through this event</span></div>
+          </div>
+          <div class="trace-row level-3">
+            <div class="connector">├</div>
+            <div class="span"><span class="kind llm">LLM</span><b>LLM</b><span class="span-note">prompt, model, tokens, cost, and measured latency when available</span></div>
+          </div>
+          <div class="trace-row level-3">
+            <div class="connector">└</div>
+            <div class="span"><span class="kind tool">TOOL</span><b>delegate_task</b><span class="span-note">zero-duration event; declared tool-array order is preserved</span></div>
+          </div>
+          <div class="trace-row level-4">
+            <div class="connector">└</div>
+            <div class="span"><span class="kind">AGENT</span><b>child agent</b><span class="span-note">nested under the referring tool span</span></div>
+          </div>
+          <div class="trace-row level-1">
+            <div class="connector">└</div>
+            <div class="span"><span class="kind">AGENT</span><b>terminus-2 (continuation 1)</b><span class="span-note">another imported root under the same trial</span></div>
+          </div>
+        </div>
+        <div class="shape-notes">
+          <div class="shape-note"><b>Prompt-only steps remain context.</b>User and system messages rebuild <span class="mono">llm.input_messages</span>. An operational system step gets a source CHAIN when it owns an observation or handoff.</div>
+          <div class="shape-note"><b>Each fresh operation owns its work.</b>LLM and TOOL spans are siblings under the source CHAIN. A proven <span class="mono">source_call_id</span> can put a child AGENT under its TOOL span.</div>
+          <div class="shape-note"><b>Copied context is not fresh execution.</b>It can appear in an LLM prompt, but it creates no turn, operation, LLM, TOOL, or elapsed-time span.</div>
+          <div class="shape-note"><b>Producer extensions stay producer extensions.</b>The general converter preserves ATIF fields without assigning meaning to arbitrary <span class="mono">metrics.extra</span> keys. ATIF v1.8 audio references retain path, MIME type, and duration metadata.</div>
+          <div class="shape-note"><b>Identity is stable across replay.</b><span class="mono">trace_id = hash(namespace, job_id, terminal trial UUID)</span>. Every span shares <span class="mono">session.id = harbor:&lt;trace_id&gt;</span>.</div>
+        </div>
+      </div>
+      <div class="timing-grid">
+        <div class="timing-card"><b>Source interval</b><p>The source CHAIN starts at the preceding fresh event and ends at its own ATIF timestamp. Missing or backward clocks collapse to a point.</p></div>
+        <div class="timing-card"><b>LLM timing</b><p>Harbor's <span class="mono">api_request_times_msec</span> sidecar can measure an LLM inside that interval. The adapter applies it only when every request matches one LLM step; otherwise the LLM is a point event.</p></div>
+        <div class="timing-card"><b>Tool timing and display</b><p>ATIF has no tool duration. Tools stay point events at the exact step timestamp. Harbor reverses the upload batch, Phoenix returns descending insertion order, and the stable timestamp sort preserves that order on exact ties.</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <span class="section-number">4</span>
+        <div>
+          <h2>Branches that deserve a close read</h2>
+          <p class="subhead">Bugs here can read files outside the trial, attach the wrong trace, or break replay.</p>
+        </div>
+      </div>
+      <div class="risk-table">
+        <div class="risk-row header">
+          <div class="risk-cell">Constraint</div>
+          <div class="risk-cell">What can go wrong</div>
+          <div class="risk-cell">What this PR does</div>
+          <div class="risk-cell">What remains</div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag stop">File access</span><br />Trajectory references</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>A trajectory can point at <span class="mono">../../.env</span>, an absolute path, a symlink outside the trial, or a URL that contains credentials.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p><span class="mono">_load_file</span> resolves the real path and requires it to remain inside the current Harbor role directory. It accepts regular JSON files only. <span class="mono">_local_reference</span> rejects remote and absolute references, then sanitizes remote values before logging them.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>The loader has no explicit file-size, document-count, or recursion-depth limit. A huge acyclic graph can still consume substantial memory.</p></div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag stop">Identity</span><br />Producer ID reuse</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>Agents may omit <span class="mono">trajectory_id</span>, reuse one session across steps, or emit a constant session. Phoenix could merge trials, reject duplicate span IDs, or group unrelated trials into one session.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p>The importer replaces both IDs in memory. Trajectory identity includes the job, trial, role, step, path, and embedded-child position. It keeps producer IDs in metadata. If Phoenix already stores an unexpected span under the trace ID, <span class="mono">confirm_trace</span> refuses the link.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>Two independent ingesters must not assign the same Harbor job and trial identity to different data. Hash collisions are far less likely than an identity bookkeeping error.</p></div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag warn">Harbor contract</span><br />Root selection</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>Importing every step when the last file already contains cumulative history duplicates spans. Importing only the last file when steps are independent loses earlier activity.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p>Without resume, <span class="mono">_root_locations</span> imports every attempted step in Harbor result order. With <span class="mono">resume_trajectory=true</span>, it imports the last available cumulative snapshot. It ignores unattempted and stale files.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>This depends on Harbor's current storage behavior. If Harbor changes what a resumed step file contains, this selection rule must change with it.</p></div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag warn">Graph shape</span><br />Broken subagent links</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>A missing or invalid child trajectory can leave a subagent reference pointing nowhere. The converter could produce a disconnected tree or attach the child to the wrong tool call.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p>The loader rewrites valid file references to the loaded child's unique trajectory ID and removes ambiguous session keys. It removes unresolved path-only references. Reparenting keeps valid internal parents and attaches dangling roots to <span class="mono">harbor.trial</span>.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>The trace stays connected, but it can lose causality. A child may appear under the trial root instead of the tool call that launched it.</p></div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag stop">Replay</span><br />Partial span upload</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>Phoenix rejects a request that includes an existing span ID. A timeout can also leave the client unsure whether Phoenix queued the spans.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p><span class="mono">confirm_trace</span> compares expected and stored IDs, filters the missing set, reverses that batch, and checks received and queued counts. A retry after an interrupted prefix preserves final display order. After an exception, the plugin queries again and accepts the trace only if the stored set now matches.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>A partial acceptance can leave orphan spans. If the plugin then records a successful run without a trace, replay cannot add the link because successful runs are immutable.</p></div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag warn">Equal-time order</span><br />LLM before tools</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>ATIF gives tools no start or end time. Equal timestamps make a normal chronological sort depend on the order Phoenix returns the rows.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p>The converter lists the LLM before its tools and tools in declared array order. Harbor uploads that list in reverse. Phoenix inserts FIFO and returns descending row IDs, so its existing stable start-time sort restores the converter order. No server, schema, GraphQL API, or Harbor-specific frontend logic changes.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>This display rule depends on Phoenix retaining its current insertion and query order. Declared tool order still does not prove serial execution.</p></div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag ok">Write order</span><br />Trace before run</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>Creating the run first would make later trace attachment impossible. Uploading the trace first can leave an orphan trace if run creation then fails.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p>The plugin confirms the trace before calling <span class="mono">log_run</span>. If run creation fails, Harbor stops and preserves its terminal result. A resumed job finds the existing spans and can retry run creation.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>An orphan trace may exist until resume succeeds. A successful run recorded without a trace stays untraced under that Harbor job.</p></div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag warn">Coverage</span><br />Best-effort tracing</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>An untraced run can look like a trial with no agent activity even when ATIF loading or upload failed.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p>Trace errors produce warnings but do not discard the experiment run, rewards, or evaluations. Valid roots still load when another canonical root is missing.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>Phoenix has no queryable <span class="mono">trace_import_ok</span> field in this PR. Logs carry the reason. Measuring trace coverage requires separate work.</p></div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag warn">Retry contract</span><br />Terminal attempt detection</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>The plugin could ingest an attempt that Harbor plans to retry, or skip the final attempt, if its retry calculation differs from Harbor's.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p>The plugin counts trial-start events and applies Harbor's include, exclude, cancellation, and maximum-retry rules before recording a trial-end event.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>This mirrors Harbor behavior instead of consuming a public terminal-attempt event. A Harbor retry change can require a plugin update.</p></div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag warn">Concurrency</span><br />One ingester per job</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>Two processes can discover that the same experiment or spans are missing, then try to create them at the same time.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p>An async lock serializes trial recording inside one plugin instance. Run-conflict recovery and span requery handle several races after Phoenix responds.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>The lock does not coordinate separate processes or machines. Experiment discovery and creation are not atomic. Operate one ingester for each Harbor job.</p></div>
+        </div>
+
+        <div class="risk-row">
+          <div class="risk-cell risk-name"><span class="tag ok">Meaning</span><br />Error versus reward</div>
+          <div class="risk-cell" data-label="What can go wrong"><p>A failed task and a failed runtime are different. Treating a verifier reward of zero as a trace error would mix agent quality with infrastructure health.</p></div>
+          <div class="risk-cell" data-label="What this PR does"><p>The <span class="mono">harbor.trial</span> root uses the same collected exceptions as the run error and <span class="mono">infra_ok</span>. Rewards remain evaluations, even when a step also raised an exception.</p></div>
+          <div class="risk-cell" data-label="What remains"><p>Converted child spans generally remain <span class="mono">OK</span>. The trial root carries Harbor's infrastructure failure, so reviewers should read root status and evaluations together.</p></div>
+        </div>
+      </div>
+      <div class="code-map">
+        <div><code>phoenix/client/harbor/_plugin.py</code>Trial lifecycle, retry filtering, trace-mode gate, and ordering of trace, run, and evaluation writes.</div>
+        <div><code>phoenix/client/harbor/_traces.py</code>Harbor file discovery, safe graph loading, identity normalization, trial root construction, and deterministic IDs.</div>
+        <div><code>phoenix/client/helpers/atif/</code>ATIF validation and conversion. It decides AGENT, turn, source CHAIN, LLM, TOOL, timing, and subagent structure without uploading.</div>
+        <div><code>phoenix/client/harbor/_recorder.py</code>Experiment project lookup, reverse-order upload, stored-span comparison, partial-upload repair, and final trace-to-run link.</div>
+      </div>
+    </section>
+
+    <footer>
+      <span>Branch: <span class="mono">ehutt/harbor-plugin-atif-tracing</span></span>
+      <span>Reading order: <span class="mono">_plugin.py → _traces.py → helpers/atif → _recorder.py</span></span>
+    </footer>
+  </main>
+</body>
+</html>

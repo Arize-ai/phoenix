@@ -216,7 +216,7 @@ describe("createSpanTree", () => {
     `);
   });
 
-  it("uses an explicit span order when sibling timestamps are equal", () => {
+  it("preserves input order when sibling timestamps are equal", () => {
     const sharedStartTime = "2025-01-15T10:00:05.000Z";
     const rootSpan: ISpanItem = {
       id: "root",
@@ -229,67 +229,26 @@ describe("createSpanTree", () => {
       parentId: null,
       spanId: "root-span",
     };
-    const laterSibling: ISpanItem = {
+    const llmSpan: ISpanItem = {
       ...rootSpan,
-      id: "later",
-      name: "tool",
-      parentId: rootSpan.spanId,
-      spanId: "later-span",
-      metadata: JSON.stringify({ "_phoenix.span_order": 1 }),
-    };
-    const earlierSibling: ISpanItem = {
-      ...rootSpan,
-      id: "earlier",
+      id: "llm",
       name: "LLM",
       parentId: rootSpan.spanId,
-      spanId: "earlier-span",
-      metadata: JSON.stringify({ "_phoenix.span_order": 0 }),
+      spanId: "llm-span",
+    };
+    const toolSpan: ISpanItem = {
+      ...rootSpan,
+      id: "tool",
+      name: "tool",
+      parentId: rootSpan.spanId,
+      spanId: "tool-span",
     };
 
-    const tree = createSpanTree([rootSpan, laterSibling, earlierSibling]);
+    const tree = createSpanTree([rootSpan, llmSpan, toolSpan]);
 
     expect(tree[0]?.children.map((child) => child.span.name)).toEqual([
       "LLM",
       "tool",
-    ]);
-  });
-
-  it("keeps real chronology ahead of explicit span order", () => {
-    const rootSpan: ISpanItem = {
-      id: "root",
-      spanKind: "agent",
-      name: "agent",
-      statusCode: "OK",
-      startTime: "2025-01-15T10:00:00.000Z",
-      endTime: "2025-01-15T10:00:10.000Z",
-      latencyMs: 10_000,
-      parentId: null,
-      spanId: "root-span",
-    };
-    const laterTimestamp: ISpanItem = {
-      ...rootSpan,
-      id: "later",
-      name: "later",
-      parentId: rootSpan.spanId,
-      spanId: "later-span",
-      startTime: "2025-01-15T10:00:02.000Z",
-      metadata: JSON.stringify({ "_phoenix.span_order": 0 }),
-    };
-    const earlierTimestamp: ISpanItem = {
-      ...rootSpan,
-      id: "earlier",
-      name: "earlier",
-      parentId: rootSpan.spanId,
-      spanId: "earlier-span",
-      startTime: "2025-01-15T10:00:01.000Z",
-      metadata: JSON.stringify({ "_phoenix.span_order": 1 }),
-    };
-
-    const tree = createSpanTree([rootSpan, laterTimestamp, earlierTimestamp]);
-
-    expect(tree[0]?.children.map((child) => child.span.name)).toEqual([
-      "earlier",
-      "later",
     ]);
   });
 

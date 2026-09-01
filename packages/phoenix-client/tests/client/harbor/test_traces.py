@@ -247,9 +247,6 @@ def test_multi_step_uses_only_attempted_steps_in_result_order(tmp_path: Path) ->
     assert len(ids) == len(set(ids))
     trial_root_id = result.spans[0]["context"]["span_id"]
     assert [span["parent_id"] for span in agent_roots(result)] == [trial_root_id] * 2
-    assert [
-        span["attributes"]["metadata"]["_phoenix.span_order"] for span in agent_roots(result)
-    ] == [0, 1]
     assert [span["name"] for span in agent_roots(result)] == [
         "terminus-2 · prepare",
         "terminus-2 · solve",

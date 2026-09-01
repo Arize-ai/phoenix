@@ -233,8 +233,8 @@ duplicate execution spans.
 Visible span names describe execution, not raw ATIF indices. Source CHAINs are numbered with
 per-label ordinals over fresh operational steps: `agent_action_3` is the third agent action and
 `compaction_1` the first context-management step, regardless of interleaving. The producer's
-`step_id` stays in metadata as `atif.step_id`, and global execution order lives in timestamps and
-`_phoenix.span_order`, never in names. Multi-step role roots are qualified with their Harbor step name
+`step_id` stays in metadata as `atif.step_id`; names never encode document indices. Multi-step role
+roots are qualified with their Harbor step name
 (`terminus-2 · step_01_aggregate`), continuation roots are labeled
 (`terminus-2 (continuation N)`) with the index taken from the validated continuation chain, and a
 user message never consumes an action ordinal. Consecutive user or system context messages do not
@@ -250,12 +250,13 @@ on every fresh LLM step so their requests can be merged chronologically; otherwi
 skipped rather than risking a shifted measurement. Producer latency wins when already present.
 Measured LLM spans use that duration within the source interval. Unmeasured LLMs and TOOL calls are
 zero-duration events; the converter does not infer tool serialism, concurrency, or elapsed time.
-Events that would share one step timestamp are spread at most one millisecond apart within the
-step interval. The unmeasured LLM event comes first, followed by tool calls in their declared
-array order. The last event lands on the step timestamp. This makes start-time sorting preserve
-causal order in viewers that do not read Phoenix metadata. Missing and non-monotonic clocks
-collapse instead of creating synthetic duration. Phoenix-only order metadata breaks any exact
-ties that remain in the trace tree.
+Equal-time events retain the exact ATIF timestamp. The converter lists an unmeasured LLM before its
+tool calls and tool calls in their declared array order, but that order does not imply serial tool
+execution. Immediately before upload, the Harbor adapter reverses the missing-span batch. Phoenix
+inserts the batch FIFO and returns trace spans by descending row ID; its stable start-time sort
+therefore restores the converter's causal and declared order for exact ties. Interrupted prefix
+uploads use the same reverse-and-filter rule during repair. Missing and non-monotonic clocks
+collapse instead of creating synthetic duration.
 
 For each in-memory trajectory, the plugin:
 

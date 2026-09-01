@@ -60,9 +60,9 @@ harbor.trial (CHAIN)
 Visible names describe execution instead of copying raw ATIF indices. Fresh operational
 steps are numbered within each label. `agent_action_3` is the third agent action, while
 `compaction_1` is the first context-management step. The producer's original `step_id`
-stays in span metadata as `atif.step_id`. Timestamps and `_phoenix.span_order` record
-global execution order. Multi-step trajectory roots include their Harbor step name, such
-as `terminus-2 · step_01_aggregate`. Continuation roots use names such as
+stays in span metadata as `atif.step_id`. The converter emits spans in causal and declared
+array order. Multi-step trajectory roots include their Harbor step name, such as
+`terminus-2 · step_01_aggregate`. Continuation roots use names such as
 `terminus-2 (continuation 1)`. When ATIF does not tie a step observation to one tool call,
 the action span keeps that observation in its output.
 
@@ -79,12 +79,12 @@ ATIF step timestamps describe when an event occurred, not both ends of an operat
 converter bounds each source-step CHAIN by the preceding fresh event and its own timestamp. Harbor
 adds Terminus request durations from `api_request_times_msec` when they match the trajectory's LLM
 steps. Those LLM spans use the measured duration; unmeasured LLMs and all TOOL calls remain
-zero-duration events. Events that share one ATIF step timestamp are spread at most one
-millisecond apart within the step interval, in causal order (LLM before its tool calls, tool
-calls in declared array order, the last landing on the step's own timestamp), so any viewer that
-sorts by start time shows the true order without invented durations. Copied context reconstructs
-prompts but does not create duplicate execution spans. Exact remaining ties retain ATIF array
-order through a display-only metadata tie-break.
+zero-duration events at the exact ATIF timestamp. The plugin submits trace spans in reverse causal
+order because Phoenix returns a trace's spans in reverse insertion order. Phoenix's stable
+start-time sort then displays equal-time siblings as the LLM followed by its tool calls in declared
+array order, without invented timestamps or UI-specific metadata. Declared tool-call order does
+not imply serial execution. Copied context reconstructs prompts but does not create duplicate
+execution spans.
 
 Tracing is best effort. A missing or invalid trajectory, an unresolved reference, or an upload
 failure produces a warning but does not discard the experiment run or its evaluations. Phoenix
