@@ -104,13 +104,13 @@ failure_taxonomy:
 
 Share Phoenix UI links with the user: one per level — span, trace, session — that actually carries this run's annotations, filtered to the run's work. Skip levels with none. Each tab reads its filter from its own search param; an unrecognized or misspelled param is silently dropped, leaving an unfiltered table.
 
-The filter DSLs cannot compare an annotation's `identifier` — an accessor exposes only `.label`, `.score`, `.explanation`, or bare existence — so filter on the run's annotation names instead: a bare accessor like `annotations['<annotation-name>']` matches entities where that annotation exists. The per-run annotation name keeps the axial clause precise; `note` is a shared name, so the notes clause also matches other reviewers' notes.
+Filter on the coding annotation identifier — annotation accessors expose `.identifier` alongside `.label`, `.score`, and `.explanation` — so each link shows exactly this run's notes and axial labels:
 
 | Level annotated | Tab and search param | Filter expression |
 | --- | --- | --- |
-| span | `/spans?spanFilterCondition=` | `annotations['note'] or annotations['<annotation-name>']` |
-| trace | `/traces?traceFilterCondition=` | `trace_annotations['note'] or trace_annotations['<annotation-name>']` |
-| session | `/sessions?sessionFilterCondition=` | `session_annotations['note'] or session_annotations['<annotation-name>']` |
+| span | `/spans?spanFilterCondition=` | `annotations['note'].identifier == '<id>' or annotations['<annotation-name>'].identifier == '<id>'` |
+| trace | `/traces?traceFilterCondition=` | `trace_annotations['note'].identifier == '<id>' or trace_annotations['<annotation-name>'].identifier == '<id>'` |
+| session | `/sessions?sessionFilterCondition=` | `session_annotations['note'].identifier == '<id>' or session_annotations['<annotation-name>'].identifier == '<id>'` |
 
 URL-encode each expression into its tab's param:
 
