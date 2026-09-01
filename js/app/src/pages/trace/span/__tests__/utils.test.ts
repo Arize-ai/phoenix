@@ -10,7 +10,6 @@ import {
   getRerankerAttributes,
   getRetrieverAttributes,
   getToolAttributes,
-  getToolSchemaName,
   groupDocumentEvaluationsByPosition,
   parseSpanAttributes,
 } from "../utils";
@@ -36,7 +35,7 @@ describe("getLLMAttributes", () => {
       provider: null,
       inputMessages: [],
       outputMessages: [],
-      toolSchemas: [],
+      tools: [],
       prompts: [],
       promptTemplate: null,
       invocationParameters: "{}",
@@ -53,7 +52,16 @@ describe("getLLMAttributes", () => {
           { message: { role: "assistant", content: "hi" } },
         ],
         output_messages: [{ message: { role: "assistant", content: "hi" } }],
-        tools: [{ tool: { json_schema: '{"name": "search"}' } }, { tool: {} }],
+        tools: [
+          {
+            tool: {
+              name: "search",
+              description: "Search the web",
+              json_schema: '{"type": "object"}',
+            },
+          },
+          { tool: {} },
+        ],
         prompts: ["prompt one", "prompt two"],
         prompt_template: {
           template: "Hello {name}",
@@ -70,7 +78,13 @@ describe("getLLMAttributes", () => {
         { role: "assistant", content: "hi" },
       ],
       outputMessages: [{ role: "assistant", content: "hi" }],
-      toolSchemas: ['{"name": "search"}'],
+      tools: [
+        {
+          name: "search",
+          description: "Search the web",
+          jsonSchema: '{"type": "object"}',
+        },
+      ],
       prompts: ["prompt one", "prompt two"],
       promptTemplate: {
         template: "Hello {name}",
@@ -99,8 +113,12 @@ describe("getLLMAttributes", () => {
         ],
       },
     });
-    expect(result.toolSchemas).toEqual([
-      '{"name":"search","parameters":{"type":"object"}}',
+    expect(result.tools).toEqual([
+      {
+        name: null,
+        description: null,
+        jsonSchema: '{"name":"search","parameters":{"type":"object"}}',
+      },
     ]);
   });
 
@@ -380,36 +398,6 @@ describe("getToolAttributes", () => {
       parameters:
         '{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}',
     });
-  });
-});
-
-describe("getToolSchemaName", () => {
-  it("reads the name of an openai style tool definition", () => {
-    expect(
-      getToolSchemaName(
-        '{"type":"function","function":{"name":"get_weather","parameters":{"type":"object"}}}'
-      )
-    ).toBe("get_weather");
-  });
-
-  it("reads the name of an anthropic style tool definition", () => {
-    expect(
-      getToolSchemaName(
-        '{"name":"get_weather","input_schema":{"type":"object"}}'
-      )
-    ).toBe("get_weather");
-  });
-
-  it("falls back to the title of a bare parameter schema", () => {
-    expect(getToolSchemaName('{"title":"get_weather","type":"object"}')).toBe(
-      "get_weather"
-    );
-  });
-
-  it("returns undefined when the schema names no tool", () => {
-    expect(getToolSchemaName('{"type":"object"}')).toBeUndefined();
-    expect(getToolSchemaName('{"name":""}')).toBeUndefined();
-    expect(getToolSchemaName("not json")).toBeUndefined();
   });
 });
 

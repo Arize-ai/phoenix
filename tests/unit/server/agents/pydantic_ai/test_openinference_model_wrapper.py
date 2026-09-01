@@ -290,13 +290,14 @@ async def test_request_emits_llm_span_for_tool_call_response(
     assert isinstance(inv_params, str)
     assert json.loads(inv_params) == dict(settings)
 
+    assert attributes.pop(f"{LLM_TOOLS}.0.{TOOL_NAME}") == "get_weather"
+    assert (
+        attributes.pop(f"{LLM_TOOLS}.0.{TOOL_DESCRIPTION}")
+        == "Look up the current weather for a city."
+    )
     tool_schema_attr = attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}")
     assert isinstance(tool_schema_attr, str)
-    tool_schema = json.loads(tool_schema_attr)
-    assert tool_schema["type"] == "function"
-    assert tool_schema["function"]["name"] == "get_weather"
-    assert tool_schema["function"]["description"] == "Look up the current weather for a city."
-    assert tool_schema["function"]["parameters"] == weather_tool.parameters_json_schema
+    assert json.loads(tool_schema_attr) == weather_tool.parameters_json_schema
 
     assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
     assert isinstance(attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}"), str)
@@ -579,13 +580,14 @@ async def test_request_emits_tool_return_message_in_history(
     assert isinstance(inv_params, str)
     assert json.loads(inv_params) == dict(settings)
 
+    assert attributes.pop(f"{LLM_TOOLS}.0.{TOOL_NAME}") == "get_weather"
+    assert (
+        attributes.pop(f"{LLM_TOOLS}.0.{TOOL_DESCRIPTION}")
+        == "Look up the current weather for a city."
+    )
     tool_schema_attr = attributes.pop(f"{LLM_TOOLS}.0.{TOOL_JSON_SCHEMA}")
     assert isinstance(tool_schema_attr, str)
-    tool_schema = json.loads(tool_schema_attr)
-    assert tool_schema["type"] == "function"
-    assert tool_schema["function"]["name"] == "get_weather"
-    assert tool_schema["function"]["description"] == "Look up the current weather for a city."
-    assert tool_schema["function"]["parameters"] == weather_tool.parameters_json_schema
+    assert json.loads(tool_schema_attr) == weather_tool.parameters_json_schema
 
     # Message 0: system prompt.
     assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "system"
@@ -759,6 +761,8 @@ LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_TOOLS = SpanAttributes.LLM_TOOLS
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+TOOL_NAME = ToolAttributes.TOOL_NAME
+TOOL_DESCRIPTION = ToolAttributes.TOOL_DESCRIPTION
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS

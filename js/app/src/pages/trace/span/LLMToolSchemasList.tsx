@@ -6,28 +6,30 @@ import {
   Counter,
   Flex,
   Text,
+  View,
 } from "@phoenix/components";
 import { SpanKindIcon } from "@phoenix/components/trace";
 
 import { defaultCardProps } from "./constants";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
-import { getToolSchemaName } from "./utils";
+import type { LLMToolDefinition } from "./utils";
 
 /**
- * A card displaying a single tool JSON schema available to the LLM.
+ * A card displaying a single tool available to the LLM.
  */
 function LLMToolSchema({
-  toolSchema,
+  tool,
   index,
 }: {
-  toolSchema: string;
+  tool: LLMToolDefinition;
   index: number;
 }) {
-  const name = getToolSchemaName(toolSchema);
   const titleEl = (
     <Flex direction="row" gap="size-100" alignItems="center">
       <SpanKindIcon spanKind="tool" />
-      <Text weight="heavy">{name == null ? "Tool" : `Tool: ${name}`}</Text>
+      <Text weight="heavy">
+        {tool.name == null ? "Tool" : `Tool: ${tool.name}`}
+      </Text>
     </Flex>
   );
 
@@ -38,17 +40,34 @@ function LLMToolSchema({
       {...defaultCardProps}
       backgroundColor="yellow-100"
       borderColor="yellow-300"
-      extra={<CopyToClipboardButton text={toolSchema} />}
+      extra={<CopyToClipboardButton text={tool.jsonSchema} />}
     >
-      <MimeTypeCodeBlock value={toolSchema} mimeType={"json"} />
+      {tool.description != null ? (
+        <View
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          borderBottomColor="default"
+          borderBottomWidth="thin"
+        >
+          <Flex direction="column" alignItems="start" gap="size-50">
+            <Text color="text-700" fontStyle="italic">
+              Description
+            </Text>
+            <Text>{tool.description}</Text>
+          </Flex>
+        </View>
+      ) : null}
+      <MimeTypeCodeBlock value={tool.jsonSchema} mimeType={"json"} />
     </Card>
   );
 }
 
 /**
- * A list of the tool JSON schemas available to the LLM.
+ * A list of the tools available to the LLM.
  */
-export function LLMToolSchemasList({ toolSchemas }: { toolSchemas: string[] }) {
+export function LLMToolSchemasList({ tools }: { tools: LLMToolDefinition[] }) {
   return (
     <ul
       css={css`
@@ -58,10 +77,10 @@ export function LLMToolSchemasList({ toolSchemas }: { toolSchemas: string[] }) {
         padding: var(--global-dimension-size-200);
       `}
     >
-      {toolSchemas.map((toolSchema, idx) => {
+      {tools.map((tool, idx) => {
         return (
           <li key={idx}>
-            <LLMToolSchema toolSchema={toolSchema} index={idx} />
+            <LLMToolSchema tool={tool} index={idx} />
           </li>
         );
       })}

@@ -23,16 +23,24 @@ import {
   toRecordPreview,
   toToolCallsPreview,
 } from "@phoenix/utils/contentPreviewUtils";
-import {
-  safelyParseJSON,
-  safelyParseJSONObjectString,
-} from "@phoenix/utils/jsonUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import type {
   AttributeObject,
   DocumentEvaluation,
   SpanAttributesParseResult,
 } from "./types";
+
+/**
+ * A tool advertised to the LLM. Only instrumentations that record the tool
+ * name and description as their own attributes supply them; older spans carry
+ * them inside the JSON schema alone.
+ */
+export type LLMToolDefinition = {
+  name: string | null;
+  description: string | null;
+  jsonSchema: string;
+};
 
 /**
  * The attributes of an LLM span extracted into the shapes the LLM span
@@ -44,9 +52,9 @@ export type LLMSpanAttributes = {
   inputMessages: AttributeMessage[];
   outputMessages: AttributeMessage[];
   /**
-   * The JSON schemas of the tools available to the LLM
+   * The tools available to the LLM
    */
-  toolSchemas: string[];
+  tools: LLMToolDefinition[];
   prompts: string[];
   promptTemplate: AttributePromptTemplate | null;
   /**
@@ -173,7 +181,7 @@ export function getLLMAttributes(
       provider: null,
       inputMessages: [],
       outputMessages: [],
-      toolSchemas: [],
+      tools: [],
       prompts: [],
       promptTemplate: null,
       invocationParameters: "{}",
@@ -186,21 +194,25 @@ export function getLLMAttributes(
   const maybeProvider = llmAttributes[LLMAttributePostfixes.provider];
   const provider = typeof maybeProvider === "string" ? maybeProvider : null;
 
-  const tools = llmAttributes[LLMAttributePostfixes.tools];
-  const toolDefinitions = Array.isArray(tools)
-    ? (tools
+  const toolAttributes = llmAttributes[LLMAttributePostfixes.tools];
+  const toolDefinitions = Array.isArray(toolAttributes)
+    ? (toolAttributes
         .map((obj) => obj[SemanticAttributePrefixes.tool])
         .filter(Boolean) as AttributeLLMToolDefinition[])
     : [];
-  const toolSchemas = toolDefinitions.reduce<string[]>((acc, tool) => {
+  const tools = toolDefinitions.reduce<LLMToolDefinition[]>((acc, tool) => {
     // Same object-rebuilt-by-ingestion case as tool.parameters below: an
     // instrumentation that flattens `tool.json_schema.*` into dotted keys makes
     // ingestion store json_schema as a nested object, so it is typed unknown.
     // asToolAttributeString narrows it and coerces any non-string value back to
-    // JSON text before it reaches MimeTypeCodeBlock, which expects string[].
-    const schema = asToolAttributeString(tool?.json_schema);
-    if (schema != null) {
-      acc.push(schema);
+    // JSON text before it reaches MimeTypeCodeBlock, which expects a string.
+    const jsonSchema = asToolAttributeString(tool?.json_schema);
+    if (jsonSchema != null) {
+      acc.push({
+        name: asToolAttributeText(tool?.name),
+        description: asToolAttributeText(tool?.description),
+        jsonSchema,
+      });
     }
     return acc;
   }, []);
@@ -217,7 +229,7 @@ export function getLLMAttributes(
     outputMessages: getMessages(
       llmAttributes[LLMAttributePostfixes.output_messages]
     ),
-    toolSchemas,
+    tools,
     prompts,
     promptTemplate:
       llmAttributes[LLMAttributePostfixes.prompt_template] ?? null,
@@ -294,23 +306,6 @@ export function getEmbeddingAttributes(spanAttributes: AttributeObject): {
 }
 
 /**
- * The name of the tool a JSON schema recorded on an LLM span describes.
- *
- * Makes a best-effort attempt to parse the name out of the schema.
- */
-export function getToolSchemaName(toolSchema: string): string | undefined {
-  const schema = safelyParseJSONObjectString(toolSchema) as
-    | Record<string, unknown>
-    | undefined;
-  if (schema == null) {
-    return undefined;
-  }
-  const fn = (schema.function ?? {}) as Record<string, unknown>;
-  const name = fn.name ?? schema.name ?? schema.title;
-  return typeof name === "string" && name !== "" ? name : undefined;
-}
-
-/**
  * The attributes describing the tool of a tool span.
  */
 export type ToolSpanAttributes = {
@@ -333,6 +328,14 @@ function asToolAttributeString(value: unknown): string | undefined {
     return undefined;
   }
   return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+/**
+ * Narrow a tool attribute that is rendered as text rather than as code, e.g.
+ * the tool name. An empty or non-string value reads as absent.
+ */
+function asToolAttributeText(value: unknown): string | null {
+  return typeof value === "string" && value !== "" ? value : null;
 }
 
 /**
