@@ -1831,6 +1831,25 @@ interface Evaluator implements Node {
   datasetEvaluators: [DatasetEvaluator!]!
 }
 
+type EvaluatorAnnotationScoreMetrics {
+  annotationName: String!
+
+  """
+  Aggregates over the requested time range, or null when the range holds none.
+  """
+  summary: AnnotationSummary
+
+  """
+  Aggregates over the window of equal length immediately before the requested time range, for change-over-time comparisons.
+  """
+  previousSummary: AnnotationSummary
+
+  """
+  Mean score per time bin across the requested time range. Bins follow the project metrics convention: spans and traces bucket by their trace's start time, sessions by their own.
+  """
+  series: [EvaluatorScoreSeriesBin!]!
+}
+
 """
 Stable category identifiers whose display labels are supplied by clients.
 """
@@ -1929,6 +1948,11 @@ enum EvaluatorScope {
   SPAN
   TRACE
   SESSION
+}
+
+type EvaluatorScoreSeriesBin {
+  timestamp: DateTime!
+  meanScore: Float
 }
 
 """The sort key and direction for evaluator connections"""
@@ -3347,6 +3371,11 @@ type ProjectEvaluator implements Node {
   """
   schedulabilityReason: ProjectEvaluatorSchedulabilityReason
   runSummary: ProjectEvaluatorRunSummary!
+
+  """
+  Score aggregates for each annotation this evaluator writes on the evaluated project: totals over the requested time range, totals over the equal-length window immediately before it, and a binned mean-score series. Loading is batched across the project's evaluators, so requesting this for a page of evaluators costs a fixed number of queries.
+  """
+  annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): [EvaluatorAnnotationScoreMetrics!]!
 
   """
   Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New project evaluators store the default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.

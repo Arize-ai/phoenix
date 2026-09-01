@@ -12,6 +12,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -30,10 +31,6 @@ import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { TimeRangeISOStrings } from "@phoenix/components/datetime";
 import { useTimeRange } from "@phoenix/components/datetime";
-import {
-  clampTimeRangeToMaxDuration,
-  getLastNTimeRangeKeyFromDurationMs,
-} from "@phoenix/components/datetime/utils";
 import {
   EvaluatorAverageCost,
   EvaluatorCost,
@@ -54,23 +51,23 @@ import {
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import { ONE_DAY_MS } from "@phoenix/constants/timeConstants";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
-import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
+import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
-import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import {
   EvaluatorScoreWindowProvider,
   ProjectEvaluatorMeanScoreCell,
   ProjectEvaluatorMeanScoreHeader,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
+import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
 import {
@@ -87,12 +84,6 @@ const PAGE_SIZE = 30;
  * table so a project that's just getting started keeps seeing it.
  */
 const GALLERY_PROMO_MAX_EVALUATOR_COUNT = 15;
-/**
- * The mean score column aggregates over at most this much of the page time
- * range, keeping the per-row annotation scans bounded on long ranges.
- */
-const MAX_SCORE_WINDOW_MS = 30 * ONE_DAY_MS;
-
 /** Labels for columns whose header is not a plain string. */
 const COLUMN_LABELS: Record<string, string> = {
   meanScore: "mean score",
@@ -105,7 +96,9 @@ const scrollableAreaCSS = css`
 `;
 
 const readRow = (
-  row: ProjectEvaluatorsTable_row$key & ProjectEvaluatorsTable_costs$key
+  row: ProjectEvaluatorsTable_row$key &
+    ProjectEvaluatorsTable_costs$key &
+    ProjectEvaluatorsTable_scores$key
 ) => {
   const rowData = readInlineData<ProjectEvaluatorsTable_row$key>(
     graphql`
@@ -126,10 +119,6 @@ const readRow = (
           queuedCount
           evaluatedCount
           failedCount
-        }
-        # The evaluated project, whose annotations carry the evaluator's scores
-        project {
-          id
         }
         evaluator {
           kind
@@ -214,7 +203,43 @@ const readRow = (
     `,
     row
   );
-  return { ...rowData, ...costData };
+  const scoresData = readInlineData<ProjectEvaluatorsTable_scores$key>(
+    graphql`
+      fragment ProjectEvaluatorsTable_scores on ProjectEvaluator
+      @inline
+      @argumentDefinitions(
+        scoreTimeRange: { type: "TimeRange!" }
+        scoreTimeBinConfig: { type: "TimeBinConfig!" }
+        includeMeanScore: { type: "Boolean!" }
+      ) {
+        annotationScoreMetrics(
+          timeRange: $scoreTimeRange
+          timeBinConfig: $scoreTimeBinConfig
+        ) @include(if: $includeMeanScore) {
+          annotationName
+          summary {
+            meanScore
+            count
+            scoreCount
+            labelCount
+            labelFractions {
+              label
+              fraction
+            }
+          }
+          previousSummary {
+            meanScore
+          }
+          series {
+            timestamp
+            meanScore
+          }
+        }
+      }
+    `,
+    row
+  );
+  return { ...rowData, ...costData, ...scoresData };
 };
 
 type TableRow = ReturnType<typeof readRow>;
@@ -226,6 +251,8 @@ export function ProjectEvaluatorsTable({
   timeRange,
   initialFilter,
   initialTimeRange,
+  initialScoreWindow,
+  initialIncludeMeanScore,
 }: {
   project: ProjectEvaluatorsTable_project$key;
   projectId: string;
@@ -237,6 +264,10 @@ export function ProjectEvaluatorsTable({
   initialFilter: string;
   /** Time range used to fetch the rows supplied by the owner query. */
   initialTimeRange: TimeRangeISOStrings;
+  /** Score window used to fetch the rows supplied by the owner query. */
+  initialScoreWindow: EvaluatorScoreWindow;
+  /** Whether the owner query fetched the mean score column's data. */
+  initialIncludeMeanScore: boolean;
 }) {
   "use no memo";
   const {
@@ -254,6 +285,9 @@ export function ProjectEvaluatorsTable({
         after: { type: "String", defaultValue: null }
         filter: { type: "ProjectEvaluatorFilter", defaultValue: null }
         timeRange: { type: "TimeRange!" }
+        scoreTimeRange: { type: "TimeRange!" }
+        scoreTimeBinConfig: { type: "TimeBinConfig!" }
+        includeMeanScore: { type: "Boolean!" }
       ) {
         evaluators(first: $first, after: $after, filter: $filter)
           @connection(key: "ProjectEvaluatorsTable_evaluators") {
@@ -261,6 +295,12 @@ export function ProjectEvaluatorsTable({
             node {
               ...ProjectEvaluatorsTable_row
               ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
+              ...ProjectEvaluatorsTable_scores
+                @arguments(
+                  scoreTimeRange: $scoreTimeRange
+                  scoreTimeBinConfig: $scoreTimeBinConfig
+                  includeMeanScore: $includeMeanScore
+                )
             }
           }
         }
@@ -269,6 +309,28 @@ export function ProjectEvaluatorsTable({
     project
   );
   const trimmedFilter = filter.trim();
+  const { timeRange: pageTimeRange } = useTimeRange();
+  const utcOffsetMinutes = useUTCOffsetMinutes();
+  // Memoized so an open-ended range resolves "now" once per range change
+  // instead of minting new query variables (and refetches) every render.
+  const scoreWindow = useMemo<EvaluatorScoreWindow>(
+    () =>
+      getEvaluatorScoreWindow({ timeRange: pageTimeRange, utcOffsetMinutes }),
+    [pageTimeRange, utcOffsetMinutes]
+  );
+  const isMeanScoreColumnVisible = useProjectEvaluatorsTableContext(
+    (state) => state.columnVisibility["meanScore"] !== false
+  );
+  // Latched: once the mean score column has been shown, keep fetching its
+  // data so hiding and re-showing it does not churn the connection.
+  const [includeMeanScore, setIncludeMeanScore] = useState(
+    initialIncludeMeanScore || isMeanScoreColumnVisible
+  );
+  useEffect(() => {
+    if (isMeanScoreColumnVisible) {
+      setIncludeMeanScore(true);
+    }
+  }, [isMeanScoreColumnVisible]);
   const hasComparedInitialQueryInputs = useRef(false);
   // Filtered server-side; a client-side filter would only see the loaded page.
   useEffect(() => {
@@ -278,9 +340,21 @@ export function ProjectEvaluatorsTable({
       const hasInitialTimeRange =
         timeRange.start === initialTimeRange.start &&
         timeRange.end === initialTimeRange.end;
+      const hasInitialScoreWindow =
+        scoreWindow.timeRange.start === initialScoreWindow.timeRange.start &&
+        scoreWindow.timeRange.end === initialScoreWindow.timeRange.end &&
+        scoreWindow.timeBinConfig.scale ===
+          initialScoreWindow.timeBinConfig.scale;
+      const hasInitialIncludeMeanScore =
+        includeMeanScore === initialIncludeMeanScore;
       // Avoid a duplicate request only when the rows supplied by the owner
-      // query already answer the table's current filter and selected range.
-      if (hasInitialFilter && hasInitialTimeRange) {
+      // query already answer the table's current filter, range, and columns.
+      if (
+        hasInitialFilter &&
+        hasInitialTimeRange &&
+        hasInitialScoreWindow &&
+        hasInitialIncludeMeanScore
+      ) {
         return;
       }
     }
@@ -291,19 +365,35 @@ export function ProjectEvaluatorsTable({
           first: PAGE_SIZE,
           filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
           timeRange,
+          scoreTimeRange: scoreWindow.timeRange,
+          scoreTimeBinConfig: scoreWindow.timeBinConfig,
+          includeMeanScore,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [initialFilter, initialTimeRange, trimmedFilter, refetch, timeRange]);
+  }, [
+    initialFilter,
+    initialTimeRange,
+    initialScoreWindow,
+    initialIncludeMeanScore,
+    trimmedFilter,
+    refetch,
+    timeRange,
+    scoreWindow,
+    includeMeanScore,
+  ]);
   const loadNext = useCallback(() => {
     _loadNext(PAGE_SIZE, {
       UNSTABLE_extraVariables: {
         filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
         timeRange,
+        scoreTimeRange: scoreWindow.timeRange,
+        scoreTimeBinConfig: scoreWindow.timeBinConfig,
+        includeMeanScore,
       },
     });
-  }, [_loadNext, trimmedFilter, timeRange]);
+  }, [_loadNext, trimmedFilter, timeRange, scoreWindow, includeMeanScore]);
   const tableData = useMemo(
     () => data.evaluators.edges.map(({ node }) => readRow(node)),
     [data.evaluators.edges]
@@ -314,47 +404,6 @@ export function ProjectEvaluatorsTable({
     (projectEvaluatorId: string) => navigate(paths.edit(projectEvaluatorId)),
     [navigate, paths]
   );
-  const { timeRange: pageTimeRange } = useTimeRange();
-  const utcOffsetMinutes = useUTCOffsetMinutes();
-  // Memoized so an open-ended range resolves "now" once per range change
-  // instead of minting new query variables (and refetches) every render.
-  const clampedScoreRange = useMemo(
-    () =>
-      clampTimeRangeToMaxDuration({
-        value: pageTimeRange,
-        maxDurationMs: MAX_SCORE_WINDOW_MS,
-      }),
-    [pageTimeRange]
-  );
-  const scoreBinScale = useTimeBinScale({ timeRange: clampedScoreRange });
-  const scoreWindow = useMemo<EvaluatorScoreWindow>(() => {
-    const durationMs =
-      clampedScoreRange.end.getTime() - clampedScoreRange.start.getTime();
-    // An unclamped last-N range echoes its own key ("1d"), since the resolved
-    // duration overshoots the label a little (last-N starts snap backward)
-    // and would otherwise format as e.g. "25h". Clamped and custom ranges
-    // derive the label from the actual window.
-    const isClamped =
-      pageTimeRange.start == null ||
-      clampedScoreRange.start.getTime() > pageTimeRange.start.getTime();
-    return {
-      timeRange: {
-        start: clampedScoreRange.start.toISOString(),
-        end: clampedScoreRange.end.toISOString(),
-      },
-      previousTimeRange: {
-        start: new Date(
-          clampedScoreRange.start.getTime() - durationMs
-        ).toISOString(),
-        end: clampedScoreRange.start.toISOString(),
-      },
-      timeBinConfig: { scale: scoreBinScale, utcOffsetMinutes },
-      windowKey:
-        !isClamped && pageTimeRange.timeRangeKey !== "custom"
-          ? pageTimeRange.timeRangeKey
-          : getLastNTimeRangeKeyFromDurationMs(durationMs),
-    };
-  }, [clampedScoreRange, pageTimeRange, scoreBinScale, utcOffsetMinutes]);
   // Deferred so a window change — a range pick, or the live window's
   // once-a-minute/hour re-anchor — re-renders the score cells in the
   // background: they keep their stale content while the new window's data
@@ -395,21 +444,19 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "meanScore",
-        // The header and cell read the score window from context so the
-        // column def — and with it the cell component identity tanstack
-        // renders — stays stable when the window changes. A def that closed
-        // over the window would remount every cell on each live-range
-        // re-anchor, flashing all the suspense fallbacks at once.
+        // The header reads the score window from context so the column def —
+        // and with it the cell component identity tanstack renders — stays
+        // stable when the window changes. A def that closed over the window
+        // would remount every cell on each live-range re-anchor.
         header: () => <ProjectEvaluatorMeanScoreHeader />,
         size: 170,
         cell: ({ row }) => (
           <ProjectEvaluatorMeanScoreCell
-            projectId={row.original.project.id}
-            evaluationTarget={row.original.evaluationTarget}
             annotations={getProjectEvaluatorResultAnnotations({
               name: row.original.name,
               outputConfigs: row.original.evaluator.outputConfigs,
             })}
+            scoreMetrics={row.original.annotationScoreMetrics}
           />
         ),
       },

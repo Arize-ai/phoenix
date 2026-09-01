@@ -14,11 +14,14 @@ import {
   CREATE_CODE_EVALUATOR_PARAM,
   CREATE_LLM_EVALUATOR_PARAM,
 } from "@phoenix/constants/searchParams";
+import { PROJECT_EVALUATORS_TABLE_STORAGE_KEY } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import {
   newCodeProjectEvaluatorPath,
   newLlmProjectEvaluatorPath,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
+import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { PREFERENCES_STORAGE_KEY } from "@phoenix/store/preferencesStore";
 import { withSearchParams } from "@phoenix/utils/urlUtils";
@@ -28,12 +31,21 @@ export const projectEvaluatorsLoaderGQL = graphql`
     $projectId: ID!
     $filter: ProjectEvaluatorFilter
     $timeRange: TimeRange!
+    $scoreTimeRange: TimeRange!
+    $scoreTimeBinConfig: TimeBinConfig!
+    $includeMeanScore: Boolean!
   ) {
     project: node(id: $projectId) {
       ... on Project {
         evaluatorCount
         ...ProjectEvaluatorsTable_project
-          @arguments(filter: $filter, timeRange: $timeRange)
+          @arguments(
+            filter: $filter
+            timeRange: $timeRange
+            scoreTimeRange: $scoreTimeRange
+            scoreTimeBinConfig: $scoreTimeBinConfig
+            includeMeanScore: $includeMeanScore
+          )
       }
     }
   }
@@ -67,20 +79,44 @@ function getStoredLastNTimeRangeKey(): LastNTimeRangeKey {
  * windows over an hour), so the loader and the provider agree on the exact
  * variables and the table's mount guard skips the duplicate refetch.
  */
-function getPageTimeRange(searchParams: URLSearchParams): TimeRangeISOStrings {
-  const timeRange =
-    getTimeRangeFromSearchParams(searchParams) ??
-    getTimeRangeFromLastNTimeRangeKey(getStoredLastNTimeRangeKey());
-  return {
-    start: timeRange.start?.toISOString(),
-    end: timeRange.end?.toISOString(),
-  };
+function getPageTimeRange(searchParams: URLSearchParams) {
+  const storedKey = getStoredLastNTimeRangeKey();
+  return (
+    getTimeRangeFromSearchParams(searchParams) ?? {
+      timeRangeKey: storedKey,
+      ...getTimeRangeFromLastNTimeRangeKey(storedKey),
+    }
+  );
+}
+
+/**
+ * Whether the mean score column is visible in the persisted table
+ * preferences, and its data should be fetched with the rows. Mirrors the
+ * table's `columnVisibility["meanScore"] !== false` read; unreadable or
+ * missing storage means the default (visible).
+ */
+function getStoredIncludeMeanScore(): boolean {
+  try {
+    const persisted = localStorage.getItem(
+      PROJECT_EVALUATORS_TABLE_STORAGE_KEY
+    );
+    const visibility = persisted
+      ? JSON.parse(persisted)?.state?.columnVisibility
+      : null;
+    return visibility?.meanScore !== false;
+  } catch {
+    return true;
+  }
 }
 
 export type ProjectEvaluatorsLoaderData = {
   queryRef: ReturnType<typeof loadQuery<projectEvaluatorsLoaderQuery>>;
   /** The exact time range the query was loaded with. */
   timeRange: TimeRangeISOStrings;
+  /** The exact score window the query was loaded with. */
+  scoreWindow: EvaluatorScoreWindow;
+  /** Whether the query fetched the mean score column's data. */
+  includeMeanScore: boolean;
 };
 
 /**
@@ -118,16 +154,34 @@ export function projectEvaluatorsLoader(
   }
   const { projectId } = args.params;
   invariant(projectId, "projectId is required");
-  const timeRange = getPageTimeRange(url.searchParams);
+  const pageTimeRange = getPageTimeRange(url.searchParams);
+  const timeRange: TimeRangeISOStrings = {
+    start: pageTimeRange.start?.toISOString(),
+    end: pageTimeRange.end?.toISOString(),
+  };
+  const scoreWindow = getEvaluatorScoreWindow({
+    timeRange: pageTimeRange,
+    utcOffsetMinutes: -new Date().getTimezoneOffset(),
+  });
+  const includeMeanScore = getStoredIncludeMeanScore();
   return {
     queryRef: loadQuery<projectEvaluatorsLoaderQuery>(
       RelayEnvironment,
       projectEvaluatorsLoaderGQL,
       // The toolbar search always starts empty on a fresh mount, so the
       // loader fetches unfiltered; the table refetches when the user types.
-      { projectId, filter: null, timeRange },
+      {
+        projectId,
+        filter: null,
+        timeRange,
+        scoreTimeRange: scoreWindow.timeRange,
+        scoreTimeBinConfig: scoreWindow.timeBinConfig,
+        includeMeanScore,
+      },
       { fetchPolicy: "store-and-network" }
     ),
     timeRange,
+    scoreWindow,
+    includeMeanScore,
   };
 }

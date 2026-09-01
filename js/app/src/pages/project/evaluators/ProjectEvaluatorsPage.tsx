@@ -112,6 +112,8 @@ function ProjectEvaluatorsPageContent({
         timeRange={timeRangeISOStrings}
         initialFilter=""
         initialTimeRange={initialTimeRange}
+        initialScoreWindow={loaderData.scoreWindow}
+        initialIncludeMeanScore={loaderData.includeMeanScore}
       />
     </>
   );

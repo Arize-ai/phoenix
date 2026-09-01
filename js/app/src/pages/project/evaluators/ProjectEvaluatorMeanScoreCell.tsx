@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import type { ComponentProps, ReactNode } from "react";
-import { createContext, Suspense, useContext } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { createContext, useContext } from "react";
 import invariant from "tiny-invariant";
 
 import {
@@ -18,53 +17,33 @@ import {
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { Sparkline, useBinTimeTickFormatter } from "@phoenix/components/chart";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
-import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
-import type { ProjectEvaluatorMeanScoreCellSessionQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCellSessionQuery.graphql";
-import type { ProjectEvaluatorMeanScoreCellSpanQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCellSpanQuery.graphql";
-import type { ProjectEvaluatorMeanScoreCellTraceQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCellTraceQuery.graphql";
+import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 /**
- * The closed windows and binning the mean score cells aggregate over, derived
- * once per table render so every row's query shares identical variables.
+ * One annotation's score aggregates as the row fragment selects them from
+ * `ProjectEvaluator.annotationScoreMetrics`.
  */
-export type EvaluatorScoreWindow = {
-  /** The page time range clamped to the score window cap, as ISO strings. */
-  timeRange: { start: string; end: string };
-  /** The equal-length window immediately before, for the delta. */
-  previousTimeRange: { start: string; end: string };
-  timeBinConfig: { scale: TimeBinScale; utcOffsetMinutes: number };
-  /** Compact label of the window length, e.g. "7d". */
-  windowKey: string;
-};
-
-type AnnotationSummaryData = {
-  readonly meanScore: number | null | undefined;
-  readonly count: number;
-  readonly scoreCount: number;
-  readonly labelCount: number;
-  readonly labelFractions: ReadonlyArray<{
-    readonly label: string;
-    readonly fraction: number;
-  }>;
-};
-
-type SeriesData = {
-  readonly data: ReadonlyArray<{
-    readonly timestamp: string;
-    readonly annotationSummaries: ReadonlyArray<{
-      readonly name: string;
-      readonly meanScore: number | null | undefined;
+export type EvaluatorAnnotationScoreMetricsData = {
+  readonly annotationName: string;
+  readonly summary: {
+    readonly meanScore: number | null | undefined;
+    readonly count: number;
+    readonly scoreCount: number;
+    readonly labelCount: number;
+    readonly labelFractions: ReadonlyArray<{
+      readonly label: string;
+      readonly fraction: number;
     }>;
+  } | null;
+  readonly previousSummary: {
+    readonly meanScore: number | null | undefined;
+  } | null;
+  readonly series: ReadonlyArray<{
+    readonly timestamp: string;
+    readonly meanScore: number | null | undefined;
   }>;
-};
-
-type AnnotationMeanScoreLoaderProps = {
-  /** The evaluated project the evaluator's annotations land on. */
-  projectId: string;
-  annotation: ProjectEvaluatorResultAnnotation;
-  scoreWindow: EvaluatorScoreWindow;
 };
 
 const meanScoreAlignmentCSS = css`
@@ -109,9 +88,7 @@ const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
  * closing over the window would rebuild — and, because tanstack renders the
  * def's `cell` function as an element type, REMOUNT every cell — each time
  * the window changes, including the live range's once-a-minute/hour
- * re-anchor. A remounted cell's Suspense always flashes its fallback; a
- * context update just re-renders, so a deferred window can load in the
- * background while the cells keep their content.
+ * re-anchor. A context update just re-renders.
  */
 export const EvaluatorScoreWindowProvider =
   EvaluatorScoreWindowContext.Provider;
@@ -143,271 +120,54 @@ export function ProjectEvaluatorMeanScoreHeader() {
 /**
  * The evaluators table's mean score cell: for each annotation the evaluator
  * writes, the mean score over the (clamped) page time range, its change vs.
- * the previous window, and a sparkline of per-bin means. Fetches its own data,
- * so the aggregates are only queried while the column is visible.
+ * the previous window, and a sparkline of per-bin means. The data arrives
+ * with the row via `ProjectEvaluator.annotationScoreMetrics`, which the
+ * connection only fetches while the column is visible.
  */
 export function ProjectEvaluatorMeanScoreCell({
-  projectId,
-  evaluationTarget,
   annotations,
+  scoreMetrics,
 }: {
-  /** The evaluated project the evaluator's annotations land on. */
-  projectId: string;
-  evaluationTarget: EvaluationTarget;
   /** The annotations the evaluator writes, named the way its runs persist them. */
   annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
+  /** The row's score aggregates; undefined while not fetched. */
+  scoreMetrics:
+    | ReadonlyArray<EvaluatorAnnotationScoreMetricsData>
+    | null
+    | undefined;
 }) {
   const scoreWindow = useEvaluatorScoreWindow();
   return (
     <Flex direction="column" gap="size-50">
       {annotations.map((annotation) => (
-        <Suspense key={annotation.name} fallback={meanScoreFallback}>
-          <AnnotationMeanScoreLoader
-            projectId={projectId}
-            evaluationTarget={evaluationTarget}
-            annotation={annotation}
-            scoreWindow={scoreWindow}
-          />
-        </Suspense>
+        <AnnotationMeanScoreView
+          key={annotation.name}
+          annotation={annotation}
+          scoreWindow={scoreWindow}
+          metrics={scoreMetrics?.find(
+            (entry) => entry.annotationName === annotation.name
+          )}
+        />
       ))}
     </Flex>
-  );
-}
-
-/**
- * Routes to the summary fields for the level the evaluator annotates at,
- * mirroring the level switch in ProjectAnnotationMetrics.
- */
-function AnnotationMeanScoreLoader({
-  evaluationTarget,
-  ...props
-}: AnnotationMeanScoreLoaderProps & { evaluationTarget: EvaluationTarget }) {
-  switch (evaluationTarget) {
-    case "SPAN":
-      return <SpanAnnotationMeanScore {...props} />;
-    case "TRACE":
-      return <TraceAnnotationMeanScore {...props} />;
-    case "SESSION":
-      return <SessionAnnotationMeanScore {...props} />;
-    default:
-      return meanScoreFallback;
-  }
-}
-
-function getQueryVariables({
-  projectId,
-  annotation,
-  scoreWindow,
-}: AnnotationMeanScoreLoaderProps) {
-  return {
-    projectId,
-    annotationName: annotation.name,
-    timeRange: scoreWindow.timeRange,
-    previousTimeRange: scoreWindow.previousTimeRange,
-    timeBinConfig: scoreWindow.timeBinConfig,
-  };
-}
-
-function SpanAnnotationMeanScore(props: AnnotationMeanScoreLoaderProps) {
-  const data = useLazyLoadQuery<ProjectEvaluatorMeanScoreCellSpanQuery>(
-    graphql`
-      query ProjectEvaluatorMeanScoreCellSpanQuery(
-        $projectId: ID!
-        $annotationName: String!
-        $timeRange: TimeRange!
-        $previousTimeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
-      ) {
-        project: node(id: $projectId) {
-          ... on Project {
-            summary: spanAnnotationSummary(
-              annotationName: $annotationName
-              timeRange: $timeRange
-            ) {
-              meanScore
-              count
-              scoreCount
-              labelCount
-              labelFractions {
-                label
-                fraction
-              }
-            }
-            previousSummary: spanAnnotationSummary(
-              annotationName: $annotationName
-              timeRange: $previousTimeRange
-            ) {
-              meanScore
-            }
-            series: spanAnnotationMetricsTimeSeries(
-              annotationName: $annotationName
-              timeRange: $timeRange
-              timeBinConfig: $timeBinConfig
-            ) {
-              data {
-                timestamp
-                annotationSummaries {
-                  name
-                  meanScore
-                }
-              }
-            }
-          }
-        }
-      }
-    `,
-    getQueryVariables(props)
-  );
-  return (
-    <AnnotationMeanScoreView
-      annotation={props.annotation}
-      scoreWindow={props.scoreWindow}
-      summary={data.project.summary}
-      previousMeanScore={data.project.previousSummary?.meanScore}
-      series={data.project.series}
-    />
-  );
-}
-
-function TraceAnnotationMeanScore(props: AnnotationMeanScoreLoaderProps) {
-  const data = useLazyLoadQuery<ProjectEvaluatorMeanScoreCellTraceQuery>(
-    graphql`
-      query ProjectEvaluatorMeanScoreCellTraceQuery(
-        $projectId: ID!
-        $annotationName: String!
-        $timeRange: TimeRange!
-        $previousTimeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
-      ) {
-        project: node(id: $projectId) {
-          ... on Project {
-            summary: traceAnnotationSummary(
-              annotationName: $annotationName
-              timeRange: $timeRange
-            ) {
-              meanScore
-              count
-              scoreCount
-              labelCount
-              labelFractions {
-                label
-                fraction
-              }
-            }
-            previousSummary: traceAnnotationSummary(
-              annotationName: $annotationName
-              timeRange: $previousTimeRange
-            ) {
-              meanScore
-            }
-            series: traceAnnotationMetricsTimeSeries(
-              annotationName: $annotationName
-              timeRange: $timeRange
-              timeBinConfig: $timeBinConfig
-            ) {
-              data {
-                timestamp
-                annotationSummaries {
-                  name
-                  meanScore
-                }
-              }
-            }
-          }
-        }
-      }
-    `,
-    getQueryVariables(props)
-  );
-  return (
-    <AnnotationMeanScoreView
-      annotation={props.annotation}
-      scoreWindow={props.scoreWindow}
-      summary={data.project.summary}
-      previousMeanScore={data.project.previousSummary?.meanScore}
-      series={data.project.series}
-    />
-  );
-}
-
-function SessionAnnotationMeanScore(props: AnnotationMeanScoreLoaderProps) {
-  const data = useLazyLoadQuery<ProjectEvaluatorMeanScoreCellSessionQuery>(
-    graphql`
-      query ProjectEvaluatorMeanScoreCellSessionQuery(
-        $projectId: ID!
-        $annotationName: String!
-        $timeRange: TimeRange!
-        $previousTimeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
-      ) {
-        project: node(id: $projectId) {
-          ... on Project {
-            summary: sessionAnnotationSummary(
-              annotationName: $annotationName
-              timeRange: $timeRange
-            ) {
-              meanScore
-              count
-              scoreCount
-              labelCount
-              labelFractions {
-                label
-                fraction
-              }
-            }
-            previousSummary: sessionAnnotationSummary(
-              annotationName: $annotationName
-              timeRange: $previousTimeRange
-            ) {
-              meanScore
-            }
-            series: sessionAnnotationMetricsTimeSeries(
-              annotationName: $annotationName
-              timeRange: $timeRange
-              timeBinConfig: $timeBinConfig
-            ) {
-              data {
-                timestamp
-                annotationSummaries {
-                  name
-                  meanScore
-                }
-              }
-            }
-          }
-        }
-      }
-    `,
-    getQueryVariables(props)
-  );
-  return (
-    <AnnotationMeanScoreView
-      annotation={props.annotation}
-      scoreWindow={props.scoreWindow}
-      summary={data.project.summary}
-      previousMeanScore={data.project.previousSummary?.meanScore}
-      series={data.project.series}
-    />
   );
 }
 
 function AnnotationMeanScoreView({
   annotation,
   scoreWindow,
-  summary,
-  previousMeanScore,
-  series,
+  metrics,
 }: {
   annotation: ProjectEvaluatorResultAnnotation;
   scoreWindow: EvaluatorScoreWindow;
-  summary: AnnotationSummaryData | null | undefined;
-  previousMeanScore: number | null | undefined;
-  series: SeriesData | null | undefined;
+  metrics: EvaluatorAnnotationScoreMetricsData | undefined;
 }) {
   const { windowKey } = scoreWindow;
   const binTimeFormatter = useBinTimeTickFormatter({
     scale: scoreWindow.timeBinConfig.scale,
   });
+  const summary = metrics?.summary;
+  const previousMeanScore = metrics?.previousSummary?.meanScore;
   const meanScore = summary?.meanScore;
   const hasScore = typeof meanScore === "number";
   const hasLabels = (summary?.labelFractions.length ?? 0) > 0;
@@ -433,15 +193,10 @@ function AnnotationMeanScoreView({
     delta == null
       ? null
       : `${delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} ${Math.abs(delta).toFixed(2)}`;
-  const sparkValues =
-    series?.data.map((point) => {
-      const binSummary = point.annotationSummaries.find(
-        (annotationSummary) => annotationSummary.name === annotation.name
-      );
-      return typeof binSummary?.meanScore === "number"
-        ? binSummary.meanScore
-        : null;
-    }) ?? [];
+  const series = metrics?.series ?? [];
+  const sparkValues = series.map((bin) =>
+    typeof bin.meanScore === "number" ? bin.meanScore : null
+  );
   return (
     <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
       {/* The score and delta carry the summary breakdown; the sparkline sits
@@ -497,15 +252,14 @@ function AnnotationMeanScoreView({
         values={sparkValues}
         aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
         renderPointDetail={(index) => {
-          const point = series?.data[index];
+          const timestamp = series[index]?.timestamp;
           const value = sparkValues[index];
-          if (point == null || value == null) {
+          if (timestamp == null || value == null) {
             return null;
           }
           return (
             <Text size="S">
-              {binTimeFormatter(new Date(point.timestamp))} · μ{" "}
-              {formatFloat(value)}
+              {binTimeFormatter(new Date(timestamp))} · μ {formatFloat(value)}
             </Text>
           );
         }}
