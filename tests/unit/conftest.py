@@ -45,6 +45,68 @@ from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR
 
 
+def _install_bounded_asyncio_teardown() -> None:
+    """Bound the event-loop shutdown that pytest-asyncio's scoped runners run.
+
+    The stdlib Runner.close() ends with an unbounded
+    ``run_until_complete(gather(*to_cancel))``: one leftover task that
+    ignores its cancellation wedges the xdist worker forever — the recurring
+    CI stall at ~99% (see the py-spy dumps in the python-CI watchdog). This
+    bounded replacement abandons tasks that ignore two rounds of
+    cancellation and names them in a warning, so a leak costs a log line
+    instead of a 60-minute job timeout.
+    """
+    import asyncio.runners
+    import warnings
+
+    patch_targets: list[Any] = [asyncio.runners]
+    try:
+        from backports.asyncio.runner import (
+            runner as _backports_runner,  # pyright: ignore[reportMissingImports]
+        )
+    except ImportError:
+        pass
+    else:
+        patch_targets.append(_backports_runner)
+
+    def _bounded_cancel_all_tasks(loop: AbstractEventLoop) -> None:
+        to_cancel = asyncio.all_tasks(loop)
+        if not to_cancel:
+            return
+        for task in to_cancel:
+            task.cancel()
+        done, pending = loop.run_until_complete(asyncio.wait(to_cancel, timeout=60))
+        if pending:
+            details = "\n".join(f"  {task!r}" for task in pending)
+            warnings.warn(
+                f"{len(pending)} asyncio task(s) ignored cancellation during event "
+                f"loop shutdown and were abandoned:\n{details}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            for task in pending:
+                task.cancel()
+            second_done, _ = loop.run_until_complete(asyncio.wait(pending, timeout=30))
+            done |= second_done
+        for task in done:
+            if task.cancelled():
+                continue
+            if (exception := task.exception()) is not None:
+                loop.call_exception_handler(
+                    {
+                        "message": "unhandled exception during asyncio.run() shutdown",
+                        "exception": exception,
+                        "task": task,
+                    }
+                )
+
+    for module in patch_targets:
+        module._cancel_all_tasks = _bounded_cancel_all_tasks
+
+
+_install_bounded_asyncio_teardown()
+
+
 def pytest_configure(config: Config) -> None:
     config.addinivalue_line(
         "markers",
