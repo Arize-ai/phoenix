@@ -86,7 +86,7 @@ export const EvaluatorFormDialogContent = ({
         </Button>
         <Button
           {...submitButtonProps}
-          variant={submitHint ? "default" : "primary"}
+          variant="primary"
           isPending={isSubmitting}
           isDisabled={isSubmitting || isSubmitDisabled}
           onPress={onSubmit}
