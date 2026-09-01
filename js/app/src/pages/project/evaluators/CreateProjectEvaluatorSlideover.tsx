@@ -56,6 +56,10 @@ import {
   type AnnotationConfig,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
+import type {
+  CodeEvaluatorLanguage,
+  EvaluatorInputMapping,
+} from "@phoenix/types";
 
 type SeededLlmEvaluatorInitialState = {
   name: string;
@@ -70,12 +74,27 @@ type TemplateLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
   targetType: ProjectEvaluatorTarget;
 };
 
+type SeededCodeEvaluatorInitialState = {
+  name: string;
+  copyName: string;
+  description: string;
+  outputConfigs: AnnotationConfig[];
+  language: CodeEvaluatorLanguage;
+  sourceCode: string;
+  sandboxConfigId: string | null;
+  inputMapping: EvaluatorInputMapping;
+};
+
 export type ProjectEvaluatorCreationMode =
   | { kind: "scratch" }
   | { kind: "newCode" }
   | {
       kind: "copy";
       initialState: SeededLlmEvaluatorInitialState;
+    }
+  | {
+      kind: "copyCode";
+      initialState: SeededCodeEvaluatorInitialState;
     }
   | {
       kind: "template";
@@ -103,6 +122,9 @@ function getProjectEvaluatorCreationTitle(
   }
   if (creationMode.kind === "copy") {
     return `Copy LLM evaluator “${creationMode.initialState.name}”`;
+  }
+  if (creationMode.kind === "copyCode") {
+    return `Duplicate code evaluator “${creationMode.initialState.name}”`;
   }
   if (creationMode.kind === "template") {
     return `Create “${creationMode.initialState.name}” evaluator`;
@@ -186,17 +208,24 @@ const CreateProjectEvaluatorDialog = ({
   });
 
   const initialState = (() => {
-    if (creationMode.kind === "newCode") {
+    if (creationMode.kind === "newCode" || creationMode.kind === "copyCode") {
+      const copiedState =
+        creationMode.kind === "copyCode" ? creationMode.initialState : null;
       return {
         ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
         evaluator: {
           ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
-          globalName: "",
-          description: "",
-          inputMapping: { pathMapping: {}, literalMapping: {} },
+          globalName: copiedState?.copyName ?? "",
+          description: copiedState?.description ?? "",
+          inputMapping: copiedState?.inputMapping ?? {
+            pathMapping: {},
+            literalMapping: {},
+          },
           kind: "CODE",
         },
-        outputConfigs: [createDefaultFreeformOutputConfig("")],
+        outputConfigs: copiedState?.outputConfigs ?? [
+          createDefaultFreeformOutputConfig(""),
+        ],
         evaluatorMappingSource: defaultEvaluatorMappingSourceState(
           toEvaluatorMappingSourceGrain(scope.targetType)
         ),
@@ -259,7 +288,7 @@ const CreateProjectEvaluatorDialog = ({
 
   return (
     <EvaluatorStoreProvider initialState={initialState}>
-      {creationMode.kind === "newCode" ? (
+      {creationMode.kind === "newCode" || creationMode.kind === "copyCode" ? (
         <CreateNewCodeProjectEvaluatorDialog
           title={title}
           projectId={projectId}
@@ -267,6 +296,15 @@ const CreateProjectEvaluatorDialog = ({
           onScopeChange={setScope}
           onSuccess={finishCreation}
           registerDirtyCheck={registerDirtyCheck}
+          initialValues={
+            creationMode.kind === "copyCode"
+              ? {
+                  language: creationMode.initialState.language,
+                  sourceCode: creationMode.initialState.sourceCode,
+                  sandboxConfigId: creationMode.initialState.sandboxConfigId,
+                }
+              : undefined
+          }
         />
       ) : creationMode.kind === "code" ? (
         <AttachCodeProjectEvaluatorDialog
@@ -300,6 +338,7 @@ function CreateNewCodeProjectEvaluatorDialog({
   onScopeChange,
   onSuccess,
   registerDirtyCheck,
+  initialValues,
 }: {
   title: string;
   projectId: string;
@@ -307,6 +346,11 @@ function CreateNewCodeProjectEvaluatorDialog({
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   onSuccess: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
+  initialValues?: {
+    language: CodeEvaluatorLanguage;
+    sourceCode: string;
+    sandboxConfigId: string | null;
+  };
 }) {
   const store = useEvaluatorStoreInstance();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
@@ -322,6 +366,7 @@ function CreateNewCodeProjectEvaluatorDialog({
       scope={scope}
       onScopeChange={onScopeChange}
       onSuccess={onSuccess}
+      initialValues={initialValues}
     />
   );
 }

@@ -30,6 +30,7 @@ export type ProjectEvaluatorCreationPaths = {
   newLlm: string;
   newCode: string;
   copyLlm: (evaluatorId: string) => string;
+  copyCode: (evaluatorId: string) => string;
   attachCode: (evaluatorId: string) => string;
 };
 
@@ -61,6 +62,10 @@ export function useProjectEvaluatorPaths() {
       copyLlm: (evaluatorId: string) =>
         withCurrentSearch(
           `${parentPath}/new/copy/${encodeURIComponent(evaluatorId)}`
+        ),
+      copyCode: (evaluatorId: string) =>
+        withCurrentSearch(
+          `${parentPath}/new/copy-code/${encodeURIComponent(evaluatorId)}`
         ),
       attachCode: (evaluatorId: string) =>
         withCurrentSearch(
