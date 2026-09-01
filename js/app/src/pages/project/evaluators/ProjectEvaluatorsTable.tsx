@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, ColumnSizingState } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -11,7 +11,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -38,11 +37,18 @@ import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
+  ACTIONS_COLUMN_ID,
+  ColumnHeaderCell,
+  ColumnOrderingProvider,
+  useColumnOrder,
+} from "@phoenix/components/table";
+import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
@@ -440,7 +446,7 @@ export function ProjectEvaluatorsTable({
         ),
       },
       {
-        id: "actions",
+        id: ACTIONS_COLUMN_ID,
         header: "actions",
         size: 80,
         cell: ({ row }) => (
@@ -456,19 +462,51 @@ export function ProjectEvaluatorsTable({
     ],
     [projectId, openEditSlideover, paths]
   );
-  // eslint-disable-next-line react-hooks-js/incompatible-library
-  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
+  const columnVisibility = useProjectEvaluatorsTableContext(
+    (state) => state.columnVisibility
+  );
+  const setColumnVisibility = useProjectEvaluatorsTableContext(
+    (state) => state.setColumnVisibility
+  );
+  const columnSizing = useProjectEvaluatorsTableContext(
+    (state) => state.columnSizing
+  );
+  const setColumnSizing = useProjectEvaluatorsTableContext(
+    (state) => state.setColumnSizing
+  );
+  const storedColumnOrder = useProjectEvaluatorsTableContext(
+    (state) => state.columnOrder
+  );
+  const setColumnOrder = useProjectEvaluatorsTableContext(
+    (state) => state.setColumnOrder
+  );
+  const {
+    leafColumnOrder,
+    visibleColumnOrder,
+    onVisibleColumnOrderChange,
+    getColumnOrderIndex,
+  } = useColumnOrder({
+    columns,
+    columnOrder: storedColumnOrder,
+    onColumnOrderChange: setColumnOrder,
+    columnVisibility,
+    // The pinned columns keep their place on the table's right edge
+    nonOrderableColumnIds: ["enabled", ACTIONS_COLUMN_ID],
+  });
   const table = useReactTable({
     columns,
     data: tableData,
     state: {
       columnPinning: {
-        right: ["enabled", "actions"],
+        right: ["enabled", ACTIONS_COLUMN_ID],
       },
       columnSizing,
+      columnVisibility,
+      columnOrder: leafColumnOrder,
     },
     columnResizeMode: "onChange",
     onColumnSizingChange: setColumnSizing,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => row.id,
   });
@@ -509,104 +547,116 @@ export function ProjectEvaluatorsTable({
     !isFiltered && !hasNext && rows.length < GALLERY_PROMO_MAX_EVALUATOR_COUNT;
   return (
     <div css={scrollableAreaCSS}>
-      <table
-        css={selectableTableCSS}
-        aria-label="Project evaluators"
-        style={{
-          ...columnSizeVars,
-          width: table.getTotalSize(),
-          minWidth: "100%",
-        }}
+      <ColumnOrderingProvider
+        columnOrder={visibleColumnOrder}
+        onColumnOrderChange={onVisibleColumnOrderChange}
       >
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  colSpan={header.colSpan}
-                  style={{
-                    width: `calc(var(--header-${header.id}-size) * 1px)`,
-                    ...(header.column.getIsPinned()
-                      ? {
-                          ...getCommonPinningStyles(header.column),
-                          zIndex: 3,
-                        }
-                      : {}),
-                  }}
+        <table
+          css={selectableTableCSS}
+          aria-label="Project evaluators"
+          style={{
+            ...columnSizeVars,
+            width: table.getTotalSize(),
+            minWidth: "100%",
+          }}
+        >
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <ColumnHeaderCell
+                    key={header.id}
+                    colSpan={header.colSpan}
+                    columnId={header.column.id}
+                    index={getColumnOrderIndex(header.column.id)}
+                    label={
+                      typeof header.column.columnDef.header === "string"
+                        ? header.column.columnDef.header
+                        : undefined
+                    }
+                    style={{
+                      width: `calc(var(--header-${header.id}-size) * 1px)`,
+                      ...(header.column.getIsPinned()
+                        ? {
+                            ...getCommonPinningStyles(header.column),
+                            zIndex: 3,
+                          }
+                        : {}),
+                    }}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <>
+                        <div
+                          style={{
+                            textAlign: header.column.columnDef.meta?.textAlign,
+                          }}
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                        </div>
+                        <div
+                          {...{
+                            onMouseDown: header.getResizeHandler(),
+                            onTouchStart: header.getResizeHandler(),
+                            className: `resizer ${
+                              header.column.getIsResizing() ? "isResizing" : ""
+                            }`,
+                          }}
+                        />
+                      </>
+                    )}
+                  </ColumnHeaderCell>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmptyWrap>
+              <CompactEmptyState
+                icon={<Icon svg={<Icons.Scale />} />}
+                description="No evaluators"
+                isFiltered={isFiltered}
+              />
+            </TableEmptyWrap>
+          ) : (
+            <tbody>
+              {rows.map((row) => (
+                <tr
+                  key={row.id}
+                  onClick={() => navigate(paths.details(row.original.id))}
                 >
-                  {header.isPlaceholder ? null : (
-                    <>
-                      <div
+                  {row.getVisibleCells().map((cell) => {
+                    const colSizeVar = `--col-${cell.column.id}-size`;
+                    return (
+                      <td
+                        key={cell.id}
                         style={{
-                          textAlign: header.column.columnDef.meta?.textAlign,
+                          width: `calc(var(${colSizeVar}) * 1px)`,
+                          maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          textAlign: cell.column.columnDef.meta?.textAlign,
+                          ...(cell.column.getIsPinned()
+                            ? getCommonPinningStyles(cell.column)
+                            : {}),
                         }}
                       >
                         {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
+                          cell.column.columnDef.cell,
+                          cell.getContext()
                         )}
-                      </div>
-                      <div
-                        {...{
-                          onMouseDown: header.getResizeHandler(),
-                          onTouchStart: header.getResizeHandler(),
-                          className: `resizer ${
-                            header.column.getIsResizing() ? "isResizing" : ""
-                          }`,
-                        }}
-                      />
-                    </>
-                  )}
-                </th>
+                      </td>
+                    );
+                  })}
+                </tr>
               ))}
-            </tr>
-          ))}
-        </thead>
-        {isEmpty ? (
-          <TableEmptyWrap>
-            <CompactEmptyState
-              icon={<Icon svg={<Icons.Scale />} />}
-              description="No evaluators"
-              isFiltered={isFiltered}
-            />
-          </TableEmptyWrap>
-        ) : (
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() => navigate(paths.details(row.original.id))}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  const colSizeVar = `--col-${cell.column.id}-size`;
-                  return (
-                    <td
-                      key={cell.id}
-                      style={{
-                        width: `calc(var(${colSizeVar}) * 1px)`,
-                        maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        textAlign: cell.column.columnDef.meta?.textAlign,
-                        ...(cell.column.getIsPinned()
-                          ? getCommonPinningStyles(cell.column)
-                          : {}),
-                      }}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        )}
-      </table>
+            </tbody>
+          )}
+        </table>
+      </ColumnOrderingProvider>
       {hasNext ? (
         <View padding="size-100">
           <Flex justifyContent="center">
