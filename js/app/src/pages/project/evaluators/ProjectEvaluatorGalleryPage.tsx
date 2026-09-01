@@ -184,6 +184,7 @@ function EvaluatorGallery() {
         ),
     [data.evaluators.edges]
   );
+  const hasCustomEvaluators = customEvaluators.length > 0;
   const categories = useMemo(() => {
     const orderedCategories: TemplateCategory[] = [
       ...PROJECT_EVALUATOR_CATEGORIES.map(({ value }) => value),
@@ -208,8 +209,11 @@ function EvaluatorGallery() {
     [categories, templates]
   );
   const sections = useMemo<GallerySection[]>(
-    () => [CUSTOM_EVALUATORS_SECTION, ...categories],
-    [categories]
+    () =>
+      hasCustomEvaluators
+        ? [CUSTOM_EVALUATORS_SECTION, ...categories]
+        : categories,
+    [categories, hasCustomEvaluators]
   );
   const categoryItems = categories.map((category) => ({
     id: category,
@@ -277,6 +281,10 @@ function EvaluatorGallery() {
   const [activeSection, setActiveSection] = useState<
     GallerySection | undefined
   >(() => requestedSectionToScroll ?? sections[0]);
+  const selectedSection =
+    activeSection && sections.includes(activeSection)
+      ? activeSection
+      : sections[0];
 
   const scrollToSection = (section: GallerySection) => {
     headingRefs.current.get(section)?.scrollIntoView({ block: "start" });
@@ -417,7 +425,7 @@ function EvaluatorGallery() {
             selectionMode="single"
             selectionBehavior="replace"
             disallowEmptySelection
-            selectedKeys={activeSection ? [activeSection] : []}
+            selectedKeys={selectedSection ? [selectedSection] : []}
             onSelectionChange={(selection) => {
               if (selection === "all") return;
               const section = selection.keys().next().value;
@@ -426,13 +434,15 @@ function EvaluatorGallery() {
               }
             }}
           >
-            <ListBoxSection id="custom-evaluators-navigation">
-              {renderSectionItem({
-                id: CUSTOM_EVALUATORS_SECTION,
-                name: "Custom evaluators",
-                count: customEvaluators.length,
-              })}
-            </ListBoxSection>
+            {hasCustomEvaluators ? (
+              <ListBoxSection id="custom-evaluators-navigation">
+                {renderSectionItem({
+                  id: CUSTOM_EVALUATORS_SECTION,
+                  name: "Custom evaluators",
+                  count: customEvaluators.length,
+                })}
+              </ListBoxSection>
+            ) : null}
             <ListBoxSection id="categories">
               <Header className="project-evaluator-gallery__category-section-heading">
                 <Text
@@ -460,7 +470,7 @@ function EvaluatorGallery() {
         <Select
           aria-label="Evaluator gallery section"
           className="project-evaluator-gallery__compact-category-select"
-          value={activeSection}
+          value={selectedSection}
           onChange={(section) => {
             if (typeof section === "string") {
               scrollToSection(section as GallerySection);
@@ -473,13 +483,15 @@ function EvaluatorGallery() {
           </Button>
           <Popover isNonModal closeOnInteractOutside>
             <ListBox css={compactCategoryListCSS}>
-              <ListBoxSection id="compact-custom-evaluators">
-                {renderSectionItem({
-                  id: CUSTOM_EVALUATORS_SECTION,
-                  name: "Custom evaluators",
-                  count: customEvaluators.length,
-                })}
-              </ListBoxSection>
+              {hasCustomEvaluators ? (
+                <ListBoxSection id="compact-custom-evaluators">
+                  {renderSectionItem({
+                    id: CUSTOM_EVALUATORS_SECTION,
+                    name: "Custom evaluators",
+                    count: customEvaluators.length,
+                  })}
+                </ListBoxSection>
+              ) : null}
               <ListBoxSection id="compact-categories">
                 <Header className="project-evaluator-gallery__category-section-heading">
                   <Text
@@ -532,63 +544,63 @@ function EvaluatorGallery() {
             }
           }}
         >
-          <ListBoxSection
-            id={CUSTOM_EVALUATORS_SECTION}
-            className="project-evaluator-gallery__template-category-section"
-          >
-            <Header className="project-evaluator-gallery__template-category-header">
-              <Text
-                ref={(element) => {
-                  if (element) {
-                    headingRefs.current.set(CUSTOM_EVALUATORS_SECTION, element);
-                  } else {
-                    headingRefs.current.delete(CUSTOM_EVALUATORS_SECTION);
-                  }
-                }}
-                id={getSectionHeadingId(CUSTOM_EVALUATORS_SECTION)}
-                className="project-evaluator-gallery__template-category-heading"
-                elementType="h2"
-                size="M"
-                weight="heavy"
-              >
-                Custom evaluators
-              </Text>
-              {customEvaluators.length === 0 ? (
-                <Text size="S" color="text-500">
-                  No custom evaluators are available.
-                </Text>
-              ) : null}
-            </Header>
-            {customEvaluators.map((evaluator) => {
-              const itemKey = getCustomEvaluatorItemKey(evaluator.id);
-              return (
-                <EvaluatorTemplateCard
-                  key={itemKey}
+          {hasCustomEvaluators ? (
+            <ListBoxSection
+              id={CUSTOM_EVALUATORS_SECTION}
+              className="project-evaluator-gallery__template-category-section"
+            >
+              <Header className="project-evaluator-gallery__template-category-header">
+                <Text
                   ref={(element) => {
                     if (element) {
-                      cardRefs.current.set(itemKey, element);
+                      headingRefs.current.set(
+                        CUSTOM_EVALUATORS_SECTION,
+                        element
+                      );
                     } else {
-                      cardRefs.current.delete(itemKey);
+                      headingRefs.current.delete(CUSTOM_EVALUATORS_SECTION);
                     }
                   }}
-                  id={itemKey}
-                  textValue={evaluator.name}
+                  id={getSectionHeadingId(CUSTOM_EVALUATORS_SECTION)}
+                  className="project-evaluator-gallery__template-category-heading"
+                  elementType="h2"
+                  size="M"
+                  weight="heavy"
                 >
-                  <Text size="S" weight="heavy">
-                    {evaluator.name}
-                  </Text>
-                  <LineClamp lines={3}>
-                    <Text size="XS" color="text-700">
-                      {evaluator.description || "No description"}
+                  Custom evaluators
+                </Text>
+              </Header>
+              {customEvaluators.map((evaluator) => {
+                const itemKey = getCustomEvaluatorItemKey(evaluator.id);
+                return (
+                  <EvaluatorTemplateCard
+                    key={itemKey}
+                    ref={(element) => {
+                      if (element) {
+                        cardRefs.current.set(itemKey, element);
+                      } else {
+                        cardRefs.current.delete(itemKey);
+                      }
+                    }}
+                    id={itemKey}
+                    textValue={evaluator.name}
+                  >
+                    <Text size="S" weight="heavy">
+                      {evaluator.name}
                     </Text>
-                  </LineClamp>
-                  <EvaluatorTemplateCardFooter
-                    evaluatorKind={getCustomEvaluatorKind(evaluator)}
-                  />
-                </EvaluatorTemplateCard>
-              );
-            })}
-          </ListBoxSection>
+                    <LineClamp lines={3}>
+                      <Text size="XS" color="text-700">
+                        {evaluator.description || "No description"}
+                      </Text>
+                    </LineClamp>
+                    <EvaluatorTemplateCardFooter
+                      evaluatorKind={getCustomEvaluatorKind(evaluator)}
+                    />
+                  </EvaluatorTemplateCard>
+                );
+              })}
+            </ListBoxSection>
+          ) : null}
           {categories.map((category) => {
             const headingId = getSectionHeadingId(category);
             return (
