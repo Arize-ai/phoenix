@@ -325,11 +325,6 @@ class PhoenixRecorder:
             missing = expected - stored
             if not missing:
                 return trace.trace_id
-            # The converter's list is the desired display order. Phoenix queues
-            # spans FIFO and returns trace rows by descending insertion ID, while
-            # the trace tree's timestamp sort is stable. Reverse only the upload
-            # batch so exact-time siblings retain causal and declared array order
-            # without changing their timestamps or requiring UI metadata.
             spans = [
                 span for span in reversed(trace.spans) if span["context"]["span_id"] in missing
             ]
@@ -540,10 +535,6 @@ def _require_consistent(
     fields = cast(Mapping[str, Any], experiment)
     stored_version = fields.get("dataset_version_id")
     if stored_version is not None and stored_version != snapshot.version_id:
-        # Other Harbor jobs sharing the dataset may have minted versions in
-        # between, so a replay can resolve a newer version ID with identical
-        # task content. Harbor's own job lock rejects replaying a job whose
-        # tasks changed, so recovery keeps the experiment's pinned version.
         logger.info(
             "Phoenix experiment %r (%s) stays pinned to dataset version %s; "
             "this replay resolved version %s.",

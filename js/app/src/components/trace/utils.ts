@@ -52,8 +52,7 @@ export function compareTimestamps(a: string, b: string): number {
  * dropping orphaned spans.
  *
  * Root spans and each node's children are sorted by `startTime` using
- * {@link compareTimestamps}, preserving sub-millisecond ordering. The input
- * order is preserved when timestamps are exactly equal.
+ * {@link compareTimestamps}, preserving sub-millisecond ordering.
  *
  * @typeParam TSpan - Span item type retained on each tree node.
  * @param spans - Flat span list from a single trace or trace-like collection.
@@ -85,12 +84,12 @@ export function createSpanTree<TSpan extends ISpanItem>(
   // We must sort the children of each span by their start time
   // So that the children are in the correct order
   for (const spanNode of spanMap.values()) {
-    spanNode.children.sort((firstNode, secondNode) =>
-      compareTimestamps(firstNode.span.startTime, secondNode.span.startTime)
+    spanNode.children.sort((a, b) =>
+      compareTimestamps(a.span.startTime, b.span.startTime)
     );
   }
-  rootSpans.sort((firstNode, secondNode) =>
-    compareTimestamps(firstNode.span.startTime, secondNode.span.startTime)
+  rootSpans.sort((a, b) =>
+    compareTimestamps(a.span.startTime, b.span.startTime)
   );
   return rootSpans;
 }

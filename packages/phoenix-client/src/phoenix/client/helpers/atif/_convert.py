@@ -347,7 +347,6 @@ def _stringify_message(
         return ""
     if isinstance(message, str):
         return message
-    # Concatenate text parts and use a path placeholder for referenced media.
     parts: list[str] = []
     for part in message:
         if isinstance(part, str):
@@ -356,10 +355,9 @@ def _stringify_message(
             text: object = part.get("text")
             if text:
                 parts.append(str(text))
-            elif part.get("type") in {"image", "audio"} and isinstance(part.get("source"), dict):
-                part_type = part["type"]
+            elif part.get("type") == "image" and isinstance(part.get("source"), dict):
                 path = part["source"].get("path", "unknown")
-                parts.append(f"[{part_type}: {path}]")
+                parts.append(f"[image: {path}]")
     return "\n".join(parts) if parts else ""
 
 
@@ -488,23 +486,6 @@ def _build_llm_attributes(
     # Multimodal flag
     if _has_multimodal_content(step.get("message")):
         attrs.setdefault("metadata", {})["has_multimodal_content"] = True
-
-    message_parts = step.get("message")
-    if isinstance(message_parts, list):
-        media_parts: list[dict[str, Any]] = []
-        for index, part in enumerate(message_parts):
-            if not isinstance(part, Mapping) or part.get("type") not in {"image", "audio"}:
-                continue
-            source = part.get("source")
-            if not isinstance(source, Mapping):
-                continue
-            media_part = {"index": index, "type": part["type"]}
-            for field in ("path", "media_type", "duration_sec"):
-                if source.get(field) is not None:
-                    media_part[field] = source[field]
-            media_parts.append(media_part)
-        if media_parts:
-            attrs.setdefault("metadata", {})["atif.media_parts"] = media_parts
 
     return attrs
 
@@ -702,7 +683,6 @@ def _build_message_attributes(
         prefix = f"llm.input_messages.{idx}"
         attrs[f"{prefix}.message.role"] = msg_dict["role"]
         if "_raw_parts" in msg_dict:
-            # Write multimodal content through the message.contents array.
             attrs.update(_build_content_part_attributes(prefix, msg_dict["_raw_parts"]))
         elif "content" in msg_dict:
             attrs[f"{prefix}.message.content"] = msg_dict["content"]
@@ -951,13 +931,10 @@ def _convert_atif_trajectory_to_spans(
     span_seed = _trajectory_span_seed(trajectory, trace_id)
     root_span_id = _sha256_span_id(f"{span_seed}:root")
 
-    # Copied context reconstructs prompts, but it is not execution performed by
-    # this trajectory. Exclude it from spans, turns, and trajectory timing.
     execution_step_indices = [
         i for i, step in enumerate(steps) if not step.get("is_copied_context", False)
     ]
 
-    # --- Compute execution-step timings upfront ---
     fallback_now = _parse_timestamp(trajectory.get(_FALLBACK_TIMESTAMP_KEY))
     if fallback_now is None:
         fallback_now = datetime.now(tz=timezone.utc)
@@ -967,11 +944,6 @@ def _convert_atif_trajectory_to_spans(
         ts = _parse_timestamp(step.get("timestamp"))
         if ts is not None:
             first_start = ts
-            # A continuation (or any document whose first fresh event is an
-            # agent step) has no preceding event to open its interval, so
-            # anchor the document that far before its first event using the
-            # producer's own LLM latency measurement. Without it, the first
-            # step honestly stays a point event.
             if step.get("source") == "agent" and step.get("llm_call_count") != 0:
                 latency_ms = _measured_latency_ms(step)
                 if latency_ms is not None:
@@ -1074,11 +1046,6 @@ def _convert_atif_trajectory_to_spans(
     ]
     multi_turn = len(turns) > 1
 
-    # Visible action names use deterministic per-label ordinals over fresh
-    # operational steps: ``agent_action_3`` is the third agent action and
-    # ``compaction_1`` the first compaction, regardless of interleaving. The
-    # original ATIF ``step_id`` (which counts prompt context such as the user
-    # instruction) stays in metadata, so names never encode it.
     operation_names: Dict[int, str] = {}
     label_ordinals: Dict[str, int] = {}
     for i in execution_step_indices:
@@ -1125,7 +1092,6 @@ def _convert_atif_trajectory_to_spans(
         else:
             operation_parent_id = root_span_id
 
-        # --- ATIF operation + LLM/TOOL spans ---
         for i in step_indices:
             step = steps[i]
             if not _is_operational_step(step):
@@ -1147,11 +1113,6 @@ def _convert_atif_trajectory_to_spans(
                 "session.id": session_id,
                 "metadata": operation_metadata,
             }
-            # Pair observation results with tool calls before building the
-            # operation span so the operation can retain unmatched step-level
-            # observations. Producers such as
-            # Terminus record one combined observation for a whole step with
-            # no ``source_call_id``.
             tool_calls = step.get("tool_calls", [])
             observation = step.get("observation", {})
             results: List[Any] = observation.get("results", []) if observation else []
@@ -1176,8 +1137,6 @@ def _convert_atif_trajectory_to_spans(
                 and isinstance(tool_calls[0], Mapping)
                 and tool_calls[0].get("tool_call_id", "tc_0") not in obs_map
             ):
-                # One call, one result: the pairing is unambiguous even
-                # without a recorded ``source_call_id``.
                 only_call_id = str(tool_calls[0].get("tool_call_id", "tc_0"))
                 obs_map[only_call_id] = unmatched_results.pop()
 
@@ -1266,8 +1225,6 @@ def _convert_atif_trajectory_to_spans(
                 }
                 all_spans.append(llm_span)
 
-            # TOOL spans are events beneath the ATIF operation. ATIF preserves
-            # declared array order but not serial/parallel execution timing.
             for j, tc in enumerate(tool_calls):
                 tc_id = tc.get("tool_call_id", f"tc_{j}")
                 tool_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{tc_id}")
@@ -1291,10 +1248,6 @@ def _convert_atif_trajectory_to_spans(
                     },
                 )
 
-                # ATIF does not record tool start/end times or whether calls in
-                # one step ran serially or concurrently. Represent each call as
-                # a zero-duration event at the step timestamp instead of
-                # fabricating elapsed time.
                 tool_start = step_end
 
                 tool_span: v1.Span = {
@@ -1341,9 +1294,6 @@ def _get_trajectory_input(
     for step in steps:
         if step.get("source") == "user" and not step.get("is_copied_context", False):
             return _stringify_message(step.get("message"))
-    # Only copied context remains: the replayed handoff conversation is this
-    # document's prompt, so its last user message before fresh agent work is
-    # the request being answered.
     for step in steps:
         if step.get("source") == "user":
             message = _stringify_message(step.get("message"))

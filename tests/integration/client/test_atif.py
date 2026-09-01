@@ -108,10 +108,6 @@ class TestAtifTrajectoryUpload:
         ]
         assert not unresolvable, f"spans persisted with unresolvable parents: {unresolvable}"
 
-        # The parent trajectory hangs off the trial span. Its summarization
-        # step declares the subagent refs without a matching tool call, so
-        # that operational system step's CHAIN parents the referenced
-        # sub-trajectories: the closest causal parent the document proves.
         roots = {s["name"] for s in fetched if s.get("parent_id") == parent_span_id}
         assert roots == {"terminus-2"}
 

@@ -10,7 +10,7 @@ from typing import Any, List, Mapping, Optional, Set
 
 logger = logging.getLogger(__name__)
 
-_MAX_SUPPORTED_MINOR = 8
+_MAX_SUPPORTED_MINOR = 7
 
 _VALID_SOURCES = {"user", "agent", "system"}
 # Fields that may ONLY appear on agent steps.
@@ -67,7 +67,7 @@ def _validate_atif_trajectory(
     - Required root fields: schema_version, agent, steps
     - session_id is required before ATIF v1.7 and optional in v1.7+
     - schema_version format (ATIF-vX.Y); hard reject on major >= 2,
-      warning on minor > 8 (latest supported)
+      warning on minor > 7 (latest supported)
     - trajectory_id is required for v1.7+ embedded subagent trajectories
     - Agent required fields: name, version (model_name is optional)
     - Steps are non-empty with sequential step_ids starting at 1

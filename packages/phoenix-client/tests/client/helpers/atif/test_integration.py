@@ -136,8 +136,6 @@ class TestUploadIntegration:
             ("2025-01-15T10:00:00+00:00", "2025-01-15T10:00:05+00:00"),
             ("2025-01-15T10:00:05+00:00", "2025-01-15T10:00:08+00:00"),
         ]
-        # Same-instant events retain the exact ATIF timestamp without
-        # fabricating clock values.
         assert [(span["start_time"], span["end_time"]) for span in llm_spans] == [
             ("2025-01-15T10:00:05+00:00", "2025-01-15T10:00:05+00:00"),
             ("2025-01-15T10:00:08+00:00", "2025-01-15T10:00:08+00:00"),
@@ -299,7 +297,6 @@ class TestUploadIntegration:
 
         call_kwargs = mock_client.spans.log_spans.call_args
         spans = call_kwargs.kwargs["spans"]
-        # 1 root + 2 step CHAIN + 2 LLM + 1 TOOL
         assert len(spans) == 6
 
     def test_multi_tool_span_count(self, multi_tool_trajectory: Dict[str, Any]) -> None:
@@ -315,7 +312,6 @@ class TestUploadIntegration:
 
         call_kwargs = mock_client.spans.log_spans.call_args
         spans = call_kwargs.kwargs["spans"]
-        # 1 root + 3 step CHAIN + 3 LLM + 4 TOOL
         assert len(spans) == 11
 
     def test_invalid_trajectory_raises_before_api_call(
@@ -369,7 +365,6 @@ class TestUploadIntegration:
         mock_client.spans.log_spans.assert_called_once()
         call_kwargs = mock_client.spans.log_spans.call_args
         spans = call_kwargs.kwargs["spans"]
-        # 6 from simple + 11 from multi_tool
         assert len(spans) == 17
 
     def test_batch_subagent_linking(self, subagent_fixture: Dict[str, Any]) -> None:
@@ -420,7 +415,6 @@ class TestUploadIntegration:
 
         call_kwargs = mock_client.spans.log_spans.call_args
         spans = call_kwargs.kwargs["spans"]
-        # Parent: root + 2 steps + LLM + TOOL. Child: root + step + LLM.
         assert len(spans) == 9
 
         child_root = [s for s in spans if s["name"] == "researcher"][0]

@@ -63,7 +63,7 @@ def upload_atif_trajectories_as_spans(
 
     Converts ATIF (Agent Trajectory Interchange Format) trajectory dicts
     into Phoenix/OpenTelemetry-compatible span trees and uploads them.
-    Supports ATIF schema versions v1.0 through v1.8.
+    Supports ATIF schema versions v1.0 through v1.7.
 
     **Trace structure**
 
@@ -136,9 +136,7 @@ def upload_atif_trajectories_as_spans(
     Image content parts are written using the OpenInference
     ``message.contents`` array format, with image URLs stored in
     ``message_content.image.image.url``. Text-only messages use the
-    standard ``message.content`` string attribute. ATIF v1.8 audio references
-    retain their path, media type, and optional duration in serialized message
-    data and span metadata; the converter does not read or upload media bytes.
+    standard ``message.content`` string attribute.
 
     **Copied context**
 
@@ -203,7 +201,7 @@ def upload_atif_trajectories_as_spans(
     Args:
         client: A Phoenix ``Client`` instance.
         trajectories: A sequence of ATIF trajectory dicts conforming to
-            the ATIF schema (v1.0 through v1.8).
+            the ATIF schema (v1.0 through v1.7).
         project_name: The Phoenix project to upload spans into.
         timeout: Request timeout in seconds.
 

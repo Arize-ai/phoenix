@@ -152,14 +152,14 @@ class TestSchemaVersion:
             _validate_atif_trajectory(simple_trajectory)
         assert caplog.text == ""
 
-    def test_v1_8_no_warning(
+    def test_v1_8_warns(
         self, simple_trajectory: Dict[str, Any], caplog: pytest.LogCaptureFixture
     ) -> None:
-        """ATIF v1.8 should pass without any warning."""
+        """ATIF v1.8 should pass validation but emit a warning."""
         simple_trajectory["schema_version"] = "ATIF-v1.8"
         with caplog.at_level(logging.WARNING):
             _validate_atif_trajectory(simple_trajectory)
-        assert caplog.text == ""
+        assert "newer than the latest supported version" in caplog.text
 
     def test_v1_6_no_warning(
         self, simple_trajectory: Dict[str, Any], caplog: pytest.LogCaptureFixture

@@ -216,42 +216,6 @@ describe("createSpanTree", () => {
     `);
   });
 
-  it("preserves input order when sibling timestamps are equal", () => {
-    const sharedStartTime = "2025-01-15T10:00:05.000Z";
-    const rootSpan: ISpanItem = {
-      id: "root",
-      spanKind: "agent",
-      name: "agent",
-      statusCode: "OK",
-      startTime: sharedStartTime,
-      endTime: sharedStartTime,
-      latencyMs: 0,
-      parentId: null,
-      spanId: "root-span",
-    };
-    const llmSpan: ISpanItem = {
-      ...rootSpan,
-      id: "llm",
-      name: "LLM",
-      parentId: rootSpan.spanId,
-      spanId: "llm-span",
-    };
-    const toolSpan: ISpanItem = {
-      ...rootSpan,
-      id: "tool",
-      name: "tool",
-      parentId: rootSpan.spanId,
-      spanId: "tool-span",
-    };
-
-    const tree = createSpanTree([rootSpan, llmSpan, toolSpan]);
-
-    expect(tree[0]?.children.map((child) => child.span.name)).toEqual([
-      "LLM",
-      "tool",
-    ]);
-  });
-
   it("filters matching spans while preserving ancestor context", () => {
     expect(filterSpanTree(createSpanTree(traceSpans), "embed"))
       .toMatchInlineSnapshot(`

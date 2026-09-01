@@ -380,8 +380,6 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
         root_metadata = _span_metadata(roots[0])
         trial_name = str(root_metadata.get("harbor_trial_name"))
         _check(trial_name in trials_by_name, repr(root_metadata))
-        # The linked run and the trace root describe the same Harbor trial
-        # and job: a mismatch means a run was linked to someone else's trace.
         linked_run = runs_by_trace_id[trace_id]
         linked_output = linked_run.get("output") or {}
         _check(
@@ -462,9 +460,6 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
                 for span in leaf_spans
                 if span.get("parent_id") == source_step["context"]["span_id"]
             ]
-            # REST returns trace spans by descending insertion ID. Its order is
-            # preserved here for equal timestamps by Python's stable sort, just
-            # as the trace tree preserves it in the browser.
             children.sort(
                 key=lambda span: datetime.fromisoformat(
                     str(span["start_time"]).replace("Z", "+00:00")
@@ -479,8 +474,6 @@ def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
                 == list(range(len(tool_children))),
                 "Equal-time tools do not preserve ATIF array order",
             )
-    # The experiment project holds exactly the traces its runs link: an
-    # unlinked or foreign trace in the project means linking failed somewhere.
     project_spans = client.spans.get_spans(project_identifier=str(project_name), limit=10_000)
     project_trace_ids = {span["context"]["trace_id"] for span in project_spans}
     _check(

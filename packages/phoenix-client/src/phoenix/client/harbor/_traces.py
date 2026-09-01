@@ -388,8 +388,6 @@ def _load_file(
             document[_IS_CONTINUATION_KEY] = True
             document[_CONTINUATION_INDEX_KEY] = continuation_index
         if step_name is not None and (reference is None or continuation_index > 0):
-            # Qualify only canonical role roots and their continuations; nested
-            # subagent documents keep their producer identity unqualified.
             document[_STEP_NAME_KEY] = step_name
         _resolve_file_references(
             loader,
@@ -474,9 +472,6 @@ def _normalize_document(
         producer_ref_id = ref.get("trajectory_id")
         if isinstance(producer_ref_id, str) and producer_ref_id in embedded_ids:
             ref["trajectory_id"] = embedded_ids[producer_ref_id]
-        # Every retained child gets a unique normalized trajectory ID. Keeping
-        # a trial-wide session ID on a pre-v1.7 reference would turn it into an
-        # ambiguous fallback key that could attach another document here.
         ref.pop("session_id", None)
 
 

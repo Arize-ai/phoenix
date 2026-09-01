@@ -261,7 +261,6 @@ class TestSimpleTrajectoryConversion:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
         llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
         assert len(llm_spans) == 2
-        # Each LLM is nested beneath the ATIF step that produced it.
         root_id = spans[0]["context"]["span_id"]
         operation_ids = {
             span["context"]["span_id"]
@@ -418,7 +417,6 @@ class TestOptionalFields:
             ],
         }
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 1 agent-step CHAIN + 1 LLM
         assert len(spans) == 3
         for span in spans:
             assert span["start_time"]
@@ -472,7 +470,6 @@ class TestOptionalFields:
             ],
         }
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 1 agent-step CHAIN + 1 LLM
         assert len(spans) == 3
         llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
         attrs = llm_span.get("attributes", {})
@@ -504,7 +501,6 @@ class TestOptionalFields:
         spans = _convert_atif_trajectory_to_spans(trajectory)
         tool_span = [s for s in spans if s["span_kind"] == "TOOL"][0]
         attrs = tool_span.get("attributes", {})
-        # One call and one result pair unambiguously even without an ID.
         assert attrs.get("output.value") == "result without source_call_id"
 
     def test_non_monotonic_and_missing_timestamps_do_not_create_negative_durations(
@@ -592,9 +588,6 @@ class TestOptionalFields:
         assert len(spans) == 1
         assert spans[0]["start_time"] == "2025-01-15T10:00:00+00:00"
         assert spans[0]["end_time"] == "2025-01-15T10:00:00+00:00"
-        # Copied context is this document's whole prompt, so the replayed
-        # request remains the root input; there is no fresh agent message for
-        # the output.
         assert spans[0].get("attributes", {}).get("input.value") == "old input"
         assert spans[0].get("attributes", {}).get("output.value") == ""
 
@@ -671,42 +664,6 @@ class TestMultimodalContent:
         assert "What is in this image?" in result
         assert "[image: images/screenshot.png]" in result
 
-    def test_v1_8_audio_source_is_preserved(self) -> None:
-        audio = {
-            "type": "audio",
-            "source": {
-                "media_type": "audio/wav",
-                "path": "audio/question.wav",
-                "duration_sec": 3.2,
-            },
-        }
-        trajectory: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.8",
-            "session_id": "audio-run",
-            "agent": {"name": "voice-agent", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": [audio]},
-                {"step_id": 2, "source": "agent", "message": [audio]},
-            ],
-        }
-
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        llm = next(span for span in spans if span["span_kind"] == "LLM")
-        attrs = llm.get("attributes", {})
-
-        assert attrs["output.value"] == "[audio: audio/question.wav]"
-        assert attrs["metadata"]["atif.media_parts"] == [
-            {
-                "index": 0,
-                "type": "audio",
-                "path": "audio/question.wav",
-                "media_type": "audio/wav",
-                "duration_sec": 3.2,
-            }
-        ]
-        prompt = json.loads(attrs["input.value"])
-        assert prompt[0]["content"] == [audio]
-
     def test_has_multimodal_content_with_image(self) -> None:
         message: List[Any] = [
             {"type": "text", "text": "hello"},
@@ -749,7 +706,6 @@ class TestMultimodalContent:
 
     def test_multimodal_span_count(self, multimodal_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multimodal_trajectory)
-        # 1 root + 2 agent-step CHAIN + 2 LLM + 1 TOOL
         assert len(spans) == 6
 
     def test_multimodal_input_value_uses_serializable_content(
@@ -811,7 +767,6 @@ class TestParallelToolsMixedResults:
 
     def test_span_count(self, parallel_mixed_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
-        # 1 root + 2 agent-step CHAIN + 2 LLM + 3 TOOL
         assert len(spans) == 8
 
 
@@ -1301,7 +1256,6 @@ class TestMultiTurnBehavior:
     def test_span_count(self, multi_turn_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
         # 2 user messages -> 2 turns (multi-turn)
-        # 1 root AGENT + 2 turn AGENT + 2 step CHAIN + 2 LLM
         assert len(spans) == 7
 
     def test_root_agent_exists(self, multi_turn_trajectory: Dict[str, Any]) -> None:
@@ -1383,11 +1337,9 @@ class TestMultiTurnBehavior:
             ],
         }
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 1 step CHAIN + 1 LLM (no turn AGENT)
         assert len(spans) == 3
         turn_spans = [s for s in spans if s["name"].startswith("turn_")]
         assert len(turn_spans) == 0
-        # The operation step parents to root; the LLM parents to the step.
         root_id = spans[0]["context"]["span_id"]
         step_span = [s for s in spans if s["span_kind"] == "CHAIN"][0]
         llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
@@ -1519,7 +1471,6 @@ class TestHarborGoldenFiles:
         spans = _convert_atif_trajectory_to_spans(trajectory)
         # 6 steps: 1 system, 1 user, 2 system, 2 agent (with 1 tool call each).
         # Single turn (leading system step + user grouped together).
-        # 1 root AGENT + 2 step CHAIN + 2 LLM + 2 TOOL
         assert len(spans) == 7
         kinds = _span_kind_counts(spans)
         assert kinds["AGENT"] == 1
@@ -1550,8 +1501,6 @@ class TestHarborGoldenFiles:
         trajectory = _load_fixture("harbor_terminus2_summarization.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
         # 10 steps (2 user, 1 system, 7 agent, 7 tool calls) -> 2 turns (multi-turn)
-        # 1 root + 2 turns + 8 operation CHAIN (7 agent, 1 system)
-        # + 7 LLM + 7 TOOL
         assert len(spans) == 25
         kinds = _span_kind_counts(spans)
         assert kinds["AGENT"] == 3
@@ -1590,7 +1539,6 @@ class TestHarborGoldenFiles:
     def test_terminus2_continuation_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_continuation.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 4 operation CHAIN (3 agent, 1 system) + 3 LLM
         assert len(spans) == 8
         kinds = _span_kind_counts(spans)
         assert kinds["AGENT"] == 1
@@ -1604,8 +1552,6 @@ class TestHarborGoldenFiles:
         """Copied handoff history does not become fresh execution turns."""
         trajectory = _load_fixture("harbor_terminus2_continuation_cont1.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # Four fresh agent steps follow copied context. With no fresh user
-        # boundary, they form one execution turn beneath the root.
         assert len(spans) == 9
         kinds = _span_kind_counts(spans)
         assert kinds["AGENT"] == 1
@@ -1617,7 +1563,6 @@ class TestHarborGoldenFiles:
     def test_terminus2_invalid_json_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_invalid_json.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 4 step CHAIN + 4 LLM + 3 TOOL
         assert len(spans) == 12
         kinds = _span_kind_counts(spans)
         assert kinds["TOOL"] == 3
@@ -1639,7 +1584,6 @@ class TestHarborGoldenFiles:
     def test_terminus2_timeout_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_timeout.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 3 step CHAIN + 3 LLM + 3 TOOL
         assert len(spans) == 10
         kinds = _span_kind_counts(spans)
         assert kinds["TOOL"] == 3
@@ -1650,20 +1594,16 @@ class TestHarborGoldenFiles:
     def test_terminus2_sub_summary_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_sub_summary.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # Copied parent work remains prompt context. Only the fresh summary
-        # request and response are execution in this child trajectory.
         assert len(spans) == 3
 
     def test_terminus2_sub_answers_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_sub_answers.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # Only the fresh answer request and response are execution.
         assert len(spans) == 3
 
     def test_terminus2_sub_questions_converts(self) -> None:
         trajectory = _load_fixture("harbor_terminus2_sub_questions.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 1 step CHAIN + 1 LLM
         assert len(spans) == 3
 
 
@@ -1717,7 +1657,6 @@ class TestRealWorldTrajectories:
         }
         spans = _convert_atif_trajectory_to_spans(trajectory)
 
-        # 1 root + 1 agent-step CHAIN + 1 LLM
         assert len(spans) == 3
         root = spans[0]
         assert root["name"] == "claude-code"

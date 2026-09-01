@@ -50,7 +50,7 @@ _TRACE_MODES = get_args(TraceMode)
 
 
 class PhoenixJobPlugin(BaseJobPlugin):
-    """Record a Harbor job as a Phoenix dataset and experiments."""
+    """Record a Harbor job as Phoenix datasets, experiments, runs, scores, and traces."""
 
     def __init__(
         self,

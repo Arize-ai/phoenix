@@ -1,6 +1,6 @@
-# Phoenix plugin for Harbor design specification
+# Phoenix plugin for Harbor: design specification
 
-**Status:** Proposed for prototype implementation
+**Status:** ATIF prototype implemented; OTLP deferred
 
 ## Contents
 
@@ -164,7 +164,10 @@ At `on_job_start`, the plugin:
 5. derives a stable repetition number for every trial; and
 6. once deferred OTLP mode is implemented, validates each agent's exporter project and endpoint. If they are invalid, the error lists the exact flags to add.
 
-The plugin cannot list physical attempts at job start. Harbor creates retries later, and trial UUIDs do not exist until trial construction. The plugin must create per-attempt trace identity when each attempt starts.
+The plugin cannot list physical attempts at job start. Harbor creates retries later, and trial UUIDs
+do not exist until trial construction. Current ATIF identity is stable for the logical trial and is
+derived from its saved terminal result. Planned OTLP attempt identity must be created after Harbor
+constructs each physical attempt.
 
 Creating examples before experiments is required because a Phoenix experiment is pinned to a dataset version when it is created.
 
@@ -195,7 +198,7 @@ The plugin streams each result as its trial ends. This provides live progress an
 
 ## 5. Trace modes
 
-Set `trace_mode` explicitly to `atif`, `otlp`, or `none`. The plugin does not auto-detect tracing because combining partial live spans with a converted ATIF trajectory could create duplicate traces. The current implementation accepts `atif` and `none`; `otlp` is deferred for a follow-up.
+The planned trace modes are `atif`, `otlp`, and `none`. The plugin does not auto-detect tracing because combining partial live spans with a converted ATIF trajectory could create duplicate traces. The current implementation accepts `atif` and `none`; `otlp` is deferred for a follow-up.
 
 | Behavior | `atif` (default) | `otlp` (deferred) |
 |---|---|---|
@@ -217,7 +220,7 @@ The package-internal pure conversion helpers:
 
 - validate and convert one or more trajectories;
 - return spans without uploading them;
-- preserve ATIF v1.7 sub-agent flattening, valid external references, and v1.8 audio metadata; and
+- preserve ATIF v1.7 sub-agent flattening and valid external references; and
 - reparent every disconnected trajectory root under one Harbor-owned trial root.
 
 The conversion layer does not use a client. Harbor-specific discovery, normalization, deterministic
@@ -273,7 +276,9 @@ Always set both values. Harbor v0.18.0 source shows why:
 
 The plugin must namespace `session_id` even when it sets `trajectory_id`. Phoenix resolves sessions from `session_id` without a project filter. A constant value could otherwise group unrelated trials into one session.
 
-Both IDs must be globally unique and stable across replays. Derive them from the Harbor job ID, task ID, repetition, and step number.
+Both IDs must be globally unique and stable across replays. Derive the trace and session identity
+from the Harbor job ID, task ID, and repetition. Derive each trajectory identity from that logical
+trial plus its role, step name, source path, and embedded position.
 
 For a multi-step task, the plugin creates one trial-level trace and places each step trajectory beneath the same root. One logical trial therefore appears as one experiment run with one trace.
 
@@ -329,7 +334,7 @@ Generic OTLP needs the plugin to inject a trial root before Harbor constructs an
 - concurrent trials share one `AgentConfig`, so per-trial mutation would race; and
 - trial-start hooks run after the agent copies its environment.
 
-This blocks a plugin-owned root, startup trace validation, and retry-attempt labels. The upstream fix is a runtime-overrides hook that runs before agent construction. Its values must not affect saved config, job locks, or resume checks. Until the minimum Harbor version includes this hook, `trace_mode: otlp` supports only §5.1 and §5.2. State this limit during startup checks.
+This blocks a plugin-owned root, startup trace validation, and retry-attempt labels. The upstream fix is a runtime-overrides hook that runs before agent construction. Its values must not affect saved config, job locks, or resume checks. Once the plugin accepts `trace_mode: otlp`, the initial implementation can support only §5.1 and §5.2 until the minimum Harbor version includes this hook. State this limit during startup checks.
 
 #### 5.4 Consequences that hold in every OTLP variant
 
@@ -442,8 +447,9 @@ Finding and then creating an experiment is not atomic. Run only one ingester for
 
 Selecting the Phoenix plugin makes successful Phoenix recording a requirement. This avoids spending compute on a job that will not be recorded. Users can omit the plugin when they want to run Harbor without Phoenix.
 
-- At `on_job_start`, validate dataset identity, Harbor compatibility, trace requirements, the Phoenix connection, and initial writes. Raise a clear error to stop the job before trial compute.
+- At `on_job_start`, validate dataset identity, Harbor compatibility, the Phoenix connection, and initial writes. Raise a clear error to stop the job before trial compute.
 - The plugin configures HTTPX's built-in retries for `ConnectError` and `ConnectTimeout` while establishing a connection. It does not retry HTTP responses or other transport errors itself. Any run or evaluation write that still fails raises and stops the job, except for the handled run-conflict recovery path. Completed Phoenix records remain available and Harbor persists terminal trial results for resume.
+- ATIF discovery and conversion are best-effort. A missing or invalid trajectory emits a warning, then the plugin records the run and evaluations without a trace. Because successful Phoenix runs are immutable, a later replay cannot add that missing trace link.
 - Keep one terminal-failure flag. After it is set, make later trial-end callbacks no-ops while Harbor cancels sibling trials.
 - Record every top-level and step exception in the run error and set `infra_ok = 0`. Keep any verifier rewards Harbor produced alongside the exception, and do not rewrite the exception as `reward = 0`. Use the same collected exception list for the trace root's `ERROR` status and status message.
 - Do not ingest an attempt that Harbor will retry. Until Harbor exposes a terminal-attempt event, count START events by logical trial name and apply Harbor's retry rules.
@@ -459,14 +465,15 @@ Pass settings through Harbor's `--plugin-kwarg` option.
 | `dataset` | inferred from Harbor | Phoenix dataset name override |
 | `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix endpoint |
 | `api_key` | `PHOENIX_API_KEY` | Phoenix authentication |
-| `trace_mode` | `atif` | `atif`, `otlp`, or `none`; `otlp` is deferred |
+| `trace_mode` | `atif` | Current: `atif` or `none`; planned: `atif`, `otlp`, or `none` |
 | `experiment_name` | unset | Exact name for a job with one agent configuration |
 | `experiment_name_template` | `{job.name} · {agent.name} · {agent.model}` | Experiment naming |
-| `project` | experiment's project | Optional trace-project override |
 
 Experiment names must distinguish agent/model configurations in Phoenix's compare view. `{job.name}` defaults to a Harbor timestamp. If two configurations still have the same name, append a short configuration digest. This can happen when they differ only in skills, environment, or keyword arguments.
 
-In OTLP mode the plugin does not inject exporter configuration. The user supplies endpoint, credentials, and `openinference.project.name` through Harbor's per-agent environment, and the plugin validates them at job start (§5.1).
+Planned OTLP mode will not inject exporter configuration. The user will supply endpoint,
+credentials, and `openinference.project.name` through Harbor's per-agent environment, and the
+plugin will validate them at job start (§5.1).
 
 ## 9. Prototype scope
 
@@ -483,7 +490,7 @@ In OTLP mode the plugin does not inject exporter configuration. The user supplie
 - One trial-level ATIF trace for single-step and multi-step tasks
 - Safe continuation and sub-agent graph traversal
 - Deterministic partial-upload repair
-- Fail-closed validation and ingestion
+- Fail-closed dataset, experiment, run, and evaluation ingestion; best-effort ATIF conversion
 - Compatibility tests against supported Harbor versions
 
 ### Deferred
