@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
+import { Suspense, useCallback } from "react";
 import {
   Navigate,
   Outlet,
@@ -66,6 +66,11 @@ export function DashboardsPage() {
   const setLastSelectedDashboardProjectId = usePreferencesContext(
     (state) => state.setLastSelectedDashboardProjectId
   );
+  const onSelectedProjectError = useCallback(() => {
+    // The remembered project can no longer be resolved (e.g. it was deleted).
+    // Forget it so the dashboards index stops redirecting back to it.
+    setLastSelectedDashboardProjectId(undefined);
+  }, [setLastSelectedDashboardProjectId]);
   const data = useOwnedPreloadedQuery<DashboardsLoaderQuery>({
     query: dashboardsLoaderQuery,
     queryRef: loaderData.queryRef,
@@ -83,6 +88,7 @@ export function DashboardsPage() {
             setLastSelectedDashboardProjectId(projectId);
             navigate(`/dashboards/projects/${projectId}`);
           }}
+          onSelectedProjectError={onSelectedProjectError}
         />
         <Flex direction="row" alignItems="center" gap="size-100">
           <ConnectedTimeRangeSelector size="S" />

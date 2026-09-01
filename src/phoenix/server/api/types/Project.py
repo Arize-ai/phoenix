@@ -328,11 +328,16 @@ class Project(Node):
         info: Info[Context, None],
         attr: InstrumentedAttribute[Any],
     ) -> Any:
-        """Load a non-nullable column via the dataloader, raising NotFound if the
-        project row no longer exists (e.g. it was deleted after the ID was issued)."""
+        """Load a column via the dataloader, raising NotFound if the project row
+        no longer exists (e.g. it was deleted after the ID was issued).
+
+        Only pass NOT NULL columns owned by the projects table: the dataloader
+        returns None both for a missing row and for a NULL column value, so None
+        is a reliable deleted-row signal only under that restriction.
+        """
         value = await info.context.data_loaders.project_fields.load((self.id, attr))
         if value is None:
-            raise NotFound(f"Project not found: {self.id}")
+            raise NotFound(f"Project not found: {GlobalID(Project.__name__, str(self.id))}")
         return value
 
     @strawberry.field
@@ -360,6 +365,10 @@ class Project(Node):
                     (self.id, models.Project.description),
                 ),
             )
+            if description is None:
+                # Distinguish a NULL description from a deleted project row so
+                # a stale ID cannot resolve to a phantom project.
+                await self._load_required_field(info, models.Project.id)
         return description
 
     @strawberry.field

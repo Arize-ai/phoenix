@@ -2083,16 +2083,24 @@ class TestProject:
             project_id = project.id
         async with db() as session:
             await session.execute(delete(models.Project).where(models.Project.id == project_id))
-        query = "query($id:ID!){node(id:$id){... on Project{name}}}"
         gid = str(GlobalID(Project.__name__, str(project_id)))
-        response = await httpx_client.post(
-            "/graphql",
-            json={"query": query, "variables": {"id": gid}},
-        )
-        assert response.status_code == 200
-        errors = response.json().get("errors")
-        assert errors
-        assert errors[0]["message"] == f"Project not found: {project_id}"
+        # `description` is nullable, so it needs the row-existence check to
+        # avoid resolving a deleted project as a phantom node with null fields.
+        for field_name in ("name", "description"):
+            query = "query($id:ID!){node(id:$id){... on Project{" + field_name + "}}}"
+            response = await httpx_client.post(
+                "/graphql",
+                json={"query": query, "variables": {"id": gid}},
+            )
+            assert response.status_code == 200
+            errors = response.json().get("errors")
+            assert errors
+            assert errors[0]["message"] == f"Project not found: {gid}"
+        # A live project with a NULL description still resolves to null rather
+        # than being mistaken for a deleted row.
+        async with db() as session:
+            live_project = await _add_project(session, name="live-project-null-description")
+        assert await self._node("description", live_project, httpx_client) is None
 
     async def test_annotation_name_counts(
         self,
