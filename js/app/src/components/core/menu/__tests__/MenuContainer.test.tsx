@@ -1,6 +1,7 @@
 import { act } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { userEvent } from "storybook/test";
 
 import { Button } from "../../button";
@@ -141,5 +142,39 @@ describe("MenuContainer", () => {
     await act(async () => user.click(itemA));
     // Selecting an item closes the menu through React Aria's own path.
     expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("uses client-side routing for menu items with an href", async () => {
+    const user = userEvent.setup();
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={["/source"]}>
+          <Routes>
+            <Route
+              path="/source"
+              element={
+                <MenuTrigger defaultOpen>
+                  <Button>Open menu</Button>
+                  <MenuContainer aria-label="Test menu">
+                    <Menu aria-label="Test menu items">
+                      <MenuItem href="/destination">Destination</MenuItem>
+                    </Menu>
+                  </MenuContainer>
+                </MenuTrigger>
+              }
+            />
+            <Route path="/destination" element={<div>Destination page</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+
+    const link =
+      document.querySelector<HTMLAnchorElement>('a[role="menuitem"]')!;
+    expect(link.getAttribute("href")).toBe("/destination");
+
+    await act(async () => user.click(link));
+
+    expect(container.textContent).toContain("Destination page");
   });
 });
