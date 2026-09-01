@@ -1,29 +1,10 @@
-import { css } from "@emotion/react";
-
+import type { SequentialColorInterpolator } from "../colors";
 import {
   getSequentialGradientCSS,
-  useDefaultConfusionMatrixColorInterpolator,
-} from "./confusionMatrixColors";
-import type { SequentialColorInterpolator } from "./confusionMatrixUtils";
-
-const legendCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--global-dimension-size-125);
-  font-size: var(--global-font-size-xs);
-  color: var(--global-text-color-500);
-
-  .confusion-matrix-legend__gradient {
-    width: var(--global-dimension-size-2500);
-    height: var(--global-dimension-size-100);
-    border-radius: var(--global-rounding-full);
-  }
-
-  .confusion-matrix-legend__separator {
-    color: var(--global-text-color-300);
-  }
-`;
+  useSequentialBlueColorInterpolator,
+} from "../colors";
+import type { ConfusionMatrixScaleType } from "./confusionMatrixUtils";
+import { confusionMatrixLegendCSS } from "./styles";
 
 export type ConfusionMatrixLegendProps = {
   /**
@@ -32,7 +13,14 @@ export type ConfusionMatrixLegendProps = {
    */
   colorInterpolator?: SequentialColorInterpolator;
   /**
+   * The count scale of the matrices this legend describes; names the scale
+   * in the default label.
+   * @default 'log'
+   */
+  scaleType?: ConfusionMatrixScaleType;
+  /**
    * What the density encodes, e.g. "span count · log scale"
+   * @default 'count · <scaleType> scale'
    */
   label?: string;
 };
@@ -45,12 +33,12 @@ export type ConfusionMatrixLegendProps = {
  */
 export function ConfusionMatrixLegend({
   colorInterpolator,
+  scaleType = "log",
   label,
 }: ConfusionMatrixLegendProps) {
-  const defaultColorInterpolator = useDefaultConfusionMatrixColorInterpolator();
-  const interpolator = colorInterpolator ?? defaultColorInterpolator;
+  const interpolator = useSequentialBlueColorInterpolator(colorInterpolator);
   return (
-    <div className="confusion-matrix-legend" css={legendCSS}>
+    <div className="confusion-matrix-legend" css={confusionMatrixLegendCSS}>
       <span>fewer</span>
       <div
         className="confusion-matrix-legend__gradient"
@@ -61,12 +49,8 @@ export function ConfusionMatrixLegend({
         }}
       />
       <span>more</span>
-      {label ? (
-        <>
-          <span className="confusion-matrix-legend__separator">·</span>
-          <span>{label}</span>
-        </>
-      ) : null}
+      <span className="confusion-matrix-legend__separator">·</span>
+      <span>{label ?? `count · ${scaleType} scale`}</span>
     </div>
   );
 }

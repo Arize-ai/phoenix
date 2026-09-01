@@ -1,7 +1,7 @@
 import {
   createSequentialColorInterpolator,
   reverseColorInterpolator,
-} from "../confusionMatrix/confusionMatrixColors";
+} from "../colors";
 
 describe("createSequentialColorInterpolator", () => {
   it("hits the stops at the ends and blends between them", () => {

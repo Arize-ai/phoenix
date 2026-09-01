@@ -1,3 +1,7 @@
+import { getLuminance } from "polished";
+
+import type { SequentialColorInterpolator } from "../colors";
+
 /**
  * A single observed (actual, predicted) pair with the number of times it
  * occurred. The confusion matrix is computed from a flat list of these so
@@ -17,12 +21,6 @@ export type ConfusionMatrixDatum = {
    */
   count: number;
 };
-
-/**
- * A d3-scale-chromatic style interpolator: maps a normalized density
- * t ∈ [0, 1] to a CSS color (e.g. `interpolateViridis`, `interpolateBlues`).
- */
-export type SequentialColorInterpolator = (t: number) => string;
 
 /**
  * How cell counts are normalized into color density. Log keeps sparse cells
@@ -62,15 +60,6 @@ export type ComputedConfusionMatrix = {
 };
 
 /**
- * Quadrant names for a binary (2×2) matrix where the FIRST label on each axis
- * is the positive class: [row][column] over [positive, negative].
- */
-export const BINARY_CONFUSION_QUADRANTS = [
-  ["TP", "FN"],
-  ["FP", "TN"],
-] as const;
-
-/**
  * Pivots a flat list of (actual, predicted, count) records into a dense
  * matrix with totals.
  *
@@ -90,11 +79,11 @@ export function computeConfusionMatrix({
   actualLabels?: string[];
   predictedLabels?: string[];
 }): ComputedConfusionMatrix {
-  const rowLabels = dedupeInOrder(
-    actualLabels ?? data.map((datum) => datum.actual)
+  const rowLabels = Array.from(
+    new Set(actualLabels ?? data.map((datum) => datum.actual))
   );
-  const columnLabels = dedupeInOrder(
-    predictedLabels ?? data.map((datum) => datum.predicted)
+  const columnLabels = Array.from(
+    new Set(predictedLabels ?? data.map((datum) => datum.predicted))
   );
   const rowIndexByLabel = new Map(
     rowLabels.map((label, index) => [label, index])
@@ -115,14 +104,22 @@ export function computeConfusionMatrix({
     counts[rowIndex][columnIndex] += datum.count;
   }
 
-  const rowTotals = counts.map((row) =>
-    row.reduce((sum, value) => sum + value, 0)
-  );
-  const columnTotals = columnLabels.map((_, columnIndex) =>
-    counts.reduce((sum, row) => sum + row[columnIndex], 0)
-  );
-  const total = rowTotals.reduce((sum, value) => sum + value, 0);
-  const maxCount = counts.reduce((acc, row) => Math.max(acc, ...row), 0);
+  const rowTotals: number[] = new Array(rowLabels.length).fill(0);
+  const columnTotals: number[] = new Array(columnLabels.length).fill(0);
+  let total = 0;
+  let maxCount = 0;
+  for (let rowIndex = 0; rowIndex < counts.length; rowIndex++) {
+    const row = counts[rowIndex];
+    for (let columnIndex = 0; columnIndex < row.length; columnIndex++) {
+      const value = row[columnIndex];
+      rowTotals[rowIndex] += value;
+      columnTotals[columnIndex] += value;
+      total += value;
+      if (value > maxCount) {
+        maxCount = value;
+      }
+    }
+  }
 
   return {
     actualLabels: rowLabels,
@@ -135,43 +132,114 @@ export function computeConfusionMatrix({
   };
 }
 
+export type BinaryConfusionQuadrant = "TP" | "FN" | "FP" | "TN";
+
 /**
- * Whether the two axes describe the same binary label set in the same
- * order — the precondition for TP/FN/FP/TN quadrant labeling.
+ * Derives per-cell TP / FN / FP / TN tags for a binary matrix, keyed on the
+ * positive label's identity rather than axis order — any 2×2 whose axes both
+ * hold the positive class and the same negative class qualifies, in either
+ * order. Returns null when the tags would be meaningless (multiclass,
+ * mismatched label sets, or a positive label absent from an axis).
  */
-export function hasAlignedBinaryLabels(
-  actualLabels: string[],
-  predictedLabels: string[]
-): boolean {
-  return (
-    actualLabels.length === 2 &&
-    predictedLabels.length === 2 &&
-    actualLabels[0] === predictedLabels[0] &&
-    actualLabels[1] === predictedLabels[1]
+export function getConfusionQuadrantLabels({
+  actualLabels,
+  predictedLabels,
+  positiveLabel,
+}: {
+  actualLabels: string[];
+  predictedLabels: string[];
+  positiveLabel: string;
+}): BinaryConfusionQuadrant[][] | null {
+  const negativeLabel = actualLabels.find((label) => label !== positiveLabel);
+  const isBinaryPair = (labels: string[]) =>
+    labels.length === 2 &&
+    negativeLabel != null &&
+    labels.includes(positiveLabel) &&
+    labels.includes(negativeLabel);
+  if (!isBinaryPair(actualLabels) || !isBinaryPair(predictedLabels)) {
+    return null;
+  }
+  return actualLabels.map((actual) =>
+    predictedLabels.map((predicted): BinaryConfusionQuadrant => {
+      if (actual === positiveLabel) {
+        return predicted === positiveLabel ? "TP" : "FN";
+      }
+      return predicted === positiveLabel ? "FP" : "TN";
+    })
   );
 }
 
 /**
- * Normalizes a cell count into t ∈ [0, 1] for the color scale.
+ * Builds the count → density scale for one matrix: counts normalize into
+ * t ∈ [0, 1] against `maxCount`. The denominator is fixed per matrix, so
+ * derive the scale once and apply it per cell.
  */
-export function getConfusionMatrixDensity({
-  count,
+export function createConfusionMatrixDensityScale({
   maxCount,
   scaleType,
 }: {
-  count: number;
   maxCount: number;
   scaleType: ConfusionMatrixScaleType;
-}): number {
-  if (maxCount <= 0 || count <= 0) {
-    return 0;
+}): (count: number) => number {
+  if (maxCount <= 0) {
+    return () => 0;
   }
-  if (scaleType === "log") {
-    return Math.min(Math.log1p(count) / Math.log1p(maxCount), 1);
-  }
-  return Math.min(count / maxCount, 1);
+  const denominator = scaleType === "log" ? Math.log1p(maxCount) : maxCount;
+  return (count: number) => {
+    if (count <= 0) {
+      return 0;
+    }
+    const numerator = scaleType === "log" ? Math.log1p(count) : count;
+    return Math.min(numerator / denominator, 1);
+  };
 }
 
-function dedupeInOrder(values: string[]): string[] {
-  return Array.from(new Set(values));
+/**
+ * Above this relative luminance a cell is light enough that dark ink is both
+ * higher-contrast and easier to read; below it, light ink wins. Chosen so the
+ * mid-range of common d3 scales (blues, viridis, magma) keeps light ink.
+ */
+const DARK_INK_LUMINANCE_THRESHOLD = 0.4;
+
+const DARK_INK = "var(--global-static-color-black-900)";
+const LIGHT_INK = "var(--global-static-color-white-900)";
+
+/**
+ * Ink per fill color, cached because `getLuminance` re-parses the color
+ * string on every call and a matrix asks about the same handful of fills
+ * over and over. Bounded by the distinct colors an interpolator emits.
+ */
+const inkByFillColor = new Map<string, string>();
+
+function getInkColor(backgroundColor: string): string {
+  let ink = inkByFillColor.get(backgroundColor);
+  if (ink == null) {
+    try {
+      ink =
+        getLuminance(backgroundColor) > DARK_INK_LUMINANCE_THRESHOLD
+          ? DARK_INK
+          : LIGHT_INK;
+    } catch {
+      // The interpolator returned a color polished can't parse (a var()
+      // expression, oklch(), color-mix(), …) — fall back to the theme's
+      // default text color rather than crashing the render.
+      ink = "var(--global-text-color-900)";
+    }
+    inkByFillColor.set(backgroundColor, ink);
+  }
+  return ink;
+}
+
+/**
+ * Resolves the fill and a legible ink color for a cell at density t.
+ */
+export function getConfusionMatrixCellColors({
+  colorInterpolator,
+  density,
+}: {
+  colorInterpolator: SequentialColorInterpolator;
+  density: number;
+}): { backgroundColor: string; color: string } {
+  const backgroundColor = colorInterpolator(density);
+  return { backgroundColor, color: getInkColor(backgroundColor) };
 }

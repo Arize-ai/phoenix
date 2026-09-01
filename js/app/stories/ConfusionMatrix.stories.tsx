@@ -1,11 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { interpolateMagma, interpolateViridis } from "d3-scale-chromatic";
+import type { ComponentProps } from "react";
 
 import { Flex, Heading, View } from "@phoenix/components";
 import {
   ConfusionMatrix,
   ConfusionMatrixLegend,
+  reverseColorInterpolator,
+  useSequentialBlueColorInterpolator,
 } from "@phoenix/components/chart";
+import { useTheme } from "@phoenix/contexts";
 
 /**
  * A binary eval: "hallucinated" is the positive class, so quadrant labels
@@ -80,7 +84,7 @@ export const Binary: Story = {
     data: binaryData,
     size: "L",
     showPercentage: true,
-    showQuadrantLabels: true,
+    positiveLabel: "hallucinated",
   },
 };
 
@@ -117,6 +121,53 @@ export const CustomColorScale: Story = {
   ),
 };
 
+type DensityDirectionArgs = ComponentProps<typeof ConfusionMatrix> & {
+  moreMeans: "brighter" | "darker";
+};
+
+/**
+ * In the dark theme the default color scale brightens as counts grow, so the
+ * densest cell is the most vivid blue. Readers trained on print-style
+ * heatmaps expect the opposite — darker means more. With the dark theme
+ * active, switch `moreMeans` to "darker" to compare: the color scale is
+ * reversed so the densest cell is the deepest navy. The light theme already
+ * maps more to darker and is left unchanged.
+ */
+export const DensityDirection: StoryObj<DensityDirectionArgs> = {
+  args: {
+    data: binaryData,
+    size: "L",
+    showPercentage: true,
+    moreMeans: "brighter",
+  },
+  argTypes: {
+    moreMeans: {
+      control: "radio",
+      options: ["brighter", "darker"],
+      description:
+        'Which color direction encodes higher counts in dark mode — the current default brightens toward vivid blue; "darker" sinks high counts into navy like a print heatmap. Light mode already maps more to darker and is unaffected.',
+    },
+  },
+  render: function DensityDirectionStory({ moreMeans, ...props }) {
+    const { theme } = useTheme();
+    const defaultColorInterpolator = useSequentialBlueColorInterpolator();
+    const colorInterpolator =
+      moreMeans === "darker" && theme === "dark"
+        ? reverseColorInterpolator(defaultColorInterpolator)
+        : defaultColorInterpolator;
+    return (
+      <Flex direction="column" gap="size-400">
+        <ConfusionMatrix {...props} colorInterpolator={colorInterpolator} />
+        <ConfusionMatrix
+          data={multiclassData}
+          size="M"
+          colorInterpolator={colorInterpolator}
+        />
+      </Flex>
+    );
+  },
+};
+
 export const Compact: Story = {
   args: {
     data: multiclassData,
@@ -131,9 +182,19 @@ export const Compact: Story = {
  * `showLegend` off per matrix, pin a common `maxCount` so their colors are
  * directly comparable, and render a single `ConfusionMatrixLegend`.
  */
+const binaryDataOtherModel = [
+  { actual: "hallucinated", predicted: "hallucinated", count: 112 },
+  { actual: "hallucinated", predicted: "factual", count: 16 },
+  { actual: "factual", predicted: "hallucinated", count: 18 },
+  { actual: "factual", predicted: "factual", count: 1101 },
+];
+
 export const SharedLegend: Story = {
   render: () => {
-    const sharedMaxCount = 1101;
+    const sharedMaxCount = Math.max(
+      ...binaryData.map((datum) => datum.count),
+      ...binaryDataOtherModel.map((datum) => datum.count)
+    );
     return (
       <Flex direction="column" gap="size-200">
         <Flex direction="row" gap="size-400">
@@ -148,16 +209,7 @@ export const SharedLegend: Story = {
           <View flex="1 1 0">
             <Heading level={3}>gpt-4o</Heading>
             <ConfusionMatrix
-              data={[
-                {
-                  actual: "hallucinated",
-                  predicted: "hallucinated",
-                  count: 112,
-                },
-                { actual: "hallucinated", predicted: "factual", count: 16 },
-                { actual: "factual", predicted: "hallucinated", count: 18 },
-                { actual: "factual", predicted: "factual", count: 1101 },
-              ]}
+              data={binaryDataOtherModel}
               maxCount={sharedMaxCount}
               showLegend={false}
             />

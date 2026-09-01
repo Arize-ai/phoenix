@@ -1,6 +1,7 @@
 import {
   computeConfusionMatrix,
-  getConfusionMatrixDensity,
+  createConfusionMatrixDensityScale,
+  getConfusionQuadrantLabels,
 } from "../confusionMatrix/confusionMatrixUtils";
 
 describe("computeConfusionMatrix", () => {
@@ -80,55 +81,110 @@ describe("computeConfusionMatrix", () => {
   });
 });
 
-describe("getConfusionMatrixDensity", () => {
-  it("maps zero and empty scales to zero", () => {
-    expect(
-      getConfusionMatrixDensity({ count: 0, maxCount: 10, scaleType: "log" })
-    ).toBe(0);
-    expect(
-      getConfusionMatrixDensity({ count: 5, maxCount: 0, scaleType: "linear" })
-    ).toBe(0);
+describe("createConfusionMatrixDensityScale", () => {
+  it("maps zero counts and empty scales to zero", () => {
+    const logScale = createConfusionMatrixDensityScale({
+      maxCount: 10,
+      scaleType: "log",
+    });
+    expect(logScale(0)).toBe(0);
+    const emptyScale = createConfusionMatrixDensityScale({
+      maxCount: 0,
+      scaleType: "linear",
+    });
+    expect(emptyScale(5)).toBe(0);
   });
 
   it("maps the max count to 1 on both scales", () => {
     expect(
-      getConfusionMatrixDensity({ count: 10, maxCount: 10, scaleType: "log" })
+      createConfusionMatrixDensityScale({ maxCount: 10, scaleType: "log" })(10)
     ).toBe(1);
     expect(
-      getConfusionMatrixDensity({
-        count: 10,
-        maxCount: 10,
-        scaleType: "linear",
-      })
+      createConfusionMatrixDensityScale({ maxCount: 10, scaleType: "linear" })(
+        10
+      )
     ).toBe(1);
   });
 
   it("clamps to 1 when the count exceeds a pinned maxCount on both scales", () => {
     expect(
-      getConfusionMatrixDensity({ count: 500, maxCount: 100, scaleType: "log" })
+      createConfusionMatrixDensityScale({ maxCount: 100, scaleType: "log" })(
+        500
+      )
     ).toBe(1);
     expect(
-      getConfusionMatrixDensity({
-        count: 500,
-        maxCount: 100,
-        scaleType: "linear",
-      })
+      createConfusionMatrixDensityScale({ maxCount: 100, scaleType: "linear" })(
+        500
+      )
     ).toBe(1);
   });
 
   it("keeps sparse cells more visible on the log scale", () => {
-    const log = getConfusionMatrixDensity({
-      count: 10,
+    const log = createConfusionMatrixDensityScale({
       maxCount: 1000,
       scaleType: "log",
-    });
-    const linear = getConfusionMatrixDensity({
-      count: 10,
+    })(10);
+    const linear = createConfusionMatrixDensityScale({
       maxCount: 1000,
       scaleType: "linear",
-    });
+    })(10);
     expect(log).toBeGreaterThan(linear);
     expect(log).toBeGreaterThan(0.3);
     expect(linear).toBe(0.01);
+  });
+});
+
+describe("getConfusionQuadrantLabels", () => {
+  it("tags cells by the positive label's position on each axis", () => {
+    expect(
+      getConfusionQuadrantLabels({
+        actualLabels: ["hallucinated", "factual"],
+        predictedLabels: ["hallucinated", "factual"],
+        positiveLabel: "hallucinated",
+      })
+    ).toEqual([
+      ["TP", "FN"],
+      ["FP", "TN"],
+    ]);
+  });
+
+  it("is independent of axis order", () => {
+    expect(
+      getConfusionQuadrantLabels({
+        actualLabels: ["factual", "hallucinated"],
+        predictedLabels: ["hallucinated", "factual"],
+        positiveLabel: "hallucinated",
+      })
+    ).toEqual([
+      ["FP", "TN"],
+      ["TP", "FN"],
+    ]);
+  });
+
+  it("returns null for multiclass or mismatched label sets", () => {
+    expect(
+      getConfusionQuadrantLabels({
+        actualLabels: ["a", "b", "c"],
+        predictedLabels: ["a", "b", "c"],
+        positiveLabel: "a",
+      })
+    ).toBeNull();
+    expect(
+      getConfusionQuadrantLabels({
+        actualLabels: ["a", "b"],
+        predictedLabels: ["a", "c"],
+        positiveLabel: "a",
+      })
+    ).toBeNull();
+  });
+
+  it("returns null when the positive label is missing from an axis", () => {
+    expect(
+      getConfusionQuadrantLabels({
+        actualLabels: ["a", "b"],
+        predictedLabels: ["a", "b"],
+        positiveLabel: "c",
+      })
+    ).toBeNull();
   });
 });

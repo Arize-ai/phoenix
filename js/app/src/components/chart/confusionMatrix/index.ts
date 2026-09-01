@@ -1,4 +1,9 @@
-export * from "./ConfusionMatrix";
-export * from "./ConfusionMatrixLegend";
-export * from "./confusionMatrixUtils";
-export * from "./confusionMatrixColors";
+export { ConfusionMatrix, type ConfusionMatrixProps } from "./ConfusionMatrix";
+export {
+  ConfusionMatrixLegend,
+  type ConfusionMatrixLegendProps,
+} from "./ConfusionMatrixLegend";
+export type {
+  ConfusionMatrixDatum,
+  ConfusionMatrixScaleType,
+} from "./confusionMatrixUtils";
