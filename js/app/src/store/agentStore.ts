@@ -409,6 +409,13 @@ export interface AgentState extends AgentProps {
     key: string;
     value: string | null;
   }) => void;
+  /**
+   * Drops every client-held integration credential. Called on logout so a
+   * later user of the same browser cannot inherit (and silently send) the
+   * previous user's tokens — the persisted store is scoped per deployment,
+   * not per user.
+   */
+  clearIntegrationCredentials: () => void;
 
   // -- Elicitation (ephemeral, not persisted) --
 
@@ -913,6 +920,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         false,
         { type: "setIntegrationCredential" }
       );
+    },
+    clearIntegrationCredentials: () => {
+      set({ integrationCredentials: {} }, false, {
+        type: "clearIntegrationCredentials",
+      });
     },
 
     // -- Elicitation (ephemeral) --

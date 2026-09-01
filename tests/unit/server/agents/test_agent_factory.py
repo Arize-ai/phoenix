@@ -1329,3 +1329,22 @@ class TestGitHubMCPCapabilityRegistration:
         ]
         assert len(matches) == 1
         assert not self._write_tools_visible(matches[0])
+
+    def test_subagent_stays_read_only_under_bypass(self, model: TestModel) -> None:
+        # "bypass" removes the approval gate for the main thread, but filing
+        # still stays in the main thread: the subagent must not see write tools.
+        agent = build_agent(
+            model=model,
+            enable_subagents=True,
+            edit_permission="bypass",
+            github_mcp_config=self._github_config(),
+        )
+        call_subagent = _find_capability(agent, CallSubAgentCapability)
+        subagent = call_subagent.subagent.wrapped
+        matches = [
+            capability
+            for capability in _iter_capabilities(subagent.root_capability)
+            if isinstance(capability, GitHubMCPCapability)
+        ]
+        assert len(matches) == 1
+        assert not self._write_tools_visible(matches[0])

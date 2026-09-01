@@ -161,13 +161,14 @@ def build_agent(
         # transport auth. Writes share `writes_permitted` with GraphQL
         # mutations: a headless run has nobody to answer an approval request,
         # so unless edit permission is "bypass" the write tools are filtered
-        # out entirely (subagents therefore get read/search only — duplicate
-        # checking is delegable, filing stays in the main thread).
+        # out entirely. Subagents get read/search only regardless of edit
+        # permission — duplicate checking is delegable, filing stays in the
+        # main thread — so a "bypass" run cannot file issues from a subagent.
         capabilities.append(
             build_github_mcp_capability(
                 github_mcp_config,
                 instructions=resolved_prompts.github_tools,
-                allow_writes=writes_permitted,
+                allow_writes=writes_permitted and not is_subagent,
                 require_write_approval=require_mutation_approval,
             )
         )
