@@ -72,6 +72,9 @@ from phoenix.tracers import Tracer
 
 logger = logging.getLogger(__name__)
 
+# How long a cancelled evaluation waits for its best-effort trace write.
+_TRACE_PERSIST_DRAIN_SECONDS = 30.0
+
 _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 _TRANSCRIPT_POLICY_METADATA_KEY = "phoenix.online_eval.transcript_policy"
 _EVALUATOR_TRACE_ID_METADATA_KEY = "phoenix.evaluator_trace_id"
@@ -950,7 +953,15 @@ class OnlineEvalExecutor:
                     await asyncio.shield(persist)
                 except asyncio.CancelledError:
                     if not persist.done():
-                        await asyncio.wait([persist])
+                        # Bounded: trace persistence is best-effort, and an
+                        # unbounded join here has wedged shutdown (and CI test
+                        # teardown) when the persist task could no longer make
+                        # progress against a database that was going away.
+                        done, _ = await asyncio.wait(
+                            [persist], timeout=_TRACE_PERSIST_DRAIN_SECONDS
+                        )
+                        if not done:
+                            persist.cancel()
                     raise
         errored = [result for result in results if result["error"] is not None]
         if errored:
