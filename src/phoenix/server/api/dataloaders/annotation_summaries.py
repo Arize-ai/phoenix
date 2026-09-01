@@ -88,7 +88,10 @@ class AnnotationSummaryCache(
             # victim while stale high-frequency windows squat, so switching
             # ranges could permanently miss. LRU keeps the recently viewed
             # windows, which is the actual access pattern.
-            sub_cache_factory=lambda: LRUCache(maxsize=2 * 2),
+            # Each viewed window costs two sub-keys (the window and its
+            # previous-window comparison), so eight entries retain the four
+            # most recently viewed windows.
+            sub_cache_factory=lambda: LRUCache(maxsize=2 * 4),
         )
 
     def invalidate_project(self, project_rowid: ProjectRowId) -> None:
