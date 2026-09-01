@@ -1,3 +1,4 @@
+import asyncio
 from asyncio import Future
 from datetime import datetime, timezone
 
@@ -18,13 +19,15 @@ def _key(
 
 
 def _entry() -> "Future[dict[datetime, float]]":
-    future: "Future[dict[datetime, float]]" = Future()
+    # Created via the running loop: bare Future() requires a current event
+    # loop, which pytest-xdist workers do not guarantee at import time.
+    future = asyncio.get_running_loop().create_future()
     future.set_result({})
     return future
 
 
 class TestAnnotationMeanScoreTimeSeriesCache:
-    def test_round_trips_by_full_key(self) -> None:
+    async def test_round_trips_by_full_key(self) -> None:
         cache = AnnotationMeanScoreTimeSeriesCache()
         entry = _entry()
         cache.set(_key(), entry)
@@ -32,7 +35,7 @@ class TestAnnotationMeanScoreTimeSeriesCache:
         # A different bin scale is a different sub-key within the same section
         assert cache.get(_key(stride="hour")) is None
 
-    def test_invalidate_clears_one_annotation_kind_section(self) -> None:
+    async def test_invalidate_clears_one_annotation_kind_section(self) -> None:
         cache = AnnotationMeanScoreTimeSeriesCache()
         cache.set(_key(kind="span"), _entry())
         cache.set(_key(kind="trace"), _entry())
@@ -43,7 +46,7 @@ class TestAnnotationMeanScoreTimeSeriesCache:
         assert cache.get(_key(kind="trace")) is not None
         assert cache.get(_key(annotation_name="other")) is not None
 
-    def test_invalidate_project_clears_every_section_of_the_project(self) -> None:
+    async def test_invalidate_project_clears_every_section_of_the_project(self) -> None:
         cache = AnnotationMeanScoreTimeSeriesCache()
         cache.set(_key(project_rowid=1), _entry())
         cache.set(_key(project_rowid=1, annotation_name="other"), _entry())

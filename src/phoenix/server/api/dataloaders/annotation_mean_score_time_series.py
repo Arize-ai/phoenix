@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Literal, NamedTuple, Optional, Type, Union
 
-from cachetools import LFUCache, TTLCache
+from cachetools import LRUCache, TTLCache
 from sqlalchemy import Select, or_, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
@@ -68,8 +68,12 @@ class AnnotationMeanScoreTimeSeriesCache(
             # TTL=3600 (1-hour) because window starts snap to the hour, so an
             # entry older than that no longer matches any live window anyway.
             main_cache=TTLCache(maxsize=64 * 32 * 2, ttl=3600),
-            # A couple of windows times a couple of bin scales per section.
-            sub_cache_factory=lambda: LFUCache(maxsize=2 * 2),
+            # LRU, not LFU: a user hops between a handful of windows, and
+            # under LFU a fresh window's key enters at frequency 1 — the
+            # immediate eviction victim while stale high-frequency windows
+            # squat, so new windows never cache. LRU keeps the recently
+            # viewed windows, which is the actual access pattern.
+            sub_cache_factory=lambda: LRUCache(maxsize=2 * 2),
         )
 
     def invalidate_project(self, project_rowid: ProjectRowId) -> None:
