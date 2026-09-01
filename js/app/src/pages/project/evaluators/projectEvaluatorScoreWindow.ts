@@ -37,6 +37,26 @@ export type EvaluatorScoreWindow = {
 };
 
 /**
+ * Whether two score windows would produce identical query variables. Compares
+ * every field so the table's initial-fetch guard can't silently drift from
+ * whatever the loader derived.
+ */
+export function isSameEvaluatorScoreWindow(
+  a: EvaluatorScoreWindow,
+  b: EvaluatorScoreWindow
+): boolean {
+  return (
+    a.timeRange.start === b.timeRange.start &&
+    a.timeRange.end === b.timeRange.end &&
+    a.previousTimeRange.start === b.previousTimeRange.start &&
+    a.previousTimeRange.end === b.previousTimeRange.end &&
+    a.timeBinConfig.scale === b.timeBinConfig.scale &&
+    a.timeBinConfig.utcOffsetMinutes === b.timeBinConfig.utcOffsetMinutes &&
+    a.windowKey === b.windowKey
+  );
+}
+
+/**
  * Resolves the page time range into the mean score column's clamped window.
  * Everything derives from the range's snapped bounds and its last-N key —
  * never from "now" — so the loader and the table produce identical query

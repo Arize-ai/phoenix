@@ -82,12 +82,10 @@ class AnnotationSummaryCache(
             # interval endpoints are rounded down to the hour by the UI, so anything
             # older than an hour most likely won't be a cache-hit anyway.
             main_cache=TTLCache(maxsize=64 * 32 * 2, ttl=3600),
-            # LRU, not LFU: each viewed window contributes two sub-keys (the
-            # window and its previous-window comparison), and under LFU a
-            # fresh window enters at frequency 1 — the immediate eviction
-            # victim while stale high-frequency windows squat, so switching
-            # ranges could permanently miss. LRU keeps the recently viewed
-            # windows, which is the actual access pattern.
+            # LRU, not LFU: under LFU a fresh window enters at frequency 1 —
+            # the immediate eviction victim while stale high-frequency windows
+            # squat, so switching ranges could permanently miss. LRU keeps the
+            # recently viewed windows, which is the actual access pattern.
             # Each viewed window costs two sub-keys (the window and its
             # previous-window comparison), so eight entries retain the four
             # most recently viewed windows.
@@ -95,9 +93,7 @@ class AnnotationSummaryCache(
         )
 
     def invalidate_project(self, project_rowid: ProjectRowId) -> None:
-        for section in self._cache.keys():
-            if section[0] == project_rowid:
-                del self._cache[section]
+        self.invalidate_matching(lambda section: section[0] == project_rowid)
 
     def _cache_key(self, key: Key) -> tuple[_Section, _SubKey]:
         (
