@@ -1,7 +1,7 @@
 import asyncio
-from asyncio import Event, sleep
+from asyncio import Event, wait_for
 from datetime import datetime, timezone
-from typing import AsyncIterator, Callable
+from typing import AsyncIterator
 from unittest.mock import patch
 
 import pytest
@@ -10,22 +10,46 @@ from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
+_CYCLE_TIMEOUT_SECONDS = 30.0
+
+
+class _DaemonCycleBarrier:
+    """Synchronizes the test with the store's fetch loop through its patched sleep.
+
+    The loop assigns _last_fetch_time before it sleeps, so entering sleep marks a
+    finished cycle: the patched sleep signals completion, then parks the loop until
+    the test releases the next cycle. Each release runs exactly one cycle -- a
+    failed fetch is not retried, it surfaces in the next assertion.
+    """
+
+    def __init__(self) -> None:
+        self._cycle_completed = Event()
+        self._release_next = Event()
+
+    async def sleep(self, seconds: float) -> None:
+        self._cycle_completed.set()
+        await self._release_next.wait()
+        self._release_next.clear()
+
+    async def wait_for_cycle(self, phase: str) -> None:
+        # The timeout is a watchdog for a wedged fetch; it is sized to absorb
+        # multi-second scheduling stalls on oversubscribed CI runners.
+        try:
+            await wait_for(self._cycle_completed.wait(), timeout=_CYCLE_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError:
+            pytest.fail(f"Fetch cycle did not finish within {_CYCLE_TIMEOUT_SECONDS}s: {phase}")
+        self._cycle_completed.clear()
+
+    async def run_cycle(self, phase: str) -> None:
+        self._release_next.set()
+        await self.wait_for_cycle(phase)
+
 
 @pytest.fixture
-async def fetch_trigger() -> AsyncIterator[Event]:
-    """Control when the GenerativeModelStore runs by patching its sleep method.
-
-    Returns an event that can be set to trigger the store's next fetch cycle.
-    The store will wait for this event instead of sleeping for the refresh interval.
-    """
-    event = Event()
-
-    async def wait_for_event(seconds: int) -> None:
-        await event.wait()
-        event.clear()
-
-    with patch("phoenix.server.daemons.generative_model_store.sleep", wait_for_event):
-        yield event
+async def daemon_cycles() -> AsyncIterator[_DaemonCycleBarrier]:
+    barrier = _DaemonCycleBarrier()
+    with patch("phoenix.server.daemons.generative_model_store.sleep", barrier.sleep):
+        yield barrier
 
 
 class TestGenerativeModelStore:
@@ -55,28 +79,21 @@ class TestGenerativeModelStore:
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
-        fetch_trigger: Event,
+        daemon_cycles: _DaemonCycleBarrier,
     ) -> None:
         """
-        Test that GenerativeModelStore correctly manages model lifecycle through daemon cycles.
+        Drive the daemon through controlled fetch cycles and verify that:
 
-        This test verifies that the store:
-        1. Loads initial models on first fetch cycle (full fetch when _last_fetch_time is None)
-        2. Uses incremental fetching on subsequent cycles (queries with >= _last_fetch_time filter)
-        3. Picks up model updates through incremental fetching
-        4. Removes soft-deleted models from the lookup cache
-        5. Advances _last_fetch_time after each successful fetch cycle
-        6. Advances _last_fetch_time even when no models are changed (empty fetch)
+        1. The first cycle loads existing models into the lookup.
+        2. A later cycle picks up a model update.
+        3. A later cycle removes a soft-deleted model from the lookup.
+        4. Every successful cycle advances _last_fetch_time, including a cycle
+           with no new mutations.
 
-        Test flow uses controlled daemon execution:
-        - Start the daemon running in background via store.start()
-        - wait_for_condition polls a predicate and triggers fetch cycles via fetch_trigger
-        - Verify observable behavior (model lookups work correctly) after each cycle
-        - Verify internal state (_last_fetch_time advances) to ensure incremental logic executes
-
-        Note: The implementation applies a 10-second clock buffer (fetch_start_time = now - 10s)
-        for clock skew tolerance, but this test does not verify the buffer's effectiveness
-        as that would require time mocking to simulate the race condition.
+        The incremental where-clause is not observable here: its 10-second
+        clock-skew buffer refetches every row this test touches, so phase 4
+        asserts cursor advancement only, and a full-refetch implementation
+        would pass this test as well.
         """
 
         # PHASE 1: Create initial models
@@ -134,134 +151,105 @@ class TestGenerativeModelStore:
         assert result2.data is not None
         model2_id = result2.data["createModel"]["model"]["id"]
 
-        # Start the daemon
+        # Start the daemon; its first cycle runs without a release.
         store = GenerativeModelStore(db=db)
         await store.start()
+        try:
+            await daemon_cycles.wait_for_cycle("initial fetch")
 
-        async def wait_for_condition(
-            predicate: Callable[[], bool],
-            timeout_seconds: float = 5.0,
-            interval_seconds: float = 0.05,
-        ) -> None:
-            deadline = asyncio.get_running_loop().time() + timeout_seconds
-            while True:
-                if predicate():
-                    return
-                if asyncio.get_running_loop().time() >= deadline:
-                    await store.stop()
-                    pytest.fail("Timed out waiting for GenerativeModelStore condition")
-                fetch_trigger.set()
-                await sleep(interval_seconds)
-
-        # Wait for initial fetch (polling loop triggers retries if auto-fetch fails)
-        await wait_for_condition(lambda: store._last_fetch_time is not None)
-
-        # Verify initial fetch loaded both models
-        lookup_time = datetime.now(timezone.utc)
-        fetched_model1 = store.find_model(
-            start_time=lookup_time,
-            attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
-        )
-        assert fetched_model1 is not None
-        assert fetched_model1.name == "gpt-3.5"
-        assert len(fetched_model1.token_prices) == 2
-
-        fetched_model2 = store.find_model(
-            start_time=lookup_time,
-            attributes={"llm": {"model_name": "claude-3", "provider": "anthropic"}},
-        )
-        assert fetched_model2 is not None
-        assert fetched_model2.name == "claude-3"
-        assert len(fetched_model2.token_prices) == 2
-
-        # Verify _last_fetch_time was set (timestamp tracking works)
-        assert store._last_fetch_time is not None
-        first_fetch_time = store._last_fetch_time
-
-        # PHASE 2: Update model and verify incremental fetch
-        await asyncio.sleep(0.01)
-
-        update_result = await gql_client.execute(
-            query=self.MUTATIONS,
-            operation_name="UpdateModel",
-            variables={
-                "input": {
-                    "id": model1_id,
-                    "name": "gpt-3.5-updated",
-                    "provider": "openai",
-                    "namePattern": "gpt-3\\.5-turbo",
-                    "costs": [
-                        {
-                            "tokenType": "input",
-                            "kind": "PROMPT",
-                            "costPerMillionTokens": 1500,
-                        },
-                        {
-                            "tokenType": "output",
-                            "kind": "COMPLETION",
-                            "costPerMillionTokens": 2500,
-                        },
-                    ],
-                }
-            },
-        )
-        assert not update_result.errors
-
-        # Wait for incremental fetch to pick up the update
-        await wait_for_condition(
-            lambda: (
-                getattr(
-                    store.find_model(
-                        start_time=lookup_time,
-                        attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
-                    ),
-                    "name",
-                    None,
-                )
-                == "gpt-3.5-updated"
+            # Verify the initial fetch loaded both models
+            lookup_time = datetime.now(timezone.utc)
+            fetched_model1 = store.find_model(
+                start_time=lookup_time,
+                attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
             )
-        )
+            assert fetched_model1 is not None
+            assert fetched_model1.name == "gpt-3.5"
+            assert len(fetched_model1.token_prices) == 2
 
-        # Verify timestamp advanced
-        assert store._last_fetch_time is not None
-        assert store._last_fetch_time > first_fetch_time
-        second_fetch_time = store._last_fetch_time
+            fetched_model2 = store.find_model(
+                start_time=lookup_time,
+                attributes={"llm": {"model_name": "claude-3", "provider": "anthropic"}},
+            )
+            assert fetched_model2 is not None
+            assert fetched_model2.name == "claude-3"
+            assert len(fetched_model2.token_prices) == 2
 
-        # PHASE 3: Delete model and verify removal
-        await asyncio.sleep(0.01)
+            assert store._last_fetch_time is not None
+            first_fetch_time = store._last_fetch_time
 
-        delete_result = await gql_client.execute(
-            query=self.MUTATIONS,
-            operation_name="DeleteModel",
-            variables={"input": {"id": model2_id}},
-        )
-        assert not delete_result.errors
+            # PHASE 2: Update a model; the next cycle must pick up the change
+            await asyncio.sleep(0.01)
 
-        # Wait for fetch to pick up the delete
-        await wait_for_condition(
-            lambda: (
+            update_result = await gql_client.execute(
+                query=self.MUTATIONS,
+                operation_name="UpdateModel",
+                variables={
+                    "input": {
+                        "id": model1_id,
+                        "name": "gpt-3.5-updated",
+                        "provider": "openai",
+                        "namePattern": "gpt-3\\.5-turbo",
+                        "costs": [
+                            {
+                                "tokenType": "input",
+                                "kind": "PROMPT",
+                                "costPerMillionTokens": 1500,
+                            },
+                            {
+                                "tokenType": "output",
+                                "kind": "COMPLETION",
+                                "costPerMillionTokens": 2500,
+                            },
+                        ],
+                    }
+                },
+            )
+            assert not update_result.errors
+
+            await daemon_cycles.run_cycle("fetch after model update")
+
+            updated_model = store.find_model(
+                start_time=lookup_time,
+                attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+            )
+            assert updated_model is not None
+            assert updated_model.name == "gpt-3.5-updated"
+
+            assert store._last_fetch_time is not None
+            assert store._last_fetch_time > first_fetch_time
+            second_fetch_time = store._last_fetch_time
+
+            # PHASE 3: Delete a model; the next cycle must drop it from the lookup
+            await asyncio.sleep(0.01)
+
+            delete_result = await gql_client.execute(
+                query=self.MUTATIONS,
+                operation_name="DeleteModel",
+                variables={"input": {"id": model2_id}},
+            )
+            assert not delete_result.errors
+
+            await daemon_cycles.run_cycle("fetch after model delete")
+
+            assert (
                 store.find_model(
                     start_time=lookup_time,
                     attributes={"llm": {"model_name": "claude-3", "provider": "anthropic"}},
                 )
                 is None
             )
-        )
 
-        # Verify timestamp advanced
-        assert store._last_fetch_time is not None
-        assert store._last_fetch_time > second_fetch_time
+            assert store._last_fetch_time is not None
+            assert store._last_fetch_time > second_fetch_time
+            third_fetch_time = store._last_fetch_time
 
-        # PHASE 4: Empty fetch still advances timestamp
-        await asyncio.sleep(0.01)
+            # PHASE 4: A cycle with no new mutations still advances the cursor
+            await asyncio.sleep(0.01)
 
-        # Wait for empty fetch to advance timestamp
-        third_fetch_time = store._last_fetch_time
-        await wait_for_condition(lambda: store._last_fetch_time != third_fetch_time)
+            await daemon_cycles.run_cycle("fetch with no new mutations")
 
-        # Verify timestamp advanced even with no changes
-        assert store._last_fetch_time is not None
-        assert store._last_fetch_time > third_fetch_time
-
-        # Clean up
-        await store.stop()
+            assert store._last_fetch_time is not None
+            assert store._last_fetch_time > third_fetch_time
+        finally:
+            await store.stop()
