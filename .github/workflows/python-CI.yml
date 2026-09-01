@@ -566,7 +566,29 @@ jobs:
       - name: Run PostgreSQL tests
         if: matrix.db == 'postgresql'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 16 --dist loadscope --timeout 900 --timeout-method thread --postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl
+        # The watchdog exists because the recurring stall at ~99% produces no
+        # in-process diagnostics: neither faulthandler nor pytest-timeout ever
+        # fires, which points at a worker wedged in native code holding the
+        # GIL (or gone entirely). py-spy reads native stacks from outside the
+        # process, so 45 minutes in it names exactly where every pytest
+        # process is stuck, before the job timeout would discard everything.
+        run: |
+          uv tool install py-spy
+          (
+            sleep 2700
+            echo '::group::watchdog: suite still running after 45m — py-spy dumps'
+            sudo dmesg 2>/dev/null | grep -iE 'oom|killed process' | tail -20 || true
+            for pid in $(pgrep -f pytest); do
+              echo "=== pid $pid ==="
+              sudo "$(command -v py-spy)" dump --pid "$pid" --native || true
+            done
+            echo '::endgroup::'
+          ) &
+          watchdog=$!
+          status=0
+          uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 16 --dist loadscope --timeout 900 --timeout-method thread --postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl || status=$?
+          kill "$watchdog" 2>/dev/null || true
+          exit "$status"
 
   integration-tests:
     name: Integration Tests

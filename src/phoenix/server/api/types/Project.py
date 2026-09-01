@@ -437,9 +437,7 @@ class Project(Node):
                     evaluator.id: evaluator
                     for evaluator in await session.scalars(
                         select(evaluator_model).where(
-                            evaluator_model.id.in_(
-                                {record.evaluator_id for record in records}
-                            )
+                            evaluator_model.id.in_({record.evaluator_id for record in records})
                         )
                     )
                 }
