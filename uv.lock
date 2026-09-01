@@ -937,6 +937,7 @@ version = "3.5.1"
 source = { editable = "packages/phoenix-evals" }
 dependencies = [
     { name = "jsonpath-ng" },
+    { name = "jsonschema" },
     { name = "openinference-instrumentation" },
     { name = "openinference-semantic-conventions" },
     { name = "opentelemetry-api" },
@@ -965,6 +966,7 @@ test = [
     { name = "pandas-stubs" },
     { name = "respx" },
     { name = "tqdm" },
+    { name = "types-jsonschema" },
     { name = "types-tqdm" },
     { name = "typing-extensions" },
 ]
@@ -976,6 +978,7 @@ requires-dist = [
     { name = "boto3", marker = "extra == 'dev'" },
     { name = "boto3", marker = "extra == 'test'" },
     { name = "jsonpath-ng" },
+    { name = "jsonschema" },
     { name = "litellm", marker = "python_full_version < '3.14' and extra == 'dev'", specifier = ">=1.83.14" },
     { name = "litellm", marker = "python_full_version < '3.14' and extra == 'test'", specifier = ">=1.83.14" },
     { name = "nest-asyncio", marker = "extra == 'test'" },
@@ -993,6 +996,7 @@ requires-dist = [
     { name = "respx", marker = "extra == 'test'" },
     { name = "tqdm" },
     { name = "tqdm", marker = "extra == 'test'" },
+    { name = "types-jsonschema", marker = "extra == 'test'" },
     { name = "types-tqdm", marker = "extra == 'test'" },
     { name = "typing-extensions", specifier = ">=4.5,<5" },
     { name = "typing-extensions", marker = "extra == 'test'", specifier = ">=4.5,<5" },

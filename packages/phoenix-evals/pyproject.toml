@@ -28,6 +28,7 @@ dependencies = [
   "typing-extensions>=4.5, <5",
   "pystache",
   "pydantic>=2.0.0",
+  "jsonschema",
   "jsonpath_ng",
   "openinference-semantic-conventions>=0.1.19",
   "openinference-instrumentation>=0.1.20",
@@ -57,6 +58,7 @@ test = [
   "respx",
   "nest_asyncio",
   "pandas-stubs==2.0.3.230814",
+  "types-jsonschema",
   "types-tqdm",
 ]
 
