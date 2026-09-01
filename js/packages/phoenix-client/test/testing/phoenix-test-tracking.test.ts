@@ -13,8 +13,11 @@ import {
   __resetTrackingLatchForTests,
   isFalsyFlag,
   isTrackingEnabled,
+  mergeExperimentMetadata,
+  parseExperimentMetadataEnv,
   postAnnotation,
   postExperimentRun,
+  resolveExperimentName,
 } from "../../src/testing/phoenix-test-tracking";
 import type { RunState, SuiteState } from "../../src/testing/state";
 
@@ -159,5 +162,83 @@ describe("upload guards honor the flag", () => {
     const { suite, post } = trackingSuite();
     await postAnnotation(suite, "run-1", { name: "pass", score: 1 });
     expect(post).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveExperimentName", () => {
+  it("prefers a non-empty env name over config and suite name", () => {
+    expect(
+      resolveExperimentName({
+        suiteName: "suite",
+        experimentName: "from-config",
+        datasetName: "from-dataset",
+        envName: "  from-env  ",
+      })
+    ).toBe("from-env");
+  });
+
+  it("falls through an empty env name to experimentName, then datasetName, then suite", () => {
+    expect(
+      resolveExperimentName({
+        suiteName: "suite",
+        experimentName: "from-config",
+        datasetName: "from-dataset",
+        envName: "   ",
+      })
+    ).toBe("from-config");
+    expect(
+      resolveExperimentName({
+        suiteName: "suite",
+        datasetName: "from-dataset",
+        envName: "",
+      })
+    ).toBe("from-dataset");
+    expect(resolveExperimentName({ suiteName: "suite", envName: "" })).toBe(
+      "suite"
+    );
+  });
+});
+
+describe("parseExperimentMetadataEnv", () => {
+  it("returns an empty object when unset or blank", () => {
+    expect(parseExperimentMetadataEnv({ raw: undefined })).toEqual({});
+    expect(parseExperimentMetadataEnv({ raw: "  " })).toEqual({});
+  });
+
+  it("parses a JSON object", () => {
+    expect(
+      parseExperimentMetadataEnv({
+        raw: '{"model":"gpt-4o-mini","promptTechnique":"default"}',
+      })
+    ).toEqual({ model: "gpt-4o-mini", promptTechnique: "default" });
+  });
+
+  it("rejects invalid JSON and non-objects", () => {
+    expect(() => parseExperimentMetadataEnv({ raw: "{" })).toThrow(
+      /must be a JSON object/
+    );
+    expect(() => parseExperimentMetadataEnv({ raw: "[]" })).toThrow(
+      /must be a JSON object/
+    );
+    expect(() => parseExperimentMetadataEnv({ raw: '"str"' })).toThrow(
+      /must be a JSON object/
+    );
+  });
+});
+
+describe("mergeExperimentMetadata", () => {
+  it("lets the overlay win over suite metadata, then applies environment", () => {
+    expect(
+      mergeExperimentMetadata({
+        suiteMetadata: { model: "suite-model", extra: 1 },
+        overlay: { model: "overlay-model", promptTechnique: "default" },
+        environmentMetadata: { environment: "test" },
+      })
+    ).toEqual({
+      model: "overlay-model",
+      extra: 1,
+      promptTechnique: "default",
+      environment: "test",
+    });
   });
 });

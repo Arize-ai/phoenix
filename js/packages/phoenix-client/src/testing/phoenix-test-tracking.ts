@@ -327,9 +327,15 @@ export async function initializeSuite(suite: SuiteState): Promise<void> {
       .POST("/v1/datasets/{dataset_id}/experiments", {
         params: { path: { dataset_id: datasetId } },
         body: {
-          name: suite.config.datasetName ?? suite.name,
+          name: resolveExperimentName({
+            suiteName: suite.name,
+            experimentName: suite.config.experimentName,
+            datasetName: suite.config.datasetName,
+          }),
           description,
-          metadata: { ...(suite.config.metadata ?? {}), ...envMetadata() },
+          metadata: mergeExperimentMetadata({
+            suiteMetadata: suite.config.metadata,
+          }),
           project_name: projectName,
           repetitions: Math.max(1, suite.maxRepetitions ?? 1),
         },
@@ -671,6 +677,97 @@ export async function teardownSuite(suite: SuiteState): Promise<void> {
     suite.tracerProvider = undefined;
     suite.globalRegistration = null;
   }
+}
+
+/**
+ * Resolve the Phoenix experiment name for a tracked suite.
+ * Dataset identity is separate so several named experiments can share one upserted dataset.
+ */
+export function resolveExperimentName({
+  suiteName,
+  experimentName,
+  datasetName,
+  envName = process.env.PHOENIX_EXPERIMENT_NAME,
+}: {
+  suiteName: string;
+  /** Optional `SuiteConfig.experimentName`. */
+  experimentName?: string;
+  /** Optional `SuiteConfig.datasetName`. */
+  datasetName?: string;
+  /** Override for `PHOENIX_EXPERIMENT_NAME`; defaults to the process env. */
+  envName?: string;
+}): string {
+  const trimmedEnvName = envName?.trim();
+  if (trimmedEnvName) {
+    return trimmedEnvName;
+  }
+  if (experimentName) {
+    return experimentName;
+  }
+  if (datasetName) {
+    return datasetName;
+  }
+  return suiteName; // suite name as last option.
+}
+
+/**
+ * Parse `PHOENIX_EXPERIMENT_METADATA` as a JSON object. Empty or unset
+ * values yield `{}`. Invalid JSON or a non-object throws error.
+ */
+export function parseExperimentMetadataEnv({
+  raw = process.env.PHOENIX_EXPERIMENT_METADATA,
+}: {
+  /** Override for `PHOENIX_EXPERIMENT_METADATA`; defaults to the process env. */
+  raw?: string;
+} = {}): KVMap {
+  if (raw === undefined) {
+    return {};
+  }
+  const trimmed = raw.trim();
+  if (trimmed === "") {
+    return {}; // return empty metadata object.
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed) as unknown;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `PHOENIX_EXPERIMENT_METADATA must be a JSON object, got invalid JSON: ${message}`
+    );
+  }
+  const isPlainObject =
+    typeof parsed === "object" && parsed !== null && !Array.isArray(parsed);
+  if (!isPlainObject) {
+    throw new Error(
+      `PHOENIX_EXPERIMENT_METADATA must be a JSON object, got ${typeof parsed}`
+    );
+  }
+  return parsed as KVMap;
+}
+
+/**
+ * Merge suite metadata with the `PHOENIX_EXPERIMENT_METADATA` overlay and
+ * environment-derived fields. Overlay keys win over the suite; env-derived
+ * `environment` is applied last.
+ */
+export function mergeExperimentMetadata({
+  suiteMetadata,
+  overlay = parseExperimentMetadataEnv(),
+  environmentMetadata = envMetadata(),
+}: {
+  /** Metadata from `SuiteConfig.metadata`. */
+  suiteMetadata?: KVMap;
+  /** Overlay, typically from `PHOENIX_EXPERIMENT_METADATA`. */
+  overlay?: KVMap;
+  /** Env snapshot (`environment`); defaults to the process env snapshot. */
+  environmentMetadata?: KVMap;
+}): KVMap {
+  return {
+    ...(suiteMetadata ?? {}),
+    ...overlay,
+    ...environmentMetadata,
+  };
 }
 
 /**
