@@ -22,10 +22,10 @@ export function ProjectEvaluatorsPage() {
   const [urlFilter, setUrlFilter] = useFilterSearchParam(
     EVALUATOR_FILTER_PARAM
   );
-  // The raw text drives the table live while the hook lands the trimmed
-  // value in the URL (debounced by the toolbar's search field). Seeded from
-  // the URL so a shared or reloaded link restores the search; the route
-  // loader preloads the first page with the same param.
+  // One debounced onChange feeds both: the raw text drives the table while
+  // the hook lands the trimmed value in the URL. Seeded from the URL so a
+  // shared or reloaded link restores the search; the route loader preloads
+  // the first page with the same param.
   const [filter, setFilter] = useState(urlFilter);
   const handleFilterChange = useCallback(
     (nextFilter: string) => {
