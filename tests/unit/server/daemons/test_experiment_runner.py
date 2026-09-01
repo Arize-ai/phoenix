@@ -478,6 +478,63 @@ class TestRunningExperimentQueueLogic:
         assert eval_item not in exp._cancel_scopes
 
     @pytest.mark.anyio
+    async def test_dispatched_work_item_counts_as_in_flight_before_it_starts(self) -> None:
+        """A popped work item keeps the experiment alive until its task registers a scope.
+
+        The daemon dispatches with start_soon(), so another task can finish and run a
+        completion check before the dispatched item's task has begun. The item must
+        already count as in-flight, or the experiment completes without it.
+        """
+        on_done = _make_on_done()
+        exp = _make_running_experiment(on_done=on_done)
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = True
+        finishing = _make_task_work_item(exp, dataset_example_id=1)
+        dispatched = _make_task_work_item(exp, dataset_example_id=2)
+        exp.register_cancel_scope(finishing, anyio.CancelScope())
+        exp._task_queue.append(dispatched)
+
+        assert await exp.try_get_ready_work_item() is dispatched
+        assert dispatched in exp._in_flight
+
+        # The other task finishes before the dispatched item's task has started.
+        await exp.unregister_cancel_scope(finishing)
+
+        assert exp._active
+        on_done.assert_not_called()
+
+        # The dispatched item starts and finishes; only now is the experiment complete.
+        exp.register_cancel_scope(dispatched, anyio.CancelScope())
+        await exp.unregister_cancel_scope(dispatched)
+
+        assert not exp._active
+        on_done.assert_called_once_with(exp._experiment.id)
+
+    @pytest.mark.anyio
+    async def test_register_cancel_scope_after_stop_cancels_dispatched_item(self) -> None:
+        """An item dispatched before stop() is cancelled when its task starts.
+
+        stop() can only cancel scopes that already exist. A dispatched item registers
+        its scope later, so registration has to cancel it and let the experiment drain.
+        """
+        exp = _make_running_experiment()
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = True
+        dispatched = _make_task_work_item(exp, dataset_example_id=1)
+        exp._task_queue.append(dispatched)
+        assert await exp.try_get_ready_work_item() is dispatched
+
+        exp.stop()
+        assert not exp._drained.is_set()
+
+        scope = anyio.CancelScope()
+        exp.register_cancel_scope(dispatched, scope)
+        assert scope.cancel_called
+
+        await exp.unregister_cancel_scope(dispatched)
+        assert exp._drained.is_set()
+
+    @pytest.mark.anyio
     async def test_retry_or_fail_exhausted(self) -> None:
         """After max retries, failure counted and error recorded."""
         exp = _make_running_experiment(max_retries=2)

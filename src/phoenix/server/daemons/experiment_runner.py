@@ -1361,6 +1361,13 @@ class RunningExperiment:
         # Allowed - pop and return (update fairness so we're served last next time)
         self.last_served_at = datetime.now(timezone.utc)
         pop()
+        # Count the item as in-flight from the moment it leaves the queue. The daemon
+        # hands it to its task group with start_soon(), so the task that registers the
+        # item's cancel scope only begins on a later event-loop turn. Until then the
+        # item would be in neither the queue nor _in_flight, and a completion check
+        # triggered by another task finishing in that window would find no work and
+        # close the experiment with this item still unprocessed.
+        self._in_flight.add(work_item)
         return work_item
 
     def _peek_next_work_item(self) -> tuple[WorkItem | None, Callable[[], Any]]:
@@ -1382,10 +1389,16 @@ class RunningExperiment:
     def register_cancel_scope(self, work_item: WorkItem, scope: anyio.CancelScope) -> None:
         """Register a cancel scope for an in-flight work item.
 
-        Called by Runner when execution starts.
+        Called by Runner when execution starts. The item already counts as in-flight
+        from dispatch (see try_get_ready_work_item), so adding it here is idempotent;
+        what this adds is cancellability. If the experiment was stopped between
+        dispatch and now, stop() had no scope to cancel, so cancel it here to keep a
+        stopped experiment from running stale work.
         """
         self._cancel_scopes[work_item] = scope
         self._in_flight.add(work_item)
+        if not self._active:
+            scope.cancel()
 
     async def unregister_cancel_scope(self, work_item: WorkItem) -> None:
         """Unregister a cancel scope when work item completes.
