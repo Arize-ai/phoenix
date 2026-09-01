@@ -5,7 +5,7 @@ import type {
 } from "@codemirror/autocomplete";
 import { autocompletion, startCompletion } from "@codemirror/autocomplete";
 import type { EditorState, Extension } from "@codemirror/state";
-import { EditorView } from "@uiw/react-codemirror";
+import { EditorView } from "@codemirror/view";
 
 import {
   getCodeEvaluatorMemberCursor,
