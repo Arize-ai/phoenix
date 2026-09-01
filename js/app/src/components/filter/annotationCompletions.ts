@@ -5,7 +5,8 @@ import { createLoadedCompletionSection } from "./DSLFilterConditionField";
 /**
  * Expands names of annotation-like objects (annotations, evaluations) into
  * completions for their filterable members — `.label`, `.score`, and
- * `.explanation` — grouped under `sectionName` below the built-in
+ * `.explanation`, plus `.identifier` where the backing DSL supports it —
+ * grouped under `sectionName` below the built-in
  * Suggestions and Fields groups. Intended for `loadCompletions` results so
  * the typeahead can suggest values that actually exist in the user's data.
  */
@@ -14,6 +15,7 @@ export function createAnnotationMemberCompletions({
   noun,
   sectionName,
   names,
+  includeIdentifier = false,
 }: {
   /** DSL accessor for the collection, e.g. "annotations" or "evals" */
   accessor: string;
@@ -23,6 +25,11 @@ export function createAnnotationMemberCompletions({
   sectionName: string;
   /** Names that exist in the user's data */
   names: readonly string[];
+  /**
+   * Whether the backing DSL exposes `.identifier` (the span/trace/session
+   * filters do; the experiment run filter does not)
+   */
+  includeIdentifier?: boolean;
 }): Completion[] {
   const section = createLoadedCompletionSection(sectionName);
   return names.flatMap((name) => [
@@ -47,5 +54,16 @@ export function createAnnotationMemberCompletions({
       info: `The explanation of the '${name}' ${noun}`,
       section,
     },
+    ...(includeIdentifier
+      ? [
+          {
+            label: `${accessor}['${name}'].identifier`,
+            type: "variable",
+            detail: `${noun} identifier`,
+            info: `The identifier of the '${name}' ${noun}`,
+            section,
+          },
+        ]
+      : []),
   ]);
 }
