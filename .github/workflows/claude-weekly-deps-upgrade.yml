@@ -65,8 +65,8 @@ jobs:
 
       # The upgrade steps log to .scratch/verify/ and continue-on-error so a
       # failure flows into the Claude hand-off below instead of aborting the
-      # run. The "Propagate unhealed failures" step at the end of the job
-      # fails the run if nothing healed the failure.
+      # run. The "Propagate unfixed failures" step at the end of the job
+      # fails the run if nothing fixed the failure.
       - name: Upgrade Python (uv)
         id: upgrade_py
         continue-on-error: true
@@ -472,8 +472,8 @@ jobs:
 
       # The upgrade steps use continue-on-error so failures can flow into the
       # Claude hand-off; this gate keeps the run from going green when nothing
-      # healed the failure (and keeps the Slack notification firing).
-      - name: Propagate unhealed failures
+      # fixed the failure (and keeps the Slack notification firing).
+      - name: Propagate unfixed failures
         if: >-
           always() &&
           (steps.upgrade_py.outcome == 'failure' ||
@@ -486,7 +486,7 @@ jobs:
           VERIFY: ${{ steps.verify.outcome }}
           CLAUDE_FIX: ${{ steps.claude_fix.outcome }}
         run: |
-          echo "::error::A step failed and was not healed (upgrade-python=$UPGRADE_PY, upgrade-js=$UPGRADE_JS, verify=$VERIFY, claude-fix=$CLAUDE_FIX)."
+          echo "::error::A step failed and was not fixed (upgrade-python=$UPGRADE_PY, upgrade-js=$UPGRADE_JS, verify=$VERIFY, claude-fix=$CLAUDE_FIX)."
           exit 1
 
   slack-notification:
