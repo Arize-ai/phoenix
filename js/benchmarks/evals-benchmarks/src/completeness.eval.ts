@@ -826,7 +826,7 @@ px.describe(
     },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.8 },
-      { annotationName: "f1", metric: "average", threshold: 0.8 },
+      { annotationName: "f1", metric: "average", threshold: 0.85 },
     ],
   }
 );
