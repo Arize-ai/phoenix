@@ -388,20 +388,33 @@ const examplesByCategory: Record<string, Example[]> = {
     },
   ],
   all_withdrawn: [
-  {
-    conversation: agentSpan([
-      { role: "user", content:
-          "Cancel the Team subscription at period end and page the on-call owner of the oldest open incident." },
-      { role: "tool", name: "get_subscription", content:
-          '{"plan":"Team","price_usd":49,"seats":18,"renews":"2026-09-01","cancel_at_period_end":false}' },
-      { role: "user", content:
-          "Actually never mind both — don't cancel, and leave on-call alone. That's everything." },
-      { role: "assistant", content:
-          "Understood. I did not cancel the subscription and did not page anyone." },
-    ]),
-    expectedLabel: "complete", // both (and only) intentions withdrawn
-  },
-],
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content:
+            "Cancel the Team subscription at period end and page the on-call owner of the oldest open incident.",
+        },
+        {
+          role: "tool",
+          name: "get_subscription",
+          content:
+            '{"plan":"Team","price_usd":49,"seats":18,"renews":"2026-09-01","cancel_at_period_end":false}',
+        },
+        {
+          role: "user",
+          content:
+            "Actually never mind both — don't cancel, and leave on-call alone. That's everything.",
+        },
+        {
+          role: "assistant",
+          content:
+            "Understood. I did not cancel the subscription and did not page anyone.",
+        },
+      ]),
+      expectedLabel: "complete", // both (and only) intentions withdrawn
+    },
+  ],
   both_asks_done: [
     {
       conversation: agentSpan([
@@ -613,13 +626,15 @@ Note: pause must be acknowledged separately from reporting.`,
   claimed_without_tools: [
     {
       conversation: agentSpan([
-        { 
-          role: "user", 
-          content: "Archive the Q2 planning doc and let me know when it's done." 
+        {
+          role: "user",
+          content:
+            "Archive the Q2 planning doc and let me know when it's done.",
         },
-        { 
-          role: "assistant", 
-          content: "Archived the Q2 planning doc — it's now in the Archive folder." 
+        {
+          role: "assistant",
+          content:
+            "Archived the Q2 planning doc — it's now in the Archive folder.",
         },
       ]),
       expectedLabel: "complete", // no tool context in the text → judge has visible output only, so it should be labeled as complete
@@ -794,48 +809,50 @@ Note: pause must be acknowledged separately from reporting.`,
   action_completed_by_tool_only: [
     {
       conversation: agentSpan([
-        { 
-          role: "user", 
-          content: "Pause CAM-19 immediately." 
+        {
+          role: "user",
+          content: "Pause CAM-19 immediately.",
         },
-        { 
-          role: "tool", 
-          name: "get_campaign", 
-          content: "CAM-19 EMEA retargeting | CTR 0.75% | status active | pause_requires: pause_campaign tool" 
+        {
+          role: "tool",
+          name: "get_campaign",
+          content:
+            "CAM-19 EMEA retargeting | CTR 0.75% | status active | pause_requires: pause_campaign tool",
         },
-        { 
-          role: "tool", 
-          name: "pause_campaign", 
-          content: '{"campaign":"CAM-19","ok":true,"status":"paused"}' 
+        {
+          role: "tool",
+          name: "pause_campaign",
+          content: '{"campaign":"CAM-19","ok":true,"status":"paused"}',
         },
-        { 
-          role: "assistant", 
-          content: "Done." 
+        {
+          role: "assistant",
+          content: "Done.",
         },
       ]),
-      expectedLabel: "complete", 
+      expectedLabel: "complete",
     },
-],
+  ],
   answer_only_in_tool_result: [
-  {
-    conversation: agentSpan([
-      { 
-        role: "user", 
-        content: "Tell me the current seat count on our Team plan." 
-      },
-      { 
-        role: "tool", 
-        name: "get_subscription", 
-        content: '{"plan":"Team","price_usd":49,"seats":18,"renews":"2026-09-01"}' 
-      },
-      { 
-        role: "assistant", 
-        content: "I pulled up your subscription details." 
-      },
-    ]),
-    expectedLabel: "incomplete",
-  },
-],
+    {
+      conversation: agentSpan([
+        {
+          role: "user",
+          content: "Tell me the current seat count on our Team plan.",
+        },
+        {
+          role: "tool",
+          name: "get_subscription",
+          content:
+            '{"plan":"Team","price_usd":49,"seats":18,"renews":"2026-09-01"}',
+        },
+        {
+          role: "assistant",
+          content: "I pulled up your subscription details.",
+        },
+      ]),
+      expectedLabel: "incomplete",
+    },
+  ],
   mixed_blocked_and_ignored: [
     {
       conversation: agentSpan([
