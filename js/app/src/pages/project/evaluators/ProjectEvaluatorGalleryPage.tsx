@@ -898,7 +898,6 @@ function EvaluatorOutputSummary({
 
 type EvaluatorInputSummaryItem = {
   readonly name: string;
-  readonly type?: string;
   readonly description?: string;
 };
 
@@ -913,29 +912,24 @@ function EvaluatorInputSummary({
       <Text elementType="h3" size="S" weight="heavy">
         Inputs
       </Text>
-      <List size="S">
-        {inputs.map((input) => (
-          <ListItem key={input.name}>
-            <Flex direction="column" gap="size-25">
-              <Flex direction="row" alignItems="baseline" gap="size-75" wrap>
+      <div css={[detailsSectionWellCSS, listSectionWellCSS]}>
+        <List size="S">
+          {inputs.map((input) => (
+            <ListItem key={input.name}>
+              <Flex direction="column" gap="size-25">
                 <Text size="S" fontFamily="mono">
                   {input.name}
                 </Text>
-                {input.type ? (
-                  <Text size="XS" color="text-500" fontFamily="mono">
-                    {input.type}
+                {input.description ? (
+                  <Text size="XS" color="text-700">
+                    {input.description}
                   </Text>
                 ) : null}
               </Flex>
-              {input.description ? (
-                <Text size="XS" color="text-700">
-                  {input.description}
-                </Text>
-              ) : null}
-            </Flex>
-          </ListItem>
-        ))}
-      </List>
+            </ListItem>
+          ))}
+        </List>
+      </div>
     </Flex>
   );
 }
@@ -960,33 +954,35 @@ function AnnotationValues({
       <Text elementType="h3" size="S" weight="heavy">
         Annotation values
       </Text>
-      <List size="S">
-        {values.map(({ label, score }) => (
-          <ListItem key={label}>
-            <Flex
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              gap="size-100"
-            >
-              <Text size="S">{label}</Text>
-              <Text size="XS" color="text-500">
-                <AnnotationScoreText
-                  elementType="span"
-                  fontFamily="mono"
-                  size="XS"
-                  positiveOptimization={getPositiveOptimization({
-                    score,
-                    ...optimizationBounds,
-                  })}
-                >
-                  {score ?? "—"}
-                </AnnotationScoreText>
-              </Text>
-            </Flex>
-          </ListItem>
-        ))}
-      </List>
+      <div css={[detailsSectionWellCSS, listSectionWellCSS]}>
+        <List size="S">
+          {values.map(({ label, score }) => (
+            <ListItem key={label}>
+              <Flex
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                gap="size-100"
+              >
+                <Text size="S">{label}</Text>
+                <Text size="XS" color="text-500">
+                  <AnnotationScoreText
+                    elementType="span"
+                    fontFamily="mono"
+                    size="XS"
+                    positiveOptimization={getPositiveOptimization({
+                      score,
+                      ...optimizationBounds,
+                    })}
+                  >
+                    {score ?? "—"}
+                  </AnnotationScoreText>
+                </Text>
+              </Flex>
+            </ListItem>
+          ))}
+        </List>
+      </div>
     </Flex>
   );
 }
@@ -1094,7 +1090,7 @@ function EvaluatorPromptPreview({
       <Text elementType="h3" size="S" weight="heavy">
         Prompt
       </Text>
-      <div css={promptPreviewWellCSS}>
+      <div css={detailsSectionWellCSS}>
         <ExpandableContent
           height={PROMPT_PREVIEW_COLLAPSED_HEIGHT}
           expandedBehavior="grow"
@@ -1232,12 +1228,16 @@ const stickyUseTemplateFooterCSS = css`
 const PROMPT_PREVIEW_COLLAPSED_HEIGHT = 160;
 const CODE_PREVIEW_COLLAPSED_HEIGHT = 240;
 
-const promptPreviewWellCSS = css`
+const detailsSectionWellCSS = css`
   background-color: var(--global-background-color-100);
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   padding: var(--global-dimension-size-150);
+`;
+
+const listSectionWellCSS = css`
+  padding: var(--global-dimension-size-50);
 `;
 
 const promptPreviewMessageCSS = css`
