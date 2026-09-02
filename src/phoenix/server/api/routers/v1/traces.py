@@ -25,6 +25,7 @@ from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_trace
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     Cursor,
@@ -67,16 +68,16 @@ class TraceSpanData(V1RoutesBaseModel):
     name: str
     span_kind: str
     status_code: str
-    start_time: datetime
-    end_time: datetime
+    start_time: IsoDatetime
+    end_time: IsoDatetime
 
 
 class TraceData(V1RoutesBaseModel):
     id: str
     trace_id: str
     project_id: str
-    start_time: datetime
-    end_time: datetime
+    start_time: IsoDatetime
+    end_time: IsoDatetime
     token_count_prompt: int = Field(
         default=0,
         description="Cumulative prompt token count across all spans in the trace.",
