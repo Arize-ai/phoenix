@@ -1,7 +1,6 @@
 /**
- * The applied condition a trace or session filter URL param carries.
- * Whitespace-only text is read as the empty condition, which is how the
- * editor settles it, so the two never disagree about what was applied.
+ * The condition a filter param carries. Whitespace-only reads as empty,
+ * matching how the editor settles it.
  */
 export function readFilterConditionParam(
   params: URLSearchParams,
@@ -12,9 +11,8 @@ export function readFilterConditionParam(
 }
 
 /**
- * The params with an applied condition written to `param`. An absent param
- * and an empty condition mean the same thing on the traces and sessions tabs,
- * so clearing deletes the param.
+ * The params with `condition` written to `param`. An empty condition deletes
+ * the param, since absent means empty.
  */
 export function withFilterConditionParam(
   params: URLSearchParams,

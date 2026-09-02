@@ -91,10 +91,8 @@ import {
 type SessionsTableProps = {
   project: SessionsTable_sessions$key;
   /**
-   * The condition `project` was loaded with. It arrives settled: the owner
-   * that preloads the rows either classified it or had it validated first, so
-   * the rows on hand always match it. The table only tracks what the user
-   * applies after.
+   * The settled condition `project` was loaded with; the rows on hand already
+   * match it.
    */
   seed: string;
 };
@@ -170,9 +168,8 @@ export function SessionsTable(props: SessionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validSessionFilterCondition, setValidSessionFilterCondition] =
     useState<string>(props.seed);
-  // React Router 8.2 recreates this setter whenever location.search changes.
-  // Keep the latest one behind a stable callback so unrelated param changes
-  // do not flow into the field's validation effect and revalidate its value.
+  // React Router 8.2 recreates this setter whenever location.search changes; a
+  // stable ref keeps unrelated param changes out of the field's validation.
   const [, setSearchParams] = useSearchParams();
   const setSearchParamsRef = useRef(setSearchParams);
   useEffect(() => {
@@ -477,9 +474,8 @@ export function SessionsTable(props: SessionsTableProps) {
     },
   ];
   useEffect(() => {
-    // Skip the first render. The parent's query already carries what this
-    // table starts from -- its settled seed -- so the rows on hand answer the
-    // applied condition.
+    // The parent's query already carries the seed, so the first render needs
+    // no refetch.
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;

@@ -150,10 +150,7 @@ function urlAlreadyHasSpanCondition(condition: string): boolean {
   );
 }
 
-/**
- * Whether the URL already carries this traces or sessions condition. Unlike
- * the span param, an absent one here is the empty condition.
- */
+/** Whether the URL already carries this traces or sessions condition. */
 function urlAlreadyHasFilterCondition(
   param: string,
   condition: string
@@ -184,10 +181,8 @@ function settledSeedFromUrl(fallback: string): SettledSpanFilterSeed | null {
 
 /**
  * The URL's traces or sessions condition when it needs no server answer, else
- * null. Only the empty condition qualifies: those tabs have no app-written
- * predicates to recognize, so any other text must be validated.
- *
- * Reads `location` for the same reason as `settledSeedFromUrl`.
+ * null. Only the empty condition qualifies. Reads `location` for the same
+ * reason as `settledSeedFromUrl`.
  */
 function settledConditionFromUrl(param: string): string | null {
   const condition = readFilterConditionParam(
@@ -339,13 +334,8 @@ function ProjectPageContentBody({
   );
 
   /**
-   * Load the traces table from a validated condition. Called for the empty
-   * condition, which this app classifies itself, and by `ProjectTracesPage`
-   * once the field has validated one it cannot.
-   *
-   * `persistToUrl` is false for a fallback after validation failed: the URL
-   * keeps the rejected text so it stays visible and editable while the field
-   * reports why it failed.
+   * Load the traces table from a validated condition. `persistToUrl` is false
+   * for a fallback after a rejection, so the URL keeps the rejected text.
    */
   const resolveTracesSeed = useCallback(
     (condition: string, persistToUrl = true) => {

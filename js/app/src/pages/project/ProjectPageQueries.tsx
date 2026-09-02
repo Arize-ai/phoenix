@@ -8,9 +8,8 @@ import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
-// The traces and sessions tables, like the spans table below, start from a
-// resolved filter condition, so their queries carry it rather than fetching
-// every row and letting the table correct itself on mount.
+// Each query carries the settled condition, so a table never loads unfiltered
+// rows first.
 export const ProjectPageQueriesTracesQuery = graphql`
   query ProjectPageQueriesTracesQuery(
     $id: ID!
@@ -96,8 +95,8 @@ export const ProjectPageQueryReferenceContext = createContext<{
   ) => void;
   sessionsQueryReference: PreloadedQuery<ProjectPageSessionsQueryType> | null;
   /**
-   * The condition the sessions query was loaded with, or null while one that
-   * needs the server is still being validated. See `spansFilterSeed`.
+   * The condition the sessions query was loaded with; null while the server
+   * validates one. See `spansFilterSeed`.
    */
   sessionsFilterSeed: string | null;
   resolveSessionsSeed: (condition: string, persistToUrl?: boolean) => void;
