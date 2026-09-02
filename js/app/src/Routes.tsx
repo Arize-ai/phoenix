@@ -67,6 +67,7 @@ import {
   AttachCodeProjectEvaluatorPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
+  CopyCodeProjectEvaluatorPage,
   CopyLlmProjectEvaluatorPage,
   dashboardsLoader,
   DashboardsEmptyPage,
@@ -529,13 +530,24 @@ export const appRouteObjects = createRoutesFromElements(
                   }}
                 />
                 <Route
-                  path="new/copy/:evaluatorId"
+                  path="new/copy-llm/:evaluatorId"
                   element={<CopyLlmProjectEvaluatorPage />}
                   handle={{
                     agentRoute: {
                       label: "Copy LLM Evaluator Into Project",
                       description:
                         "Create a project evaluator seeded from an existing LLM evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/copy-code/:evaluatorId"
+                  element={<CopyCodeProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Duplicate Code Evaluator Into Project",
+                      description:
+                        "Create and attach a new project code evaluator seeded from an existing code evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being duplicated.",
                     },
                   }}
                 />
@@ -602,13 +614,24 @@ export const appRouteObjects = createRoutesFromElements(
                 }}
               />
               <Route
-                path="new/copy/:evaluatorId"
+                path="new/copy-llm/:evaluatorId"
                 element={<CopyLlmProjectEvaluatorPage />}
                 handle={{
                   agentRoute: {
                     label: "Copy LLM Evaluator Into Project From Gallery",
                     description:
                       "Create a project evaluator seeded from an existing LLM evaluator while browsing the evaluator gallery. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+                  },
+                }}
+              />
+              <Route
+                path="new/copy-code/:evaluatorId"
+                element={<CopyCodeProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Duplicate Code Evaluator Into Project From Gallery",
+                    description:
+                      "Create and attach a new project code evaluator seeded from an existing code evaluator while browsing the evaluator gallery. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being duplicated.",
                   },
                 }}
               />

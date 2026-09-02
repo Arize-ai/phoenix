@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7cc54066238328e00ed8a7f761135a8e>>
+ * @generated SignedSource<<71bb70f9ed8db0416e5d7ab1671e0719>>
  * @lightSyntaxTransform
  */
 
@@ -16,6 +16,10 @@ export type projectEvaluatorOptions_codeEvaluatorDetails$data = {
   readonly __typename: "CodeEvaluator";
   readonly description: string | null;
   readonly id: string;
+  readonly inputMapping: {
+    readonly literalMapping: any;
+    readonly pathMapping: any;
+  };
   readonly kind: EvaluatorKind;
   readonly language: Language;
   readonly name: string;
@@ -45,6 +49,9 @@ export type projectEvaluatorOptions_codeEvaluatorDetails$data = {
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   }>;
+  readonly sandboxConfig: {
+    readonly id: string;
+  } | null;
   readonly sourceCode: string;
   readonly " $fragmentType": "projectEvaluatorOptions_codeEvaluatorDetails";
 };
@@ -58,6 +65,6 @@ const node: ReaderInlineDataFragment = {
   "name": "projectEvaluatorOptions_codeEvaluatorDetails"
 };
 
-(node as any).hash = "9335d602204b26f5e830ed106d937640";
+(node as any).hash = "909a71aa9d157eb5cff56e368fc79cc2";
 
 export default node;

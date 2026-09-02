@@ -195,6 +195,14 @@ function ProjectEvaluatorMenuItems({
               navigate(creationPaths.attachCode(evaluatorId))
             }
           />
+          <EvaluatorSubmenu
+            label="Duplicate existing code evaluator"
+            icon={<Icons.Duplicate />}
+            evaluators={codeEvaluators}
+            onAction={(evaluatorId) =>
+              navigate(creationPaths.copyCode(evaluatorId))
+            }
+          />
         </MenuSection>
       </Menu>
       {hasMoreEvaluators ? (
