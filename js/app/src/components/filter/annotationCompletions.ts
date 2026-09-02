@@ -6,8 +6,9 @@ import { createLoadedCompletionSection } from "./DSLFilterConditionField";
  * Expands names of annotation-like objects (annotations, evaluations) into
  * completions for their filterable members — `.label`, `.score`,
  * `.explanation`, and optionally `.identifier` — grouped under `sectionName`
- * below the built-in Suggestions and Fields groups. Intended for `loadCompletions` results so
- * the typeahead can suggest values that actually exist in the user's data.
+ * below the built-in Suggestions and Fields groups. Intended for
+ * `loadCompletions` results so the typeahead can suggest values that actually
+ * exist in the user's data.
  */
 export function createAnnotationMemberCompletions({
   accessor,
