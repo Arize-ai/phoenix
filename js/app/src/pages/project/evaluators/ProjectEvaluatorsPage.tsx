@@ -1,15 +1,17 @@
 import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
-import { Outlet, useParams } from "react-router";
+import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Skeleton, Text, View } from "@phoenix/components";
+import { Flex, Loading, Text, View } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
-import type { ProjectEvaluatorsPageQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsPageQuery.graphql";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
+import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
+import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
 
@@ -26,7 +28,7 @@ export function ProjectEvaluatorsPage() {
         min-height: 0;
       `}
     >
-      <Suspense fallback={<ProjectEvaluatorsPageSkeleton />}>
+      <Suspense fallback={<Loading />}>
         <ProjectEvaluatorsTableProvider>
           <ProjectEvaluatorsPageContent
             projectId={projectId}
@@ -55,34 +57,18 @@ function ProjectEvaluatorsPageContent({
   onFilterChange: (filter: string) => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
-  // The owner query supplies the initial filter and range. Subsequent toolbar,
-  // live, or user-selected changes refetch the pagination fragment in
-  // ProjectEvaluatorsTable without reloading this query.
-  const [initialFilter] = useState(() => filter.trim());
-  const [initialTimeRange] = useState(() => timeRangeISOStrings);
-  const data = useLazyLoadQuery<ProjectEvaluatorsPageQuery>(
-    graphql`
-      query ProjectEvaluatorsPageQuery(
-        $projectId: ID!
-        $filter: ProjectEvaluatorFilter
-        $timeRange: TimeRange!
-      ) {
-        project: node(id: $projectId) {
-          ... on Project {
-            evaluatorCount
-            ...ProjectEvaluatorsTable_project
-              @arguments(filter: $filter, timeRange: $timeRange)
-          }
-        }
-      }
-    `,
-    {
-      projectId,
-      filter: initialFilter ? { col: "name", value: initialFilter } : null,
-      timeRange: initialTimeRange,
-    },
-    { fetchPolicy: "store-and-network" }
-  );
+  // The route loader preloads the owner query (unfiltered, with the time
+  // range resolved from the URL). Subsequent toolbar, live, or user-selected
+  // changes refetch the pagination fragment in ProjectEvaluatorsTable without
+  // reloading this query.
+  const loaderData = useLoaderData<ProjectEvaluatorsLoaderData>();
+  invariant(loaderData?.queryRef, "loaderData with a queryRef is required");
+  // Frozen at mount: a loader revalidation must not re-key the table below.
+  const [initialTimeRange] = useState(() => loaderData.timeRange);
+  const data = useOwnedPreloadedQuery<projectEvaluatorsLoaderQuery>({
+    query: projectEvaluatorsLoaderGQL,
+    queryRef: loaderData.queryRef,
+  });
   invariant(data.project, "project is required");
   const paths = useProjectEvaluatorPaths();
   const isEmptyState =
@@ -124,29 +110,11 @@ function ProjectEvaluatorsPageContent({
         projectId={projectId}
         filter={filter}
         timeRange={timeRangeISOStrings}
-        initialFilter={initialFilter}
+        initialFilter=""
         initialTimeRange={initialTimeRange}
+        initialScoreWindow={loaderData.scoreWindow}
+        initialIncludeMeanScore={loaderData.includeMeanScore}
       />
-    </>
-  );
-}
-
-function ProjectEvaluatorsPageSkeleton() {
-  return (
-    <>
-      <View
-        padding="size-100"
-        borderBottomWidth="thin"
-        borderBottomColor="default"
-        flex="none"
-      >
-        <Flex justifyContent="end">
-          <Skeleton width={140} height={40} animation="wave" />
-        </Flex>
-      </View>
-      <View padding="size-100">
-        <Skeleton width="100%" height={180} animation="wave" />
-      </View>
     </>
   );
 }

@@ -10,6 +10,7 @@ export * from "./annotationMetricsUtils";
 export * from "./MetricsChartSelector";
 export * from "./ChartTooltip";
 export * from "./SegmentChart";
+export * from "./Sparkline";
 export * from "./InteractiveLegend";
 export * from "./ChartSkeleton";
 export * from "./TimeRangeChartBrush";
