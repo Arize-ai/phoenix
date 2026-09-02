@@ -2096,3 +2096,276 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
     assert [edge["node"]["name"] for edge in trace_project["spans"]["edges"]] == [
         f"Evaluator: {project_evaluator_ids[0]}"
     ]
+
+
+class TestProjectEvaluatorAnnotationScoreMetrics:
+    """Tests for ProjectEvaluator.annotationScoreMetrics."""
+
+    _QUERY = """query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig!) {
+        node(id: $id) {
+            ... on ProjectEvaluator {
+                annotationScoreMetrics(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+                    annotationName
+                    summary { meanScore count scoreCount labelFractions { label fraction } }
+                    previousSummary { meanScore }
+                    series { timestamp meanScore count }
+                }
+            }
+        }
+    }"""
+
+    @pytest.fixture
+    async def _test_data(self, db: DbSessionFactory) -> AsyncIterator[dict[str, Any]]:
+        """A SPAN evaluator whose annotations span two adjacent daily windows.
+
+        Current window (day 0, two daily bins used by the query): scores
+        [1.0, 0.0, 1.0, 1.0] on day 0 and [0.0, 0.0] on day 1 -> mean 0.5.
+        Previous window: scores [1.0, 1.0] -> mean 1.0.
+        """
+        from phoenix.server.sandbox.sync import sync_languages
+
+        window_start = datetime(2024, 6, 10, tzinfo=timezone.utc)
+        async with db() as session:
+            await sync_languages(session)
+            project = models.Project(name=f"project-{token_hex(4)}")
+            session.add(project)
+            await session.flush()
+
+            evaluator_row = models.CodeEvaluator(
+                name=Identifier(root=f"scores-{token_hex(4)}"),
+                metadata_={},
+                language="PYTHON",
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="verdict",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description=None,
+                        values=[
+                            CategoricalAnnotationValue(label="pass", score=1.0),
+                            CategoricalAnnotationValue(label="fail", score=0.0),
+                        ],
+                    ),
+                ],
+            )
+            session.add(evaluator_row)
+            await session.flush()
+
+            project_evaluator = models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=evaluator_row.id,
+                name=Identifier("quality"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SPAN",
+            )
+            session.add(project_evaluator)
+            await session.flush()
+
+            async def add_annotated_span(start_time: datetime, score: float) -> None:
+                trace = models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=project.id,
+                    start_time=start_time,
+                    end_time=start_time + timedelta(seconds=1),
+                )
+                session.add(trace)
+                await session.flush()
+                span = models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=None,
+                    name=token_hex(8),
+                    span_kind="LLM",
+                    start_time=start_time,
+                    end_time=start_time + timedelta(seconds=1),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                session.add(span)
+                await session.flush()
+                session.add(
+                    models.SpanAnnotation(
+                        span_rowid=span.id,
+                        name="quality",
+                        label="pass" if score else "fail",
+                        score=score,
+                        annotator_kind="CODE",
+                        source="API",
+                        metadata_={},
+                        identifier=token_hex(4),
+                    )
+                )
+                await session.flush()
+
+            for hour, score in [(0, 1.0), (1, 0.0), (2, 1.0), (3, 1.0)]:
+                await add_annotated_span(window_start + timedelta(hours=hour), score)
+            for hour, score in [(0, 0.0), (1, 0.0)]:
+                await add_annotated_span(window_start + timedelta(days=1, hours=hour), score)
+            for hour, score in [(0, 1.0), (1, 1.0)]:
+                await add_annotated_span(window_start - timedelta(days=1, hours=-hour), score)
+
+        yield {
+            "project_evaluator": project_evaluator.id,
+            "window_start": window_start,
+        }
+
+    async def test_returns_window_previous_window_and_series(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        window_start = _test_data["window_start"]
+        resp = await gql_client.execute(
+            self._QUERY,
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                "timeRange": {
+                    "start": window_start.isoformat(),
+                    "end": (window_start + timedelta(days=2)).isoformat(),
+                },
+                "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not resp.errors
+        assert resp.data is not None
+        (metrics,) = resp.data["node"]["annotationScoreMetrics"]
+        # A lone output config writes under the project evaluator's own name
+        assert metrics["annotationName"] == "quality"
+        summary = metrics["summary"]
+        assert summary["count"] == 6
+        assert summary["scoreCount"] == 6
+        assert summary["meanScore"] == pytest.approx(0.5)
+        fractions = {entry["label"]: entry["fraction"] for entry in summary["labelFractions"]}
+        assert fractions["pass"] == pytest.approx(0.5)
+        assert fractions["fail"] == pytest.approx(0.5)
+        # The previous window holds only the two passing scores
+        assert metrics["previousSummary"]["meanScore"] == pytest.approx(1.0)
+        series = metrics["series"]
+        assert [bin["meanScore"] for bin in series] == [
+            pytest.approx(0.75),
+            pytest.approx(0.0),
+        ]
+        # The weight of each bin's mean: four scored spans on day 0, two on day 1
+        assert [bin["count"] for bin in series] == [4, 2]
+        assert series[0]["timestamp"] == window_start.isoformat()
+
+    async def test_series_fills_empty_bins_with_null_means(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        window_start = _test_data["window_start"]
+        resp = await gql_client.execute(
+            self._QUERY,
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                "timeRange": {
+                    "start": window_start.isoformat(),
+                    "end": (window_start + timedelta(days=4)).isoformat(),
+                },
+                "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not resp.errors
+        assert resp.data is not None
+        (metrics,) = resp.data["node"]["annotationScoreMetrics"]
+        assert [bin["meanScore"] for bin in metrics["series"]] == [
+            pytest.approx(0.75),
+            pytest.approx(0.0),
+            None,
+            None,
+        ]
+        assert [bin["count"] for bin in metrics["series"]] == [4, 2, 0, 0]
+
+    async def test_open_time_range_is_rejected(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        resp = await gql_client.execute(
+            self._QUERY,
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                "timeRange": {"start": _test_data["window_start"].isoformat()},
+                "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+            },
+        )
+        assert resp.errors
+        assert "start and an end" in resp.errors[0].message
+
+
+class TestProjectEvaluatorAnnotationScoreMetricsMultiOutput:
+    """Multi-output evaluators report one entry per dotted annotation name."""
+
+    async def test_multi_output_names_follow_the_dotted_contract(
+        self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
+    ) -> None:
+        from phoenix.server.sandbox.sync import sync_languages
+
+        async with db() as session:
+            await sync_languages(session)
+            project = models.Project(name=f"project-{token_hex(4)}")
+            session.add(project)
+            await session.flush()
+            evaluator_row = models.CodeEvaluator(
+                name=Identifier(root=f"multi-{token_hex(4)}"),
+                metadata_={},
+                language="PYTHON",
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[
+                    ContinuousOutputConfig(
+                        type="CONTINUOUS",
+                        name="depth",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description=None,
+                        lower_bound=0.0,
+                        upper_bound=1.0,
+                    ),
+                    ContinuousOutputConfig(
+                        type="CONTINUOUS",
+                        name="clarity",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description=None,
+                        lower_bound=0.0,
+                        upper_bound=1.0,
+                    ),
+                ],
+            )
+            session.add(evaluator_row)
+            await session.flush()
+            project_evaluator = models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=evaluator_row.id,
+                name=Identifier("rubric"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SPAN",
+            )
+            session.add(project_evaluator)
+            await session.flush()
+
+        start = datetime(2024, 6, 10, tzinfo=timezone.utc)
+        resp = await gql_client.execute(
+            TestProjectEvaluatorAnnotationScoreMetrics._QUERY,
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(project_evaluator.id))),
+                "timeRange": {
+                    "start": start.isoformat(),
+                    "end": (start + timedelta(days=1)).isoformat(),
+                },
+                "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not resp.errors
+        assert resp.data is not None
+        names = [
+            metrics["annotationName"] for metrics in resp.data["node"]["annotationScoreMetrics"]
+        ]
+        assert names == ["rubric.depth", "rubric.clarity"]
+        for metrics in resp.data["node"]["annotationScoreMetrics"]:
+            assert metrics["summary"] is None
+            assert metrics["previousSummary"] is None
+            assert [bin["meanScore"] for bin in metrics["series"]] == [None]
