@@ -4333,6 +4333,11 @@ type Span implements Node {
   containedInDataset: Boolean!
   costSummary: SpanCostSummary
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
+
+  """
+  Cost detail breakdown (by token type) aggregated from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeCostDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
 type SpanAnnotation implements Node & Annotation {

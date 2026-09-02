@@ -831,6 +831,24 @@ class Span(Node):
             for entry in entries
         ]
 
+    @strawberry.field(
+        description="Cost detail breakdown (by token type) aggregated from self "
+        "and all descendant spans (children, grandchildren, etc.)",
+    )  # type: ignore
+    async def cumulative_cost_detail_summary_entries(
+        self, info: Info[Context, None]
+    ) -> list[SpanCostDetailSummaryEntry]:
+        loader = info.context.data_loaders.span_cost_detail_summary_entries_by_span_cumulative
+        entries = await loader.load(self.id)
+        return [
+            SpanCostDetailSummaryEntry(
+                token_type=entry.token_type,
+                is_prompt=entry.is_prompt,
+                value=CostBreakdown(tokens=entry.value.tokens, cost=entry.value.cost),
+            )
+            for entry in entries
+        ]
+
 
 def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:
     if not (
