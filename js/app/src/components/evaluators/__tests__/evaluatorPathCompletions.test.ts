@@ -209,6 +209,7 @@ describe("getEvaluatorPathCompletions", () => {
         preview: "842.5",
         section: SUGGESTED_PATH_SECTION,
         description: "the span latency",
+        drills: false,
       },
       {
         key: "metadata.attributes.llm",
@@ -216,6 +217,7 @@ describe("getEvaluatorPathCompletions", () => {
         preview: "object · 2",
         section: SUGGESTED_PATH_SECTION,
         description: "the llm block",
+        drills: true,
       },
     ]);
 
