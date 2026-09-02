@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import json
 import logging
 import operator
@@ -359,16 +360,17 @@ class Project(Node):
         if self.db_record:
             description = self.db_record.description
         else:
-            description = cast(
-                Optional[str],
-                await info.context.data_loaders.project_fields.load(
+            # The existence check distinguishes a NULL description from a
+            # deleted project row so a stale ID cannot resolve to a phantom
+            # project. gather schedules both loads in the same dataloader
+            # batch, so it costs no extra query.
+            value, _ = await asyncio.gather(
+                info.context.data_loaders.project_fields.load(
                     (self.id, models.Project.description),
                 ),
+                self._load_required_field(info, models.Project.id),
             )
-            if description is None:
-                # Distinguish a NULL description from a deleted project row so
-                # a stale ID cannot resolve to a phantom project.
-                await self._load_required_field(info, models.Project.id)
+            description = cast(Optional[str], value)
         return description
 
     @strawberry.field

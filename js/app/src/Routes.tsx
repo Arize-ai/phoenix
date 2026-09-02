@@ -153,15 +153,18 @@ const revalidateOnPathChange: ShouldRevalidateFunction = ({
   return defaultShouldRevalidate;
 };
 
-// For loaders that read no URL params at all: navigation can never change
-// their data, so only same-URL requests (useRevalidator, post-action
-// revalidation) defer to the router's default.
+// For loaders that read nothing from the URL: no navigation — path or search
+// param change alike — can change their data, so only genuinely same-URL
+// requests (useRevalidator, post-action revalidation) defer to the router's
+// default. Compares href, not pathname: the router's default revalidates on
+// search-param changes, which pages like dashboards trigger on every
+// time-range adjustment.
 const revalidateOnlyOnDemand: ShouldRevalidateFunction = ({
   currentUrl,
   nextUrl,
   defaultShouldRevalidate,
 }) => {
-  if (currentUrl.pathname === nextUrl.pathname) return defaultShouldRevalidate;
+  if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
   return false;
 };
 
