@@ -40,9 +40,7 @@ the retrieval step with an LLM instead: `RetrievalRelevanceEvaluator`
 (`createRetrievalRelevanceEvaluator` in TypeScript) scores the retrieved
 information holistically against the request, and is source-agnostic — it works
 for tool calls, MCP servers, web search, and database queries, not just vector
-search. Use `DocumentRelevanceEvaluator` when you need a per-document label to
-feed precision@k / recall@k. See
-[evaluators-pre-built](evaluators-pre-built.md).
+search. See [evaluators-pre-built](evaluators-pre-built.md).
 
 ## Creating Retrieval Test Data
 
