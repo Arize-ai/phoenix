@@ -1155,8 +1155,9 @@ class TestDispatchHandOff:
 
         This is the shutdown case as it actually happens: an entered task group whose
         scope has been cancelled still accepts the worker, so there is nothing to roll
-        back. The worker inherits the cancellation at its first checkpoint, and its
-        cleanup must still remove every trace of the item and release the seat.
+        back. The worker inherits the cancellation at the checkpoint that precedes
+        execute(), so the item's work never starts, and the worker's cleanup must still
+        remove every trace of the item and release the seat.
         """
         exp = _make_running_experiment()
         exp._task_db_exhausted = True
@@ -1164,14 +1165,11 @@ class TestDispatchHandOff:
         task = _make_task_work_item(exp, dataset_example_id=1)
         exp._task_queue.append(task)
         runner = self._make_runner(exp)
-        worker_started = anyio.Event()
-        ran_past_first_checkpoint = False
+        execute_entered = False
 
         async def execute() -> None:
-            nonlocal ran_past_first_checkpoint
-            worker_started.set()
-            await anyio.sleep(0)
-            ran_past_first_checkpoint = True
+            nonlocal execute_entered
+            execute_entered = True
 
         with patch.object(task, "execute", execute):
             await runner._seats.acquire()
@@ -1181,11 +1179,10 @@ class TestDispatchHandOff:
                 tg.cancel_scope.cancel()  # the daemon's task group is shutting down
                 runner._hand_off(tg, dispatched)  # accepted, so no rollback happens
 
-        assert worker_started.is_set()  # the worker ran, so the hand-off was not undone
-        assert not exp._task_queue  # and the item was not put back
-        assert not ran_past_first_checkpoint
+        assert not execute_entered
+        assert not exp._task_queue  # the hand-off was not undone: nothing was put back
         _assert_untracked(exp, task)
-        assert runner._seats.value == 10
+        assert runner._seats.value == 10  # ...and the worker ran its cleanup
 
     @pytest.mark.anyio
     async def test_stop_between_dispatch_and_worker_start_cancels_the_worker(self) -> None:
@@ -1193,8 +1190,9 @@ class TestDispatchHandOff:
 
         The dispatch loop starts workers with start_soon(), so stop() can run after the
         item was handed off but before the worker's first step. The worker enters the
-        scope that stop() already cancelled, is cancelled at its first checkpoint, and
-        still unregisters so the experiment drains and the seat is released.
+        scope that stop() already cancelled and is cancelled at the checkpoint that
+        precedes execute(), so the item's work never starts. It still unregisters, so
+        the experiment drains and the seat is released.
         """
         exp = _make_running_experiment()
         exp._task_db_exhausted = True
@@ -1202,14 +1200,11 @@ class TestDispatchHandOff:
         task = _make_task_work_item(exp, dataset_example_id=1)
         exp._task_queue.append(task)
         runner = self._make_runner(exp)
-        worker_started = anyio.Event()
-        ran_past_first_checkpoint = False
+        execute_entered = False
 
         async def execute() -> None:
-            nonlocal ran_past_first_checkpoint
-            worker_started.set()
-            await anyio.sleep(0)
-            ran_past_first_checkpoint = True
+            nonlocal execute_entered
+            execute_entered = True
 
         with patch.object(task, "execute", execute):
             await runner._seats.acquire()
@@ -1219,8 +1214,7 @@ class TestDispatchHandOff:
                 runner._hand_off(tg, dispatched)
                 exp.stop()  # the worker has not had its first step yet
 
-        assert worker_started.is_set()
-        assert not ran_past_first_checkpoint
+        assert not execute_entered
         _assert_untracked(exp, task)
         assert exp._drained.is_set()
         assert runner._seats.value == 10

@@ -96,6 +96,7 @@ from typing import (
 import anyio
 from anyio import Semaphore
 from anyio.abc import TaskGroup
+from anyio.lowlevel import checkpoint
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from cachetools import LRUCache
 from opentelemetry.context import Context as OtelContext
@@ -1370,8 +1371,8 @@ class RunningExperiment:
         #   - it is in _in_flight, so a completion check triggered by another task
         #     finishing before the worker starts still sees pending work;
         #   - it has its cancel scope, so stop() can cancel it before the worker has
-        #     entered the scope (a pre-entry cancel takes effect at the worker's first
-        #     checkpoint after entry);
+        #     entered the scope (the worker checkpoints right after entering, so a
+        #     stopped item does no work);
         #   - it has an undo callback, so a hand-off that fails can put it back where
         #     it came from (see undispatch()).
         # The scope is created before the pop so a failure here leaves the queue intact.
@@ -1425,9 +1426,9 @@ class RunningExperiment:
         """Hand a dispatched item's cancel scope to the worker task about to run it.
 
         Called by the daemon's worker task as its first step. The scope was created at
-        dispatch, so stop() may already have cancelled it; entering it then cancels the
-        worker at its first checkpoint. From here on the dispatch can no longer be
-        undone, so the undo callback is dropped.
+        dispatch, so stop() may already have cancelled it; the worker checkpoints right
+        after entering it, so a stopped item is cancelled before doing any work. From
+        here on the dispatch can no longer be undone, so the undo callback is dropped.
         """
         self._dispatch_undo.pop(work_item, None)
         return self._cancel_scopes[work_item]
@@ -2430,9 +2431,13 @@ class ExperimentRunner(DaemonTask):
     async def _run_and_release(self, work_item: WorkItem) -> None:
         """Execute work item and release semaphore."""
         try:
-            # Enter the cancel scope created at dispatch, so a stop() that ran before
-            # this task started still takes effect at the first checkpoint.
             with work_item.running_experiment.start_execution(work_item):
+                # The scope was created at dispatch, so stop() may have cancelled it
+                # before this task ever ran. That cancellation is delivered at the next
+                # checkpoint, and execute() can do real work before reaching one: format
+                # a template, run a synchronous evaluator, then persist the result under
+                # a shield. Checkpoint first so a stopped item does no work at all.
+                await checkpoint()
                 await work_item.execute()
         except anyio.get_cancelled_exc_class():
             logger.debug(f"Work item {work_item.debug_identifier} was cancelled")
