@@ -1156,7 +1156,7 @@ async def test_cumulative_cost_detail_summary_entries_aggregates_self_and_descen
       }
     """
 
-    async def _entries(span_rowid: int) -> dict[tuple[str, bool], tuple[float, float]]:
+    async def _entries(span_rowid: int) -> dict[tuple[str, bool], tuple[Any, Any]]:
         response = await gql_client.execute(
             query=query,
             variables={"spanId": str(GlobalID(Span.__name__, str(span_rowid)))},
