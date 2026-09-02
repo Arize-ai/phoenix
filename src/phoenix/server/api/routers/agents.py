@@ -180,7 +180,7 @@ from phoenix.server.api.helpers.agent_sessions import (
     set_session_model,
 )
 from phoenix.server.api.openapi.registry import register_openapi_schema
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -744,8 +744,8 @@ class PatchAgentSessionRequestBody(V1RoutesBaseModel):
 class AgentSessionSummary(V1RoutesBaseModel):
     id: str
     title: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: IsoDatetime
+    updated_at: IsoDatetime
     is_ephemeral: bool
 
 
