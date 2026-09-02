@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ComponentProps, ReactNode } from "react";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import invariant from "tiny-invariant";
 
 import {
@@ -60,6 +60,27 @@ const meanScoreFallback = (
     </Text>
   </AlignedScore>
 );
+
+/**
+ * Widest the sparkline grows. Past this it stops being glanceable: a 20px
+ * tall line stretched across a wide column reads as an axis-less chart.
+ */
+const SPARKLINE_MAX_WIDTH = 160;
+
+/**
+ * The least of the annotation's score range the sparkline's vertical axis
+ * spans. Per-row auto-scaling would stretch a score drifting by a few
+ * hundredths into cliffs; anchoring the axis to a fifth of the possible
+ * range keeps small drift looking small while still resolving it.
+ */
+const SPARKLINE_MIN_RANGE_FRACTION = 0.2;
+
+/**
+ * The line is data ink, not status: the score pill and the delta already
+ * carry the judgement, and painting the whole history in a status color
+ * would restate one number's sign across the entire window.
+ */
+const SPARKLINE_COLOR = "var(--global-text-color-700)";
 
 const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
   null
@@ -150,6 +171,11 @@ function AnnotationMeanScoreView({
   const binTimeFormatter = useBinTimeTickFormatter({
     scale: scoreWindow.timeBinConfig.scale,
   });
+  // A closed range may run past the present; bins that haven't started yet
+  // can't hold data, so they'd only pad the sparkline's axis with false
+  // emptiness. The clock is read once on mount: the cutoff only has to be
+  // right to within a bin, and the cells remount when their data refetches.
+  const [now] = useState(() => Date.now());
   const summary = metrics?.summary;
   const previousMeanScore = metrics?.previousSummary?.meanScore;
   const meanScore = summary?.meanScore;
@@ -162,7 +188,8 @@ function AnnotationMeanScoreView({
     hasScore && typeof previousMeanScore === "number"
       ? meanScore - previousMeanScore
       : null;
-  const { optimizationDirection } = getOptimizationBounds(annotation.config);
+  const { optimizationDirection, lowerBound, upperBound } =
+    getOptimizationBounds(annotation.config);
   // Positive when the change moves the score in the direction the annotation
   // optimizes for; unknowable without a direction or with no change.
   const isImprovement =
@@ -177,10 +204,17 @@ function AnnotationMeanScoreView({
     delta == null
       ? null
       : `${delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} ${Math.abs(delta).toFixed(2)}`;
-  const series = metrics?.series ?? [];
+  const series = (metrics?.series ?? []).filter(
+    (bin) => Date.parse(bin.timestamp) <= now
+  );
   const sparkValues = series.map((bin) =>
     typeof bin.meanScore === "number" ? bin.meanScore : null
   );
+  const sparkWeights = series.map((bin) => bin.count);
+  const sparkMinRange =
+    lowerBound != null && upperBound != null && upperBound > lowerBound
+      ? (upperBound - lowerBound) * SPARKLINE_MIN_RANGE_FRACTION
+      : undefined;
   return (
     <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
       {/* The score and delta carry the summary breakdown; the sparkline sits
@@ -234,26 +268,39 @@ function AnnotationMeanScoreView({
       </TooltipTrigger>
       <Sparkline
         values={sparkValues}
+        weights={sparkWeights}
+        minRange={sparkMinRange}
+        maxWidth={SPARKLINE_MAX_WIDTH}
+        color={SPARKLINE_COLOR}
         aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
-        renderPointDetail={(index) => {
-          const timestamp = series[index]?.timestamp;
-          const value = sparkValues[index];
-          if (timestamp == null || value == null) {
+        renderPointDetail={({ start, end }) => {
+          // The point may cover several bins merged to fit the width: the
+          // weighted mean of their scores, over the span of their times.
+          let weightedSum = 0;
+          let count = 0;
+          for (let index = start; index <= end; index++) {
+            const value = sparkValues[index];
+            if (value == null) {
+              continue;
+            }
+            weightedSum += value * sparkWeights[index];
+            count += sparkWeights[index];
+          }
+          const startTime = series[start]?.timestamp;
+          const endTime = series[end]?.timestamp;
+          if (startTime == null || endTime == null || count === 0) {
             return null;
           }
+          const timeLabel =
+            start === end
+              ? binTimeFormatter(new Date(startTime))
+              : `${binTimeFormatter(new Date(startTime))} – ${binTimeFormatter(new Date(endTime))}`;
           return (
             <Text size="S">
-              {binTimeFormatter(new Date(timestamp))} · μ {formatFloat(value)}
+              {timeLabel} · μ {formatFloat(weightedSum / count)} · n={count}
             </Text>
           );
         }}
-        color={
-          isImprovement == null
-            ? "var(--global-color-gray-500)"
-            : isImprovement
-              ? "var(--global-color-success)"
-              : "var(--global-color-danger)"
-        }
       />
     </Flex>
   );

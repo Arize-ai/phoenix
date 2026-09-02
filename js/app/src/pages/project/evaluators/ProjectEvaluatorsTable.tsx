@@ -232,6 +232,7 @@ const readRow = (
           series {
             timestamp
             meanScore
+            count
           }
         }
       }
@@ -441,7 +442,9 @@ export function ProjectEvaluatorsTable({
         // stable when the window changes. A def that closed over the window
         // would remount every cell on each live-range re-anchor.
         header: () => <ProjectEvaluatorMeanScoreHeader />,
-        size: 170,
+        // Room for the score pill and delta plus a sparkline wide enough to
+        // resolve a few dozen bins; the sparkline itself caps its width.
+        size: 280,
         cell: ({ row }) => (
           <ProjectEvaluatorMeanScoreCell
             annotations={getProjectEvaluatorResultAnnotations({

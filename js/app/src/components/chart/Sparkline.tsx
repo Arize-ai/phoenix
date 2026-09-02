@@ -5,34 +5,68 @@ import { TooltipTriggerStateContext } from "react-aria-components";
 import { useTooltipTriggerState } from "react-stately";
 
 import { RichTooltip } from "@phoenix/components";
+import { useDimensions } from "@phoenix/hooks/useDimensions";
 
-const sparklineCSS = css`
+const containerCSS = css`
   display: block;
   flex: 1 1 auto;
   min-width: 0;
+`;
+
+const sparklineCSS = css`
+  display: block;
+  width: 100%;
   overflow: visible;
 `;
+
+/** The source bins a drawn point covers, as inclusive indexes into `values`. */
+export type SparklineBinRange = {
+  start: number;
+  end: number;
+};
 
 export interface SparklineProps {
   /**
    * One value per time bin, in time order. Every bin occupies its own x
    * position whether or not it carries a value, so sparklines that share a
    * time axis align vertically when scanned across rows. Null marks a bin
-   * with no value; the line breaks there rather than interpolating across
-   * the gap, and an isolated value draws as a dot. A full-width baseline
-   * track marks the axis, so sparse marks read as points in time on it.
+   * with no value.
+   *
+   * When there are more bins than the rendered width can resolve, runs of
+   * adjacent bins are merged into one drawn point (a weighted mean, see
+   * `weights`) so the line keeps a few pixels per point instead of collapsing
+   * into noise. The line breaks at empty drawn points, bridging a gap of a
+   * single point faintly; an isolated value draws as a dot.
    */
   values: ReadonlyArray<number | null>;
+  /**
+   * Per-bin weights for merging adjacent bins, e.g. the number of samples
+   * behind each bin's mean. Defaults to equal weights.
+   */
+  weights?: ReadonlyArray<number>;
+  /**
+   * The smallest value range the vertical axis spans. Keeps a series that
+   * barely moves from being stretched to look volatile: the axis covers at
+   * least this much, centered on the data, and grows to fit wider data.
+   * Defaults to the data's own range.
+   */
+  minRange?: number;
   /** Stroke color, e.g. a design token var. */
   color: string;
-  /** Rendered height in pixels. The line stretches to fill the width. @default 20 */
+  /** Rendered height in pixels. @default 20 */
   height?: number;
   /**
-   * Detail for the point at a bin index, shown in a tooltip while hovering
-   * near that point, which is also marked on the line. Only indexes of bins
-   * that carry a value are passed. Omit for a non-interactive sparkline.
+   * Widest the sparkline grows, in pixels. It otherwise stretches to the
+   * width its flex container gives it. Defaults to unbounded.
    */
-  renderPointDetail?: (index: number) => ReactNode;
+  maxWidth?: number;
+  /**
+   * Detail for a drawn point, shown in a tooltip while hovering near it,
+   * which is also marked on the line. Receives the range of source bins the
+   * point covers: a single bin unless bins were merged to fit the width. Only
+   * ranges that carry a value are passed. Omit for a non-interactive sparkline.
+   */
+  renderPointDetail?: (range: SparklineBinRange) => ReactNode;
   /** Accessible description of what the line shows. */
   "aria-label"?: string;
 }
@@ -42,52 +76,130 @@ const DRAWING_WIDTH = 64;
 /** Keeps the stroke from clipping at the extremes. */
 const VERTICAL_PADDING = 2;
 /**
- * The axis the marks sit on. Recessive like a chart grid line: it anchors
- * sparse marks to the shared time axis without competing with the series.
+ * The horizontal room each drawn point gets. Below this, adjacent bins merge:
+ * a line with less than a few pixels per point reads as texture, not trend.
  */
-const TRACK_COLOR = "var(--global-color-gray-300)";
+const MIN_PIXELS_PER_POINT = 4;
+/**
+ * The width assumed until the container has been measured (and in
+ * environments without layout), so the first paint already draws a
+ * sensible number of points.
+ */
+const FALLBACK_WIDTH = 160;
+const LINE_WIDTH = 1.5;
+/** An isolated value: the same visual weight as the line, not a marker. */
+const ISOLATED_DOT_WIDTH = 2.5;
+/** The most recent value, anchoring where the series ends. */
+const END_DOT_WIDTH = 3;
+const HOVER_DOT_WIDTH = 5;
+/** A bridge across a single empty point: present, but visibly interpolated. */
+const BRIDGE_OPACITY = 0.4;
+/** The widest gap (in drawn points) the line bridges instead of breaking at. */
+const MAX_BRIDGED_GAP = 1;
+
+/** A drawn point: one source bin, or several merged to fit the width. */
+type SparklineBin = {
+  /** The bin's position in the drawn sequence. */
+  position: number;
+  /** The source bins it covers, inclusive. */
+  range: SparklineBinRange;
+  value: number | null;
+};
 
 type SparklinePoint = {
   x: number;
   y: number;
-  /** The point's index within the values array. */
-  index: number;
+  bin: SparklineBin;
 };
 
 /**
- * The line as scaled points: values plotted top-to-bottom by magnitude and
- * left-to-right by bin position over the full bin axis — empty bins keep
- * their x slot rather than being squeezed out, so sparklines sharing a time
- * axis align vertically across rows. Null when no bin carries a value.
+ * The drawn sequence: the source bins, merged in equal-length runs so that no
+ * more than `maxPoints` remain. A merged bin's value is the weighted mean of
+ * the values it covers, or null when it covers none.
  */
-function getPoints({
+function getBins({
   values,
-  height,
+  weights,
+  maxPoints,
 }: {
   values: ReadonlyArray<number | null>;
+  weights: ReadonlyArray<number> | undefined;
+  maxPoints: number;
+}): SparklineBin[] {
+  const runLength = Math.max(1, Math.ceil(values.length / maxPoints));
+  const bins: SparklineBin[] = [];
+  for (let start = 0; start < values.length; start += runLength) {
+    const end = Math.min(start + runLength, values.length) - 1;
+    let weightedSum = 0;
+    let totalWeight = 0;
+    for (let index = start; index <= end; index++) {
+      const value = values[index];
+      if (value == null) {
+        continue;
+      }
+      const weight = weights?.[index] ?? 1;
+      weightedSum += value * weight;
+      totalWeight += weight;
+    }
+    bins.push({
+      position: bins.length,
+      range: { start, end },
+      value: totalWeight > 0 ? weightedSum / totalWeight : null,
+    });
+  }
+  return bins;
+}
+
+/**
+ * The bins that carry a value as scaled points: plotted top-to-bottom by
+ * magnitude and left-to-right by position over the full bin axis — empty
+ * bins keep their x slot rather than being squeezed out, so sparklines
+ * sharing a time axis align vertically across rows. Null when no bin
+ * carries a value.
+ */
+function getPoints({
+  bins,
+  binCount,
+  height,
+  minRange,
+}: {
+  bins: SparklineBin[];
+  /** The number of source bins, which is the length of the x axis. */
+  binCount: number;
   height: number;
+  minRange: number | undefined;
 }): SparklinePoint[] | null {
-  const present = values.flatMap((value, index) =>
-    value == null ? [] : [{ value, index }]
+  const present = bins.flatMap((bin) =>
+    bin.value == null ? [] : [{ bin, value: bin.value }]
   );
   if (present.length === 0) {
     return null;
   }
-  const min = Math.min(...present.map((point) => point.value));
-  const max = Math.max(...present.map((point) => point.value));
+  const dataMin = Math.min(...present.map((point) => point.value));
+  const dataMax = Math.max(...present.map((point) => point.value));
+  // Widen a narrow data range to the floor, keeping the data centered
+  const padding = Math.max(0, (minRange ?? 0) - (dataMax - dataMin)) / 2;
+  const min = dataMin - padding;
+  const max = dataMax + padding;
   const drawableHeight = height - 2 * VERTICAL_PADDING;
-  return present.map(({ value, index }) => ({
-    x:
-      values.length === 1
-        ? DRAWING_WIDTH / 2
-        : (index / (values.length - 1)) * DRAWING_WIDTH,
-    // A flat series draws as a midline rather than dividing by zero
-    y:
-      max === min
-        ? height / 2
-        : VERTICAL_PADDING + (1 - (value - min) / (max - min)) * drawableHeight,
-    index,
-  }));
+  return present.map(({ bin, value }) => {
+    const { start, end } = bin.range;
+    // A merged bin sits over the center of the source bins it covers
+    const axisPosition = (start + end) / 2;
+    return {
+      x:
+        binCount === 1
+          ? DRAWING_WIDTH / 2
+          : (axisPosition / (binCount - 1)) * DRAWING_WIDTH,
+      // A flat series draws as a midline rather than dividing by zero
+      y:
+        max === min
+          ? height / 2
+          : VERTICAL_PADDING +
+            (1 - (value - min) / (max - min)) * drawableHeight,
+      bin,
+    };
+  });
 }
 
 /**
@@ -101,7 +213,7 @@ function getSegments(points: SparklinePoint[]): SparklinePoint[][] {
   for (const point of points) {
     if (
       segment.length > 0 &&
-      point.index !== segment[segment.length - 1].index + 1
+      point.bin.position !== segment[segment.length - 1].bin.position + 1
     ) {
       segments.push(segment);
       segment = [];
@@ -112,43 +224,81 @@ function getSegments(points: SparklinePoint[]): SparklinePoint[][] {
   return segments;
 }
 
+function toPathData(points: SparklinePoint[]): string {
+  return points
+    .map(
+      (point, index) =>
+        `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
+    )
+    .join(" ");
+}
+
+/**
+ * A zero-length round-capped stroke renders as a dot that, unlike a circle,
+ * keeps its shape under the svg's non-uniform horizontal stretching.
+ */
+function toDotPathData(point: SparklinePoint): string {
+  return `M ${point.x.toFixed(2)} ${point.y.toFixed(2)} l 0.01 0`;
+}
+
 /**
  * A small inline line chart for table cells and stat tiles: a single series
- * over a recessive baseline track, stretching to fill the width its container
- * gives it. Bins keep their position on the axis and the line breaks at empty
- * bins, so gaps are visible, sparse values read as points in time on the
- * track, and sparklines sharing a time axis align across rows. With
- * `renderPointDetail`, hovering marks the nearest point and shows its detail
- * in a tooltip; further detail belongs to the surrounding component. Renders
- * nothing when no bin carries a value.
+ * stretching to fill the width its container gives it, up to `maxWidth`.
+ * Bins keep their position on the axis, so sparklines sharing a time axis
+ * align across rows, and a series ending early visibly stops short. When the
+ * width can't give every bin a few pixels, adjacent bins merge into weighted
+ * means so the line stays legible at any size. The line breaks at empty
+ * points, bridging single-point gaps faintly, and marks its most recent
+ * value. With `renderPointDetail`, hovering marks the nearest point and
+ * shows its detail in a tooltip; further detail belongs to the surrounding
+ * component. Renders nothing when no bin carries a value.
  */
 export function Sparkline({
   values,
+  weights,
+  minRange,
   color,
   height = 20,
+  maxWidth,
   renderPointDetail,
   "aria-label": ariaLabel,
 }: SparklineProps) {
   const titleId = useId();
+  const containerRef = useRef<HTMLSpanElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(
-    null
-  );
+  const dimensions = useDimensions(containerRef);
+  const [hoveredPosition, setHoveredPosition] = useState<number | null>(null);
   // The tooltip is driven entirely by the pointer tracking below. Rendered
   // standalone (no TooltipTrigger), RAC's Tooltip still reads its state from
   // TooltipTriggerStateContext, so the state is created and provided here.
   const tooltipState = useTooltipTriggerState({
-    isOpen: hoveredPointIndex != null,
+    isOpen: hoveredPosition != null,
     delay: 0,
   });
-  const points = getPoints({ values, height });
+  const width =
+    dimensions != null && dimensions.width > 0
+      ? dimensions.width
+      : Math.min(FALLBACK_WIDTH, maxWidth ?? FALLBACK_WIDTH);
+  const bins = getBins({
+    values,
+    weights,
+    maxPoints: Math.max(1, Math.floor(width / MIN_PIXELS_PER_POINT)),
+  });
+  const points = getPoints({
+    bins,
+    binCount: values.length,
+    height,
+    minRange,
+  });
   if (points == null) {
     return null;
   }
+  const lastPoint = points[points.length - 1];
   const hoveredPoint =
-    hoveredPointIndex == null
+    hoveredPosition == null
       ? null
-      : (points.find((point) => point.index === hoveredPointIndex) ?? null);
+      : (points.find((point) => point.bin.position === hoveredPosition) ??
+        null);
   const onPointerMove =
     renderPointDetail == null
       ? undefined
@@ -166,10 +316,11 @@ export function Sparkline({
               ? point
               : closest
           );
-          setHoveredPointIndex(nearest.index);
+          setHoveredPosition(nearest.bin.position);
         };
+  const segments = getSegments(points);
   return (
-    <>
+    <span ref={containerRef} css={containerCSS} style={{ height, maxWidth }}>
       <svg
         ref={svgRef}
         css={sparklineCSS}
@@ -181,75 +332,89 @@ export function Sparkline({
         aria-labelledby={ariaLabel != null ? titleId : undefined}
         onPointerMove={onPointerMove}
         onPointerLeave={
-          renderPointDetail == null
-            ? undefined
-            : () => setHoveredPointIndex(null)
+          renderPointDetail == null ? undefined : () => setHoveredPosition(null)
         }
       >
         {ariaLabel != null ? <title id={titleId}>{ariaLabel}</title> : null}
-        {/* The baseline track: the full time axis, drawn under the marks so
-            sparse data reads as points on it rather than floating fragments */}
+        {segments.map((segment, segmentIndex) => {
+          const previous = segments[segmentIndex - 1];
+          const first = segment[0];
+          const gap =
+            previous == null
+              ? null
+              : first.bin.position -
+                previous[previous.length - 1].bin.position -
+                1;
+          return (
+            <g key={first.bin.position}>
+              {gap != null && gap <= MAX_BRIDGED_GAP ? (
+                // A short gap: span it faintly so the trend reads through
+                // a momentary lapse instead of shattering into fragments
+                <path
+                  d={toPathData([previous[previous.length - 1], first])}
+                  fill="none"
+                  stroke={color}
+                  strokeOpacity={BRIDGE_OPACITY}
+                  strokeWidth={LINE_WIDTH}
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ) : null}
+              {segment.length === 1 ? (
+                // A gap-isolated value has no line to join, so it draws
+                // as a dot of the line's weight
+                <path
+                  d={toDotPathData(first)}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={ISOLATED_DOT_WIDTH}
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ) : (
+                <path
+                  d={toPathData(segment)}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={LINE_WIDTH}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  // The svg stretches horizontally; keep the stroke width uniform
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+            </g>
+          );
+        })}
+        {/* The most recent value: where the series stands now, and where
+            it stops if the axis runs on past it */}
         <path
-          d={`M 0 ${(height - 0.5).toFixed(2)} L ${DRAWING_WIDTH} ${(height - 0.5).toFixed(2)}`}
+          d={toDotPathData(lastPoint)}
           fill="none"
-          stroke={TRACK_COLOR}
-          strokeWidth={1}
+          stroke={color}
+          strokeWidth={END_DOT_WIDTH}
+          strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
         />
-        {getSegments(points).map((segment) =>
-          segment.length === 1 ? (
-            // A gap-isolated value has no line to join; a zero-length
-            // round-capped stroke renders as a dot that keeps its shape
-            // under the svg's non-uniform stretching.
-            <path
-              key={segment[0].index}
-              d={`M ${segment[0].x.toFixed(2)} ${segment[0].y.toFixed(2)} l 0.01 0`}
-              fill="none"
-              stroke={color}
-              strokeWidth={3}
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          ) : (
-            <path
-              key={segment[0].index}
-              d={segment
-                .map(
-                  (point, index) =>
-                    `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
-                )
-                .join(" ")}
-              fill="none"
-              stroke={color}
-              strokeWidth={1.3}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              // The svg stretches horizontally; keep the stroke width uniform
-              vectorEffect="non-scaling-stroke"
-            />
-          )
-        )}
         {hoveredPoint != null ? (
-          // A zero-length round-capped stroke renders as a dot that, unlike a
-          // circle, keeps its shape under the svg's non-uniform stretching.
           <path
-            d={`M ${hoveredPoint.x.toFixed(2)} ${hoveredPoint.y.toFixed(2)} l 0.01 0`}
+            d={toDotPathData(hoveredPoint)}
             fill="none"
             stroke={color}
-            strokeWidth={5}
+            strokeWidth={HOVER_DOT_WIDTH}
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
             style={{ pointerEvents: "none" }}
           />
         ) : null}
       </svg>
-      {renderPointDetail != null && hoveredPointIndex != null ? (
+      {renderPointDetail != null && hoveredPoint != null ? (
         <TooltipTriggerStateContext.Provider value={tooltipState}>
           <RichTooltip triggerRef={svgRef} placement="top" offset={4}>
-            {renderPointDetail(hoveredPointIndex)}
+            {renderPointDetail(hoveredPoint.bin.range)}
           </RichTooltip>
         </TooltipTriggerStateContext.Provider>
       ) : null}
-    </>
+    </span>
   );
 }

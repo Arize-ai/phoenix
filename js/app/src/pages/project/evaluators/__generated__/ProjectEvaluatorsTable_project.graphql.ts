@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<28a073406caf6973764afc3837a7275e>>
+ * @generated SignedSource<<f4542454a7cda1de7ba57f507f31f16e>>
  * @lightSyntaxTransform
  */
 
@@ -114,6 +114,13 @@ v13 = {
   "args": null,
   "kind": "ScalarField",
   "name": "meanScore",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "count",
   "storageKey": null
 };
 return {
@@ -618,13 +625,7 @@ return {
                               "plural": false,
                               "selections": [
                                 (v13/*:: as any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "count",
-                                  "storageKey": null
-                                },
+                                (v14/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -688,7 +689,8 @@ return {
                                   "name": "timestamp",
                                   "storageKey": null
                                 },
-                                (v13/*:: as any*/)
+                                (v13/*:: as any*/),
+                                (v14/*:: as any*/)
                               ],
                               "storageKey": null
                             }
