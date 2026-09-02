@@ -3,6 +3,7 @@ import { useLocation } from "react-router";
 
 import {
   PROJECT_EVALUATOR_CATEGORY_PARAM,
+  PROJECT_EVALUATOR_PARAM,
   PROJECT_EVALUATOR_TEMPLATE_PARAM,
 } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -70,6 +71,7 @@ export function useProjectEvaluatorPaths() {
     // project-page state in the query string.
     const defaultGallerySearch = withSearchParams(search, (searchParams) => {
       searchParams.delete(PROJECT_EVALUATOR_CATEGORY_PARAM);
+      searchParams.delete(PROJECT_EVALUATOR_PARAM);
       searchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
     });
     return {
@@ -78,6 +80,7 @@ export function useProjectEvaluatorPaths() {
       galleryCategory: (category: EvaluatorCategory) =>
         `${gallery}${withSearchParams(search, (searchParams) => {
           searchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
+          searchParams.delete(PROJECT_EVALUATOR_PARAM);
           searchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
         })}`,
       galleryTemplate: ({
@@ -89,6 +92,7 @@ export function useProjectEvaluatorPaths() {
       }) =>
         `${gallery}${withSearchParams(search, (searchParams) => {
           searchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
+          searchParams.delete(PROJECT_EVALUATOR_PARAM);
           searchParams.set(PROJECT_EVALUATOR_TEMPLATE_PARAM, templateName);
         })}`,
       listCreation: buildCreationPaths(list),
