@@ -3923,7 +3923,7 @@ async def _get_builtin_provider_client(
         base_url = base_url or getenv("ZAI_BASE_URL") or "https://api.z.ai/api/paas/v4"
 
         if not api_key:
-            if base_url == "https://api.z.ai/api/paas/v4":
+            if base_url.startswith("https://api.z.ai/"):
                 raise BadRequest(
                     "An API key is required for Z.ai models. "
                     "Set the ZAI_API_KEY environment variable or use a custom provider."
