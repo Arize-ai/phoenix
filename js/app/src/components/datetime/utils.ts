@@ -366,7 +366,9 @@ function getResolvedWindow({
  * that, only exact multiples switch units. Durations are rounded to the
  * nearest minute, with a one minute floor.
  */
-function getLastNTimeRangeKeyFromDurationMs(ms: number): LastNTimeRangeKey {
+export function getLastNTimeRangeKeyFromDurationMs(
+  ms: number
+): LastNTimeRangeKey {
   const minutes = Math.max(1, Math.round(ms / MINUTE_IN_MS));
   const days = minutes / (24 * 60);
   if (days >= 2 || Number.isInteger(days)) {
@@ -399,6 +401,31 @@ export function panTimeRangeLeft({
     start: new Date(window.startMs - shiftMs),
     end: new Date(window.endMs - shiftMs),
   };
+}
+
+/**
+ * Resolve a (possibly open-ended) time range into a closed window no longer
+ * than `maxDurationMs`, keeping the window's end: a longer range keeps its
+ * most recent `maxDurationMs`. A range with no resolvable start yields the
+ * trailing `maxDurationMs` window ending at the range's end (or `now`).
+ */
+export function clampTimeRangeToMaxDuration({
+  value,
+  maxDurationMs,
+  now = new Date(),
+}: {
+  value: OpenTimeRange;
+  maxDurationMs: number;
+  /** Reference "now" for resolving open-ended ranges. Defaults to the current time. */
+  now?: Date;
+}): TimeRange {
+  const window = getResolvedWindow({ value, now });
+  const endMs = window?.endMs ?? (value.end ?? now).getTime();
+  const durationMs = Math.min(
+    window?.durationMs ?? maxDurationMs,
+    maxDurationMs
+  );
+  return { start: new Date(endMs - durationMs), end: new Date(endMs) };
 }
 
 /**

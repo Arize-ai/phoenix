@@ -51,7 +51,7 @@ function EvaluatorCostValue({
   tooltipLabel,
 }: EvaluatorCostProps & { tooltipLabel?: string }) {
   if (evaluatorKind === "CODE") {
-    return <Text color="text-700">—</Text>;
+    return <Text color="text-700">--</Text>;
   }
 
   const totalCost = costSummary?.total.cost;
