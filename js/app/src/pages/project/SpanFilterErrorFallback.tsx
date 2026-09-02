@@ -13,9 +13,8 @@ export function SpanFilterErrorFallback({
   onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
 }) {
   const filterCondition = useSpanFilterCondition();
-  // The root-span predicates are written by this app, not by the user, and a
-  // tab defaults to one -- so a non-empty condition is not by itself evidence
-  // that anyone filtered.
+  // Root-span predicates are written by this app and a tab defaults to one, so
+  // a non-empty condition is not evidence that anyone filtered.
   const hasUserFilter =
     filterCondition.trim() !== "" && !isKnownRootSpanCondition(filterCondition);
   return (
@@ -26,8 +25,7 @@ export function SpanFilterErrorFallback({
           selectsRootSpansOnly,
           isInitialSettlement,
         }) => {
-          // The mounted condition is the one that just failed, and it
-          // revalidates just as cleanly, so only an edit should reload.
+          // The mounted condition just failed; only an edit should reload.
           if (isInitialSettlement) {
             return;
           }

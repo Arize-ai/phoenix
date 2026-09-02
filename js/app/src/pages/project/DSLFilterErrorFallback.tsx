@@ -3,9 +3,8 @@ import type { ReactNode } from "react";
 import { Alert, Text, View } from "@phoenix/components";
 
 /**
- * A database error carries the generated SQL, which the user did not write and
- * cannot act on, and can run to thousands of characters. Enough is shown to
- * tell two failures apart; the boundary logs the whole thing to the console.
+ * Database errors embed the generated SQL and can run to thousands of
+ * characters. The boundary logs the full text to the console.
  */
 const MAX_SURFACED_ERROR = 200;
 
@@ -16,25 +15,18 @@ function truncate(error: string) {
 }
 
 /**
- * Stands in for a table whose query failed — a condition can pass validation and
- * still be rejected by the database. Renders the given filter field, which
- * normally lives inside that table, so the condition that caused the failure
- * stays editable.
+ * Stands in for a table whose query failed, keeping its filter field on screen
+ * so the condition stays editable.
  */
 export function DSLFilterErrorFallback({
   error,
   hasUserFilter,
   children,
 }: {
-  /**
-   * The caught error. The boundary also covers the table itself, so a failure
-   * here is not necessarily the filter's fault and must not be reported as
-   * though it were.
-   */
   error?: string | null;
   /**
-   * Whether someone actually wrote the condition on screen. Naming the filter
-   * as the likely cause is only honest when they did.
+   * Whether the user wrote the condition. The error may be the table's own, so
+   * the filter is named as a likely cause only when someone wrote one.
    */
   hasUserFilter: boolean;
   /** The filter field. */
