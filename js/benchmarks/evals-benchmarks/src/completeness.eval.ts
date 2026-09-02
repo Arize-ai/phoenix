@@ -785,6 +785,26 @@ Note: pause must be acknowledged separately from reporting.`,
       expectedLabel: "complete", 
     },
 ],
+  answer_only_in_tool_result: [
+  {
+    conversation: agentSpan([
+      { 
+        role: "user", 
+        content: "Tell me the current seat count on our Team plan." 
+      },
+      { 
+        role: "tool", 
+        name: "get_subscription", 
+        content: '{"plan":"Team","price_usd":49,"seats":18,"renews":"2026-09-01"}' 
+      },
+      { 
+        role: "assistant", 
+        content: "I pulled up your subscription details." 
+      },
+    ]),
+    expectedLabel: "incomplete",
+  },
+],
   mixed_blocked_and_ignored: [
     {
       conversation: agentSpan([
