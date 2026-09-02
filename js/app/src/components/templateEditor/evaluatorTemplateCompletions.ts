@@ -113,6 +113,18 @@ export function getEvaluatorTemplateCompletions({
         })
       : null;
   const containerPath = reached ?? cursor.containerPath;
+  // A list has no member a dot can name — Mustache reaches its items with a
+  // block — so the dot after one offers the block instead of nothing.
+  const container = resolveEvaluatorPath({ source, path: containerPath });
+  if (container.status === "resolved" && Array.isArray(container.value)) {
+    return templateFormat === TemplateFormats.Mustache
+      ? toBlockResult({
+          from: variable.from,
+          path: containerPath,
+          value: container.value,
+        })
+      : null;
+  }
   const members = getEvaluatorContextMembers({ source, containerPath });
   return toResult({
     // A row that fills the home back in writes the whole path, so it replaces
@@ -295,6 +307,32 @@ function getBlockCompletions({
   return options.length === 0
     ? null
     : { from: variable.from, options, validFor: /^[#^][\w.]*$/ };
+}
+
+/** Both wrappers for one list, replacing whatever the author dotted into it. */
+function toBlockResult({
+  from,
+  path,
+  value,
+}: {
+  from: number;
+  path: string;
+  value: unknown[];
+}): CompletionResult {
+  return {
+    from,
+    options: ["#", "^"].map((blockPrefix) =>
+      toBlockCompletion({
+        path,
+        blockPrefix,
+        detail: toBlockDetail({ blockPrefix, value }),
+      })
+    ),
+    // The typed path ends in a dot the labels do not carry, so the rows are
+    // shown as they are rather than matched against it.
+    filter: false,
+    validFor: /^[\w.]*$/,
+  };
 }
 
 function toBlockCompletion({

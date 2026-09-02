@@ -83,6 +83,7 @@ function applyCompletion({
   after = "",
   label,
   templateFormat,
+  grain,
 }: {
   /** Template text to the left of the cursor. */
   before: string;
@@ -90,8 +91,9 @@ function applyCompletion({
   after?: string;
   label: string;
   templateFormat?: TemplateFormat;
+  grain?: ProjectEvaluatorMappingSourceGrain;
 }): { doc: string; head: number } {
-  const result = complete({ doc: before, templateFormat });
+  const result = complete({ doc: before, templateFormat, grain });
   const completion = result?.options.find((option) => option.label === label);
   if (typeof completion?.apply !== "function") {
     throw new Error(`"${label}" is not offered for ${before}`);
@@ -317,6 +319,23 @@ describe("getEvaluatorTemplateCompletions", () => {
         )
       ).toContain("#metadata.turns");
     }
+    // A dot after a list offers the block in place of members it cannot name,
+    // whether the list was written from its home or without it.
+    for (const doc of ["{{metadata.turns.", "{{turns."]) {
+      const atList = complete({ doc, grain: "session" });
+      expect(atList?.from).toBe(2);
+      expect(atList?.options.map((option) => option.label)).toEqual([
+        "#metadata.turns",
+        "^metadata.turns",
+      ]);
+    }
+    expect(
+      applyCompletion({
+        before: "{{metadata.turns.",
+        label: "#metadata.turns",
+        grain: "session",
+      })
+    ).toEqual({ doc: "{{#metadata.turns}}{{/metadata.turns}}", head: 19 });
   });
 
   it("offers repeat blocks for what a block can wrap", () => {
