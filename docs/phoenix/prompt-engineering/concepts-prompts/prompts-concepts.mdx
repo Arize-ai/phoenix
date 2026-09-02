@@ -85,9 +85,11 @@ Phoenix supports the full Mustache template syntax, including sections and inver
 
 ## Tools
 
-Tools allow LLMs to interact with the external environment. This can allow LLMs to interface with your application in more controlled ways. Given a prompt and some tools to choose from an LLM may choose to use some (or one) tools or not. Many LLM API's also expose a tool choice parameter which allow you to constrain how and which tools are selected.
+Tools let you extend an LLM's capabilities beyond what the model can do on its own. Maybe the LLM is bad at math — hand it a calculator and it becomes more reliable. Maybe it doesn't know today's weather — give it a weather API and it can look it up. By describing the external functions your application exposes, tools allow LLMs to interact with the outside environment in controlled, well-defined ways.
 
-Here is an example of what a tool would looke like for the weather API using OpenAI.
+A tool is defined by a name, a description, and a schema for its parameters. The LLM never executes the tool itself — given a prompt and a set of tools to choose from, the model may respond with a request to call one or more of them (or none at all), and your application runs the tool and returns the result. Many LLM APIs also expose a **tool choice** parameter that lets you constrain how and which tools are selected — for example, forcing the model to call a specific tool or preventing tool use entirely.
+
+Here is an example of what a tool would look like for a weather API using OpenAI.
 
 ```json
 {
@@ -108,6 +110,8 @@ Here is an example of what a tool would looke like for the weather API using Ope
     }
 }
 ```
+
+Because tools are part of Phoenix's expanded definition of a prompt, they are snapshotted with every prompt version — you can iterate on tool definitions in the Playground and deploy them with the same confidence as the prompt template itself.
 
 Phoenix also supports **provider tools** — vendor-specific built-in tools like Anthropic web search, OpenAI Responses `file_search` and `code_interpreter`, Gemini `google_search` grounding, and Amazon Nova `nova_grounding`. These are passed through to the provider as opaque JSON. See [Use provider tools](/docs/phoenix/prompt-engineering/how-to-prompts/use-provider-tools) for the JSON shape per provider.
 
