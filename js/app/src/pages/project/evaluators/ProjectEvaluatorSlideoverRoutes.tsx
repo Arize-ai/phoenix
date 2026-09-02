@@ -13,9 +13,8 @@ import {
 import {
   buildAttachCodeCreationMode,
   buildCopyLlmCreationMode,
-  isCodeProjectEvaluatorDetails,
-  isLlmProjectEvaluatorDetails,
   projectEvaluatorDetailsQueryNode,
+  readProjectEvaluatorDetails,
   UNSUPPORTED_PROMPT_TEMPLATE_ERROR,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { ProjectEvaluatorSlideoverError } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideoverError";
@@ -62,7 +61,7 @@ function useSourceEvaluator() {
     { id: evaluatorId },
     { fetchPolicy: "store-or-network" }
   );
-  return data.evaluator;
+  return readProjectEvaluatorDetails(data.evaluator);
 }
 
 export function NewLlmProjectEvaluatorPage() {
@@ -132,7 +131,7 @@ export function CopyLlmProjectEvaluatorPage() {
   // changes). A new object each time would rebuild the evaluator store too.
   const built = useMemo(
     () =>
-      evaluator && isLlmProjectEvaluatorDetails(evaluator)
+      evaluator?.__typename === "LLMEvaluator"
         ? buildCopyLlmCreationMode(evaluator)
         : null,
     [evaluator]
@@ -174,7 +173,7 @@ export function AttachCodeProjectEvaluatorPage() {
   // source twice to extract its variables.
   const creationMode = useMemo(
     () =>
-      evaluator && isCodeProjectEvaluatorDetails(evaluator)
+      evaluator?.__typename === "CodeEvaluator"
         ? buildAttachCodeCreationMode(evaluator)
         : null,
     [evaluator]
