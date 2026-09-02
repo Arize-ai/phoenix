@@ -17,6 +17,7 @@ _ADAPTER_MODULES: dict[SandboxBackendType, tuple[str, str]] = {
     "DENO": ("phoenix.server.sandbox.deno_backend", "DenoAdapter"),
     "MODAL": ("phoenix.server.sandbox.modal_backend", "ModalAdapter"),
     "MONTY": ("phoenix.server.sandbox.monty_backend", "MontyAdapter"),
+    "TENKI": ("phoenix.server.sandbox.tenki_backend", "TenkiAdapter"),
 }
 
 

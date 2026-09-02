@@ -240,6 +240,8 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
       return "Modal cloud Python sandbox";
     case "MONTY":
       return "Local restricted-Python runtime";
+    case "TENKI":
+      return "Tenki Cloud microVM Python sandbox";
     default:
       return "Sandbox runtime";
   }
@@ -367,6 +369,7 @@ const VARIANT_KEY_BY_BACKEND_TYPE: Record<BackendInfo["backendType"], string> =
     WASM: "wasm",
     MODAL: "modal",
     MONTY: "monty",
+    TENKI: "tenki",
   };
 
 export function formValuesToConfigPatch(

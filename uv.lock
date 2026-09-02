@@ -570,6 +570,7 @@ container = [
     { name = "prometheus-client" },
     { name = "py-grpc-prometheus" },
     { name = "strawberry-graphql", extra = ["opentelemetry"] },
+    { name = "tenki" },
     { name = "types-aiobotocore-bedrock-runtime" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vercel" },
@@ -588,6 +589,9 @@ modal = [
 ]
 pg = [
     { name = "asyncpg" },
+]
+tenki = [
+    { name = "tenki" },
 ]
 vercel = [
     { name = "vercel" },
@@ -675,6 +679,7 @@ dev = [
     { name = "strawberry-graphql", extra = ["cli", "opentelemetry"] },
     { name = "syrupy" },
     { name = "tenacity" },
+    { name = "tenki" },
     { name = "tiktoken" },
     { name = "twine" },
     { name = "ty" },
@@ -779,6 +784,8 @@ requires-dist = [
     { name = "starlette", specifier = ">=0.37.0" },
     { name = "strawberry-graphql", specifier = "==0.320.4" },
     { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'container'", specifier = "==0.320.4" },
+    { name = "tenki", marker = "extra == 'container'", specifier = ">=0.5.4" },
+    { name = "tenki", marker = "extra == 'tenki'", specifier = ">=0.5.4" },
     { name = "tqdm" },
     { name = "types-aiobotocore-bedrock-runtime", marker = "extra == 'aws'", specifier = ">=3.6.0" },
     { name = "types-aiobotocore-bedrock-runtime", marker = "extra == 'container'", specifier = ">=3.6.0" },
@@ -793,7 +800,7 @@ requires-dist = [
     { name = "websockets", marker = "extra == 'vercel'", specifier = ">=14.0" },
     { name = "wrapt", specifier = ">=1.17.2,<3" },
 ]
-provides-extras = ["aws", "azure", "container", "daytona", "e2b", "evals", "experimental", "modal", "pg", "vercel", "wasm"]
+provides-extras = ["aws", "azure", "container", "daytona", "e2b", "evals", "experimental", "modal", "pg", "tenki", "vercel", "wasm"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -870,6 +877,7 @@ dev = [
     { name = "strawberry-graphql", extras = ["opentelemetry", "cli"], specifier = "==0.320.4" },
     { name = "syrupy" },
     { name = "tenacity" },
+    { name = "tenki", specifier = ">=0.5.4" },
     { name = "tiktoken" },
     { name = "twine" },
     { name = "ty" },
@@ -8218,6 +8226,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/47/c6/ee486fd809e357697ee8a44d3d69222b344920433d3b6666ccd9b374630c/tenacity-9.1.4.tar.gz", hash = "sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a", size = 49413, upload-time = "2026-02-07T10:45:33.841Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/c1/eb8f9debc45d3b7918a32ab756658a0904732f75e555402972246b0b8e71/tenacity-9.1.4-py3-none-any.whl", hash = "sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55", size = 28926, upload-time = "2026-02-07T10:45:32.24Z" },
+]
+
+[[package]]
+name = "tenki"
+version = "0.5.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "grpcio" },
+    { name = "protobuf" },
+    { name = "websocket-client" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/30/85/9f311f784b92639de2d0aaae7c6d67c76c5ebfd60543d56739724c07683a/tenki-0.5.4.tar.gz", hash = "sha256:3d900ca3eedf98aea0ace315246a3f2bbdc19149d966a320cdb99fd406b681fa", size = 186073, upload-time = "2026-07-29T11:08:41.791Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/de/244e8d8bffe6673ae3a58423016b8c03465214ab9101a3e61234b5d4c076/tenki-0.5.4-py3-none-any.whl", hash = "sha256:d5df29fa5f7f93fc6c420d3a0b50e68e0b35fda63e17ed57c0f302a522cbf9ef", size = 158916, upload-time = "2026-07-29T11:08:40.023Z" },
 ]
 
 [[package]]

@@ -38,7 +38,7 @@ flowchart TB
         Server --> localBox
     end
 
-    subgraph provider ["Hosted Sandbox — E2B / Daytona / Vercel / Modal"]
+    subgraph provider ["Hosted Sandbox — E2B / Daytona / Vercel / Modal / Tenki"]
         direction LR
         Libs("Third-party libraries")
         Net("Outbound internet")
@@ -92,6 +92,9 @@ flowchart TB
       </Card>
       <Card title="Modal" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/modal.svg" href="/docs/phoenix/settings/sandboxes/modal">
         Serverless containers with sub-second cold starts and Python-first ergonomics.
+      </Card>
+      <Card title="Tenki" href="/docs/phoenix/settings/sandboxes/tenki">
+        Fast ephemeral microVMs on Tenki Cloud, torn down after each run.
       </Card>
     </CardGroup>
   </Accordion>
