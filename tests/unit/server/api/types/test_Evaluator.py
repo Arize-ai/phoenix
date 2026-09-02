@@ -66,8 +66,8 @@ class TestEvaluatorFields:
             await session.flush()
 
             v1, v2 = (
-                _create_prompt_version(prompt.id, "V1: {input}", "gpt-4"),
-                _create_prompt_version(prompt.id, "V2: {input}", "gpt-3.5-turbo"),
+                _create_prompt_version(prompt.id, "V1: {tagged_input}", "gpt-4"),
+                _create_prompt_version(prompt.id, "V2: {latest_input}", "gpt-3.5-turbo"),
             )
             session.add_all([v1, v2])
             await session.flush()
@@ -198,6 +198,30 @@ class TestEvaluatorFields:
             GlobalID("PromptVersionTag", str(_test_data["tag"]))
         )
         assert node["promptVersion"]["id"] == str(GlobalID("PromptVersion", str(_test_data["v1"])))
+
+    async def test_llm_evaluator_input_schema_uses_resolved_prompt_version(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        for evaluator_key, input_name in (
+            ("untagged", "latest_input"),
+            ("tagged", "tagged_input"),
+        ):
+            response = await gql_client.execute(
+                """query ($id: ID!) {
+                    node(id: $id) {
+                        ... on LLMEvaluator { inputSchema }
+                    }
+                }""",
+                variables={
+                    "id": str(GlobalID(LLMEvaluator.__name__, str(_test_data[evaluator_key])))
+                },
+            )
+            assert not response.errors and response.data
+            assert response.data["node"]["inputSchema"] == {
+                "type": "object",
+                "properties": {input_name: {"type": "string"}},
+                "required": [input_name],
+            }
 
     async def test_dataset_evaluators_field(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
