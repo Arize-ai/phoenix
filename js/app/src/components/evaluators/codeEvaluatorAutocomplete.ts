@@ -3,9 +3,14 @@ import type {
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
-import { autocompletion, startCompletion } from "@codemirror/autocomplete";
+import {
+  acceptCompletion,
+  autocompletion,
+  startCompletion,
+} from "@codemirror/autocomplete";
 import type { EditorState, Extension } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { Prec } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
 
 import {
   getCodeEvaluatorMemberCursor,
@@ -604,6 +609,9 @@ export function createEvaluatorAutocompletion({
   return [
     typeaheadTooltips(),
     openEmptySignatureMenu(language),
+    // Tab accepts the highlighted row ahead of the editor's indent binding;
+    // with no menu open it indents as before.
+    Prec.highest(keymap.of([{ key: "Tab", run: acceptCompletion }])),
     autocompletion({
       override: [
         createEvaluatorCompletions({

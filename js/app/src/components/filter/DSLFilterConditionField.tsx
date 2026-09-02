@@ -192,11 +192,13 @@ const defaultExtensions: Extension[] = [];
 
 /**
  * The field is single-line, so every Enter variant is swallowed here and no
- * key can insert a newline. Enter first gives the typeahead its accept.
+ * key can insert a newline. Enter first gives the typeahead its accept, and
+ * Tab accepts too, falling through to the next field when no menu is open.
  * Keymaps composed in via the `extensions` prop mount ahead of this one, so
  * they can claim any of these keys before the built-in handling.
  */
 const singleLineKeymap = keymap.of([
+  { key: "Tab", run: acceptCompletion },
   {
     key: "Enter",
     run: (editorView: EditorView) => {
@@ -421,6 +423,12 @@ export type DSLFilterConditionFieldProps<
    */
   subjectLabel?: string;
   /**
+   * Whether the typeahead highlights its first row as soon as it opens. Off by
+   * default: a filter applies on Enter, and a highlighted row would take that
+   * keystroke. A field with nothing to apply can turn it on.
+   */
+  selectOnOpen?: boolean;
+  /**
    * Accessible name for the condition input
    */
   "aria-label"?: string;
@@ -525,6 +533,7 @@ export function DSLFilterConditionField<
     onClear,
     ref,
     subjectLabel = "filter condition",
+    selectOnOpen = false,
     "aria-label": ariaLabel = "filter condition",
     className,
   } = props;
@@ -665,7 +674,7 @@ export function DSLFilterConditionField<
               [createDSLFilterCompletionSource(loadCompletionsOnce)]
             : []),
         ],
-        selectOnOpen: false,
+        selectOnOpen,
         icons: false,
         tooltipClass: () => "dsl-filter-typeahead",
         // Suggestion rows show a prose label (and the DSL as `detail`), so
@@ -686,6 +695,7 @@ export function DSLFilterConditionField<
     completionSources,
     getContextualCompletions,
     contentAttributes,
+    selectOnOpen,
   ]);
 
   // Completion data can arrive after the user has already focused the empty

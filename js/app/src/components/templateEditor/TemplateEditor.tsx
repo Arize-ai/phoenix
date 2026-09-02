@@ -1,4 +1,4 @@
-import { startCompletion } from "@codemirror/autocomplete";
+import { acceptCompletion, startCompletion } from "@codemirror/autocomplete";
 import { defaultKeymap } from "@codemirror/commands";
 import { css } from "@emotion/react";
 import type {
@@ -45,6 +45,8 @@ const basicSetupOptions: BasicSetupOptions = {
 const baseExtensions = [
   EditorView.lineWrapping,
   keymap.of([
+    // Tab accepts the highlighted row; with no menu open it leaves the editor.
+    { key: "Tab", run: acceptCompletion },
     ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
   ]),
 ];

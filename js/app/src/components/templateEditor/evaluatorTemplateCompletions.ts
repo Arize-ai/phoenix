@@ -3,6 +3,7 @@ import type {
   CompletionResult,
   CompletionSection,
 } from "@codemirror/autocomplete";
+import { startCompletion } from "@codemirror/autocomplete";
 import type { EditorView } from "@uiw/react-codemirror";
 
 import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
@@ -58,23 +59,10 @@ export function getEvaluatorTemplateCompletions({
   const closingBrackets =
     templateFormat === TemplateFormats.Mustache ? "}}" : "}";
 
-  // An f-string has no member syntax at all, so a typed dot leaves the menu
-  // with nothing honest to offer.
-  if (templateFormat !== TemplateFormats.Mustache) {
-    return variable.text.includes(".") || variable.text.includes("[")
-      ? null
-      : toResult({
-          from: variable.from,
-          options: getRootOptions({
-            evaluationContext,
-            closingBrackets,
-            templateFormat,
-          }),
-          validFor: MEMBER_NAME_PATTERN,
-        });
-  }
-
-  if (variable.text.startsWith("#") || variable.text.startsWith("^")) {
+  if (
+    templateFormat === TemplateFormats.Mustache &&
+    (variable.text.startsWith("#") || variable.text.startsWith("^"))
+  ) {
     return getBlockCompletions({ evaluationContext, variable });
   }
 
@@ -91,11 +79,7 @@ export function getEvaluatorTemplateCompletions({
     return section === null
       ? toRootResult({
           from,
-          options: getRootOptions({
-            evaluationContext,
-            closingBrackets,
-            templateFormat,
-          }),
+          options: getRootOptions({ evaluationContext, closingBrackets }),
         })
       : toResult({
           from,
@@ -181,35 +165,33 @@ function toResult({
 
 /**
  * The shared candidate tree, written the way a template variable names things.
- *
- * An f-string keeps `{metadata.latency_ms}` as one literal schema property
- * rather than reducing it to `metadata`, so a dotted insert would declare a
- * variable nothing supplies; only the names the evaluator receives are honest
- * there. Mustache reads a dotted path, so it takes the whole tree.
+ * Both formats read a dotted path by its root, so both take the whole tree.
  */
 function getRootOptions({
   evaluationContext,
   closingBrackets,
-  templateFormat,
 }: {
   evaluationContext: MaterializedEvaluatorContext;
   closingBrackets: string;
-  templateFormat: TemplateFormat;
 }): Completion[] {
-  const candidates = buildEvaluatorContextCandidates(evaluationContext);
-  const addressable =
-    templateFormat === TemplateFormats.Mustache
-      ? candidates
-      : candidates.filter((candidate) => !candidate.isNested);
-  return addressable.map((candidate) => ({
-    label: candidate.label,
-    type: candidate.type,
-    ...(candidate.detail ? { detail: candidate.detail } : {}),
-    ...(candidate.info ? { info: candidate.info } : {}),
-    section: candidate.section,
-    boost: candidate.boost,
-    apply: applyTemplateInsertion(candidate.label, closingBrackets),
-  }));
+  return buildEvaluatorContextCandidates(evaluationContext).map(
+    (candidate) => ({
+      label: candidate.label,
+      type: candidate.type,
+      ...(candidate.detail ? { detail: candidate.detail } : {}),
+      ...(candidate.info ? { info: candidate.info } : {}),
+      section: candidate.section,
+      boost: candidate.boost,
+      // One of the evaluator's own inputs is accepted whole even when it holds
+      // an object: `{{input}}` is the common case, and its members have rows of
+      // their own.
+      apply: applyTemplateInsertion(
+        candidate.label,
+        closingBrackets,
+        candidate.isNested && isStringKeyedObject(candidate.value)
+      ),
+    })
+  );
 }
 
 function toMemberOptions({
@@ -228,9 +210,10 @@ function toMemberOptions({
   /** Whether a row names the level from the root rather than from its parent. */
   writesWholePath?: boolean;
 }): Completion[] {
-  // Mustache reads nested properties with a dot and has no subscript syntax,
-  // so a member it cannot name is left out rather than offered as a path that
-  // would render nothing. A whole path has to be dotted the whole way down.
+  // A template reads nested properties with a dot, so a member a dot cannot
+  // name — an index, a key with a dot of its own — is left out rather than
+  // offered as a path that would render nothing. A whole path has to be
+  // dotted the whole way down.
   const addressable = members.filter(
     (member) =>
       !member.isIndex &&
@@ -247,7 +230,11 @@ function toMemberOptions({
       ...(detail ? { detail } : {}),
       section,
       boost: 100 - index,
-      apply: applyTemplateInsertion(name, closingBrackets),
+      apply: applyTemplateInsertion(
+        name,
+        closingBrackets,
+        isStringKeyedObject(member.value)
+      ),
     };
   });
 }
@@ -267,13 +254,16 @@ function getBlockCompletions({
 
   const options: Completion[] = [];
   if (cursor.containerPath === "") {
-    for (const [name, value] of Object.entries(evaluationContext.values)) {
-      if (Array.isArray(value)) {
+    // The same tree the variable menu offers, kept to what a block can wrap.
+    for (const candidate of buildEvaluatorContextCandidates(
+      evaluationContext
+    )) {
+      if (Array.isArray(candidate.value)) {
         options.push(
           toBlockCompletion({
-            path: name,
+            path: candidate.label,
             blockPrefix,
-            detail: toBlockDetail({ blockPrefix, value }),
+            detail: toBlockDetail({ blockPrefix, value: candidate.value }),
           })
         );
       }
@@ -364,8 +354,18 @@ function getSectionItem({
   return isStringKeyedObject(item) ? { path: sectionPath, item } : null;
 }
 
-/** Writes a name into the variable, closing it if the braces are not there. */
-function applyTemplateInsertion(insertText: string, closingBrackets: string) {
+/**
+ * Writes a name into the variable, closing it if the braces are not there.
+ *
+ * A nested object is not a finished variable: the cursor stays inside after a
+ * dot and the level below opens. A leaf is accepted whole, with the cursor past
+ * the braces where the prose continues.
+ */
+function applyTemplateInsertion(
+  insertText: string,
+  closingBrackets: string,
+  drills = false
+) {
   return (
     view: EditorView,
     _completion: Completion,
@@ -378,11 +378,16 @@ function applyTemplateInsertion(insertText: string, closingBrackets: string) {
     );
     const actualTo =
       afterCursor === closingBrackets ? to + closingBrackets.length : to;
-    const insertion = `${insertText}${closingBrackets}`;
+    const name = drills ? `${insertText}.` : insertText;
     view.dispatch({
-      changes: { from, to: actualTo, insert: insertion },
-      selection: { anchor: from + insertion.length },
+      changes: { from, to: actualTo, insert: `${name}${closingBrackets}` },
+      selection: {
+        anchor: from + name.length + (drills ? 0 : closingBrackets.length),
+      },
     });
+    if (drills) {
+      startCompletion(view);
+    }
   };
 }
 

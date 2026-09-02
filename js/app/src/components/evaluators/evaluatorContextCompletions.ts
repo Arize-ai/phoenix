@@ -10,6 +10,7 @@ import {
   CONTAINER_COMPLETION_TYPE,
   getEvaluatorPathMembers,
   resolveEvaluatorPath,
+  toMemberCompletionType,
   toMemberPreview,
 } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import {
@@ -81,7 +82,7 @@ export function buildEvaluatorContextCandidates(
     rootName: entry.name,
     isNested: false,
     ...("value" in entry ? { value: entry.value } : {}),
-    type: "variable",
+    type: "value" in entry ? toMemberCompletionType(entry.value) : "variable",
     detail: getEvaluatorInputDetail({ entry, evaluationContext }),
     info:
       entry.name === EVALUATOR_METADATA_SLOT

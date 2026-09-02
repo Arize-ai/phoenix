@@ -82,14 +82,16 @@ function applyCompletion({
   before,
   after = "",
   label,
+  templateFormat,
 }: {
   /** Template text to the left of the cursor. */
   before: string;
   /** Template text to its right, which the applier may take back with it. */
   after?: string;
   label: string;
-}): string {
-  const result = complete({ doc: before });
+  templateFormat?: TemplateFormat;
+}): { doc: string; head: number } {
+  const result = complete({ doc: before, templateFormat });
   const completion = result?.options.find((option) => option.label === label);
   if (typeof completion?.apply !== "function") {
     throw new Error(`"${label}" is not offered for ${before}`);
@@ -108,7 +110,7 @@ function applyCompletion({
     result!.from,
     before.length
   );
-  return state.doc.toString();
+  return { doc: state.doc.toString(), head: state.selection.main.head };
 }
 
 describe("isAtEmptyTemplateVariable", () => {
@@ -138,12 +140,13 @@ describe("isAtEmptyTemplateVariable", () => {
     expect(mustache?.options.map((option) => option.label)).toContain(
       "metadata.latency_ms"
     );
+    // An f-string binds a dotted path by its root, so it offers the same tree.
     expect(
       complete({
         doc: "Rate this: {",
         templateFormat: TemplateFormats.FString,
       })?.options.map((option) => option.label)
-    ).toEqual(["input", "output", "metadata"]);
+    ).toEqual(mustache?.options.map((option) => option.label));
   });
 });
 
@@ -228,7 +231,7 @@ describe("getEvaluatorTemplateCompletions", () => {
     ).toEqual([true, true, false, false]);
     expect(
       applyCompletion({ before: "{{latency", label: "metadata.latency_ms" })
-    ).toBe("{{metadata.latency_ms}}");
+    ).toEqual({ doc: "{{metadata.latency_ms}}", head: 23 });
     // The braces are already there, so the row takes them back with it rather
     // than writing a second pair.
     expect(
@@ -236,11 +239,24 @@ describe("getEvaluatorTemplateCompletions", () => {
         before: "{{latency",
         after: "}}",
         label: "metadata.latency_ms",
-      })
+      }).doc
     ).toBe("{{metadata.latency_ms}}");
   });
 
-  it("drills a level per dot in Mustache and stays at the root in f-strings", () => {
+  it("keeps the cursor inside a nested object and closes everything else", () => {
+    // A record's object is a level to keep drilling: the dot is written and
+    // the cursor stays before the braces.
+    expect(
+      applyCompletion({ before: "{{attr", label: "metadata.attributes" })
+    ).toEqual({ doc: "{{metadata.attributes.}}", head: 22 });
+    // One of the evaluator's own inputs is accepted whole, object or not.
+    expect(applyCompletion({ before: "{{inp", label: "input" })).toEqual({
+      doc: "{{input}}",
+      head: 9,
+    });
+  });
+
+  it("drills a level per dot in both formats", () => {
     const drilled = complete({ doc: "{{metadata.attributes.llm." });
 
     // Right after the dot: the menu matches the member name alone.
@@ -254,18 +270,21 @@ describe("getEvaluatorTemplateCompletions", () => {
       section: { name: "metadata.attributes.llm" },
     });
 
-    // The server keeps a dotted f-string field as one literal schema property.
+    // An f-string binds a dotted path by its root the same way, so it drills
+    // the same tree and closes with its own brace.
     expect(
       complete({
-        doc: "{metadata.attributes.",
+        doc: "{metadata.attributes.llm.",
+        templateFormat: TemplateFormats.FString,
+      })?.options.map((option) => option.label)
+    ).toEqual(["model_name", "input_messages"]);
+    expect(
+      applyCompletion({
+        before: "{latency",
+        label: "metadata.latency_ms",
         templateFormat: TemplateFormats.FString,
       })
-    ).toBeNull();
-    const fstring = complete({
-      doc: "{",
-      templateFormat: TemplateFormats.FString,
-    })?.options.map((option) => option.label);
-    expect(fstring).toEqual(["input", "output", "metadata"]);
+    ).toEqual({ doc: "{metadata.latency_ms}", head: 21 });
   });
 
   // A record name is offered by its whole path, so the dot that opens it has
@@ -286,15 +305,18 @@ describe("getEvaluatorTemplateCompletions", () => {
         before: "{{attributes.",
         label: "metadata.attributes.llm",
       })
-    ).toBe("{{metadata.attributes.llm}}");
+    ).toEqual({ doc: "{{metadata.attributes.llm.}}", head: 26 });
 
     // Mustache has no bracket syntax, so the session's turns are reached as a
-    // repeat block rather than by index.
-    expect(
-      complete({ doc: "{{#metadata.", grain: "session" })?.options.map(
-        (option) => option.label
-      )
-    ).toContain("#metadata.turns");
+    // repeat block rather than by index — offered at the root by the same
+    // whole path the variable menu uses.
+    for (const doc of ["{{#", "{{#metadata."]) {
+      expect(
+        complete({ doc, grain: "session" })?.options.map(
+          (option) => option.label
+        )
+      ).toContain("#metadata.turns");
+    }
   });
 
   it("offers repeat blocks for what a block can wrap", () => {

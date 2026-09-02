@@ -1,14 +1,18 @@
+import { EditorState, type TransactionSpec } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
+
 import { parsePathSegments } from "@phoenix/utils/objectUtils";
 
 import type { EvaluatorPathCompletion } from "../evaluatorPathCompletions";
 import {
   appendPathSegment,
+  applyEvaluatorPathCompletion,
   getEvaluatorPathCompletions,
   getEvaluatorPathCursor,
   MAX_BROWSE_MEMBERS,
+  PATH_MEMBER_SECTION_RANK,
   resolveEvaluatorPath,
   SUGGESTED_PATH_SECTION,
-  PATH_MEMBER_SECTION_RANK,
   toMemberSection,
 } from "../evaluatorPathCompletions";
 
@@ -386,5 +390,56 @@ describe("resolveEvaluatorPath", () => {
       status: "resolved",
       value: undefined,
     });
+  });
+});
+
+describe("applyEvaluatorPathCompletion", () => {
+  /** Commits a row against state alone; the applier only reads `state`. */
+  function accept(
+    completion: Parameters<typeof applyEvaluatorPathCompletion>[0],
+    typed: string
+  ) {
+    let state = EditorState.create({ doc: typed });
+    applyEvaluatorPathCompletion(completion)(
+      {
+        get state() {
+          return state;
+        },
+        dispatch: (spec: TransactionSpec) => {
+          state = state.update(spec).state;
+        },
+      } as unknown as EditorView,
+      { label: completion.key },
+      0,
+      typed.length
+    );
+    return { doc: state.doc.toString(), head: state.selection.main.head };
+  }
+
+  it("keeps the cursor after a dot on an object and ends a finished path", () => {
+    const section = { name: "metadata" };
+    expect(
+      accept(
+        {
+          key: "attributes",
+          path: "metadata.attributes",
+          preview: "",
+          section,
+          drills: true,
+        },
+        "attr"
+      )
+    ).toEqual({ doc: "metadata.attributes.", head: 20 });
+    expect(
+      accept(
+        {
+          key: "latency_ms",
+          path: "metadata.latency_ms",
+          preview: "",
+          section,
+        },
+        "lat"
+      )
+    ).toEqual({ doc: "metadata.latency_ms", head: 19 });
   });
 });

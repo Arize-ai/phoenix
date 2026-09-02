@@ -1,4 +1,6 @@
-import type { CompletionSection } from "@codemirror/autocomplete";
+import type { Completion, CompletionSection } from "@codemirror/autocomplete";
+import { startCompletion } from "@codemirror/autocomplete";
+import type { EditorView } from "@codemirror/view";
 
 import { TYPEAHEAD_COMPLETION_CLASS_PREFIX } from "@phoenix/components/filter/styles";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
@@ -243,7 +245,33 @@ export type EvaluatorPathCompletion = {
   type?: string;
   /** One line on what the row reaches, shown when highlighted. */
   description?: string;
+  /** Whether the row names an object the path can keep reaching into. */
+  drills?: boolean;
 };
+
+/**
+ * Writes a row's whole path into the field. A row that names an object is not
+ * a finished path: the cursor stays after a dot and the level below opens.
+ */
+export function applyEvaluatorPathCompletion(
+  completion: EvaluatorPathCompletion
+) {
+  return (
+    view: EditorView,
+    _completion: Completion,
+    _from: number,
+    to: number
+  ) => {
+    const insert = completion.drills ? `${completion.path}.` : completion.path;
+    view.dispatch({
+      changes: { from: 0, to, insert },
+      selection: { anchor: insert.length },
+    });
+    if (completion.drills) {
+      startCompletion(view);
+    }
+  };
+}
 
 /**
  * What keeps the top level's menu matching as a name grows into a path.
@@ -405,6 +433,7 @@ function toCompletion(
     preview: toMemberPreview(member.value),
     type: toMemberCompletionType(member.value),
     section,
+    drills: isStringKeyedObject(member.value),
   };
 }
 

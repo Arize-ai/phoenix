@@ -4,7 +4,6 @@ import type {
   CompletionSource,
 } from "@codemirror/autocomplete";
 import { css } from "@emotion/react";
-import type { EditorView } from "@uiw/react-codemirror";
 import { useCallback, useMemo } from "react";
 
 import type { DSLFilterConditionValidationResult } from "@phoenix/components/filter/DSLFilterConditionField";
@@ -12,11 +11,13 @@ import { DSLFilterConditionField } from "@phoenix/components/filter/DSLFilterCon
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorMappingSourceState } from "@phoenix/store/evaluatorStore";
 import type { EvaluatorInputMapping } from "@phoenix/types";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 import { materializeEvaluatorContext } from "./evaluatorContext";
 import { buildEvaluatorContextCandidates } from "./evaluatorContextCompletions";
 import type { EvaluatorPathCompletion } from "./evaluatorPathCompletions";
 import {
+  applyEvaluatorPathCompletion,
   EVALUATOR_ROOT_PATH_PATTERN,
   getEvaluatorPathCompletions,
   resolveEvaluatorPath,
@@ -112,6 +113,10 @@ export function EvaluatorPathField({
               boost: candidate.boost,
               type: candidate.type,
               ...(candidate.info ? { description: candidate.info } : {}),
+              // One of the evaluator's own inputs is a finished path; its
+              // members have rows of their own.
+              drills:
+                candidate.isNested && isStringKeyedObject(candidate.value),
             })
           ),
     [evaluationContext]
@@ -160,6 +165,7 @@ export function EvaluatorPathField({
       onChange={onChange}
       completions={NO_COMPLETIONS}
       completionSources={completionSources}
+      selectOnOpen
       validateCondition={validatePath}
       getErrorRange={getErrorRange}
       // The field holds the stored path itself, so there is no separate
@@ -213,17 +219,7 @@ function createEvaluatorPathCompletionSource({
             ? { boost: completion.boost }
             : {}),
         section: completion.section,
-        apply: (
-          view: EditorView,
-          _completion: Completion,
-          _from: number,
-          to: number
-        ) => {
-          view.dispatch({
-            changes: { from: 0, to, insert: completion.path },
-            selection: { anchor: completion.path.length },
-          });
-        },
+        apply: applyEvaluatorPathCompletion(completion),
       })),
       ...(result.containerPath === ""
         ? {
