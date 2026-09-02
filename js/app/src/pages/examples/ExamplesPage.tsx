@@ -48,7 +48,7 @@ export function ExamplesPage() {
   // needs the browser's own guard.
   useEffect(() => {
     if (!hasUnsavedChanges) {
-      return;
+      return undefined;
     }
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
