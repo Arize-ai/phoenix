@@ -143,6 +143,8 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
         return ("PERPLEXITY_API_KEY",)
     if provider is ModelProvider.TOGETHER:
         return ("TOGETHER_API_KEY",)
+    if provider is ModelProvider.ZAI:
+        return ("ZAI_API_KEY",)
     assert_never(provider)
 
 
@@ -468,6 +470,7 @@ def _get_pydantic_ai_model_from_builtin_provider(
         ModelProvider.MOONSHOT,
         ModelProvider.PERPLEXITY,
         ModelProvider.TOGETHER,
+        ModelProvider.ZAI,
     }:
         provider_settings: dict[
             ModelProvider,
@@ -534,6 +537,13 @@ def _get_pydantic_ai_model_from_builtin_provider(
                 "https://api.together.xyz/v1",
                 "An API key is required for Together AI models. "
                 "Set TOGETHER_API_KEY in the environment or Phoenix secrets.",
+            ),
+            ModelProvider.ZAI: (
+                "ZAI_API_KEY",
+                getenv("ZAI_BASE_URL") or "https://api.z.ai/api/paas/v4",
+                "https://api.z.ai/api/paas/v4",
+                "An API key is required for Z.ai models. "
+                "Set ZAI_API_KEY in the environment or Phoenix secrets.",
             ),
         }
         credential_key, base_url, default_base_url, missing_credential_message = provider_settings[

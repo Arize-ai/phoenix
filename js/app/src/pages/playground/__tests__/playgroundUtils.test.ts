@@ -930,6 +930,7 @@ describe("processAttributeToolCalls", () => {
     MOONSHOT: ["MOONSHOT", testSpanToolCall, expectedTestOpenAIToolCall],
     PERPLEXITY: ["PERPLEXITY", testSpanToolCall, expectedTestOpenAIToolCall],
     TOGETHER: ["TOGETHER", testSpanToolCall, expectedTestOpenAIToolCall],
+    ZAI: ["ZAI", testSpanToolCall, expectedTestOpenAIToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",
@@ -1533,6 +1534,7 @@ describe("getToolsFromAttributes", () => {
     MOONSHOT: ["MOONSHOT", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     PERPLEXITY: ["PERPLEXITY", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     TOGETHER: ["TOGETHER", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    ZAI: ["ZAI", testSpanOpenAITool, testSpanOpenAIToolCanonical],
   };
 
   test.for(Object.values(ProviderToToolTestMap))(

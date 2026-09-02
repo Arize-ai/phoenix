@@ -8585,7 +8585,7 @@
           "chat_completions"
         ],
         "summary": "OpenAI-compatible chat completions",
-        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
+        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
         "operationId": "createChatCompletion",
         "requestBody": {
           "content": {
@@ -11565,7 +11565,7 @@
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
+            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
           },
           "messages": {
             "items": {
@@ -15416,7 +15416,8 @@
           "GROQ",
           "MOONSHOT",
           "PERPLEXITY",
-          "TOGETHER"
+          "TOGETHER",
+          "ZAI"
         ],
         "title": "ModelProvider"
       },
@@ -18279,6 +18280,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptZAIInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -18298,7 +18302,8 @@
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
                 "together": "#/components/schemas/PromptTogetherInvocationParameters",
-                "xai": "#/components/schemas/PromptXAIInvocationParameters"
+                "xai": "#/components/schemas/PromptXAIInvocationParameters",
+                "zai": "#/components/schemas/PromptZAIInvocationParameters"
               }
             }
           },
@@ -18437,6 +18442,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptZAIInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -18456,7 +18464,8 @@
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
                 "together": "#/components/schemas/PromptTogetherInvocationParameters",
-                "xai": "#/components/schemas/PromptXAIInvocationParameters"
+                "xai": "#/components/schemas/PromptXAIInvocationParameters",
+                "zai": "#/components/schemas/PromptZAIInvocationParameters"
               }
             }
           },
@@ -18656,6 +18665,84 @@
         "additionalProperties": false,
         "type": "object",
         "title": "PromptXAIInvocationParametersContent"
+      },
+      "PromptZAIInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "zai",
+            "title": "Type"
+          },
+          "zai": {
+            "$ref": "#/components/schemas/PromptZAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "zai"
+        ],
+        "title": "PromptZAIInvocationParameters"
+      },
+      "PromptZAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptZAIInvocationParametersContent"
       },
       "PydanticAIMessageMetadata": {
         "properties": {

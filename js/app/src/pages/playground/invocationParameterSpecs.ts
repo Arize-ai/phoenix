@@ -72,6 +72,7 @@ export function getInvocationFamilyForProvider(
     case "MOONSHOT":
     case "PERPLEXITY":
     case "TOGETHER":
+    case "ZAI":
       return InvocationFamily.OPENAI;
     case "ANTHROPIC":
       return InvocationFamily.ANTHROPIC;

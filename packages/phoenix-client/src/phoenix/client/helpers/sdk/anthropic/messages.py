@@ -244,6 +244,7 @@ class _InvocationParametersConversion:
             v1.PromptMoonshotInvocationParameters,
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
+            v1.PromptZAIInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = _InvocationParameters(
@@ -410,6 +411,15 @@ class _InvocationParametersConversion:
                 sampling["temperature"] = together_params["temperature"]
             if "top_p" in together_params:
                 sampling["top_p"] = together_params["top_p"]
+        elif obj["type"] == "zai":
+            zai_params: v1.PromptZAIInvocationParametersContent
+            zai_params = obj["zai"]
+            if "max_tokens" in zai_params:
+                ans["max_tokens"] = zai_params["max_tokens"]
+            if "temperature" in zai_params:
+                sampling["temperature"] = zai_params["temperature"]
+            if "top_p" in zai_params:
+                sampling["top_p"] = zai_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         if sampling:

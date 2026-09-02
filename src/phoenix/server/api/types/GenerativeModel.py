@@ -264,6 +264,10 @@ def _semconv_provider_to_gql_generative_provider_key(
     Translates a semconv provider string to a GQL GenerativeProviderKey.
     """
 
+    # OpenInference semconv has no `zai` provider value yet; match the plain
+    # string literal until an upstream semconv PR lands.
+    if semconv_provider_str == "zai":
+        return GenerativeProviderKey.ZAI
     try:
         semconv_provider = OpenInferenceLLMProviderValues(semconv_provider_str)
     except Exception:

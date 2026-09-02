@@ -1,7 +1,7 @@
 /**
  * OpenAI provider invocation adapter (covers OpenAI, Azure OpenAI, and the
  * OpenAI-compatible providers — DeepSeek, xAI, Ollama, Cerebras, Fireworks,
- * Groq, Moonshot, Perplexity, Together).
+ * Groq, Moonshot, Perplexity, Together, Z.ai).
  *
  * Owns: the alternate-key fold (`maxTokens` → `maxCompletionTokens`,
  * `max_output_tokens` → `maxCompletionTokens`, `reasoning.effort` →
