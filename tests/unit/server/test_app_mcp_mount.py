@@ -142,6 +142,7 @@ async def test_the_mount_serves_no_skills(
     assert tool_names.isdisjoint({"load_skill", "load_skill_reference"})
 
 
+@pytest.mark.real_agent_mcp_server
 async def test_the_agents_own_server_adds_the_pxi_skills(
     db: DbSessionFactory,
 ) -> None:
@@ -158,6 +159,14 @@ async def test_the_agents_own_server_adds_the_pxi_skills(
     instructions = app.state.pxi_mcp_server.instructions
     assert "<name>phoenix-graphql</name>" in instructions
     assert "<name>project-overview</name>" not in instructions
+
+
+async def test_fixture_app_does_not_generate_the_openapi_document(app: FastAPI) -> None:
+    """Generating the document costs about half a second per app; the suite-wide
+    stubs keep it off every fixture app, so the derived servers are absent."""
+    assert app.openapi_schema is None
+    assert app.state.mcp_http_app is None
+    assert app.state.pxi_mcp_server is None
 
 
 def test_code_mode_requires_a_monty_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -305,6 +314,7 @@ async def test_mcp_server_not_mounted_by_default(
         assert not any(getattr(r, "path", None) == MCP_MOUNT_PATH for r in app.routes)
 
 
+@pytest.mark.real_agent_mcp_server
 class TestAgentMCPServerIsIndependentOfTheMount:
     """The agent's server shares the mount's derivation but not its lifetime or
     configuration."""
@@ -346,26 +356,29 @@ class TestAgentMCPServerIsIndependentOfTheMount:
     async def test_surface_is_read_only(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Against the real ``/v1`` spec rather than a stand-in.
-
-        Code mode hides the derived tools behind ``execute``, so this asserts on
-        the derivation the agent's server is built from. That the sandbox catalog
-        reflects it is covered in ``test_phoenix_mcp``.
+        """Through the server ``create_app`` wires, so the read-only derivation is
+        the one sessions get. Code mode hides the derived tools behind
+        ``execute``; the ``list_tools`` discovery tool is the view of that catalog,
+        checked against every operation in the OpenAPI document.
         """
-        from phoenix.server.mcp_server import build_phoenix_mcp_server
+        import json
+
+        from fastmcp import Client
 
         monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
 
         app = await self._create_app(db)
         assert app.state.pxi_mcp_server is not None
-        derived, _ = build_phoenix_mcp_server(app, code_mode=False, read_only=True, db=_unused_db())
-        tools = await derived.list_tools()
+        async with Client(app.state.pxi_mcp_server) as client:
+            result = await client.call_tool("list_tools", {"detail": "full"})
+        catalog = {tool["name"] for tool in json.loads(result.structured_content["result"])}
 
-        assert tools, "expected the /v1 spec to yield tools"
-        for tool in tools:
-            if tool.annotations is None:  # the group meta-tools carry their own
-                continue
-            assert tool.annotations.readOnlyHint is True, f"{tool.name} is not read-only"
+        operation_ids: dict[bool, set[str]] = {True: set(), False: set()}
+        for operations in app.openapi()["paths"].values():
+            for method, operation in operations.items():
+                operation_ids[method == "get"].add(operation["operationId"])
+        assert operation_ids[True] <= catalog
+        assert catalog.isdisjoint(operation_ids[False]), catalog & operation_ids[False]
 
 
 async def test_mcp_code_mode_replaces_tool_surface(

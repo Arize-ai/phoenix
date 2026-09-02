@@ -55,6 +55,10 @@ def pytest_configure(config: Config) -> None:
         "real_monty_runtime_probe: run the real Monty runtime startup probe "
         "(spawns a worker subprocess)",
     )
+    config.addinivalue_line(
+        "markers",
+        "real_agent_mcp_server: derive the agent's MCP server from the OpenAPI document",
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -70,6 +74,27 @@ def _stub_code_mode_startup_check(request: FixtureRequest, monkeypatch: pytest.M
         return True
 
     monkeypatch.setattr("phoenix.server.monty_runtime.MontyRuntime.probe_runtime", _skip)
+
+
+@pytest.fixture(autouse=True)
+def _stub_agent_mcp_server(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Deriving the agent's MCP server generates the OpenAPI document, about
+    half a second per app. Stubbed suite-wide; tests that need the real server
+    opt in with ``@pytest.mark.real_agent_mcp_server``."""
+    if request.node.get_closest_marker("real_agent_mcp_server"):
+        return
+
+    monkeypatch.setattr(
+        "phoenix.server.app.build_phoenix_mcp_server", lambda *_, **__: (None, None)
+    )
+
+
+@pytest.fixture(autouse=True)
+def _mcp_mount_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Building the ``/mcp`` mount derives a FastMCP server from the app's
+    OpenAPI document, about half a second per app. Off suite-wide; the MCP
+    tests patch ``get_env_enable_mcp_server`` on, which wins over the env var."""
+    monkeypatch.setenv("PHOENIX_ENABLE_MCP_SERVER", "false")
 
 
 @pytest.fixture(autouse=True)
