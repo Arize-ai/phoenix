@@ -113,7 +113,8 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   );
   const [sourceCode, setSourceCode] = useState(
     () =>
-      initialValues?.sourceCode ?? getDefaultCodeEvaluatorSource("PYTHON", grain)
+      initialValues?.sourceCode ??
+      getDefaultCodeEvaluatorSource("PYTHON", grain)
   );
   const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(
     initialValues?.sandboxConfigId ?? null

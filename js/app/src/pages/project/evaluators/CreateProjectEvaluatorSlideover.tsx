@@ -9,6 +9,7 @@ import {
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
@@ -18,7 +19,6 @@ import {
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
-import { useTimeRange } from "@phoenix/components/datetime";
 import {
   EvaluatorStoreProvider,
   useEvaluatorStoreInstance,
