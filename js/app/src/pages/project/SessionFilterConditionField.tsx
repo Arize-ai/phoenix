@@ -1,12 +1,14 @@
 import type { Completion, CompletionSection } from "@codemirror/autocomplete";
 import { snippetCompletion } from "@codemirror/autocomplete";
-import { useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   AIQueryDSLFilterField,
   type DSLFilterCompletionRequest,
   type DSLFilterComprehensionCall,
   type DSLFilterAIQueryProps,
+  type DSLFilterValidationFailureReason,
   detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
   detectDSLFilterForClauseTarget,
@@ -15,6 +17,7 @@ import {
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
+import type { SessionFilterConditionFieldVocabularyQuery } from "./__generated__/SessionFilterConditionFieldVocabularyQuery.graphql";
 import {
   createSessionFilterAIQueryDSL,
   getSessionFilterLoopVariable,
@@ -141,8 +144,16 @@ function compareBySectionRank(a: Completion, b: Completion): number {
   return getSectionRank(a) - getSectionRank(b);
 }
 
+export type SessionFilterValidConditionArgs = {
+  condition: string;
+  /** True when settling the value the field mounted with, not one applied on screen */
+  isInitialSettlement: boolean;
+};
+
 type SessionFilterConditionFieldProps = {
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (args: SessionFilterValidConditionArgs) => void;
+  onValidationFailed?: (reason: DSLFilterValidationFailureReason) => void;
+  validationRetryKey?: number;
   vocabulary: readonly SessionFilterVocabularyTerm[];
   placeholder?: string;
 };
@@ -152,6 +163,8 @@ export function SessionFilterConditionField(
 ) {
   const {
     onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
     vocabulary,
     placeholder = "filter condition (e.g. num_traces >= 5)",
   } = props;
@@ -266,7 +279,7 @@ export function SessionFilterConditionField(
         // it would turn "no filter chosen" into a history entry.
         recordValidCondition(condition);
       }
-      onValidCondition(condition);
+      onValidCondition({ condition, isInitialSettlement });
     },
     [recordValidCondition, onValidCondition]
   );
@@ -285,7 +298,71 @@ export function SessionFilterConditionField(
       getErrorRange={findDSLFilterComprehensionRange}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      onValidationFailed={onValidationFailed}
+      validationRetryKey={validationRetryKey}
       aiQuery={sessionFilterAIQuery}
+    />
+  );
+}
+
+const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
+
+type SessionFilterConditionFieldWithVocabularyProps = Omit<
+  SessionFilterConditionFieldProps,
+  "vocabulary"
+>;
+
+/**
+ * The field with the project's autocomplete vocabulary. The vocabulary
+ * resolver scans annotation names and root-span attributes, so it must not
+ * gate whatever the field sits above: the field renders -- and validates --
+ * with an empty vocabulary until the terms arrive.
+ */
+export function SessionFilterConditionFieldWithVocabulary(
+  props: SessionFilterConditionFieldWithVocabularyProps
+) {
+  return (
+    <Suspense
+      fallback={
+        <SessionFilterConditionField
+          vocabulary={EMPTY_SESSION_FILTER_VOCABULARY}
+          {...props}
+        />
+      }
+    >
+      <LoadedSessionFilterConditionField {...props} />
+    </Suspense>
+  );
+}
+
+function LoadedSessionFilterConditionField(
+  props: SessionFilterConditionFieldWithVocabularyProps
+) {
+  const projectId = useTracingContext((state) => state.projectId);
+  const data = useLazyLoadQuery<SessionFilterConditionFieldVocabularyQuery>(
+    graphql`
+      query SessionFilterConditionFieldVocabularyQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            sessionFilterVocabulary {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId }
+  );
+  return (
+    <SessionFilterConditionField
+      vocabulary={
+        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
+      }
+      {...props}
     />
   );
 }

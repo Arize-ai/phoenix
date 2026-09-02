@@ -1,12 +1,15 @@
 import type { Completion, CompletionSection } from "@codemirror/autocomplete";
 import { snippetCompletion } from "@codemirror/autocomplete";
-import { useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
+import { useTimeRange } from "@phoenix/components/datetime";
 import {
   AIQueryDSLFilterField,
   type DSLFilterAIQueryProps,
   type DSLFilterCompletionRequest,
   type DSLFilterComprehensionCall,
+  type DSLFilterValidationFailureReason,
   detectDSLFilterComprehensionCall,
   detectDSLFilterComprehensionScope,
   detectDSLFilterEnclosingComprehensionScopeForClauseTarget,
@@ -16,6 +19,7 @@ import {
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
+import type { TraceFilterConditionFieldVocabularyQuery } from "./__generated__/TraceFilterConditionFieldVocabularyQuery.graphql";
 import {
   createTraceFilterAIQueryDSL,
   getTraceFilterLoopVariable,
@@ -158,8 +162,16 @@ function compareBySectionRank(a: Completion, b: Completion): number {
   return getSectionRank(a) - getSectionRank(b);
 }
 
+export type TraceFilterValidConditionArgs = {
+  condition: string;
+  /** True when settling the value the field mounted with, not one applied on screen */
+  isInitialSettlement: boolean;
+};
+
 type TraceFilterConditionFieldProps = {
-  onValidCondition: (condition: string) => void;
+  onValidCondition: (args: TraceFilterValidConditionArgs) => void;
+  onValidationFailed?: (reason: DSLFilterValidationFailureReason) => void;
+  validationRetryKey?: number;
   vocabulary: readonly TraceFilterVocabularyTerm[];
   placeholder?: string;
 };
@@ -283,6 +295,8 @@ export function TraceFilterConditionField(
 ) {
   const {
     onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
     vocabulary,
     placeholder = "filter condition (e.g. num_spans >= 5)",
   } = props;
@@ -351,7 +365,7 @@ export function TraceFilterConditionField(
         // it would turn "no filter chosen" into a history entry.
         recordValidCondition(condition);
       }
-      onValidCondition(condition);
+      onValidCondition({ condition, isInitialSettlement });
     },
     [recordValidCondition, onValidCondition]
   );
@@ -370,7 +384,75 @@ export function TraceFilterConditionField(
       getErrorRange={findDSLFilterComprehensionRange}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      onValidationFailed={onValidationFailed}
+      validationRetryKey={validationRetryKey}
       aiQuery={traceFilterAIQuery}
+    />
+  );
+}
+
+const EMPTY_TRACE_FILTER_VOCABULARY = [] as const;
+
+type TraceFilterConditionFieldWithVocabularyProps = Omit<
+  TraceFilterConditionFieldProps,
+  "vocabulary"
+>;
+
+/**
+ * The field with the project's autocomplete vocabulary. The vocabulary
+ * resolver scans annotation names and root-span attributes, so it must not
+ * gate whatever the field sits above: the field renders -- and validates --
+ * with an empty vocabulary until the terms arrive.
+ */
+export function TraceFilterConditionFieldWithVocabulary(
+  props: TraceFilterConditionFieldWithVocabularyProps
+) {
+  return (
+    <Suspense
+      fallback={
+        <TraceFilterConditionField
+          vocabulary={EMPTY_TRACE_FILTER_VOCABULARY}
+          {...props}
+        />
+      }
+    >
+      <LoadedTraceFilterConditionField {...props} />
+    </Suspense>
+  );
+}
+
+function LoadedTraceFilterConditionField(
+  props: TraceFilterConditionFieldWithVocabularyProps
+) {
+  const projectId = useTracingContext((state) => state.projectId);
+  const { timeRangeISOStrings } = useTimeRange();
+  const data = useLazyLoadQuery<TraceFilterConditionFieldVocabularyQuery>(
+    graphql`
+      query TraceFilterConditionFieldVocabularyQuery(
+        $id: ID!
+        $timeRange: TimeRange!
+      ) {
+        project: node(id: $id) {
+          ... on Project {
+            traceFilterVocabulary(timeRange: $timeRange) {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId, timeRange: timeRangeISOStrings }
+  );
+  return (
+    <TraceFilterConditionField
+      vocabulary={
+        data.project?.traceFilterVocabulary ?? EMPTY_TRACE_FILTER_VOCABULARY
+      }
+      {...props}
     />
   );
 }
