@@ -5,9 +5,10 @@ Use for exploration only. Validate before production.
 Pre-built evaluators are importable from `phoenix.evals.metrics` (Python) and
 `@arizeai/phoenix-evals` (TypeScript). They cover RAG quality (faithfulness,
 correctness, document relevance), conversation grounding (hallucination),
-response quality (conciseness, refusal), safety (toxicity), conversation
-signals (user friction), agent tool use (tool selection, invocation, response
-handling), and code-based checks (regex match, exact match,
+response quality (conciseness, refusal), safety (toxicity), privacy
+(PII detection), conversation signals (user friction), agent tool use (tool
+selection, invocation, response handling), and code-based checks (regex match,
+exact match,
 precision/recall/F-score). Naming follows `<Name>Evaluator` in Python and
 `create<Name>Evaluator` in TypeScript — enumerate the module exports for the
 full list.
@@ -91,6 +92,61 @@ The TypeScript evaluator changed shape: it previously took a separate `context`
 field and returned `factual` / `hallucinated`. Existing stored evaluations,
 dashboards, thresholds, and label filters built on the old labels need migrating
 — do not compare old and new scores directly.
+
+## Privacy: PII detection
+
+`PiiDetectionEvaluator` / `createPiiDetectionEvaluator` screens a whole
+conversation record for personally identifiable information. It differs from the
+other pre-built evaluators in three ways that change how you wire it up:
+
+- **One input field, and it is the whole record.** Python takes
+  `conversation` (snake_case); TypeScript takes `conversation` as well. There is
+  no `input`/`output` split — you concatenate the turns yourself.
+- **Everything is in scope, not just what the user saw.** System instructions,
+  tool calls and their results, and retrieved documents are all screened. That is
+  the point: PII that leaks into a retrieved chunk never reaches the end user but
+  is still exposure.
+- **Direction is `minimize`.** Labels are `pii_detected` (score `1.0`) and
+  `no_pii_detected` (score `0.0`), so a *high* score is the bad outcome — the
+  same polarity as toxicity and user friction, the opposite of faithfulness.
+
+The judge's `explanation` is a structured `FINDINGS:` block listing each instance
+as `- type: <category> | source: <user_message|assistant_response|tool_call_or_result|system_instructions|retrieved_document>`,
+or exactly `FINDINGS: none`. Parse it when you need per-instance categories
+rather than a single pass/fail.
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import PiiDetectionEvaluator
+
+pii_eval = PiiDetectionEvaluator(llm=LLM(provider="openai", model="gpt-4o-mini"))
+scores = pii_eval.evaluate({
+    "conversation": (
+        "User: Reset my account.\n"
+        "Assistant: I can help. What email is on the account?\n"
+        "User: jane.doe@acme.com"
+    ),
+})
+print(scores[0].label)  # "pii_detected"
+```
+
+```typescript
+import { createPiiDetectionEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = createPiiDetectionEvaluator({ model: openai("gpt-4o-mini") });
+const result = await evaluator.evaluate({
+  conversation:
+    "User: Reset my account.\nAssistant: What email is on the account?\nUser: jane.doe@acme.com",
+});
+console.log(result.label); // "pii_detected"
+```
+
+Placeholders and redactions are deliberately *not* flagged: conventional fill-ins
+(`jane.doe`-style names on `example.com`, `123-45-6789`, `555-01xx`), anything the
+surrounding text marks as a sample or template, and fully-replaced tokens like
+`[REDACTED]` all score `no_pii_detected`. Don't build a regression suite whose
+"positive" cases are dummy identifiers — they will come back clean by design.
 
 ## When to Use
 

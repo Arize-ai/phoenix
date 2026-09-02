@@ -95,6 +95,21 @@ AGENT (parent)
       TOOL
 ```
 
+### Which span parents the child
+
+The child always joins the parent's trace. *Where* it attaches depends on
+whether the reference points at a tool call the converter actually emitted:
+
+| Condition on the referencing step | Child's parent |
+|---|---|
+| The step's `source` is `"agent"` and its `tool_calls` contain a `tool_call_id` equal to the reference's `source_call_id` | That emitted TOOL span (the nesting shown above) |
+| Anything else — system/orchestration steps, a `source_call_id` that matches no emitted tool call, or no `source_call_id` at all | The parent trajectory's **root AGENT span** |
+
+The fallback matters for system-initiated subagents: those steps have no
+matching tool call, so before this behavior the child was parented to a TOOL
+span that was never emitted and the subagent's spans were orphaned. They now
+land directly under the parent's root AGENT span instead.
+
 **ATIF v1.7**: embedded `subagent_trajectories` inside a single trajectory file are automatically flattened and linked. References resolve by `trajectory_id` — no separate upload needed.
 
 ## Deterministic Dispatch (v1.7+)
