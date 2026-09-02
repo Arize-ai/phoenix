@@ -714,7 +714,7 @@ requires-dist = [
     { name = "arize-phoenix-otel", editable = "packages/phoenix-otel" },
     { name = "arize-phoenix-sqlean" },
     { name = "asyncpg", marker = "extra == 'pg'" },
-    { name = "authlib", specifier = ">=1.7.0" },
+    { name = "authlib", specifier = ">=1.7.0,<1.8" },
     { name = "azure-identity", marker = "extra == 'azure'", specifier = ">=1.18.0" },
     { name = "azure-identity", marker = "extra == 'container'", specifier = ">=1.18.0" },
     { name = "bashkit", specifier = ">=0.10.0,!=0.14.2" },
