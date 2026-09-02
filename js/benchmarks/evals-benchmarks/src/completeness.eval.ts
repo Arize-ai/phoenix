@@ -625,7 +625,7 @@ Note: pause must be acknowledged separately from reporting.`,
       expectedLabel: "complete", // no tool context in the text → judge has visible output only, so it should be labeled as complete
     },
   ],
-  multipart_omission: [
+  multipart_cases: [
     {
       conversation: qaSpan(
         "In which year was interest income greater than 7,000 thousands, and what was interest expense in that same year?",
@@ -669,6 +669,22 @@ Note: pause must be acknowledged separately from reporting.`,
         "Total net revenue in 2019 was $3,298,177 thousand. Transaction-based costs that year were $1,558,562 thousand."
       ),
       expectedLabel: "incomplete",
+    },
+    {
+      conversation: qaSpan(
+        "Give me total net revenue for 2019, 2018, and 2017 from the MD&A.",
+        NORTHWIND_MDNA,
+        "Total net revenue: 2019 $3,298,177 thousand; 2018 $2,214,253 thousand; 2017 $1,708,721 thousand."
+      ),
+      expectedLabel: "complete", // all three required components delivered
+    },
+    {
+      conversation: qaSpan(
+        "Give me total net revenue for 2019, 2018, and 2017 from the MD&A.",
+        NORTHWIND_MDNA,
+        "Total net revenue: 2019 $3,298,177 thousand; 2018 $2,214,253 thousand."
+      ),
+      expectedLabel: "incomplete", // identical ask, 2017 component omitted
     },
   ],
   promised_never_done: [
