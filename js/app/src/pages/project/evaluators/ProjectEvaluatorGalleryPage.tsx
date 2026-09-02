@@ -103,6 +103,10 @@ const projectEvaluatorGalleryPageQuery = graphql`
       scope
       category
       details
+      inputs {
+        name
+        description
+      }
       messages {
         ...promptUtils_promptMessages
       }
@@ -893,6 +897,50 @@ function EvaluatorOutputSummary({
   );
 }
 
+type EvaluatorInputSummaryItem = {
+  readonly name: string;
+  readonly type?: string;
+  readonly description?: string;
+};
+
+function EvaluatorInputSummary({
+  inputs,
+}: {
+  inputs: readonly EvaluatorInputSummaryItem[];
+}) {
+  if (inputs.length === 0) return null;
+  return (
+    <Flex direction="column" gap="size-75">
+      <Text elementType="h3" size="S" weight="heavy">
+        Inputs
+      </Text>
+      <List size="S">
+        {inputs.map((input) => (
+          <ListItem key={input.name}>
+            <Flex direction="column" gap="size-25">
+              <Flex direction="row" alignItems="baseline" gap="size-75" wrap>
+                <Text size="S" fontFamily="mono">
+                  {input.name}
+                </Text>
+                {input.type ? (
+                  <Text size="XS" color="text-500" fontFamily="mono">
+                    {input.type}
+                  </Text>
+                ) : null}
+              </Flex>
+              {input.description ? (
+                <Text size="XS" color="text-700">
+                  {input.description}
+                </Text>
+              ) : null}
+            </Flex>
+          </ListItem>
+        ))}
+      </List>
+    </Flex>
+  );
+}
+
 function AnnotationValues({
   values,
   optimizationDirection,
@@ -970,6 +1018,7 @@ function LlmCustomEvaluatorDetails({
     <Flex direction="column" gap="size-200" height="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
+      <EvaluatorInputSummary inputs={evaluator.inputs} />
       <EvaluatorPromptPreview messages={messages} />
       <EvaluatorDetailsAction onPress={onDuplicateEvaluator}>
         Duplicate this evaluator
@@ -1003,6 +1052,7 @@ function CodeCustomEvaluatorDetails({
         </div>
       </dl>
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
+      <EvaluatorInputSummary inputs={evaluator.inputs} />
       <Flex direction="column" gap="size-75">
         <Text elementType="h3" size="S" weight="heavy">
           Code
@@ -1146,6 +1196,12 @@ function EvaluatorTemplateDetails({
           </dd>
         </div>
       </dl>
+      <EvaluatorInputSummary
+        inputs={(template.inputs ?? []).map((input) => ({
+          name: input.name,
+          description: input.description,
+        }))}
+      />
       <AnnotationValues
         values={choices}
         optimizationDirection={template.optimizationDirection}

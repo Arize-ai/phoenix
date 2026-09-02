@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<71bb70f9ed8db0416e5d7ab1671e0719>>
+ * @generated SignedSource<<2cb4782a5faedfe514bbda02a650856e>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,7 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type projectEvaluatorOptions_codeEvaluatorDetails$data = {
   readonly __typename: "CodeEvaluator";
+  readonly codeInputSchema: any | null;
   readonly description: string | null;
   readonly id: string;
   readonly inputMapping: {
@@ -65,6 +66,6 @@ const node: ReaderInlineDataFragment = {
   "name": "projectEvaluatorOptions_codeEvaluatorDetails"
 };
 
-(node as any).hash = "909a71aa9d157eb5cff56e368fc79cc2";
+(node as any).hash = "f8acbca29ae9f38b9b1b91246145910b";
 
 export default node;

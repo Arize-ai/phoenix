@@ -18,6 +18,10 @@ export const projectEvaluatorTemplatesQuery = graphql`
       scope
       category
       details
+      inputs {
+        name
+        description
+      }
       messages {
         ...promptUtils_promptMessages
       }

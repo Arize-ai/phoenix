@@ -40,6 +40,8 @@ from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptInvocationParameters,
+    PromptStringTemplate,
+    PromptTemplate,
     PromptTemplateFormat,
     PromptTools,
     RoleConversion,
@@ -301,20 +303,10 @@ class LLMEvaluator(BaseEvaluator):
 
     @property
     def input_schema(self) -> dict[str, Any]:
-        formatter = get_template_formatter(self._template_format)
-        parsed: list[ParsedVariables] = []
-
-        for msg in self._template.messages:
-            if isinstance(msg.content, str):
-                parsed.append(formatter.parse_with_types(msg.content))
-            elif isinstance(msg.content, list):
-                for part in msg.content:
-                    if isinstance(part, TextContentPart):
-                        parsed.append(formatter.parse_with_types(part.text))
-            else:
-                assert_never(msg.content)
-
-        return input_schema_from_parsed_variables(parsed)
+        return infer_input_schema_from_prompt_template(
+            template=self._template,
+            template_format=self._template_format,
+        )
 
     async def evaluate(
         self,
@@ -1171,6 +1163,33 @@ def input_schema_from_parsed_variables(
         "properties": properties,
         "required": sorted(all_vars),
     }
+
+
+def infer_input_schema_from_prompt_template(
+    *,
+    template: PromptTemplate,
+    template_format: PromptTemplateFormat,
+) -> dict[str, Any]:
+    """Infer an evaluator input schema from a stored prompt template."""
+    formatter = get_template_formatter(template_format)
+    parsed: list[ParsedVariables] = []
+    if isinstance(template, PromptStringTemplate):
+        parsed.append(formatter.parse_with_types(template.template))
+    elif isinstance(template, PromptChatTemplate):
+        for message in template.messages:
+            if isinstance(message.content, str):
+                parsed.append(formatter.parse_with_types(message.content))
+            elif isinstance(message.content, list):
+                parsed.extend(
+                    formatter.parse_with_types(part.text)
+                    for part in message.content
+                    if isinstance(part, TextContentPart)
+                )
+            else:
+                assert_never(message.content)
+    else:
+        assert_never(template)
+    return input_schema_from_parsed_variables(parsed)
 
 
 def infer_input_schema_from_template(
