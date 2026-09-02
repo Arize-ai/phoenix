@@ -304,6 +304,14 @@ existing docs, not like a release announcement or a model narrating its diff:
 - **One example per pattern, not per entry.** Naming conventions are stated once;
   a reader can extrapolate `create<Name>Evaluator` without a snippet for every
   evaluator.
+- **Explain scenarios, not predicates.** When behavior branches, lead each case
+  with the real-world situation ("the subagent was spawned by a tool call",
+  "the subagent was started by the system") and put the field-level conditions
+  after it as the test for that case. A table whose rows are raw predicates
+  ("`source` is `\"agent\"` and `tool_calls` contain a `tool_call_id` equal
+  to…") restates the implementation without telling the reader which situation
+  they're in. Show the resulting output shape (a trace tree, a JSON payload)
+  when it makes the outcome concrete.
 
 ## Decision quick reference
 
