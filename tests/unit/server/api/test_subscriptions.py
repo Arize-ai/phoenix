@@ -1977,7 +1977,10 @@ class TestChatCompletionOverDatasetSubscription:
         custom_vcr.register_matcher(
             _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
         )
-        with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
+        with (
+            custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]),
+            anyio.fail_after(120),  # the stream must end on its own; never hang CI
+        ):
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,

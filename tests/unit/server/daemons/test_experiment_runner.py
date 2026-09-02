@@ -212,6 +212,13 @@ def _make_eval_work_item(
     )
 
 
+def _assert_untracked(exp: RunningExperiment, work_item: WorkItem) -> None:
+    """The experiment holds no dispatch or execution state for the item."""
+    assert work_item not in exp._in_flight
+    assert work_item not in exp._cancel_scopes
+    assert work_item not in exp._dispatch_undo
+
+
 # ===========================================================================
 # Group 1: CircuitBreaker (pure unit, no fixtures)
 # ===========================================================================
@@ -475,12 +482,13 @@ class TestRunningExperimentQueueLogic:
         assert await exp.try_get_ready_work_item() is eval_item
         assert eval_item in exp._in_flight
         assert eval_item in exp._cancel_scopes
+        assert eval_item in exp._dispatch_undo
         assert exp.start_execution(eval_item) is exp._cancel_scopes[eval_item]
+        assert eval_item not in exp._dispatch_undo  # no longer undoable once started
 
         await exp.unregister_cancel_scope(eval_item)
 
-        assert eval_item not in exp._in_flight
-        assert eval_item not in exp._cancel_scopes
+        _assert_untracked(exp, eval_item)
 
     @pytest.mark.anyio
     async def test_dispatched_work_item_counts_as_in_flight_before_it_starts(self) -> None:
@@ -558,22 +566,26 @@ class TestRunningExperimentQueueLogic:
         exp._task_db_exhausted = True
         exp._eval_db_exhausted = True
         eval_item = _make_eval_work_item(exp)
-        retry_task = _make_task_work_item(exp, dataset_example_id=1, retry_count=1)
-        retry_item = RetryItem(
-            ready_at=datetime.now(timezone.utc) - timedelta(seconds=1),
-            work_item=retry_task,
+        now = datetime.now(timezone.utc)
+        first_retry = RetryItem(
+            ready_at=now - timedelta(seconds=2),
+            work_item=_make_task_work_item(exp, dataset_example_id=1, retry_count=1),
         )
-        task = _make_task_work_item(exp, dataset_example_id=2)
+        second_retry = RetryItem(
+            ready_at=now - timedelta(seconds=1),
+            work_item=_make_task_work_item(exp, dataset_example_id=2, retry_count=1),
+        )
+        task = _make_task_work_item(exp, dataset_example_id=3)
         exp._eval_queue.append(eval_item)
-        heapq.heappush(exp._retry_heap, retry_item)
+        heapq.heappush(exp._retry_heap, second_retry)
+        heapq.heappush(exp._retry_heap, first_retry)
         exp._task_queue.append(task)
 
         async def dispatch_then_undo(expected: WorkItem) -> None:
             dispatched = await exp.try_get_ready_work_item()
             assert dispatched is expected
             exp.undispatch(dispatched)
-            assert dispatched not in exp._in_flight
-            assert dispatched not in exp._cancel_scopes
+            _assert_untracked(exp, dispatched)
             assert exp.has_work()
 
         async def run_to_completion(expected: WorkItem) -> None:
@@ -581,14 +593,18 @@ class TestRunningExperimentQueueLogic:
             with exp.start_execution(expected):
                 pass
             await exp.unregister_cancel_scope(expected)
+            _assert_untracked(exp, expected)
 
         await dispatch_then_undo(eval_item)
         assert list(exp._eval_queue) == [eval_item]
         await run_to_completion(eval_item)
 
-        await dispatch_then_undo(retry_task)
-        assert exp._retry_heap == [retry_item]
-        await run_to_completion(retry_task)
+        # The earlier retry is restored as the same RetryItem, still ahead of its peer.
+        await dispatch_then_undo(first_retry.work_item)
+        assert exp._retry_heap[0] is first_retry
+        assert exp._retry_heap[1] is second_retry
+        await run_to_completion(first_retry.work_item)
+        await run_to_completion(second_retry.work_item)
 
         await dispatch_then_undo(task)
         assert list(exp._task_queue) == [task]
@@ -1107,11 +1123,13 @@ class TestDispatchHandOff:
         return runner
 
     @pytest.mark.anyio
-    async def test_failed_hand_off_undoes_the_dispatch(self) -> None:
-        """If no worker task can be created, the item goes back to its queue.
+    async def test_hand_off_rejected_by_task_group_undoes_the_dispatch(self) -> None:
+        """If the task group refuses to create the worker, the item goes back to its queue.
 
-        Otherwise it would sit in the in-flight set forever: the experiment could never
-        complete, and stop_experiment() would wait for a drain that never comes.
+        A task group that is not active (never entered, or already exited) rejects
+        start_soon() before any worker exists. Without the rollback the item would sit
+        in the in-flight set forever: the experiment could never complete, and
+        stop_experiment() would wait for a drain that never comes.
         """
         exp = _make_running_experiment()
         exp._task_db_exhausted = True
@@ -1122,15 +1140,48 @@ class TestDispatchHandOff:
 
         dispatched = await runner._try_get_ready_work_item()
         assert dispatched is task
-        never_entered_task_group = anyio.create_task_group()  # refuses new tasks
+        inactive_task_group = anyio.create_task_group()  # never entered
 
         with pytest.raises(RuntimeError):
-            runner._hand_off(never_entered_task_group, dispatched)
+            runner._hand_off(inactive_task_group, dispatched)
 
-        assert task not in exp._in_flight
-        assert task not in exp._cancel_scopes
+        _assert_untracked(exp, task)
         assert list(exp._task_queue) == [task]
         assert exp.has_work()
+
+    @pytest.mark.anyio
+    async def test_hand_off_into_cancelled_task_group_leaves_no_state_behind(self) -> None:
+        """A worker started into a task group that is shutting down does no work.
+
+        This is the shutdown case as it actually happens: an entered task group whose
+        scope has been cancelled still accepts the worker, so there is nothing to roll
+        back. The worker inherits the cancellation at its first checkpoint, and its
+        cleanup must still remove every trace of the item and release the seat.
+        """
+        exp = _make_running_experiment()
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = True
+        task = _make_task_work_item(exp, dataset_example_id=1)
+        exp._task_queue.append(task)
+        runner = self._make_runner(exp)
+        ran_past_first_checkpoint = False
+
+        async def execute() -> None:
+            nonlocal ran_past_first_checkpoint
+            await anyio.sleep(0)
+            ran_past_first_checkpoint = True
+
+        with patch.object(task, "execute", execute):
+            await runner._seats.acquire()
+            dispatched = await runner._try_get_ready_work_item()
+            assert dispatched is task
+            async with anyio.create_task_group() as tg:
+                tg.cancel_scope.cancel()  # the daemon's task group is shutting down
+                runner._hand_off(tg, dispatched)  # accepted, so no rollback happens
+
+        assert not ran_past_first_checkpoint
+        _assert_untracked(exp, task)
+        assert runner._seats.value == 10
 
     @pytest.mark.anyio
     async def test_stop_between_dispatch_and_worker_start_cancels_the_worker(self) -> None:
@@ -1166,7 +1217,7 @@ class TestDispatchHandOff:
 
         assert worker_started.is_set()
         assert not ran_past_first_checkpoint
-        assert task not in exp._in_flight
+        _assert_untracked(exp, task)
         assert exp._drained.is_set()
         assert runner._seats.value == 10
 
