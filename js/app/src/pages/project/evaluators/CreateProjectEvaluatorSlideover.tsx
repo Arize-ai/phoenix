@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
-import { graphql, useMutation, useRelayEnvironment } from "react-relay";
+import {
+  ConnectionHandler,
+  graphql,
+  useMutation,
+  useRelayEnvironment,
+} from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -28,6 +33,7 @@ import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryConstants";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
@@ -400,6 +406,19 @@ function AttachCodeProjectEvaluatorDialog({
               setError(errors.map(({ message }) => message).join("\n"));
               return;
             }
+            environment.commitUpdate((relayStore) => {
+              const galleryConnection = ConnectionHandler.getConnection(
+                relayStore.getRoot(),
+                PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY,
+                { excludeProjectId: projectId }
+              );
+              if (galleryConnection) {
+                ConnectionHandler.deleteNode(
+                  galleryConnection,
+                  creationMode.evaluatorId
+                );
+              }
+            });
             void refetchProjectEvaluators({
               environment,
               projectId,
