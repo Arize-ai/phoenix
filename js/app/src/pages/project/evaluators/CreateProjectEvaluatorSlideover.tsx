@@ -49,6 +49,7 @@ import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
+import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
@@ -202,7 +203,8 @@ const CreateProjectEvaluatorDialog = ({
       : "SPAN";
   const [scope, setScope] = useState<ProjectEvaluatorScope>({
     targetType: initialTargetType,
-    filterCondition: "",
+    filterCondition:
+      initialTargetType === "SPAN" ? DEFAULT_SPAN_FILTER_CONDITION : "",
     samplingRate: 1,
     evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
   });

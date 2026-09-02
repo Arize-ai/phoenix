@@ -80,6 +80,36 @@ const EVALUATORS_URL = /\/projects\/[^/]+\/evaluators(\?|$)/;
 const NEW_LLM_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/new\/llm(\?|$)/;
 const EDIT_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/[^/]+\/edit(\?|$)/;
 const EVALUATOR_DETAILS_URL = /\/projects\/[^/]+\/evaluators\/[^/]+(\?|$)/;
+const SCOPE_PREVIEW_QUERY_NAMES = [
+  "ProjectEvaluatorScopePanelCountQuery",
+  "ProjectEvaluatorScopePanelSpansQuery",
+] as const;
+
+function waitForScopePreviewCondition({
+  page,
+  filterCondition,
+}: {
+  page: Page;
+  filterCondition: string | null;
+}) {
+  return Promise.all(
+    SCOPE_PREVIEW_QUERY_NAMES.map((queryName) =>
+      page.waitForRequest((request) => {
+        if (!request.url().includes("/graphql")) {
+          return false;
+        }
+        const postData = request.postData();
+        if (!postData?.includes(queryName)) {
+          return false;
+        }
+        const payload = request.postDataJSON() as {
+          variables?: { filterCondition?: string | null };
+        };
+        return payload.variables?.filterCondition === filterCondition;
+      })
+    )
+  );
+}
 
 async function clickSortableHeaderAndExpect(
   header: Locator,
@@ -254,6 +284,7 @@ test.describe.serial("Projects", () => {
   test("can create, edit, and delete a span LLM evaluator", async ({
     page,
   }) => {
+    test.setTimeout(75_000);
     const evaluatorProjectName = `evaluator-project-${randomUUID().slice(0, 8)}`;
     const evaluatorName = `span-evaluator-${randomUUID().slice(0, 8)}`;
     const updatedEvaluatorName = `${evaluatorName}-updated`;
@@ -284,6 +315,10 @@ test.describe.serial("Projects", () => {
     ).toHaveCount(0);
     await expect(evaluatorsTab).toContainText("0");
 
+    const rootSpanPreviewRequests = waitForScopePreviewCondition({
+      page,
+      filterCondition: "parent_id is None",
+    });
     await page.getByRole("button", { name: "Build from scratch" }).click();
     await expect(
       page.getByRole("menuitem", { name: "Browse eval gallery" })
@@ -302,6 +337,11 @@ test.describe.serial("Projects", () => {
     await expect(
       createDialog.getByRole("tab", { name: "Values" })
     ).toBeVisible();
+    const createSpanFilter = createDialog.getByRole("textbox", {
+      name: "Filter spans",
+    });
+    await expect(createSpanFilter).toHaveText("parent_id is None");
+    await rootSpanPreviewRequests;
     await page.goBack();
     await expect(createDialog).not.toBeVisible();
     await expect(page).toHaveURL(EVALUATORS_URL);
@@ -332,6 +372,9 @@ test.describe.serial("Projects", () => {
     await expect(
       evaluatorRow.getByRole("cell", { name: "100%" })
     ).toBeVisible();
+    await expect(
+      evaluatorRow.getByRole("cell", { name: "parent_id is None" })
+    ).toBeVisible();
 
     // The evaluator's name links to its read-only details page.
     await evaluatorRow
@@ -355,8 +398,31 @@ test.describe.serial("Projects", () => {
       name: `Edit LLM evaluator “${evaluatorName}”`,
     });
     await expect(editDialog).toBeVisible();
+    const editSpanFilter = editDialog.getByRole("textbox", {
+      name: "Filter spans",
+    });
+    await expect(editSpanFilter).toHaveText("parent_id is None");
     await editDialog.getByLabel("Name").first().fill(updatedEvaluatorName);
+    await editSpanFilter.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.press("Backspace");
+    const updateRequest = page.waitForRequest((request) => {
+      if (!request.url().includes("/graphql")) {
+        return false;
+      }
+      const postData = request.postData();
+      if (
+        !postData?.includes("EditProjectEvaluatorSlideoverUpdateLlmMutation")
+      ) {
+        return false;
+      }
+      const payload = request.postDataJSON() as {
+        variables?: { input?: { filterCondition?: string } };
+      };
+      return payload.variables?.input?.filterCondition === "";
+    });
     await editDialog.getByRole("button", { name: "Update" }).click();
+    await updateRequest;
     await expect(editDialog).not.toBeVisible();
 
     // The edit slideover is nested under the details page, so saving lands on
@@ -380,6 +446,9 @@ test.describe.serial("Projects", () => {
       .getByRole("row")
       .filter({ hasText: updatedEvaluatorName });
     await expect(updatedRow).toBeVisible();
+    await expect(
+      updatedRow.getByRole("cell", { name: "All spans" })
+    ).toBeVisible();
     await updatedRow.getByRole("button", { name: "Evaluator actions" }).click();
     await page.getByRole("menuitem", { name: "Delete" }).click();
     const deleteDialog = page.getByRole("dialog").filter({
