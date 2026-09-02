@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from phoenix.server.api.dataloaders.annotation_mean_score_time_series import (
     AnnotationMeanScoreTimeSeriesCache,
     Key,
+    Result,
 )
 
 
@@ -18,7 +19,7 @@ def _key(
     return (kind, project_rowid, interval, stride, 0, annotation_name)  # type: ignore[return-value]
 
 
-def _entry() -> "Future[dict[datetime, float]]":
+def _entry() -> "Future[Result]":
     # Created via the running loop: bare Future() requires a current event
     # loop, which pytest-xdist workers do not guarantee at import time.
     future = asyncio.get_running_loop().create_future()
