@@ -16,6 +16,7 @@ import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import {
   dropOtherGrainEntityPathMappings,
   formatEvaluationTarget,
+  getDefaultProjectEvaluatorFilterCondition,
   isProjectEvaluatorTarget,
   MIN_EVALUATION_DELAY_SECONDS,
   toEvaluatorMappingSourceGrain,
@@ -79,7 +80,11 @@ export const ProjectEvaluatorScopeFieldGroup = ({
           .pathMapping
       );
     }
-    onScopeChange({ ...scope, targetType, filterCondition: "" });
+    onScopeChange({
+      ...scope,
+      targetType,
+      filterCondition: getDefaultProjectEvaluatorFilterCondition(targetType),
+    });
   };
   return (
     <Flex direction="column" gap="size-200">

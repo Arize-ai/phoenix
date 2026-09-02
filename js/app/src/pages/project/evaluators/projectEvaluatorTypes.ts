@@ -8,6 +8,7 @@ import {
   EVALUATOR_MAPPING_SOURCE_GRAINS,
   getEvaluatorMetadataEntryNames,
 } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import type {
   EvaluatorInputMapping,
   EvaluatorMappingSourceGrain,
@@ -87,6 +88,13 @@ export const PROJECT_EVALUATOR_TARGETS = [
 ] as const satisfies readonly EvaluationTarget[];
 
 export type ProjectEvaluatorTarget = (typeof PROJECT_EVALUATOR_TARGETS)[number];
+
+/** The filter a creation flow starts with whenever it enters a target. */
+export function getDefaultProjectEvaluatorFilterCondition(
+  target: ProjectEvaluatorTarget
+): string {
+  return target === "SPAN" ? DEFAULT_SPAN_FILTER_CONDITION : "";
+}
 
 /**
  * The evaluator's result annotations live at the level its target selects on

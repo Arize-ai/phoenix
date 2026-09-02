@@ -39,6 +39,7 @@ import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/Pro
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
+  getDefaultProjectEvaluatorFilterCondition,
   toEvaluationDelayInput,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
@@ -49,7 +50,6 @@ import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
-import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
@@ -204,7 +204,7 @@ const CreateProjectEvaluatorDialog = ({
   const [scope, setScope] = useState<ProjectEvaluatorScope>({
     targetType: initialTargetType,
     filterCondition:
-      initialTargetType === "SPAN" ? DEFAULT_SPAN_FILTER_CONDITION : "",
+      getDefaultProjectEvaluatorFilterCondition(initialTargetType),
     samplingRate: 1,
     evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
   });
