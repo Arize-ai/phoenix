@@ -20,6 +20,54 @@ export type ProjectEvaluatorResultAnnotation = {
 };
 
 /**
+ * The output config fields {@link getProjectEvaluatorResultAnnotations} reads:
+ * the config's name plus whatever optimization metadata the selection carried.
+ */
+type ResultAnnotationOutputConfig = {
+  readonly name?: string | null;
+} & Parameters<typeof toAnnotationOptimizationConfig>[0];
+
+/**
+ * Pure form of {@link useProjectEvaluatorResultAnnotations} for callers that
+ * hold plain selected data rather than a fragment ref (e.g. rows read with
+ * `readInlineData`). Keep the two in sync with the server's naming contract
+ * described on the hook.
+ */
+export function getProjectEvaluatorResultAnnotations({
+  name,
+  outputConfigs,
+}: {
+  /** The project evaluator's name. */
+  name: string;
+  outputConfigs: ReadonlyArray<ResultAnnotationOutputConfig>;
+}): ProjectEvaluatorResultAnnotation[] {
+  if (outputConfigs.length > 1) {
+    // Multi-output: one annotation per config, dotted with the config name.
+    return outputConfigs.flatMap((outputConfig) =>
+      outputConfig.name == null
+        ? []
+        : [
+            {
+              name: `${name}.${outputConfig.name}`,
+              config: toAnnotationOptimizationConfig(outputConfig),
+            },
+          ]
+    );
+  }
+  // A lone output (or none declared) writes under the evaluator's own name,
+  // whatever the config itself is called.
+  const outputConfig = outputConfigs[0];
+  return [
+    {
+      name,
+      config: outputConfig
+        ? toAnnotationOptimizationConfig(outputConfig)
+        : undefined,
+    },
+  ];
+}
+
+/**
  * The annotations this evaluator writes, named the way its runs persist them.
  *
  * Mirrors the server's naming contract (`BaseEvaluator.evaluate` in
@@ -74,31 +122,12 @@ export function useProjectEvaluatorResultAnnotations(
   // Memoized because callers pass this into memoized subtrees, where a new
   // array each render would defeat the memo and refetch their charts. Relay
   // data is stable while the store is, so these deps track the evaluator.
-  return useMemo(() => {
-    const { outputConfigs } = evaluator;
-    if (outputConfigs.length > 1) {
-      // Multi-output: one annotation per config, dotted with the config name.
-      return outputConfigs.flatMap((outputConfig) =>
-        outputConfig.name == null
-          ? []
-          : [
-              {
-                name: `${name}.${outputConfig.name}`,
-                config: toAnnotationOptimizationConfig(outputConfig),
-              },
-            ]
-      );
-    }
-    // A lone output (or none declared) writes under the evaluator's own name,
-    // whatever the config itself is called.
-    const outputConfig = outputConfigs[0];
-    return [
-      {
+  return useMemo(
+    () =>
+      getProjectEvaluatorResultAnnotations({
         name,
-        config: outputConfig
-          ? toAnnotationOptimizationConfig(outputConfig)
-          : undefined,
-      },
-    ];
-  }, [evaluator, name]);
+        outputConfigs: evaluator.outputConfigs,
+      }),
+    [evaluator, name]
+  );
 }

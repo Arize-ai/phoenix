@@ -1,7 +1,8 @@
+import asyncio
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, Sequence, Union
 
 import sqlalchemy as sa
 import strawberry
@@ -11,6 +12,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.datetime_utils import get_timestamp_range
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -24,13 +26,16 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
 from phoenix.server.api.dataloaders.project_evaluator_run_counts import ProjectEvaluatorRunCounts
 from phoenix.server.api.evaluators import BuiltInEvaluator as BuiltInEvaluatorClass
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
     ContinuousAnnotationConfig,
     FreeformAnnotationConfig,
 )
+from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -1143,7 +1148,7 @@ class DatasetEvaluator(Node):
                 configs = list(builtin().output_configs)
             else:
                 return []
-        configs_list: list[OutputConfigType] = configs if configs is not None else []
+        configs_list: Sequence[OutputConfigType] = configs if configs is not None else []
         return [
             _to_gql_output_config(
                 config,
@@ -1202,6 +1207,65 @@ class DatasetEvaluator(Node):
             raise NotFound(f"DatasetEvaluator not found: {self.id}")
         self.db_record = record
         return record
+
+
+@strawberry.type
+class EvaluatorScoreSeriesBin:
+    """One time bin of an evaluator annotation's mean score."""
+
+    timestamp: datetime
+    mean_score: Optional[float]
+    count: int = strawberry.field(
+        description=(
+            "How many scored spans, traces, or sessions the bin's mean averages over; "
+            "the weight to use when merging adjacent bins. Zero for an empty bin."
+        )
+    )
+
+
+@strawberry.type
+class EvaluatorAnnotationScoreMetrics:
+    """Score aggregates for one annotation a project evaluator writes."""
+
+    annotation_name: str
+    summary: Optional[AnnotationSummary] = strawberry.field(
+        description="Aggregates over the requested time range, or null when the range holds none."
+    )
+    previous_summary: Optional[AnnotationSummary] = strawberry.field(
+        description=(
+            "Aggregates over the window of equal length immediately before the requested "
+            "time range, for change-over-time comparisons."
+        )
+    )
+    series: list[EvaluatorScoreSeriesBin] = strawberry.field(
+        description=(
+            "Mean score per time bin across the requested time range. Bins follow the "
+            "project metrics convention: spans and traces bucket by their trace's start "
+            "time, sessions by their own."
+        )
+    )
+
+
+_ANNOTATION_KIND_BY_TARGET: dict[str, Literal["span", "trace", "session"]] = {
+    "SPAN": "span",
+    "TRACE": "trace",
+    "SESSION": "session",
+}
+
+
+def _result_annotation_names(
+    project_evaluator_name: str,
+    output_configs: Sequence[Any],
+) -> list[str]:
+    """The names this evaluator's runs persist annotations under.
+
+    Mirrors `BaseEvaluator.evaluate`: a lone output config (or none declared)
+    writes under the project evaluator's own name; multiple configs each write
+    under `"{name}.{config_name}"`.
+    """
+    if len(output_configs) > 1:
+        return [f"{project_evaluator_name}.{config.name}" for config in output_configs]
+    return [project_evaluator_name]
 
 
 @strawberry.type
@@ -1298,6 +1362,83 @@ class ProjectEvaluator(Node):
     async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:
         counts = await info.context.data_loaders.project_evaluator_run_counts.load(self.id)
         return _project_evaluator_run_summary(counts)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Score aggregates for each annotation this evaluator writes on the evaluated "
+            "project: totals over the requested time range, totals over the equal-length "
+            "window immediately before it, and a binned mean-score series. Loading is "
+            "batched across the project's evaluators, so requesting this for a page of "
+            "evaluators costs a fixed number of queries."
+        )
+    )
+    async def annotation_score_metrics(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> list[EvaluatorAnnotationScoreMetrics]:
+        if time_range.start is None or time_range.end is None:
+            raise BadRequest("time_range must have both a start and an end")
+        window_start, window_end = time_range.start, time_range.end
+        record = await self._get_record(info)
+        kind = _ANNOTATION_KIND_BY_TARGET.get(record.evaluation_target)
+        if kind is None:
+            return []
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        output_configs = as_output_configs(getattr(evaluator, "output_configs", None))
+        annotation_names = _result_annotation_names(record.name.root, output_configs)
+        stride: Literal["minute", "hour", "day", "week", "month", "year"]
+        if isinstance(time_bin_config, TimeBinConfig):
+            stride = time_bin_config.scale.value
+            utc_offset_minutes = time_bin_config.utc_offset_minutes
+        else:
+            stride, utc_offset_minutes = "hour", 0
+        previous_time_range = TimeRange(
+            start=window_start - (window_end - window_start),
+            end=window_start,
+        )
+        loaders = info.context.data_loaders
+        project_rowid = record.project_id
+
+        async def load_metrics(annotation_name: str) -> EvaluatorAnnotationScoreMetrics:
+            summary, previous_summary, mean_scores_by_bucket = await asyncio.gather(
+                loaders.annotation_summaries.load(
+                    (kind, project_rowid, time_range, None, None, annotation_name)
+                ),
+                loaders.annotation_summaries.load(
+                    (kind, project_rowid, previous_time_range, None, None, annotation_name)
+                ),
+                loaders.annotation_mean_score_time_series.load(
+                    (
+                        kind,
+                        project_rowid,
+                        (window_start, window_end),
+                        stride,
+                        utc_offset_minutes,
+                        annotation_name,
+                    )
+                ),
+            )
+            series = [
+                EvaluatorScoreSeriesBin(
+                    timestamp=timestamp,
+                    mean_score=mean_bin.mean_score if mean_bin is not None else None,
+                    count=mean_bin.scored_entity_count if mean_bin is not None else 0,
+                )
+                for timestamp in get_timestamp_range(
+                    window_start, window_end, stride, utc_offset_minutes
+                )
+                for mean_bin in (mean_scores_by_bucket.get(timestamp),)
+            ]
+            return EvaluatorAnnotationScoreMetrics(
+                annotation_name=annotation_name,
+                summary=summary,
+                previous_summary=previous_summary,
+                series=series,
+            )
+
+        return list(await asyncio.gather(*map(load_metrics, annotation_names)))
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
