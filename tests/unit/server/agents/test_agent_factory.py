@@ -21,7 +21,7 @@ from anthropic.types.beta.message_create_params import MessageCreateParams
 from fastapi import FastAPI
 from opentelemetry.trace import NoOpTracerProvider
 from pydantic import SecretStr
-from pydantic_ai import Agent, RunContext, UserError
+from pydantic_ai import Agent, UserError
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
@@ -45,7 +45,6 @@ from phoenix.db.types.data_stream_protocol.ui_state_types import (
 from phoenix.server.agents.agent_factory import build_agent as _build_agent
 from phoenix.server.agents.capabilities import (
     GitHubMCPCapability,
-    MintlifyDocsMCPServer,
     build_anthropic_prompt_cache_capability,
 )
 from phoenix.server.agents.capabilities.github_mcp import GITHUB_WRITE_TOOLS
@@ -67,6 +66,7 @@ from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
 from phoenix.server.mcp_server import build_phoenix_mcp_server
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.types import DbSessionFactory
+from tests.unit.conftest import OfflineDocsMCPServer
 
 _DEFAULT_PROMPTS = AgentPrompts()
 
@@ -273,27 +273,9 @@ class TestPromptCacheCapabilityMounting:
         assert _DEFAULT_PROMPTS.base in _get_concatenated_text(cached_blocks)
 
 
-class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):
-    """``MintlifyDocsMCPServer`` with the MCP transport short-circuited.
-
-    Overrides ``get_tools`` to return an empty tool dict and the async
-    context-manager protocol to no-op, so the agent run never opens an
-    HTTP/SSE session to the real Mintlify endpoint.
-    """
-
-    async def get_tools(self, ctx: RunContext[Any]) -> dict[str, Any]:
-        return {}
-
-    async def __aenter__(self) -> "_OfflineDocsMCPToolset":
-        return self
-
-    async def __aexit__(self, *args: object) -> None:
-        return None
-
-
 @pytest.fixture
-def docs_mcp_server() -> _OfflineDocsMCPToolset:
-    return _OfflineDocsMCPToolset()
+def docs_mcp_server() -> OfflineDocsMCPServer:
+    return OfflineDocsMCPServer()
 
 
 @pytest.fixture
@@ -1038,7 +1020,7 @@ class TestDocsMCPToolset:
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
-        docs_mcp_server: _OfflineDocsMCPToolset,
+        docs_mcp_server: OfflineDocsMCPServer,
         headless: bool,
     ) -> None:
         agent = build_agent(
