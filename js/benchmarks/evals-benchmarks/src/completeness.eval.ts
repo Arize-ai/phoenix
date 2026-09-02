@@ -610,6 +610,21 @@ Note: pause must be acknowledged separately from reporting.`,
       expectedLabel: "incomplete",
     },
   ],
+  claimed_without_tools: [
+    {
+      conversation: agentSpan([
+        { 
+          role: "user", 
+          content: "Archive the Q2 planning doc and let me know when it's done." 
+        },
+        { 
+          role: "assistant", 
+          content: "Archived the Q2 planning doc — it's now in the Archive folder." 
+        },
+      ]),
+      expectedLabel: "complete", // no tool context in the text → judge has visible output only, so it should be labeled as complete
+    },
+  ],
   multipart_omission: [
     {
       conversation: qaSpan(
