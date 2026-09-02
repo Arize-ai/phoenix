@@ -1,4 +1,4 @@
-import { graphql } from "react-relay";
+import { graphql, readInlineData } from "react-relay";
 
 import {
   extractCodeEvaluatorVariables,
@@ -6,11 +6,18 @@ import {
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { inferIncludeExplanationFromPrompt } from "@phoenix/components/evaluators/utils";
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
+import type {
+  projectEvaluatorOptions_codeEvaluatorDetails$data,
+  projectEvaluatorOptions_codeEvaluatorDetails$key,
+} from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptions_codeEvaluatorDetails.graphql";
+import type {
+  projectEvaluatorOptions_llmEvaluatorDetails$data,
+  projectEvaluatorOptions_llmEvaluatorDetails$key,
+} from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptions_llmEvaluatorDetails.graphql";
 import type { projectEvaluatorOptionsQuery$data } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
 import type { ProjectEvaluatorCreationMode } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import { generateMessageId } from "@phoenix/store";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
-import type { CodeEvaluatorLanguage } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
 
@@ -33,97 +40,110 @@ export const projectEvaluatorOptionsQuery = graphql`
   }
 `;
 
+const llmProjectEvaluatorDetailsFragment = graphql`
+  fragment projectEvaluatorOptions_llmEvaluatorDetails on LLMEvaluator @inline {
+    __typename
+    id
+    name
+    description
+    kind
+    outputConfigs {
+      __typename
+      ... on CategoricalAnnotationConfig {
+        name
+        optimizationDirection
+        values {
+          label
+          score
+        }
+      }
+      ... on ContinuousAnnotationConfig {
+        name
+        optimizationDirection
+        lowerBound
+        upperBound
+      }
+      ... on FreeformAnnotationConfig {
+        name
+        optimizationDirection
+        threshold
+        lowerBound
+        upperBound
+      }
+    }
+    promptVersion {
+      templateFormat
+      template {
+        __typename
+        ... on PromptChatTemplate {
+          messages {
+            ...promptUtils_promptMessages
+          }
+        }
+        ... on PromptStringTemplate {
+          template
+        }
+      }
+      tools {
+        tools {
+          __typename
+          ... on PromptToolFunction {
+            function {
+              parameters
+            }
+          }
+          ... on PromptToolRaw {
+            raw
+          }
+        }
+      }
+    }
+  }
+`;
+
+const codeProjectEvaluatorDetailsFragment = graphql`
+  fragment projectEvaluatorOptions_codeEvaluatorDetails on CodeEvaluator
+  @inline {
+    __typename
+    id
+    name
+    description
+    kind
+    outputConfigs {
+      __typename
+      ... on CategoricalAnnotationConfig {
+        name
+        optimizationDirection
+        values {
+          label
+          score
+        }
+      }
+      ... on ContinuousAnnotationConfig {
+        name
+        optimizationDirection
+        lowerBound
+        upperBound
+      }
+      ... on FreeformAnnotationConfig {
+        name
+        optimizationDirection
+        threshold
+        lowerBound
+        upperBound
+      }
+    }
+    sourceCode
+    language
+  }
+`;
+
 export const projectEvaluatorDetailsQueryNode = graphql`
   query projectEvaluatorDetailsQuery($id: ID!) {
     evaluator: node(id: $id) {
       __typename
-      ... on Evaluator {
-        id
-        name
-        description
-        kind
-      }
-      ... on LLMEvaluator {
-        outputConfigs {
-          __typename
-          ... on CategoricalAnnotationConfig {
-            name
-            optimizationDirection
-            values {
-              label
-              score
-            }
-          }
-          ... on ContinuousAnnotationConfig {
-            name
-            optimizationDirection
-            lowerBound
-            upperBound
-          }
-          ... on FreeformAnnotationConfig {
-            name
-            optimizationDirection
-            threshold
-            lowerBound
-            upperBound
-          }
-        }
-        promptVersion {
-          templateFormat
-          template {
-            __typename
-            ... on PromptChatTemplate {
-              messages {
-                ...promptUtils_promptMessages
-              }
-            }
-            ... on PromptStringTemplate {
-              template
-            }
-          }
-          tools {
-            tools {
-              __typename
-              ... on PromptToolFunction {
-                function {
-                  parameters
-                }
-              }
-              ... on PromptToolRaw {
-                raw
-              }
-            }
-          }
-        }
-      }
-      ... on CodeEvaluator {
-        outputConfigs {
-          __typename
-          ... on CategoricalAnnotationConfig {
-            name
-            optimizationDirection
-            values {
-              label
-              score
-            }
-          }
-          ... on ContinuousAnnotationConfig {
-            name
-            optimizationDirection
-            lowerBound
-            upperBound
-          }
-          ... on FreeformAnnotationConfig {
-            name
-            optimizationDirection
-            threshold
-            lowerBound
-            upperBound
-          }
-        }
-        sourceCode
-        language
-      }
+      ...projectEvaluatorOptions_llmEvaluatorDetails
+      ...projectEvaluatorOptions_codeEvaluatorDetails
     }
   }
 `;
@@ -131,48 +151,34 @@ export const projectEvaluatorDetailsQueryNode = graphql`
 export type ProjectEvaluatorOption =
   projectEvaluatorOptionsQuery$data["evaluators"]["edges"][number]["evaluator"];
 
-type ProjectEvaluatorDetails = NonNullable<
+type ProjectEvaluatorDetailsNode = NonNullable<
   projectEvaluatorDetailsQuery["response"]["evaluator"]
 >;
-type LlmProjectEvaluatorDetails = ProjectEvaluatorDetails & {
-  readonly __typename: "LLMEvaluator";
-  readonly id: string;
-  readonly name: string;
-  readonly description: string | null;
-  readonly outputConfigs: NonNullable<ProjectEvaluatorDetails["outputConfigs"]>;
-};
-type CodeProjectEvaluatorDetails = ProjectEvaluatorDetails & {
-  readonly __typename: "CodeEvaluator";
-  readonly id: string;
-  readonly name: string;
-  readonly description: string | null;
-  readonly language: NonNullable<ProjectEvaluatorDetails["language"]>;
-  readonly sourceCode: string;
-  readonly outputConfigs: NonNullable<ProjectEvaluatorDetails["outputConfigs"]>;
-};
 
-export function isLlmProjectEvaluatorDetails(
-  evaluator: ProjectEvaluatorDetails
-): evaluator is LlmProjectEvaluatorDetails {
-  return (
-    evaluator.__typename === "LLMEvaluator" &&
-    typeof evaluator.id === "string" &&
-    typeof evaluator.name === "string" &&
-    Array.isArray(evaluator.outputConfigs)
-  );
-}
+export type LlmProjectEvaluatorDetails =
+  projectEvaluatorOptions_llmEvaluatorDetails$data;
+export type CodeProjectEvaluatorDetails =
+  projectEvaluatorOptions_codeEvaluatorDetails$data;
+export type ProjectEvaluatorDetails =
+  | LlmProjectEvaluatorDetails
+  | CodeProjectEvaluatorDetails;
 
-export function isCodeProjectEvaluatorDetails(
-  evaluator: ProjectEvaluatorDetails
-): evaluator is CodeProjectEvaluatorDetails {
-  return (
-    evaluator.__typename === "CodeEvaluator" &&
-    typeof evaluator.id === "string" &&
-    typeof evaluator.name === "string" &&
-    typeof evaluator.language === "string" &&
-    typeof evaluator.sourceCode === "string" &&
-    Array.isArray(evaluator.outputConfigs)
-  );
+export function readProjectEvaluatorDetails(
+  evaluator: ProjectEvaluatorDetailsNode | null
+): ProjectEvaluatorDetails | null {
+  if (evaluator?.__typename === "LLMEvaluator") {
+    return readInlineData<projectEvaluatorOptions_llmEvaluatorDetails$key>(
+      llmProjectEvaluatorDetailsFragment,
+      evaluator
+    );
+  }
+  if (evaluator?.__typename === "CodeEvaluator") {
+    return readInlineData<projectEvaluatorOptions_codeEvaluatorDetails$key>(
+      codeProjectEvaluatorDetailsFragment,
+      evaluator
+    );
+  }
+  return null;
 }
 
 export type BuildCopyLlmCreationModeResult =
@@ -214,7 +220,7 @@ export function buildCopyLlmCreationMode(
         name: evaluator.name,
         description: evaluator.description ?? "",
         outputConfigs: convertProjectEvaluatorOutputConfigs(
-          evaluator.outputConfigs ?? []
+          evaluator.outputConfigs
         ),
         defaultMessages,
         templateFormat: evaluator.promptVersion?.templateFormat ?? "MUSTACHE",
@@ -230,12 +236,12 @@ export function buildAttachCodeCreationMode(
   evaluator: CodeProjectEvaluatorDetails
 ): ProjectEvaluatorCreationMode {
   const variables = extractCodeEvaluatorVariables({
-    language: evaluator.language as CodeEvaluatorLanguage,
-    sourceCode: evaluator.sourceCode ?? "",
+    language: evaluator.language,
+    sourceCode: evaluator.sourceCode,
   });
   const requiredVariables = extractRequiredCodeEvaluatorVariables({
-    language: evaluator.language as CodeEvaluatorLanguage,
-    sourceCode: evaluator.sourceCode ?? "",
+    language: evaluator.language,
+    sourceCode: evaluator.sourceCode,
   });
   return {
     kind: "code",
@@ -243,7 +249,7 @@ export function buildAttachCodeCreationMode(
     name: evaluator.name,
     description: evaluator.description ?? "",
     outputConfigs: convertProjectEvaluatorOutputConfigs(
-      evaluator.outputConfigs ?? []
+      evaluator.outputConfigs
     ),
     variables,
     requiredVariables,
