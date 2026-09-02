@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<53b4844e90f6632cb246c0f7dc2d1067>>
+ * @generated SignedSource<<43f898c03a309fbd942be0a3aa8e982e>>
  * @lightSyntaxTransform
  */
 
@@ -17,6 +17,7 @@ export type projectEvaluatorOptions_llmEvaluatorDetails$data = {
   readonly description: string | null;
   readonly id: string;
   readonly kind: EvaluatorKind;
+  readonly llmInputSchema: any | null;
   readonly name: string;
   readonly outputConfigs: ReadonlyArray<{
     readonly __typename: "CategoricalAnnotationConfig";
@@ -87,6 +88,6 @@ const node: ReaderInlineDataFragment = {
   "name": "projectEvaluatorOptions_llmEvaluatorDetails"
 };
 
-(node as any).hash = "9f85a7ee11194d88d261c88f48464018";
+(node as any).hash = "e9490d681bf7fe3a06f782c3715dbef0";
 
 export default node;
