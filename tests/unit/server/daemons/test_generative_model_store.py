@@ -14,19 +14,29 @@ _CYCLE_TIMEOUT_SECONDS = 30.0
 
 
 class _DaemonCycleController:
-    """Steps the store's fetch loop one cycle at a time through its patched sleep.
+    """Steps one store's fetch loop a cycle at a time through the module's patched sleep.
 
     The loop assigns _last_fetch_time before it sleeps, so entering sleep marks a
     finished cycle: the patched sleep signals completion, then parks the loop until
     the test releases the next cycle. Each release runs exactly one cycle -- a
     failed fetch is not retried, it surfaces in the next assertion.
+
+    The app under test runs its own store through the same module sleep. The
+    controller tells the loops apart by the refresh interval: the store it steps
+    is built with ``refresh_interval_seconds``, and any other loop parks until
+    its daemon is cancelled at shutdown.
     """
+
+    refresh_interval_seconds = 60 * 60
 
     def __init__(self) -> None:
         self._cycle_completed = Event()
         self._release_next = Event()
 
     async def sleep(self, seconds: float) -> None:
+        if seconds != self.refresh_interval_seconds:
+            await Event().wait()
+            return
         self._cycle_completed.set()
         await self._release_next.wait()
         self._release_next.clear()
@@ -139,7 +149,10 @@ class TestGenerativeModelStore:
         model2_id = result2.data["createModel"]["model"]["id"]
 
         # Start the daemon; its first cycle runs without a release.
-        store = GenerativeModelStore(db=db)
+        store = GenerativeModelStore(
+            db=db,
+            refresh_interval_seconds=daemon_cycles.refresh_interval_seconds,
+        )
         await store.start()
         try:
             await daemon_cycles.wait_for_cycle("initial fetch")
