@@ -74,7 +74,7 @@ describe("buildCopyCodeCreationMode", () => {
 });
 
 describe("getEvaluatorInputSummaries", () => {
-  it("returns names and available type and description metadata", () => {
+  it("returns names and descriptions without schema type metadata", () => {
     expect(
       getEvaluatorInputSummaries({
         type: "object",
@@ -92,11 +92,10 @@ describe("getEvaluatorInputSummaries", () => {
     ).toEqual([
       {
         name: "input",
-        type: "string",
         description: "The input to evaluate",
       },
-      { name: "context", type: undefined, description: undefined },
-      { name: "score", type: "number | null", description: undefined },
+      { name: "context", description: undefined },
+      { name: "score", description: undefined },
     ]);
   });
 
