@@ -761,7 +761,11 @@ export interface paths {
         get: operations["listProjectTraces"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete traces from a project
+         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.
+         */
+        delete: operations["deleteProjectTraces"];
         options?: never;
         head?: never;
         patch?: never;
@@ -10038,6 +10042,59 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GetTracesResponseBody"];
                 };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteProjectTraces: {
+        parameters: {
+            query: {
+                /** @description Required inclusive lower bound on trace start time (ISO 8601). */
+                start_time: string;
+                /** @description Required exclusive upper bound on trace start time (ISO 8601). */
+                end_time: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned after the matching traces are deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Forbidden */
             403: {

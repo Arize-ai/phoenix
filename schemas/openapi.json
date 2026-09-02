@@ -4785,6 +4785,86 @@
             "description": "Unprocessable Entity"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Delete traces from a project",
+        "description": "Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.",
+        "operationId": "deleteProjectTraces",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Required inclusive lower bound on trace start time (ISO 8601).",
+              "title": "Start Time"
+            },
+            "description": "Required inclusive lower bound on trace start time (ISO 8601)."
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Required exclusive upper bound on trace start time (ISO 8601).",
+              "title": "End Time"
+            },
+            "description": "Required exclusive upper bound on trace start time (ISO 8601)."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned after the matching traces are deleted"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
       }
     },
     "/v1/trace_annotations": {

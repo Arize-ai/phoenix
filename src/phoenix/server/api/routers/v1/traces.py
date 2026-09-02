@@ -3,7 +3,7 @@ import gzip
 import zlib
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, cast
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
@@ -36,6 +36,7 @@ from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
+from phoenix.server.api.utils import delete_traces_and_orphan_sessions
 from phoenix.server.authorization import (
     is_not_locked,
     prevent_access_in_read_only_mode,
@@ -312,6 +313,53 @@ async def list_project_traces(
             for t in traces
         ]
     return GetTracesResponseBody(next_cursor=next_cursor, data=data)
+
+
+@router.delete(
+    "/projects/{project_identifier}/traces",
+    operation_id="deleteProjectTraces",
+    summary="Delete traces from a project",
+    description=(
+        "Delete traces from a project without deleting the project or its configuration. "
+        "Only traces whose start time is within the required `[start_time, end_time)` interval "
+        "are deleted. Associated spans are cascade deleted, and project sessions left with no "
+        "remaining traces are also deleted. Naive datetimes are interpreted as UTC."
+    ),
+    response_description="No content returned after the matching traces are deleted",
+    status_code=204,
+    responses=add_errors_to_responses([404, 422]),
+)
+async def delete_project_traces(
+    request: Request,
+    project_identifier: str = Path(
+        description="The project identifier: either project ID or project name.",
+    ),
+    start_time: datetime = Query(
+        description="Required inclusive lower bound on trace start time (ISO 8601).",
+    ),
+    end_time: datetime = Query(
+        description="Required exclusive upper bound on trace start time (ISO 8601).",
+    ),
+) -> None:
+    normalized_start_time = cast(datetime, normalize_datetime(start_time, timezone.utc))
+    normalized_end_time = cast(datetime, normalize_datetime(end_time, timezone.utc))
+    if normalized_start_time >= normalized_end_time:
+        raise HTTPException(
+            status_code=422,
+            detail="`start_time` must be strictly earlier than `end_time`.",
+        )
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        project_rowid = project.id
+        deleted_trace_count = await delete_traces_and_orphan_sessions(
+            session,
+            project_rowid,
+            start_time=normalized_start_time,
+            end_time=normalized_end_time,
+        )
+    if deleted_trace_count:
+        request.state.event_queue.put(SpanDeleteEvent((project_rowid,)))
+    return None
 
 
 def is_not_at_capacity(request: Request) -> None:

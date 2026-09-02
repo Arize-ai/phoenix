@@ -1115,6 +1115,7 @@
                     "group": "Traces",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/list-traces-for-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-traces-from-a-project",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-trace-annotations",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-a-trace-note"
