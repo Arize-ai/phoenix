@@ -174,9 +174,6 @@ def test_identifier_is_accepted_and_suggested(
     prefix: str,
     text_name: str,
 ) -> None:
-    # `.identifier` reads the annotation row's identifier column, the same
-    # column upserts key on; all grains expose it through the shared aliasing
-    # phase, and a near-miss gets the did-you-mean treatment.
     compiled = _compile(grain, f'{accessor}["q"].identifier == "x"')
     assert [relation.name for relation in compiled._aliased_annotation_relations] == ["q"]
     with pytest.raises(SyntaxError) as exc_info:
@@ -323,11 +320,7 @@ async def test_span_filter_annotation_conditions_return_the_same_rows(
 async def test_span_filter_selects_annotation_rows_by_identifier(
     db: DbSessionFactory,
 ) -> None:
-    """`.identifier` picks the right row when several rows share one name.
-
-    The correlated EXISTS lets an identifier predicate select among same-name
-    rows without duplicating spans in the outer query.
-    """
+    """`.identifier` picks the right row when several rows share one name."""
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -367,30 +360,23 @@ async def test_span_filter_selects_annotation_rows_by_identifier(
         )
         await session.flush()
 
-        def statement(condition: str) -> Any:
+        async def matched(condition: str) -> list[int]:
             span_filter = SpanFilter(condition)
             stmt = span_filter(select(models.Span.id).join(models.Trace))
-            return stmt.where(models.Trace.project_rowid == project.id)
+            rows = await session.scalars(stmt.where(models.Trace.project_rowid == project.id))
+            return sorted(rows)
 
-        async def matched(condition: str) -> set[int]:
-            return set(await session.scalars(statement(condition)))
-
-        assert await matched("annotations['note'].identifier == 'coding-run:1'") == {
+        assert await matched("annotations['note'].identifier == 'coding-run:1'") == [
             twice_annotated.id,
             once_annotated.id,
-        }
-        assert await matched("annotations['note'].identifier == 'coding-run:3'") == set()
+        ]
+        assert await matched("annotations['note'].identifier == 'coding-run:3'") == []
         assert await matched(
             "annotations['note'].identifier == 'coding-run:2' "
             "and annotations['note'].label == 'bad'"
-        ) == {twice_annotated.id}
+        ) == [twice_annotated.id]
         assert await matched(
             "annotations['note'].identifier == 'coding-run:1' "
             "and annotations['note'].label == 'bad'"
-        ) == {once_annotated.id}
+        ) == [once_annotated.id]
         assert unannotated.id not in await matched("annotations['note'].identifier != ''")
-        # Two same-name rows on one span must not duplicate that span.
-        rows = list(
-            await session.scalars(statement("annotations['note'].identifier == 'coding-run:1'"))
-        )
-        assert sorted(rows) == sorted({twice_annotated.id, once_annotated.id})
