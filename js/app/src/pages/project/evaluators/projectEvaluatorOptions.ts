@@ -166,7 +166,6 @@ type ProjectEvaluatorDetailsNode = NonNullable<
 
 export type EvaluatorInputSummary = {
   readonly name: string;
-  readonly type?: string;
   readonly description?: string;
 };
 
@@ -218,27 +217,13 @@ export function getEvaluatorInputSummaries(
   if (!isStringKeyedObject(properties)) return [];
   return Object.entries(properties).map(([name, unknownProperty]) => {
     if (!isStringKeyedObject(unknownProperty)) return { name };
-    const type = getJsonSchemaPropertyType(unknownProperty);
     const description =
       typeof unknownProperty.description === "string" &&
       unknownProperty.description.trim()
         ? unknownProperty.description
         : undefined;
-    return { name, type, description };
+    return { name, description };
   });
-}
-
-function getJsonSchemaPropertyType(
-  property: Record<string, unknown>
-): string | undefined {
-  if (typeof property.type === "string") return property.type;
-  if (!Array.isArray(property.anyOf)) return undefined;
-  const types = property.anyOf.flatMap((variant) =>
-    isStringKeyedObject(variant) && typeof variant.type === "string"
-      ? [variant.type]
-      : []
-  );
-  return types.length > 0 ? types.join(" | ") : undefined;
 }
 
 export type BuildCopyLlmCreationModeResult =
