@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f1e71a04b535ac9e76732247443c3b9>>
+ * @generated SignedSource<<3273bd674cc1f7229f5ef3a25faf817f>>
  * @lightSyntaxTransform
  */
 
@@ -74,17 +74,24 @@ v6 = {
   "storageKey": null
 },
 v7 = {
+  "alias": "llmInputSchema",
+  "args": null,
+  "kind": "ScalarField",
+  "name": "inputSchema",
+  "storageKey": null
+},
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*:: as any*/),
-    (v7/*:: as any*/),
+    (v8/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -114,36 +121,36 @@ v8 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v11 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v4/*:: as any*/),
-    (v7/*:: as any*/),
-    (v9/*:: as any*/),
-    (v10/*:: as any*/)
-  ],
-  "type": "ContinuousAnnotationConfig",
-  "abstractKey": null
-},
 v12 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*:: as any*/),
-    (v7/*:: as any*/),
+    (v8/*:: as any*/),
+    (v10/*:: as any*/),
+    (v11/*:: as any*/)
+  ],
+  "type": "ContinuousAnnotationConfig",
+  "abstractKey": null
+},
+v13 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v4/*:: as any*/),
+    (v8/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -151,13 +158,13 @@ v12 = {
       "name": "threshold",
       "storageKey": null
     },
-    (v9/*:: as any*/),
-    (v10/*:: as any*/)
+    (v10/*:: as any*/),
+    (v11/*:: as any*/)
   ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -166,20 +173,20 @@ v13 = {
   "plural": true,
   "selections": [
     (v2/*:: as any*/),
-    (v8/*:: as any*/),
-    (v11/*:: as any*/),
-    (v12/*:: as any*/)
+    (v9/*:: as any*/),
+    (v12/*:: as any*/),
+    (v13/*:: as any*/)
   ],
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "templateFormat",
   "storageKey": null
 },
-v15 = {
+v16 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -204,14 +211,14 @@ v15 = {
   "type": "TextContentPart",
   "abstractKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "role",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -225,7 +232,7 @@ v17 = {
   "type": "PromptStringTemplate",
   "abstractKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptTools",
@@ -287,34 +294,41 @@ v18 = {
   ],
   "storageKey": null
 },
-v19 = {
+v20 = {
+  "alias": "codeInputSchema",
+  "args": null,
+  "kind": "ScalarField",
+  "name": "inputSchema",
+  "storageKey": null
+},
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "sourceCode",
   "storageKey": null
 },
-v20 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "language",
   "storageKey": null
 },
-v21 = [
+v23 = [
   (v3/*:: as any*/)
 ],
-v22 = {
+v24 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxConfig",
   "kind": "LinkedField",
   "name": "sandboxConfig",
   "plural": false,
-  "selections": (v21/*:: as any*/),
+  "selections": (v23/*:: as any*/),
   "storageKey": null
 },
-v23 = {
+v25 = {
   "alias": null,
   "args": null,
   "concreteType": "EvaluatorInputMapping",
@@ -339,7 +353,7 @@ v23 = {
   ],
   "storageKey": null
 },
-v24 = {
+v26 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -348,12 +362,12 @@ v24 = {
   "plural": true,
   "selections": [
     (v2/*:: as any*/),
-    (v8/*:: as any*/),
-    (v11/*:: as any*/),
+    (v9/*:: as any*/),
     (v12/*:: as any*/),
+    (v13/*:: as any*/),
     {
       "kind": "InlineFragment",
-      "selections": (v21/*:: as any*/),
+      "selections": (v23/*:: as any*/),
       "type": "Node",
       "abstractKey": "__isNode"
     }
@@ -388,7 +402,8 @@ return {
                   (v4/*:: as any*/),
                   (v5/*:: as any*/),
                   (v6/*:: as any*/),
-                  (v13/*:: as any*/),
+                  (v7/*:: as any*/),
+                  (v14/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -397,7 +412,7 @@ return {
                     "name": "promptVersion",
                     "plural": false,
                     "selections": [
-                      (v14/*:: as any*/),
+                      (v15/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -430,11 +445,11 @@ return {
                                         "name": "content",
                                         "plural": true,
                                         "selections": [
-                                          (v15/*:: as any*/)
+                                          (v16/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       },
-                                      (v16/*:: as any*/)
+                                      (v17/*:: as any*/)
                                     ],
                                     "args": null,
                                     "argumentDefinitions": []
@@ -446,11 +461,11 @@ return {
                             "type": "PromptChatTemplate",
                             "abstractKey": null
                           },
-                          (v17/*:: as any*/)
+                          (v18/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v18/*:: as any*/)
+                      (v19/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -474,11 +489,12 @@ return {
                   (v4/*:: as any*/),
                   (v5/*:: as any*/),
                   (v6/*:: as any*/),
-                  (v13/*:: as any*/),
-                  (v19/*:: as any*/),
                   (v20/*:: as any*/),
+                  (v14/*:: as any*/),
+                  (v21/*:: as any*/),
                   (v22/*:: as any*/),
-                  (v23/*:: as any*/)
+                  (v24/*:: as any*/),
+                  (v25/*:: as any*/)
                 ],
                 "type": "CodeEvaluator",
                 "abstractKey": null
@@ -516,7 +532,8 @@ return {
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v24/*:: as any*/),
+              (v7/*:: as any*/),
+              (v26/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -525,7 +542,7 @@ return {
                 "name": "promptVersion",
                 "plural": false,
                 "selections": [
-                  (v14/*:: as any*/),
+                  (v15/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -555,11 +572,11 @@ return {
                                 "plural": true,
                                 "selections": [
                                   (v2/*:: as any*/),
-                                  (v15/*:: as any*/)
+                                  (v16/*:: as any*/)
                                 ],
                                 "storageKey": null
                               },
-                              (v16/*:: as any*/)
+                              (v17/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -567,11 +584,11 @@ return {
                         "type": "PromptChatTemplate",
                         "abstractKey": null
                       },
-                      (v17/*:: as any*/)
+                      (v18/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v18/*:: as any*/),
+                  (v19/*:: as any*/),
                   (v3/*:: as any*/)
                 ],
                 "storageKey": null
@@ -586,11 +603,12 @@ return {
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v24/*:: as any*/),
-              (v19/*:: as any*/),
               (v20/*:: as any*/),
+              (v26/*:: as any*/),
+              (v21/*:: as any*/),
               (v22/*:: as any*/),
-              (v23/*:: as any*/)
+              (v24/*:: as any*/),
+              (v25/*:: as any*/)
             ],
             "type": "CodeEvaluator",
             "abstractKey": null
@@ -601,12 +619,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9142867e7a26fc8cca78b4ace9c8f639",
+    "cacheID": "a3698f1b10f211614fb82fa4527076d5",
     "id": null,
     "metadata": {},
     "name": "projectEvaluatorDetailsQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorDetailsQuery(\n  $id: ID!\n) {\n  evaluator: node(id: $id) {\n    __typename\n    ...projectEvaluatorOptions_llmEvaluatorDetails\n    ...projectEvaluatorOptions_codeEvaluatorDetails\n    id\n  }\n}\n\nfragment projectEvaluatorOptions_codeEvaluatorDetails on CodeEvaluator {\n  __typename\n  id\n  name\n  description\n  kind\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  sourceCode\n  language\n  sandboxConfig {\n    id\n  }\n  inputMapping {\n    pathMapping\n    literalMapping\n  }\n}\n\nfragment projectEvaluatorOptions_llmEvaluatorDetails on LLMEvaluator {\n  __typename\n  id\n  name\n  description\n  kind\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  promptVersion {\n    templateFormat\n    template {\n      __typename\n      ... on PromptChatTemplate {\n        messages {\n          ...promptUtils_promptMessages\n        }\n      }\n      ... on PromptStringTemplate {\n        template\n      }\n    }\n    tools {\n      tools {\n        __typename\n        ... on PromptToolFunction {\n          function {\n            parameters\n          }\n        }\n        ... on PromptToolRaw {\n          raw\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query projectEvaluatorDetailsQuery(\n  $id: ID!\n) {\n  evaluator: node(id: $id) {\n    __typename\n    ...projectEvaluatorOptions_llmEvaluatorDetails\n    ...projectEvaluatorOptions_codeEvaluatorDetails\n    id\n  }\n}\n\nfragment projectEvaluatorOptions_codeEvaluatorDetails on CodeEvaluator {\n  __typename\n  id\n  name\n  description\n  kind\n  codeInputSchema: inputSchema\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  sourceCode\n  language\n  sandboxConfig {\n    id\n  }\n  inputMapping {\n    pathMapping\n    literalMapping\n  }\n}\n\nfragment projectEvaluatorOptions_llmEvaluatorDetails on LLMEvaluator {\n  __typename\n  id\n  name\n  description\n  kind\n  llmInputSchema: inputSchema\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  promptVersion {\n    templateFormat\n    template {\n      __typename\n      ... on PromptChatTemplate {\n        messages {\n          ...promptUtils_promptMessages\n        }\n      }\n      ... on PromptStringTemplate {\n        template\n      }\n    }\n    tools {\n      tools {\n        __typename\n        ... on PromptToolFunction {\n          function {\n            parameters\n          }\n        }\n        ... on PromptToolRaw {\n          raw\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
