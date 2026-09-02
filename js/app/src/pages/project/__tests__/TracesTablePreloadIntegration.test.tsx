@@ -13,13 +13,15 @@ installTestMatchMedia();
 
 const relayMocks = vi.hoisted(() => ({
   refetch: vi.fn(),
-  useLazyLoadQuery: vi.fn(),
   usePaginationFragment: vi.fn(),
 }));
 
 const fieldMocks = vi.hoisted(() => ({
   props: null as null | {
-    onValidCondition: (condition: string) => void;
+    onValidCondition: (args: {
+      condition: string;
+      isInitialSettlement: boolean;
+    }) => void;
   },
 }));
 
@@ -43,7 +45,6 @@ const timeRangeState = vi.hoisted(() => ({
 
 vi.mock("react-relay", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRelayModule>()),
-  useLazyLoadQuery: relayMocks.useLazyLoadQuery,
   usePaginationFragment: relayMocks.usePaginationFragment,
 }));
 
@@ -94,7 +95,7 @@ vi.mock("@phoenix/components/table", async (importOriginal) => ({
 vi.mock("../TraceFilterConditionField", async () => {
   const React = await import("react");
   return {
-    TraceFilterConditionField: (
+    TraceFilterConditionFieldWithVocabulary: (
       props: NonNullable<typeof fieldMocks.props>
     ) => {
       fieldMocks.props = props;
@@ -136,9 +137,6 @@ describe("TracesTable preload integration", () => {
     root = createRoot(container);
     fieldMocks.props = null;
     relayMocks.refetch.mockReset();
-    relayMocks.useLazyLoadQuery.mockReturnValue({
-      project: { traceFilterVocabulary: [] },
-    });
     relayMocks.usePaginationFragment.mockReturnValue({
       data: {
         id: "project-integration",
@@ -176,7 +174,10 @@ describe("TracesTable preload integration", () => {
     expect(relayMocks.refetch).not.toHaveBeenCalled();
 
     await act(async () => {
-      fieldMocks.props?.onValidCondition("num_spans >= 5");
+      fieldMocks.props?.onValidCondition({
+        condition: "num_spans >= 5",
+        isInitialSettlement: false,
+      });
     });
 
     expect(relayMocks.refetch).toHaveBeenCalledTimes(1);

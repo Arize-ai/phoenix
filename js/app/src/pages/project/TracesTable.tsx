@@ -17,7 +17,6 @@ import {
 import type { ComponentProps } from "react";
 import React, {
   Fragment,
-  Suspense,
   startTransition,
   useCallback,
   useEffect,
@@ -25,7 +24,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
@@ -93,7 +92,6 @@ import type {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
-import type { TracesTableTraceFilterVocabularyQuery } from "./__generated__/TracesTableTraceFilterVocabularyQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import {
   SpanInputValueTooltipCell,
@@ -114,7 +112,8 @@ import {
   normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
-import { TraceFilterConditionField } from "./TraceFilterConditionField";
+import type { TraceFilterValidConditionArgs } from "./TraceFilterConditionField";
+import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
 import { useTraceFilters } from "./TraceFiltersContext";
 
 type TracesTableProps = {
@@ -132,48 +131,6 @@ const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
   min-width: min(100%, 320px);
 `;
-
-const EMPTY_TRACE_FILTER_VOCABULARY = [] as const;
-
-function TraceFilterConditionFieldWithVocabulary({
-  projectId,
-  timeRange,
-  onValidCondition,
-}: {
-  projectId: string;
-  timeRange: { start?: string; end?: string };
-  onValidCondition: (condition: string) => void;
-}) {
-  const data = useLazyLoadQuery<TracesTableTraceFilterVocabularyQuery>(
-    graphql`
-      query TracesTableTraceFilterVocabularyQuery(
-        $id: ID!
-        $timeRange: TimeRange!
-      ) {
-        project: node(id: $id) {
-          ... on Project {
-            traceFilterVocabulary(timeRange: $timeRange) {
-              name
-              type
-              description
-              category
-              iterableName
-            }
-          }
-        }
-      }
-    `,
-    { id: projectId, timeRange }
-  );
-  return (
-    <TraceFilterConditionField
-      vocabulary={
-        data.project?.traceFilterVocabulary ?? EMPTY_TRACE_FILTER_VOCABULARY
-      }
-      onValidCondition={onValidCondition}
-    />
-  );
-}
 
 interface IAdditionalSpansIndicator {
   /**
@@ -309,6 +266,12 @@ export function TracesTable(props: TracesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validTraceFilterCondition, setValidTraceFilterCondition] =
     useState<string>("");
+  const handleValidTraceFilterCondition = useCallback(
+    ({ condition }: TraceFilterValidConditionArgs) => {
+      setValidTraceFilterCondition(condition);
+    },
+    []
+  );
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
@@ -1114,20 +1077,9 @@ export function TracesTable(props: TracesTableProps) {
             wrap="wrap"
           >
             <div css={toolbarFilterFieldCSS}>
-              <Suspense
-                fallback={
-                  <TraceFilterConditionField
-                    vocabulary={EMPTY_TRACE_FILTER_VOCABULARY}
-                    onValidCondition={setValidTraceFilterCondition}
-                  />
-                }
-              >
-                <TraceFilterConditionFieldWithVocabulary
-                  projectId={data.id}
-                  timeRange={timeRangeISOStrings}
-                  onValidCondition={setValidTraceFilterCondition}
-                />
-              </Suspense>
+              <TraceFilterConditionFieldWithVocabulary
+                onValidCondition={handleValidTraceFilterCondition}
+              />
             </div>
             <TableMetricsChartSelector view="traces" />
             <SpanColumnSelector columns={table.getAllColumns()} query={data} />
