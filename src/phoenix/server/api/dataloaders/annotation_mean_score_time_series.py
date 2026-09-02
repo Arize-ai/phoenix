@@ -7,7 +7,7 @@ its score series in a single query.
 
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Literal, Type, Union
+from typing import Any, Literal, NamedTuple, Type, Union
 
 from sqlalchemy import Select, or_, select
 from strawberry.dataloader import DataLoader
@@ -28,7 +28,17 @@ AnnotationName: TypeAlias = str
 
 Segment: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, Stride, UtcOffsetMinutes]
 Key: TypeAlias = tuple[Kind, ProjectRowId, TimeInterval, Stride, UtcOffsetMinutes, AnnotationName]
-MeanScoresByBucket: TypeAlias = dict[datetime, float]
+
+
+class MeanScoreBin(NamedTuple):
+    """One bucket's entity-weighted mean score and the number of scored
+    entities behind it, so adjacent buckets can be merged with correct weights."""
+
+    mean_score: float
+    scored_entity_count: int
+
+
+MeanScoresByBucket: TypeAlias = dict[datetime, MeanScoreBin]
 Result: TypeAlias = MeanScoresByBucket
 ResultPosition: TypeAlias = int
 
@@ -39,8 +49,9 @@ def _segment(key: Key) -> tuple[Segment, AnnotationName]:
 
 
 class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
-    """Loads `{bucket: mean_score}` for one annotation name; empty buckets are
-    absent and left for the caller to fill along its time axis."""
+    """Loads `{bucket: (mean_score, scored_entity_count)}` for one annotation
+    name; empty buckets are absent and left for the caller to fill along its
+    time axis."""
 
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
@@ -65,7 +76,8 @@ class AnnotationMeanScoreTimeSeriesDataLoader(DataLoader[Key, Result]):
                     # the first sighting is the bucket's entity-weighted mean.
                     if row.avg_score is not None:
                         mean_scores[row.name].setdefault(
-                            _as_datetime(row.bucket), float(row.avg_score)
+                            _as_datetime(row.bucket),
+                            MeanScoreBin(float(row.avg_score), int(row.scored_entity_count)),
                         )
             for annotation_name, positions in names.items():
                 for position in positions:

@@ -2108,7 +2108,7 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
                     annotationName
                     summary { meanScore count scoreCount labelFractions { label fraction } }
                     previousSummary { meanScore }
-                    series { timestamp meanScore }
+                    series { timestamp meanScore count }
                 }
             }
         }
@@ -2251,6 +2251,8 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
             pytest.approx(0.75),
             pytest.approx(0.0),
         ]
+        # The weight of each bin's mean: four scored spans on day 0, two on day 1
+        assert [bin["count"] for bin in series] == [4, 2]
         assert series[0]["timestamp"] == window_start.isoformat()
 
     async def test_series_fills_empty_bins_with_null_means(
@@ -2277,6 +2279,7 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
             None,
             None,
         ]
+        assert [bin["count"] for bin in metrics["series"]] == [4, 2, 0, 0]
 
     async def test_open_time_range_is_rejected(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient

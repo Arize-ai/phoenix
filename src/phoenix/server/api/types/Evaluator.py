@@ -1215,6 +1215,12 @@ class EvaluatorScoreSeriesBin:
 
     timestamp: datetime
     mean_score: Optional[float]
+    count: int = strawberry.field(
+        description=(
+            "How many scored spans, traces, or sessions the bin's mean averages over; "
+            "the weight to use when merging adjacent bins. Zero for an empty bin."
+        )
+    )
 
 
 @strawberry.type
@@ -1417,11 +1423,13 @@ class ProjectEvaluator(Node):
             series = [
                 EvaluatorScoreSeriesBin(
                     timestamp=timestamp,
-                    mean_score=mean_scores_by_bucket.get(timestamp),
+                    mean_score=mean_bin.mean_score if mean_bin is not None else None,
+                    count=mean_bin.scored_entity_count if mean_bin is not None else 0,
                 )
                 for timestamp in get_timestamp_range(
                     window_start, window_end, stride, utc_offset_minutes
                 )
+                for mean_bin in (mean_scores_by_bucket.get(timestamp),)
             ]
             return EvaluatorAnnotationScoreMetrics(
                 annotation_name=annotation_name,

@@ -1953,6 +1953,11 @@ enum EvaluatorScope {
 type EvaluatorScoreSeriesBin {
   timestamp: DateTime!
   meanScore: Float
+
+  """
+  How many scored spans, traces, or sessions the bin's mean averages over; the weight to use when merging adjacent bins. Zero for an empty bin.
+  """
+  count: Int!
 }
 
 """The sort key and direction for evaluator connections"""
