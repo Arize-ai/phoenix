@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f61860bc51ce64ca83d574a562c78e15>>
+ * @generated SignedSource<<f3782aca2e0d0d54722f204688050e19>>
  * @lightSyntaxTransform
  */
 
@@ -9,15 +9,15 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type settingsAgentsPageLoaderQuery$variables = {
+export type settingsAgentsChatsLoaderQuery$variables = {
   first: number;
 };
-export type settingsAgentsPageLoaderQuery$data = {
+export type settingsAgentsChatsLoaderQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"SettingsAgentSessionsCard_sessions">;
 };
-export type settingsAgentsPageLoaderQuery = {
-  response: settingsAgentsPageLoaderQuery$data;
-  variables: settingsAgentsPageLoaderQuery$variables;
+export type settingsAgentsChatsLoaderQuery = {
+  response: settingsAgentsChatsLoaderQuery$data;
+  variables: settingsAgentsChatsLoaderQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -53,7 +53,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "settingsAgentsPageLoaderQuery",
+    "name": "settingsAgentsChatsLoaderQuery",
     "selections": [
       {
         "args": [
@@ -70,7 +70,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "settingsAgentsPageLoaderQuery",
+    "name": "settingsAgentsChatsLoaderQuery",
     "selections": [
       {
         "alias": null,
@@ -218,16 +218,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "33f25376ee037543e1658674734291ff",
+    "cacheID": "4b2657e83b83a2ccb31116def5fe431c",
     "id": null,
     "metadata": {},
-    "name": "settingsAgentsPageLoaderQuery",
+    "name": "settingsAgentsChatsLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsAgentsPageLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        isActive\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsAgentsChatsLoaderQuery(\n  $first: Int!\n) {\n  ...SettingsAgentSessionsCard_sessions_3ASum4\n}\n\nfragment EditAgentSessionTitleDialog_session on AgentSession {\n  id\n  title\n}\n\nfragment SettingsAgentSessionsCard_sessions_3ASum4 on Query {\n  agentSessions(first: $first, viewerOnly: false) {\n    edges {\n      node {\n        id\n        title\n        ...EditAgentSessionTitleDialog_session\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        firstInput\n        isActive\n        createdAt\n        updatedAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "500b5164cdfa6605ae1ff01fcfd0b1c4";
+(node as any).hash = "4f9f786e2bb702f3d587f3d832fce0e9";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dffbe298e65b8b4426f88375c17e5e42>>
+ * @generated SignedSource<<70a80e404a4d41b90013dea70c3345fc>>
  * @lightSyntaxTransform
  */
 
@@ -11,17 +11,17 @@ import { ConcreteRequest } from 'relay-runtime';
 export type SetAgentAssistantEnabledInput = {
   enabled: boolean;
 };
-export type SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation$variables = {
+export type SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation$variables = {
   input: SetAgentAssistantEnabledInput;
 };
-export type SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation$data = {
+export type SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation$data = {
   readonly setAgentAssistantEnabled: {
     readonly enabled: boolean;
   };
 };
-export type SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation = {
-  response: SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation$data;
-  variables: SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation$variables;
+export type SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation = {
+  response: SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation$data;
+  variables: SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -63,7 +63,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation",
+    "name": "SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -72,20 +72,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation",
+    "name": "SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "ec85b24f77e8ee6a2ccda1ed49454972",
+    "cacheID": "979810c379ade6c5361f66eee0476689",
     "id": null,
     "metadata": {},
-    "name": "SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation",
+    "name": "SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsAgentsWorkspaceCardSetAgentAssistantEnabledMutation(\n  $input: SetAgentAssistantEnabledInput!\n) {\n  setAgentAssistantEnabled(input: $input) {\n    enabled\n  }\n}\n"
+    "text": "mutation SettingsAgentsPermissionsTabSetAgentAssistantEnabledMutation(\n  $input: SetAgentAssistantEnabledInput!\n) {\n  setAgentAssistantEnabled(input: $input) {\n    enabled\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f30d583cd02b8e97af398d3dc3e6e88b";
+(node as any).hash = "4a30bfbaf263f7e0fb5648957230902e";
 
 export default node;

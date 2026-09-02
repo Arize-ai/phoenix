@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<86b1e21267ee0057706f58d3af696a4c>>
+ * @generated SignedSource<<cc4ceb8c8088ee1f57dcc1aeae86e828>>
  * @lightSyntaxTransform
  */
 
@@ -11,17 +11,17 @@ import { ConcreteRequest } from 'relay-runtime';
 export type SetAgentGithubEnabledInput = {
   enabled: boolean;
 };
-export type SettingsAgentsWorkspaceCardSetAgentGithubEnabledMutation$variables = {
+export type SettingsAgentsToolsTabSetAgentGithubEnabledMutation$variables = {
   input: SetAgentGithubEnabledInput;
 };
-export type SettingsAgentsWorkspaceCardSetAgentGithubEnabledMutation$data = {
+export type SettingsAgentsToolsTabSetAgentGithubEnabledMutation$data = {
   readonly setAgentGithubEnabled: {
     readonly enabled: boolean;
   };
 };
-export type SettingsAgentsWorkspaceCardSetAgentGithubEnabledMutation = {
-  response: SettingsAgentsWorkspaceCardSetAgentGithubEnabledMutation$data;
-  variables: SettingsAgentsWorkspaceCardSetAgentGithubEnabledMutation$variables;
+export type SettingsAgentsToolsTabSetAgentGithubEnabledMutation = {
+  response: SettingsAgentsToolsTabSetAgentGithubEnabledMutation$data;
+  variables: SettingsAgentsToolsTabSetAgentGithubEnabledMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -63,7 +63,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsAgentsWorkspaceCardSetAgentGithubEnabledMutation",
+    "name": "SettingsAgentsToolsTabSetAgentGithubEnabledMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -72,20 +72,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "SettingsAgentsWorkspaceCardSetAgentGithubEnabledMutation",
+    "name": "SettingsAgentsToolsTabSetAgentGithubEnabledMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "132def14fca1ba7f3d5d6818dcc05003",
+    "cacheID": "bcef3b8829da585cd1ddb249656fefdd",
     "id": null,
     "metadata": {},
-    "name": "SettingsAgentsWorkspaceCardSetAgentGithubEnabledMutation",
+    "name": "SettingsAgentsToolsTabSetAgentGithubEnabledMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsAgentsWorkspaceCardSetAgentGithubEnabledMutation(\n  $input: SetAgentGithubEnabledInput!\n) {\n  setAgentGithubEnabled(input: $input) {\n    enabled\n  }\n}\n"
+    "text": "mutation SettingsAgentsToolsTabSetAgentGithubEnabledMutation(\n  $input: SetAgentGithubEnabledInput!\n) {\n  setAgentGithubEnabled(input: $input) {\n    enabled\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e48791a3e4357f0d2e4704ffdc04016c";
+(node as any).hash = "cca021274810e27ba6fe72ebc7057b51";
 
 export default node;

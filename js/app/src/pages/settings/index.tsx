@@ -6,3 +6,8 @@ export * from "./SettingsAgentsPage";
 export * from "./secrets";
 export * from "./prompts";
 export * from "./datasets";
+export * from "./SettingsAgentsGeneralTab";
+export * from "./SettingsAgentsToolsTab";
+export * from "./SettingsAgentsPermissionsTab";
+export * from "./SettingsAgentsTracingTab";
+export * from "./SettingsAgentsChatsTab";
