@@ -1470,6 +1470,7 @@ class Query:
         before: Optional[CursorString] = UNSET,
         sort: Optional[EvaluatorSort] = UNSET,
         filter: Optional[EvaluatorFilter] = UNSET,
+        exclude_project_id: Optional[GlobalID] = UNSET,
     ) -> Connection[Evaluator]:
         args = ConnectionArgs(
             first=first,
@@ -1497,6 +1498,16 @@ class Query:
                 has_dataset_association,
             )
         )
+
+        if isinstance(exclude_project_id, GlobalID):
+            project_rowid = from_global_id_with_expected_type(exclude_project_id, Project.__name__)
+            has_project_association = exists(
+                select(models.ProjectEvaluator.id).where(
+                    models.ProjectEvaluator.evaluator_id == PolymorphicEvaluator.id,
+                    models.ProjectEvaluator.project_id == project_rowid,
+                )
+            )
+            query = query.where(~has_project_association)
 
         if filter:
             if filter.col.value == "name":

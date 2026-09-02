@@ -4176,7 +4176,7 @@ type Query {
     names: [String!]
   ): DatasetSplitConnection!
   builtInEvaluators: [BuiltInEvaluator!]!
-  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
+  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter, excludeProjectId: ID): EvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   classificationEvaluatorConfigs(labels: [String!]): [ClassificationEvaluatorConfig!]!
   evaluatorGalleryConfigs: [ClassificationEvaluatorConfig!]!

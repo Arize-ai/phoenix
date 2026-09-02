@@ -68,6 +68,11 @@ export const CREATE_LLM_EVALUATOR_PARAM = "createLlmEvaluator";
 export const PROJECT_EVALUATOR_CATEGORY_PARAM = "category";
 
 /**
+ * The existing evaluator selected in the project evaluator gallery.
+ */
+export const PROJECT_EVALUATOR_PARAM = "evaluator";
+
+/**
  * The evaluator template selected in the project evaluator gallery.
  */
 export const PROJECT_EVALUATOR_TEMPLATE_PARAM = "template";

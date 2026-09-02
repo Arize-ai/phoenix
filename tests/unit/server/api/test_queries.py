@@ -2722,6 +2722,62 @@ class TestEvaluatorsQuery:
         assert not response.errors
         assert response.data == {"evaluators": {"edges": []}}
 
+    async def test_evaluators_excludes_project_associations_before_pagination(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        evaluators_for_querying: Any,
+    ) -> None:
+        from sqlalchemy import select
+
+        async with db() as session:
+            llm_evaluator = await session.scalar(
+                select(models.LLMEvaluator).where(
+                    models.LLMEvaluator.name == Identifier(root="llm_eval")
+                )
+            )
+            assert llm_evaluator is not None
+            project = models.Project(name="project-with-evaluator")
+            trace_project = models.Project(name="project-with-evaluator-traces")
+            session.add_all([project, trace_project])
+            await session.flush()
+            session.add(
+                models.ProjectEvaluator(
+                    project_id=project.id,
+                    evaluator_id=llm_evaluator.id,
+                    trace_project_id=trace_project.id,
+                    name=Identifier(root="llm-online"),
+                    filter_condition="",
+                    evaluation_target="SPAN",
+                    sampling_rate=1.0,
+                )
+            )
+            await session.flush()
+            project_id = str(GlobalID("Project", str(project.id)))
+
+        query = """
+          query ($excludeProjectId: ID) {
+            evaluators(
+              first: 1
+              sort: { col: name, dir: desc }
+              excludeProjectId: $excludeProjectId
+            ) {
+              edges {
+                evaluator: node {
+                  name
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={"excludeProjectId": project_id},
+        )
+
+        assert not response.errors
+        assert response.data == {"evaluators": {"edges": [{"evaluator": {"name": "contains"}}]}}
+
     async def test_evaluators_sort_by_name(
         self,
         gql_client: AsyncGraphQLClient,
