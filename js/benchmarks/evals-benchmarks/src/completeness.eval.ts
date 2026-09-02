@@ -760,6 +760,31 @@ Note: pause must be acknowledged separately from reporting.`,
       expectedLabel: "incomplete",
     },
   ],
+  action_completed_by_tool_only: [
+    {
+      conversation: agentSpan([
+        { 
+          role: "user", 
+          content: "Pause CAM-19 immediately." 
+        },
+        { 
+          role: "tool", 
+          name: "get_campaign", 
+          content: "CAM-19 EMEA retargeting | CTR 0.75% | status active | pause_requires: pause_campaign tool" 
+        },
+        { 
+          role: "tool", 
+          name: "pause_campaign", 
+          content: '{"campaign":"CAM-19","ok":true,"status":"paused"}' 
+        },
+        { 
+          role: "assistant", 
+          content: "Done." 
+        },
+      ]),
+      expectedLabel: "complete", 
+    },
+],
   mixed_blocked_and_ignored: [
     {
       conversation: agentSpan([
