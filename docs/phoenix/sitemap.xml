@@ -1737,6 +1737,10 @@
     <lastmod>2026-05-03T19:50:00+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-traces-from-a-project</loc>
+    <lastmod>2026-09-02T23:44:50+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
