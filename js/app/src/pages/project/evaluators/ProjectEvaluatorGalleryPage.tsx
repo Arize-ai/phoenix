@@ -45,9 +45,8 @@ import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__gene
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
 import {
-  isCodeProjectEvaluatorDetails,
-  isLlmProjectEvaluatorDetails,
   projectEvaluatorDetailsQueryNode,
+  readProjectEvaluatorDetails,
   type CodeProjectEvaluatorDetails,
   type LlmProjectEvaluatorDetails,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
@@ -792,11 +791,11 @@ function CustomEvaluatorDetails({
     { id: evaluatorSummary.id },
     { fetchPolicy: "store-and-network" }
   );
-  const evaluator = data.evaluator;
+  const evaluator = readProjectEvaluatorDetails(data.evaluator);
   if (!evaluator) {
     return <EvaluatorDetailsError />;
   }
-  if (isLlmProjectEvaluatorDetails(evaluator)) {
+  if (evaluator.__typename === "LLMEvaluator") {
     return (
       <LlmCustomEvaluatorDetails
         evaluator={evaluator}
@@ -804,7 +803,7 @@ function CustomEvaluatorDetails({
       />
     );
   }
-  if (isCodeProjectEvaluatorDetails(evaluator)) {
+  if (evaluator.__typename === "CodeEvaluator") {
     return (
       <CodeCustomEvaluatorDetails
         evaluator={evaluator}
