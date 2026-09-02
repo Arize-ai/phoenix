@@ -30,7 +30,7 @@ class CompletenessEvaluator(ClassificationEvaluator):
           (1.0 if complete, 0.0 if incomplete), and an `explanation` from the
           LLM judge that lists each intention.
 
-    Examples:
+    Examples::
 
         from phoenix.evals.metrics.completeness import CompletenessEvaluator
         from phoenix.evals import LLM
