@@ -5575,6 +5575,24 @@
       ]
     },
     {
+      "name": "cerebras/gemma-4-31b",
+      "name_pattern": "gemma-4-31b",
+      "source": "litellm",
+      "provider": "cerebras",
+      "token_prices": [
+        {
+          "base_rate": 9.9e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.49e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "cerebras/gpt-oss-120b",
       "name_pattern": "gpt-oss-120b",
       "source": "litellm",
@@ -6867,6 +6885,24 @@
           "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen3.8-Flash",
+      "name_pattern": "Qwen/Qwen3\\.8-Flash",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.7e-7,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     },
