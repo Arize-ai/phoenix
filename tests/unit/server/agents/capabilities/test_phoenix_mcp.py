@@ -473,6 +473,7 @@ async def test_the_instructions_account_for_every_directly_named_catalog_tool() 
         assert name in rendered, f"{name} is reachable but the instructions never name it"
 
 
+@pytest.mark.real_agent_mcp_server
 class TestBoundPrincipalAgainstRealV1Auth:
     """The in-memory toolset must present a principal that real /v1 auth accepts.
 
