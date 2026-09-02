@@ -49,6 +49,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import { SESSION_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
@@ -66,6 +67,7 @@ import {
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import { withFilterConditionParam } from "./filterConditionParam";
 import {
   SessionInputValueTooltipCell,
   SessionOutputValueTooltipCell,
@@ -88,6 +90,13 @@ import {
 } from "./tableUtils";
 type SessionsTableProps = {
   project: SessionsTable_sessions$key;
+  /**
+   * The condition `project` was loaded with. It arrives settled: the owner
+   * that preloads the rows either classified it or had it validated first, so
+   * the rows on hand always match it. The table only tracks what the user
+   * applies after.
+   */
+  seed: string;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -157,12 +166,35 @@ export const MemoizedTableBody = React.memo(
 export function SessionsTable(props: SessionsTableProps) {
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validSessionFilterCondition, setValidSessionFilterCondition] =
-    useState<string>("");
+    useState<string>(props.seed);
+  // React Router 8.2 recreates this setter whenever location.search changes.
+  // Keep the latest one behind a stable callback so unrelated param changes
+  // do not flow into the field's validation effect and revalidate its value.
+  const [, setSearchParams] = useSearchParams();
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
   const handleValidSessionFilterCondition = useCallback(
-    ({ condition }: SessionFilterValidConditionArgs) => {
+    ({ condition, isInitialSettlement }: SessionFilterValidConditionArgs) => {
       setValidSessionFilterCondition(condition);
+      // The mount settlement echoes the URL's own condition; writing it back
+      // would touch the URL on every visit to the tab.
+      if (isInitialSettlement) {
+        return;
+      }
+      setSearchParamsRef.current(
+        (prev) =>
+          withFilterConditionParam(
+            prev,
+            SESSION_FILTER_CONDITION_PARAM,
+            condition
+          ),
+        { replace: true }
+      );
     },
     []
   );
@@ -445,6 +477,13 @@ export function SessionsTable(props: SessionsTableProps) {
     },
   ];
   useEffect(() => {
+    // Skip the first render. The parent's query already carries what this
+    // table starts from -- its settled seed -- so the rows on hand answer the
+    // applied condition.
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     const sort = sorting[0];
     startTransition(() => {
       refetch(

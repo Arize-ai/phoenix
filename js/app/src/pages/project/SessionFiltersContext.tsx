@@ -1,7 +1,17 @@
 import type { PropsWithChildren } from "react";
-import { createContext, startTransition, useContext, useState } from "react";
+import {
+  createContext,
+  startTransition,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { useSearchParams } from "react-router";
 
+import { SESSION_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { joinFilterConditions } from "@phoenix/utils/filterConditionUtils";
+
+import { readFilterConditionParam } from "./filterConditionParam";
 
 export type SessionFiltersContextType = {
   filterCondition: string;
@@ -23,7 +33,23 @@ export function useSessionFilters() {
 }
 
 export function SessionFiltersProvider(props: PropsWithChildren) {
-  const [filterCondition, setFilterConditionState] = useState<string>("");
+  // Reads only: the URL is written where a condition is applied, so
+  // unvalidated drafts are never persisted.
+  const [searchParams] = useSearchParams();
+  const urlCondition = readFilterConditionParam(
+    searchParams,
+    SESSION_FILTER_CONDITION_PARAM
+  );
+  const [filterCondition, setFilterConditionState] =
+    useState<string>(urlCondition);
+
+  // A just-applied filter's own URL write lands here as a no-op: the draft
+  // already holds that condition.
+  useEffect(() => {
+    startTransition(() => {
+      setFilterConditionState(urlCondition);
+    });
+  }, [urlCondition]);
 
   function setFilterCondition(condition: string) {
     startTransition(() => {

@@ -25,7 +25,11 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
-import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
+import {
+  SESSION_FILTER_CONDITION_PARAM,
+  SPAN_FILTER_CONDITION_PARAM,
+  TRACE_FILTER_CONDITION_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useNotify } from "@phoenix/contexts/NotificationContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -36,6 +40,10 @@ import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } 
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import type { ProjectPageQuery as ProjectPageQueryType } from "./__generated__/ProjectPageQuery.graphql";
+import {
+  readFilterConditionParam,
+  withFilterConditionParam,
+} from "./filterConditionParam";
 import {
   ProjectPageQueriesProjectConfigQuery,
   ProjectPageQueriesSessionsQuery,
@@ -133,11 +141,27 @@ export function ProjectPageContent({
   );
 }
 
-/** Whether the URL already carries this condition. */
-function urlAlreadyHasCondition(condition: string): boolean {
+/** Whether the URL already carries this span condition. */
+function urlAlreadyHasSpanCondition(condition: string): boolean {
   return (
     new URLSearchParams(window.location.search).get(
       SPAN_FILTER_CONDITION_PARAM
+    ) === condition
+  );
+}
+
+/**
+ * Whether the URL already carries this traces or sessions condition. Unlike
+ * the span param, an absent one here is the empty condition.
+ */
+function urlAlreadyHasFilterCondition(
+  param: string,
+  condition: string
+): boolean {
+  return (
+    readFilterConditionParam(
+      new URLSearchParams(window.location.search),
+      param
     ) === condition
   );
 }
@@ -156,6 +180,21 @@ function settledSeedFromUrl(fallback: string): SettledSpanFilterSeed | null {
     ) ?? fallback
   );
   return seed.requiresServerValidation ? null : seed;
+}
+
+/**
+ * The URL's traces or sessions condition when it needs no server answer, else
+ * null. Only the empty condition qualifies: those tabs have no app-written
+ * predicates to recognize, so any other text must be validated.
+ *
+ * Reads `location` for the same reason as `settledSeedFromUrl`.
+ */
+function settledConditionFromUrl(param: string): string | null {
+  const condition = readFilterConditionParam(
+    new URLSearchParams(window.location.search),
+    param
+  );
+  return condition === "" ? "" : null;
 }
 
 export function LegacyTraceFilterParamNotice({
@@ -225,10 +264,16 @@ function ProjectPageContentBody({
     useState<SettledSpanFilterSeed | null>(() =>
       settledSeedFromUrl(DEFAULT_SPAN_FILTER_CONDITION)
     );
+  const [tracesFilterSeed, setTracesFilterSeed] = useState<string | null>(() =>
+    settledConditionFromUrl(TRACE_FILTER_CONDITION_PARAM)
+  );
   const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
     );
+  const [sessionsFilterSeed, setSessionsFilterSeed] = useState<string | null>(
+    () => settledConditionFromUrl(SESSION_FILTER_CONDITION_PARAM)
+  );
   const [projectConfigQueryReference, loadProjectConfigQuery] =
     useQueryLoader<ProjectPageProjectConfigQueryType>(
       ProjectPageQueriesProjectConfigQuery
@@ -272,7 +317,7 @@ function ProjectPageContentBody({
         // other -- a present-but-empty param means deliberately cleared, while
         // an absent one seeds the tab's default -- though when it arrived from
         // the URL the already-has-it check makes the write a no-op.
-        if (persistToUrl && !urlAlreadyHasCondition(seed.condition)) {
+        if (persistToUrl && !urlAlreadyHasSpanCondition(seed.condition)) {
           setSearchParamsRef.current(
             (prev) => {
               const next = new URLSearchParams(prev);
@@ -291,6 +336,75 @@ function ProjectPageContentBody({
       });
     },
     [projectId, loadSpansQuery]
+  );
+
+  /**
+   * Load the traces table from a validated condition. Called for the empty
+   * condition, which this app classifies itself, and by `ProjectTracesPage`
+   * once the field has validated one it cannot.
+   *
+   * `persistToUrl` is false for a fallback after validation failed: the URL
+   * keeps the rejected text so it stays visible and editable while the field
+   * reports why it failed.
+   */
+  const resolveTracesSeed = useCallback(
+    (condition: string, persistToUrl = true) => {
+      startTransition(() => {
+        setTracesFilterSeed(condition);
+        if (
+          persistToUrl &&
+          !urlAlreadyHasFilterCondition(TRACE_FILTER_CONDITION_PARAM, condition)
+        ) {
+          setSearchParamsRef.current(
+            (prev) =>
+              withFilterConditionParam(
+                prev,
+                TRACE_FILTER_CONDITION_PARAM,
+                condition
+              ),
+            { replace: true }
+          );
+        }
+        loadTracesQuery({
+          id: projectId,
+          timeRange: timeRangeRef.current,
+          traceFilterCondition: condition || null,
+        });
+      });
+    },
+    [projectId, loadTracesQuery]
+  );
+
+  /** The sessions counterpart of `resolveTracesSeed`. */
+  const resolveSessionsSeed = useCallback(
+    (condition: string, persistToUrl = true) => {
+      startTransition(() => {
+        setSessionsFilterSeed(condition);
+        if (
+          persistToUrl &&
+          !urlAlreadyHasFilterCondition(
+            SESSION_FILTER_CONDITION_PARAM,
+            condition
+          )
+        ) {
+          setSearchParamsRef.current(
+            (prev) =>
+              withFilterConditionParam(
+                prev,
+                SESSION_FILTER_CONDITION_PARAM,
+                condition
+              ),
+            { replace: true }
+          );
+        }
+        loadSessionsQuery({
+          id: projectId,
+          timeRange: timeRangeRef.current,
+          sessionFilterCondition: condition || null,
+        });
+      });
+    },
+    [projectId, loadSessionsQuery]
   );
 
   // Load the preloaded query backing the active tab's table. The time range is
@@ -328,15 +442,31 @@ function ProjectPageContentBody({
           resolveSpansSeed(seed, fromUrl !== null);
         }
       } else if (currentTabIndex === TAB_INDEX_MAP.traces) {
-        loadTracesQuery({
-          id: currentProjectId,
-          timeRange: timeRangeISOStrings,
-        });
+        const condition = readFilterConditionParam(
+          searchParams,
+          TRACE_FILTER_CONDITION_PARAM
+        );
+        if (tracesQueryReference && tracesFilterSeed === condition) {
+          return;
+        }
+        if (condition === "") {
+          resolveTracesSeed("", false);
+        } else {
+          setTracesFilterSeed(null);
+        }
       } else if (currentTabIndex === TAB_INDEX_MAP.sessions) {
-        loadSessionsQuery({
-          id: currentProjectId,
-          timeRange: timeRangeISOStrings,
-        });
+        const condition = readFilterConditionParam(
+          searchParams,
+          SESSION_FILTER_CONDITION_PARAM
+        );
+        if (sessionsQueryReference && sessionsFilterSeed === condition) {
+          return;
+        }
+        if (condition === "") {
+          resolveSessionsSeed("", false);
+        } else {
+          setSessionsFilterSeed(null);
+        }
       } else if (currentTabIndex === TAB_INDEX_MAP.config) {
         loadProjectConfigQuery({
           id: currentProjectId,
@@ -379,7 +509,11 @@ function ProjectPageContentBody({
           spansFilterSeed,
           resolveSpansSeed,
           sessionsQueryReference: sessionsQueryReference ?? null,
+          sessionsFilterSeed,
+          resolveSessionsSeed,
           tracesQueryReference: tracesQueryReference ?? null,
+          tracesFilterSeed,
+          resolveTracesSeed,
           projectConfigQueryReference: projectConfigQueryReference ?? null,
         }}
       >

@@ -3,24 +3,55 @@ import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
-import { Loading } from "@phoenix/components/core/loading/Loading";
-import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext";
+import { Loading } from "@phoenix/components";
+import { ErrorBoundary } from "@phoenix/components/exception";
+import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
+import { DSLFilterErrorFallback } from "./DSLFilterErrorFallback";
+import { PendingDSLFilter } from "./PendingDSLFilter";
 import { ProjectOnboarding } from "./ProjectOnboarding";
 import {
   ProjectPageQueriesTracesQuery,
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
+import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
+import { TraceFiltersProvider, useTraceFilters } from "./TraceFiltersContext";
 
-const TracesTabContent = ({
+// Module-level so the identity is stable: an inline component would remount the
+// field on every render.
+function TracesFilterErrorFallback({ error }: ErrorBoundaryFallbackProps) {
+  const { resolveTracesSeed } = useProjectPageQueryReferenceContext();
+  const { filterCondition } = useTraceFilters();
+  return (
+    <DSLFilterErrorFallback
+      error={error}
+      hasUserFilter={filterCondition.trim() !== ""}
+    >
+      <TraceFilterConditionFieldWithVocabulary
+        onValidCondition={({ condition, isInitialSettlement }) => {
+          // The mounted condition is the one that just failed, and it
+          // revalidates just as cleanly, so only an edit should reload.
+          if (isInitialSettlement) {
+            return;
+          }
+          resolveTracesSeed(condition);
+        }}
+      />
+    </DSLFilterErrorFallback>
+  );
+}
+
+function TracesTabContent({
   tracesQueryReference,
+  seed,
 }: {
   tracesQueryReference: PreloadedQuery<ProjectPageTracesQueryType>;
-}) => {
+  seed: string;
+}) {
   const data = usePreloadedQuery<ProjectPageTracesQueryType>(
     ProjectPageQueriesTracesQuery,
     tracesQueryReference
@@ -32,22 +63,51 @@ const TracesTabContent = ({
     );
   }
 
-  return <TracesTable project={data.project} />;
-};
+  return <TracesTable project={data.project} seed={seed} />;
+}
 
 export const ProjectTracesPage = () => {
-  const { tracesQueryReference } = useProjectPageQueryReferenceContext();
-  if (!tracesQueryReference) {
-    return null;
-  }
-
+  const { tracesQueryReference, tracesFilterSeed, resolveTracesSeed } =
+    useProjectPageQueryReferenceContext();
+  const hasTracesQuery =
+    tracesQueryReference !== null && tracesFilterSeed !== null;
+  // Keyed on the condition, not a counter: re-resolving the same filter must
+  // not remount the editor and table. A genuinely new condition still does,
+  // which is what resets the editor.
+  const seedKey =
+    tracesFilterSeed === null ? "seed-pending" : `seed-${tracesFilterSeed}`;
   return (
     <TracingRoot>
       <TracePaginationProvider>
-        <TraceFiltersProvider>
-          <Suspense fallback={<Loading />}>
-            <TracesTabContent tracesQueryReference={tracesQueryReference} />
-          </Suspense>
+        <TraceFiltersProvider key={seedKey}>
+          {/* Inside the provider so a resolved seed -- a new `key` -- remounts it. */}
+          <ErrorBoundary fallback={TracesFilterErrorFallback}>
+            <Suspense fallback={<Loading />}>
+              {hasTracesQuery ? (
+                <TracesTabContent
+                  tracesQueryReference={tracesQueryReference}
+                  seed={tracesFilterSeed}
+                />
+              ) : tracesFilterSeed === null ? (
+                // Waiting on validation: the field has to be on screen, because
+                // it is what validates. A rejected condition falls back to no
+                // filter, with the URL keeping the rejected text.
+                <PendingDSLFilter
+                  onValidCondition={({ condition }: { condition: string }) =>
+                    resolveTracesSeed(condition)
+                  }
+                  onRejected={() => resolveTracesSeed("", false)}
+                  renderField={(fieldProps) => (
+                    <TraceFilterConditionFieldWithVocabulary {...fieldProps} />
+                  )}
+                />
+              ) : (
+                // Waiting only on the query. Showing the field here would mount
+                // the toolbar, tear it down, and rebuild it inside the table.
+                <Loading />
+              )}
+            </Suspense>
+          </ErrorBoundary>
           <Suspense>
             <Outlet />
           </Suspense>
