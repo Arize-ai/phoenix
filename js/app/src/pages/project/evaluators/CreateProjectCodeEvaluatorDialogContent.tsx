@@ -40,12 +40,18 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   scope,
   onScopeChange,
   onSuccess,
+  initialValues,
 }: {
   title: string;
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   onSuccess: () => void;
+  initialValues?: {
+    language: CodeEvaluatorLanguage;
+    sourceCode: string;
+    sandboxConfigId: string | null;
+  };
 }) => {
   const store = useEvaluatorStoreInstance();
   const environment = useRelayEnvironment();
@@ -93,11 +99,15 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     data.sandboxBackends
   );
 
-  const [language, setLanguage] = useState<CodeEvaluatorLanguage>("PYTHON");
-  const [sourceCode, setSourceCode] = useState(() =>
-    getDefaultCodeEvaluatorSource("PYTHON")
+  const [language, setLanguage] = useState<CodeEvaluatorLanguage>(
+    initialValues?.language ?? "PYTHON"
   );
-  const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(null);
+  const [sourceCode, setSourceCode] = useState(
+    () => initialValues?.sourceCode ?? getDefaultCodeEvaluatorSource("PYTHON")
+  );
+  const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(
+    initialValues?.sandboxConfigId ?? null
+  );
   const [error, setError] = useState<string | undefined>();
   const [validationMessage, setValidationMessage] = useState<
     string | undefined
@@ -117,6 +127,13 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     ? sandboxConfigId
     : null;
   const hasNoSandboxConfigs = sandboxConfigs.length === 0;
+  const isInitialSandboxUnavailable =
+    initialValues?.sandboxConfigId != null &&
+    !sandboxConfigs.some(
+      (config) =>
+        config.id === initialValues.sandboxConfigId &&
+        config.language === initialValues.language
+    );
 
   const [createEvaluator, isCreating] =
     useMutation<CreateProjectCodeEvaluatorDialogContentMutation>(graphql`
@@ -238,6 +255,14 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
             >
               No sandboxes configured. Configure a sandbox before creating a
               code evaluator.
+            </Alert>
+          ) : null}
+          {isInitialSandboxUnavailable &&
+          selectedSandboxConfigId == null &&
+          !hasNoSandboxConfigs ? (
+            <Alert variant="warning" banner>
+              The original evaluator&apos;s sandbox is unavailable. Select a
+              sandbox before creating this evaluator.
             </Alert>
           ) : null}
           {validationMessage ? (
