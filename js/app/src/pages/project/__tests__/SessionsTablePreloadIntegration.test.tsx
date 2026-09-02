@@ -140,8 +140,6 @@ import type { SessionsTable_sessions$key } from "../__generated__/SessionsTable_
 import { SessionFiltersProvider } from "../SessionFiltersContext";
 import { SessionsTable } from "../SessionsTable";
 
-// Seeds reach the table settled: whoever preloads the rows either classified
-// the condition or had it validated first.
 const seed = "num_traces >= 5";
 
 describe("SessionsTable preload integration", () => {
@@ -196,10 +194,8 @@ describe("SessionsTable preload integration", () => {
   }
 
   it("keeps preloaded rows through the seed's own mount settlement", async () => {
-    // The preload already carried this condition. The field settles it again
-    // when it mounts, and asking for the rows again would fetch what the
-    // table is holding -- and swap in unfiltered rows in the meantime if the
-    // applied condition had started out empty.
+    // A refetch would briefly swap in unfiltered rows for a condition the
+    // table already holds.
     await renderTable();
 
     expect(container.querySelector("table")).not.toBeNull();

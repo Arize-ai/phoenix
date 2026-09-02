@@ -33,8 +33,7 @@ export function useSessionFilters() {
 }
 
 export function SessionFiltersProvider(props: PropsWithChildren) {
-  // Reads only: the URL is written where a condition is applied, so
-  // unvalidated drafts are never persisted.
+  // Read only: the URL is written where a condition is applied, not here.
   const [searchParams] = useSearchParams();
   const urlCondition = readFilterConditionParam(
     searchParams,
@@ -43,8 +42,7 @@ export function SessionFiltersProvider(props: PropsWithChildren) {
   const [filterCondition, setFilterConditionState] =
     useState<string>(urlCondition);
 
-  // A just-applied filter's own URL write lands here as a no-op: the draft
-  // already holds that condition.
+  // A just-applied filter's own URL write is a no-op here: the draft holds it.
   useEffect(() => {
     startTransition(() => {
       setFilterConditionState(urlCondition);

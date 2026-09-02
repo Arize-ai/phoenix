@@ -23,8 +23,7 @@ import {
   useSessionFilters,
 } from "./SessionFiltersContext";
 
-// Module-level so the identity is stable: an inline component would remount the
-// field on every render.
+// Module-level: an inline component would remount the field on every render.
 function SessionsFilterErrorFallback({ error }: ErrorBoundaryFallbackProps) {
   const { resolveSessionsSeed } = useProjectPageQueryReferenceContext();
   const { filterCondition } = useSessionFilters();
@@ -35,8 +34,7 @@ function SessionsFilterErrorFallback({ error }: ErrorBoundaryFallbackProps) {
     >
       <SessionFilterConditionFieldWithVocabulary
         onValidCondition={({ condition, isInitialSettlement }) => {
-          // The mounted condition is the one that just failed, and it
-          // revalidates just as cleanly, so only an edit should reload.
+          // The mounted condition just failed; only an edit should reload.
           if (isInitialSettlement) {
             return;
           }
@@ -66,9 +64,8 @@ export const ProjectSessionsPage = () => {
     useProjectPageQueryReferenceContext();
   const hasSessionsQuery =
     sessionsQueryReference !== null && sessionsFilterSeed !== null;
-  // Keyed on the condition, not a counter: re-resolving the same filter must
-  // not remount the editor and table. A genuinely new condition still does,
-  // which is what resets the editor.
+  // Keyed on the condition so re-resolving the same filter does not remount the
+  // editor and table; a new condition does, which resets the editor.
   const seedKey =
     sessionsFilterSeed === null ? "seed-pending" : `seed-${sessionsFilterSeed}`;
   return (
@@ -84,9 +81,8 @@ export const ProjectSessionsPage = () => {
                   seed={sessionsFilterSeed}
                 />
               ) : sessionsFilterSeed === null ? (
-                // Waiting on validation: the field has to be on screen, because
-                // it is what validates. A rejected condition falls back to no
-                // filter, with the URL keeping the rejected text.
+                // A rejected condition falls back to no filter; the URL keeps
+                // the rejected text.
                 <PendingDSLFilter
                   onValidCondition={({ condition }: { condition: string }) =>
                     resolveSessionsSeed(condition)
@@ -99,8 +95,8 @@ export const ProjectSessionsPage = () => {
                   )}
                 />
               ) : (
-                // Waiting only on the query. Showing the field here would mount
-                // the toolbar, tear it down, and rebuild it inside the table.
+                // Showing the field here would mount it twice: once now and
+                // again inside the table.
                 <Loading />
               )}
             </Suspense>
