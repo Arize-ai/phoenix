@@ -130,6 +130,9 @@ export const TemplateEditor = ({
       theme={codeMirrorTheme}
       extensions={extensions}
       basicSetup={basicSetupOptions}
+      // Prose has nothing to indent, and the editor's Tab-to-indent binding
+      // would run ahead of the completion accept below.
+      indentWithTab={false}
       readOnly={readOnly}
       onCreateEditor={(editorView) => {
         editorViewRef.current = editorView;

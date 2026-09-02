@@ -381,6 +381,7 @@ export function getEvaluatorPathCompletions({
           preview: toMemberPreview(resolution.value),
           section: SUGGESTED_PATH_SECTION,
           description,
+          drills: isStringKeyedObject(resolution.value),
         });
       }
     }
