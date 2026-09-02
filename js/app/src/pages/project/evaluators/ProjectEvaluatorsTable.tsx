@@ -11,6 +11,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -28,6 +29,7 @@ import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { TimeRangeISOStrings } from "@phoenix/components/datetime";
+import { useTimeRange } from "@phoenix/components/datetime";
 import {
   EvaluatorAverageCost,
   EvaluatorCost,
@@ -49,13 +51,22 @@ import {
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
+import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
+import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import {
+  EvaluatorScoreWindowProvider,
+  ProjectEvaluatorMeanScoreCell,
+  ProjectEvaluatorMeanScoreHeader,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
+import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
 import {
@@ -63,6 +74,7 @@ import {
   formatEvaluationTargetPlural,
   formatSamplingRate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { getProjectEvaluatorResultAnnotations } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;
@@ -71,6 +83,10 @@ const PAGE_SIZE = 30;
  * table so a project that's just getting started keeps seeing it.
  */
 const GALLERY_PROMO_MAX_EVALUATOR_COUNT = 15;
+/** Labels for columns whose header is not a plain string. */
+const COLUMN_LABELS: Partial<Record<string, string>> = {
+  meanScore: "mean score",
+};
 
 const scrollableAreaCSS = css`
   flex: 1 1 auto;
@@ -79,7 +95,9 @@ const scrollableAreaCSS = css`
 `;
 
 const readRow = (
-  row: ProjectEvaluatorsTable_row$key & ProjectEvaluatorsTable_costs$key
+  row: ProjectEvaluatorsTable_row$key &
+    ProjectEvaluatorsTable_costs$key &
+    ProjectEvaluatorsTable_scores$key
 ) => {
   const rowData = readInlineData<ProjectEvaluatorsTable_row$key>(
     graphql`
@@ -103,6 +121,33 @@ const readRow = (
         }
         evaluator {
           kind
+          # Selections must cover getProjectEvaluatorResultAnnotations, which
+          # resolves the names and optimization metadata of the annotations the
+          # evaluator writes for the mean score column.
+          outputConfigs {
+            ... on AnnotationConfigBase {
+              name
+              annotationType
+            }
+            ... on CategoricalAnnotationConfig {
+              optimizationDirection
+              values {
+                label
+                score
+              }
+            }
+            ... on ContinuousAnnotationConfig {
+              optimizationDirection
+              lowerBound
+              upperBound
+            }
+            ... on FreeformAnnotationConfig {
+              optimizationDirection
+              threshold
+              lowerBound
+              upperBound
+            }
+          }
           ... on LLMEvaluator {
             prompt {
               id
@@ -157,7 +202,44 @@ const readRow = (
     `,
     row
   );
-  return { ...rowData, ...costData };
+  const scoresData = readInlineData<ProjectEvaluatorsTable_scores$key>(
+    graphql`
+      fragment ProjectEvaluatorsTable_scores on ProjectEvaluator
+      @inline
+      @argumentDefinitions(
+        scoreTimeRange: { type: "TimeRange!" }
+        scoreTimeBinConfig: { type: "TimeBinConfig!" }
+        includeMeanScore: { type: "Boolean!" }
+      ) {
+        annotationScoreMetrics(
+          timeRange: $scoreTimeRange
+          timeBinConfig: $scoreTimeBinConfig
+        ) @include(if: $includeMeanScore) {
+          annotationName
+          summary {
+            meanScore
+            count
+            scoreCount
+            labelCount
+            labelFractions {
+              label
+              fraction
+            }
+          }
+          previousSummary {
+            meanScore
+          }
+          series {
+            timestamp
+            meanScore
+            count
+          }
+        }
+      }
+    `,
+    row
+  );
+  return { ...rowData, ...costData, ...scoresData };
 };
 
 type TableRow = ReturnType<typeof readRow>;
@@ -169,6 +251,8 @@ export function ProjectEvaluatorsTable({
   timeRange,
   initialFilter,
   initialTimeRange,
+  initialScoreWindow,
+  initialIncludeMeanScore,
 }: {
   project: ProjectEvaluatorsTable_project$key;
   projectId: string;
@@ -180,6 +264,10 @@ export function ProjectEvaluatorsTable({
   initialFilter: string;
   /** Time range used to fetch the rows supplied by the owner query. */
   initialTimeRange: TimeRangeISOStrings;
+  /** Score window used to fetch the rows supplied by the owner query. */
+  initialScoreWindow: EvaluatorScoreWindow;
+  /** Whether the owner query fetched the mean score column's data. */
+  initialIncludeMeanScore: boolean;
 }) {
   "use no memo";
   const {
@@ -197,6 +285,9 @@ export function ProjectEvaluatorsTable({
         after: { type: "String", defaultValue: null }
         filter: { type: "ProjectEvaluatorFilter", defaultValue: null }
         timeRange: { type: "TimeRange!" }
+        scoreTimeRange: { type: "TimeRange!" }
+        scoreTimeBinConfig: { type: "TimeBinConfig!" }
+        includeMeanScore: { type: "Boolean!" }
       ) {
         evaluators(first: $first, after: $after, filter: $filter)
           @connection(key: "ProjectEvaluatorsTable_evaluators") {
@@ -204,6 +295,12 @@ export function ProjectEvaluatorsTable({
             node {
               ...ProjectEvaluatorsTable_row
               ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
+              ...ProjectEvaluatorsTable_scores
+                @arguments(
+                  scoreTimeRange: $scoreTimeRange
+                  scoreTimeBinConfig: $scoreTimeBinConfig
+                  includeMeanScore: $includeMeanScore
+                )
             }
           }
         }
@@ -212,6 +309,27 @@ export function ProjectEvaluatorsTable({
     project
   );
   const trimmedFilter = filter.trim();
+  const { timeRange: pageTimeRange } = useTimeRange();
+  const utcOffsetMinutes = useUTCOffsetMinutes();
+  // Memoized so an open-ended range resolves "now" once per range change
+  // instead of minting new query variables (and refetches) every render.
+  const scoreWindow = useMemo<EvaluatorScoreWindow>(
+    () =>
+      getEvaluatorScoreWindow({ timeRange: pageTimeRange, utcOffsetMinutes }),
+    [pageTimeRange, utcOffsetMinutes]
+  );
+  const isMeanScoreColumnVisible = useProjectEvaluatorsTableContext(
+    (state) => state.columnVisibility["meanScore"] !== false
+  );
+  // Latched: once the mean score column has been shown, keep fetching its
+  // data so hiding and re-showing it does not churn the connection. Set
+  // during render (not in an effect) so the latch lands in the same pass.
+  const [includeMeanScore, setIncludeMeanScore] = useState(
+    initialIncludeMeanScore || isMeanScoreColumnVisible
+  );
+  if (isMeanScoreColumnVisible && !includeMeanScore) {
+    setIncludeMeanScore(true);
+  }
   const hasComparedInitialQueryInputs = useRef(false);
   // Filtered server-side; a client-side filter would only see the loaded page.
   useEffect(() => {
@@ -221,9 +339,21 @@ export function ProjectEvaluatorsTable({
       const hasInitialTimeRange =
         timeRange.start === initialTimeRange.start &&
         timeRange.end === initialTimeRange.end;
+      const hasInitialScoreWindow =
+        scoreWindow.timeRange.start === initialScoreWindow.timeRange.start &&
+        scoreWindow.timeRange.end === initialScoreWindow.timeRange.end &&
+        scoreWindow.timeBinConfig.scale ===
+          initialScoreWindow.timeBinConfig.scale;
+      const hasInitialIncludeMeanScore =
+        includeMeanScore === initialIncludeMeanScore;
       // Avoid a duplicate request only when the rows supplied by the owner
-      // query already answer the table's current filter and selected range.
-      if (hasInitialFilter && hasInitialTimeRange) {
+      // query already answer the table's current filter, range, and columns.
+      if (
+        hasInitialFilter &&
+        hasInitialTimeRange &&
+        hasInitialScoreWindow &&
+        hasInitialIncludeMeanScore
+      ) {
         return;
       }
     }
@@ -234,19 +364,35 @@ export function ProjectEvaluatorsTable({
           first: PAGE_SIZE,
           filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
           timeRange,
+          scoreTimeRange: scoreWindow.timeRange,
+          scoreTimeBinConfig: scoreWindow.timeBinConfig,
+          includeMeanScore,
         },
         { fetchPolicy: "store-and-network" }
       );
     });
-  }, [initialFilter, initialTimeRange, trimmedFilter, refetch, timeRange]);
+  }, [
+    initialFilter,
+    initialTimeRange,
+    initialScoreWindow,
+    initialIncludeMeanScore,
+    trimmedFilter,
+    refetch,
+    timeRange,
+    scoreWindow,
+    includeMeanScore,
+  ]);
   const loadNext = useCallback(() => {
     _loadNext(PAGE_SIZE, {
       UNSTABLE_extraVariables: {
         filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
         timeRange,
+        scoreTimeRange: scoreWindow.timeRange,
+        scoreTimeBinConfig: scoreWindow.timeBinConfig,
+        includeMeanScore,
       },
     });
-  }, [_loadNext, trimmedFilter, timeRange]);
+  }, [_loadNext, trimmedFilter, timeRange, scoreWindow, includeMeanScore]);
   const tableData = useMemo(
     () => data.evaluators.edges.map(({ node }) => readRow(node)),
     [data.evaluators.edges]
@@ -290,13 +436,33 @@ export function ProjectEvaluatorsTable({
         ),
       },
       {
+        id: "meanScore",
+        // The header reads the score window from context so the column def —
+        // and with it the cell component identity tanstack renders — stays
+        // stable when the window changes. A def that closed over the window
+        // would remount every cell on each live-range re-anchor.
+        header: () => <ProjectEvaluatorMeanScoreHeader />,
+        // Room for the score pill and delta plus a sparkline wide enough to
+        // resolve a few dozen bins; the sparkline itself caps its width.
+        size: 280,
+        cell: ({ row }) => (
+          <ProjectEvaluatorMeanScoreCell
+            annotations={getProjectEvaluatorResultAnnotations({
+              name: row.original.name,
+              outputConfigs: row.original.evaluator.outputConfigs,
+            })}
+            scoreMetrics={row.original.annotationScoreMetrics}
+          />
+        ),
+      },
+      {
         id: "prompt",
         header: "prompt",
         size: 180,
         cell: ({ row }) => {
           const { prompt, promptVersionTag } = row.original.evaluator;
           if (!prompt) {
-            return <Text color="text-700">—</Text>;
+            return <Text color="text-700">--</Text>;
           }
           return (
             <PromptCell
@@ -313,7 +479,7 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => {
           const promptVersion = row.original.evaluator.promptVersion;
           if (!promptVersion) {
-            return <Text color="text-700">—</Text>;
+            return <Text color="text-700">--</Text>;
           }
           const { modelName, modelProvider } = promptVersion;
           const providerIsValid = isModelProvider(modelProvider);
@@ -361,7 +527,7 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => {
           const language = row.original.evaluator.language;
           if (!language) {
-            return <Text color="text-700">—</Text>;
+            return <Text color="text-700">--</Text>;
           }
           return (
             <Flex direction="row" gap="size-100" alignItems="center">
@@ -378,7 +544,7 @@ export function ProjectEvaluatorsTable({
         cell: ({ row }) => {
           const sandboxConfig = row.original.evaluator.sandboxConfig;
           if (!sandboxConfig) {
-            return <Text color="text-700">—</Text>;
+            return <Text color="text-700">--</Text>;
           }
           return (
             <SandboxConfigLabel
@@ -547,116 +713,121 @@ export function ProjectEvaluatorsTable({
     !isFiltered && !hasNext && rows.length < GALLERY_PROMO_MAX_EVALUATOR_COUNT;
   return (
     <div css={scrollableAreaCSS}>
-      <ColumnOrderingProvider
-        columnOrder={visibleColumnOrder}
-        onColumnOrderChange={onVisibleColumnOrderChange}
-      >
-        <table
-          css={selectableTableCSS}
-          aria-label="Project evaluators"
-          style={{
-            ...columnSizeVars,
-            width: table.getTotalSize(),
-            minWidth: "100%",
-          }}
+      <EvaluatorScoreWindowProvider value={scoreWindow}>
+        <ColumnOrderingProvider
+          columnOrder={visibleColumnOrder}
+          onColumnOrderChange={onVisibleColumnOrderChange}
         >
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <ColumnHeaderCell
-                    key={header.id}
-                    colSpan={header.colSpan}
-                    columnId={header.column.id}
-                    index={getColumnOrderIndex(header.column.id)}
-                    label={
-                      typeof header.column.columnDef.header === "string"
-                        ? header.column.columnDef.header
-                        : undefined
-                    }
-                    style={{
-                      width: `calc(var(--header-${header.id}-size) * 1px)`,
-                      ...(header.column.getIsPinned()
-                        ? {
-                            ...getCommonPinningStyles(header.column),
-                            zIndex: 3,
-                          }
-                        : {}),
-                    }}
+          <table
+            css={selectableTableCSS}
+            aria-label="Project evaluators"
+            style={{
+              ...columnSizeVars,
+              width: table.getTotalSize(),
+              minWidth: "100%",
+            }}
+          >
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <ColumnHeaderCell
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      columnId={header.column.id}
+                      index={getColumnOrderIndex(header.column.id)}
+                      label={
+                        typeof header.column.columnDef.header === "string"
+                          ? header.column.columnDef.header
+                          : COLUMN_LABELS[header.column.id]
+                      }
+                      style={{
+                        width: `calc(var(--header-${header.id}-size) * 1px)`,
+                        ...(header.column.getIsPinned()
+                          ? {
+                              ...getCommonPinningStyles(header.column),
+                              zIndex: 3,
+                            }
+                          : {}),
+                      }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <>
+                          <div
+                            style={{
+                              textAlign:
+                                header.column.columnDef.meta?.textAlign,
+                            }}
+                          >
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                          </div>
+                          <div
+                            {...{
+                              onMouseDown: header.getResizeHandler(),
+                              onTouchStart: header.getResizeHandler(),
+                              className: `resizer ${
+                                header.column.getIsResizing()
+                                  ? "isResizing"
+                                  : ""
+                              }`,
+                            }}
+                          />
+                        </>
+                      )}
+                    </ColumnHeaderCell>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            {isEmpty ? (
+              <TableEmptyWrap>
+                <CompactEmptyState
+                  icon={<Icon svg={<Icons.Scale />} />}
+                  description="No evaluators"
+                  isFiltered={isFiltered}
+                />
+              </TableEmptyWrap>
+            ) : (
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    onClick={() => navigate(paths.details(row.original.id))}
                   >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        <div
+                    {row.getVisibleCells().map((cell) => {
+                      const colSizeVar = `--col-${cell.column.id}-size`;
+                      return (
+                        <td
+                          key={cell.id}
                           style={{
-                            textAlign: header.column.columnDef.meta?.textAlign,
+                            width: `calc(var(${colSizeVar}) * 1px)`,
+                            maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            textAlign: cell.column.columnDef.meta?.textAlign,
+                            ...(cell.column.getIsPinned()
+                              ? getCommonPinningStyles(cell.column)
+                              : {}),
                           }}
                         >
                           {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
+                            cell.column.columnDef.cell,
+                            cell.getContext()
                           )}
-                        </div>
-                        <div
-                          {...{
-                            onMouseDown: header.getResizeHandler(),
-                            onTouchStart: header.getResizeHandler(),
-                            className: `resizer ${
-                              header.column.getIsResizing() ? "isResizing" : ""
-                            }`,
-                          }}
-                        />
-                      </>
-                    )}
-                  </ColumnHeaderCell>
+                        </td>
+                      );
+                    })}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </thead>
-          {isEmpty ? (
-            <TableEmptyWrap>
-              <CompactEmptyState
-                icon={<Icon svg={<Icons.Scale />} />}
-                description="No evaluators"
-                isFiltered={isFiltered}
-              />
-            </TableEmptyWrap>
-          ) : (
-            <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={row.id}
-                  onClick={() => navigate(paths.details(row.original.id))}
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    const colSizeVar = `--col-${cell.column.id}-size`;
-                    return (
-                      <td
-                        key={cell.id}
-                        style={{
-                          width: `calc(var(${colSizeVar}) * 1px)`,
-                          maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          textAlign: cell.column.columnDef.meta?.textAlign,
-                          ...(cell.column.getIsPinned()
-                            ? getCommonPinningStyles(cell.column)
-                            : {}),
-                        }}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          )}
-        </table>
-      </ColumnOrderingProvider>
+              </tbody>
+            )}
+          </table>
+        </ColumnOrderingProvider>
+      </EvaluatorScoreWindowProvider>
       {hasNext ? (
         <View padding="size-100">
           <Flex justifyContent="center">

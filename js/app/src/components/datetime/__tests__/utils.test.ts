@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  clampTimeRangeToMaxDuration,
   getLastNTimeRangeLabel,
   getMillisecondsUntilNextLastNTimeRangeRefresh,
   getTimeRangeFromSearchParams,
@@ -444,5 +445,58 @@ describe("time range pan and zoom", () => {
     expect(panTimeRangeRight({ value: startless, now })).toBeNull();
     expect(zoomTimeRangeIn({ value: startless, now })).toBeNull();
     expect(zoomTimeRangeOut({ value: startless, now })).toBeNull();
+  });
+});
+
+describe("clampTimeRangeToMaxDuration", () => {
+  const now = new Date("2026-06-09T12:00:00.000Z");
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  it("keeps a range shorter than the cap unchanged", () => {
+    const start = new Date("2026-06-08T12:00:00.000Z");
+    const end = new Date("2026-06-09T00:00:00.000Z");
+    expect(
+      clampTimeRangeToMaxDuration({
+        value: { start, end },
+        maxDurationMs: oneDayMs,
+        now,
+      })
+    ).toEqual({ start, end });
+  });
+
+  it("keeps the most recent slice of a longer range", () => {
+    expect(
+      clampTimeRangeToMaxDuration({
+        value: {
+          start: new Date("2026-06-01T00:00:00.000Z"),
+          end: new Date("2026-06-09T00:00:00.000Z"),
+        },
+        maxDurationMs: oneDayMs,
+        now,
+      })
+    ).toEqual({
+      start: new Date("2026-06-08T00:00:00.000Z"),
+      end: new Date("2026-06-09T00:00:00.000Z"),
+    });
+  });
+
+  it("resolves an open end to now", () => {
+    expect(
+      clampTimeRangeToMaxDuration({
+        value: { start: new Date("2026-06-09T06:00:00.000Z"), end: null },
+        maxDurationMs: oneDayMs,
+        now,
+      })
+    ).toEqual({ start: new Date("2026-06-09T06:00:00.000Z"), end: now });
+  });
+
+  it("yields the trailing capped window when the range has no start", () => {
+    expect(
+      clampTimeRangeToMaxDuration({
+        value: {},
+        maxDurationMs: oneDayMs,
+        now,
+      })
+    ).toEqual({ start: new Date("2026-06-08T12:00:00.000Z"), end: now });
   });
 });
