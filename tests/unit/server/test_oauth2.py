@@ -1,15 +1,17 @@
 """Unit tests for OAuth2Client."""
 
+import importlib
 import logging
 import os
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 from urllib.parse import parse_qs
 
-import httpx
 import jmespath
 import pytest
 from authlib.integrations.base_client import OAuthError
+from authlib.integrations.httpx_client import AsyncOAuth2Client
 from authlib.oauth2.auth import ClientAuth
 
 from phoenix.config import CLIENT_ASSERTION_JWT_AUTH_METHOD, OAuth2ClientConfig
@@ -21,6 +23,17 @@ from phoenix.server.oauth2 import (
     OAuth2Clients,
     search_claim_path,
 )
+
+
+def _httpx_behind_authlib() -> ModuleType:
+    """The httpx package authlib's async client subclasses: httpx2 from authlib 1.8 on."""
+    async_client = next(
+        base for base in AsyncOAuth2Client.__mro__ if base.__name__ == "AsyncClient"
+    )
+    return importlib.import_module(async_client.__module__.partition(".")[0])
+
+
+_authlib_httpx = _httpx_behind_authlib()
 
 # Common test configuration constants
 # Note: Optional features (groups, roles) are excluded - tests add them explicitly
@@ -1686,7 +1699,7 @@ class TestClientAssertionJWT:
             client_kwargs={
                 "token_endpoint_auth_method": auth_method,
                 "revocation_endpoint_auth_method": auth_method,
-                "transport": httpx.MockTransport(handler),
+                "transport": _authlib_httpx.MockTransport(handler),
             },
         )
 
@@ -1700,9 +1713,9 @@ class TestClientAssertionJWT:
         assertion_file.write_text("header.payload.sig")
         captured: dict[str, str] = {}
 
-        def handler(request: httpx.Request) -> httpx.Response:
+        def handler(request: Any) -> Any:
             captured["body"] = request.content.decode()
-            return httpx.Response(200, json={"access_token": "at", "token_type": "Bearer"})
+            return _authlib_httpx.Response(200, json={"access_token": "at", "token_type": "Bearer"})
 
         client = self._client_through_base_app(assertion_file, handler)
         await client.fetch_access_token(
@@ -1727,9 +1740,9 @@ class TestClientAssertionJWT:
         assertion_file.write_text("header.payload.sig")
         captured: dict[str, str] = {}
 
-        def handler(request: httpx.Request) -> httpx.Response:
+        def handler(request: Any) -> Any:
             captured["body"] = request.content.decode()
-            return httpx.Response(200, json={})
+            return _authlib_httpx.Response(200, json={})
 
         client = self._client_through_base_app(assertion_file, handler)
         async with client._get_oauth_client() as session:
