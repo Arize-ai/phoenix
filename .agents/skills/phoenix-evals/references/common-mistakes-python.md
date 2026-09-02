@@ -239,6 +239,4 @@ source of truth is a supplied context such as retrieved documents, that is
 
 Labels are `hallucinated`/`grounded` and the score is **minimized** — `hallucinated` is
 `1.0`, `grounded` is `0.0`. Do not assume "1.0 = good"; read the returned `Score`'s
-`direction` before thresholding. Results are also not comparable with previously stored
-`hallucination` annotations that used `factual`/`hallucinated` labels — dashboards and
-thresholds built on those need migrating, not reinterpreting.
+`direction` before thresholding.

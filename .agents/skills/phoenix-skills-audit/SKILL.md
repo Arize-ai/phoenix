@@ -285,11 +285,13 @@ cost of poisoning every future agent with a hallucinated API.
 Skills are read by agents but reviewed and maintained by humans. Write like the
 existing docs, not like a release announcement or a model narrating its diff:
 
-- **Present tense, current behavior.** Document what the code does now. Don't
-  narrate history ("before this change…", "they now land…") — that's changelog
-  voice. The one exception is a live migration concern (renamed labels, breaking
-  signature changes), which gets a sentence or two telling the reader what to
-  migrate.
+- **Current state only, no history.** Skills describe the application as it is
+  today — never how it was versus how it is now. No "previously took X", "no
+  longer emits Y", "changed shape", "they now land…" — that's changelog voice,
+  and it goes stale the moment it's written. This has no exceptions: when a
+  rename or removal happens, rewrite the affected text as if the old behavior
+  never existed. A fact that varies by version is stated as a requirement
+  ("requires Phoenix server >= 20.4.0"), not as a timeline.
 - **Bold sparingly.** Bolding ordinary words mid-sentence ("**existing**",
   "**re-parents**") reads as machine emphasis. Reserve bold for bullet lead-ins.
 - **Catalogs stay catalogs.** A reference file that lists things — above all

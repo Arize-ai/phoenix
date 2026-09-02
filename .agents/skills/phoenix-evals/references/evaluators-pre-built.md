@@ -61,10 +61,6 @@ const faithfulnessEval = createFaithfulnessEvaluator({ model: openai("gpt-4o") }
   itself: `input` holds the full history the assistant saw, including tool
   calls and results, and there is no `context` field — use it for multi-turn
   agents and chat.
-- **Hallucination (TypeScript) changed shape.** It previously took a separate
-  `context` field and returned `factual` / `hallucinated`. Stored evaluations,
-  dashboards, and label filters built on the old labels need migrating; don't
-  compare old and new scores directly.
 - **PII detection screens the whole record.** The single `conversation` field
   should include everything — system instructions, tool calls and results,
   retrieved documents — not just what the user saw. The judge's `explanation`
