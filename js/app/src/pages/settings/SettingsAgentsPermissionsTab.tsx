@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { graphql } from "react-relay";
 
-import { Alert, Flex, Radio, RadioGroup, Text } from "@phoenix/components";
+import { Flex, Radio, RadioGroup, Text } from "@phoenix/components";
 import { EDIT_PERMISSION_MODES } from "@phoenix/components/agent/AgentEditPermissionMenu";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useIsAdminOrAuthDisabled } from "@phoenix/contexts/ViewerContext";
@@ -147,7 +147,7 @@ function EditApprovalSetting() {
 
 /**
  * Permissions tab: who can use the assistant (system-scoped) and how the
- * assistant's edits and tool actions get approved.
+ * assistant's edits get approved.
  */
 export function SettingsAgentsPermissionsTab() {
   const isAdmin = useIsAdminOrAuthDisabled();
@@ -168,16 +168,6 @@ export function SettingsAgentsPermissionsTab() {
         description="How the assistant applies edits to prompts, datasets, annotations, and other Phoenix resources. You can also change this from the chat prompt input (Ctrl+T)."
       >
         <EditApprovalSetting />
-      </SettingsAgentsSection>
-      <SettingsAgentsSection
-        title="Tool approvals"
-        description="Approvals for individual tool actions are handled in chat."
-      >
-        <Alert variant="info">
-          Writes to Phoenix resources such as datasets, annotations, and
-          experiments always ask in chat before running. Read-only tools run
-          without approval.
-        </Alert>
       </SettingsAgentsSection>
     </Flex>
   );
