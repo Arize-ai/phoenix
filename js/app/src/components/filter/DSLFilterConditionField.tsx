@@ -192,13 +192,11 @@ const defaultExtensions: Extension[] = [];
 
 /**
  * The field is single-line, so every Enter variant is swallowed here and no
- * key can insert a newline. Enter first gives the typeahead its accept, and
- * Tab accepts too, falling through to the next field when no menu is open.
+ * key can insert a newline. Enter first gives the typeahead its accept.
  * Keymaps composed in via the `extensions` prop mount ahead of this one, so
  * they can claim any of these keys before the built-in handling.
  */
 const singleLineKeymap = keymap.of([
-  { key: "Tab", run: acceptCompletion },
   {
     key: "Enter",
     run: (editorView: EditorView) => {

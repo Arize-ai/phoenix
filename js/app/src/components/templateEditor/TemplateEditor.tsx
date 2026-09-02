@@ -1,5 +1,6 @@
 import { acceptCompletion, startCompletion } from "@codemirror/autocomplete";
 import { defaultKeymap } from "@codemirror/commands";
+import { Prec } from "@codemirror/state";
 import { css } from "@emotion/react";
 import type {
   BasicSetupOptions,
@@ -44,9 +45,10 @@ const basicSetupOptions: BasicSetupOptions = {
 
 const baseExtensions = [
   EditorView.lineWrapping,
+  // Tab accepts the highlighted row ahead of the editor's indent binding;
+  // with no menu open it indents as before.
+  Prec.highest(keymap.of([{ key: "Tab", run: acceptCompletion }])),
   keymap.of([
-    // Tab accepts the highlighted row; with no menu open it leaves the editor.
-    { key: "Tab", run: acceptCompletion },
     ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
   ]),
 ];
@@ -130,9 +132,6 @@ export const TemplateEditor = ({
       theme={codeMirrorTheme}
       extensions={extensions}
       basicSetup={basicSetupOptions}
-      // Prose has nothing to indent, and the editor's Tab-to-indent binding
-      // would run ahead of the completion accept below.
-      indentWithTab={false}
       readOnly={readOnly}
       onCreateEditor={(editorView) => {
         editorViewRef.current = editorView;

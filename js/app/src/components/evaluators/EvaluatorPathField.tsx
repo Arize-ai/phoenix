@@ -3,6 +3,8 @@ import type {
   CompletionContext,
   CompletionSource,
 } from "@codemirror/autocomplete";
+import { acceptCompletion } from "@codemirror/autocomplete";
+import { keymap } from "@codemirror/view";
 import { css } from "@emotion/react";
 import { useCallback, useMemo } from "react";
 
@@ -165,6 +167,7 @@ export function EvaluatorPathField({
       onChange={onChange}
       completions={NO_COMPLETIONS}
       completionSources={completionSources}
+      extensions={pathFieldKeymap}
       selectOnOpen
       validateCondition={validatePath}
       getErrorRange={getErrorRange}
@@ -176,6 +179,9 @@ export function EvaluatorPathField({
 }
 
 function noop() {}
+
+/** Tab accepts the highlighted row; with no menu open it leaves the field. */
+const pathFieldKeymap = [keymap.of([{ key: "Tab", run: acceptCompletion }])];
 
 /**
  * Offers the level of the evaluation context the cursor sits in.
