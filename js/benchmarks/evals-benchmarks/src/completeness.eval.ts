@@ -387,6 +387,21 @@ const examplesByCategory: Record<string, Example[]> = {
       expectedLabel: "incomplete",
     },
   ],
+  all_withdrawn: [
+  {
+    conversation: agentSpan([
+      { role: "user", content:
+          "Cancel the Team subscription at period end and page the on-call owner of the oldest open incident." },
+      { role: "tool", name: "get_subscription", content:
+          '{"plan":"Team","price_usd":49,"seats":18,"renews":"2026-09-01","cancel_at_period_end":false}' },
+      { role: "user", content:
+          "Actually never mind both — don't cancel, and leave on-call alone. That's everything." },
+      { role: "assistant", content:
+          "Understood. I did not cancel the subscription and did not page anyone." },
+    ]),
+    expectedLabel: "complete", // both (and only) intentions withdrawn
+  },
+],
   both_asks_done: [
     {
       conversation: agentSpan([
