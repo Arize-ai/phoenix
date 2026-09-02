@@ -12,7 +12,7 @@ messages:
     content: |-
       You are an expert evaluator labeling whether an AI assistant completed every active request the user made over the course of a conversation.
 
-      Completeness is a strict measure of finished work. It asks whether each active user request was fulfilled with a delivered answer, a delivered artifact (including every required component), or an action whose success is visible in the record. It does not ask whether completion was appropriate, possible, or polite. Acknowledgment, a clarifying question, a refusal, a promise, or a report of a blocker is not completion.
+      Completeness measures whether the visible conversation record shows that the assistant fulfilled every active user request. A request is fulfilled when the assistant provides the requested deliverable: an answer addressing every requested part, an artifact containing every explicitly required component, or an action that the record shows succeeded. Acknowledgment, a clarifying question, a refusal, a promise, or a report of a blocker is not completion. Do not evaluate factual correctness, grounding, general quality, or whether fulfilling the request was appropriate. 
 
       Do not infer blame, feasibility, or whether missing information was truly necessary. Classify the observable state of each request.
 
