@@ -135,6 +135,13 @@ const codeProjectEvaluatorDetailsFragment = graphql`
     }
     sourceCode
     language
+    sandboxConfig {
+      id
+    }
+    inputMapping {
+      pathMapping
+      literalMapping
+    }
   }
 `;
 
@@ -215,7 +222,7 @@ export function buildCopyLlmCreationMode(
   return {
     ok: true,
     mode: {
-      kind: "copy",
+      kind: "copyLlm",
       initialState: {
         name: evaluator.name,
         description: evaluator.description ?? "",
@@ -253,6 +260,29 @@ export function buildAttachCodeCreationMode(
     ),
     variables,
     requiredVariables,
+  };
+}
+
+export function buildCopyCodeCreationMode(
+  evaluator: CodeProjectEvaluatorDetails
+): Extract<ProjectEvaluatorCreationMode, { kind: "copyCode" }> {
+  return {
+    kind: "copyCode",
+    initialState: {
+      name: evaluator.name,
+      copyName: `${evaluator.name}-copy`,
+      description: evaluator.description ?? "",
+      outputConfigs: convertProjectEvaluatorOutputConfigs(
+        evaluator.outputConfigs
+      ),
+      language: evaluator.language,
+      sourceCode: evaluator.sourceCode,
+      sandboxConfigId: evaluator.sandboxConfig?.id ?? null,
+      inputMapping: {
+        pathMapping: { ...evaluator.inputMapping.pathMapping },
+        literalMapping: { ...evaluator.inputMapping.literalMapping },
+      },
+    },
   };
 }
 

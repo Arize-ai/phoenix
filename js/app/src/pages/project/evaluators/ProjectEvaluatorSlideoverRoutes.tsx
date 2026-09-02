@@ -12,6 +12,7 @@ import {
 } from "@phoenix/pages/project/evaluators/EditProjectEvaluatorSlideover";
 import {
   buildAttachCodeCreationMode,
+  buildCopyCodeCreationMode,
   buildCopyLlmCreationMode,
   projectEvaluatorDetailsQueryNode,
   readProjectEvaluatorDetails,
@@ -182,6 +183,33 @@ export function AttachCodeProjectEvaluatorPage() {
     return (
       <ProjectEvaluatorSlideoverError
         title="Cannot attach evaluator"
+        message="This link does not name a code evaluator."
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  return (
+    <CreateProjectEvaluatorSlideover
+      isOpen
+      onOpenChange={onOpenChange}
+      projectId={projectId}
+      creationMode={creationMode}
+    />
+  );
+}
+
+export function CopyCodeProjectEvaluatorPage() {
+  const projectId = useRouteProjectId();
+  const onOpenChange = useCloseSlideover();
+  const evaluator = useSourceEvaluator();
+  const creationMode =
+    evaluator?.__typename === "CodeEvaluator"
+      ? buildCopyCodeCreationMode(evaluator)
+      : null;
+  if (!creationMode) {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title="Cannot duplicate evaluator"
         message="This link does not name a code evaluator."
         onOpenChange={onOpenChange}
       />
