@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4c65a99ec6cba54ca38d8cd1367e5111>>
+ * @generated SignedSource<<e41d4da92d3735fd1cf66b8d3b782210>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,10 @@ export type projectEvaluatorGalleryPageQuery$data = {
     readonly choices: any;
     readonly description: string | null;
     readonly details: string | null;
+    readonly inputs: ReadonlyArray<{
+      readonly description: string;
+      readonly name: string;
+    }> | null;
     readonly messages: ReadonlyArray<{
       readonly " $fragmentSpreads": FragmentRefs<"promptUtils_promptMessages">;
     }>;
@@ -102,6 +106,19 @@ v7 = {
   "storageKey": null
 },
 v8 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "EvaluatorInput",
+  "kind": "LinkedField",
+  "name": "inputs",
+  "plural": true,
+  "selections": [
+    (v1/*:: as any*/),
+    (v2/*:: as any*/)
+  ],
+  "storageKey": null
+},
+v9 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -126,33 +143,33 @@ v8 = {
   "type": "TextContentPart",
   "abstractKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "role",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "kind": "Variable",
   "name": "excludeProjectId",
   "variableName": "projectId"
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": "evaluator",
   "args": null,
   "concreteType": null,
@@ -160,21 +177,21 @@ v13 = {
   "name": "node",
   "plural": false,
   "selections": [
-    (v11/*:: as any*/),
     (v12/*:: as any*/),
+    (v13/*:: as any*/),
     (v1/*:: as any*/),
     (v2/*:: as any*/)
   ],
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "cursor",
   "storageKey": null
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -199,8 +216,8 @@ v15 = {
   ],
   "storageKey": null
 },
-v16 = [
-  (v10/*:: as any*/),
+v17 = [
+  (v11/*:: as any*/),
   {
     "kind": "Literal",
     "name": "first",
@@ -237,6 +254,7 @@ return {
           (v5/*:: as any*/),
           (v6/*:: as any*/),
           (v7/*:: as any*/),
+          (v8/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -257,11 +275,11 @@ return {
                     "name": "content",
                     "plural": true,
                     "selections": [
-                      (v8/*:: as any*/)
+                      (v9/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v9/*:: as any*/)
+                  (v10/*:: as any*/)
                 ],
                 "args": null,
                 "argumentDefinitions": []
@@ -275,7 +293,7 @@ return {
       {
         "alias": "evaluators",
         "args": [
-          (v10/*:: as any*/)
+          (v11/*:: as any*/)
         ],
         "concreteType": "EvaluatorConnection",
         "kind": "LinkedField",
@@ -290,8 +308,8 @@ return {
             "name": "edges",
             "plural": true,
             "selections": [
-              (v13/*:: as any*/),
               (v14/*:: as any*/),
+              (v15/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -300,14 +318,14 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v11/*:: as any*/)
+                  (v12/*:: as any*/)
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
           },
-          (v15/*:: as any*/)
+          (v16/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -336,6 +354,7 @@ return {
           (v5/*:: as any*/),
           (v6/*:: as any*/),
           (v7/*:: as any*/),
+          (v8/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -352,12 +371,12 @@ return {
                 "name": "content",
                 "plural": true,
                 "selections": [
-                  (v11/*:: as any*/),
-                  (v8/*:: as any*/)
+                  (v12/*:: as any*/),
+                  (v9/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v9/*:: as any*/)
+              (v10/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -366,7 +385,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v16/*:: as any*/),
+        "args": (v17/*:: as any*/),
         "concreteType": "EvaluatorConnection",
         "kind": "LinkedField",
         "name": "evaluators",
@@ -380,8 +399,8 @@ return {
             "name": "edges",
             "plural": true,
             "selections": [
-              (v13/*:: as any*/),
               (v14/*:: as any*/),
+              (v15/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -390,21 +409,21 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v11/*:: as any*/),
-                  (v12/*:: as any*/)
+                  (v12/*:: as any*/),
+                  (v13/*:: as any*/)
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
           },
-          (v15/*:: as any*/)
+          (v16/*:: as any*/)
         ],
         "storageKey": null
       },
       {
         "alias": null,
-        "args": (v16/*:: as any*/),
+        "args": (v17/*:: as any*/),
         "filters": [
           "excludeProjectId"
         ],
@@ -416,7 +435,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c65916cdaaa4447e7b4a926b4607e957",
+    "cacheID": "436e3265740db2e43c42fa0c6b0cccfa",
     "id": null,
     "metadata": {
       "connection": [
@@ -432,11 +451,11 @@ return {
     },
     "name": "projectEvaluatorGalleryPageQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorGalleryPageQuery(\n  $projectId: ID!\n) {\n  evaluatorGalleryConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    scope\n    category\n    details\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n  evaluators(first: 100, sort: {col: updatedAt, dir: desc}, excludeProjectId: $projectId) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        description\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query projectEvaluatorGalleryPageQuery(\n  $projectId: ID!\n) {\n  evaluatorGalleryConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    scope\n    category\n    details\n    inputs {\n      name\n      description\n    }\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n  evaluators(first: 100, sort: {col: updatedAt, dir: desc}, excludeProjectId: $projectId) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        description\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "28ad96fb28fca0f8f2afea73560b063e";
+(node as any).hash = "2876d6ef4338ad6ef8db2c6fb35760f8";
 
 export default node;
