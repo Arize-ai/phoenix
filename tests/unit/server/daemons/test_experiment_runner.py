@@ -1164,10 +1164,12 @@ class TestDispatchHandOff:
         task = _make_task_work_item(exp, dataset_example_id=1)
         exp._task_queue.append(task)
         runner = self._make_runner(exp)
+        worker_started = anyio.Event()
         ran_past_first_checkpoint = False
 
         async def execute() -> None:
             nonlocal ran_past_first_checkpoint
+            worker_started.set()
             await anyio.sleep(0)
             ran_past_first_checkpoint = True
 
@@ -1179,6 +1181,8 @@ class TestDispatchHandOff:
                 tg.cancel_scope.cancel()  # the daemon's task group is shutting down
                 runner._hand_off(tg, dispatched)  # accepted, so no rollback happens
 
+        assert worker_started.is_set()  # the worker ran, so the hand-off was not undone
+        assert not exp._task_queue  # and the item was not put back
         assert not ran_past_first_checkpoint
         _assert_untracked(exp, task)
         assert runner._seats.value == 10
