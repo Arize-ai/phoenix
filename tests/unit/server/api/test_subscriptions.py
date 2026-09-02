@@ -3,6 +3,8 @@ import re
 from datetime import datetime
 from typing import Any, Awaitable, Callable, Mapping, Optional, cast
 
+import anyio
+import pytest
 from openinference.semconv.trace import (
     MessageAttributes,
     OpenInferenceMimeTypeValues,
@@ -56,6 +58,12 @@ from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id
+from phoenix.server.daemons.experiment_runner import (
+    ExperimentRunner,
+    RunningExperiment,
+    TaskWorkItem,
+    WorkItem,
+)
 from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten, get_attribute_value
@@ -1851,6 +1859,149 @@ class TestChatCompletionOverDatasetSubscription:
             assert split_links[0].dataset_split_id == 1  # train split
             assert split_links[1].dataset_split_id == 2  # test split
 
+    async def test_example_dispatched_as_previous_example_finishes_is_not_dropped(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        playground_dataset_with_splits: None,
+        custom_vcr: CustomVCR,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The last example is not lost when dispatched while the previous one finishes.
+
+        The runner's token bucket starts with a single token, so the last example is
+        dispatched only after the others have run. Dispatch hands the work item to the
+        daemon's task group with start_soon(), so the worker that runs it only begins
+        one event-loop turn later. If the previous example finishes in that turn, its
+        completion check must still see the dispatched item as pending work.
+        Otherwise the experiment completes and the subscription stream closes without
+        the last result. The interleaving is pinned with events rather than timing.
+        """
+        example_5_popped = anyio.Event()
+        examples_1_to_3_unregistered = anyio.Event()
+        example_4_unregistered = anyio.Event()
+        unregistered_example_ids: set[int] = set()
+
+        original_try_get = RunningExperiment.try_get_ready_work_item
+
+        async def try_get_and_flag_example_5(
+            running_experiment: RunningExperiment,
+        ) -> Optional[WorkItem]:
+            work_item = await original_try_get(running_experiment)
+            if _dataset_example_id(work_item) == 5:
+                example_5_popped.set()
+            return work_item
+
+        monkeypatch.setattr(
+            RunningExperiment, "try_get_ready_work_item", try_get_and_flag_example_5
+        )
+
+        original_execute = TaskWorkItem.execute
+
+        # Example 4 must be the only other item in flight when it finishes, and it must
+        # finish after example 5 has been popped but before example 5's task starts.
+        async def execute_and_hold_example_4(work_item: TaskWorkItem) -> None:
+            await original_execute(work_item)
+            if _dataset_example_id(work_item) == 4:
+                with anyio.fail_after(30):  # fail rather than hang if the roles change
+                    await examples_1_to_3_unregistered.wait()
+                    await example_5_popped.wait()
+
+        monkeypatch.setattr(TaskWorkItem, "execute", execute_and_hold_example_4)
+
+        original_unregister = RunningExperiment.unregister_cancel_scope
+
+        async def unregister_and_track(
+            running_experiment: RunningExperiment, work_item: WorkItem
+        ) -> None:
+            await original_unregister(running_experiment, work_item)
+            if (example_id := _dataset_example_id(work_item)) is not None:
+                unregistered_example_ids.add(example_id)
+            if {1, 2, 3} <= unregistered_example_ids:
+                examples_1_to_3_unregistered.set()
+            if example_id == 4:
+                example_4_unregistered.set()
+
+        monkeypatch.setattr(RunningExperiment, "unregister_cancel_scope", unregister_and_track)
+
+        original_run_and_release = ExperimentRunner._run_and_release
+
+        async def start_example_5_after_example_4_unregistered(
+            runner: ExperimentRunner, work_item: WorkItem
+        ) -> None:
+            if _dataset_example_id(work_item) == 5:
+                with anyio.fail_after(30):
+                    await example_4_unregistered.wait()
+            await original_run_and_release(runner, work_item)
+
+        monkeypatch.setattr(
+            ExperimentRunner, "_run_and_release", start_example_5_after_example_4_unregistered
+        )
+
+        dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
+        version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
+        train_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(1)))
+        test_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(2)))
+
+        variables: dict[str, Any] = {
+            "input": {
+                "datasetId": dataset_id,
+                "datasetVersionId": version_id,
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [
+                                    {
+                                        "text": {
+                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                                        }
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {"openai": {}},
+                    "tools": None,
+                },
+                "repetitions": 1,
+                "splitIds": [train_split_id, test_split_id],
+            }
+        }
+
+        payloads: dict[Optional[str], list[Any]] = {}
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )
+        with (
+            custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]),
+            anyio.fail_after(120),  # the stream must end on its own; never hang CI
+        ):
+            async for payload in gql_client.subscription(
+                query=self.QUERY,
+                variables=variables,
+                operation_name="ChatCompletionOverDatasetSubscription",
+            ):
+                dataset_example_id = payload["chatCompletionOverDataset"]["datasetExampleId"]
+                payloads.setdefault(dataset_example_id, []).append(payload)
+
+        all_example_ids = [
+            str(GlobalID(type_name=DatasetExample.__name__, node_id=str(i))) for i in range(1, 6)
+        ]
+        assert set(payloads.keys()) == set(all_example_ids) | {None}
+        for example_id in all_example_ids:
+            result_payloads = [
+                p["chatCompletionOverDataset"]
+                for p in payloads[example_id]
+                if p["chatCompletionOverDataset"]["__typename"]
+                == ChatCompletionSubscriptionResult.__name__
+            ]
+            assert len(result_payloads) == 1, f"expected one result for {example_id}"
+
     async def test_experiment_without_splits_includes_all_examples(
         self,
         gql_client: AsyncGraphQLClient,
@@ -2739,6 +2890,13 @@ def _extract_city(body: str) -> str:
     if match := re.search(r"What country is (\w+) in\?", body):
         return match.group(1)
     raise ValueError(f"Could not extract city from body: {body}")
+
+
+def _dataset_example_id(work_item: object) -> Optional[int]:
+    """Dataset example ID of a task work item, or None for anything else."""
+    if isinstance(work_item, TaskWorkItem):
+        return int(work_item.dataset_example_revision.dataset_example_id)
+    return None
 
 
 # span kind values
