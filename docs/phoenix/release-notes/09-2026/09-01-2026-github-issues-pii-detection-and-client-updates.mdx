@@ -1,0 +1,224 @@
+---
+title: "09.01.2026: GitHub Issues from PXI, PII Detection, and Client Updates"
+description: "PXI files GitHub issues for the defects it finds, a new evaluator screens conversations for PII, prompt versions can be created over REST, and the TypeScript client gains prompt, trace, project, and user helpers."
+---
+
+This release closes the loop between finding a problem and acting on it. PXI can file the
+GitHub issue itself, a new evaluator screens conversation records for exposed personal data,
+and the REST API and TypeScript client cover more of the day-to-day surface.
+
+# File GitHub Issues from PXI
+
+September 1, 2026
+
+**Available in arize-phoenix 20.5.0+**
+
+When PXI surfaces a real defect, it can now search for duplicates and file a GitHub issue that
+links the relevant traces and spans — backed by
+[GitHub's hosted MCP server](https://github.com/github/github-mcp-server).
+
+- **File as yourself** — add a fine-grained personal access token with Issues read/write access
+  under **Settings → Assistant → Personal settings → GitHub**. The token stays in your browser;
+  Phoenix never persists it, and it never reaches the transcript, tool spans, or error messages.
+- **Approve every write** — PXI shows the exact repository, title, and body before anything is
+  posted. Writes are filtered out entirely when nobody is present to approve them.
+- **Set a workspace fallback** — admins can store a shared token as an encrypted workspace secret,
+  or turn the feature off under **Settings → Assistant → System settings → GitHub tools**.
+- **Point at your own GitHub** — set `PHOENIX_AGENTS_GITHUB_MCP_URL` to a self-hosted
+  `github-mcp-server` for GitHub Enterprise Server or air-gapped deployments, or disable the tools
+  entirely with `PHOENIX_AGENTS_DISABLE_GITHUB=true`.
+
+If the GitHub connection fails, the turn continues without the GitHub tools rather than failing.
+
+<CardGroup cols={2}>
+  <Card title="PXI" icon="robot" href="/docs/phoenix/pxi">
+    Learn about the AI engineering agent built into Phoenix
+  </Card>
+</CardGroup>
+
+# Detect PII in Conversation Records
+
+August 28, 2026
+
+**Available in arize-phoenix-evals 3.6.0+ (Python) and @arizeai/phoenix-evals 2.4.0+ (TypeScript)**
+
+Use the new PII Detection evaluator to audit agent traces, experiment runs, and logged
+conversations for exposed personal data. Pass whatever slice of the interaction you want judged —
+user and assistant turns only, or a fuller record that also includes system instructions, tool
+calls, tool results, and retrieved documents the end user may never have seen.
+
+The evaluator returns a `pii_detected` or `no_pii_detected` label, a score of `1.0` or `0.0`, and
+an explanation that lists each instance in a `FINDINGS` block so downstream filters can act on
+specific categories. Direction is `minimize`: detecting PII is the undesirable outcome.
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import PiiDetectionEvaluator
+
+llm = LLM(provider="openai", model="gpt-4o-mini")
+evaluator = PiiDetectionEvaluator(llm=llm)
+
+scores = evaluator.evaluate(
+    {
+        "conversation": (
+            "User: Reset my account.\n"
+            "Assistant: I can help. What email is on the account?\n"
+            "User: jane.doe@acme.com"
+        ),
+    }
+)
+print(scores[0].label)
+```
+
+```typescript
+import { openai } from "@ai-sdk/openai";
+import { createPiiDetectionEvaluator } from "@arizeai/phoenix-evals";
+
+const evaluator = createPiiDetectionEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+const result = await evaluator.evaluate({
+  conversation:
+    "User: Reset my account.\nAssistant: What email is on the account?\nUser: jane.doe@acme.com",
+});
+console.log(result.label);
+```
+
+<CardGroup cols={2}>
+  <Card title="PII Detection" icon="user-shield" href="/docs/phoenix/evaluation/pre-built-metrics/pii-detection">
+    Choose what to screen, format the conversation, and read the findings
+  </Card>
+</CardGroup>
+
+# Create Prompt Versions over REST
+
+August 26, 2026
+
+**Available in arize-phoenix 20.5.0+**
+
+`POST /v1/prompts/{prompt_identifier}/versions` adds a new version to an existing prompt, selected
+by name or GlobalID. Previously, only the initial prompt could be created over REST — subsequent
+versions required GraphQL or an SDK.
+
+- **Tag on create** — pass `tags` to label the new version. Moving an existing tag preserves its
+  description and owner rather than clearing them.
+- **Validated against the provider** — invocation parameters whose family does not match
+  `model_provider` are rejected with a `422`.
+
+```bash
+curl -X POST "$PHOENIX_ENDPOINT/v1/prompts/summarizer/versions" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "version": {
+      "description": "Lower temperature",
+      "model_provider": "OPENAI",
+      "model_name": "gpt-4o",
+      "template_type": "CHAT",
+      "template_format": "MUSTACHE",
+      "template": {
+        "type": "chat",
+        "messages": [{"role": "user", "content": "Summarize: {{document}}"}]
+      },
+      "invocation_parameters": {"type": "openai", "openai": {"temperature": 0.2}}
+    },
+    "tags": [{"name": "production", "description": "Current production prompt"}]
+  }'
+```
+
+<CardGroup cols={2}>
+  <Card title="Prompt Management" icon="message-code" href="/docs/phoenix/prompt-engineering/overview-prompts">
+    Version, tag, and deploy prompts
+  </Card>
+</CardGroup>
+
+# TypeScript Client Additions
+
+August 28 – September 1, 2026
+
+**Available in @arizeai/phoenix-client 7.6.0+**
+
+Four new helpers and richer session data round out the TypeScript client.
+
+- **`deletePrompt`** — delete a prompt by `name` or `promptId`. Deletion cascades to every version
+  along with its tags and labels. Requires Phoenix server 13.20.0+.
+- **`transferTraces`** — move traces between projects by GlobalID or OpenTelemetry trace ID. The
+  traces are re-parented, not copied. Requires Phoenix server 20.4.0+.
+- **`setProjectRetentionPolicy`** — assign an existing trace retention policy to a project, or pass
+  `policyId: null` to reset it to the default.
+- **`getCurrentUser`** — read the profile for the current credentials. With authentication
+  disabled, Phoenix returns an anonymous user with `auth_method: "ANONYMOUS"`.
+- **Session token counts** — `getSession` and `listSessions` now expose cumulative
+  `tokenCountPrompt`, `tokenCountCompletion`, and `tokenCountTotal`.
+
+```typescript
+import { deletePrompt } from "@arizeai/phoenix-client/prompts";
+import { setProjectRetentionPolicy } from "@arizeai/phoenix-client/projects";
+import { transferTraces } from "@arizeai/phoenix-client/traces";
+import { getCurrentUser } from "@arizeai/phoenix-client/users";
+
+const user = await getCurrentUser();
+console.log(user.auth_method);
+
+const { transferredTraceCount } = await transferTraces({
+  traceIdentifiers: ["VHJhY2U6Mg=="],
+  destinationProjectIdentifier: "production",
+});
+console.log(transferredTraceCount);
+
+await setProjectRetentionPolicy({
+  projectName: "support-bot",
+  policyId: "UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI=",
+});
+
+await deletePrompt({ prompt: { name: "old-summarizer" } });
+```
+
+The optional `openai` peer dependency now accepts `^6.10.0 || ^7.0.0`, so apps already on the
+OpenAI SDK v7 install without a peer conflict.
+
+<CardGroup cols={2}>
+  <Card title="TypeScript Client" icon="js" href="/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview">
+    Browse the full client API
+  </Card>
+</CardGroup>
+
+# Approve PXI Browser Scripts as a Whole
+
+September 1, 2026
+
+**Available in arize-phoenix 20.5.0+**
+
+In manual edit-permission mode, PXI now asks once for the entire proposed browser script instead
+of interrupting with a card per operation. You read a single description of everything the script
+will change, then accept or reject it — and that one consent covers every state-changing action in
+the run. Unapproved scripts cannot change state at all.
+
+# Claude Fable 5.1 in the Playground
+
+September 1, 2026
+
+**Available in arize-phoenix 20.5.0+**
+
+`claude-fable-5-1` is available in the playground through Anthropic and AWS Bedrock, with adaptive
+thinking controls and built-in token pricing. It is also the recommended model for PXI sessions.
+
+# Additional Improvements
+
+August 26 – September 1, 2026
+
+**Available in arize-phoenix 20.5.0+ and arize-phoenix-evals 3.6.0+**
+
+- **Keep tool settings in the playground** — tool choice and the strict setting now survive runs
+  against Anthropic and Bedrock models.
+- **Filter on annotations accurately** — annotation filters in the span and trace DSL now correlate
+  against the span the filter is reading.
+- **Page through project traces faster** — `listProjectTraces` uses keyset pagination instead of
+  offsets.
+- **Run async evals without stalls** — the evals rate limiter no longer blocks the event loop while
+  waiting.
+- **Track current model costs** with refreshed built-in token prices, including LiteLLM reasoning
+  token rates.
+- **Land on a neutral screen during login handoff** instead of the error boundary.
+- **Read long annotation names in experiment comparisons** without layout overflow.

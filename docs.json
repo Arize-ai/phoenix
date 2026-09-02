@@ -1380,6 +1380,12 @@
         "pages": [
           "docs/phoenix/release-notes",
           {
+            "group": "09.2026",
+            "pages": [
+              "docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates"
+            ]
+          },
+          {
             "group": "08.2026",
             "pages": [
               "docs/phoenix/release-notes/08-2026/08-25-2026-pxi-browser-actions-and-retrieval-relevance",
