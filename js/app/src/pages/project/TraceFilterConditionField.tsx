@@ -399,10 +399,8 @@ type TraceFilterConditionFieldWithVocabularyProps = Omit<
 >;
 
 /**
- * The field with the project's autocomplete vocabulary. The vocabulary
- * resolver scans annotation names and root-span attributes, so it must not
- * gate whatever the field sits above: the field renders -- and validates --
- * with an empty vocabulary until the terms arrive.
+ * The field with the project's autocomplete vocabulary, which is slow to
+ * resolve, so the field renders and validates without it until it arrives.
  */
 export function TraceFilterConditionFieldWithVocabulary(
   props: TraceFilterConditionFieldWithVocabularyProps
