@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
@@ -38,22 +37,18 @@ import { ProjectItemContent } from "./ProjectItemContent";
 
 const PAGE_SIZE = 50;
 
-type SelectedProject = {
-  id: string;
-  name: string;
-};
-
 export type ProjectMenuProps = StylableProps & {
   query: ProjectMenu_projects$key;
   selectedProjectId?: string | null;
   onProjectChange: (projectId: string) => void;
   /**
-   * Called when the selected project's name cannot be resolved (e.g. the
-   * project was deleted). The menu itself degrades to its placeholder; use
-   * this to clean up state that references the project, such as a remembered
-   * last-selected id.
+   * Called when the selected project no longer exists (the lookup failed with
+   * a not-found error). The menu itself degrades to its placeholder; use this
+   * to clean up state that references the project, such as a remembered
+   * last-selected id. Transient failures (e.g. a network blip) do not trigger
+   * this — the menu retries those on its next open.
    */
-  onSelectedProjectError?: () => void;
+  onSelectedProjectNotFound?: () => void;
   placeholder?: string;
   searchPlaceholder?: string;
   size?: MenuButtonProps["size"];
@@ -128,15 +123,19 @@ function SelectedProjectMenuButton({
 /**
  * Error fallback for the selected-project lookup. Renders the same
  * placeholder button and reports the failure so the caller can react (e.g.
- * clear a remembered project id) and the menu can retry on the next open.
+ * clear a remembered project id) or retry on the next menu open.
  */
 function SelectedProjectMenuButtonFallback({
+  error,
   onError,
   ...buttonProps
-}: ProjectMenuButtonProps & { onError: () => void }) {
+}: ProjectMenuButtonProps & {
+  error?: string | null;
+  onError: (error: string | null) => void;
+}) {
   useEffect(() => {
-    onError();
-  }, [onError]);
+    onError(error ?? null);
+  }, [error, onError]);
   return <ProjectMenuButton {...buttonProps} />;
 }
 
@@ -144,23 +143,30 @@ export function ProjectMenu({
   query,
   selectedProjectId,
   onProjectChange,
-  onSelectedProjectError,
+  onSelectedProjectNotFound,
   placeholder = "Select project",
   searchPlaceholder = "Search projects...",
   size,
   css: propCSS,
 }: ProjectMenuProps) {
   const [search, setSearch] = useState("");
-  const [optimisticProject, setOptimisticProject] =
-    useState<SelectedProject | null>(null);
-  // Bumped to retry the selected-project lookup after a failure; the ref
-  // remembers that the last attempt failed so a retry only happens then.
+  // Bumped to retry the selected-project lookup after a transient failure;
+  // failedProjectId records which project's lookup failed so a retry only
+  // happens while that project is still the selection.
   const [selectedProjectFetchKey, setSelectedProjectFetchKey] = useState(0);
-  const selectedProjectErrorRef = useRef(false);
-  const handleSelectedProjectError = useCallback(() => {
-    selectedProjectErrorRef.current = true;
-    onSelectedProjectError?.();
-  }, [onSelectedProjectError]);
+  const [failedProjectId, setFailedProjectId] = useState<string | null>(null);
+  const handleSelectedProjectError = useCallback(
+    (error: string | null) => {
+      if (error != null && /not found/i.test(error)) {
+        // Permanent: the project no longer exists. Retrying cannot succeed,
+        // so let the caller clean up instead.
+        onSelectedProjectNotFound?.();
+      } else if (selectedProjectId) {
+        setFailedProjectId(selectedProjectId);
+      }
+    },
+    [onSelectedProjectNotFound, selectedProjectId]
+  );
   const { contains } = useFilter({ sensitivity: "base" });
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ProjectMenuProjectsQuery, ProjectMenu_projects$key>(
@@ -196,18 +202,14 @@ export function ProjectMenu({
     (project) => project.id === selectedProjectId
   );
   const projectFilter = search ? { col: "name" as const, value: search } : null;
-  const displayProjectName = selectedProjectId
-    ? (selectedProject?.name ??
-      (optimisticProject?.id === selectedProjectId
-        ? optimisticProject.name
-        : null))
-    : null;
+  // When the selected project is not in the loaded pages of the connection
+  // (e.g. the connection is filtered by search), SelectedProjectMenuButton
+  // resolves the name — synchronously from the Relay store when the record
+  // was fetched before.
+  const displayProjectName = selectedProject?.name ?? null;
 
   const onSearchChange = (value: string) => {
     setSearch(value);
-    if (selectedProject) {
-      setOptimisticProject(selectedProject);
-    }
     startTransition(() => {
       refetch(
         {
@@ -237,11 +239,29 @@ export function ProjectMenu({
     });
   };
 
-  const buttonProps = {
-    css: propCSS,
-    placeholder,
-    size,
-  };
+  const buttonProps = useMemo(
+    () => ({
+      css: propCSS,
+      placeholder,
+      size,
+    }),
+    [propCSS, placeholder, size]
+  );
+
+  // Stable across re-renders: ErrorBoundary renders this as a component type,
+  // so a fresh identity per render would remount the fallback (and re-fire
+  // its onError effect) on every parent re-render.
+  const selectedProjectErrorFallback = useCallback(
+    ({ error }: { error?: string | null }) => (
+      <SelectedProjectMenuButtonFallback
+        {...buttonProps}
+        projectName={null}
+        error={error}
+        onError={handleSelectedProjectError}
+      />
+    ),
+    [buttonProps, handleSelectedProjectError]
+  );
 
   return (
     <MenuTrigger
@@ -249,9 +269,12 @@ export function ProjectMenu({
         if (isOpen) {
           // Retry a previously failed selected-project lookup: a transient
           // network error should not latch the placeholder for the rest of
-          // the session.
-          if (selectedProjectErrorRef.current) {
-            selectedProjectErrorRef.current = false;
+          // the session. Only retries the project that actually failed.
+          if (
+            failedProjectId != null &&
+            failedProjectId === selectedProjectId
+          ) {
+            setFailedProjectId(null);
             setSelectedProjectFetchKey((key) => key + 1);
           }
         } else {
@@ -266,13 +289,7 @@ export function ProjectMenu({
         // boundary resets when the selection changes or a retry is requested.
         <ErrorBoundary
           key={`${selectedProjectId}:${selectedProjectFetchKey}`}
-          fallback={() => (
-            <SelectedProjectMenuButtonFallback
-              {...buttonProps}
-              projectName={null}
-              onError={handleSelectedProjectError}
-            />
-          )}
+          fallback={selectedProjectErrorFallback}
         >
           <Suspense
             fallback={<ProjectMenuButton {...buttonProps} projectName={null} />}
@@ -315,10 +332,6 @@ export function ProjectMenu({
             selectionMode="single"
             onAction={(key) => {
               if (typeof key === "string") {
-                const project = projects.find((project) => project.id === key);
-                if (project) {
-                  setOptimisticProject(project);
-                }
                 onProjectChange(key);
               }
             }}
