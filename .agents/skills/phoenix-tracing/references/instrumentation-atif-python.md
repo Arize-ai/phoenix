@@ -103,12 +103,12 @@ whether the reference points at a tool call the converter actually emitted:
 | Condition on the referencing step | Child's parent |
 |---|---|
 | The step's `source` is `"agent"` and its `tool_calls` contain a `tool_call_id` equal to the reference's `source_call_id` | That emitted TOOL span (the nesting shown above) |
-| Anything else — system/orchestration steps, a `source_call_id` that matches no emitted tool call, or no `source_call_id` at all | The parent trajectory's **root AGENT span** |
+| Anything else — system/orchestration steps, a `source_call_id` that matches no emitted tool call, or no `source_call_id` at all | The parent trajectory's root AGENT span |
 
-The fallback matters for system-initiated subagents: those steps have no
-matching tool call, so before this behavior the child was parented to a TOOL
-span that was never emitted and the subagent's spans were orphaned. They now
-land directly under the parent's root AGENT span instead.
+The fallback is what keeps system-initiated subagents visible: those steps have
+no matching tool call, so their children attach to the root AGENT span rather
+than to a TOOL span that was never emitted — which would leave the subagent's
+spans orphaned.
 
 **ATIF v1.7**: embedded `subagent_trajectories` inside a single trajectory file are automatically flattened and linked. References resolve by `trajectory_id` — no separate upload needed.
 

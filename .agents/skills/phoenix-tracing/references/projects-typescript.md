@@ -82,10 +82,10 @@ so a client built with an explicit endpoint or headers can be threaded through.
 
 ## Assigning a Retention Policy
 
-`setProjectRetentionPolicy` points a project at an **existing** trace retention
+`setProjectRetentionPolicy` points a project at an existing trace retention
 policy, or resets it to the default. It only changes the assignment — it does
 not create, read, update, or delete policies, so the policy must already exist
-and you must already have its GlobalID.
+and you need its GlobalID in hand.
 
 ```typescript
 import { setProjectRetentionPolicy } from "@arizeai/phoenix-client/projects";
@@ -104,13 +104,13 @@ await setProjectRetentionPolicy({
 ```
 
 The project is identified the same way as elsewhere in the client — pass
-`projectName`, `projectId`, or `project` (a name or GlobalID). `policyId: null`
-is the documented reset, not an omission: leaving `policyId` out is a type error.
-The call returns the project's resulting assignment.
+`projectName`, `projectId`, or `project` (a name or GlobalID). Passing
+`policyId: null` is how you reset to the default; leaving `policyId` out
+entirely is a type error. The call returns the project's resulting assignment.
 
 ## Moving Traces Between Projects
 
-`transferTraces` **re-parents** traces into another project. It is a move, not a
+`transferTraces` re-parents traces into another project. It is a move, not a
 copy — after the call the traces no longer appear in their original project.
 
 ```typescript
@@ -126,9 +126,9 @@ console.log(result.destinationProjectId);
 ```
 
 `traceIdentifiers` accepts Trace GlobalIDs or raw OpenTelemetry trace IDs, and
-**every trace must currently live in the same source project** — a mixed batch
-fails rather than partially moving. An empty array throws `RangeError` before any
-request is made. Requires Phoenix server >= 20.4.0.
+every trace in the batch must currently live in the same source project — a
+mixed batch fails rather than partially moving. An empty array throws
+`RangeError` before any request is made. Requires Phoenix server >= 20.4.0.
 
 ## Via HTTP Header (OTEL Collector / config-based tools)
 
