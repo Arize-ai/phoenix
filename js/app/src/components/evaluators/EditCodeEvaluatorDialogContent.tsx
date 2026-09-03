@@ -1,4 +1,9 @@
+import { startCompletion } from "@codemirror/autocomplete";
+import { javascript } from "@codemirror/lang-javascript";
+import { python } from "@codemirror/lang-python";
+import { indentUnit } from "@codemirror/language";
 import { css } from "@emotion/react";
+import CodeMirror, { type EditorView } from "@uiw/react-codemirror";
 import {
   useCallback,
   useEffect,
@@ -33,15 +38,24 @@ import {
 import {
   Alert,
   Button,
+  CopyToClipboardButton,
   Flex,
   Heading,
+  Icon,
+  Icons,
+  Input,
+  Label,
   LinkButton,
   List,
   ListItem,
+  NumberField,
   SectionHeading,
+  Switch,
   Text,
+  TextField,
   View,
 } from "@phoenix/components";
+import { pierreDark, pierreLight } from "@phoenix/components/code";
 import {
   DialogCloseButton,
   DialogContent,
@@ -50,23 +64,56 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { CodeAuthoringFields } from "@phoenix/components/evaluators/CodeAuthoringFields";
-import type { SandboxConfigOption } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
+import {
+  Menu,
+  MenuContainer,
+  MenuItem,
+  MenuTrigger,
+} from "@phoenix/components/core/menu";
+import { createEvaluatorAutocompletion } from "@phoenix/components/evaluators/codeEvaluatorAutocomplete";
+import {
+  CodeEvaluatorLanguageField,
+  CodeEvaluatorSandboxField,
+  type SandboxConfigOption,
+} from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
+import { CODE_EVALUATOR_TEMPLATES } from "@phoenix/components/evaluators/codeEvaluatorTemplates";
 import { CodeEvaluatorTestSection } from "@phoenix/components/evaluators/CodeEvaluatorTestSection";
+import { generateEvaluatorTypes } from "@phoenix/components/evaluators/codeEvaluatorTypeGeneration";
 import {
   extractCodeEvaluatorVariables,
-  getNextCodeEvaluatorSource,
+  getDefaultCodeEvaluatorSource,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
+import { EvaluatorDescriptionInput } from "@phoenix/components/evaluators/EvaluatorDescriptionInput";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
-import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
+import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
+import { OptimizationDirectionField } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import { useTheme } from "@phoenix/contexts";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
-import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
-import type { CodeEvaluatorLanguage } from "@phoenix/types";
+import type {
+  CodeEvaluatorLanguage,
+  FreeformEvaluatorAnnotationConfig,
+} from "@phoenix/types";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
+
+export const createDefaultFreeformOutputConfig = (
+  name: string
+): FreeformEvaluatorAnnotationConfig => ({
+  name,
+  optimizationDirection: "NONE",
+  threshold: null,
+  lowerBound: null,
+  upperBound: null,
+});
 
 export const EditCodeEvaluatorDialogContent = ({
   onSubmit,
@@ -105,6 +152,9 @@ export const EditCodeEvaluatorDialogContent = ({
   evaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
+  const grain = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource.grain
+  );
   const [showValidationError, setShowValidationError] = useState(false);
   const [sourceCode, setSourceCode] = useState(initialSourceCode);
   const [language, setLanguage] =
@@ -226,10 +276,6 @@ export const EditCodeEvaluatorDialogContent = ({
   useEffect(() => {
     sandboxConfigIndexRef.current = sandboxConfigIndex;
   }, [sandboxConfigIndex]);
-  const sandboxConfigsRef = useRef(sandboxConfigs);
-  useEffect(() => {
-    sandboxConfigsRef.current = sandboxConfigs;
-  }, [sandboxConfigs]);
 
   const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
   const isDraftMounted = useCallback(() => draftHostRef.current != null, []);
@@ -258,12 +304,6 @@ export const EditCodeEvaluatorDialogContent = ({
         inputMapping: state.evaluator.inputMapping,
         testPayload: state.evaluatorMappingSource.source,
         outputConfigs: toOutputConfigDrafts(state.outputConfigs),
-        availableSandboxConfigs: sandboxConfigsRef.current.map((config) => ({
-          id: config.id,
-          name: config.name,
-          language: config.language,
-          backendType: config.backendType,
-        })),
       };
     };
 
@@ -337,7 +377,10 @@ export const EditCodeEvaluatorDialogContent = ({
       if (
         JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
       ) {
-        state.setEvaluatorMappingSource(next.testPayload);
+        state.setEvaluatorMappingSource({
+          grain: state.evaluatorMappingSource.grain,
+          source: next.testPayload,
+        });
       }
       return { ok: true as const, output: buildSnapshot() };
     };
@@ -398,13 +441,6 @@ export const EditCodeEvaluatorDialogContent = ({
 
   const handleCancel = () => {
     onCancel?.();
-  };
-
-  const handleLanguageChange = (nextLanguage: CodeEvaluatorLanguage) => {
-    setSourceCode(
-      getNextCodeEvaluatorSource({ sourceCode, language, nextLanguage })
-    );
-    setLanguage(nextLanguage);
   };
 
   const variables = useMemo(
@@ -541,21 +577,35 @@ export const EditCodeEvaluatorDialogContent = ({
             {/* Left panel: Code Editor (60%) */}
             <Panel defaultSize="60%" minSize="40%" style={panelStyle}>
               <div css={editorPanelCSS}>
-                <EvaluatorNameAndDescriptionFields
-                  isNameRequired
-                  descriptionPlaceholder="e.g. code evaluator description"
-                />
-                <CodeAuthoringFields
+                <EvaluatorMetadataForm
                   language={language}
-                  onLanguageChange={handleLanguageChange}
+                  onLanguageChange={(nextLanguage) => {
+                    setLanguage((currentLanguage) => {
+                      // Auto-swap only if sourceCode is still the generated
+                      // placeholder — never overwrite user-authored code.
+                      if (
+                        sourceCode ===
+                        getDefaultCodeEvaluatorSource(currentLanguage, grain)
+                      ) {
+                        setSourceCode(
+                          getDefaultCodeEvaluatorSource(nextLanguage, grain)
+                        );
+                      }
+                      return nextLanguage;
+                    });
+                  }}
                   sandboxConfigs={sandboxConfigs}
                   selectedSandboxConfigId={selectedSandboxConfigId}
                   onSandboxChange={setSandboxConfigId}
-                  sourceCode={sourceCode}
-                  onSourceCodeChange={setSourceCode}
-                  isLanguageDisabled={mode !== "create"}
+                  isLanguageEditable={mode === "create"}
                   isSandboxRequired={mode === "create"}
                 />
+                <CodeEvaluatorSourceEditor
+                  language={language}
+                  sourceCode={sourceCode}
+                  onChange={setSourceCode}
+                />
+                <CodeEvaluatorAnnotationSection />
                 <InputMappingSection />
               </div>
             </Panel>
@@ -597,6 +647,52 @@ export const EditCodeEvaluatorDialogContent = ({
         </Button>
       </DialogFooter>
     </DialogContent>
+  );
+};
+
+const EvaluatorMetadataForm = ({
+  language,
+  onLanguageChange,
+  sandboxConfigs,
+  selectedSandboxConfigId,
+  onSandboxChange,
+  isLanguageEditable,
+  isSandboxRequired,
+}: {
+  language: CodeEvaluatorLanguage;
+  onLanguageChange: (language: CodeEvaluatorLanguage) => void;
+  sandboxConfigs: SandboxConfigOption[];
+  selectedSandboxConfigId: string | null;
+  onSandboxChange: (sandboxConfigId: string | null) => void;
+  isLanguageEditable?: boolean;
+  isSandboxRequired?: boolean;
+}) => {
+  return (
+    <div css={metadataFormCSS}>
+      <div style={{ flex: "1 1 220px", minWidth: 220 }}>
+        <EvaluatorNameInput isRequired />
+      </div>
+      <div style={{ flex: "1 1 220px", minWidth: 220 }}>
+        <CodeEvaluatorLanguageField
+          language={language}
+          onChange={onLanguageChange}
+          isDisabled={!isLanguageEditable}
+          isRequired
+        />
+      </div>
+      <div style={{ flex: "1 1 220px", minWidth: 220 }}>
+        <CodeEvaluatorSandboxField
+          sandboxConfigs={sandboxConfigs}
+          language={language}
+          selectedSandboxConfigId={selectedSandboxConfigId}
+          onSelectionChange={onSandboxChange}
+          isRequired={isSandboxRequired}
+        />
+      </div>
+      <div style={{ flex: "2 1 240px", minWidth: 240 }}>
+        <EvaluatorDescriptionInput placeholder="e.g. code evaluator description" />
+      </div>
+    </div>
   );
 };
 
@@ -738,6 +834,281 @@ function getSandboxDependenciesConfigLabel(config: SandboxConfigForLabels) {
 }
 
 /**
+ * Editable source-code editor with a read-only auto-generated type footer.
+ * Ships its own description line and Reset-to-default button.
+ */
+export const CodeEvaluatorSourceEditor = ({
+  language,
+  sourceCode,
+  onChange,
+}: {
+  language: CodeEvaluatorLanguage;
+  sourceCode: string;
+  onChange: (value: string) => void;
+}) => {
+  const { theme } = useTheme();
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
+  // The auto-generated type footer is hidden by default.
+  const [showTypes, setShowTypes] = useState(false);
+
+  const evaluatorMappingSourceState = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource
+  );
+  const inputMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping
+  );
+  const evaluatorMappingSource = evaluatorMappingSourceState.source;
+  const evaluationContext = useMemo(() => {
+    const grain = evaluatorMappingSourceState.grain;
+    return grain === "dataset"
+      ? null
+      : materializeEvaluatorContext({
+          grain,
+          evaluatorMappingSource: evaluatorMappingSourceState,
+          inputMapping,
+        });
+  }, [evaluatorMappingSourceState, inputMapping]);
+
+  // The footer names what `evaluate` receives, so for a project grain it reads
+  // the mapping applied rather than the record as it arrived — the same
+  // context the autocomplete offers from. A dataset example is bound by name
+  // and has no such gap.
+  const typeFooter = useMemo(
+    () =>
+      generateEvaluatorTypes(
+        language,
+        evaluationContext === null
+          ? evaluatorMappingSource
+          : {
+              input: evaluationContext.values.input,
+              output: evaluationContext.values.output,
+              metadata: isStringKeyedObject(evaluationContext.values.metadata)
+                ? evaluationContext.values.metadata
+                : {},
+            }
+      ),
+    [language, evaluatorMappingSource, evaluationContext]
+  );
+
+  const extensions = useMemo(
+    () => [
+      language === "PYTHON" ? python() : javascript({ typescript: true }),
+      // Python: 4-space indent; JS/TS: 2-space.
+      indentUnit.of(language === "PYTHON" ? "    " : "  "),
+      createEvaluatorAutocompletion({
+        mappingSource: evaluatorMappingSource,
+        language,
+        evaluationContext,
+      }),
+    ],
+    [language, evaluatorMappingSource, evaluationContext]
+  );
+
+  // The sampled record can arrive after the user has already put the cursor
+  // in a completable position — the reconfigure it causes discards any open
+  // dropdown, so re-open it, the same way DSLFilterConditionField does. The
+  // source offers nothing outside those positions, so this is inert
+  // elsewhere in the source code.
+  const editorViewRef = useRef<EditorView | null>(null);
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (editorView?.hasFocus) {
+      startCompletion(editorView);
+    }
+  }, [extensions]);
+
+  const descriptionText =
+    "Define an evaluate function that returns a score or label.";
+
+  return (
+    <Flex direction="column" gap="size-100">
+      {/* Editor header with controls */}
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        gap="size-200"
+        flex="none"
+      >
+        <Text color="text-500" size="XS">
+          {descriptionText}
+        </Text>
+        <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+          <MenuTrigger>
+            <Button
+              size="S"
+              variant="quiet"
+              leadingVisual={<Icon svg={<Icons.Code />} />}
+            >
+              Templates
+            </Button>
+            <MenuContainer placement="bottom end" maxWidth={360}>
+              <Menu
+                onAction={(key) => {
+                  const template = CODE_EVALUATOR_TEMPLATES.find(
+                    (t) => t.id === key
+                  );
+                  if (!template) {
+                    return;
+                  }
+                  onChange(template.getSource(language));
+                }}
+              >
+                {CODE_EVALUATOR_TEMPLATES.map((template) => (
+                  <MenuItem
+                    key={template.id}
+                    id={template.id}
+                    textValue={`${template.name}\n${template.description}`}
+                  >
+                    <Flex direction="column" gap="size-50">
+                      <Text weight="heavy">{template.name}</Text>
+                      <Text size="S" color="text-700">
+                        {template.description}
+                      </Text>
+                    </Flex>
+                  </MenuItem>
+                ))}
+              </Menu>
+            </MenuContainer>
+          </MenuTrigger>
+          <Button
+            size="S"
+            variant="quiet"
+            leadingVisual={<Icon svg={<Icons.Refresh />} />}
+            onPress={() =>
+              onChange(
+                getDefaultCodeEvaluatorSource(
+                  language,
+                  evaluatorMappingSourceState.grain
+                )
+              )
+            }
+          >
+            Reset
+          </Button>
+          <CopyToClipboardButton
+            text={sourceCode}
+            size="S"
+            variant="quiet"
+            tooltipText="Copy code"
+          >
+            Copy
+          </CopyToClipboardButton>
+          {typeFooter ? (
+            <Switch
+              isSelected={showTypes}
+              onChange={setShowTypes}
+              labelPlacement="start"
+            >
+              <Text size="S">Show types</Text>
+            </Switch>
+          ) : null}
+        </Flex>
+      </Flex>
+
+      {/* Code editor and type footer with resizable panels */}
+      <div css={editorContainerCSS}>
+        <Group orientation="vertical" style={{ flex: 1, minHeight: 0 }}>
+          {/* Editable code editor panel */}
+          <Panel defaultSize="75%" minSize="30%" style={editorPanelStyle}>
+            <div
+              css={[editorWrapCSS, cmLineNumberGutterCSS]}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" || e.key === "Tab") {
+                  e.stopPropagation();
+                }
+              }}
+            >
+              <CodeMirror
+                // Key on language to force remount when language changes
+                key={language}
+                value={sourceCode}
+                onChange={onChange}
+                theme={codeMirrorTheme}
+                extensions={extensions}
+                onCreateEditor={(editorView) => {
+                  editorViewRef.current = editorView;
+                }}
+                height="100%"
+                indentWithTab
+                basicSetup={{
+                  lineNumbers: true,
+                  foldGutter: true,
+                  bracketMatching: true,
+                  syntaxHighlighting: true,
+                  highlightActiveLine: false,
+                  highlightActiveLineGutter: false,
+                  tabSize: language === "PYTHON" ? 4 : 2,
+                }}
+              />
+            </div>
+          </Panel>
+
+          {/* Read-only type footer panel */}
+          {showTypes && typeFooter && (
+            <>
+              <Separator css={compactResizeHandleCSS} />
+              <Panel defaultSize="25%" minSize="10%" style={editorPanelStyle}>
+                <div css={[typeFooterCSS, cmLineNumberGutterCSS]}>
+                  <CodeMirror
+                    value={typeFooter}
+                    theme={codeMirrorTheme}
+                    extensions={extensions}
+                    editable={false}
+                    basicSetup={{
+                      lineNumbers: true,
+                      foldGutter: true,
+                      bracketMatching: true,
+                      syntaxHighlighting: true,
+                      highlightActiveLine: false,
+                      highlightActiveLineGutter: false,
+                      tabSize: language === "PYTHON" ? 4 : 2,
+                    }}
+                  />
+                </div>
+              </Panel>
+            </>
+          )}
+        </Group>
+      </div>
+    </Flex>
+  );
+};
+
+/**
+ * Heading + bordered card for the evaluator's output annotation config.
+ */
+export const CodeEvaluatorAnnotationSection = ({
+  onChange,
+}: {
+  onChange?: () => void;
+} = {}) => {
+  return (
+    <View flex="none">
+      <Flex direction="column" gap="size-100">
+        <Heading level={2} weight="heavy">
+          Evaluator Annotation
+        </Heading>
+        <Text color="text-500">
+          Define the annotation that your evaluator will create. Optimization
+          direction, score range, and threshold apply only when your evaluator
+          returns a numeric score.
+        </Text>
+        <View
+          borderRadius="medium"
+          borderWidth="thin"
+          padding="size-200"
+          marginTop="size-50"
+          borderColor="default"
+        >
+          <OutputConfigSection onChange={onChange} />
+        </View>
+      </Flex>
+    </View>
+  );
+};
+
+/**
  * Heading + bordered card for mapping evaluator arguments to dataset fields.
  */
 const InputMappingSection = () => {
@@ -762,6 +1133,174 @@ const InputMappingSection = () => {
         </View>
       </Flex>
     </View>
+  );
+};
+
+const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
+  const store = useEvaluatorStoreInstance();
+  const outputConfig = useEvaluatorStore((state) => state.outputConfigs[0]);
+  const setOutputConfigThresholdAtIndex = useEvaluatorStore(
+    (state) => state.setOutputConfigThresholdAtIndex
+  );
+  const setOutputConfigLowerBoundAtIndex = useEvaluatorStore(
+    (state) => state.setOutputConfigLowerBoundAtIndex
+  );
+  const setOutputConfigUpperBoundAtIndex = useEvaluatorStore(
+    (state) => state.setOutputConfigUpperBoundAtIndex
+  );
+
+  useEffect(() => {
+    if (!outputConfig) {
+      const state = store.getState();
+      const name = state.evaluator.name || state.evaluator.globalName;
+      state.setOutputConfigs([createDefaultFreeformOutputConfig(name)]);
+    }
+  }, [outputConfig, store]);
+
+  if (!outputConfig) {
+    return null;
+  }
+
+  if ("values" in outputConfig) {
+    return (
+      <Flex direction="column" gap="size-200">
+        <Flex direction="row" gap="size-200" alignItems="start">
+          <TextField isDisabled value={outputConfig.name}>
+            <Label>Name</Label>
+            <Input />
+          </TextField>
+          <OptimizationDirectionField
+            description="Whether higher or lower scores are better."
+            onChange={onChange}
+          />
+        </Flex>
+        <Flex direction="column" gap="size-100">
+          <OutputConfigValuesHeader />
+          {outputConfig.values.map((value, index) => (
+            <OutputConfigValuesRow
+              key={`${value.label}-${index}`}
+              label={value.label}
+              score={value.score ?? null}
+              index={index}
+            />
+          ))}
+        </Flex>
+      </Flex>
+    );
+  }
+
+  const threshold =
+    "threshold" in outputConfig ? (outputConfig.threshold ?? null) : null;
+  const lowerBound =
+    "lowerBound" in outputConfig ? (outputConfig.lowerBound ?? null) : null;
+  const upperBound =
+    "upperBound" in outputConfig ? (outputConfig.upperBound ?? null) : null;
+  const optimizationDirection = outputConfig.optimizationDirection;
+  const isThresholdDisabled = optimizationDirection === "NONE";
+
+  const thresholdDescription =
+    optimizationDirection === "MAXIMIZE"
+      ? "Scores at or above this value display as good; lower scores display as bad."
+      : optimizationDirection === "MINIMIZE"
+        ? "Scores at or below this value display as good; higher scores display as bad."
+        : "Combined with the optimization direction, this is the cutoff used to visually distinguish “good” from “bad” scores.";
+
+  return (
+    <Flex direction="column" gap="size-200">
+      <Flex direction="row" gap="size-200" alignItems="start">
+        <TextField isDisabled value={outputConfig.name}>
+          <Label>Name</Label>
+          <Input />
+        </TextField>
+        <OptimizationDirectionField
+          description="Whether higher or lower scores are better."
+          onChange={onChange}
+        />
+        <NumberField
+          value={threshold ?? undefined}
+          onChange={(value) => {
+            onChange?.();
+            setOutputConfigThresholdAtIndex(
+              0,
+              Number.isNaN(value) ? null : value
+            );
+          }}
+          isDisabled={isThresholdDisabled}
+        >
+          <Label>Score threshold (optional)</Label>
+          <Input />
+          <Text slot="description">{thresholdDescription}</Text>
+        </NumberField>
+      </Flex>
+      <Flex direction="row" gap="size-200" alignItems="start">
+        <NumberField
+          value={lowerBound ?? undefined}
+          onChange={(value) => {
+            onChange?.();
+            setOutputConfigLowerBoundAtIndex(
+              0,
+              Number.isNaN(value) ? null : value
+            );
+          }}
+        >
+          <Label>Minimum score (optional)</Label>
+          <Input />
+          <Text slot="description">
+            The lowest score your evaluator is expected to produce.
+          </Text>
+        </NumberField>
+        <NumberField
+          value={upperBound ?? undefined}
+          onChange={(value) => {
+            onChange?.();
+            setOutputConfigUpperBoundAtIndex(
+              0,
+              Number.isNaN(value) ? null : value
+            );
+          }}
+        >
+          <Label>Maximum score (optional)</Label>
+          <Input />
+          <Text slot="description">
+            The highest score your evaluator is expected to produce.
+          </Text>
+        </NumberField>
+      </Flex>
+    </Flex>
+  );
+};
+
+const OutputConfigValuesHeader = () => {
+  return (
+    <div css={outputConfigValuesGridCSS}>
+      <Text>Choice</Text>
+      <Text>Score</Text>
+    </div>
+  );
+};
+
+const OutputConfigValuesRow = ({
+  label,
+  score,
+  index,
+}: {
+  label: string;
+  score: number | null;
+  index: number;
+}) => {
+  return (
+    <div css={outputConfigValuesGridCSS}>
+      <TextField isDisabled value={label} aria-label={`Choice ${index + 1}`}>
+        <Input />
+      </TextField>
+      <TextField
+        isDisabled
+        value={score != null ? String(score) : ""}
+        aria-label={`Score ${index + 1}`}
+      >
+        <Input />
+      </TextField>
+    </div>
   );
 };
 
@@ -800,6 +1339,18 @@ const fieldsetCSS = css`
   overflow: hidden;
 `;
 
+const metadataFormCSS = css`
+  display: flex;
+  flex-direction: row;
+  // The form lives in a splitter-resizable panel, so wrapping keys off the
+  // fields' flex bases rather than a viewport breakpoint: fields share one
+  // row while they fit and wrap onto additional rows as the panel narrows.
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--global-dimension-size-150);
+  flex-shrink: 0;
+`;
+
 const panelStyle = {
   height: "100%",
   display: "flex",
@@ -833,6 +1384,14 @@ const sidebarPanelCSS = css`
   border-left: 1px solid var(--global-border-color-default);
 `;
 
+const outputConfigValuesGridCSS = css`
+  width: 100%;
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: var(--global-dimension-size-100);
+  align-items: start;
+`;
+
 // The "Test Evaluator" region grows to fill the panel and scrolls on overflow.
 const sidebarScrollAreaCSS = css`
   flex: 1 1 auto;
@@ -857,4 +1416,73 @@ const sidebarFooterCSS = css`
 const sectionContentCSS = css`
   padding: var(--global-dimension-size-50) 0;
   padding-bottom: var(--global-dimension-size-150);
+`;
+
+const editorContainerCSS = css`
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+  border: 1px solid var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+  overflow: hidden;
+  background-color: var(--code-mirror-editor-background-color);
+`;
+
+const editorPanelStyle = {
+  display: "flex",
+  flexDirection: "column" as const,
+  minHeight: 0,
+  overflow: "hidden" as const,
+};
+
+const cmLineNumberGutterCSS = css`
+  & .cm-gutter.cm-lineNumbers .cm-gutterElement {
+    min-width: 2.25em;
+    box-sizing: border-box;
+  }
+`;
+
+const editorWrapCSS = css`
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  & .cm-theme {
+    height: 100% !important;
+  }
+
+  & .cm-editor {
+    height: 100% !important;
+  }
+
+  & .cm-scroller {
+    overflow: auto !important;
+  }
+`;
+
+const typeFooterCSS = css`
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  & .cm-theme {
+    height: 100% !important;
+  }
+
+  & .cm-editor {
+    height: 100% !important;
+    background-color: var(--global-color-gray-100);
+  }
+
+  & .cm-gutters {
+    background-color: var(--global-color-gray-100);
+  }
+
+  & .cm-scroller {
+    overflow: auto !important;
+  }
 `;

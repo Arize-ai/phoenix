@@ -1,6 +1,7 @@
 import {
   createEvaluatorStore,
   SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
   type EvaluatorStoreProps,
 } from "../evaluatorStore";
 
@@ -64,7 +65,7 @@ describe("evaluatorStore mapping source grain", () => {
         source: {
           input: { question: "What is Phoenix?" },
           output: { answer: "An AI observability platform" },
-          metadata: { attributes: { "openinference.span.kind": "LLM" } },
+          metadata: { latency_ms: 12.5, attributes: { llm: {} } },
         },
       },
     });
@@ -72,7 +73,7 @@ describe("evaluatorStore mapping source grain", () => {
     expect(store.getState().evaluatorMappingSource.source).toEqual({
       input: { question: "What is Phoenix?" },
       output: { answer: "An AI observability platform" },
-      metadata: { attributes: { "openinference.span.kind": "LLM" } },
+      metadata: { latency_ms: 12.5, attributes: { llm: {} } },
     });
     expect(store.getState().evaluator.inputMapping).toEqual({
       literalMapping: {},
@@ -80,28 +81,33 @@ describe("evaluatorStore mapping source grain", () => {
     });
   });
 
-  it("keeps a recorded session context under the session grain", () => {
+  it("keeps a recorded session context under the grain it was bound as", () => {
+    // The store is left on span: a session context is structurally identical to
+    // a span one, so only the grain the caller binds it under says what it is.
     const store = createFreeformStore({
       evaluatorMappingSource: {
-        grain: "session",
-        source: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+        grain: "span",
+        source: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
       },
     });
 
     store.getState().setEvaluatorMappingSource({
-      input: "User: hi\nAssistant: hello",
-      output: "hello",
-      metadata: { turns: [{ input: "hi", output: "hello" }] },
+      grain: "session",
+      source: {
+        input: "hi",
+        output: "hello",
+        metadata: { duration_ms: 42, turns: [{ input: "hi" }] },
+      },
     });
 
-    // A dataset fallthrough would coerce input/output to objects and add
-    // `reference`, silently renaming what the evaluator binds against.
+    // Read as a span, `turns` is metadata no span vocabulary names, and the
+    // context would be dropped for an empty one.
     expect(store.getState().evaluatorMappingSource).toEqual({
       grain: "session",
       source: {
-        input: "User: hi\nAssistant: hello",
+        input: "hi",
         output: "hello",
-        metadata: { turns: [{ input: "hi", output: "hello" }] },
+        metadata: { duration_ms: 42, turns: [{ input: "hi" }] },
       },
     });
   });
@@ -113,7 +119,7 @@ describe("evaluatorStore mapping source grain", () => {
         source: {
           input: "What is Phoenix?",
           output: "An AI observability platform",
-          metadata: { attributes: { "openinference.span.kind": "LLM" } },
+          metadata: {},
         },
       },
     });
@@ -133,7 +139,7 @@ describe("evaluatorStore mapping source grain", () => {
         source: {
           input: "What is Phoenix?",
           output: null,
-          metadata: { attributes: { "openinference.span.kind": "LLM" } },
+          metadata: {},
         },
       },
     });
@@ -141,7 +147,7 @@ describe("evaluatorStore mapping source grain", () => {
     expect(store.getState().evaluatorMappingSource.source).toEqual({
       input: "What is Phoenix?",
       output: null,
-      metadata: { attributes: { "openinference.span.kind": "LLM" } },
+      metadata: {},
     });
   });
 });

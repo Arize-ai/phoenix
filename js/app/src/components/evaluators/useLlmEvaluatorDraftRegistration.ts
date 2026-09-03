@@ -137,7 +137,10 @@ export const useLlmEvaluatorDraftRegistration = ({
       if (
         JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
       ) {
-        state.setEvaluatorMappingSource(next.testPayload);
+        state.setEvaluatorMappingSource({
+          grain: state.evaluatorMappingSource.grain,
+          source: next.testPayload,
+        });
       }
       reconcileJudgeOperations({
         playgroundStore,
