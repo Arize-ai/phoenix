@@ -268,7 +268,15 @@ class _CodeModeWithDirectSkillTools(CodeMode):
 
     Upstream has no affordance for this; see
     https://github.com/PrefectHQ/fastmcp/issues/4925.
+
+    Args:
+        direct_tool_names: Tools served alongside ``execute`` that ``call_tool``
+            cannot reach, named as such in the ``execute`` description.
     """
+
+    def __init__(self, *, direct_tool_names: Sequence[str], **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._direct_tool_names = direct_tool_names
 
     async def transform_tools(self, tools: "Sequence[Tool]") -> "Sequence[Tool]":
         """The ``tools/list`` response."""
@@ -282,32 +290,20 @@ class _CodeModeWithDirectSkillTools(CodeMode):
         catalog = await super().get_tool_catalog(ctx, run_middleware=run_middleware)
         return [tool for tool in catalog if SKILL_TOOLS_TAG not in tool.tags]
 
+    def _build_execute_description(self) -> str:
+        """Upstream's ``execute`` description, plus the direct tools ``call_tool`` cannot reach.
 
-_UPSTREAM_EXECUTE_DESCRIPTION = (
-    "Chain `await call_tool(...)` calls in one Python block; prefer returning the final "
-    "answer from a single block.\n"
-    "Use `return` to produce output.\n"
-    "Only `call_tool(tool_name: str, params: dict) -> Any` is available in scope."
-)
-
-
-def _execute_description(direct_tool_names: Sequence[str]) -> str:
-    """fastmcp's ``execute`` description, plus the direct tools ``call_tool`` cannot reach.
-
-    ``_CodeModeWithDirectSkillTools`` keeps the skill tools out of the catalog
-    ``call_tool`` resolves against, and nothing else tells the model, so it
-    batches ``load_skill`` calls through ``execute`` and is told the tool is unknown.
-    Passing ``execute_description`` replaces the upstream text rather than
-    extending it, so the first three lines restate it verbatim from
-    https://github.com/PrefectHQ/fastmcp/blob/v3.4.7/fastmcp_slim/fastmcp/experimental/transforms/code_mode.py#L566-L574
-    """
-    *rest, last = [f"`{name}`" for name in direct_tool_names]
-    unreachable = f"{', '.join(rest)}, or {last}" if rest else last
-    return (
-        f"{_UPSTREAM_EXECUTE_DESCRIPTION}\n"
-        "`call_tool` reaches only the catalog `search` and `list_tools` describe; "
-        f"it cannot invoke {unreachable}, which are direct tools."
-    )
+        ``get_tool_catalog`` keeps the skill tools out of the catalog ``call_tool``
+        resolves against, and nothing else tells the model, so it batches
+        ``load_skill`` calls through ``execute`` and is told the tool is unknown.
+        """
+        *rest, last = [f"`{name}`" for name in self._direct_tool_names]
+        unreachable = f"{', '.join(rest)}, or {last}" if rest else last
+        return (
+            f"{super()._build_execute_description()}\n"
+            "`call_tool` reaches only the catalog `search` and `list_tools` describe; "
+            f"it cannot invoke {unreachable}, which are direct tools."
+        )
 
 
 def _build_code_mode(
@@ -352,7 +348,7 @@ def _build_code_mode(
                 _read_only(ListTools()),
             ],
             sandbox_provider=sandbox_provider,
-            execute_description=_execute_description((*discovery_tool_names, *skill_tool_names)),
+            direct_tool_names=(*discovery_tool_names, *skill_tool_names),
         ),
         sandbox_provider,
     )
