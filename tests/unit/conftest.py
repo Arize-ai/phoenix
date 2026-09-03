@@ -30,7 +30,7 @@ from _pytest.fixtures import SubRequest
 from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from pydantic import SecretStr
 from pydantic_ai import RunContext
 from pytest import FixtureRequest
@@ -53,6 +53,7 @@ from phoenix.db.engines import (
 )
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.insertion.helpers import DataManipulation
+from phoenix.server import app as server_app
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import _db, create_app
@@ -106,6 +107,11 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "real_graphql_schema_build: build a fresh GraphQL schema for the app instead of "
         "reusing the worker's memoized one",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_app_routers: build the app's routers fresh instead of reusing the worker's "
+        "memoized ones",
     )
 
 
@@ -307,6 +313,49 @@ def _memoized_graphql_schema_build(
         return
 
     monkeypatch.setattr("phoenix.server.app.build_graphql_schema", _memoized_graphql_schema)
+
+
+# The auth router is left out: its builder reads environment flags at
+# construction, so it is not a function of its arguments alone.
+_ROUTER_BUILDER_NAMES = (
+    "create_v1_router",
+    "create_agents_router",
+    "create_legacy_agents_router",
+)
+_REAL_ROUTER_BUILDERS: dict[str, Callable[..., APIRouter]] = {
+    name: getattr(server_app, name) for name in _ROUTER_BUILDER_NAMES
+}
+_MEMOIZED_ROUTERS: dict[tuple[Any, ...], APIRouter] = {}
+
+
+def _memoized_router_builder(name: str) -> Callable[..., APIRouter]:
+    build = _REAL_ROUTER_BUILDERS[name]
+
+    def memoized(*args: Any, **kwargs: Any) -> APIRouter:
+        key = (name, args, tuple(sorted(kwargs.items())))
+        router = _MEMOIZED_ROUTERS.get(key)
+        if router is None:
+            router = _MEMOIZED_ROUTERS[key] = build(*args, **kwargs)
+        return router
+
+    return memoized
+
+
+@pytest.fixture(autouse=True)
+def _memoized_app_routers(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``create_app`` builds the v1, agents, and legacy-agents routers per
+    app from a flag, and building a router registers every route, inspecting
+    its signature and modelling its fields before the app even includes it.
+    Each of those routers is a pure function of its flag, and including one
+    records it on the app without mutating it, so the worker memoizes each
+    builder per argument list: every app after the worker's first reuses the
+    routers. A test that needs its own routers opts out with
+    ``@pytest.mark.real_app_routers``."""
+    if request.node.get_closest_marker("real_app_routers"):
+        return
+
+    for name in _ROUTER_BUILDER_NAMES:
+        monkeypatch.setattr(server_app, name, _memoized_router_builder(name))
 
 
 @pytest.fixture(autouse=True)
