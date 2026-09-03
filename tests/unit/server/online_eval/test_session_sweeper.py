@@ -64,10 +64,11 @@ async def _seed_criteria(
     return evaluator_id, project_evaluator_id
 
 
-def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
+def test_live_key_predicate_is_single_sourced() -> None:
     """The sweeper's conflict target, the model's index, and the migration that creates
-    it must stay textually identical and must track ``MAX_ATTEMPTS``: Postgres matches
-    ``ON CONFLICT ... WHERE`` to a partial index by predicate equivalence.
+    it must stay textually identical: Postgres matches ``ON CONFLICT ... WHERE`` to a
+    partial index by predicate equivalence. It is a status set alone, so the retry budget
+    can change without a migration.
     """
     migration = import_module(
         "phoenix.db.migrations.versions.a7f1c3e9d2b4_add_online_eval_coordination"
@@ -80,7 +81,8 @@ def test_live_key_predicate_is_single_sourced_from_max_attempts() -> None:
         if index.name == "uq_eval_session_work_units_live_key"
     )
 
-    assert f"attempts < {MAX_ATTEMPTS}" in predicate
+    assert "attempts" not in predicate
+    assert "ERROR" in predicate
     assert "FILTERED_OUT" in predicate
     assert "SAMPLED_OUT" in predicate
     assert str(live_key_index.dialect_options["postgresql"]["where"]) == predicate
@@ -467,7 +469,7 @@ async def test_terminalizes_exhausted_lapsed_session_lease(
         ).all()
     (terminal,) = units
     assert terminal.id == unit_id
-    assert terminal.status == "ERROR"
+    assert terminal.status == "FAILED"
     assert terminal.attempts == MAX_ATTEMPTS
     assert terminal.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
 
@@ -653,7 +655,7 @@ async def _advance_liveness(
 async def test_terminal_history_re_materializes_only_after_new_ingest(
     db: DbSessionFactory,
 ) -> None:
-    """Work that will never run again — exhausted ERROR, EXPIRED — carries the ingest
+    """Work that will never run again — FAILED, EXPIRED — carries the ingest
     scheduling snapshot in ``evaluated_through``. Replacing it without newer ingest
     just repeats the same scheduling attempt every tick.
     """
@@ -667,16 +669,16 @@ async def test_terminal_history_re_materializes_only_after_new_ingest(
 
     async with db() as session:
         await session.execute(
-            update(models.EvalSessionWorkUnit).values(status="ERROR", attempts=MAX_ATTEMPTS)
+            update(models.EvalSessionWorkUnit).values(status="FAILED", attempts=MAX_ATTEMPTS)
         )
     await sweeper._tick()
     await sweeper._tick()
-    assert await _work_statuses(db) == ["ERROR"]
+    assert await _work_statuses(db) == ["FAILED"]
 
     await _advance_liveness(db, project_session_id, last_span_ingested_at + timedelta(seconds=60))
     await sweeper._tick()
     await sweeper._tick()
-    assert await _work_statuses(db) == ["ERROR", "PENDING"]
+    assert await _work_statuses(db) == ["FAILED", "PENDING"]
 
     async with db() as session:
         await session.execute(
@@ -685,7 +687,7 @@ async def test_terminal_history_re_materializes_only_after_new_ingest(
             .values(status="EXPIRED")
         )
     await sweeper._tick()
-    assert await _work_statuses(db) == ["ERROR", "EXPIRED"]
+    assert await _work_statuses(db) == ["FAILED", "EXPIRED"]
 
 
 async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
@@ -698,14 +700,14 @@ async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
     async with db() as session:
         await session.execute(
             update(models.EvalSessionWorkUnit).values(
-                status="EXPIRED",
+                status="SUPERSEDED",
                 error=STALE_FINGERPRINT_ERROR,
             )
         )
 
     await sweeper._tick()
 
-    assert await _work_statuses(db) == ["EXPIRED", "PENDING"]
+    assert await _work_statuses(db) == ["SUPERSEDED", "PENDING"]
 
 
 async def test_incomplete_session_is_never_scheduled(

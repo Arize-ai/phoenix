@@ -54,7 +54,11 @@ from phoenix.server.dml_event import (
 )
 from phoenix.server.online_eval import session_policy
 from phoenix.server.online_eval.bound_variables import load_session_bound_variables
-from phoenix.server.online_eval.coordinator import ClaimedWorkUnit, EvalWorkCoordinator
+from phoenix.server.online_eval.coordinator import (
+    ClaimedWorkUnit,
+    EvalWorkCoordinator,
+    RetiredWorkStatus,
+)
 from phoenix.server.online_eval.derivation import (
     STALE_FINGERPRINT_ERROR,
     config_fingerprint,
@@ -110,8 +114,8 @@ class HydrationFailureReason(str, Enum):
     EVALUATOR_MISSING = "EVALUATOR_MISSING"
     EVALUATOR_VERSION_MISSING = "EVALUATOR_VERSION_MISSING"
     SANDBOX_RUNTIME_UNAVAILABLE = "SANDBOX_RUNTIME_UNAVAILABLE"
-    # The producer's revival scan matches this exact text on an EXPIRED row, so a
-    # project evaluator edited and reverted re-materializes rather than staying terminal.
+    # Retires the unit as SUPERSEDED rather than EXPIRED, so a project evaluator edited
+    # and reverted re-materializes rather than staying terminal.
     CONFIG_FINGERPRINT_MISMATCH = STALE_FINGERPRINT_ERROR
     SPAN_MISSING = "SPAN_MISSING"
     SESSION_MISSING = "SESSION_MISSING"
@@ -125,6 +129,15 @@ class HydrationFailureReason(str, Enum):
 class HydrationFailure:
     reason: HydrationFailureReason
     detail: str = ""
+
+    @property
+    def terminal_status(self) -> RetiredWorkStatus:
+        """The status the unit is retired with: the two lifecycle reasons get their own."""
+        if self.reason is HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH:
+            return "SUPERSEDED"
+        if self.reason is HydrationFailureReason.SESSION_CONTENT_INCOMPLETE:
+            return "CONTENT_LOST"
+        return "EXPIRED"
 
 
 @dataclass(frozen=True)

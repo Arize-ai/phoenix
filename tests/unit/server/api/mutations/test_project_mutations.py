@@ -265,7 +265,7 @@ class TestProjectMutations:
                     .where(models.ProjectSession.project_id == project_id)
                 )
             )
-        assert all(status == "EXPIRED" for status in statuses)
+        assert all(status == "CONTENT_LOST" for status in statuses)
 
     async def test_create_project(
         self,

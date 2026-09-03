@@ -253,7 +253,7 @@ async def test_aged_transient_failure_is_parked_as_exhausted_error(
     )
 
     row = await _get_unit(db, unit_id)
-    assert row.status == "ERROR"
+    assert row.status == "FAILED"
     assert row.attempts == MAX_ATTEMPTS
     assert await coordinator.claim(claimed_by="consumer-2", limit=1) == []
     lag = await coordinator.lag()
@@ -455,7 +455,7 @@ async def test_lag_reports_counts_and_oldest_actionable_age(
             update(models.EvalWorkUnit)
             .where(models.EvalWorkUnit.id == unit_ids[3])
             .values(
-                status="ERROR",
+                status="FAILED",
                 attempts=MAX_ATTEMPTS,
                 created_at=now - timedelta(seconds=3600),
             )
@@ -521,7 +521,7 @@ async def test_session_claim_lifecycle_and_lag(db: DbSessionFactory) -> None:
         await session.execute(
             update(models.EvalSessionWorkUnit)
             .where(models.EvalSessionWorkUnit.id == unit_ids[4])
-            .values(status="ERROR", attempts=MAX_ATTEMPTS)
+            .values(status="FAILED", attempts=MAX_ATTEMPTS)
         )
 
     (next_claimed,) = await coordinator.claim(claimed_by="session-consumer", limit=1)
@@ -600,7 +600,7 @@ async def test_session_no_result_terminal_history_allows_replacement(
     async with db() as session:
         terminal = await session.get(models.EvalSessionWorkUnit, unit_id)
         assert terminal is not None
-        assert terminal.status == ("ERROR" if terminal_kind == "exhausted_error" else "EXPIRED")
+        assert terminal.status == ("FAILED" if terminal_kind == "exhausted_error" else "EXPIRED")
         assert terminal.evaluated_through == scheduled_at
         replacement = models.EvalSessionWorkUnit(
             project_session_rowid=terminal.project_session_rowid,

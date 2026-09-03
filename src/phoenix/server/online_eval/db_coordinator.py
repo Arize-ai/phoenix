@@ -27,6 +27,7 @@ from phoenix.server.online_eval.coordinator import (
     PublicationClaimLostError,
     PublicationWrite,
     QueueLag,
+    RetiredWorkStatus,
 )
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
 from phoenix.server.types import DbSessionFactory
@@ -77,7 +78,7 @@ async def reap_lapsed_leases(
             work_unit_lease_lapsed(now, work_unit_model),
         )
         .values(
-            status="ERROR",
+            status="FAILED",
             attempts=MAX_ATTEMPTS,
             error=func.coalesce(work_unit_model.error, LEASE_ATTEMPTS_EXHAUSTED_ERROR),
         )
@@ -123,7 +124,6 @@ class DbEvalWorkCoordinator:
             ),
             and_(
                 work_unit_model.status == "ERROR",
-                work_unit_model.attempts < self._max_attempts,
                 or_(
                     work_unit_model.cooldown_until.is_(None),
                     work_unit_model.cooldown_until <= now,
@@ -332,25 +332,26 @@ class DbEvalWorkCoordinator:
         cooldown_until: Optional[datetime] = None,
         count_attempt: bool = True,
     ) -> bool:
-        values: dict[str, Any] = {
-            "error": error,
-            "cooldown_until": cooldown_until,
-        }
+        work_unit_model = self._work_unit_model
+        attempts: Any
         if count_attempt:
-            values["attempts"] = self._work_unit_model.attempts + 1
+            attempts = work_unit_model.attempts + 1
         else:
             async with self._db.read() as session:
                 database_now = await _database_now(session)
             retry_age_cutoff = database_now - timedelta(seconds=TRANSIENT_RETRY_MAX_AGE_SECONDS)
-            values["attempts"] = case(
-                (self._work_unit_model.created_at < retry_age_cutoff, self._max_attempts),
-                else_=self._work_unit_model.attempts,
+            attempts = case(
+                (work_unit_model.created_at < retry_age_cutoff, self._max_attempts),
+                else_=work_unit_model.attempts,
             )
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
             claim_owner=claimed_by,
-            status="ERROR",
-            **values,
+            # The budget is spent at the transition; nothing reads `attempts` back for it.
+            status=case((attempts >= self._max_attempts, "FAILED"), else_="ERROR"),
+            attempts=attempts,
+            error=error,
+            cooldown_until=cooldown_until,
         )
 
     async def expire(
@@ -359,11 +360,12 @@ class DbEvalWorkCoordinator:
         work_unit_id: int,
         claimed_by: str,
         error: str,
+        status: RetiredWorkStatus = "EXPIRED",
     ) -> bool:
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
             claim_owner=claimed_by,
-            status="EXPIRED",
+            status=status,
             error=error,
         )
 
@@ -418,39 +420,19 @@ class DbEvalWorkCoordinator:
         now = datetime.now(timezone.utc)
         work_unit_model = self._work_unit_model
         async with self._db.read() as session:
-            error_exhausted = case(
-                (
-                    and_(
-                        work_unit_model.status == "ERROR",
-                        work_unit_model.attempts >= self._max_attempts,
-                    ),
-                    True,
-                ),
-                else_=False,
-            ).label("error_exhausted")
-            counts: dict[tuple[str, bool], int] = {
-                (status, exhausted): count
-                for status, exhausted, count in (
+            counts: dict[str, int] = {
+                status: count
+                for status, count in (
                     await session.execute(
-                        select(work_unit_model.status, error_exhausted, func.count())
-                        .where(
-                            work_unit_model.status.in_(["PENDING", "RUNNING", "ERROR", "EXPIRED"])
+                        select(work_unit_model.status, func.count()).group_by(
+                            work_unit_model.status
                         )
-                        .group_by(work_unit_model.status, error_exhausted)
                     )
                 ).all()
             }
             oldest_work_created_at = await session.scalar(
                 select(work_unit_model.created_at)
-                .where(
-                    or_(
-                        work_unit_model.status == "PENDING",
-                        and_(
-                            work_unit_model.status == "ERROR",
-                            work_unit_model.attempts < self._max_attempts,
-                        ),
-                    )
-                )
+                .where(work_unit_model.status.in_(("PENDING", "ERROR")))
                 .order_by(work_unit_model.created_at)
                 .limit(1)
             )
@@ -460,10 +442,13 @@ class DbEvalWorkCoordinator:
             else None
         )
         return QueueLag(
-            pending_count=counts.get(("PENDING", False), 0),
-            running_count=counts.get(("RUNNING", False), 0),
-            retryable_error_count=counts.get(("ERROR", False), 0),
-            exhausted_error_count=counts.get(("ERROR", True), 0),
-            expired_count=counts.get(("EXPIRED", False), 0),
+            pending_count=counts.get("PENDING", 0),
+            running_count=counts.get("RUNNING", 0),
+            retryable_error_count=counts.get("ERROR", 0),
+            exhausted_error_count=counts.get("FAILED", 0),
+            # Every way a unit is retired without an evaluation.
+            expired_count=sum(
+                counts.get(status, 0) for status in ("EXPIRED", "SUPERSEDED", "CONTENT_LOST")
+            ),
             oldest_actionable_age_seconds=oldest_actionable_age_seconds,
         )

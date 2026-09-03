@@ -54,7 +54,14 @@ from typing_extensions import Self, TypeAlias
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
-from phoenix.db.eval_work import live_eval_session_work_index_predicate
+from phoenix.db.eval_work import (
+    eval_session_work_status_check,
+    eval_work_status_check,
+    live_eval_session_work_index_predicate,
+    live_eval_work_index_predicate,
+    terminal_eval_session_work_index_predicate,
+    terminal_eval_work_index_predicate,
+)
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -190,13 +197,22 @@ GenerativeModelSDK: TypeAlias = Literal[
     "aws_bedrock",
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
-EvalWorkStatus: TypeAlias = Literal["PENDING", "RUNNING", "DONE", "ERROR", "EXPIRED"]
+# ERROR is a retry in cooldown; FAILED spent its retry budget; EXPIRED was retired without
+# an evaluation; SUPERSEDED was retired because its evaluator's configuration changed
+# under it. Sets and schema predicates live in phoenix.db.eval_work.
+EvalWorkStatus: TypeAlias = Literal[
+    "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "SUPERSEDED"
+]
+# CONTENT_LOST: the session's traces were deleted before the evaluation ran.
 EvalSessionWorkStatus: TypeAlias = Literal[
     "PENDING",
     "RUNNING",
     "DONE",
     "ERROR",
+    "FAILED",
     "EXPIRED",
+    "SUPERSEDED",
+    "CONTENT_LOST",
     "FILTERED_OUT",
     "SAMPLED_OUT",
 ]
@@ -3718,10 +3734,7 @@ class EvalWorkUnit(HasId):
     config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
 
     status: Mapped[EvalWorkStatus] = mapped_column(
-        CheckConstraint(
-            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
-            name="valid_eval_work_status",
-        ),
+        CheckConstraint(eval_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
         server_default="PENDING",
     )
@@ -3748,20 +3761,14 @@ class EvalWorkUnit(HasId):
             "ix_eval_work_units_claimable",
             "status",
             "id",
-            postgresql_where=text("status NOT IN ('DONE', 'EXPIRED')"),
-            sqlite_where=text("status NOT IN ('DONE', 'EXPIRED')"),
+            postgresql_where=text(live_eval_work_index_predicate()),
+            sqlite_where=text(live_eval_work_index_predicate()),
         ),
         Index(
             "ix_eval_work_units_terminal",
             "updated_at",
-            postgresql_where=text("status IN ('DONE', 'EXPIRED')"),
-            sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
-        ),
-        Index(
-            "ix_eval_work_units_error_attempts",
-            "attempts",
-            postgresql_where=text("status = 'ERROR'"),
-            sqlite_where=text("status = 'ERROR'"),
+            postgresql_where=text(terminal_eval_work_index_predicate()),
+            sqlite_where=text(terminal_eval_work_index_predicate()),
         ),
     )
 
@@ -3786,11 +3793,7 @@ class EvalSessionWorkUnit(HasId):
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     transcript_covered_through: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     status: Mapped[EvalSessionWorkStatus] = mapped_column(
-        CheckConstraint(
-            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED', "
-            "'FILTERED_OUT', 'SAMPLED_OUT')",
-            name="valid_eval_work_status",
-        ),
+        CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
         server_default="PENDING",
     )
@@ -3822,25 +3825,19 @@ class EvalSessionWorkUnit(HasId):
             "ix_eval_session_work_units_claimable",
             "status",
             "id",
-            postgresql_where=text("status IN ('PENDING', 'RUNNING', 'ERROR')"),
-            sqlite_where=text("status IN ('PENDING', 'RUNNING', 'ERROR')"),
+            postgresql_where=text(live_eval_work_index_predicate()),
+            sqlite_where=text(live_eval_work_index_predicate()),
         ),
         Index(
             "ix_eval_session_work_units_terminal",
             "updated_at",
-            postgresql_where=text("status IN ('DONE', 'EXPIRED')"),
-            sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
+            postgresql_where=text(terminal_eval_session_work_index_predicate()),
+            sqlite_where=text(terminal_eval_session_work_index_predicate()),
         ),
         Index(
             "ix_eval_session_work_units_terminal_watermark",
             "project_session_rowid",
             "evaluator_id",
             "config_fingerprint",
-        ),
-        Index(
-            "ix_eval_session_work_units_error_attempts",
-            "attempts",
-            postgresql_where=text("status = 'ERROR'"),
-            sqlite_where=text("status = 'ERROR'"),
         ),
     )

@@ -780,6 +780,7 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
             work_unit_id=unit.work_unit_id,
             claimed_by="consumer",
             error=STALE_FINGERPRINT_ERROR,
+            status="SUPERSEDED",
         )
 
     async with db() as session:
@@ -839,7 +840,7 @@ async def test_stale_fingerprint_rows_are_resurrected_when_config_reverts(
     assert units[0].claimed_by is None
     assert units[0].claimed_at is None
     assert units[0].cooldown_until is None
-    assert units[1].status == "EXPIRED"
+    assert units[1].status == "SUPERSEDED"
     assert units[1].error == STALE_FINGERPRINT_ERROR
     assert units[2].status == "DONE"
 
@@ -874,7 +875,7 @@ async def test_consumer_stale_fingerprint_expiry_is_revived_when_config_reverts(
     async with db() as session:
         unit = await session.scalar(select(models.EvalWorkUnit))
         assert unit is not None
-        assert unit.status == "EXPIRED"
+        assert unit.status == "SUPERSEDED"
         assert unit.error == STALE_FINGERPRINT_ERROR
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert project_evaluator is not None
@@ -956,7 +957,7 @@ async def test_reaper_transitions_and_deletes(
         done_inside = _unit(inside, status="DONE", created_at=ancient, updated_at=ancient)
         exhausted_error_outside = _unit(
             outside,
-            status="ERROR",
+            status="FAILED",
             attempts=MAX_ATTEMPTS,
             created_at=ancient,
             updated_at=ancient,
@@ -1097,11 +1098,11 @@ async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
         failed_lapsed_row = await session.get(models.EvalWorkUnit, failed_lapsed_id)
         fresh_row = await session.get(models.EvalWorkUnit, fresh_id)
     assert lapsed_row is not None
-    assert lapsed_row.status == "ERROR"
+    assert lapsed_row.status == "FAILED"
     assert lapsed_row.attempts == MAX_ATTEMPTS
     assert lapsed_row.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
     assert failed_lapsed_row is not None
-    assert failed_lapsed_row.status == "ERROR"
+    assert failed_lapsed_row.status == "FAILED"
     assert failed_lapsed_row.attempts == MAX_ATTEMPTS
     assert failed_lapsed_row.error == "provider failed"
     assert fresh_row is not None
@@ -1174,7 +1175,7 @@ async def test_admission_budget_counts_nonterminal_backlog(db: DbSessionFactory)
     assert await producer._admission_budget() == 1
 
     async with db() as session:
-        session.add(_unit("ERROR", attempts=MAX_ATTEMPTS))
+        session.add(_unit("FAILED", attempts=MAX_ATTEMPTS))
     assert await producer._admission_budget() == 1
 
     async with db() as session:

@@ -7,8 +7,7 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.eval_work import MAX_ATTEMPTS, SESSION_CONTENT_INCOMPLETE_ERROR
-from phoenix.server.online_eval.derivation import STALE_FINGERPRINT_ERROR
+from phoenix.db.eval_work import LIVE_EVAL_WORK_STATUSES
 from phoenix.server.types import DbSessionFactory
 
 ProjectEvaluatorId: TypeAlias = int
@@ -69,35 +68,19 @@ class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCou
 def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
     """A unit that was given up on — the only units whose errors the user is owed.
 
-    Two expiries are excluded because nothing failed: a stale fingerprint means the
-    evaluator's configuration changed under the unit, and content-incomplete means
-    the session's traces were deleted (retention or an explicit delete) before the
-    evaluation ran. Both are lifecycle events, not evaluation failures.
+    SUPERSEDED (the evaluator's configuration changed under it) and CONTENT_LOST (the
+    session's traces were deleted first) are lifecycle events, not evaluation failures.
     """
-    return sa.or_(
-        sa.and_(model.status == "ERROR", model.attempts >= MAX_ATTEMPTS),
-        sa.and_(
-            model.status == "EXPIRED",
-            sa.or_(
-                model.error.is_(None),
-                model.error.not_in((STALE_FINGERPRINT_ERROR, SESSION_CONTENT_INCOMPLETE_ERROR)),
-            ),
-        ),
-    )
+    return model.status.in_(("FAILED", "EXPIRED"))
 
 
 def _outcome(model: _WorkUnitModel) -> sa.Case[Optional[str]]:
-    """Bucket a work unit into the funnel the user sees.
-
-    Superseded units — expired because the evaluator's configuration changed under
-    them — and content-incomplete units — expired because their session's traces
-    were deleted first — fall outside every bucket, since no evaluation was ever
-    owed for them.
-    """
+    """Bucket a work unit into the funnel the user sees. SUPERSEDED and CONTENT_LOST
+    fall outside every bucket, since no evaluation was ever owed for them."""
     return sa.case(
         (model.status == "DONE", _EVALUATED),
         (_failed(model), _FAILED),
-        (model.status.in_(("PENDING", "RUNNING", "ERROR")), _QUEUED),
+        (model.status.in_(LIVE_EVAL_WORK_STATUSES), _QUEUED),
         else_=None,
     )
 

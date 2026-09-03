@@ -1321,9 +1321,12 @@ CREATE TABLE eval_session_work_units (
 CHECK (status IN (
             'PENDING',
             'RUNNING',
-            'DONE',
             'ERROR',
+            'DONE',
+            'FAILED',
             'EXPIRED',
+            'SUPERSEDED',
+            'CONTENT_LOST',
             'FILTERED_OUT',
             'SAMPLED_OUT'
         )),
@@ -1352,20 +1355,17 @@ CHECK (status IN (
 CREATE INDEX ix_eval_session_work_units_claimable ON eval_session_work_units
     (status, id)
     WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
-CREATE INDEX ix_eval_session_work_units_error_attempts ON eval_session_work_units
-    (attempts)
-    WHERE status = 'ERROR';
 CREATE INDEX ix_eval_session_work_units_evaluator_id ON eval_session_work_units
     (evaluator_id);
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON eval_session_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
-    WHERE status IN ('DONE', 'EXPIRED');
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'CONTENT_LOST');
 CREATE INDEX ix_eval_session_work_units_terminal_watermark ON eval_session_work_units
     (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON eval_session_work_units
     (project_session_rowid, evaluator_id, config_fingerprint)
-    WHERE status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3 OR status IN ('FILTERED_OUT', 'SAMPLED_OUT');
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR', 'FILTERED_OUT', 'SAMPLED_OUT');
 
 
 -- Table: eval_work_units
@@ -1378,7 +1378,15 @@ CREATE TABLE eval_work_units (
     config_fingerprint VARCHAR NOT NULL,
     status VARCHAR DEFAULT 'PENDING' NOT NULL
         CONSTRAINT "ck_eval_work_units_`valid_eval_work_status`"
-        CHECK (status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')),
+CHECK (status IN (
+            'PENDING',
+            'RUNNING',
+            'ERROR',
+            'DONE',
+            'FAILED',
+            'EXPIRED',
+            'SUPERSEDED'
+        )),
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     attempts INTEGER DEFAULT '0' NOT NULL,
@@ -1404,14 +1412,12 @@ CREATE TABLE eval_work_units (
 );
 
 CREATE INDEX ix_eval_work_units_claimable ON eval_work_units (status, id)
-    WHERE status NOT IN ('DONE', 'EXPIRED');
-CREATE INDEX ix_eval_work_units_error_attempts ON eval_work_units (attempts)
-    WHERE status = 'ERROR';
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_work_units_evaluator_id ON eval_work_units (evaluator_id);
 CREATE INDEX ix_eval_work_units_project_evaluator_id ON eval_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
-    WHERE status IN ('DONE', 'EXPIRED');
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED');
 
 
 -- Table: project_session_annotations
