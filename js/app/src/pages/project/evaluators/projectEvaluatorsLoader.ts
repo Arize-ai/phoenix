@@ -13,6 +13,7 @@ import {
 import {
   CREATE_CODE_EVALUATOR_PARAM,
   CREATE_LLM_EVALUATOR_PARAM,
+  EVALUATOR_FILTER_PARAM,
 } from "@phoenix/constants/searchParams";
 import { PROJECT_EVALUATORS_TABLE_STORAGE_KEY } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { getUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -115,6 +116,8 @@ function getStoredIncludeMeanScore(): boolean {
 
 export type ProjectEvaluatorsLoaderData = {
   queryRef: ReturnType<typeof loadQuery<projectEvaluatorsLoaderQuery>>;
+  /** The normalized (trimmed) name search the query was loaded with. */
+  filter: string;
   /** The exact time range the query was loaded with. */
   timeRange: TimeRangeISOStrings;
   /** The exact score window the query was loaded with. */
@@ -168,15 +171,18 @@ export function projectEvaluatorsLoader(
     utcOffsetMinutes: getUTCOffsetMinutes(),
   });
   const includeMeanScore = getStoredIncludeMeanScore();
+  // The toolbar search lives in the URL, so the loader preloads the
+  // already-filtered first page; the table refetches as the user types.
+  // Trimmed the same way the table normalizes its variables, so the mount
+  // guard's comparison sees the exact filter the rows were fetched with.
+  const filter = url.searchParams.get(EVALUATOR_FILTER_PARAM)?.trim() ?? "";
   return {
     queryRef: loadQuery<projectEvaluatorsLoaderQuery>(
       RelayEnvironment,
       projectEvaluatorsLoaderGQL,
-      // The toolbar search always starts empty on a fresh mount, so the
-      // loader fetches unfiltered; the table refetches when the user types.
       {
         projectId,
-        filter: null,
+        filter: filter ? { col: "name", value: filter } : null,
         timeRange,
         scoreTimeRange: scoreWindow.timeRange,
         scoreTimeBinConfig: scoreWindow.timeBinConfig,
@@ -184,6 +190,7 @@ export function projectEvaluatorsLoader(
       },
       { fetchPolicy: "store-and-network" }
     ),
+    filter,
     timeRange,
     scoreWindow,
     includeMeanScore,
