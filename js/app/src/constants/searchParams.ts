@@ -63,7 +63,7 @@ export const LABEL_ID_PARAM = "labelId";
  * empty one. Persisting to the URL makes the search shareable and lets the
  * route loader preload the already-filtered first page.
  */
-export const EVALUATOR_FILTER_PARAM = "evaluatorFilter";
+export const EVALUATOR_FILTER_PARAM = "evaluatorsFilter";
 
 export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
 
