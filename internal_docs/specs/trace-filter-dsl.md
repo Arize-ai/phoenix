@@ -111,11 +111,20 @@ another trace cannot leak elements into a predicate.
 Both `Project.spans` query paths use probe lowering: the trace-start-time paginator and the
 general span listing are limited page queries, so correlated predicates can stop after
 satisfying the limit. Aggregate subqueries remain bounded by the candidate project, time
-range, and trace IDs. Scan-lowered comprehension subqueries use the same bounds. `all()` keeps
-its correlated `NOT EXISTS` shape under both lowerings because an uncorrelated `NOT IN` must
-materialize every counterexample and cannot be planned as an anti-join efficiently. Scan lowering
-remains the helper default for future unbounded analytical callers; both lowerings must agree with
-the Python reference evaluator.
+range, and trace IDs. Scan-lowered reduction subqueries (`len`, `sum`, `max`, …) use the same
+bounds. Quantifiers — `any()`, `all()`, and their negations — keep their correlated `EXISTS` /
+`NOT EXISTS` shape under both lowerings, so no spelling reaches an uncorrelated `NOT IN`.
+That shape is avoided because PostgreSQL does not convert an uncorrelated `NOT IN` into an
+anti-join at all — `NOT IN`'s NULL semantics forbid it — leaving a hashed `SubPlan` when the
+estimated anti-set fits `work_mem × hash_mem_multiplier` and a per-outer-row `SubPlan` when it
+does not. Scan lowering remains the helper default for future unbounded analytical callers;
+both lowerings must agree with the Python reference evaluator. The scan bounds are a pruning
+hint rather than a semantic filter, and the correlated probes carry no bounds of their own
+(the outer statement's scope already bounds the anti-join, and repeating it inside `NOT EXISTS`
+measured slower), so the two lowerings agree only when the outer statement already selects the
+same trace universe — the same projects, the same `Trace.start_time` window, the same candidate
+IDs. Callers that pass the bounds must bound the outer statement identically; the trace page
+does so on `Trace.start_time`.
 
 Filtering composes with the existing trace paginator before representative-root selection.
 It therefore preserves one edge per trace, trace-start-time window semantics, cursor behavior,

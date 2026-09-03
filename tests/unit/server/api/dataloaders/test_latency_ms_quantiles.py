@@ -117,7 +117,11 @@ async def test_trace_filter_compiles_to_correlated_span_exists(
     sql = str(
         statements[0].compile(dialect=dialect, compile_kwargs={"literal_binds": True})
     ).lower()
-    assert "exists (select 1" in sql
+    # Pin the inner FROM as well: an uncorrelated `exists (select 1 from spans, traces where
+    # spans.trace_rowid = traces.id …)` would satisfy both fragments below on their own and
+    # match every trace with any matching span anywhere.
+    normalized = " ".join(sql.split())
+    assert "exists (select 1 from spans where" in normalized
     assert "spans.trace_rowid = traces.id" in sql
     assert "traces.id in (select" not in sql
     assert "select distinct spans.trace_rowid" not in sql
