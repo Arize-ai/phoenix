@@ -3,10 +3,13 @@ import contextlib
 import os
 import threading
 from asyncio import AbstractEventLoop
+from copy import copy
+from dataclasses import fields
 from functools import partial
 from importlib.metadata import version
 from random import getrandbits
 from secrets import token_hex
+from types import FunctionType
 from typing import (
     Any,
     AsyncIterator,
@@ -31,7 +34,9 @@ from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import APIRouter, FastAPI
+from fastapi import routing as fastapi_routing
 from fastapi._compat import v2 as fastapi_v2
+from fastapi.dependencies.models import Dependant
 from pydantic import SecretStr, TypeAdapter
 from pydantic_ai import RunContext
 from pytest import FixtureRequest
@@ -118,6 +123,11 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "real_fastapi_type_adapters: build fresh pydantic TypeAdapters for the app's routes "
         "instead of reusing the worker's memoized ones",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_fastapi_dependants: analyze every route's dependencies fresh instead of reusing "
+        "the worker's memoized analysis",
     )
 
 
@@ -448,6 +458,130 @@ def _memoized_app_routers(request: FixtureRequest, monkeypatch: pytest.MonkeyPat
 
     for name in _ROUTER_BUILDER_NAMES:
         monkeypatch.setattr(server_app, name, _memoized_router_builder(name))
+
+
+# The name route registration resolves at call time; looked up through the
+# module so a FastAPI release that drops it fails here, at import.
+_BUILD_FASTAPI_DEPENDANT: Callable[..., Dependant] = vars(fastapi_routing)["get_dependant"]
+_MEMOIZED_FASTAPI_DEPENDANTS: dict[tuple[Any, ...], Dependant] = {}
+_FASTAPI_DEPENDANT_CACHE_LIMIT = 4096
+# The list-valued fields of a Dependant. FastAPI inserts a route's own
+# dependencies into the list it gets back, so a memoized dependant is handed
+# out as a copy whose lists are its own.
+_DEPENDANT_LIST_FIELDS = tuple(
+    field.name for field in fields(Dependant) if field.default_factory is list
+)
+
+
+class _ByIdentity:
+    """A dictionary key that stands for one object, compared by identity, so
+    two callables that happen to compare equal do not share an entry."""
+
+    __slots__ = ("obj",)
+
+    def __init__(self, obj: Any) -> None:
+        self.obj = obj
+
+    def __hash__(self) -> int:
+        return id(self.obj)
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _ByIdentity) and other.obj is self.obj
+
+
+_SHARED_ROUTER_ENDPOINT_IDS: dict[int, set[int]] = {}
+
+
+def _shared_router_endpoint_ids() -> set[int]:
+    """The identities of every endpoint on a memoized router, recomputed when
+    a router is added to the memo."""
+    count = len(_MEMOIZED_ROUTERS)
+    if count not in _SHARED_ROUTER_ENDPOINT_IDS:
+        ids: set[int] = set()
+
+        def walk(routes: Iterable[Any]) -> None:
+            for route in routes:
+                nested = getattr(route, "original_router", None)
+                if nested is not None:
+                    walk(nested.routes)
+                elif (endpoint := getattr(route, "endpoint", None)) is not None:
+                    ids.add(id(endpoint))
+
+        for router in _MEMOIZED_ROUTERS.values():
+            walk(router.routes)
+        _SHARED_ROUTER_ENDPOINT_IDS.clear()
+        _SHARED_ROUTER_ENDPOINT_IDS[count] = ids
+    return _SHARED_ROUTER_ENDPOINT_IDS[count]
+
+
+def _is_memoizable_endpoint(call: Callable[..., Any]) -> bool:
+    # An endpoint recurs across apps when it is a function defined at module
+    # or class level, or when it belongs to a router the worker shares. A
+    # function created per app, such as the handlers a GraphQL router builds
+    # for each instance, is new every time, and caching its analysis would
+    # only retain the app it closes over.
+    if isinstance(call, FunctionType) and "<locals>" not in call.__qualname__:
+        return True
+    return id(call) in _shared_router_endpoint_ids()
+
+
+def _memoized_fastapi_dependant(
+    *,
+    path: str,
+    call: Callable[..., Any],
+    name: Optional[str] = None,
+    own_oauth_scopes: Optional[list[str]] = None,
+    parent_oauth_scopes: Optional[list[str]] = None,
+    use_cache: bool = True,
+    scope: Optional[Literal["function", "request"]] = None,
+) -> Dependant:
+    build = partial(
+        _BUILD_FASTAPI_DEPENDANT,
+        path=path,
+        call=call,
+        name=name,
+        own_oauth_scopes=own_oauth_scopes,
+        parent_oauth_scopes=parent_oauth_scopes,
+        use_cache=use_cache,
+        scope=scope,
+    )
+    if not _is_memoizable_endpoint(call):
+        return build()
+    key = (
+        path,
+        _ByIdentity(call),
+        name,
+        tuple(own_oauth_scopes or ()),
+        tuple(parent_oauth_scopes or ()),
+        use_cache,
+        scope,
+    )
+    dependant = _MEMOIZED_FASTAPI_DEPENDANTS.get(key)
+    if dependant is None:
+        dependant = build()
+        if len(_MEMOIZED_FASTAPI_DEPENDANTS) < _FASTAPI_DEPENDANT_CACHE_LIMIT:
+            _MEMOIZED_FASTAPI_DEPENDANTS[key] = dependant
+    handed_out = copy(dependant)
+    for list_field in _DEPENDANT_LIST_FIELDS:
+        setattr(handed_out, list_field, list(getattr(dependant, list_field)))
+    return handed_out
+
+
+@pytest.fixture(autouse=True)
+def _memoized_fastapi_dependants(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Registering a route has FastAPI analyze the endpoint's dependencies:
+    it inspects the signature, classifies every parameter, and models each
+    one, recursively through sub-dependencies. With the type adapters memoized
+    this analysis is what remains of route registration, and FastAPI repeats
+    it for every app that includes the route. The analysis is a pure function
+    of the endpoint, path, and scopes, so the worker memoizes it for
+    endpoints defined at module or class level and hands each app a copy with
+    its own lists. A test that needs the app's routes analyzed fresh opts out
+    with ``@pytest.mark.real_fastapi_dependants``."""
+    if request.node.get_closest_marker("real_fastapi_dependants"):
+        return
+
+    monkeypatch.setattr(fastapi_routing, "get_dependant", _memoized_fastapi_dependant)
 
 
 @pytest.fixture(autouse=True)
