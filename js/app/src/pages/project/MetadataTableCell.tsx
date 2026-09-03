@@ -7,6 +7,15 @@ import {
 } from "@phoenix/pages/project/MetadataTooltip";
 import { jsonStringToFlatObject } from "@phoenix/utils/jsonUtils";
 
+/**
+ * TODO(future improvement): this prop is named after the action the parent
+ * performs (`appendFilterCondition`), which forces the same name to be threaded
+ * through MetadataTableCell -> MetadataTooltip and back out to whichever filter
+ * context the table uses. A cleaner shape is for the cell to expose an
+ * event-style callback (e.g. `onValidFilterCondition(condition)`) and let the
+ * table's cell wrapper call `appendFilterCondition` inside it, so the cell
+ * describes what happened and the table decides what to do about it.
+ */
 type AppendFilterCondition = (condition: string) => void;
 
 type MetadataTableCellProps = {
