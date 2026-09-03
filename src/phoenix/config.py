@@ -121,6 +121,18 @@ available function. Set to False to present the group-gated progressive-
 disclosure tool list instead. Has no effect unless PHOENIX_ENABLE_MCP_SERVER is
 also set.
 """
+ENV_PHOENIX_ENABLE_MCP_GRAPHQL_MUTATIONS = "PHOENIX_ENABLE_MCP_GRAPHQL_MUTATIONS"
+"""
+Whether the mounted MCP server exposes a GraphQL mutation tool. Defaults to
+False, and has no effect on a read-only deployment, which refuses writes
+regardless.
+
+Off by default because this surface has no approval step of its own. A mutation
+runs as soon as it is called, bounded by the caller's own permissions and by
+whatever confirmation the MCP client chooses to require from the destructive
+tool annotation. Enable it for clients that confirm writes with a person
+present; leave it off for unattended ones.
+"""
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
 The directory in which to save, load, and export datasets. This directory must
@@ -3650,6 +3662,10 @@ def get_env_enable_mcp_server() -> bool:
 
 def get_env_mcp_code_mode() -> bool:
     return _bool_val(ENV_PHOENIX_ENABLE_MCP_CODE_MODE, True)
+
+
+def get_env_mcp_graphql_mutations() -> bool:
+    return _bool_val(ENV_PHOENIX_ENABLE_MCP_GRAPHQL_MUTATIONS, False)
 
 
 def get_env_mask_internal_server_errors() -> bool:
