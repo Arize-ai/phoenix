@@ -2604,6 +2604,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
         return (
             f"{self._source_code}\n\n"
             f"import json as _json\n"
+            # binds the bare nan/inf tokens repr emits; after user source to resist shadowing
+            f"from math import inf, nan\n"
             f"_inputs = {mapped_inputs!r}\n"
             f"_result = evaluate(**_inputs)\n"
             f"print('{PHOENIX_RESULT_BEGIN}')\n"
