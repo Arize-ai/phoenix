@@ -7,25 +7,17 @@ import {
 } from "@phoenix/pages/project/MetadataTooltip";
 import { jsonStringToFlatObject } from "@phoenix/utils/jsonUtils";
 
-/**
- * TODO(future improvement): this prop is named after the action the parent
- * performs (`appendFilterCondition`), which forces the same name to be threaded
- * through MetadataTableCell -> MetadataTooltip and back out to whichever filter
- * context the table uses. A cleaner shape is for the cell to expose an
- * event-style callback (e.g. `onValidFilterCondition(condition)`) and let the
- * table's cell wrapper call `appendFilterCondition` inside it, so the cell
- * describes what happened and the table decides what to do about it.
- */
-type AppendFilterCondition = (condition: string) => void;
-
 type MetadataTableCellProps = {
   metadata: unknown;
-  appendFilterCondition: AppendFilterCondition;
+  /**
+   * Called with a filter DSL condition when the user picks a metadata value to filter on
+   */
+  onValidFilterCondition: (condition: string) => void;
 };
 
 export const MetadataTableCell = ({
   metadata,
-  appendFilterCondition,
+  onValidFilterCondition,
 }: MetadataTableCellProps) => {
   // Try to parse the metadata and stringify it
   // This is intended to work with object metadata but will technically work for arrays as well
@@ -58,7 +50,7 @@ export const MetadataTableCell = ({
       <MetadataTooltip
         width="800px"
         metadata={parsedMetadata}
-        appendFilterCondition={appendFilterCondition}
+        onValidFilterCondition={onValidFilterCondition}
       >
         <MetadataLabel
           metadata={stringifiedMetadata}
@@ -69,7 +61,7 @@ export const MetadataTableCell = ({
               key,
               value
             );
-            appendFilterCondition(filterCondition);
+            onValidFilterCondition(filterCondition);
           }}
         />
       </MetadataTooltip>

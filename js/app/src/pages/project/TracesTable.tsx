@@ -268,7 +268,7 @@ const MetadataCell = <TData extends ISpanItem, TValue>({
   return (
     <MetadataTableCell
       metadata={row.original.metadata}
-      appendFilterCondition={appendFilterCondition}
+      onValidFilterCondition={appendFilterCondition}
     />
   );
 };

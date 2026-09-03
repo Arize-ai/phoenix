@@ -224,7 +224,7 @@ const MetadataCell = <TData extends { metadata: unknown }, TValue>({
   return (
     <MetadataTableCell
       metadata={row.original.metadata}
-      appendFilterCondition={appendFilterCondition}
+      onValidFilterCondition={appendFilterCondition}
     />
   );
 };
