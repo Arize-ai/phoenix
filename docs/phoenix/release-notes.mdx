@@ -14,14 +14,15 @@ GitHub
 </Info>
 
 <ReleaseUpdate label="09.01.2026" href="/docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates" title="GitHub Issues from PXI, PII Detection, and Client Updates">
-**Available in arize-phoenix 20.5.0+, arize-phoenix-evals 3.6.0+ (Python), @arizeai/phoenix-evals 2.4.0+ and @arizeai/phoenix-client 7.6.0+ (TypeScript)**
+**Available in arize-phoenix 20.5.0+, arize-phoenix-evals 3.6.0+ (Python), @arizeai/phoenix-evals 2.4.0+ and @arizeai/phoenix-client 7.7.1+ (TypeScript)**
 
-Go from finding a defect to filing it, screen conversations for exposed personal data, and reach more of Phoenix from REST and TypeScript.
+PXI found the bug. Now it can file it. Also: an evaluator that looks for PII where leaks actually happen, and a REST gap closed for prompts.
 
-- **GitHub issues from PXI** — search for duplicates and file an issue with your own token, approval-gated and never persisted by Phoenix
-- **PII Detection evaluator** — screen conversation records, including tool calls and retrieved content, in Python and TypeScript
-- **Prompt versions over REST** — add and tag a new version of an existing prompt with `POST /v1/prompts/{prompt_identifier}/versions`
+- **GitHub issues from PXI** — duplicate search first, approval on every write, and your own token that Phoenix never stores
+- **PII Detection evaluator** — screens conversation records including tool calls and retrieved content, in Python and TypeScript
+- **Prompt versions over REST** — `POST /v1/prompts/{prompt_identifier}/versions` adds and tags a version in one call
 - **TypeScript client** — `deletePrompt`, `transferTraces`, `setProjectRetentionPolicy`, `getCurrentUser`, and session token counts
+- **PXI browser scripts** — one approval covers the whole script instead of a card per step
 - **Playground** — Claude Fable 5.1 through Anthropic and AWS Bedrock
 </ReleaseUpdate>
 

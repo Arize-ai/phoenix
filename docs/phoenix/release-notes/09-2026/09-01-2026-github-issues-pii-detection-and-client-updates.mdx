@@ -1,11 +1,13 @@
 ---
 title: "09.01.2026: GitHub Issues from PXI, PII Detection, and Client Updates"
-description: "PXI files GitHub issues for the defects it finds, a new evaluator screens conversations for PII, prompt versions can be created over REST, and the TypeScript client gains prompt, trace, project, and user helpers."
+description: "PXI can file the GitHub issue for the bug it just found, a new evaluator screens conversations for PII, prompt versions land over REST, and the TypeScript client picks up prompt, trace, project, and user helpers."
 ---
 
-This release closes the loop between finding a problem and acting on it. PXI can file the
-GitHub issue itself, a new evaluator screens conversation records for exposed personal data,
-and the REST API and TypeScript client cover more of the day-to-day surface.
+Most of what PXI finds ends up as a GitHub issue eventually. Until now, the "eventually" was on
+you: copy the trace link, write up the repro, check whether someone already filed it. This release
+lets PXI do that part. Alongside it, we shipped a PII Detection evaluator that looks in the places
+leaks actually happen, filled a REST gap that kept sending people back to GraphQL, and added the
+TypeScript client helpers you asked for most.
 
 # File GitHub Issues from PXI
 
@@ -13,22 +15,29 @@ September 1, 2026
 
 **Available in arize-phoenix 20.5.0+**
 
-When PXI surfaces a real defect, it can now search for duplicates and file a GitHub issue that
-links the relevant traces and spans — backed by
-[GitHub's hosted MCP server](https://github.com/github/github-mcp-server).
+When PXI lands on a real defect, ask it to file the issue. It searches the repository for
+duplicates first, then drafts an issue that links the traces and spans it was looking at. Under the
+hood this talks to [GitHub's hosted MCP server](https://github.com/github/github-mcp-server), so
+PXI uses GitHub's own tools rather than something we reimplemented.
 
-- **File as yourself** — add a fine-grained personal access token with Issues read/write access
-  under **Settings → Assistant → Personal settings → GitHub**. The token stays in your browser;
-  Phoenix never persists it, and it never reaches the transcript, tool spans, or error messages.
-- **Approve every write** — PXI shows the exact repository, title, and body before anything is
-  posted. Writes are filtered out entirely when nobody is present to approve them.
-- **Set a workspace fallback** — admins can store a shared token as an encrypted workspace secret,
-  or turn the feature off under **Settings → Assistant → System settings → GitHub tools**.
-- **Point at your own GitHub** — set `PHOENIX_AGENTS_GITHUB_MCP_URL` to a self-hosted
-  `github-mcp-server` for GitHub Enterprise Server or air-gapped deployments, or disable the tools
-  entirely with `PHOENIX_AGENTS_DISABLE_GITHUB=true`.
+We spent most of the design time on the token, because an agent that can write to your GitHub
+needs to be boring about security:
 
-If the GitHub connection fails, the turn continues without the GitHub tools rather than failing.
+- **You file as yourself.** Add a fine-grained personal access token with Issues read/write under
+  **Settings → Assistant → Personal settings → GitHub**. The token stays in your browser. Phoenix
+  never persists it, and it never reaches the transcript, tool spans, or error messages, because it
+  rides on the connection to GitHub rather than through the agent.
+- **You approve every write.** Before anything posts, PXI shows the exact repository, title, and
+  body, and waits. If nobody is around to approve, the write tools are not even offered to the
+  agent.
+- **Admins can set a shared fallback.** Store a workspace token as an encrypted secret, or turn the
+  whole feature off under **Settings → Assistant → System settings → GitHub tools**.
+- **Enterprise and air-gapped deployments work too.** Point `PHOENIX_AGENTS_GITHUB_MCP_URL` at
+  your own `github-mcp-server`, or set `PHOENIX_AGENTS_DISABLE_GITHUB=true` to remove the tools
+  entirely.
+
+If GitHub is unreachable, the turn continues without the GitHub tools instead of failing. PXI
+carries on with what it can still do.
 
 <CardGroup cols={2}>
   <Card title="PXI" icon="robot" href="/docs/phoenix/pxi">
@@ -42,14 +51,17 @@ August 28, 2026
 
 **Available in arize-phoenix-evals 3.6.0+ (Python) and @arizeai/phoenix-evals 2.4.0+ (TypeScript)**
 
-Use the new PII Detection evaluator to audit agent traces, experiment runs, and logged
-conversations for exposed personal data. Pass whatever slice of the interaction you want judged —
-user and assistant turns only, or a fuller record that also includes system instructions, tool
-calls, tool results, and retrieved documents the end user may never have seen.
+Agents leak personal data in places the end user never sees: a tool result that returns a full
+customer record, a retrieved document with someone's home address in it, a system prompt that
+quotes a support ticket. The new PII Detection evaluator is built to look there. You decide what
+slice of the interaction to hand it. Pass only the user and assistant turns if that is what you
+care about, or the fuller record with system instructions, tool calls, tool results, and retrieved
+content.
 
-The evaluator returns a `pii_detected` or `no_pii_detected` label, a score of `1.0` or `0.0`, and
-an explanation that lists each instance in a `FINDINGS` block so downstream filters can act on
-specific categories. Direction is `minimize`: detecting PII is the undesirable outcome.
+Each result carries a `pii_detected` or `no_pii_detected` label, a score of `1.0` or `0.0`, and an
+explanation that ends with a `FINDINGS` block listing every instance and its category, so a
+downstream filter can act on "email address" without parsing prose. Direction is `minimize`: a
+detection counts against you in aggregates, which is the point.
 
 ```python
 from phoenix.evals import LLM
@@ -97,14 +109,18 @@ August 26, 2026
 
 **Available in arize-phoenix 20.5.0+**
 
-`POST /v1/prompts/{prompt_identifier}/versions` adds a new version to an existing prompt, selected
-by name or GlobalID. Previously, only the initial prompt could be created over REST — subsequent
-versions required GraphQL or an SDK.
+This one closes a gap that has bothered me for a while. You could create a prompt over REST, but
+every version after the first meant reaching for GraphQL or one of the SDKs. Now
+`POST /v1/prompts/{prompt_identifier}/versions` adds a version to an existing prompt, addressed by
+name or GlobalID, so a deploy script can promote a prompt with the same `curl` it uses for
+everything else.
 
-- **Tag on create** — pass `tags` to label the new version. Moving an existing tag preserves its
-  description and owner rather than clearing them.
-- **Validated against the provider** — invocation parameters whose family does not match
-  `model_provider` are rejected with a `422`.
+- **Tag in the same call.** Pass `tags` and the new version is labelled on create. If a tag already
+  sits on another version, it moves and keeps its description and owner instead of being recreated
+  blank.
+- **Bad parameters fail loudly.** Invocation parameters whose family does not match
+  `model_provider` come back as a `422` rather than being stored and failing later in the
+  playground.
 
 ```bash
 curl -X POST "$PHOENIX_ENDPOINT/v1/prompts/summarizer/versions" \
@@ -137,20 +153,24 @@ curl -X POST "$PHOENIX_ENDPOINT/v1/prompts/summarizer/versions" \
 
 August 28 – September 1, 2026
 
-**Available in @arizeai/phoenix-client 7.6.0+**
+**Available in @arizeai/phoenix-client 7.7.1+** (`deletePrompt` since 7.6.0, the other helpers since 7.7.0)
 
-Four new helpers and richer session data round out the TypeScript client.
+Four helpers that already existed in the REST API or the Python client and kept coming up as
+missing here. Now they exist.
 
-- **`deletePrompt`** — delete a prompt by `name` or `promptId`. Deletion cascades to every version
-  along with its tags and labels. Requires Phoenix server 13.20.0+.
-- **`transferTraces`** — move traces between projects by GlobalID or OpenTelemetry trace ID. The
-  traces are re-parented, not copied. Requires Phoenix server 20.4.0+.
-- **`setProjectRetentionPolicy`** — assign an existing trace retention policy to a project, or pass
-  `policyId: null` to reset it to the default.
-- **`getCurrentUser`** — read the profile for the current credentials. With authentication
-  disabled, Phoenix returns an anonymous user with `auth_method: "ANONYMOUS"`.
-- **Session token counts** — `getSession` and `listSessions` now expose cumulative
-  `tokenCountPrompt`, `tokenCountCompletion`, and `tokenCountTotal`.
+- **`deletePrompt`**: delete by `name` or `promptId`. Deletion cascades to every version along with
+  its tags and labels, so double-check the name before you call it. Needs Phoenix server 13.20.0+.
+- **`transferTraces`**: move traces between projects by GlobalID or OpenTelemetry trace ID. Traces
+  are re-parented, not copied, so nothing is duplicated and nothing is left behind. Needs Phoenix
+  server 20.4.0+.
+- **`setProjectRetentionPolicy`**: assign an existing retention policy to a project, or pass
+  `policyId: null` to fall back to the default.
+- **`getCurrentUser`**: find out who the current credentials belong to. With authentication
+  disabled you get an anonymous user with `auth_method: "ANONYMOUS"`, which is handy for scripts
+  that run in both modes.
+- **Session token counts**: `getSession` and `listSessions` now carry cumulative
+  `tokenCountPrompt`, `tokenCountCompletion`, and `tokenCountTotal`, so you can rank sessions by
+  spend without fetching their spans.
 
 ```typescript
 import { deletePrompt } from "@arizeai/phoenix-client/prompts";
@@ -175,8 +195,8 @@ await setProjectRetentionPolicy({
 await deletePrompt({ prompt: { name: "old-summarizer" } });
 ```
 
-The optional `openai` peer dependency now accepts `^6.10.0 || ^7.0.0`, so apps already on the
-OpenAI SDK v7 install without a peer conflict.
+The optional `openai` peer dependency now accepts `^6.10.0 || ^7.0.0`. If you are already on the
+OpenAI SDK v7, the install stops complaining.
 
 <CardGroup cols={2}>
   <Card title="TypeScript Client" icon="js" href="/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview">
@@ -190,10 +210,11 @@ September 1, 2026
 
 **Available in arize-phoenix 20.5.0+**
 
-In manual edit-permission mode, PXI now asks once for the entire proposed browser script instead
-of interrupting with a card per operation. You read a single description of everything the script
-will change, then accept or reject it — and that one consent covers every state-changing action in
-the run. Unapproved scripts cannot change state at all.
+One decision per script instead of a card per operation. In manual edit-permission mode, PXI now
+shows you a single description of everything the script is about to change. You accept or reject
+once, and that answer covers every state-changing action in the run. A script you reject cannot
+change state at all. The per-operation cards from last release were correct but exhausting for
+anything longer than two steps, and this is the fix.
 
 # Claude Fable 5.1 in the Playground
 
@@ -202,7 +223,8 @@ September 1, 2026
 **Available in arize-phoenix 20.5.0+**
 
 `claude-fable-5-1` is available in the playground through Anthropic and AWS Bedrock, with adaptive
-thinking controls and built-in token pricing. It is also the recommended model for PXI sessions.
+thinking controls and token pricing wired in for cost tracking. It is also the model we now
+recommend for PXI sessions.
 
 # Additional Improvements
 
@@ -210,15 +232,19 @@ August 26 – September 1, 2026
 
 **Available in arize-phoenix 20.5.0+ and arize-phoenix-evals 3.6.0+**
 
-- **Keep tool settings in the playground** — tool choice and the strict setting now survive runs
-  against Anthropic and Bedrock models.
-- **Filter on annotations accurately** — annotation filters in the span and trace DSL now correlate
-  against the span the filter is reading.
-- **Page through project traces faster** — `listProjectTraces` uses keyset pagination instead of
-  offsets.
-- **Run async evals without stalls** — the evals rate limiter no longer blocks the event loop while
-  waiting.
-- **Track current model costs** with refreshed built-in token prices, including LiteLLM reasoning
-  token rates.
-- **Land on a neutral screen during login handoff** instead of the error boundary.
-- **Read long annotation names in experiment comparisons** without layout overflow.
+- **Tool settings stick in the playground.** Tool choice and the strict flag survive runs against
+  Anthropic and Bedrock models instead of resetting between runs.
+- **Annotation filters match the right span.** Annotation filters in the span and trace DSL now
+  correlate against the span the filter is reading, which fixes some surprising results on traces
+  with annotations on several spans.
+- **Faster paging through project traces.** `listProjectTraces` uses keyset pagination instead of
+  offsets, so page two hundred costs about the same as page two.
+- **Async evals no longer stall.** The evals rate limiter used to block the event loop while it
+  waited. It does not anymore.
+- **The code sandbox survives a crowded start.** Several server processes fetching the shared
+  WASM runtime at once used to race each other and fail with a missing file. Downloads are now
+  atomic, so every process sees a complete binary or none.
+- **Fresh token prices**, including LiteLLM reasoning token rates, so built-in cost tracking
+  reflects current list prices.
+- **Login handoff lands on a neutral screen** instead of the error boundary.
+- **Long annotation names** no longer overflow the experiment comparison layout.
