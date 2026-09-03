@@ -58,6 +58,7 @@ class ModelCostManifest(BaseModel):
 PROVIDER_PREFIXES: dict[str, str | None] = {
     "cerebras/": "cerebras",
     "groq/": "groq",
+    "minimax/": "minimax",
     "moonshot/": None,
     "perplexity/": None,
     "together_ai/": "together",
