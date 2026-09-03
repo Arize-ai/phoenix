@@ -9,7 +9,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
 if TYPE_CHECKING:
-    from pydantic_monty import AsyncMonty, PrintCallback, ResourceLimits
+    from pydantic_monty import AsyncMonty, PrintCallback, ResourceLimits, TypeCheckFormat
 
 logger = logging.getLogger(__name__)
 
@@ -172,10 +172,18 @@ class MontyRuntime:
         inputs: Optional[dict[str, Any]],
         external_functions: Optional[dict[str, Callable[..., Any]]],
         print_callback: Optional["PrintCallback"],
+        type_check: bool,
+        type_check_format: Optional["TypeCheckFormat"],
     ) -> Any:
         async with AsyncExitStack() as stack:
             try:
-                session = await stack.enter_async_context(pool.checkout(limits=limits))
+                session = await stack.enter_async_context(
+                    pool.checkout(
+                        limits=limits,
+                        type_check=type_check,
+                        type_check_format=type_check_format,
+                    )
+                )
             except TimeoutError as exc:
                 raise MontyBusy("No Monty worker became available") from exc
             except RuntimeError as exc:
@@ -198,6 +206,8 @@ class MontyRuntime:
         inputs: Optional[dict[str, Any]],
         external_functions: Optional[dict[str, Callable[..., Any]]],
         print_callback: Optional["PrintCallback"],
+        type_check: bool,
+        type_check_format: Optional["TypeCheckFormat"],
     ) -> Any:
         slots = self._consumer_slots[consumer]
         try:
@@ -213,6 +223,8 @@ class MontyRuntime:
                 inputs=inputs,
                 external_functions=external_functions,
                 print_callback=print_callback,
+                type_check=type_check,
+                type_check_format=type_check_format,
             )
         finally:
             slots.release()
@@ -227,6 +239,8 @@ class MontyRuntime:
         external_functions: Optional[dict[str, Callable[..., Any]]] = None,
         print_callback: Optional["PrintCallback"] = None,
         total_timeout: Optional[float] = None,
+        type_check: bool = False,
+        type_check_format: Optional["TypeCheckFormat"] = None,
     ) -> Any:
         """Execute one isolated block and return its trailing value.
 
@@ -234,6 +248,14 @@ class MontyRuntime:
         by ``checkout_timeout``. Guest duration in ``limits`` counts only guest
         execution, while ``request_timeout`` bounds one silent worker turn and
         ``total_timeout`` optionally bounds the complete call.
+
+        ``type_check`` runs the worker's type checker over ``code`` before
+        executing it, raising ``MontyTypingError`` instead of running. It is a
+        guest-code error like ``MontySyntaxError``, not a ``MontyServiceError``,
+        so callers report it rather than retrying. Names supplied through
+        ``inputs`` are undefined to the checker, so code referencing them must
+        be fed unchecked. ``type_check_format`` selects the diagnostic
+        rendering; ``None`` gives the multi-line ``full`` form.
         """
         if self._closed:
             raise MontyShuttingDown("Monty runtime is shutting down")
@@ -248,6 +270,8 @@ class MontyRuntime:
                 external_functions=external_functions,
                 print_callback=print_callback,
                 total_timeout=total_timeout,
+                type_check=type_check,
+                type_check_format=type_check_format,
             )
         finally:
             self._active_executions -= 1
@@ -264,6 +288,8 @@ class MontyRuntime:
         external_functions: Optional[dict[str, Callable[..., Any]]],
         print_callback: Optional["PrintCallback"],
         total_timeout: Optional[float],
+        type_check: bool,
+        type_check_format: Optional["TypeCheckFormat"],
     ) -> Any:
         pydantic_monty = import_monty()
         execution = self._acquire_and_feed(
@@ -273,6 +299,8 @@ class MontyRuntime:
             inputs=inputs,
             external_functions=external_functions,
             print_callback=print_callback,
+            type_check=type_check,
+            type_check_format=type_check_format,
         )
         try:
             if total_timeout is None:

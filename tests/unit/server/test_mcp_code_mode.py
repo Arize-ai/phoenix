@@ -7,6 +7,7 @@ containment.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import textwrap
 from contextlib import asynccontextmanager
@@ -14,13 +15,13 @@ from typing import Any, AsyncIterator
 
 import pytest
 from fastmcp.exceptions import ToolError
-from pydantic_monty import MontyError, MontyRuntimeError, MontySyntaxError
+from pydantic_monty import MontyError, MontyRuntimeError, MontySyntaxError, MontyTypingError
 
 from phoenix.server.mcp_code_mode import (
     DEFAULT_LIMITS,
     MontyPoolSandboxProvider,
 )
-from phoenix.server.monty_runtime import MontyRuntime, MontyShuttingDown
+from phoenix.server.monty_runtime import MontyRuntime, MontyServiceError, MontyShuttingDown
 
 # Faults the native interpreter in-process; depth is a runtime value, invisible
 # to any check on the source.
@@ -434,6 +435,8 @@ async def test_dropped_pool_during_shutdown_reports_a_tool_error() -> None:
             inputs=None,
             external_functions=None,
             print_callback=None,
+            type_check=False,
+            type_check_format=None,
         )
 
 
@@ -595,3 +598,26 @@ def test_partial_consumer_limits_merge_with_defaults() -> None:
 def test_unknown_consumer_limit_is_rejected() -> None:
     with pytest.raises(ValueError, match="Unknown Monty consumers"):
         MontyRuntime(consumer_limits={"unknown": 1})  # type: ignore[dict-item]
+
+
+async def test_type_check_rejects_before_executing() -> None:
+    """``type_check`` asks the worker's checker for a verdict instead of running the code."""
+    runtime = MontyRuntime(consumer_limits={"mcp": 1})
+    try:
+        with pytest.raises(MontyTypingError) as exc_info:
+            await runtime.run(
+                "'a' + 1",
+                consumer="mcp",
+                limits=None,
+                type_check=True,
+                type_check_format="json",
+            )
+        # A guest error, so callers report it rather than retrying the runtime.
+        assert not isinstance(exc_info.value, MontyServiceError)
+        diagnostics = json.loads(str(exc_info.value))
+        assert [d["code"] for d in diagnostics] == ["unsupported-operator"]
+
+        # The same source runs when no verdict is requested.
+        assert await runtime.run("40 + 2", consumer="mcp", limits=None) == 42
+    finally:
+        await runtime.aclose()
