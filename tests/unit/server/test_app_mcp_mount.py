@@ -12,6 +12,7 @@ from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
 import httpx
+import httpx2
 import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
@@ -73,7 +74,7 @@ async def test_base_mcp_app_does_not_require_a_monty_runtime(
 async def test_mcp_server_advertises_the_phoenix_version(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The handshake identifies the Phoenix build, not the FastMCP library.
+    """The advertised server identity is the Phoenix build, not the FastMCP library.
 
     FastMCP defaults an unset version to its own, which tells a client nothing
     about the server it reached.
@@ -86,13 +87,13 @@ async def test_mcp_server_advertises_the_phoenix_version(
 
     def _factory(
         headers: dict[str, str] | None = None,
-        timeout: httpx.Timeout | None = None,
-        auth: httpx.Auth | None = None,
+        timeout: httpx2.Timeout | None = None,
+        auth: httpx2.Auth | None = None,
         # fastmcp passes this beyond the McpHttpClientFactory protocol.
         follow_redirects: bool = True,
-    ) -> httpx.AsyncClient:
-        return httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=mcp_app),
+    ) -> httpx2.AsyncClient:
+        return httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=mcp_app),
             base_url="http://testserver",
             headers=headers,
             follow_redirects=follow_redirects,
@@ -104,15 +105,15 @@ async def test_mcp_server_advertises_the_phoenix_version(
         httpx_client_factory=_factory,
     )
     async with LifespanManager(mcp_app), Client(transport) as client:
-        assert client.initialize_result is not None
-        assert client.initialize_result.serverInfo.version == phoenix_version
+        assert client.server_info is not None
+        assert client.server_info.version == phoenix_version
 
 
 async def test_the_mount_serves_no_skills(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Skills are PXI-only for now: the ``/mcp`` mount neither advertises them in
-    the handshake nor mounts the tools that load them."""
+    its instructions nor mounts the tools that load them."""
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
     from fastmcp import Client
     from fastmcp.client.transports import StreamableHttpTransport
@@ -121,12 +122,12 @@ async def test_the_mount_serves_no_skills(
 
     def _factory(
         headers: dict[str, str] | None = None,
-        timeout: httpx.Timeout | None = None,
-        auth: httpx.Auth | None = None,
+        timeout: httpx2.Timeout | None = None,
+        auth: httpx2.Auth | None = None,
         follow_redirects: bool = True,
-    ) -> httpx.AsyncClient:
-        return httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=mcp_app),
+    ) -> httpx2.AsyncClient:
+        return httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=mcp_app),
             base_url="http://testserver",
             headers=headers,
             follow_redirects=follow_redirects,
@@ -134,8 +135,7 @@ async def test_the_mount_serves_no_skills(
 
     transport = StreamableHttpTransport(url="http://testserver/", httpx_client_factory=_factory)
     async with LifespanManager(mcp_app), Client(transport) as client:
-        assert client.initialize_result is not None
-        instructions = client.initialize_result.instructions
+        instructions = client.instructions
         tool_names = {tool.name for tool in await client.list_tools()}
 
     assert instructions is None
@@ -387,7 +387,7 @@ async def test_mcp_code_mode_replaces_tool_surface(
 ) -> None:
     """With PHOENIX_ENABLE_MCP_CODE_MODE on, clients see only the discovery meta-tools and
     ``execute``; the generated /v1 tools are reachable through the sandbox's
-    ``call_tool`` rather than tools/list, and group gating is not installed."""
+    ``call_tool`` rather than tools/list."""
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
     async with AsyncExitStack() as stack:
@@ -401,19 +401,19 @@ async def test_mcp_code_mode_replaces_tool_surface(
         )
         await stack.enter_async_context(LifespanManager(app))
 
-        import httpx
+        import httpx2
         from fastmcp import Client
         from fastmcp.client.transports import StreamableHttpTransport
 
         def _factory(
             headers: dict[str, str] | None = None,
-            timeout: httpx.Timeout | None = None,
-            auth: httpx.Auth | None = None,
+            timeout: httpx2.Timeout | None = None,
+            auth: httpx2.Auth | None = None,
             # fastmcp passes this beyond the McpHttpClientFactory protocol.
             follow_redirects: bool = True,
-        ) -> httpx.AsyncClient:
-            return httpx.AsyncClient(
-                transport=httpx.ASGITransport(app=app),
+        ) -> httpx2.AsyncClient:
+            return httpx2.AsyncClient(
+                transport=httpx2.ASGITransport(app=app),
                 base_url="http://testserver",
                 headers=headers,
                 follow_redirects=follow_redirects,
@@ -431,10 +431,10 @@ async def test_mcp_code_mode_replaces_tool_surface(
             # tools, so it stays unannotated (treated as possibly destructive).
             for name in ("search", "get_schema", "tags", "list_tools"):
                 assert tools[name].annotations is not None, f"{name} is missing annotations"
-                assert tools[name].annotations.readOnlyHint is True
+                assert tools[name].annotations.read_only_hint is True
             assert tools["execute"].annotations is None
 
-            # Discovery browses the same REST router tags the gated surface uses.
+            # Discovery browses the REST router tags.
             tags_result = await client.call_tool("tags", {})
             assert "projects" in tags_result.content[0].text
 
@@ -475,8 +475,8 @@ async def test_mcp_server_mounts_and_lifespan_starts(
     """With the flag on, the MCP app is mounted, its lifespan starts, and its
     tools are generated from the /v1 REST routes."""
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
-    # This test asserts the group-gated progressive-disclosure surface, which is
-    # not the default (code mode is); pin it off so the assertions hold.
+    # Code mode is the default and replaces the per-endpoint surface; pin it off
+    # so the generated tools are the ones under test.
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(patch_batched_caller())
@@ -487,27 +487,22 @@ async def test_mcp_server_mounts_and_lifespan_starts(
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
         )
-        assert app.state.mcp_http_app is not None
-        assert any(getattr(r, "path", None) == MCP_MOUNT_PATH for r in app.routes)
-
         # Startup must enter the MCP session-manager lifespan without error.
         await stack.enter_async_context(LifespanManager(app))
 
-        # Tools are generated from the /v1 schema. Drive the mounted endpoint
-        # in-process over the real protocol via an ASGITransport-backed client.
-        import httpx
+        import httpx2
         from fastmcp import Client
         from fastmcp.client.transports import StreamableHttpTransport
 
         def _factory(
             headers: dict[str, str] | None = None,
-            timeout: httpx.Timeout | None = None,
-            auth: httpx.Auth | None = None,
+            timeout: httpx2.Timeout | None = None,
+            auth: httpx2.Auth | None = None,
             # fastmcp passes this beyond the McpHttpClientFactory protocol.
             follow_redirects: bool = True,
-        ) -> httpx.AsyncClient:
-            return httpx.AsyncClient(
-                transport=httpx.ASGITransport(app=app),
+        ) -> httpx2.AsyncClient:
+            return httpx2.AsyncClient(
+                transport=httpx2.ASGITransport(app=app),
                 base_url="http://testserver",
                 headers=headers,
                 follow_redirects=follow_redirects,
@@ -518,39 +513,25 @@ async def test_mcp_server_mounts_and_lifespan_starts(
             httpx_client_factory=_factory,
         )
         async with Client(transport) as client:
-            visible = {t.name for t in await client.list_tools()}
-            assert visible, "expected MCP tools generated from the /v1 REST API"
+            assert app.state.mcp_http_app is not None
+            assert any(getattr(r, "path", None) == MCP_MOUNT_PATH for r in app.routes)
 
-            # Progressive disclosure: only the default group + meta tools show up;
-            # gated groups (e.g. spans) are hidden until revealed.
-            assert "enable_tool_group" in visible
-            assert "list_tool_groups" in visible
-            assert not any("span" in name.lower() for name in visible), (
-                "gated groups must be hidden by default"
-            )
+            tools = {t.name: t for t in await client.list_tools()}
+            assert tools, "expected MCP tools generated from the /v1 REST API"
 
             # Every tool advertises its read/write nature so a client can gate calls.
-            tools = {t.name: t for t in await client.list_tools()}
             for name, tool in tools.items():
                 assert tool.annotations is not None, f"{name} is missing tool annotations"
-                assert tool.annotations.readOnlyHint is not None, (
+                assert tool.annotations.read_only_hint is not None, (
                     f"{name} does not declare whether it is read-only"
                 )
-            # The meta tools never touch Phoenix data, so they are read-only.
-            assert tools["list_tool_groups"].annotations.readOnlyHint is True
-            assert tools["enable_tool_group"].annotations.readOnlyHint is True
-
-            # Revealing a group exposes its tools for this session only.
-            await client.call_tool("enable_tool_group", {"group": "spans"})
-            after_tools = {t.name: t for t in await client.list_tools()}
-            assert set(after_tools) > visible, "enabling a group must reveal additional tools"
             # Read endpoints (GET) are marked read-only; mutating ones are not.
             span_reads = [
                 t
-                for n, t in after_tools.items()
-                if "span" in n.lower() and t.annotations and t.annotations.readOnlyHint
+                for n, t in tools.items()
+                if "span" in n.lower() and t.annotations and t.annotations.read_only_hint
             ]
-            assert span_reads, "expected at least one read-only span tool after revealing the group"
+            assert span_reads, "expected at least one read-only span tool"
 
 
 class TestMountPathNormalizer:
