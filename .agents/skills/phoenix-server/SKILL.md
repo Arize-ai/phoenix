@@ -75,7 +75,7 @@ tests/unit/server/api/
 - **Never sleep to wait for a daemon.** Unit-test apps run the server's daemons in the
   test's event loop, so a fixed sleep ties the outcome to machine load. Patch the daemon's
   sleep so it parks on an event; the test releases it once and awaits its return to the
-  parked state, with a timeout that fails the test by name (`5df03f271`, #15864). See
+  parked state, with a timeout that fails the test by name. See
   `references/test-patterns.md` → "Waiting on Daemons".
 - **Any `import phoenix.<anything>` imports the whole server.** The package init pulls in the
   session module and with it the app, several seconds per process, including pytest plugins
@@ -86,8 +86,7 @@ tests/unit/server/api/
   effects no test observes, and seeds each worker's template database with the startup rows.
   A test whose subject is one of those behaviors must opt out with its marker or it passes
   against the shortcut. The markers registered in the unit conftest are the authoritative
-  list; the shortcuts arrived in #15864 through #15882. See `references/test-patterns.md` →
-  "Startup Shortcuts".
+  list. See `references/test-patterns.md` → "Startup Shortcuts".
 
 ## Naming
 

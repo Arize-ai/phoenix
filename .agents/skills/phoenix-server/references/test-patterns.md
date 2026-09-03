@@ -184,10 +184,6 @@ routers, and FastAPI's route analysis. Others are stubbed out because no test ob
 except deliberately: the docs MCP session, the model-cost seeding, the WASM prefetch, the
 `/mcp` mount, the Monty runtime probe, the agent MCP server, and the agent-session sweeper's
 loop. Each worker's template database also carries the rows the app seeds at startup.
-Worked examples on main: memoized computations in `7376f3fd5` (#15867), `e7faa374b` (#15876),
-`515dd6b7b` (#15880), `c73b0d2ae` (#15878), and `64f6c60bc` (#15881); stubbed effects in
-`5df03f271` (#15864), `1432884d1` (#15865), and `cfe1f883a` (#15866); template seeding in
-`9c0aa95eb` (#15882).
 
 A test whose subject is one of these behaviors opts out with the marker below; without it,
 the test passes against the shortcut. The registrations in the unit conftest's
@@ -232,20 +228,18 @@ setting or call the function directly.
   Database-state markers are read by the engine fixtures instead.
 - **Never let a cache keep an app alive.** Memoize only what recurs across apps, such as
   module-level functions and shared routers; a closure built per app is computed fresh.
-  Hand out copies of anything the caller mutates afterwards (`64f6c60bc`, #15881).
+  Hand out copies of anything the caller mutates afterwards.
 - **Bound a cache whose keys can miss on every app in a normal run**, or it grows for the
-  life of the worker (`c73b0d2ae`, #15878).
+  life of the worker.
 - **Pin the wiring with tests**: two apps in one worker share the object, the marker gives a
   fresh one, and a second app calls the real builder zero times. When the seam is a private
-  attribute of a dependency, add a test that fails at the first setup if a release moves it
-  (`c73b0d2ae`, #15878).
+  attribute of a dependency, add a test that fails at the first setup if a release moves it.
 
 ## Waiting on Daemons
 
 Never `sleep` to give a daemon time to run. Give the test a controller: patch the daemon
 class's sleep method with the controller's bound `park`, release the daemon once, and await
-its return to the parked state. The model-store lifecycle test in `5df03f271` (#15864) and the
-retention tests in #15893 do this.
+its return to the parked state. The model-store lifecycle test does this.
 
 ```python
 class _DaemonController:
@@ -288,10 +282,9 @@ after the test completes. Don't rely on data from a previous test.
 
 **The database arrives seeded** — Unless the test carries `pristine_db`, roles, the system
 user, the default retention policy, the builtin evaluators, and the sandbox providers are
-present before the test starts (`9c0aa95eb`, #15882). Look a role up by name instead of
-inserting it; the name is unique. A `pristine_db` test gets a schema-only database and seeds
-what it needs.
+present before the test starts. Look a role up by name instead of inserting it; the name is
+unique. A `pristine_db` test gets a schema-only database and seeds what it needs.
 
 **The client's pytest plugin is blocked** — `-p no:phoenix` in `pyproject.toml` keeps the
-`arize-phoenix-client` plugin out of this suite (`d231b1754`, #15888). Its `phoenix` marker is
-unregistered here: pytest warns about it and nothing records the test.
+`arize-phoenix-client` plugin out of this suite. Its `phoenix` marker is unregistered here:
+pytest warns about it and nothing records the test.
