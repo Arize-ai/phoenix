@@ -5,16 +5,19 @@ import {
   makeMetadataTooltipFilterCondition,
   MetadataTooltip,
 } from "@phoenix/pages/project/MetadataTooltip";
-import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { jsonStringToFlatObject } from "@phoenix/utils/jsonUtils";
+
+type AppendFilterCondition = (condition: string) => void;
 
 type MetadataTableCellProps = {
   metadata: unknown;
+  appendFilterCondition: AppendFilterCondition;
 };
 
-export const MetadataTableCell = ({ metadata }: MetadataTableCellProps) => {
-  const { appendFilterCondition } = useSpanFilterActions();
-
+export const MetadataTableCell = ({
+  metadata,
+  appendFilterCondition,
+}: MetadataTableCellProps) => {
   // Try to parse the metadata and stringify it
   // This is intended to work with object metadata but will technically work for arrays as well
   const [parsedMetadata, stringifiedMetadata] = useMemo(() => {

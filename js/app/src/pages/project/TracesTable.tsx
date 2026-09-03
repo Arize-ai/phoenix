@@ -115,6 +115,7 @@ import {
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceFilterConditionField } from "./TraceFilterConditionField";
+import { useTraceFilters } from "./TraceFiltersContext";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
@@ -260,10 +261,16 @@ export const MemoizedTableBody = React.memo(
 const MetadataCell = <TData extends ISpanItem, TValue>({
   row,
 }: CellContext<TData, TValue>) => {
+  const { appendFilterCondition } = useTraceFilters();
   if (row.original.__additionalRow) {
     return null;
   }
-  return <MetadataTableCell metadata={row.original.metadata} />;
+  return (
+    <MetadataTableCell
+      metadata={row.original.metadata}
+      appendFilterCondition={appendFilterCondition}
+    />
+  );
 };
 
 const trCSS = css`

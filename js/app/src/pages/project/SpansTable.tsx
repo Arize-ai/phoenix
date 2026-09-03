@@ -77,6 +77,7 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -214,6 +215,7 @@ export const MemoizedTableBody = React.memo(
 
 export function SpansTable(props: SpansTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { appendFilterCondition } = useSpanFilterActions();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -714,7 +716,12 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "metadata",
       accessorKey: "metadata",
-      cell: ({ row }) => <MetadataTableCell metadata={row.original.metadata} />,
+      cell: ({ row }) => (
+        <MetadataTableCell
+          metadata={row.original.metadata}
+          appendFilterCondition={appendFilterCondition}
+        />
+      ),
       enableSorting: false,
     },
     {
