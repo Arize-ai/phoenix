@@ -29,6 +29,12 @@ _SpanId: TypeAlias = str
 fake = Faker()
 
 
+def _as_stored(value: Any) -> Any:
+    """The shape a JSON column reads back as: the ORM re-encodes it, so an event
+    timestamp arrives as a string rather than the datetime it was written from."""
+    return json.loads(json.dumps(value, default=lambda item: item.isoformat()))
+
+
 async def test_project_resolver_returns_correct_project(
     gql_client: AsyncGraphQLClient,
     project_with_a_single_trace_and_span: None,
@@ -253,7 +259,13 @@ async def test_span_fields(
         assert span["spanKind"] == db_span.span_kind.lower()
         assert span["context"]["spanId"] == db_span.span_id
         assert span["context"]["traceId"] == db_traces[db_span.trace_rowid].trace_id
-        assert span["evaluationContext"] == span_eval_context(db_span)
+        expected_context = span_eval_context(
+            db_span,
+            trace_id=db_traces[db_span.trace_rowid].trace_id,
+            annotations=[],
+        )
+        assert set(span["evaluationContext"]) == {"input", "output", "metadata"}
+        assert span["evaluationContext"] == _as_stored(expected_context)
         assert isinstance(span["attributes"], str) and span["attributes"]
         assert json.loads(span["attributes"]) == db_span.attributes
         assert span["tokenCountPrompt"] == db_span.llm_token_count_prompt
@@ -1010,6 +1022,11 @@ async def test_as_example_revision_with_annotations(
     assert metadata is not None
     assert "span_kind" in metadata
     assert metadata["span_kind"] == "LLM"
+    # The preview shares the converter's metadata builder wholesale.
+    assert "trace_id" in metadata
+    assert "attributes" in metadata
+    assert "events" in metadata
+    assert "latency_ms" in metadata
 
     # Check annotations are present and structured as lists
     annotations = metadata.get("annotations")

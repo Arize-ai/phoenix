@@ -22,6 +22,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
+    get_dataset_example_metadata,
     get_dataset_example_output,
 )
 from phoenix.server.api.input_types.AnnotationFilter import (
@@ -282,8 +283,7 @@ class Span(Node):
 
     @strawberry.field(
         description=(
-            "The canonical input, output, and metadata context that online "
-            "evaluators bind against when they run on this span."
+            "The canonical context that online evaluators bind against when they run on this span."
         ),
     )  # type: ignore
     async def evaluation_context(
@@ -297,7 +297,11 @@ class Span(Node):
             if self.db_record
             else await info.context.data_loaders.span_by_id.load(self.id)
         )
-        return JSON(span_eval_context(span))
+        trace_id = await info.context.data_loaders.span_fields.load(
+            (self.id, models.Trace.trace_id),
+        )
+        annotations = await info.context.data_loaders.span_annotations.load(self.id)
+        return JSON(span_eval_context(span, trace_id=trace_id, annotations=annotations))
 
     @strawberry.field(
         description="Span attributes as a JSON string",
@@ -767,31 +771,16 @@ class Span(Node):
             if self.db_record
             else await info.context.data_loaders.span_by_id.load(self.id)
         )
-
-        # Fetch annotations associated with this span using the dataloader
-        # which returns ORM objects directly
-        span_annotations = await info.context.data_loaders.span_annotations.load(self.id)
-        annotations: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for annotation in span_annotations:
-            annotations[annotation.name].append(
-                {
-                    "label": annotation.label,
-                    "score": annotation.score,
-                    "explanation": annotation.explanation,
-                    "metadata": annotation.metadata_,
-                    "annotator_kind": annotation.annotator_kind,
-                }
-            )
-        # Merge annotations into the metadata
-        metadata = {
-            "span_kind": span.span_kind,
-            **({"annotations": annotations} if annotations else {}),
-        }
-
+        trace_id = await info.context.data_loaders.span_fields.load(
+            (self.id, models.Trace.trace_id),
+        )
+        annotations = await info.context.data_loaders.span_annotations.load(self.id)
         return SpanAsExampleRevision(
             input=JSON(get_dataset_example_input(span)),
             output=JSON(get_dataset_example_output(span)),
-            metadata=JSON(metadata),
+            metadata=JSON(
+                get_dataset_example_metadata(span, trace_id=trace_id, annotations=annotations)
+            ),
         )
 
     @strawberry.field(description="The project that this span belongs to.")  # type: ignore

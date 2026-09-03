@@ -53,6 +53,9 @@ export const CodeEvaluatorSourceEditor = ({
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource.source
   );
+  const mappingSourceGrain = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource.grain
+  );
 
   // Generate the type footer based on language and available data
   const typeFooter = useMemo(
@@ -65,7 +68,10 @@ export const CodeEvaluatorSourceEditor = ({
       language === "PYTHON" ? python() : javascript({ typescript: true }),
       // Python: 4-space indent; JS/TS: 2-space.
       indentUnit.of(language === "PYTHON" ? "    " : "  "),
-      createEvaluatorAutocompletion(evaluatorMappingSource, language),
+      createEvaluatorAutocompletion({
+        mappingSource: evaluatorMappingSource,
+        language,
+      }),
     ],
     [language, evaluatorMappingSource]
   );
@@ -128,7 +134,11 @@ export const CodeEvaluatorSourceEditor = ({
             size="S"
             variant="quiet"
             leadingVisual={<Icon svg={<Icons.Refresh />} />}
-            onPress={() => onChange(getDefaultCodeEvaluatorSource(language))}
+            onPress={() =>
+              onChange(
+                getDefaultCodeEvaluatorSource(language, mappingSourceGrain)
+              )
+            }
           >
             Reset
           </Button>

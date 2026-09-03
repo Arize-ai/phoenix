@@ -55,6 +55,9 @@ jobs:
               - "evals/**"
               - "src/**"
               - "tests/**"
+              # Mirrors the online-eval bound-variable vocabulary; a test here
+              # holds the two lists together, so edits to it must run this suite.
+              - "js/app/src/pages/project/evaluators/evaluatorBoundVariables.ts"
               - "tutorials/**"
               - "pyproject.toml"
               - "tox.ini"
@@ -536,6 +539,7 @@ jobs:
             tests/conftest.py
             tests/__generated__/
             tests/__init__.py
+            js/app/src/pages/project/evaluators/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:

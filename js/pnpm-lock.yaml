@@ -196,6 +196,9 @@ importers:
       '@codemirror/state':
         specifier: ^6.7.1
         version: 6.7.1
+      '@codemirror/view':
+        specifier: ^6.43.8
+        version: 6.43.9
       '@dnd-kit/abstract':
         specifier: ^0.5.0
         version: 0.5.0
@@ -8160,7 +8163,6 @@ packages:
 
   openai@6.49.0:
     resolution: {integrity: sha512-aYCc0C6L864eR6WSYIwQGyXriw/nIyZx0ObvhzOEVuk0zoBDpynjSbrionWI7q65B5H8jJX0DXR9snEzM6bfPg==}
-    hasBin: true
     peerDependencies:
       '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
       '@smithy/hash-node': '>=4.3.0 <5'
