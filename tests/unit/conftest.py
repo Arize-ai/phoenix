@@ -59,6 +59,10 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "real_agent_mcp_server: derive the agent's MCP server from the OpenAPI document",
     )
+    config.addinivalue_line(
+        "markers",
+        "real_agent_session_sweeper: run the app's agent-session sweeper loop",
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -108,6 +112,24 @@ def _stub_wasm_prefetch(monkeypatch: pytest.MonkeyPatch) -> None:
         return None
 
     monkeypatch.setattr("phoenix.server.app.prefetch_wasm_binary_if_needed", _skip)
+
+
+@pytest.fixture(autouse=True)
+def _agent_session_sweeper_off(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app's agent-session sweeper makes its first pass concurrently with
+    the test body, so a test that seeds a session past its retention cannot
+    know whether the pass has already reaped it. Off suite-wide; the sweeper
+    tests call ``_sweep`` on their own instance, and a test that needs the
+    loop opts in with ``@pytest.mark.real_agent_session_sweeper``."""
+    if request.node.get_closest_marker("real_agent_session_sweeper"):
+        return
+
+    async def _idle(self: Any) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "phoenix.server.daemons.agent_session_sweeper.AgentSessionSweeper._run", _idle
+    )
 
 
 @pytest.fixture(autouse=True)
