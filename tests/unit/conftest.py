@@ -1,3 +1,22 @@
+import os as _diag_os
+import sys as _diag_sys
+import time as _diag_wall_time
+
+_DIAG_WHO = _diag_os.environ.get("PYTEST_XDIST_WORKER", "controller")
+
+
+def _diag_wall(message: str) -> None:
+    line = f"[startup-wall {_DIAG_WHO} {_diag_wall_time.time():.3f}] {message}\n"
+    _diag_sys.stderr.write(line)
+    _diag_sys.stderr.flush()
+    path = _diag_os.environ.get("STARTUP_WALL_LOG")
+    if path:
+        with open(path, "a") as f:
+            f.write(line)
+
+
+_diag_wall("conftest import begins")
+
 import asyncio
 import contextlib
 import os
@@ -1114,3 +1133,18 @@ def pytest_runtest_logreport(report: Any) -> None:
     _diag_stamp(
         f"{worker_id} first report: {report.when} of {report.nodeid} took {report.duration:.1f}s"
     )
+
+
+_diag_wall("conftest import ends")
+
+
+def pytest_xdist_newgateway(gateway: Any) -> None:
+    _diag_wall(f"gateway {gateway.id} spawned")
+
+
+def pytest_sessionstart(session: Any) -> None:
+    _diag_wall("session start")
+
+
+def pytest_collection_finish(session: Any) -> None:
+    _diag_wall("collection finished")
