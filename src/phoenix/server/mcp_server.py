@@ -297,12 +297,11 @@ class _CodeModeWithDirectSkillTools(CodeMode):
         resolves against, and nothing else tells the model, so it batches
         ``load_skill`` calls through ``execute`` and is told the tool is unknown.
         """
-        *rest, last = [f"`{name}`" for name in self._direct_tool_names]
-        unreachable = f"{', '.join(rest)}, or {last}" if rest else last
+        direct_tools = ", ".join(f"`{name}`" for name in self._direct_tool_names)
         return (
             f"{super()._build_execute_description()}\n"
-            "`call_tool` reaches only the catalog `search` and `list_tools` describe; "
-            f"it cannot invoke {unreachable}, which are direct tools."
+            "`call_tool` can only invoke the tools `search` and `list_tools` describe. "
+            f"It cannot invoke the direct tools {direct_tools}; call those as MCP tools."
         )
 
 
