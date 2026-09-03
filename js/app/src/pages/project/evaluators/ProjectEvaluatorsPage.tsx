@@ -1,12 +1,13 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Flex, Loading, Text, View } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
+import { EVALUATOR_FILTER_PARAM } from "@phoenix/constants/searchParams";
 import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
-import { useOwnedPreloadedQuery } from "@phoenix/hooks";
+import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
@@ -18,7 +19,21 @@ import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/Proj
 export function ProjectEvaluatorsPage() {
   const { projectId } = useParams();
   invariant(projectId, "projectId is required");
-  const [filter, setFilter] = useState("");
+  const [urlFilter, setUrlFilter] = useFilterSearchParam(
+    EVALUATOR_FILTER_PARAM
+  );
+  // One debounced onChange feeds both: the raw text drives the table while
+  // the hook lands the trimmed value in the URL. Seeded from the URL so a
+  // shared or reloaded link restores the search; the route loader preloads
+  // the first page with the same param.
+  const [filter, setFilter] = useState(urlFilter);
+  const handleFilterChange = useCallback(
+    (nextFilter: string) => {
+      setFilter(nextFilter);
+      setUrlFilter(nextFilter);
+    },
+    [setUrlFilter]
+  );
   return (
     <main
       css={css`
@@ -33,7 +48,7 @@ export function ProjectEvaluatorsPage() {
           <ProjectEvaluatorsPageContent
             projectId={projectId}
             filter={filter}
-            onFilterChange={setFilter}
+            onFilterChange={handleFilterChange}
           />
         </ProjectEvaluatorsTableProvider>
       </Suspense>
@@ -57,7 +72,7 @@ function ProjectEvaluatorsPageContent({
   onFilterChange: (filter: string) => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
-  // The route loader preloads the owner query (unfiltered, with the time
+  // The route loader preloads the owner query (with the filter and time
   // range resolved from the URL). Subsequent toolbar, live, or user-selected
   // changes refetch the pagination fragment in ProjectEvaluatorsTable without
   // reloading this query.
@@ -110,7 +125,7 @@ function ProjectEvaluatorsPageContent({
         projectId={projectId}
         filter={filter}
         timeRange={timeRangeISOStrings}
-        initialFilter=""
+        initialFilter={loaderData.filter}
         initialTimeRange={initialTimeRange}
         initialScoreWindow={loaderData.scoreWindow}
         initialIncludeMeanScore={loaderData.includeMeanScore}
