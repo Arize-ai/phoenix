@@ -672,12 +672,25 @@ class TestMustacheParseWithTypes:
         assert parsed.string_variables() == {"escaped", "triple", "ampersand"}
         assert parsed.section_variables() == set()
 
+    def test_dotted_token_types_its_root_as_traversed(self) -> None:
+        """Test that {{input.input}} names the root and marks it as read into."""
+        formatter = MustacheTemplateFormatter()
+        template = "{{input.input}} {{input}} {{plain}}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"input", "plain"}
+        # Naming `input` on its own as well does not make it a string: the dotted
+        # token still has to walk it.
+        assert parsed.traversed_variables() == {"input"}
+        assert parsed.string_variables() == {"plain"}
+        assert parsed.section_variables() == set()
+
 
 class TestFStringParseWithTypes:
-    """Tests for FStringTemplateFormatter.parse_with_types() (default implementation)."""
+    """Tests for FStringTemplateFormatter.parse_with_types()."""
 
     def test_all_variables_are_string_type(self) -> None:
-        """Test that FString formatter treats all variables as string (default)."""
+        """Test that FString formatter treats plain variables as string."""
         formatter = FStringTemplateFormatter()
         template = "Hello {name}, your score is {score}"
         parsed = formatter.parse_with_types(template)
@@ -685,6 +698,16 @@ class TestFStringParseWithTypes:
         assert parsed.names() == {"name", "score"}
         assert parsed.string_variables() == {"name", "score"}
         assert parsed.section_variables() == set()
+
+    def test_path_variable_types_its_root_as_traversed(self) -> None:
+        """Test that {reference.label} and {items[0]} name the root they read into."""
+        formatter = FStringTemplateFormatter()
+        template = "{reference.label} {items[0]} {plain}"
+        parsed = formatter.parse_with_types(template)
+
+        assert parsed.names() == {"reference", "items", "plain"}
+        assert parsed.traversed_variables() == {"reference", "items"}
+        assert parsed.string_variables() == {"plain"}
 
 
 class TestParsedVariablesDataclass:

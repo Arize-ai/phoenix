@@ -19,7 +19,7 @@ from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.online_eval.derivation import ResolvedProjectEvaluator
-from phoenix.server.online_eval.session_policy import SessionTranscriptPolicy
+from phoenix.server.online_eval.session_policy import session_policy_fingerprint
 
 _SANDBOX_RUNTIME_POLICY_VERSION = "1"
 
@@ -237,8 +237,8 @@ def _resolved_project_evaluator(
         sandbox_config_id=sandbox_config_id,
         filter_condition=project_evaluator.filter_condition,
         sampling_rate=project_evaluator.sampling_rate,
-        transcript_policy_fingerprint=(
-            SessionTranscriptPolicy.from_env().fingerprint
+        session_policy_fingerprint=(
+            session_policy_fingerprint()
             if project_evaluator.evaluation_target == "SESSION"
             else None
         ),

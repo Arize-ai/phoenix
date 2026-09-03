@@ -15,7 +15,7 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         name
         enabled
         evaluator {
-          __typename
+          kind
           description
           ... on CodeEvaluator {
             id

@@ -133,11 +133,11 @@ function ProjectEvaluatorDetailsPageContent({
     return <ProjectEvaluatorNotFound />;
   }
   const evaluator = projectEvaluator.evaluator;
-  const isLLMEvaluator = evaluator.__typename === "LLMEvaluator";
-  const isCodeEvaluator = evaluator.__typename === "CodeEvaluator";
+  const isLLMEvaluator = evaluator.kind === "LLM";
+  const isCodeEvaluator = evaluator.kind === "CODE";
   const canEdit = isLLMEvaluator || isCodeEvaluator;
   const codeEvaluatorId = isCodeEvaluator ? evaluator.id : undefined;
-  const versionCount = isCodeEvaluator ? evaluator.versionCount : 0;
+  const versionCount = isCodeEvaluator ? (evaluator.versionCount ?? 0) : 0;
 
   return (
     <main css={mainCSS}>
