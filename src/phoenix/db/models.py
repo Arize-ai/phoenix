@@ -198,7 +198,7 @@ GenerativeModelSDK: TypeAlias = Literal[
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal[
-    "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "SUPERSEDED"
+    "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "SUPERSEDED", "DROPPED"
 ]
 EvalSessionWorkStatus: TypeAlias = Literal[
     "PENDING",

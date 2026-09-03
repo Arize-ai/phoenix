@@ -118,6 +118,7 @@ const readRow = (
           queuedCount
           evaluatedCount
           failedCount
+          droppedCount
         }
         evaluator {
           kind
