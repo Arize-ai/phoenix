@@ -139,6 +139,8 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
         return ("GROQ_API_KEY",)
     if provider is ModelProvider.MOONSHOT:
         return ("MOONSHOT_API_KEY",)
+    if provider is ModelProvider.MINIMAX:
+        return ("MINIMAX_API_KEY",)
     if provider is ModelProvider.PERPLEXITY:
         return ("PERPLEXITY_API_KEY",)
     if provider is ModelProvider.TOGETHER:

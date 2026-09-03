@@ -1420,6 +1420,7 @@ class BuiltInProviderModelSelection(TypedDict):
         "FIREWORKS",
         "GROQ",
         "MOONSHOT",
+        "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
         "ZAI",

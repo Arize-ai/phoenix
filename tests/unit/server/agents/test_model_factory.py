@@ -79,8 +79,7 @@ class TestBuildModel:
             model_name="MiniMax-M3",
         )
 
-        async with db() as session:
-            model = await build_model(params, session=session, decrypt=lambda value: value)
+        model = await build_model(params, db=db, decrypt=lambda value: value)
 
         assert str(cast(Any, model)._provider.client.base_url) == "https://api.minimaxi.com/v1/"
 
