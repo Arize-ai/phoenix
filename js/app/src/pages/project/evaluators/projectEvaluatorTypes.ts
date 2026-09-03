@@ -8,6 +8,7 @@ import {
   EVALUATOR_MAPPING_SOURCE_GRAINS,
   getEvaluatorMetadataEntryNames,
 } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import type {
   EvaluatorInputMapping,
   EvaluatorMappingSourceGrain,
@@ -88,6 +89,25 @@ export const PROJECT_EVALUATOR_TARGETS = [
 
 export type ProjectEvaluatorTarget = (typeof PROJECT_EVALUATOR_TARGETS)[number];
 
+/** The filter a creation flow starts with whenever it enters a target. */
+export function getDefaultProjectEvaluatorFilterCondition(
+  target: ProjectEvaluatorTarget
+): string {
+  switch (target) {
+    case "SPAN":
+      return DEFAULT_SPAN_FILTER_CONDITION;
+    case "SESSION":
+      return "";
+    case "TRACE":
+      // Trace evaluators are not authorable or schedulable yet. Their planned
+      // trace-level filter language should decide which traces match; choosing
+      // the root span as their evaluation input is a separate concern.
+      return "";
+    default:
+      return assertUnreachable(target);
+  }
+}
+
 /**
  * The evaluator's result annotations live at the level its target selects on
  * the evaluated project. TRACE evaluators are stored but never scheduled, so
@@ -121,6 +141,26 @@ export type ProjectEvaluatorScope = {
   /** Only session evaluators schedule off this; see `toEvaluationDelayInput`. */
   evaluationDelaySeconds: number;
 };
+
+/**
+ * Moves a scope to a target and applies the filter that target starts with.
+ * @param params - Scope transition parameters.
+ * @param params.scope - Current scope whose target-independent settings persist.
+ * @param params.targetType - Target the scope is entering.
+ */
+export function withProjectEvaluatorTarget({
+  scope,
+  targetType,
+}: {
+  scope: ProjectEvaluatorScope;
+  targetType: ProjectEvaluatorTarget;
+}): ProjectEvaluatorScope {
+  return {
+    ...scope,
+    targetType,
+    filterCondition: getDefaultProjectEvaluatorFilterCondition(targetType),
+  };
+}
 
 /**
  * The delay half of a create or update input, spread in by every mutation that
