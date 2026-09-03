@@ -5,7 +5,6 @@ import { useRevalidator } from "react-router";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { CodeAuthoringFields } from "@phoenix/components/evaluators/CodeAuthoringFields";
 import type { SandboxConfigOption } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
@@ -29,12 +28,14 @@ import {
 import type { EditProjectEvaluatorSlideoverQuery } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverQuery.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateCodeMutation.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
+import { CodeAuthoringFields } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
+  isSameInputMapping,
   toEvaluationDelayInput,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
@@ -457,6 +458,7 @@ function EditLlmProjectEvaluatorContent({
               <ProjectEvaluatorScopePanel
                 projectId={evaluator.project.id}
                 scope={scope}
+                showScopeFields={false}
               />
             }
           />
@@ -491,7 +493,7 @@ function EditCodeProjectEvaluator({
   });
   // The update mutation treats an omitted inputMapping as "preserve", so
   // snapshot the stored value to tell an edit from an inherited setting.
-  const initialInputMappingJson = JSON.stringify(evaluator.inputMapping);
+  const initialInputMapping = evaluator.inputMapping as EvaluatorInputMapping;
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [error, setError] = useState<string>();
   // See the LLM edit path: the details page loader must re-run after a save.
@@ -581,13 +583,13 @@ function EditCodeProjectEvaluator({
             onScopeChange={setScope}
             isSubmitting={isUpdating}
             error={error}
-            onFieldChange={() => setError(undefined)}
             onSubmit={() => {
               setError(undefined);
               const state = store.getState();
-              const inputMappingChanged =
-                JSON.stringify(state.evaluator.inputMapping) !==
-                initialInputMappingJson;
+              const inputMappingChanged = !isSameInputMapping(
+                state.evaluator.inputMapping,
+                initialInputMapping
+              );
               const descriptionChanged =
                 state.evaluator.description !== initialDescription;
               const outputConfigsChanged =
@@ -603,7 +605,7 @@ function EditCodeProjectEvaluator({
                 sourceCode.trim().length === 0
                   ? "Source code is required."
                   : sandboxConfigId == null
-                    ? "Please select a sandbox configuration."
+                    ? "Sandbox configuration is required."
                     : outputConfigErrors.length
                       ? outputConfigErrors.join("\n")
                       : undefined;
