@@ -32,9 +32,7 @@ import type {
 } from "./types";
 
 /**
- * A tool advertised to the LLM. Only instrumentations that record the tool
- * name and description as their own attributes supply them; older spans carry
- * them inside the JSON schema alone.
+ * A tool advertised to the LLM.
  */
 export type LLMToolDefinition = {
   name: string | null;

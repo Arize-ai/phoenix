@@ -27,9 +27,7 @@ function LLMToolSchema({
   const titleEl = (
     <Flex direction="row" gap="size-100" alignItems="center">
       <SpanKindIcon spanKind="tool" />
-      <Text weight="heavy">
-        {tool.name == null ? "Tool" : `Tool: ${tool.name}`}
-      </Text>
+      <Text weight="heavy">{tool.name ?? "Tool"}</Text>
     </Flex>
   );
 
