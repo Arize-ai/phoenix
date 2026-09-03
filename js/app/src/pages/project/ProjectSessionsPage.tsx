@@ -18,20 +18,13 @@ import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } 
 import { DSLFilterErrorFallback } from "./DSLFilterErrorFallback";
 import { PendingDSLFilter } from "./PendingDSLFilter";
 import { SessionFilterConditionFieldWithVocabulary } from "./SessionFilterConditionField";
-import {
-  SessionFiltersProvider,
-  useSessionFilters,
-} from "./SessionFiltersContext";
+import { SessionFiltersProvider } from "./SessionFiltersContext";
 
 // Module-level: an inline component would remount the field on every render.
 function SessionsFilterErrorFallback({ error }: ErrorBoundaryFallbackProps) {
   const { resolveSessionsSeed } = useProjectPageQueryReferenceContext();
-  const { filterCondition } = useSessionFilters();
   return (
-    <DSLFilterErrorFallback
-      error={error}
-      hasUserFilter={filterCondition.trim() !== ""}
-    >
+    <DSLFilterErrorFallback error={error}>
       <SessionFilterConditionFieldWithVocabulary
         onValidCondition={({ condition, isInitialSettlement }) => {
           // The mounted condition just failed; only an edit should reload.

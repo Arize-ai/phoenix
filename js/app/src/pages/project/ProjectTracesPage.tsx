@@ -19,17 +19,13 @@ import {
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
-import { TraceFiltersProvider, useTraceFilters } from "./TraceFiltersContext";
+import { TraceFiltersProvider } from "./TraceFiltersContext";
 
 // Module-level: an inline component would remount the field on every render.
 function TracesFilterErrorFallback({ error }: ErrorBoundaryFallbackProps) {
   const { resolveTracesSeed } = useProjectPageQueryReferenceContext();
-  const { filterCondition } = useTraceFilters();
   return (
-    <DSLFilterErrorFallback
-      error={error}
-      hasUserFilter={filterCondition.trim() !== ""}
-    >
+    <DSLFilterErrorFallback error={error}>
       <TraceFilterConditionFieldWithVocabulary
         onValidCondition={({ condition, isInitialSettlement }) => {
           // The mounted condition just failed; only an edit should reload.
