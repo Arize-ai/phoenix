@@ -1078,3 +1078,39 @@ def rand_trace_id() -> Iterator[str]:
 @pytest.fixture
 def custom_vcr(request: FixtureRequest) -> CustomVCR:
     return CustomVCR(request)
+
+
+# --- startup diagnostics for the experiment branch: controller-side xdist hooks ---
+import time as _diag_time
+
+_DIAG_T0 = _diag_time.monotonic()
+_DIAG_FIRST_REPORT_SEEN: set[str] = set()
+
+
+def _diag_stamp(message: str) -> None:
+    print(f"[startup-diag +{_diag_time.monotonic() - _DIAG_T0:6.1f}s] {message}", flush=True)
+
+
+def pytest_xdist_setupnodes(config: Any, specs: Any) -> None:
+    _diag_stamp(f"spawning {len(specs)} workers")
+
+
+def pytest_testnodeready(node: Any) -> None:
+    _diag_stamp(f"{node.gateway.id} ready")
+
+
+def pytest_xdist_node_collection_finished(node: Any, ids: Any) -> None:
+    _diag_stamp(f"{node.gateway.id} collected {len(ids)} items")
+
+
+def pytest_runtest_logreport(report: Any) -> None:
+    worker = getattr(report, "node", None)
+    if worker is None:
+        return
+    worker_id = worker.gateway.id
+    if worker_id in _DIAG_FIRST_REPORT_SEEN:
+        return
+    _DIAG_FIRST_REPORT_SEEN.add(worker_id)
+    _diag_stamp(
+        f"{worker_id} first report: {report.when} of {report.nodeid} took {report.duration:.1f}s"
+    )
