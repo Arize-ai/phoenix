@@ -23,6 +23,7 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_trace
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.trace_aggregates import error_count_by_trace
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.routers.v1.models import IsoDatetime
@@ -256,13 +257,11 @@ async def list_project_traces(
         if error is not None:
             # A trace "has an error" if any of its spans has status_code == ERROR,
             # matching the error indicator shown in the UI (see Trace.error_count).
-            errored_traces = select(models.Span.trace_rowid).where(
-                models.Span.status_code == "ERROR"
-            )
-            if error:
-                stmt = stmt.where(models.Trace.id.in_(errored_traces))
-            else:
-                stmt = stmt.where(models.Trace.id.notin_(errored_traces))
+            # Correlated on the trace rowid so the predicate is a per-candidate index
+            # probe on `ix_spans_trace_rowid` rather than a scan of every span row in
+            # the database, and so the outer query keeps its ordering index.
+            errored = error_count_by_trace().as_correlated_scalar(models.Trace.id) > 0
+            stmt = stmt.where(errored if error else ~errored)
 
         if min_latency_ms is not None:
             stmt = stmt.where(models.Trace.latency_ms >= min_latency_ms)
