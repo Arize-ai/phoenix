@@ -276,6 +276,7 @@ CREATE TABLE traces (
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
     project_session_rowid INTEGER,
+    last_span_ingested_at TIMESTAMP,
     CONSTRAINT pk_traces PRIMARY KEY (id),
     CONSTRAINT uq_traces_trace_id UNIQUE (trace_id),
     CONSTRAINT fk_traces_project_rowid_projects
@@ -288,6 +289,9 @@ CREATE TABLE traces (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_traces_project_rowid_last_span_ingested_at ON traces
+    (project_rowid, last_span_ingested_at)
+    WHERE last_span_ingested_at IS NOT NULL;
 CREATE INDEX ix_traces_project_rowid_start_time ON traces
     (project_rowid, start_time DESC);
 CREATE INDEX ix_traces_project_session_rowid ON traces (project_session_rowid);
@@ -1282,6 +1286,7 @@ CREATE TABLE project_evaluators (
         CHECK (evaluation_delay_seconds >= 10),
     input_mapping JSONB,
     enabled BOOLEAN DEFAULT true NOT NULL,
+    swept_through_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
@@ -1315,7 +1320,6 @@ CREATE TABLE eval_session_work_units (
     project_evaluator_id INTEGER NOT NULL,
     config_fingerprint VARCHAR NOT NULL,
     evaluated_through TIMESTAMP NOT NULL,
-    transcript_covered_through TIMESTAMP,
     status VARCHAR DEFAULT 'PENDING' NOT NULL
         CONSTRAINT "ck_eval_session_work_units_`valid_eval_work_status`"
 CHECK (status IN (
@@ -1365,6 +1369,65 @@ CREATE INDEX ix_eval_session_work_units_terminal_watermark ON eval_session_work_
     (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON eval_session_work_units
     (project_session_rowid, evaluator_id, config_fingerprint)
+    WHERE status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3 OR status IN ('FILTERED_OUT', 'SAMPLED_OUT');
+
+
+-- Table: eval_trace_work_units
+-- ----------------------------
+CREATE TABLE eval_trace_work_units (
+    id INTEGER NOT NULL,
+    trace_rowid INTEGER NOT NULL,
+    evaluator_id INTEGER NOT NULL,
+    project_evaluator_id INTEGER NOT NULL,
+    config_fingerprint VARCHAR NOT NULL,
+    evaluated_through TIMESTAMP NOT NULL,
+    status VARCHAR DEFAULT 'PENDING' NOT NULL
+        CONSTRAINT "ck_eval_trace_work_units_`valid_eval_work_status`"
+CHECK (status IN (
+            'PENDING',
+            'RUNNING',
+            'DONE',
+            'ERROR',
+            'EXPIRED',
+            'FILTERED_OUT',
+            'SAMPLED_OUT'
+        )),
+    claimed_at TIMESTAMP,
+    claimed_by VARCHAR,
+    attempts INTEGER DEFAULT '0' NOT NULL,
+    error VARCHAR,
+    cooldown_until TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT pk_eval_trace_work_units PRIMARY KEY (id),
+    CONSTRAINT fk_eval_trace_work_units_evaluator_id_evaluators
+        FOREIGN KEY (evaluator_id)
+        REFERENCES evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_trace_work_units_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_trace_work_units_trace_rowid_traces
+        FOREIGN KEY (trace_rowid)
+        REFERENCES traces (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_trace_work_units_claimable ON eval_trace_work_units (status, id)
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
+CREATE INDEX ix_eval_trace_work_units_error_attempts ON eval_trace_work_units (attempts)
+    WHERE status = 'ERROR';
+CREATE INDEX ix_eval_trace_work_units_evaluator_id ON eval_trace_work_units
+    (evaluator_id);
+CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON eval_trace_work_units
+    (project_evaluator_id);
+CREATE INDEX ix_eval_trace_work_units_terminal ON eval_trace_work_units (updated_at)
+    WHERE status IN ('DONE', 'EXPIRED');
+CREATE INDEX ix_eval_trace_work_units_terminal_watermark ON eval_trace_work_units
+    (trace_rowid, evaluator_id, config_fingerprint);
+CREATE UNIQUE INDEX uq_eval_trace_work_units_live_key ON eval_trace_work_units
+    (trace_rowid, evaluator_id, config_fingerprint)
     WHERE status IN ('PENDING', 'RUNNING') OR status = 'ERROR' AND attempts < 3 OR status IN ('FILTERED_OUT', 'SAMPLED_OUT');
 
 

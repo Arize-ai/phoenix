@@ -868,6 +868,10 @@ class Trace(HasId):
     )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    last_span_ingested_at: Mapped[Optional[datetime]] = mapped_column(
+        UtcTimeStamp,
+        nullable=True,
+    )
 
     @hybrid_property
     def latency_ms(self) -> float:
@@ -910,6 +914,13 @@ class Trace(HasId):
             "ix_traces_project_rowid_start_time",
             "project_rowid",
             text("start_time DESC"),
+        ),
+        Index(
+            "ix_traces_project_rowid_last_span_ingested_at",
+            "project_rowid",
+            "last_span_ingested_at",
+            postgresql_where=column("last_span_ingested_at").is_not(None),
+            sqlite_where=column("last_span_ingested_at").is_not(None),
         ),
     )
 
@@ -3632,6 +3643,7 @@ class ProjectEvaluator(HasId):
         nullable=False,
     )
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    swept_through_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -3784,7 +3796,6 @@ class EvalSessionWorkUnit(HasId):
     )
     config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    transcript_covered_through: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     status: Mapped[EvalSessionWorkStatus] = mapped_column(
         CheckConstraint(
             "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED', "
@@ -3839,6 +3850,87 @@ class EvalSessionWorkUnit(HasId):
         ),
         Index(
             "ix_eval_session_work_units_error_attempts",
+            "attempts",
+            postgresql_where=text("status = 'ERROR'"),
+            sqlite_where=text("status = 'ERROR'"),
+        ),
+    )
+
+
+class EvalTraceWorkUnit(HasId):
+    """A trace-level eval task — run one evaluator against one trace."""
+
+    __tablename__ = "eval_trace_work_units"
+    trace_rowid: Mapped[int] = mapped_column(
+        ForeignKey("traces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
+    evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    status: Mapped[EvalSessionWorkStatus] = mapped_column(
+        CheckConstraint(
+            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED', "
+            "'FILTERED_OUT', 'SAMPLED_OUT')",
+            name="valid_eval_work_status",
+        ),
+        default="PENDING",
+        server_default="PENDING",
+    )
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    error: Mapped[Optional[str]] = mapped_column(String)
+    cooldown_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    trace: Mapped["Trace"] = relationship("Trace")
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
+
+    __table_args__ = (
+        Index(
+            "uq_eval_trace_work_units_live_key",
+            "trace_rowid",
+            "evaluator_id",
+            "config_fingerprint",
+            unique=True,
+            postgresql_where=text(live_eval_session_work_index_predicate()),
+            sqlite_where=text(live_eval_session_work_index_predicate()),
+        ),
+        Index(
+            "ix_eval_trace_work_units_claimable",
+            "status",
+            "id",
+            postgresql_where=text("status IN ('PENDING', 'RUNNING', 'ERROR')"),
+            sqlite_where=text("status IN ('PENDING', 'RUNNING', 'ERROR')"),
+        ),
+        Index(
+            "ix_eval_trace_work_units_terminal",
+            "updated_at",
+            postgresql_where=text("status IN ('DONE', 'EXPIRED')"),
+            sqlite_where=text("status IN ('DONE', 'EXPIRED')"),
+        ),
+        Index(
+            "ix_eval_trace_work_units_terminal_watermark",
+            "trace_rowid",
+            "evaluator_id",
+            "config_fingerprint",
+        ),
+        Index(
+            "ix_eval_trace_work_units_error_attempts",
             "attempts",
             postgresql_where=text("status = 'ERROR'"),
             sqlite_where=text("status = 'ERROR'"),

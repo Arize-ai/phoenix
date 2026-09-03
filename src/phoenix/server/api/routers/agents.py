@@ -87,6 +87,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.insertion.project_session import advance_project_session_liveness
+from phoenix.db.insertion.trace import advance_trace_liveness
 from phoenix.db.types.data_stream_protocol import (
     AssistantMessageMetadataUsage,
     AssistantMessageMetadataUsageCacheTokenDetails,
@@ -1343,6 +1344,7 @@ async def _persist_db_traces(
     traces_to_insert: list[models.Trace] = []
     spans_to_insert: list[models.Span] = []
     project_session_rowids_with_new_spans: set[int] = set()
+    trace_rowids_with_new_spans: set[int] = set()
     for db_trace in db_traces:
         # Only inserted traces should point at the persistent ProjectSession;
         # associating skipped transient traces causes autoflush warnings.
@@ -1369,6 +1371,7 @@ async def _persist_db_traces(
         if existing_trace.project_session_rowid is None and persistent_project_session is not None:
             existing_trace.project_session = persistent_project_session
         if db_trace.spans:
+            trace_rowids_with_new_spans.add(existing_trace.id)
             project_session_rowid = existing_trace.project_session_rowid or (
                 persistent_project_session.id if persistent_project_session is not None else None
             )
@@ -1389,7 +1392,9 @@ async def _persist_db_traces(
             spans_to_insert.append(db_span)
     session.add_all([*traces_to_insert, *spans_to_insert])
     await session.flush()
+    trace_rowids_with_new_spans.update(db_trace.id for db_trace in traces_to_insert)
     await advance_project_session_liveness(session, project_session_rowids_with_new_spans)
+    await advance_trace_liveness(session, trace_rowids_with_new_spans)
     await _refresh_cumulative_span_counts(session=session, trace_ids=trace_ids)
     return project_ids
 

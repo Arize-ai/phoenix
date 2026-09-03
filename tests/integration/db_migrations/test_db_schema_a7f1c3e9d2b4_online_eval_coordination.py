@@ -36,6 +36,14 @@ _PG_PROJECT_SESSION_DESC_INDEX_COLUMNS = {
     "ix_project_sessions_project_id_end_time": "(project_id, end_time DESC)",
     "ix_project_sessions_project_id_start_time": "(project_id, start_time DESC)",
 }
+_SQLITE_TRACE_DESC_INDEX_SQL = {
+    "ix_traces_project_rowid_start_time": (
+        "CREATE INDEX ix_traces_project_rowid_start_time ON traces (project_rowid, start_time DESC)"
+    ),
+}
+_PG_TRACE_DESC_INDEX_COLUMNS = {
+    "ix_traces_project_rowid_start_time": "(project_rowid, start_time DESC)",
+}
 
 
 def _get_sqlite_project_session_index_sql(conn: Connection) -> dict[str, str]:
@@ -62,6 +70,30 @@ def _get_postgresql_project_session_index_def(conn: Connection, schema: str) -> 
             "'ix_project_sessions_project_id_start_time', "
             "'ix_project_sessions_project_id_end_time'"
             ")"
+        ),
+        {"schema": schema},
+    ).all()
+    return {name: indexdef for name, indexdef in rows}
+
+
+def _get_sqlite_trace_index_sql(conn: Connection) -> dict[str, str]:
+    rows = conn.execute(
+        sa.text(
+            "SELECT name, sql FROM sqlite_master "
+            "WHERE type = 'index' "
+            "AND name = 'ix_traces_project_rowid_start_time'"
+        )
+    ).all()
+    return {name: sql for name, sql in rows if sql is not None}
+
+
+def _get_postgresql_trace_index_def(conn: Connection, schema: str) -> dict[str, str]:
+    rows = conn.execute(
+        sa.text(
+            "SELECT indexname, indexdef FROM pg_indexes "
+            "WHERE schemaname = :schema "
+            "AND tablename = 'traces' "
+            "AND indexname = 'ix_traces_project_rowid_start_time'"
         ),
         {"schema": schema},
     ).all()
@@ -204,6 +236,7 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             "evaluation_delay_seconds",
             "input_mapping",
             "enabled",
+            "swept_through_at",
             "created_at",
             "updated_at",
         }
@@ -238,7 +271,7 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(["input_mapping"]),
+            nullable_column_names=frozenset(["input_mapping", "swept_through_at"]),
         )
 
 
@@ -347,7 +380,6 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                     "project_evaluator_id",
                     "config_fingerprint",
                     "evaluated_through",
-                    "transcript_covered_through",
                     "status",
                     "claimed_at",
                     "claimed_by",
@@ -362,7 +394,76 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             constraint_names=frozenset(constraint_names),
             nullable_column_names=frozenset(
                 {
-                    "transcript_covered_through",
+                    "claimed_at",
+                    "claimed_by",
+                    "error",
+                    "cooldown_until",
+                }
+            ),
+        )
+
+
+class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
+    table_name = "eval_trace_work_units"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
+        index_names = {
+            "ix_eval_trace_work_units_claimable",
+            "ix_eval_trace_work_units_evaluator_id",
+            "ix_eval_trace_work_units_project_evaluator_id",
+            "ix_eval_trace_work_units_error_attempts",
+            "ix_eval_trace_work_units_terminal",
+            "ix_eval_trace_work_units_terminal_watermark",
+            "uq_eval_trace_work_units_live_key",
+        }
+        constraint_names = {
+            "pk_eval_trace_work_units",
+            _constraint_name(
+                "fk_eval_trace_work_units_trace_rowid_traces",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_eval_trace_work_units_evaluator_id_evaluators",
+                db_backend,
+            ),
+            _constraint_name(
+                "fk_eval_trace_work_units_project_evaluator_id_project_evaluators",
+                db_backend,
+            ),
+            "ck_eval_trace_work_units_`valid_eval_work_status`",
+        }
+        if db_backend == "postgresql":
+            index_names.add("pk_eval_trace_work_units")
+        elif db_backend == "sqlite":
+            index_names.add("sqlite_autoindex_eval_trace_work_units_1")
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(
+                {
+                    "id",
+                    "trace_rowid",
+                    "evaluator_id",
+                    "project_evaluator_id",
+                    "config_fingerprint",
+                    "evaluated_through",
+                    "status",
+                    "claimed_at",
+                    "claimed_by",
+                    "attempts",
+                    "error",
+                    "cooldown_until",
+                    "created_at",
+                    "updated_at",
+                }
+            ),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(
+                {
                     "claimed_at",
                     "claimed_by",
                     "error",
@@ -440,7 +541,7 @@ async def test_project_session_liveness_schema(
         )
         index_columns = index["column_names"]
         assert all(column is not None for column in index_columns)
-        where = index["dialect_options"][f"{_db_backend}_where"]
+        where = index.get("dialect_options", {})[f"{_db_backend}_where"]
         return (
             last_span_ingested_at,
             [column for column in index_columns if column is not None],
@@ -479,4 +580,108 @@ async def test_project_session_liveness_schema(
     assert await _run_async(_engine, _get) == before
     # Reflection-driven index drift is symmetric: index names and column lists survive a
     # DESC -> ASC rebuild, so the schema comparison above cannot catch one on the way down.
+    await _assert_desc_indexes()
+
+
+async def test_trace_liveness_schema(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _db_backend: _DBBackend,
+    _schema: str,
+) -> None:
+    await _verify_clean_state(_engine, _schema)
+    await _up(_engine, _alembic_config, _DOWN, _schema)
+    end_time = datetime(2026, 1, 2, tzinfo=timezone.utc)
+
+    def _get(conn: Connection) -> Optional[_TableSchemaInfo]:
+        return _get_table_schema_info(conn, "traces", _db_backend, _schema)
+
+    async def _assert_desc_indexes() -> None:
+        """Assert the traces start_time index is descending, at DDL level, on either dialect."""
+        if _db_backend == "sqlite":
+            assert (
+                await _run_async(_engine, _get_sqlite_trace_index_sql)
+                == _SQLITE_TRACE_DESC_INDEX_SQL
+            )
+        elif _db_backend == "postgresql":
+            index_defs = await _run_async(
+                _engine,
+                lambda conn: _get_postgresql_trace_index_def(conn, _schema),
+            )
+            assert index_defs.keys() == _PG_TRACE_DESC_INDEX_COLUMNS.keys()
+            for index_name, columns in _PG_TRACE_DESC_INDEX_COLUMNS.items():
+                assert index_defs[index_name].endswith(columns)
+        else:
+            assert_never(_db_backend)
+
+    def _seed(conn: Connection) -> None:
+        metadata = sa.MetaData()
+        schema = _schema or None
+        projects = sa.Table("projects", metadata, autoload_with=conn, schema=schema)
+        traces = sa.Table("traces", metadata, autoload_with=conn, schema=schema)
+        inserted_primary_key = conn.execute(
+            projects.insert().values(name="trace-liveness-backfill")
+        ).inserted_primary_key
+        assert inserted_primary_key is not None
+        project_id = inserted_primary_key[0]
+        conn.execute(
+            traces.insert().values(
+                project_rowid=project_id,
+                trace_id="trace-liveness-backfill",
+                start_time=end_time,
+                end_time=end_time,
+            )
+        )
+        conn.commit()
+
+    def _get_liveness_and_index(conn: Connection) -> tuple[Optional[datetime], list[str], str]:
+        metadata = sa.MetaData()
+        schema = _schema or None
+        traces = sa.Table("traces", metadata, autoload_with=conn, schema=schema)
+        last_span_ingested_at = conn.scalar(
+            sa.select(traces.c.last_span_ingested_at).where(
+                traces.c.trace_id == "trace-liveness-backfill"
+            )
+        )
+        indexes = sa.inspect(conn).get_indexes("traces", schema=schema)
+        index = next(
+            index
+            for index in indexes
+            if index["name"] == "ix_traces_project_rowid_last_span_ingested_at"
+        )
+        index_columns = index["column_names"]
+        assert all(column is not None for column in index_columns)
+        where = index.get("dialect_options", {})[f"{_db_backend}_where"]
+        return (
+            last_span_ingested_at,
+            [column for column in index_columns if column is not None],
+            str(where),
+        )
+
+    before = await _run_async(_engine, _get)
+    assert before is not None
+    assert "last_span_ingested_at" not in before["column_names"]
+    await _run_async(_engine, _seed)
+
+    await _up(_engine, _alembic_config, _UP, _schema)
+    after = await _run_async(_engine, _get)
+    assert after is not None
+    assert after["column_names"] == before["column_names"] | {"last_span_ingested_at"}
+    assert after["index_names"] == before["index_names"] | {
+        "ix_traces_project_rowid_last_span_ingested_at"
+    }
+    assert after["constraint_names"] == before["constraint_names"]
+    assert after["nullable_column_names"] == before["nullable_column_names"] | {
+        "last_span_ingested_at"
+    }
+    last_span_ingested_at, index_columns, index_where = await _run_async(
+        _engine, _get_liveness_and_index
+    )
+    assert last_span_ingested_at is None
+    assert index_columns == ["project_rowid", "last_span_ingested_at"]
+    assert "last_span_ingested_at IS NOT NULL" in index_where
+    await _assert_desc_indexes()
+
+    await _down(_engine, _alembic_config, _DOWN, _schema)
+    assert await _run_async(_engine, _get) == before
     await _assert_desc_indexes()
