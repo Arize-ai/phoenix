@@ -93,7 +93,19 @@ export type ProjectEvaluatorTarget = (typeof PROJECT_EVALUATOR_TARGETS)[number];
 export function getDefaultProjectEvaluatorFilterCondition(
   target: ProjectEvaluatorTarget
 ): string {
-  return target === "SPAN" ? DEFAULT_SPAN_FILTER_CONDITION : "";
+  switch (target) {
+    case "SPAN":
+      return DEFAULT_SPAN_FILTER_CONDITION;
+    case "SESSION":
+      return "";
+    case "TRACE":
+      // Trace evaluators are not authorable or schedulable yet. Their planned
+      // trace-level filter language should decide which traces match; choosing
+      // the root span as their evaluation input is a separate concern.
+      return "";
+    default:
+      return assertUnreachable(target);
+  }
 }
 
 /**
@@ -129,6 +141,26 @@ export type ProjectEvaluatorScope = {
   /** Only session evaluators schedule off this; see `toEvaluationDelayInput`. */
   evaluationDelaySeconds: number;
 };
+
+/**
+ * Moves a scope to a target and applies the filter that target starts with.
+ * @param params - Scope transition parameters.
+ * @param params.scope - Current scope whose target-independent settings persist.
+ * @param params.targetType - Target the scope is entering.
+ */
+export function withProjectEvaluatorTarget({
+  scope,
+  targetType,
+}: {
+  scope: ProjectEvaluatorScope;
+  targetType: ProjectEvaluatorTarget;
+}): ProjectEvaluatorScope {
+  return {
+    ...scope,
+    targetType,
+    filterCondition: getDefaultProjectEvaluatorFilterCondition(targetType),
+  };
+}
 
 /**
  * The delay half of a create or update input, spread in by every mutation that
