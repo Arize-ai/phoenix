@@ -99,7 +99,7 @@ def build_agent(
     # Whether externally-visible writes are possible at all this run: either
     # they bypass approval, or someone is present to approve them.
     writes_permitted = edit_permission == "bypass" or can_approve_mutations
-    allow_mutations = graphql_mutations_enabled and writes_permitted
+    allow_mutations = graphql_mutations_enabled and writes_permitted and not read_only
     require_mutation_approval = can_approve_mutations and edit_permission == "manual"
     tracer = build_agent_tracer(tracer_provider)
     capabilities: list[AbstractCapability[AgentDependencies]] = [

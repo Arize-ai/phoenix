@@ -24,6 +24,7 @@ from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
 from phoenix.server.api.context import Context
+from phoenix.server.api.schema_search import cached_index, search
 
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
@@ -54,7 +55,8 @@ should not be assumed to work.
 other host binaries exist.
 - Language runtimes such as python, python3, and node are not available.
 - phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
-Run `phoenix-gql --help` for usage and current permissions.
+`phoenix-gql schema <terms>` finds the types and fields to query; run \
+`phoenix-gql --help` for usage and current permissions.
 - Dataset reads go through here. `Query.datasets(filter: {col: name, value: "..."}, \
 first, after)` lists datasets (names are unique — check before a `ui.dataset.create`). \
 `node(id: <datasetId>) { ... on Dataset { examples(first, after) { edges { node { id \
@@ -145,8 +147,9 @@ def _format_graphql_errors(messages: list[str]) -> str:
 _HELP_TEXT_TEMPLATE: Template = Template(
     """\
 Usage: phoenix-gql [query] [options] [query-or-file]
+       phoenix-gql schema <terms | Type | Type.field | mutationName>
 
-Execute GraphQL operations against Phoenix.
+Execute GraphQL operations against Phoenix, or search its schema.
 
 {% if not mutations_enabled -%}
 Permissions: queries only (mutations are disabled).
@@ -159,7 +162,10 @@ executes for real, exactly once.
 Permissions: queries and mutations are ENABLED.
 {% endif %}
 Recommended flow:
-  1. start with a tiny query or an introspection query to confirm the schema
+  1. `phoenix-gql schema <terms>` to find the types and fields you need; name a
+     type, `Type.field`, or mutation to see it in full with how to reach it.
+     Search again with the return types and input types you see rather than
+     repeating the same terms
   2. add filters, sorting, and deeper fields only after the base query works
   3. keep mutations in their own bash call, separate from the queries that
      shaped them, so the user approves one clear change at a time
@@ -173,6 +179,8 @@ Options:
   --help                Show this help text
 
 Examples:
+  phoenix-gql schema span cost
+  phoenix-gql schema Experiment
   phoenix-gql '{ projects { edges { node { name } } } }'
   cat query.graphql | phoenix-gql --vars '{"id":"abc"}'
   phoenix-gql query.graphql --vars-file vars.json | jq '.data'
@@ -315,10 +323,19 @@ def create_phoenix_gql_builtin(
     mutation_policy: GraphQLMutationPolicy,
 ) -> Callable[[BuiltinContext], Awaitable[BuiltinResult]]:
     """Build the ``phoenix-gql`` custom shell command."""
+    # The compiled graphql-core schema, which carries the descriptions and
+    # deprecations the index renders; strawberry exposes it only as a
+    # private attribute and is pinned to an exact version.
+    index = cached_index(schema._schema, include_mutations=mutation_policy.allow_mutations)
 
     async def phoenix_gql(ctx: BuiltinContext) -> BuiltinResult:
         try:
-            parsed = _parse_args(list(ctx.argv))
+            argv = list(ctx.argv)
+            if argv and argv[0] == "schema":
+                return BuiltinResult(
+                    stdout=search(index, " ".join(argv[1:])) + "\n", stderr="", exit_code=0
+                )
+            parsed = _parse_args(argv)
 
             if parsed.show_help:
                 return BuiltinResult(
