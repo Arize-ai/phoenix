@@ -6,7 +6,7 @@ from functools import partial
 from importlib.metadata import version
 from random import getrandbits
 from secrets import token_hex
-from typing import Any, AsyncIterator, Awaitable, Callable, Iterator, Literal
+from typing import Any, AsyncIterator, Awaitable, Callable, Iterator, Literal, Optional
 
 import aiosqlite
 import httpx
@@ -19,6 +19,7 @@ from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import FastAPI
+from pydantic import SecretStr
 from pydantic_ai import RunContext
 from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
@@ -40,7 +41,9 @@ from phoenix.db.engines import (
 from phoenix.db.insertion.helpers import DataManipulation
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.app import _db, create_app
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
+from phoenix.server.redaction import Redactor
 from phoenix.server.types import BatchedCaller, DbSessionFactory
 from phoenix.trace.schemas import Span
 from tests.unit.graphql import AsyncGraphQLClient
@@ -73,6 +76,11 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line(
         "markers",
         "seeded_model_costs: sync the model cost manifest into the database during app startup",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_key_derivation: derive the encryption and redaction keys with the real PBKDF2 "
+        "rounds instead of the memoized ones",
     )
 
 
@@ -189,6 +197,45 @@ def _stub_model_cost_seeding(request: FixtureRequest, monkeypatch: pytest.Monkey
         return None
 
     monkeypatch.setattr("phoenix.db.facilitator._ensure_model_costs", _skip)
+
+
+_DERIVE_ENCRYPTION_KEY = EncryptionService._derive_encryption_key
+_DERIVE_REDACTION_KEY = Redactor._derive_key
+_MEMOIZED_ENCRYPTION_KEYS: dict[str, bytes] = {}
+_MEMOIZED_REDACTION_KEYS: dict[str, bytes] = {}
+
+
+def _memoized_encryption_key(secret: Optional[SecretStr]) -> bytes:
+    plaintext = secret.get_secret_value() if secret is not None else ""
+    if plaintext not in _MEMOIZED_ENCRYPTION_KEYS:
+        _MEMOIZED_ENCRYPTION_KEYS[plaintext] = _DERIVE_ENCRYPTION_KEY(secret)
+    return _MEMOIZED_ENCRYPTION_KEYS[plaintext]
+
+
+def _memoized_redaction_key(secret: SecretStr) -> bytes:
+    plaintext = secret.get_secret_value()
+    if plaintext not in _MEMOIZED_REDACTION_KEYS:
+        _MEMOIZED_REDACTION_KEYS[plaintext] = _DERIVE_REDACTION_KEY(secret)
+    return _MEMOIZED_REDACTION_KEYS[plaintext]
+
+
+@pytest.fixture(autouse=True)
+def _memoized_key_derivation(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``EncryptionService`` and ``Redactor`` each derive a Fernet key from the
+    secret with 600,000 PBKDF2 rounds, a deliberately slow key stretch that
+    every app pays twice at construction. Each derivation is a pure function
+    of the secret, so the worker memoizes
+    it per secret value: every app after the worker's first gets its keys for
+    free, and the keys are identical to the ones the real derivation returns.
+    A test that asserts on the derivation itself opts out with
+    ``@pytest.mark.real_key_derivation``."""
+    if request.node.get_closest_marker("real_key_derivation"):
+        return
+
+    monkeypatch.setattr(
+        EncryptionService, "_derive_encryption_key", staticmethod(_memoized_encryption_key)
+    )
+    monkeypatch.setattr(Redactor, "_derive_key", staticmethod(_memoized_redaction_key))
 
 
 @pytest.fixture(autouse=True)
