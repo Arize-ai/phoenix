@@ -19,6 +19,7 @@ from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import FastAPI
+from pydantic_ai import RunContext
 from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, StaticPool
@@ -37,6 +38,7 @@ from phoenix.db.engines import (
     set_sqlite_pragma,
 )
 from phoenix.db.insertion.helpers import DataManipulation
+from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
@@ -58,6 +60,11 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line(
         "markers",
         "real_agent_mcp_server: derive the agent's MCP server from the OpenAPI document",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_docs_mcp_server: build the real docs MCP toolset, which opens an HTTPS MCP "
+        "session to the Mintlify host during lifespan startup",
     )
     config.addinivalue_line(
         "markers",
@@ -99,6 +106,37 @@ def _mcp_mount_off(monkeypatch: pytest.MonkeyPatch) -> None:
     OpenAPI document, about half a second per app. Off suite-wide; the MCP
     tests patch ``get_env_enable_mcp_server`` on, which wins over the env var."""
     monkeypatch.setenv("PHOENIX_ENABLE_MCP_SERVER", "false")
+
+
+class OfflineDocsMCPServer(MintlifyDocsMCPServer):
+    """``MintlifyDocsMCPServer`` with the MCP transport short-circuited.
+
+    Overrides ``get_tools`` to return an empty tool dict and the async
+    context-manager protocol to no-op, so neither app startup nor an agent
+    run opens an HTTP session to the Mintlify endpoint.
+    """
+
+    async def get_tools(self, ctx: RunContext[Any]) -> dict[str, Any]:
+        return {}
+
+    async def __aenter__(self) -> "OfflineDocsMCPServer":
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+
+@pytest.fixture(autouse=True)
+def _stub_docs_mcp_server(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The agent assistant and external resources default on, so every app
+    builds the docs MCP toolset and lifespan startup opens an HTTPS MCP session
+    to the Mintlify host: a network round trip per app, bounded only by the
+    client's init deadline. Stubbed suite-wide with the offline toolset; tests
+    that need the real transport opt in with ``@pytest.mark.real_docs_mcp_server``."""
+    if request.node.get_closest_marker("real_docs_mcp_server"):
+        return
+
+    monkeypatch.setattr("phoenix.server.app.MintlifyDocsMCPServer", OfflineDocsMCPServer)
 
 
 @pytest.fixture(autouse=True)
