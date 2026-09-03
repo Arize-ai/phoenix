@@ -19,13 +19,33 @@ from typing_extensions import assert_never
 
 from phoenix.db.types.prompts import PromptTemplateFormat
 
+VariableType = Literal["string", "traversed", "section"]
+
+# A root named by more than one kind of token takes the widest of them: a section
+# and a traversal both read the value's structure, so neither can be a string.
+_VARIABLE_TYPE_PRECEDENCE: dict[VariableType, int] = {
+    "string": 0,
+    "traversed": 1,
+    "section": 2,
+}
+
+
+def _widen_variable_type(
+    variables: dict[str, VariableType], name: str, variable_type: VariableType
+) -> None:
+    current = variables.get(name)
+    if current is None or (
+        _VARIABLE_TYPE_PRECEDENCE[variable_type] > _VARIABLE_TYPE_PRECEDENCE[current]
+    ):
+        variables[name] = variable_type
+
 
 @dataclass(frozen=True)
 class ParsedVariable:
     """Represents a parsed template variable with type information."""
 
     name: str
-    variable_type: Literal["string", "section"]
+    variable_type: VariableType
 
 
 @dataclass
@@ -41,6 +61,10 @@ class ParsedVariables:
     def section_variables(self) -> set[str]:
         """Return names of variables expecting structured data."""
         return {v.name for v in self.variables if v.variable_type == "section"}
+
+    def traversed_variables(self) -> set[str]:
+        """Return names of variables a dotted token reads into, e.g. ``{{input.input}}``."""
+        return {v.name for v in self.variables if v.variable_type == "traversed"}
 
     def string_variables(self) -> set[str]:
         """Return names of variables expecting string data."""
@@ -299,6 +323,27 @@ class FStringTemplateFormatter(TemplateFormatter):
     def parse(self, template: str) -> set[str]:
         return set(field_name for _, field_name, _, _ in Formatter().parse(template) if field_name)
 
+    def parse_with_types(self, template: str) -> ParsedVariables:
+        """
+        Extract root variable names with type info from an f-string template.
+
+        A path variable like ``{reference.label}`` or ``{items[0]}`` names the
+        root (``reference``, ``items``) and types it as "traversed", since the
+        rest of the path is read off the root's structure.
+        """
+        variables: dict[str, VariableType] = {}
+        for field_name in self.parse(template):
+            root_name = _extract_root_variable(field_name)
+            _widen_variable_type(
+                variables, root_name, "string" if root_name == field_name else "traversed"
+            )
+        return ParsedVariables(
+            variables=frozenset(
+                ParsedVariable(name=name, variable_type=variable_type)
+                for name, variable_type in variables.items()
+            )
+        )
+
     # Shared formatter that blocks traversal into "private"/dunder attributes,
     # preventing format-string injection (e.g. {x.__class__.__init__.__globals__}).
     _formatter = _SafeFieldFormatter()
@@ -359,29 +404,32 @@ class MustacheTemplateFormatter(TemplateFormatter):
 
     def _extract_variables_from_parse_tree_with_types(
         self, parse_tree: list[Any]
-    ) -> dict[str, Literal["string", "section"]]:
+    ) -> dict[str, VariableType]:
         """
         Extract top-level variable names with type info from a pystache parse tree.
 
         Section variables ({{#name}} or {{^name}}) are typed as "section".
+        A dotted token ({{name.member}}) types its root as "traversed", since
+        Mustache reaches the member by walking the root's structure.
         Regular variables are typed as "string", including:
           - Escaped variables: {{name}}
           - Unescaped triple-brace: {{{name}}}
           - Unescaped ampersand: {{& name}}
         """
-        variables: dict[str, Literal["string", "section"]] = {}
+        variables: dict[str, VariableType] = {}
         for node in parse_tree:
             if isinstance(node, (_SectionNode, _InvertedNode)):
                 key = self._extract_key(node)
                 if key:
-                    root_name = self._get_root_variable_name(key)
-                    variables[root_name] = "section"
+                    _widen_variable_type(variables, self._get_root_variable_name(key), "section")
                 continue
             if isinstance(node, (_EscapeNode, _LiteralNode)):
                 key = self._extract_key(node)
                 if key:
                     root_name = self._get_root_variable_name(key)
-                    variables.setdefault(root_name, "string")
+                    _widen_variable_type(
+                        variables, root_name, "string" if root_name == key else "traversed"
+                    )
         return variables
 
     def parse(self, template: str) -> set[str]:

@@ -15,8 +15,8 @@ from phoenix.config import (
     ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE,
     ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
+    ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
     ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
-    ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -69,14 +69,14 @@ async def test_online_eval_daemons_absent_in_read_only_mode(db: DbSessionFactory
     ("env_name", "value"),
     [
         pytest.param(
-            ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
-            "255",
-            id="transcript-below-floor",
+            ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
+            "1023",
+            id="llm-message-below-floor",
         ),
         pytest.param(
-            ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+            ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
             "not-an-integer",
-            id="transcript-not-integer",
+            id="llm-message-not-integer",
         ),
         pytest.param(
             ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,

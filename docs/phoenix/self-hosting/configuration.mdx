@@ -109,7 +109,6 @@ The following environment variables will control how your phoenix server runs.
 | `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY` | `10` | Limits aggregate evaluator calls across both consumers per replica. |
 | `PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY` | `5` | Limits aggregate database phases across both consumers per replica. |
 | `PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS` | `5` | Sets the delay between claim cycles. Together with claim batch size, this bounds per-replica claim throughput. |
-| `PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES` | `32768` | Limits the UTF-8 size of the default rendered session transcript. Explicit structured-turn mappings are not truncated. Minimum: `256`. |
 | `PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES` | `65536` | Limits the aggregate UTF-8 size of the final rendered messages sent to an LLM provider. Minimum: `1024`. |
 | `PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES` | `65536` | Limits the UTF-8 size of the rendered span or session code-evaluator payload. Minimum: `1024`. |
 
