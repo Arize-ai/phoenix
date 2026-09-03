@@ -15,6 +15,9 @@ import { dslFilterBadgeGrowIn } from "../styles";
 export const aiQueryFilterFieldCSS = css`
   flex: 1 1 auto;
   min-width: 0;
+  /* The gradient hugs the field's border — the outline's default standoff
+     gap reads as a detached double border on an input */
+  --ai-outline-gap: 0px;
   &[data-state="idle"] .ai-outline__stroke {
     opacity: 0;
   }
@@ -39,7 +42,7 @@ export const aiQueryFilterFieldCSS = css`
   .dsl-filter-condition-field[data-variant="prose"] {
     border-color: transparent;
     &:has(.cm-content:focus-visible) {
-      outline-color: transparent;
+      outline: none;
     }
   }
   /* The converting glyph keeps the resting glyph's footprint (no layout
