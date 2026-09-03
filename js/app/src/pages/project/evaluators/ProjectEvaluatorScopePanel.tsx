@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type { ComponentProps, ComponentType, ReactNode } from "react";
 import {
   Suspense,
+  useDeferredValue,
   useEffect,
   useEffectEvent,
   useMemo,
@@ -226,7 +227,21 @@ export const ProjectEvaluatorScopePanel = (
   const { projectId, scope, codeEvaluatorId, inlineCode, requiredVariables } =
     props;
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
-  const mappingSourceGrain = toEvaluatorMappingSourceGrain(scope.targetType);
+  const previewScope = useMemo(
+    () => ({
+      targetType: scope.targetType,
+      filterCondition: scope.filterCondition,
+    }),
+    [scope.filterCondition, scope.targetType]
+  );
+  const deferredPreviewScope = useDeferredValue(previewScope);
+  // A filter edit or target change commits a new preview scope. Deferring the
+  // target and condition together keeps the current count and rows visible
+  // without sending one target's filter language to the other's queries.
+  const filterCondition = deferredPreviewScope.filterCondition;
+  const mappingSourceGrain = toEvaluatorMappingSourceGrain(
+    deferredPreviewScope.targetType
+  );
   const scopeFields = props.showScopeFields !== false ? props : null;
   // The run list below the Suspense boundary owns the records and the run
   // machinery; it hands the header's Test All button the latest run-all
@@ -252,7 +267,7 @@ export const ProjectEvaluatorScopePanel = (
   const records = `${mappingSourceGrain}s`;
   const runListProps: RecordRunListProps = {
     projectId,
-    filterCondition: scope.filterCondition,
+    filterCondition,
     timeWindow,
     codeEvaluatorId,
     inlineCode,
@@ -323,7 +338,7 @@ export const ProjectEvaluatorScopePanel = (
           >
             <CountLine
               projectId={projectId}
-              filterCondition={scope.filterCondition}
+              filterCondition={filterCondition}
               timeWindow={timeWindow}
             />
           </Suspense>
