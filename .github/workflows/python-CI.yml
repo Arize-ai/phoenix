@@ -63,6 +63,9 @@ jobs:
               - "evals/**"
               - "src/**"
               - "tests/**"
+              # Mirrors the online-eval bound-variable vocabulary; a test here
+              # holds the two lists together, so edits to it must run this suite.
+              - "js/app/src/pages/project/evaluators/evaluatorBoundVariables.ts"
               - "tutorials/**"
               - "pyproject.toml"
             phoenix_client:
@@ -778,6 +781,7 @@ jobs:
             tests/conftest.py
             tests/__generated__/
             tests/__init__.py
+            js/app/src/pages/project/evaluators/
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
