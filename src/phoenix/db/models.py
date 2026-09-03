@@ -197,13 +197,9 @@ GenerativeModelSDK: TypeAlias = Literal[
     "aws_bedrock",
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
-# ERROR is a retry in cooldown; FAILED spent its retry budget; EXPIRED was retired without
-# an evaluation; SUPERSEDED was retired because its evaluator's configuration changed
-# under it. Sets and schema predicates live in phoenix.db.eval_work.
 EvalWorkStatus: TypeAlias = Literal[
     "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "SUPERSEDED"
 ]
-# CONTENT_LOST: the session's traces were deleted before the evaluation ran.
 EvalSessionWorkStatus: TypeAlias = Literal[
     "PENDING",
     "RUNNING",

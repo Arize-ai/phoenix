@@ -114,8 +114,6 @@ class HydrationFailureReason(str, Enum):
     EVALUATOR_MISSING = "EVALUATOR_MISSING"
     EVALUATOR_VERSION_MISSING = "EVALUATOR_VERSION_MISSING"
     SANDBOX_RUNTIME_UNAVAILABLE = "SANDBOX_RUNTIME_UNAVAILABLE"
-    # Retires the unit as SUPERSEDED rather than EXPIRED, so a project evaluator edited
-    # and reverted re-materializes rather than staying terminal.
     CONFIG_FINGERPRINT_MISMATCH = STALE_FINGERPRINT_ERROR
     SPAN_MISSING = "SPAN_MISSING"
     SESSION_MISSING = "SESSION_MISSING"

@@ -11,9 +11,6 @@ Work-unit lifecycle:
                        RUNNING --release--> PENDING
     RUNNING (lease lapsed) --> reclaimable, or FAILED when no attempts remain
     ERROR (cooldown elapsed) --> retried
-
-Every status is an outcome or a stage on its own; no reader needs ``attempts`` or the
-``error`` text to tell them apart.
 """
 
 from __future__ import annotations
@@ -32,8 +29,6 @@ LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
 LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
 
-# How a unit is retired without an evaluation. SUPERSEDED is revived by the producer if
-# the evaluator's configuration reverts; the other two stay retired.
 RetiredWorkStatus = Literal["EXPIRED", "SUPERSEDED", "CONTENT_LOST"]
 
 PublicationWrite = Callable[[AsyncSession], Awaitable[None]]

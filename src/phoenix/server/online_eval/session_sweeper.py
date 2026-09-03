@@ -190,8 +190,6 @@ def _eligible_pairs_statement(
             terminal_work.project_session_rowid == models.ProjectSession.id,
             terminal_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             terminal_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
-            # Every outcome except SUPERSEDED: the configuration changed under that
-            # one, so it decided nothing about this content.
             terminal_work.status.in_(
                 ("DONE", "FAILED", "EXPIRED", "CONTENT_LOST", *SESSION_DECLINED_STATUSES)
             ),
