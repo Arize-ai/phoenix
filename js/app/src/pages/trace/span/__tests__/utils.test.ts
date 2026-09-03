@@ -35,7 +35,7 @@ describe("getLLMAttributes", () => {
       provider: null,
       inputMessages: [],
       outputMessages: [],
-      toolSchemas: [],
+      tools: [],
       prompts: [],
       promptTemplate: null,
       invocationParameters: "{}",
@@ -52,7 +52,16 @@ describe("getLLMAttributes", () => {
           { message: { role: "assistant", content: "hi" } },
         ],
         output_messages: [{ message: { role: "assistant", content: "hi" } }],
-        tools: [{ tool: { json_schema: '{"name": "search"}' } }, { tool: {} }],
+        tools: [
+          {
+            tool: {
+              name: "search",
+              description: "Search the web",
+              json_schema: '{"type": "object"}',
+            },
+          },
+          { tool: {} },
+        ],
         prompts: ["prompt one", "prompt two"],
         prompt_template: {
           template: "Hello {name}",
@@ -69,7 +78,13 @@ describe("getLLMAttributes", () => {
         { role: "assistant", content: "hi" },
       ],
       outputMessages: [{ role: "assistant", content: "hi" }],
-      toolSchemas: ['{"name": "search"}'],
+      tools: [
+        {
+          name: "search",
+          description: "Search the web",
+          jsonSchema: '{"type": "object"}',
+        },
+      ],
       prompts: ["prompt one", "prompt two"],
       promptTemplate: {
         template: "Hello {name}",
@@ -98,8 +113,12 @@ describe("getLLMAttributes", () => {
         ],
       },
     });
-    expect(result.toolSchemas).toEqual([
-      '{"name":"search","parameters":{"type":"object"}}',
+    expect(result.tools).toEqual([
+      {
+        name: null,
+        description: null,
+        jsonSchema: '{"name":"search","parameters":{"type":"object"}}',
+      },
     ]);
   });
 

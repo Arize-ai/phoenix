@@ -31,6 +31,7 @@ import { LLMPromptTemplate } from "./LLMPromptTemplate";
 import { LLMToolSchemasList } from "./LLMToolSchemasList";
 import { MimeTypeCodeBlock } from "./MimeTypeCodeBlock";
 import type { SpanIOValue } from "./types";
+import type { LLMToolDefinition } from "./utils";
 import {
   formatJSONForCopy,
   formatJSONStringsForCopy,
@@ -97,20 +98,20 @@ function getLLMInputCopyText({
   view,
   input,
   inputMessages,
-  toolSchemas,
+  tools,
   prompts,
 }: {
   view: LLMIOView["id"] | null | undefined;
   input: SpanIOValue | null;
   inputMessages: AttributeMessage[];
-  toolSchemas: string[];
+  tools: LLMToolDefinition[];
   prompts: string[];
 }): string | null {
   switch (view) {
     case "input-messages":
       return formatJSONForCopy(inputMessages);
     case "tools":
-      return formatJSONStringsForCopy(toolSchemas);
+      return formatJSONStringsForCopy(tools.map((tool) => tool.jsonSchema));
     case "input":
       return input?.value ?? null;
     case "prompts":
@@ -125,7 +126,7 @@ export function LLMInput({
   provider,
   input,
   inputMessages,
-  toolSchemas,
+  tools,
   promptTemplate,
   prompts,
   invocationParameters,
@@ -137,14 +138,14 @@ export function LLMInput({
   /** The raw input value of the span */
   input: SpanIOValue | null;
   inputMessages: AttributeMessage[];
-  /** The JSON schemas of the tools available to the LLM */
-  toolSchemas: string[];
+  /** The tools available to the LLM */
+  tools: LLMToolDefinition[];
   promptTemplate: AttributePromptTemplate | null;
   prompts: string[];
   /** The invocation parameters as a JSON string */
   invocationParameters: string;
 }) {
-  const toolCount = toolSchemas.length;
+  const toolCount = tools.length;
   const subTitleEl = getLLMInputSubtitle({ modelName, provider, toolCount });
 
   const hasInput = input != null && input.value != null;
@@ -199,7 +200,7 @@ export function LLMInput({
     view,
     input,
     inputMessages,
-    toolSchemas,
+    tools,
     prompts,
   });
 
@@ -236,7 +237,7 @@ export function LLMInput({
             leadingItems={messageLeadingItems}
           />
         )}
-        {view === "tools" && <LLMToolSchemasList toolSchemas={toolSchemas} />}
+        {view === "tools" && <LLMToolSchemasList tools={tools} />}
         {isRawView && <MimeTypeCodeBlock {...input} />}
         {view === "prompts" && <LLMPromptsList prompts={prompts} />}
       </Card>
