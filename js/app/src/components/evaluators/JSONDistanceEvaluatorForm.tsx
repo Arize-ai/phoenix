@@ -77,7 +77,6 @@ export const JSONDistanceEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="expected"
           label="Expected"
-          description="The expected JSON string."
           control={control}
           getValues={getValues}
           setValue={setValue}
@@ -91,7 +90,6 @@ export const JSONDistanceEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="actual"
           label="Actual"
-          description="The actual JSON string to compare."
           control={control}
           getValues={getValues}
           setValue={setValue}

@@ -1,8 +1,9 @@
 import {
-  dropReferencePathMappings,
+  dropOtherGrainEntityPathMappings,
   formatProjectEvaluatorRunCounts,
   getProjectEvaluatorMappingDiagnostics,
   getProjectEvaluatorStatus,
+  isSameInputMapping,
   toProjectEvaluatorSamplingFraction,
 } from "../projectEvaluatorTypes";
 
@@ -51,28 +52,6 @@ describe("formatProjectEvaluatorRunCounts", () => {
   });
 });
 
-describe("dropReferencePathMappings", () => {
-  it("drops only reference-rooted paths", () => {
-    expect(
-      dropReferencePathMappings({
-        literalMapping: { rubric: "helpfulness" },
-        pathMapping: {
-          direct: "reference",
-          nested: "reference.answer",
-          similarPrefix: "referenceX.answer",
-          input: "input.question",
-        },
-      })
-    ).toEqual({
-      literalMapping: { rubric: "helpfulness" },
-      pathMapping: {
-        similarPrefix: "referenceX.answer",
-        input: "input.question",
-      },
-    });
-  });
-});
-
 describe("toProjectEvaluatorSamplingFraction", () => {
   it.each([
     [-10, 0],
@@ -109,22 +88,31 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
         variable: "question",
         path: "input.question",
         status: "resolved",
+        source: "path",
       },
-      { variable: "answer", path: "answer", status: "resolved" },
+      {
+        variable: "answer",
+        path: "answer",
+        status: "resolved",
+        source: "context",
+      },
       {
         variable: "missing",
         path: "output.missing",
         status: "missing",
+        source: "path",
       },
       {
         variable: "bracketed",
         path: "metadata['custom-key']",
         status: "resolved",
+        source: "path",
       },
       {
         variable: "complex",
         path: "metadata[*]",
         status: "unverified",
+        source: "path",
       },
     ]);
   });
@@ -138,12 +126,143 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
         requiredVariables: ["output"],
       })
     ).toEqual([
-      { variable: "output", path: "output", status: "resolved" },
+      {
+        variable: "output",
+        path: "output",
+        status: "resolved",
+        source: "context",
+      },
       {
         variable: "reference",
         path: "reference",
         status: "optional-missing",
+        source: "context",
       },
     ]);
+  });
+
+  // An unmapped variable binds from a top-level field of the same name, never
+  // by walking into the context, which is what the server does when it runs.
+  it("does not resolve an unmapped variable by walking into the context", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { metadata: { turns: [] } },
+        pathMapping: {},
+        variables: ["metadata.turns"],
+      })
+    ).toEqual([
+      {
+        variable: "metadata.turns",
+        path: "metadata.turns",
+        status: "missing",
+        source: "context",
+      },
+    ]);
+  });
+
+  // Binding is the three top-level names and nothing else, so a record name
+  // reaches the evaluator only through a path that maps it.
+  it("fails an unmapped record name, and resolves the path that maps it", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { input: "hi", output: "hello", metadata: { latency_ms: 12 } },
+        pathMapping: {},
+        variables: ["latency_ms"],
+      })
+    ).toEqual([
+      {
+        variable: "latency_ms",
+        path: "latency_ms",
+        status: "missing",
+        source: "context",
+      },
+    ]);
+
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { input: "hi", output: "hello", metadata: { latency_ms: 12 } },
+        pathMapping: { latency_ms: "metadata.latency_ms" },
+        variables: ["latency_ms"],
+      })
+    ).toEqual([
+      {
+        variable: "latency_ms",
+        path: "metadata.latency_ms",
+        status: "resolved",
+        source: "path",
+      },
+    ]);
+  });
+});
+
+describe("dropOtherGrainEntityPathMappings", () => {
+  it("drops paths rooted at the record kind the evaluator no longer runs on", () => {
+    expect(
+      dropOtherGrainEntityPathMappings(
+        {
+          literalMapping: { rubric: "helpfulness" },
+          pathMapping: {
+            whole: "metadata.attributes",
+            nested: "metadata.attributes.llm.model_name",
+            bracketed: "metadata.attributes['a.b']",
+            scalar: "metadata.latency_ms",
+            similarPrefix: "metadata.attributesX.name",
+            shared: "metadata.start_time",
+            kept: "metadata.turns[0].input",
+            slot: "metadata.first_input",
+          },
+        },
+        "session"
+      )
+    ).toEqual({
+      literalMapping: { rubric: "helpfulness" },
+      pathMapping: {
+        similarPrefix: "metadata.attributesX.name",
+        shared: "metadata.start_time",
+        kept: "metadata.turns[0].input",
+        slot: "metadata.first_input",
+      },
+    });
+  });
+
+  it("drops session-rooted paths when the evaluator moves to spans", () => {
+    expect(
+      dropOtherGrainEntityPathMappings(
+        {
+          literalMapping: {},
+          pathMapping: {
+            stale: "metadata.turns[0].input",
+            kept: "metadata.attributes",
+          },
+        },
+        "span"
+      )
+    ).toEqual({
+      literalMapping: {},
+      pathMapping: { kept: "metadata.attributes" },
+    });
+  });
+});
+
+describe("isSameInputMapping", () => {
+  it("reads the store's copy of a stored mapping as unchanged", () => {
+    // The store merges a loaded mapping onto defaults that list `literalMapping`
+    // first, so its copy of an untouched mapping serializes differently from the
+    // value that was loaded. Comparing the two as strings reported an edit on a
+    // form nobody touched, which wrote an empty mapping over a stored `null`.
+    const loaded = { pathMapping: {}, literalMapping: {} };
+    const storeCopy = { literalMapping: {}, pathMapping: {} };
+    expect(JSON.stringify(loaded)).not.toEqual(JSON.stringify(storeCopy));
+    expect(isSameInputMapping(storeCopy, loaded)).toBe(true);
+
+    expect(
+      isSameInputMapping(
+        {
+          literalMapping: {},
+          pathMapping: { output: "metadata.attributes" },
+        },
+        loaded
+      )
+    ).toBe(false);
   });
 });

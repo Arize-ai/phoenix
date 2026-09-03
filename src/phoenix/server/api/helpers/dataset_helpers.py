@@ -11,9 +11,10 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
+from strawberry.relay.types import GlobalID
 from typing_extensions import NotRequired
 
-from phoenix.db.models import Span
+from phoenix.db.models import Span, SpanAnnotation, User
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -76,6 +77,61 @@ def get_dataset_example_output(span: Span) -> dict[str, Any]:
             output_mime_type=output_mime_type,
         )
     return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
+
+
+def get_dataset_example_metadata(
+    span: Span,
+    *,
+    trace_id: str,
+    annotations: Sequence[SpanAnnotation],
+) -> dict[str, Any]:
+    """The example ``metadata`` for a span: the span's own ``metadata`` attribute
+    spread flat, the filter language's span scalars, and the record fields.
+    Shared by the span→example converter, the evaluation context, and the
+    example-revision preview, so all three agree on shape.
+    """
+    user_metadata = get_attribute_value(span.attributes, SpanAttributes.METADATA)
+    return {
+        **(user_metadata if isinstance(user_metadata, Mapping) else {}),
+        "span_id": span.span_id,
+        "trace_id": trace_id,
+        "parent_id": span.parent_id,
+        "name": span.name,
+        "span_kind": span.span_kind,
+        "status_code": span.status_code,
+        "status_message": span.status_message,
+        "latency_ms": span.latency_ms,
+        "cumulative_llm_token_count_prompt": span.cumulative_llm_token_count_prompt,
+        "cumulative_llm_token_count_completion": span.cumulative_llm_token_count_completion,
+        "cumulative_llm_token_count_total": span.cumulative_llm_token_count_total,
+        "start_time": span.start_time.isoformat(),
+        "end_time": span.end_time.isoformat(),
+        "attributes": span.attributes,
+        "events": span.events,
+        "annotations": get_span_annotations_by_name(annotations),
+    }
+
+
+def get_span_annotations_by_name(
+    annotations: Sequence[SpanAnnotation],
+) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for annotation in sorted(annotations, key=lambda a: a.id):
+        grouped.setdefault(annotation.name, []).append(
+            {
+                "label": annotation.label,
+                "score": annotation.score,
+                "explanation": annotation.explanation,
+                "metadata": annotation.metadata_,
+                "annotator_kind": annotation.annotator_kind,
+                "user_id": str(GlobalID(User.__name__, str(user_id)))
+                if (user_id := annotation.user_id) is not None
+                else None,
+                "username": user.username if (user := annotation.user) is not None else None,
+                "email": user.email if user is not None else None,
+            }
+        )
+    return grouped
 
 
 def get_experiment_example_output(span: Span) -> dict[str, Any]:
