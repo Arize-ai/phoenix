@@ -16,7 +16,7 @@ from sqlalchemy.sql.elements import ColumnElement
 if TYPE_CHECKING:
     from phoenix.db import models
 
-DEFAULT_SESSION_EVALUATION_DELAY_SECONDS = 300
+DEFAULT_EVALUATION_DELAY_SECONDS = 300
 MINIMUM_EVALUATION_DELAY_SECONDS = 10
 
 # What to do about an over-limit sandbox payload. Shared with the preview
