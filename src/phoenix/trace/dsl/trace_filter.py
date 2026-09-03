@@ -220,8 +220,9 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
 
 
 def _element_column(source: typing.Any, name: str, spec: _IterableSpec) -> typing.Any:
-    column = getattr(source, spec.fields[name].attribute)
-    return func.upper(column) if name in spec.uppercase_fields else column
+    # The literal side is uppercased via ``uppercase_names``; the column is compared
+    # bare so PostgreSQL keeps its statistics for it, matching the session grain.
+    return getattr(source, spec.fields[name].attribute)
 
 
 def _element_bindings(spec: _IterableSpec) -> _FilterBindings:
