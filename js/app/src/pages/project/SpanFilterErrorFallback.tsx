@@ -1,7 +1,5 @@
 import { DSLFilterErrorFallback } from "./DSLFilterErrorFallback";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
-import { isKnownRootSpanCondition } from "./spanFilterRootScopeConstants";
-import { useSpanFilterCondition } from "./SpanFiltersContext";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
 export function SpanFilterErrorFallback({
@@ -11,13 +9,8 @@ export function SpanFilterErrorFallback({
   error?: string | null;
   onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
 }) {
-  const filterCondition = useSpanFilterCondition();
-  // Root-span predicates are written by this app and a tab defaults to one, so
-  // a non-empty condition is not evidence that anyone filtered.
-  const hasUserFilter =
-    filterCondition.trim() !== "" && !isKnownRootSpanCondition(filterCondition);
   return (
-    <DSLFilterErrorFallback error={error} hasUserFilter={hasUserFilter}>
+    <DSLFilterErrorFallback error={error}>
       <SpanFilterConditionField
         onValidCondition={({
           condition,

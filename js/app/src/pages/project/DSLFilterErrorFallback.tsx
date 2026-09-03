@@ -17,12 +17,9 @@ function truncate(error: string) {
  */
 export function DSLFilterErrorFallback({
   error,
-  hasUserFilter,
   children,
 }: {
   error?: string | null;
-  /** Whether someone wrote the condition, as opposed to a default this app seeded */
-  hasUserFilter: boolean;
   children: ReactNode;
 }) {
   return (
@@ -39,10 +36,8 @@ export function DSLFilterErrorFallback({
         {children}
       </View>
       <Alert variant="danger" banner>
-        This view could not be loaded.
-        {hasUserFilter
-          ? " The filter above is a likely cause — comparing values of different types is the most common. Editing it reloads the view."
-          : " Editing the filter above reloads the view."}
+        This view could not be loaded. Editing the filter above reloads the
+        view.
         {error ? (
           <View paddingTop="size-50">
             <Text size="S" color="text-700">
