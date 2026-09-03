@@ -15,12 +15,12 @@ recognizes it. This keeps the caller's token spendable only where it was
 presented — a prerequisite for enforcing RFC 8707 audience at ``/v1``, since no
 legitimate ``/v1`` traffic carries an ``/mcp``-audience token.
 
-The ``/v1`` API has ~70 operations, which is far too many tools to advertise at
-once without degrading tool selection and wasting context. Code mode is the
-answer: it replaces the per-endpoint surface with a handful of discovery tools
-plus a sandboxed ``execute``, so the catalog a model reads stays small no matter
-how many endpoints exist. It is the default for both consumers. With code mode
-off, every ``/v1`` operation is advertised as its own tool.
+Advertising one tool per ``/v1`` operation degrades tool selection and wastes
+context at this API's size. Code mode is the answer: it replaces the
+per-endpoint surface with a few discovery tools plus a sandboxed ``execute``, so
+the catalog a model reads stays small however many endpoints exist. It is the
+default for both consumers. With code mode off, every ``/v1`` operation is
+advertised as its own tool.
 """
 
 from __future__ import annotations
@@ -151,10 +151,10 @@ def _strip_schema_titles(node: Any) -> None:
     """Recursively remove auto-generated ``title`` keys from a JSON schema.
 
     Pydantic stamps a ``title`` on every field (``"Sync"`` for ``sync``) that only
-    repeats the property name. Across a catalog these dominate the schema an agent must
-    read — one ``get_schema(detail="full")`` on two tools returned 512 ``title`` keys
-    against 14 ``description`` keys. Types, enums, descriptions, and required markers
-    are preserved.
+    repeats the property name. They outnumber the descriptions an agent actually
+    needs by more than an order of magnitude, so across a catalog they dominate the
+    schema it must read. Types, enums, descriptions, and required markers are
+    preserved.
     """
     if isinstance(node, dict):
         node.pop("title", None)

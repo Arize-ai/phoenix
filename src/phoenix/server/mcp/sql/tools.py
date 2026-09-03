@@ -97,9 +97,9 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         f"{BYTE_LIMIT} bytes per row; {MAX_RESPONSE_BYTES} per response; {backstop} deadline."
     )
     lines.append("-- Not snapshot-isolated: identical SQL may differ under concurrent ingestion.")
-    # Said once rather than on each of the ~25 places these appear. They behave
-    # as columns everywhere a column works, so the only thing worth knowing is
-    # that they are computed per row and therefore never indexed.
+    # Said once rather than on every table they appear in. They behave as columns
+    # everywhere a column works, so the only thing worth knowing is that they are
+    # computed per row and therefore never indexed.
     lines.append(
         "-- latency_ms and graphql_node_id are virtual: computed per row, not stored or "
         "indexed. Predicates on them evaluate their expression and cannot use a direct index. "
