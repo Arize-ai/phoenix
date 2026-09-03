@@ -10,14 +10,14 @@ import { jsonStringToFlatObject } from "@phoenix/utils/jsonUtils";
 type MetadataTableCellProps = {
   metadata: unknown;
   /**
-   * Called with a filter DSL condition when the user picks a metadata value to filter on
+   * Called with a filter DSL condition when the user presses the label or a "Match" button in the tooltip
    */
-  onValidFilterCondition: (condition: string) => void;
+  onFilterConditionPressed: (condition: string) => void;
 };
 
 export const MetadataTableCell = ({
   metadata,
-  onValidFilterCondition,
+  onFilterConditionPressed,
 }: MetadataTableCellProps) => {
   // Try to parse the metadata and stringify it
   // This is intended to work with object metadata but will technically work for arrays as well
@@ -50,7 +50,7 @@ export const MetadataTableCell = ({
       <MetadataTooltip
         width="800px"
         metadata={parsedMetadata}
-        onValidFilterCondition={onValidFilterCondition}
+        onFilterConditionPressed={onFilterConditionPressed}
       >
         <MetadataLabel
           metadata={stringifiedMetadata}
@@ -61,7 +61,7 @@ export const MetadataTableCell = ({
               key,
               value
             );
-            onValidFilterCondition(filterCondition);
+            onFilterConditionPressed(filterCondition);
           }}
         />
       </MetadataTooltip>

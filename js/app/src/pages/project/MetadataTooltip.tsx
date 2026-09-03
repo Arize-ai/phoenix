@@ -33,16 +33,16 @@ type MetadataTooltipProps = {
   metadata: Record<string, string | number | boolean>;
   width?: CSSProperties["width"];
   /**
-   * Called with a filter DSL condition when the user clicks a "Match" button
+   * Called with a filter DSL condition when the user presses a "Match" button
    */
-  onValidFilterCondition: (condition: string) => void;
+  onFilterConditionPressed: (condition: string) => void;
 };
 
 export function MetadataTooltip({
   children,
   metadata,
   width,
-  onValidFilterCondition,
+  onFilterConditionPressed,
 }: MetadataTooltipProps) {
   const entries = Object.entries(metadata).map(([key, value]) => ({
     key,
@@ -124,7 +124,7 @@ export function MetadataTooltip({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        onValidFilterCondition(filterCondition);
+                        onFilterConditionPressed(filterCondition);
                       }}
                       css={css`
                         all: unset;
