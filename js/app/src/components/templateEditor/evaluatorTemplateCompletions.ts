@@ -198,9 +198,9 @@ function getRootOptions({
       ...(candidate.info ? { info: candidate.info } : {}),
       section: candidate.section,
       boost: candidate.boost,
-      // One of the evaluator's own inputs is accepted whole even when it holds
-      // an object: `{{input}}` is the common case, and its members have rows of
-      // their own.
+      // One of the evaluator's own inputs is a finished variable even when it
+      // holds an object: `{{input}}` is the common case, and its members have
+      // rows of their own.
       apply: applyTemplateInsertion(
         candidate.label,
         closingBrackets,
@@ -465,10 +465,11 @@ function getSectionItem({
 /**
  * Writes a name into the variable, closing it if the braces are not there.
  *
- * A nested object is a finished variable that can also go on: the cursor stays
- * before the braces and the menu reopens on the name with what it holds. A
- * leaf is accepted whole, with the cursor past the braces where the prose
- * continues.
+ * The cursor stays at the end of the name, inside the braces, as it does in
+ * any code editor: leaving is the author's act — Right, End, or typing the
+ * braces over the ones already there — and a name that holds more reopens the
+ * menu on itself. Braces already there are left in place rather than written
+ * again, so the editor still knows it closed them and types over them.
  */
 function applyTemplateInsertion(
   insertText: string,
@@ -485,18 +486,10 @@ function applyTemplateInsertion(
       to,
       Math.min(to + closingBrackets.length, view.state.doc.length)
     );
-    const actualTo =
-      afterCursor === closingBrackets ? to + closingBrackets.length : to;
+    const closing = afterCursor === closingBrackets ? "" : closingBrackets;
     view.dispatch({
-      changes: {
-        from,
-        to: actualTo,
-        insert: `${insertText}${closingBrackets}`,
-      },
-      selection: {
-        anchor:
-          from + insertText.length + (drills ? 0 : closingBrackets.length),
-      },
+      changes: { from, to, insert: `${insertText}${closing}` },
+      selection: { anchor: from + insertText.length },
     });
     if (drills) {
       startCompletion(view);

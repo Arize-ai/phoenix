@@ -233,9 +233,9 @@ describe("getEvaluatorTemplateCompletions", () => {
     ).toEqual([true, true, false, false]);
     expect(
       applyCompletion({ before: "{{latency", label: "metadata.latency_ms" })
-    ).toEqual({ doc: "{{metadata.latency_ms}}", head: 23 });
-    // The braces are already there, so the row takes them back with it rather
-    // than writing a second pair.
+    ).toEqual({ doc: "{{metadata.latency_ms}}", head: 21 });
+    // The braces are already there, so the row writes in front of them rather
+    // than adding a second pair.
     expect(
       applyCompletion({
         before: "{{latency",
@@ -245,16 +245,17 @@ describe("getEvaluatorTemplateCompletions", () => {
     ).toBe("{{metadata.latency_ms}}");
   });
 
-  it("keeps the cursor inside a nested object and closes everything else", () => {
-    // A record's object is a variable that can still go on: the cursor stays
-    // before the braces, with no dot written for the author to take back.
+  it("leaves the cursor at the end of the name, inside the braces, for every row", () => {
+    // A record's object is a variable that can still go on: no dot is written
+    // for the author to take back, and the menu reopens on the name.
     expect(
       applyCompletion({ before: "{{attr", label: "metadata.attributes" })
     ).toEqual({ doc: "{{metadata.attributes}}", head: 21 });
-    // One of the evaluator's own inputs is accepted whole, object or not.
+    // One of the evaluator's own inputs is a finished variable, object or not,
+    // and the cursor still stays where the name ends.
     expect(applyCompletion({ before: "{{inp", label: "input" })).toEqual({
       doc: "{{input}}",
-      head: 9,
+      head: 7,
     });
   });
 
@@ -272,16 +273,17 @@ describe("getEvaluatorTemplateCompletions", () => {
     expect(typed?.options[1]).toMatchObject({
       section: { name: "metadata.attributes.llm" },
     });
-    // The name itself is already written, so its row closes the variable.
+    // The name itself is already written, so its row ends the variable
+    // without reopening the menu.
     expect(
       applyCompletion({ before: "{{metadata.attributes.llm", label: "llm" })
-    ).toEqual({ doc: "{{metadata.attributes.llm}}", head: 27 });
+    ).toEqual({ doc: "{{metadata.attributes.llm}}", head: 25 });
     expect(
       applyCompletion({
         before: "{{metadata.attributes.llm",
         label: "llm.model_name",
       })
-    ).toEqual({ doc: "{{metadata.attributes.llm.model_name}}", head: 38 });
+    ).toEqual({ doc: "{{metadata.attributes.llm.model_name}}", head: 36 });
   });
 
   it("drills a level per dot in both formats", () => {
@@ -312,7 +314,7 @@ describe("getEvaluatorTemplateCompletions", () => {
         label: "metadata.latency_ms",
         templateFormat: TemplateFormats.FString,
       })
-    ).toEqual({ doc: "{metadata.latency_ms}", head: 21 });
+    ).toEqual({ doc: "{metadata.latency_ms}", head: 20 });
   });
 
   // A record name is offered by its whole path, so the dot that opens it has
