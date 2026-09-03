@@ -1,11 +1,58 @@
+import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
+
 import {
   dropOtherGrainEntityPathMappings,
   formatProjectEvaluatorRunCounts,
+  getDefaultProjectEvaluatorFilterCondition,
   getProjectEvaluatorMappingDiagnostics,
   getProjectEvaluatorStatus,
   isSameInputMapping,
+  PROJECT_EVALUATOR_TARGETS,
   toProjectEvaluatorSamplingFraction,
+  type ProjectEvaluatorTarget,
+  withProjectEvaluatorTarget,
 } from "../projectEvaluatorTypes";
+
+const EXPECTED_DEFAULT_FILTER_BY_TARGET = {
+  SPAN: DEFAULT_SPAN_FILTER_CONDITION,
+  SESSION: "",
+  TRACE: "",
+} as const satisfies Record<ProjectEvaluatorTarget, string>;
+
+describe("getDefaultProjectEvaluatorFilterCondition", () => {
+  it.each(PROJECT_EVALUATOR_TARGETS)(
+    "returns the creation default for %s evaluators",
+    (targetType) => {
+      expect(getDefaultProjectEvaluatorFilterCondition(targetType)).toBe(
+        EXPECTED_DEFAULT_FILTER_BY_TARGET[targetType]
+      );
+    }
+  );
+});
+
+describe("withProjectEvaluatorTarget", () => {
+  it.each(PROJECT_EVALUATOR_TARGETS)(
+    "changes the target to %s, resets its filter, and preserves other settings",
+    (targetType) => {
+      expect(
+        withProjectEvaluatorTarget({
+          scope: {
+            targetType: "SESSION",
+            filterCondition: "custom filter",
+            samplingRate: 0.25,
+            evaluationDelaySeconds: 90,
+          },
+          targetType,
+        })
+      ).toEqual({
+        targetType,
+        filterCondition: EXPECTED_DEFAULT_FILTER_BY_TARGET[targetType],
+        samplingRate: 0.25,
+        evaluationDelaySeconds: 90,
+      });
+    }
+  );
+});
 
 const runSummary = {
   status: "HEALTHY",
