@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<43f898c03a309fbd942be0a3aa8e982e>>
+ * @generated SignedSource<<e84bae7f26625170d5a6fe7d1e03f8f0>>
  * @lightSyntaxTransform
  */
 
@@ -17,7 +17,7 @@ export type projectEvaluatorOptions_llmEvaluatorDetails$data = {
   readonly description: string | null;
   readonly id: string;
   readonly kind: EvaluatorKind;
-  readonly llmInputSchema: any | null;
+  readonly llmInputSchema: any;
   readonly name: string;
   readonly outputConfigs: ReadonlyArray<{
     readonly __typename: "CategoricalAnnotationConfig";
