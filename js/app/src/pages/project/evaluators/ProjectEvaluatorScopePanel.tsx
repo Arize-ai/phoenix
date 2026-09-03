@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
+import type { ComponentProps, ComponentType, ReactNode } from "react";
 import {
   Suspense,
-  useDeferredValue,
   useEffect,
   useEffectEvent,
   useMemo,
@@ -34,13 +34,23 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
+import {
+  EVALUATOR_METADATA_SLOT,
+  materializeEvaluatorContext,
+} from "@phoenix/components/evaluators/evaluatorContext";
+import { buildEvaluatorContextCandidates } from "@phoenix/components/evaluators/evaluatorContextCompletions";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
   AnnotationPreviewCard,
   AnnotationPreviewPopoverButton,
   AnnotationPreviewSkeletonCard,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
-import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
+import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import {
+  EVALUATOR_SLOT_NAMES,
+  type EvaluatorSlotName,
+} from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import {
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,
@@ -63,20 +73,25 @@ import type {
 import type { ProjectEvaluatorScopePanelSessionCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionCountQuery.graphql";
 import type { ProjectEvaluatorScopePanelSessionsQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionsQuery.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
+import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
+import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
   getProjectEvaluatorMappingDiagnostics,
+  toEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import type {
   CodeEvaluatorLanguage,
+  EvaluatorInputMapping,
   EvaluatorMappingSource,
 } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
-import { getValueAtPath } from "@phoenix/utils/objectUtils";
 
 export type ProjectEvaluatorInlineCode = {
   language: CodeEvaluatorLanguage;
@@ -140,37 +155,79 @@ function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
   };
 }
 
-/**
- * The scope fields render in the definition panel; this panel previews the
- * matching records and tests the evaluator against them.
- */
-export const ProjectEvaluatorScopePanel = ({
-  projectId,
-  scope,
-  codeEvaluatorId,
-  inlineCode,
-  requiredVariables,
-}: {
+type ProjectEvaluatorScopePanelScopeFieldsProps =
+  | {
+      /** Target, sampling, and the span filter render in this panel. */
+      showScopeFields?: true;
+      onScopeChange: (scope: ProjectEvaluatorScope) => void;
+      onFilterValidityChange?: (isValid: boolean) => void;
+      isTargetDisabled?: boolean;
+    }
+  | {
+      /**
+       * The scope fields render in the definition panel instead; the panel
+       * starts at the matching-span preview and edits no scope.
+       */
+      showScopeFields: false;
+    };
+
+type MatchedCountLineProps = {
   projectId: string;
-  scope: ProjectEvaluatorScope;
+  filterCondition: string;
+  timeWindow: TimeWindow;
+};
+
+type RecordRunListProps = {
+  projectId: string;
+  filterCondition: string;
+  timeWindow: TimeWindow;
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
+  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
   requiredVariables?: string[];
-}) => {
+  runAllRecordsRef?: { current: () => void };
+  onCanRunAllChange?: (canRunAll: boolean) => void;
+};
+
+/**
+ * What the matching-records half of the panel varies by grain: how it counts
+ * the records in scope, how it lists them, and any note it opens with. The
+ * prose around them names the grain directly.
+ */
+const MATCHING_RECORDS_BY_GRAIN: Record<
+  ProjectEvaluatorMappingSourceGrain,
+  {
+    CountLine: ComponentType<MatchedCountLineProps>;
+    RunList: ComponentType<RecordRunListProps>;
+    note?: ReactNode;
+  }
+> = {
+  span: { CountLine: MatchedSpanCountLine, RunList: SpanRunList },
+  session: {
+    CountLine: MatchedSessionCountLine,
+    RunList: SessionRunList,
+    note: <SessionInputNote />,
+  },
+};
+
+const capitalize = (word: string) =>
+  `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+
+/** Scope is committed by the form's create/save action, not by this panel. */
+export const ProjectEvaluatorScopePanel = (
+  props: {
+    projectId: string;
+    scope: ProjectEvaluatorScope;
+    codeEvaluatorId?: string;
+    inlineCode?: ProjectEvaluatorInlineCode;
+    requiredVariables?: string[];
+  } & ProjectEvaluatorScopePanelScopeFieldsProps
+) => {
+  const { projectId, scope, codeEvaluatorId, inlineCode, requiredVariables } =
+    props;
   const [timeWindow, setTimeWindow] = useState(() => makeTimeWindow("7d"));
-  const isSessionTarget = scope.targetType === "SESSION";
-  const recordNoun: RecordedRunNoun = isSessionTarget ? "session" : "span";
-  // A keystroke in the span filter commits a new condition per valid draft;
-  // deferring it keeps the current count and rows visible while the queries
-  // for the newer condition load, instead of collapsing to the fallbacks.
-  const filterCondition = useDeferredValue(scope.filterCondition);
-  // The span and session variants of each block are structurally identical;
-  // the target picks which components fill the shared layout below.
-  const MatchedCountLine = isSessionTarget
-    ? MatchedSessionCountLine
-    : MatchedSpanCountLine;
-  const CodeRunList = isSessionTarget ? SessionRunList : SpanRunList;
-  const LlmRunList = isSessionTarget ? LlmSessionRunList : LlmSpanRunList;
+  const mappingSourceGrain = toEvaluatorMappingSourceGrain(scope.targetType);
+  const scopeFields = props.showScopeFields !== false ? props : null;
   // The run list below the Suspense boundary owns the records and the run
   // machinery; it hands the header's Test All button the latest run-all
   // closure through this ref and reports readiness through the state.
@@ -187,59 +244,95 @@ export const ProjectEvaluatorScopePanel = ({
       Test All
     </Button>
   );
+  // Every target maps onto a mapping-source grain, and the preview reads the
+  // grain's records: TRACE collapses onto span, so a trace evaluator previews
+  // spans by way of that mapping, not by default.
+  const { CountLine, RunList, note } =
+    MATCHING_RECORDS_BY_GRAIN[mappingSourceGrain];
+  const records = `${mappingSourceGrain}s`;
+  const runListProps: RecordRunListProps = {
+    projectId,
+    filterCondition: scope.filterCondition,
+    timeWindow,
+    codeEvaluatorId,
+    inlineCode,
+    requiredVariables,
+    runAllRecordsRef,
+    onCanRunAllChange: setCanRunAllRecords,
+  };
   return (
     <div css={panelCSS}>
       <div css={panelScrollCSS}>
-        {isSessionTarget ? <SessionInputNote /> : null}
+        {scopeFields ? (
+          <>
+            <Heading level={2}>Scope</Heading>
+            <ScopeEditorCard
+              projectId={projectId}
+              scope={scope}
+              onScopeChange={scopeFields.onScopeChange}
+              onFilterValidityChange={scopeFields.onFilterValidityChange}
+              timeWindow={timeWindow}
+              onTimeWindowChange={setTimeWindow}
+              isTargetDisabled={scopeFields.isTargetDisabled ?? false}
+            />
+          </>
+        ) : null}
+        {note}
         <Flex direction="column" gap="size-25">
-          <EvaluatorSectionHeader
-            title={isSessionTarget ? "Test with a Session" : "Test with a Span"}
-            description={`Test your evaluator on recent ${recordNoun}s that match your scope.`}
-            extra={
-              <Flex direction="row" alignItems="center" gap="size-100">
-                <TimeWindowSegmentedControl
-                  value={timeWindow.presetId}
-                  onChange={setTimeWindow}
-                />
-                {testAllButton}
+          {scopeFields ? (
+            <Flex
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              gap="size-200"
+            >
+              <Heading level={2}>Matching {records}</Heading>
+              {testAllButton}
+            </Flex>
+          ) : (
+            <>
+              <Flex
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                gap="size-200"
+              >
+                <Heading level={2} weight="heavy">
+                  Test with a {capitalize(mappingSourceGrain)}
+                </Heading>
+                <Flex direction="row" alignItems="center" gap="size-100">
+                  <TimeWindowSegmentedControl
+                    size="S"
+                    value={timeWindow.presetId}
+                    onChange={setTimeWindow}
+                  />
+                  {testAllButton}
+                </Flex>
               </Flex>
-            }
-          />
+              <Text color="text-500">
+                Test your evaluator on recent {records} that match your scope.
+              </Text>
+            </>
+          )}
           <Suspense
             fallback={
               <Text size="S" color="text-500">
-                Counting matching {recordNoun}s…
+                Counting matching {records}…
               </Text>
             }
           >
-            <MatchedCountLine
+            <CountLine
               projectId={projectId}
-              filterCondition={filterCondition}
+              filterCondition={scope.filterCondition}
               timeWindow={timeWindow}
             />
           </Suspense>
         </Flex>
         <Suspense fallback={<Loading />}>
           {codeEvaluatorId || inlineCode ? (
-            <CodeRunList
-              projectId={projectId}
-              filterCondition={filterCondition}
-              timeWindow={timeWindow}
-              codeEvaluatorId={codeEvaluatorId}
-              inlineCode={inlineCode}
-              requiredVariables={requiredVariables}
-              runAllRecordsRef={runAllRecordsRef}
-              onCanRunAllChange={setCanRunAllRecords}
-            />
+            <RunList {...runListProps} />
           ) : (
-            <LlmRunList
-              projectId={projectId}
-              filterCondition={filterCondition}
-              timeWindow={timeWindow}
-              requiredVariables={requiredVariables}
-              runAllRecordsRef={runAllRecordsRef}
-              onCanRunAllChange={setCanRunAllRecords}
-            />
+            <LlmRunList RunList={RunList} {...runListProps} />
           )}
         </Suspense>
       </div>
@@ -247,15 +340,25 @@ export const ProjectEvaluatorScopePanel = ({
   );
 };
 
+/** An LLM evaluator's runs also read the playground store, which only a hook reaches. */
+function LlmRunList({
+  RunList,
+  ...props
+}: Omit<RecordRunListProps, "playgroundStore"> & {
+  RunList: ComponentType<RecordRunListProps>;
+}) {
+  const playgroundStore = usePlaygroundStore();
+  return <RunList {...props} playgroundStore={playgroundStore} />;
+}
+
 /** Names the bindings a session evaluator receives, which no span vocabulary covers. */
 function SessionInputNote() {
   return (
     <Flex direction="column" gap="size-25">
       <Heading level={2}>Session input</Heading>
       <Text color="text-500" size="S">
-        Your evaluator receives the transcript as <code>input</code>, the last
-        response as <code>output</code>, and the turns under{" "}
-        <code>metadata.turns</code>.
+        The session's first input as <code>input</code>, its last output as{" "}
+        <code>output</code>, and every turn under <code>metadata.turns</code>.
       </Text>
     </Flex>
   );
@@ -323,14 +426,16 @@ function useMatchedSpanCount({
 function TimeWindowSegmentedControl({
   value,
   onChange,
+  size,
 }: {
   value: TimeWindowPresetId;
   onChange: (timeWindow: TimeWindow) => void;
+  size?: ComponentProps<typeof SegmentedControl>["size"];
 }) {
   return (
     <SegmentedControl
       aria-label="Preview window"
-      size="S"
+      size={size}
       selectedKey={value}
       onSelectionChange={(key) => {
         if (typeof key === "string" && isTimeWindowPresetId(key)) {
@@ -351,15 +456,51 @@ function TimeWindowSegmentedControl({
   );
 }
 
+function ScopeEditorCard({
+  projectId,
+  scope,
+  onScopeChange,
+  onFilterValidityChange,
+  timeWindow,
+  onTimeWindowChange,
+  isTargetDisabled,
+}: {
+  projectId: string;
+  scope: ProjectEvaluatorScope;
+  onScopeChange: (scope: ProjectEvaluatorScope) => void;
+  onFilterValidityChange?: (isValid: boolean) => void;
+  timeWindow: TimeWindow;
+  onTimeWindowChange: (timeWindow: TimeWindow) => void;
+  isTargetDisabled: boolean;
+}) {
+  return (
+    <div css={scopeEditorCardCSS}>
+      <ProjectEvaluatorScopeFieldGroup
+        projectId={projectId}
+        scope={scope}
+        onScopeChange={onScopeChange}
+        onFilterValidityChange={onFilterValidityChange}
+        isTargetDisabled={isTargetDisabled}
+      >
+        <Flex direction="column" gap="size-50">
+          <Text size="XS" weight="heavy" color="text-700">
+            Preview window
+          </Text>
+          <TimeWindowSegmentedControl
+            value={timeWindow.presetId}
+            onChange={onTimeWindowChange}
+          />
+        </Flex>
+      </ProjectEvaluatorScopeFieldGroup>
+    </div>
+  );
+}
+
 function MatchedSpanCountLine({
   projectId,
   filterCondition,
   timeWindow,
-}: {
-  projectId: string;
-  filterCondition: string;
-  timeWindow: TimeWindow;
-}) {
+}: MatchedCountLineProps) {
   const { startIso, prose } = timeWindow;
   const matchedCount = useMatchedSpanCount({
     projectId,
@@ -370,7 +511,9 @@ function MatchedSpanCountLine({
   return (
     <Text size="S" color="text-500">
       {hasMatches
-        ? `${matchedCount.toLocaleString()} span${matchedCount === 1 ? "" : "s"} matched ${prose}. The most recent are shown below.`
+        ? `${matchedCount.toLocaleString()} span${
+            matchedCount === 1 ? "" : "s"
+          } matched ${prose}. The most recent are shown below.`
         : `No spans matched this scope ${prose}.`}
     </Text>
   );
@@ -380,11 +523,7 @@ function MatchedSessionCountLine({
   projectId,
   filterCondition,
   timeWindow,
-}: {
-  projectId: string;
-  filterCondition: string;
-  timeWindow: TimeWindow;
-}) {
+}: MatchedCountLineProps) {
   const { startIso, prose } = timeWindow;
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSessionCountQuery>(
     graphql`
@@ -415,7 +554,9 @@ function MatchedSessionCountLine({
   return (
     <Text size="S" color="text-500">
       {hasMatches
-        ? `${matchedCount.toLocaleString()} session${matchedCount === 1 ? "" : "s"} matched ${prose}. The most recent are shown below.`
+        ? `${matchedCount.toLocaleString()} session${
+            matchedCount === 1 ? "" : "s"
+          } matched ${prose}. The most recent are shown below.`
         : `No sessions matched this scope ${prose}.`}
     </Text>
   );
@@ -424,18 +565,10 @@ function MatchedSessionCountLine({
 const SESSION_LIST_PAGE_SIZE = 5;
 
 function formatSessionMetric(numTraces: number, totalTokens: number): string {
-  const traces = `${numTraces.toLocaleString()} trace${numTraces === 1 ? "" : "s"}`;
+  const traces = `${numTraces.toLocaleString()} trace${
+    numTraces === 1 ? "" : "s"
+  }`;
   return `${traces} · ${totalTokens.toLocaleString()} tokens`;
-}
-
-function LlmSessionRunList(
-  props: Omit<
-    Parameters<typeof SessionRunList>[0],
-    "codeEvaluatorId" | "inlineCode" | "playgroundStore"
-  >
-) {
-  const playgroundStore = usePlaygroundStore();
-  return <SessionRunList {...props} playgroundStore={playgroundStore} />;
 }
 
 /**
@@ -452,17 +585,7 @@ function SessionRunList({
   requiredVariables,
   runAllRecordsRef,
   onCanRunAllChange,
-}: {
-  projectId: string;
-  filterCondition: string;
-  timeWindow: TimeWindow;
-  codeEvaluatorId?: string;
-  inlineCode?: ProjectEvaluatorInlineCode;
-  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
-  requiredVariables?: string[];
-  runAllRecordsRef?: { current: () => void };
-  onCanRunAllChange?: (canRunAll: boolean) => void;
-}) {
+}: RecordRunListProps) {
   const [limit, setLimit] = useState(SESSION_LIST_PAGE_SIZE);
   // A transition keeps the current rows visible instead of collapsing the list
   // to its Suspense fallback while the wider page loads.
@@ -511,25 +634,35 @@ function SessionRunList({
     { fetchPolicy: "store-and-network" }
   );
   const sessions = data.project?.sessions?.edges.map(({ session }) => session);
-  if (!sessions?.length) {
-    return null;
-  }
-  return (
-    <RecordedRunList
-      rows={sessions.map((session) => ({
+  const sample = sessions?.length ? null : getSampleSessionEvaluationContext();
+  const rows: RecordedRunListRow[] = sessions?.length
+    ? sessions.map((session) => ({
         key: session.id,
         name: session.sessionId,
         context: session.sessionEvaluationContext,
         isSample: false,
         unavailableReason:
           session.sessionEvaluationContext == null
-            ? "This session has no evaluable transcript."
+            ? "This session has no turns to evaluate."
             : undefined,
         metric: formatSessionMetric(
           session.numTraces,
           session.tokenUsage.total
         ),
-      }))}
+      }))
+    : sample
+      ? [
+          {
+            key: SAMPLE_ROW_KEY,
+            name: "Sample session",
+            context: sample.context,
+            isSample: true,
+          },
+        ]
+      : [];
+  return (
+    <RecordedRunList
+      rows={rows}
       recordNoun="session"
       listLabel="Recent matching sessions"
       hasMore={data.project?.sessions?.pageInfo.hasNextPage ?? false}
@@ -548,6 +681,12 @@ function SessionRunList({
     />
   );
 }
+
+const scopeEditorCardCSS = css`
+  border: 1px solid var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+  padding: var(--global-dimension-size-200);
+`;
 
 type RecordedRunResult = {
   readonly evaluatorName: string;
@@ -582,22 +721,9 @@ type RecordedRunListRow = {
   unavailableReason?: string;
 };
 
-/** Names the kind of record a row holds, for prose and accessible labels. */
-type RecordedRunNoun = "span" | "session";
-
 const SAMPLE_ROW_KEY = "__sample__";
 
 const SPAN_LIST_PAGE_SIZE = 5;
-
-function LlmSpanRunList(
-  props: Omit<
-    Parameters<typeof SpanRunList>[0],
-    "codeEvaluatorId" | "inlineCode" | "playgroundStore"
-  >
-) {
-  const playgroundStore = usePlaygroundStore();
-  return <SpanRunList {...props} playgroundStore={playgroundStore} />;
-}
 
 function SpanRunList({
   projectId,
@@ -609,17 +735,7 @@ function SpanRunList({
   requiredVariables,
   runAllRecordsRef,
   onCanRunAllChange,
-}: {
-  projectId: string;
-  filterCondition: string;
-  timeWindow: TimeWindow;
-  codeEvaluatorId?: string;
-  inlineCode?: ProjectEvaluatorInlineCode;
-  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
-  requiredVariables?: string[];
-  runAllRecordsRef?: { current: () => void };
-  onCanRunAllChange?: (canRunAll: boolean) => void;
-}) {
+}: RecordRunListProps) {
   const [limit, setLimit] = useState(SPAN_LIST_PAGE_SIZE);
   // A transition keeps the current rows visible instead of collapsing the list
   // to its Suspense fallback while the wider page loads.
@@ -665,8 +781,7 @@ function SpanRunList({
     { fetchPolicy: "store-and-network" }
   );
   const spans = data.project?.spans?.edges.map(({ span }) => span) ?? [];
-  const sample =
-    spans.length === 0 ? getSampleSpanEvaluationContext(filterCondition) : null;
+  const sample = spans.length === 0 ? getSampleSpanEvaluationContext() : null;
   const rows: RecordedRunListRow[] = spans.length
     ? spans.map((span) => ({
         key: span.id,
@@ -727,7 +842,7 @@ function RecordedRunList({
   onCanRunAllChange,
 }: {
   rows: RecordedRunListRow[];
-  recordNoun: RecordedRunNoun;
+  recordNoun: ProjectEvaluatorMappingSourceGrain;
   listLabel: string;
   hasMore: boolean;
   isLoadingMore: boolean;
@@ -752,30 +867,14 @@ function RecordedRunList({
         ? expandedKey
         : (rows[0]?.key ?? null);
   const activeRow = rows.find(({ key }) => key === expandedRowKey) ?? rows[0];
-  const evaluatorStore = useEvaluatorStoreInstance();
-  const pathMapping = useEvaluatorStore(
-    (state) => state.evaluator.inputMapping.pathMapping
+  const inputMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping
   );
-  // The row object is rebuilt every render, and a session keeps its key while
-  // its context changes under it — a refresh, a preview-window change, or a
-  // load-more can all return a new transcript for the same row. Key the effect
-  // on what the context says, so the mapping source follows the value the Run
-  // actually sends rather than the one the row opened with.
-  const activeRowKey = activeRow?.key ?? null;
-  const activeRowContext = activeRow?.context;
-  const activeRowContextIdentity = useMemo(
-    () => (activeRowContext == null ? null : JSON.stringify(activeRowContext)),
-    [activeRowContext]
-  );
-  const syncMappingSource = useEffectEvent(() => {
-    const context = activeRow?.context;
-    if (context && hasEvaluatorMappingSourceShape(context)) {
-      evaluatorStore.getState().setEvaluatorMappingSource(context);
-    }
+  useEvaluatorMappingSourceBoundToRow({
+    grain: recordNoun,
+    rowKey: activeRow?.key ?? null,
+    context: activeRow?.context,
   });
-  useEffect(() => {
-    syncMappingSource();
-  }, [activeRowKey, activeRowContextIdentity]);
   const { runs, runOnContext, isRunnable } = useEvaluatorPreviewRuns({
     codeEvaluatorId,
     inlineCode,
@@ -821,7 +920,7 @@ function RecordedRunList({
             run={runs[row.key]}
             isRunnable={isRunnable}
             onRun={() => runOnContext(row.key, row.context)}
-            pathMapping={pathMapping}
+            inputMapping={inputMapping}
             requiredVariables={requiredVariables}
           />
         ))}
@@ -860,17 +959,17 @@ function RecordedRunRow({
   run,
   isRunnable,
   onRun,
-  pathMapping,
+  inputMapping,
   requiredVariables,
 }: {
   row: RecordedRunListRow;
-  recordNoun: RecordedRunNoun;
+  recordNoun: ProjectEvaluatorMappingSourceGrain;
   isExpanded: boolean;
   onToggleExpanded: () => void;
   run: RecordedRun | undefined;
   isRunnable: boolean;
   onRun: () => void;
-  pathMapping: Record<string, string>;
+  inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
 }) {
   const isRunning = run?.status === "running";
@@ -912,7 +1011,9 @@ function RecordedRunRow({
                 // each row's button has a distinct accessible name.
                 row.isSample
                   ? `Test evaluator on ${row.name}`
-                  : `Test evaluator on ${row.name}, ${recordNoun} ${row.key.slice(-8)}`
+                  : `Test evaluator on ${
+                      row.name
+                    }, ${recordNoun} ${row.key.slice(-8)}`
               }
               leadingVisual={
                 <Icon
@@ -937,19 +1038,21 @@ function RecordedRunRow({
             ) : (
               <Flex direction="column" gap="size-100">
                 <RecordedRunDetail run={run} />
-                <Tabs defaultSelectedKey="bindings">
+                <Tabs defaultSelectedKey="values">
                   <TabList>
-                    <Tab id="bindings">Bindings</Tab>
+                    <Tab id="values">Values</Tab>
                     <Tab id="context">Context</Tab>
                   </TabList>
-                  <TabPanel id="bindings">
-                    <BindingPreview
-                      context={row.context}
-                      recordNoun={recordNoun}
-                      pathMapping={pathMapping}
-                      requiredVariables={requiredVariables}
-                      isSampleContext={row.isSample}
-                    />
+                  <TabPanel id="values">
+                    <Flex direction="column" gap="size-200">
+                      <BindingPreview
+                        context={row.context}
+                        grain={recordNoun}
+                        inputMapping={inputMapping}
+                        requiredVariables={requiredVariables}
+                        isSampleContext={row.isSample}
+                      />
+                    </Flex>
                   </TabPanel>
                   <TabPanel id="context">
                     <div css={contextViewerCSS}>
@@ -1063,21 +1166,30 @@ const contextViewerCSS = css`
 
 type BindingRow = {
   keyword: string;
-  /** Set only for explicit path mappings. */
   path?: string;
+  /** One line on the name, shown on hover. */
+  description?: string;
+  /** Stands in for the value until a record supplies one. */
+  typeHint?: string;
   value: unknown;
 };
 
-function BindingPreview({
+/**
+ * What one record binds, read off the shared materialization.
+ *
+ * @internal Exported for testing
+ */
+export function BindingPreview({
   context,
-  recordNoun,
-  pathMapping,
+  grain,
+  inputMapping,
   requiredVariables,
   isSampleContext,
 }: {
   context: unknown;
-  recordNoun: RecordedRunNoun;
-  pathMapping: Record<string, string>;
+  /** The kind of record the row holds; the same word its prose uses. */
+  grain: ProjectEvaluatorMappingSourceGrain;
+  inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
   isSampleContext: boolean;
 }) {
@@ -1088,37 +1200,137 @@ function BindingPreview({
       : declaredVariables;
   const diagnostics = getProjectEvaluatorMappingDiagnostics({
     context,
-    pathMapping,
+    pathMapping: inputMapping.pathMapping,
     variables,
     requiredVariables,
   });
-  const automaticRows: BindingRow[] = diagnostics
-    .filter(
-      ({ variable, status }) =>
-        status === "resolved" && !(variable in pathMapping)
-    )
-    .map(({ variable, path }) => ({
-      keyword: variable,
-      value: getValueAtPath(context, path),
-    }));
+  // The preview binds what a live run binds because it is the same
+  // materialization the authoring tools read — the slot fallbacks, the
+  // `metadata` key, and the path resolver all live there, not here.
+  const evaluationContext = hasEvaluatorMappingSourceShape(context)
+    ? materializeEvaluatorContext({
+        grain,
+        evaluatorMappingSource: { grain, source: context },
+        inputMapping,
+      })
+    : null;
+  const slotRows: BindingRow[] =
+    evaluationContext?.evaluatorInputs.map((entry) => ({
+      keyword: entry.name,
+      ...(entry.provenance.kind === "path"
+        ? { path: entry.provenance.path }
+        : {}),
+      value: entry.value,
+    })) ?? [];
   const mappedRows: BindingRow[] = diagnostics
     .filter(
-      ({ variable, status }) => status === "resolved" && variable in pathMapping
+      ({ status, source, variable }) =>
+        status === "resolved" &&
+        source === "path" &&
+        !EVALUATOR_SLOT_NAMES.includes(variable as EvaluatorSlotName)
     )
-    .map(({ variable, path }) => ({
-      keyword: variable,
-      path,
-      value: getValueAtPath(context, path),
-    }));
+    .map((diagnostic) => {
+      const resolution = resolveEvaluatorPath({
+        source: isStringKeyedObject(context) ? context : {},
+        path: diagnostic.path,
+      });
+      return {
+        keyword: diagnostic.variable,
+        path: diagnostic.path,
+        value: resolution.status === "resolved" ? resolution.value : undefined,
+      };
+    });
   const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
+  const toggle = (keyword: string) =>
+    setExpandedKeyword((current) => (current === keyword ? null : keyword));
   return (
     <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
-        <Alert variant="info" title="Bindings use a sample span">
-          Verify the bindings against a real span once matching spans exist.
+        <Alert variant="info" title={`Standard ${grain} fields`}>
+          No matching {grain} yet; values are empty.
         </Alert>
       ) : null}
-      {[...automaticRows, ...mappedRows].map((row) => (
+      {[...slotRows, ...mappedRows].map((row) =>
+        row.keyword === EVALUATOR_METADATA_SLOT && evaluationContext ? (
+          <BindingPreviewRow
+            key={row.keyword}
+            row={row}
+            isExpanded={expandedKeyword === row.keyword}
+            onToggleExpanded={() => toggle(row.keyword)}
+          >
+            <MetadataBindingTree evaluationContext={evaluationContext} />
+          </BindingPreviewRow>
+        ) : (
+          <BindingPreviewRow
+            key={row.keyword}
+            row={row}
+            isExpanded={expandedKeyword === row.keyword}
+            onToggleExpanded={() => toggle(row.keyword)}
+          />
+        )
+      )}
+
+      {diagnostics.map(({ variable, path, status, source }) =>
+        status === "missing" ? (
+          <Alert
+            key={variable}
+            variant="danger"
+            title={`${variable} would fail on this ${grain}`}
+          >
+            {source === "path"
+              ? `Nothing matches ${path}. No annotation is written.`
+              : `This ${grain} has no ${variable}. No annotation is written.`}
+          </Alert>
+        ) : status === "unverified" ? (
+          <Alert
+            key={variable}
+            variant="warning"
+            title={`${variable} is unverified`}
+          >
+            {path} is checked when the evaluator runs.
+          </Alert>
+        ) : null
+      )}
+    </Flex>
+  );
+}
+
+/**
+ * The rows are the shared candidate tree's nested rows, so what the preview
+ * lists under `metadata` is exactly what the authoring surfaces offer there,
+ * in the same order. Only the type hint and the one-line description are read
+ * off the entry definition — presentation the candidate does not carry.
+ */
+function MetadataBindingTree({
+  evaluationContext,
+}: {
+  evaluationContext: MaterializedEvaluatorContext;
+}) {
+  const { grain, hasSampledRecord } = evaluationContext;
+  const definitionByName = new Map(
+    getEvaluatorMetadataEntries(grain).map((variable) => [
+      variable.name,
+      variable,
+    ])
+  );
+  const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
+  const rows: BindingRow[] = buildEvaluatorContextCandidates(evaluationContext)
+    .filter((candidate) => candidate.isNested)
+    .map((candidate) => {
+      const keyword = candidate.label.slice(EVALUATOR_METADATA_SLOT.length + 1);
+      const definition = definitionByName.get(keyword);
+      return {
+        keyword,
+        ...(definition ? { description: definition.description } : {}),
+        ...(definition && !hasSampledRecord
+          ? { typeHint: definition.type }
+          : {}),
+        value: candidate.value,
+      };
+    });
+  return (
+    <Flex direction="column" gap="size-50">
+      {rows.map((row) => (
         <BindingPreviewRow
           key={row.keyword}
           row={row}
@@ -1130,49 +1342,91 @@ function BindingPreview({
           }
         />
       ))}
-      {variables.length === 0 ? (
-        <Text size="S" color="text-500">
-          This evaluator declares no recognizable inputs.
-        </Text>
-      ) : null}
-      {diagnostics.map(({ variable, path, status }) =>
-        status === "missing" ? (
-          <Alert
-            key={variable}
-            variant="danger"
-            title={`${variable} does not resolve`}
-          >
-            No value at {path} on this {recordNoun}.
-          </Alert>
-        ) : status === "unverified" ? (
-          <Alert
-            key={variable}
-            variant="warning"
-            title={`${variable} is unverified`}
-          >
-            {path} is checked by the server when the evaluator runs.
-          </Alert>
-        ) : status === "optional-missing" ? (
-          <Text key={variable} size="S" color="text-500">
-            <code>{variable}</code> is optional and is not present on this{" "}
-            {recordNoun}.
-          </Text>
-        ) : null
-      )}
     </Flex>
   );
+}
+
+/** Digits a rounded number keeps before the rest moves to the hover title. */
+const DISPLAY_SIGNIFICANT_DIGITS = 4;
+
+/**
+ * What a bound value reads as in the row, plus the exact value to hover for
+ * when rounding hid something.
+ *
+ * A cost arrives with more decimals than a row this narrow can be read at, so
+ * the row is rounded and the full number stays one hover away. Whole numbers
+ * and everything that is not a number are already exact.
+ */
+function toBoundValueDisplay(value: unknown): {
+  text: string | undefined;
+  exact?: string;
+} {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    !Number.isInteger(value)
+  ) {
+    const rounded = Number(value.toPrecision(DISPLAY_SIGNIFICANT_DIGITS));
+    return {
+      text: String(rounded),
+      exact: rounded === value ? undefined : String(value),
+    };
+  }
+  return { text: toContentPreview(value, { maxLength: 64 }) };
+}
+
+/** A value a single line cannot show whole earns the expand affordance. */
+function isExpandableBindingValue(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.length > 80;
+  }
+  return typeof value === "object" && value !== null;
 }
 
 function BindingPreviewRow({
   row,
   isExpanded,
   onToggleExpanded,
+  children,
 }: {
   row: BindingRow;
   isExpanded: boolean;
   onToggleExpanded: () => void;
+  /** Rendered in place of the raw value when the row opens onto a tree. */
+  children?: ReactNode;
 }) {
   const isTextValue = typeof row.value === "string";
+  const isExpandable = children != null || isExpandableBindingValue(row.value);
+  const display = toBoundValueDisplay(row.value);
+  // A row bound to the key it is already labeled with — a slot left on its
+  // default — has no origin to point at, so the value stands alone.
+  const annotation =
+    row.path && row.path !== row.keyword ? (
+      <code className="binding-row__path">← {row.path}</code>
+    ) : null;
+  const head = (
+    <>
+      <code className="binding-row__keyword" title={row.description}>
+        {row.keyword}
+      </code>
+      {annotation}
+      {isExpandable && isExpanded ? null : (
+        <span className="binding-row__value" title={display.exact}>
+          {display.text ?? row.typeHint ?? "—"}
+        </span>
+      )}
+    </>
+  );
+  if (!isExpandable) {
+    return (
+      <div css={bindingRowCSS}>
+        <div className="binding-row__toggle binding-row__toggle--static">
+          <span className="binding-row__chevron-spacer" />
+          {head}
+        </div>
+      </div>
+    );
+  }
   return (
     <div css={bindingRowCSS} data-expanded={isExpanded}>
       <button
@@ -1184,26 +1438,19 @@ function BindingPreviewRow({
         <Icon
           svg={isExpanded ? <Icons.ChevronDown /> : <Icons.ChevronRight />}
         />
-        <code className="binding-row__keyword">{row.keyword}</code>
-        {row.path ? (
-          <code className="binding-row__path">← {row.path}</code>
-        ) : null}
-        {isExpanded ? null : (
-          <span className="binding-row__value">
-            {getBoundValueSnippet(row.value)}
-          </span>
-        )}
+        {head}
       </button>
       {isExpanded ? (
         <div className="binding-row__detail">
-          {isTextValue ? (
-            <pre className="binding-row__text">{String(row.value)}</pre>
-          ) : (
-            <JSONBlock
-              value={JSON.stringify(row.value, null, 2) ?? "undefined"}
-              basicSetup={{ lineNumbers: false }}
-            />
-          )}
+          {children ??
+            (isTextValue ? (
+              <pre className="binding-row__text">{String(row.value)}</pre>
+            ) : (
+              <JSONBlock
+                value={JSON.stringify(row.value, null, 2) ?? "undefined"}
+                basicSetup={{ lineNumbers: false }}
+              />
+            ))}
         </div>
       ) : null}
     </div>
@@ -1217,6 +1464,7 @@ const bindingRowCSS = css`
     border-color: var(--global-border-color-default);
   }
   .binding-row__toggle {
+    box-sizing: border-box;
     width: 100%;
     display: flex;
     align-items: center;
@@ -1249,7 +1497,17 @@ const bindingRowCSS = css`
     font-size: var(--global-font-size-xs);
     color: var(--global-text-color-500);
   }
+  .binding-row__toggle--static {
+    cursor: default;
+  }
+  .binding-row__chevron-spacer {
+    display: inline-block;
+    width: var(--global-dimension-size-200);
+    flex: none;
+  }
   .binding-row__value {
+    margin-left: auto;
+    text-align: right;
     flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
@@ -1310,21 +1568,55 @@ function getLatestMessageText(value: unknown): string | null {
   return null;
 }
 
-function getBoundValueSnippet(value: unknown): string {
-  if (value === undefined) {
-    return "";
-  }
-  return toContentPreview(value, { maxLength: 120 }) ?? "";
+/**
+ * Binds the mapping source to the open row's context, so the input mapping is
+ * authored and diagnosed against the value a Run would actually send.
+ *
+ * The row object is rebuilt every render, and a session keeps its key while its
+ * context changes under it — a refresh, a preview-window change, or a load-more
+ * can all return a new transcript for the same row. Keying on what the context
+ * says rather than on the row's identity follows the value, not the row.
+ *
+ * The grain comes from the list the row renders in and is bound with the
+ * context, so a target switch that remounts a cached list binds a record the
+ * store reads as what it is, whichever of this and the target's grain effect
+ * runs first.
+ */
+export function useEvaluatorMappingSourceBoundToRow({
+  grain,
+  rowKey,
+  context,
+}: {
+  grain: ProjectEvaluatorMappingSourceGrain;
+  rowKey: string | null;
+  context: unknown;
+}) {
+  const evaluatorStore = useEvaluatorStoreInstance();
+  const contextIdentity = useMemo(
+    () => (context == null ? null : JSON.stringify(context)),
+    [context]
+  );
+  const syncMappingSource = useEffectEvent(() => {
+    if (hasEvaluatorMappingSourceShape(context)) {
+      evaluatorStore
+        .getState()
+        .setEvaluatorMappingSource({ grain, source: context });
+    }
+  });
+  useEffect(() => {
+    syncMappingSource();
+  }, [grain, rowKey, contextIdentity]);
 }
 
 /**
  * Span and session contexts share this shape, so this cannot tell them apart —
- * the store's grain does. Only `metadata` is guaranteed to be an object by the
+ * the grain the row is bound under does, and the store decides from that what
+ * of `metadata` to keep. Only `metadata` is guaranteed to be an object by the
  * server context shape; `input`/`output` are raw attribute values.
  */
 function hasEvaluatorMappingSourceShape(
   value: unknown
-): value is EvaluatorMappingSource<"span" | "session"> {
+): value is EvaluatorMappingSource<ProjectEvaluatorMappingSourceGrain> {
   return isStringKeyedObject(value) && isStringKeyedObject(value.metadata);
 }
 
