@@ -31,7 +31,8 @@ __all__ = [
 _DIGEST_PREFIX = "sha256:"
 _SHORT_DIGEST_LENGTH = 12
 
-TraceMode = Literal["none", "atif"]
+TraceMode = Literal["atif"]
+"""Trace recording modes. ``None`` disables tracing."""
 
 
 def canonical_digest(payload: Any) -> str:

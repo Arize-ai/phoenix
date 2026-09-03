@@ -214,12 +214,13 @@ class TestConfiguration:
         with pytest.raises(ValueError, match="'agent'"):
             PhoenixJobPlugin(experiment_name_template="{agent}")
 
-    def test_atif_trace_mode_is_supported(self) -> None:
-        assert PhoenixJobPlugin(trace_mode="atif").trace_mode == "atif"
+    @pytest.mark.parametrize("trace_mode", ["atif", None])
+    def test_supported_trace_modes(self, trace_mode: str | None) -> None:
+        assert PhoenixJobPlugin(trace_mode=cast(Any, trace_mode)).trace_mode == trace_mode
 
-    @pytest.mark.parametrize("trace_mode", ["otlp", "otel", ""])
+    @pytest.mark.parametrize("trace_mode", ["none", "otlp", ""])
     def test_unsupported_trace_mode_is_rejected_at_construction(self, trace_mode: str) -> None:
-        with pytest.raises(ValueError, match="Use one of 'none', 'atif'"):
+        with pytest.raises(ValueError, match="Use one of 'atif', None"):
             PhoenixJobPlugin(trace_mode=cast(Any, trace_mode))
 
     def test_explicit_endpoint_overrides_the_environment(
@@ -369,7 +370,7 @@ class TestJobStart:
             raise AssertionError("trace builder called")
 
         monkeypatch.setattr("phoenix.client.harbor._plugin.build_harbor_trace", fail_if_called)
-        plugin = PhoenixJobPlugin(trace_mode="none")
+        plugin = PhoenixJobPlugin(trace_mode=None)
         job = FakeJob()
         await plugin.on_job_start(job)
 

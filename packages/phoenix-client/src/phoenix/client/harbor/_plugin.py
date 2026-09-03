@@ -58,7 +58,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
         dataset: str | None = None,
         endpoint: str | None = None,
         api_key: str | None = None,
-        trace_mode: TraceMode = "atif",
+        trace_mode: TraceMode | None = "atif",
         experiment_name: str | None = None,
         experiment_name_template: str | None = None,
     ) -> None:
@@ -69,8 +69,9 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 Harbor's dataset configuration or direct task.
             endpoint: Phoenix HTTP endpoint. Defaults to ``PHOENIX_COLLECTOR_ENDPOINT``.
             api_key: Phoenix API key. Defaults to ``PHOENIX_API_KEY``.
-            trace_mode: Trace recording mode. Defaults to ``"atif"``, which attaches persisted
-                Harbor trajectories to experiment runs. Use ``"none"`` to disable tracing.
+            trace_mode: Trace recording mode. ``"atif"`` (the default) attaches the persisted
+                Harbor trajectories to each experiment run. ``None`` disables tracing; on the
+                Harbor command line, pass ``--plugin-kwarg trace_mode=null``.
             experiment_name: Exact Phoenix experiment name. This is only valid when the Harbor
                 job resolves one experiment slice.
             experiment_name_template: Format string used to name one Phoenix experiment per
@@ -78,8 +79,8 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 ``EXPERIMENT_NAME_TEMPLATE_FIELDS``.
         """
         super().__init__()
-        if trace_mode not in _TRACE_MODES:
-            supported = ", ".join(repr(mode) for mode in _TRACE_MODES)
+        if trace_mode is not None and trace_mode not in _TRACE_MODES:
+            supported = ", ".join(repr(mode) for mode in (*_TRACE_MODES, None))
             raise ValueError(f"Unsupported trace_mode {trace_mode!r}. Use one of {supported}.")
 
         self.dataset = dataset

@@ -81,7 +81,7 @@ class TestPluginRegistration:
         # The first adapter read proves Harbor loaded and called the plugin.
         with pytest.raises(HarborPluginError, match="expected `harbor.job.Job`"):
             await attach_job_plugin(
-                cast(Job, object()), "arize-phoenix", kwargs={"trace_mode": "none"}
+                cast(Job, object()), "arize-phoenix", kwargs={"trace_mode": None}
             )
 
     async def test_plugin_satisfies_harbors_protocol(self) -> None:
@@ -90,7 +90,7 @@ class TestPluginRegistration:
         from phoenix.client.harbor import PhoenixJobPlugin
 
         assert issubclass(PhoenixJobPlugin, BaseJobPlugin)
-        plugin: JobPlugin = PhoenixJobPlugin(trace_mode="none")
+        plugin: JobPlugin = PhoenixJobPlugin(trace_mode=None)
         assert isinstance(plugin, JobPlugin)
 
 
