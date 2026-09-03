@@ -1220,7 +1220,9 @@ async def test_stop_releases_the_lease_despite_a_second_cancellation(
     run.cancel()
     with pytest.raises(asyncio.CancelledError):
         await run
-    await asyncio.wait_for(released.wait(), timeout=5)
+    # Nothing here waits on the release: production has no such waiter either, so the
+    # run task itself has to see it through before unwinding.
+    assert released.is_set()
 
     async with db() as session:
         lease = (
