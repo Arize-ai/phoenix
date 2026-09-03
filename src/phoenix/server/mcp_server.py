@@ -268,10 +268,6 @@ class _CodeModeWithDirectSkillTools(CodeMode):
 
     Upstream has no affordance for this; see
     https://github.com/PrefectHQ/fastmcp/issues/4925.
-
-    Args:
-        skill_tool_names: Skill tools served alongside ``execute``, named in its
-            description as out of ``call_tool``'s reach.
     """
 
     def __init__(self, *, skill_tool_names: Sequence[str], **kwargs: Any) -> None:
@@ -291,12 +287,7 @@ class _CodeModeWithDirectSkillTools(CodeMode):
         return [tool for tool in catalog if SKILL_TOOLS_TAG not in tool.tags]
 
     def _build_execute_description(self) -> str:
-        """Upstream's ``execute`` description, plus the direct tools ``call_tool`` cannot reach.
-
-        ``get_tool_catalog`` keeps the skill tools out of the catalog ``call_tool``
-        resolves against, and nothing else tells the model, so it batches
-        ``load_skill`` calls through ``execute`` and is told the tool is unknown.
-        """
+        """Upstream's ``execute`` description, plus the direct tools ``call_tool`` cannot reach."""
         discovery_tool_names = [tool.name for tool in self._build_discovery_tools()]
         direct_tools = ", ".join(
             f"`{name}`" for name in (*discovery_tool_names, *self._skill_tool_names)
@@ -329,12 +320,6 @@ def _build_code_mode(
     ``try``/``except`` can catch — an in-process sandbox turns that into the death
     of the whole server. The provider adapts the application-owned shared Monty
     runtime to FastMCP's sandbox interface.
-
-    Args:
-        runtime: Shared Monty runtime the sandbox runs guest code on.
-        consumer: Admission class the sandbox spends against.
-        skill_tool_names: Skill tools registered as direct tools, named in the
-            ``execute`` description as out of ``call_tool``'s reach.
 
     Returns:
         The transform to install and its FastMCP sandbox adapter.
