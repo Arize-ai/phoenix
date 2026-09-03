@@ -156,10 +156,26 @@ class MontyAdapter(SandboxAdapter[MontyConfig, NoCredentials, MontyDeployment]):
     display_name = "Monty"
     hosting_type = "local"
     language_dialect = "restricted"
+    #: Modules an evaluator author can import, named in ``runtime_notes`` below and held
+    #: to a live worker in the backend tests. The guest exposes more, but only these are
+    #: advertised, so only these are guaranteed.
+    IMPORTABLE_MODULES = (
+        "json",
+        "re",
+        "math",
+        "datetime",
+        "pathlib",
+        "typing",
+        "collections",
+        "itertools",
+        "dataclasses",
+    )
     runtime_notes = (
         "Restricted Python running in isolated worker subprocesses. A limited standard library "
-        "is importable, while filesystem, network, environment, subprocess, and third-party "
-        "package access are blocked."
+        f"is importable — {', '.join(IMPORTABLE_MODULES)} — each exposing a subset of its "
+        "CPython API, while filesystem, network, environment, subprocess, and third-party "
+        "package access are blocked. Decorated functions and plain classes are supported; "
+        "class inheritance, metaclasses, and method decorators are not."
     )
     config_model = MontyConfig
     credentials_model = NoCredentials

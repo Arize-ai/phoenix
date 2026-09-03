@@ -6,6 +6,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.models import SandboxBackendType
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
+from phoenix.server.sandbox.monty_backend import MontyAdapter
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -103,6 +104,10 @@ async def test_monty_advertises_restricted_python(
     assert "worker subprocesses" in runtime_notes
     assert "limited standard library" in runtime_notes
     assert "class definitions" not in runtime_notes
+    # The advertisement is built from MontyAdapter.IMPORTABLE_MODULES, and
+    # test_monty_backend.py imports from each of those in a live worker.
+    for module_name in MontyAdapter.IMPORTABLE_MODULES:
+        assert module_name in runtime_notes
 
 
 async def test_sandbox_config_secret_ref_env_var_round_trips(
