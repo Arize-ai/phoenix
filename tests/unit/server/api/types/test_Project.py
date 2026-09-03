@@ -5667,9 +5667,9 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
         llm_span_session = await _add_project_session(
             session, project, session_id="latency-llm-session"
         )
+        start_time = datetime.now(timezone.utc).replace(microsecond=0)
         llm_span_latencies_ms = [100, 200, 300]
         for latency_ms in llm_span_latencies_ms:
-            start_time = datetime.now(timezone.utc)
             trace = await _add_trace(
                 session,
                 project,
@@ -5691,7 +5691,6 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
         )
         chain_span_latencies_ms = [400, 500, 600]
         for latency_ms in chain_span_latencies_ms:
-            start_time = datetime.now(timezone.utc)
             trace = await _add_trace(
                 session,
                 project,
