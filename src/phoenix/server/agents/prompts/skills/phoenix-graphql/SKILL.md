@@ -48,7 +48,7 @@ These apply to every entity:
 
 ### Efficiency rules
 
-- **Do not run full schema introspection.** Read the relevant `Schema map` resource instead; it covers the fields and arguments for that entity. Only when a resource does not cover a field you need, introspect a single type: `{ __type(name: "Project") { fields { name args { name type { name kind } } } } }`.
+- **Do not run full schema introspection.** Read the relevant `Schema map` resource instead; it covers the fields and arguments for that entity. Only when a resource does not cover a field you need, run `phoenix-gql schema <terms>` to find it, or `phoenix-gql schema <Type>` to see one type in full with how to reach it.
 - **Batch independent lookups with aliases** in one query instead of multiple round trips, e.g. `p50: latencyMsQuantile(probability: 0.5) p99: latencyMsQuantile(probability: 0.99)`.
 - Select only the fields you need; keep page sizes small (10–50) and paginate only when necessary.
 - Pass values via query variables, never string interpolation.
