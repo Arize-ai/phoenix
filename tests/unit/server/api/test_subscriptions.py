@@ -2080,6 +2080,7 @@ class TestChatCompletionOverDatasetSubscription:
             split_links = result.scalars().all()
             assert len(split_links) == 0  # No splits associated
 
+    @pytest.mark.seeded_model_costs
     async def test_evaluator_emits_evaluation_chunk_and_persists_annotation(
         self,
         gql_client: AsyncGraphQLClient,

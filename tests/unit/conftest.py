@@ -70,6 +70,10 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "real_agent_session_sweeper: run the app's agent-session sweeper loop",
     )
+    config.addinivalue_line(
+        "markers",
+        "seeded_model_costs: sync the model cost manifest into the database during app startup",
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -168,6 +172,23 @@ def _agent_session_sweeper_off(request: FixtureRequest, monkeypatch: pytest.Monk
     monkeypatch.setattr(
         "phoenix.server.daemons.agent_session_sweeper.AgentSessionSweeper._run", _idle
     )
+
+
+@pytest.fixture(autouse=True)
+def _stub_model_cost_seeding(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """App startup syncs the model cost manifest, hundreds of built-in models
+    with their token prices, through the ORM, and each test's database then
+    discards the rows. Stubbed suite-wide; tests that read built-in models or
+    prices through the app opt in with ``@pytest.mark.seeded_model_costs``,
+    which leaves the real step in the Facilitator so the rows exist before the
+    model store's first fetch is scheduled."""
+    if request.node.get_closest_marker("seeded_model_costs"):
+        return
+
+    async def _skip(db: DbSessionFactory) -> None:
+        return None
+
+    monkeypatch.setattr("phoenix.db.facilitator._ensure_model_costs", _skip)
 
 
 @pytest.fixture(autouse=True)
