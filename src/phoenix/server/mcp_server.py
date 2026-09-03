@@ -48,7 +48,7 @@ from mcp_types import ToolAnnotations
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
-from phoenix.config import get_env_mcp_code_mode
+from phoenix.config import get_env_mcp_code_mode, get_env_mcp_graphql_mutations
 from phoenix.server.bearer_auth import (
     INTERNAL_PRINCIPAL_SCOPE_KEY,
     PhoenixUser,
@@ -466,6 +466,7 @@ def build_phoenix_mcp_server(
     read_only: bool = False,
     db: "DbSessionFactory",
     graphql_tools: bool = False,
+    graphql_mutations: bool = False,
     skills_roots: Sequence[Path] = (),
     external_skills: Sequence[Skill] = (),
 ) -> tuple[FastMCP, Optional[MontyPoolSandboxProvider]]:
@@ -488,6 +489,8 @@ def build_phoenix_mcp_server(
         graphql_tools: Register the GraphQL schema and query tools. Off by
             default: a consumer that reaches GraphQL another way must not carry
             a second, ungated path to it.
+        graphql_mutations: Also register the GraphQL mutation tool. Ignored
+            unless ``graphql_tools`` is set.
         skills_roots: Directories whose skill folders this consumer receives.
             Empty by default: no skill tools, and no skill instructions
             advertised.
@@ -553,7 +556,7 @@ def build_phoenix_mcp_server(
     if graphql_tools:
         from phoenix.server.mcp.graphql.tools import register_graphql_tools
 
-        register_graphql_tools(mcp, app=app)
+        register_graphql_tools(mcp, app=app, allow_mutations=graphql_mutations)
     if skills:
         register_skill_tools(mcp, skills)
     return mcp, sandbox_provider
@@ -564,6 +567,7 @@ def create_phoenix_mcp_app(
     *,
     monty_runtime: Optional["MontyRuntime"] = None,
     db: "DbSessionFactory",
+    read_only: bool = False,
     external_skills: Sequence[Skill] = (),
 ) -> tuple["StarletteWithLifespan", Optional[MontyPoolSandboxProvider]]:
     """Build the MCP server mounted at :data:`MCP_MOUNT_PATH` and return its ASGI app.
@@ -577,6 +581,10 @@ def create_phoenix_mcp_app(
         code_mode=get_env_mcp_code_mode(),
         db=db,
         graphql_tools=True,
+        # A read-only deployment refuses writes at the resolver anyway; not
+        # registering the tool means a client is told so before it composes a
+        # mutation rather than after.
+        graphql_mutations=get_env_mcp_graphql_mutations() and not read_only,
         skills_roots=(SHARED_SKILLS_ROOT,),
         external_skills=external_skills,
     )

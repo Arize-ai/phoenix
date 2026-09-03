@@ -34,6 +34,7 @@ class GraphQLRefusalCode(str, Enum):
     MUTATION_NOT_ALLOWED = "mutation_not_allowed"
     VALIDATION_FAILED = "validation_failed"
     AMBIGUOUS_OPERATION = "ambiguous_operation"
+    NOT_A_MUTATION = "not_a_mutation"
 
 
 class GraphQLRefusal(Exception):
