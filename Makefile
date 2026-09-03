@@ -484,6 +484,7 @@ HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
 HARBOR_ENV ?= docker
 HARBOR_VERSION ?= 0.21.0
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
+HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
 # harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
 # repo's .python-version (3.10).
 HARBOR_PYTHON ?= 3.13
@@ -519,9 +520,10 @@ harbor-plugin-e2e: ## Run the isolated Phoenix Harbor plugin E2E matrix
 	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
 		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py
 
-harbor-plugin-e2e-atif: ## Run the credentialed Terminus-2 ATIF and compaction E2E
+harbor-plugin-e2e-atif: ## Run the credentialed ATIF E2E cases (HARBOR_E2E_ATIF_CASES=terminus,compaction,multi-step)
 	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
-	HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_E2E_ATIF=1 \
+	HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_ATIF_CLAUDE_MODEL=$(HARBOR_ATIF_CLAUDE_MODEL) \
+	HARBOR_E2E_ATIF=1 \
 		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py
 
 harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
