@@ -1146,21 +1146,5 @@ def pytest_sessionstart(session: Any) -> None:
     _diag_wall("session start")
 
 
-@pytest.hookimpl(tryfirst=True)
-def pytest_collection(session: Any) -> None:
-    option = session.config.option
-    if (
-        _DIAG_WHO == "controller"
-        and getattr(option, "dist", "no") != "no"
-        and getattr(option, "numprocesses", 0)
-    ):
-        # pytest calls this after session start, by which point xdist has spawned every
-        # worker, so this collection overlaps their startup and warms the rewritten-bytecode
-        # cache they read. Returning None lets xdist's own hook skip the normal collection.
-        _diag_wall("controller warm-up collection begins")
-        session.perform_collect()
-        _diag_wall("controller warm-up collection ends")
-
-
 def pytest_collection_finish(session: Any) -> None:
     _diag_wall("collection finished")
