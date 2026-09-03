@@ -127,7 +127,7 @@ class OnlineEvalProducer(DaemonTask):
 
     ``produced_through_id`` is a position in that log: every span at or below it has
     been offered to every enabled SPAN project evaluator. Session work is materialized from
-    entity state instead, by ``SessionEvalSweeper`` — a session becomes eligible when it
+    entity state instead, by ``EvalSweeper`` — a session becomes eligible when it
     goes quiet, which no position in an arrival log can express.
     """
 

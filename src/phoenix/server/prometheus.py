@@ -135,7 +135,7 @@ RETENTION_POLICY_EXECUTIONS = Counter(
     labelnames=["status"],
 )
 
-# Queue-lag gauges are one family across evaluation targets: a dashboard panel adds a
+# Online-eval metrics are one family across evaluation targets: a dashboard panel adds a
 # target by adding a series, and a new target needs no new metric. The label values are
 # the EvaluationTarget names ("SPAN", "SESSION").
 _EVALUATION_TARGET_LABELS = ["evaluation_target"]
@@ -192,40 +192,47 @@ ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
     documentation="Span ingest rate derived from successive online-eval cursor "
     "high-water observations",
 )
-ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG = Gauge(
+ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG = Gauge(
     namespace="phoenix",
-    name="online_eval_session_eligible_pair_backlog",
-    documentation="Current number of session and evaluator pairs eligible for work",
+    name="online_eval_eligible_pair_backlog",
+    documentation="Current number of entity and evaluator pairs eligible for work",
+    labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS = Gauge(
+ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS = Gauge(
     namespace="phoenix",
-    name="online_eval_session_result_watermark_lag_seconds",
-    documentation="Largest gap between session activity and a successful result watermark",
+    name="online_eval_result_watermark_lag_seconds",
+    documentation="Largest gap between entity activity and a successful result watermark",
+    labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS = Counter(
+ONLINE_EVAL_SWEEP_ATTEMPTS = Counter(
     namespace="phoenix",
-    name="online_eval_session_sweep_attempts_total",
-    documentation="Total number of session evaluation sweep attempts",
+    name="online_eval_sweep_attempts_total",
+    documentation="Total number of online-eval sweep attempts",
+    labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_SESSION_SWEEP_SUCCESSES = Counter(
+ONLINE_EVAL_SWEEP_SUCCESSES = Counter(
     namespace="phoenix",
-    name="online_eval_session_sweep_successes_total",
-    documentation="Total number of committed session evaluation sweeps",
+    name="online_eval_sweep_successes_total",
+    documentation="Total number of committed online-eval sweeps",
+    labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_SESSION_SWEEP_FAILURES = Counter(
+ONLINE_EVAL_SWEEP_FAILURES = Counter(
     namespace="phoenix",
-    name="online_eval_session_sweep_failures_total",
-    documentation="Total number of failed or rolled-back session evaluation sweeps",
+    name="online_eval_sweep_failures_total",
+    documentation="Total number of failed or rolled-back online-eval sweeps",
+    labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS = Histogram(
+ONLINE_EVAL_SWEEP_DURATION_SECONDS = Histogram(
     namespace="phoenix",
-    name="online_eval_session_sweep_duration_seconds",
-    documentation="Session evaluation sweep duration in seconds",
+    name="online_eval_sweep_duration_seconds",
+    documentation="Online-eval sweep duration in seconds",
+    labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS = Counter(
+ONLINE_EVAL_MATERIALIZED_WORK_UNITS = Counter(
     namespace="phoenix",
-    name="online_eval_session_materialized_work_units_total",
-    documentation="Total number of session evaluation work units materialized",
+    name="online_eval_materialized_work_units_total",
+    documentation="Total number of online-eval work units materialized",
+    labelnames=_EVALUATION_TARGET_LABELS,
 )
 
 

@@ -44,7 +44,7 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.SandboxConfig import Language
 from phoenix.server.online_eval.session_policy import (
-    DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
+    DEFAULT_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
     SchedulabilityReason,
     session_schedulability_reason,
@@ -1444,7 +1444,7 @@ class ProjectEvaluator(Node):
         description=(
             "Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at "
             f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New project evaluators store the "
-            f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds when no value is "
+            f"default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds when no value is "
             "provided. A session is evaluated only once, and later activity does not schedule "
             "another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator "
             "cannot set one, and TRACE evaluators are not scheduled."
