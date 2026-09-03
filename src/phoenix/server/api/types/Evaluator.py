@@ -282,7 +282,7 @@ class CodeEvaluatorVersion(Node):
     async def input_schema(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]:
+    ) -> JSON:
         return await _infer_code_evaluator_input_schema(
             info=info,
             code_evaluator_id=self.code_evaluator_id,

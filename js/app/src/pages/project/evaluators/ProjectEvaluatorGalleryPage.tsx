@@ -917,7 +917,7 @@ function EvaluatorInputSummary({
           {inputs.map((input) => (
             <ListItem key={input.name}>
               <Flex direction="column" gap="size-25">
-                <Text size="S" fontFamily="mono">
+                <Text size="S" fontFamily="mono" css={inputNameCSS}>
                   {input.name}
                 </Text>
                 {input.description ? (
@@ -1238,6 +1238,10 @@ const detailsSectionWellCSS = css`
 
 const listSectionWellCSS = css`
   padding: var(--global-dimension-size-50);
+`;
+
+const inputNameCSS = css`
+  overflow-wrap: anywhere;
 `;
 
 const promptPreviewMessageCSS = css`

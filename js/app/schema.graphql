@@ -2651,7 +2651,7 @@ type LLMEvaluator implements Evaluator & Node {
   datasetEvaluators: [DatasetEvaluator!]!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
-  inputSchema: JSON
+  inputSchema: JSON!
   user: User
   promptVersion: PromptVersion!
 }
