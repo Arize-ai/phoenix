@@ -43,6 +43,7 @@ import {
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
+  withProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import {
@@ -200,12 +201,17 @@ const CreateProjectEvaluatorDialog = ({
     creationMode.kind === "template"
       ? creationMode.initialState.targetType
       : "SPAN";
-  const [scope, setScope] = useState<ProjectEvaluatorScope>({
-    targetType: initialTargetType,
-    filterCondition: "",
-    samplingRate: 1,
-    evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
-  });
+  const [scope, setScope] = useState<ProjectEvaluatorScope>(() =>
+    withProjectEvaluatorTarget({
+      scope: {
+        targetType: initialTargetType,
+        filterCondition: "",
+        samplingRate: 1,
+        evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
+      },
+      targetType: initialTargetType,
+    })
+  );
 
   const initialState = (() => {
     if (creationMode.kind === "newCode" || creationMode.kind === "copyCode") {
