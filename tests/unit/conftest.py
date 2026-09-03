@@ -31,7 +31,8 @@ from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import APIRouter, FastAPI
-from pydantic import SecretStr
+from fastapi._compat import v2 as fastapi_v2
+from pydantic import SecretStr, TypeAdapter
 from pydantic_ai import RunContext
 from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
@@ -112,6 +113,11 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "real_app_routers: build the app's routers fresh instead of reusing the worker's "
         "memoized ones",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_fastapi_type_adapters: build fresh pydantic TypeAdapters for the app's routes "
+        "instead of reusing the worker's memoized ones",
     )
 
 
@@ -313,6 +319,92 @@ def _memoized_graphql_schema_build(
         return
 
     monkeypatch.setattr("phoenix.server.app.build_graphql_schema", _memoized_graphql_schema)
+
+
+_BUILD_FASTAPI_TYPE_ADAPTER = fastapi_v2.ModelField.__post_init__
+_MEMOIZED_FASTAPI_TYPE_ADAPTERS: dict[tuple[Any, ...], TypeAdapter[Any]] = {}
+# A few annotations FastAPI rebuilds per app never compare equal, so the
+# cache is bounded rather than left to grow with every app in the worker.
+_FASTAPI_TYPE_ADAPTER_CACHE_LIMIT = 4096
+# Everything on a pydantic FieldInfo that can change the adapter it yields.
+_FIELD_INFO_ATTRIBUTES = (
+    "default",
+    "default_factory",
+    "alias",
+    "alias_priority",
+    "validation_alias",
+    "serialization_alias",
+    "title",
+    "field_title_generator",
+    "description",
+    "examples",
+    "exclude",
+    "exclude_if",
+    "discriminator",
+    "deprecated",
+    "json_schema_extra",
+    "frozen",
+    "validate_default",
+    "repr",
+    "init",
+    "init_var",
+    "kw_only",
+)
+
+
+def _by_value_or_repr(value: Any) -> Any:
+    # Hashable values key by type and equality, which for classes and
+    # callables is identity, so same-named types and same-named factories
+    # stay apart and 0, 0.0, and False do not collide. Unhashable values
+    # such as lists and dicts key by repr.
+    try:
+        hash(value)
+    except TypeError:
+        return repr(value)
+    return (type(value), value)
+
+
+def _fastapi_type_adapter_key(field: fastapi_v2.ModelField) -> tuple[Any, ...]:
+    info = field.field_info
+    return (
+        field.mode,
+        _by_value_or_repr(info.annotation),
+        repr(info.metadata),
+        *(_by_value_or_repr(getattr(info, name, None)) for name in _FIELD_INFO_ATTRIBUTES),
+        repr(field.config),
+    )
+
+
+def _memoized_fastapi_model_field_post_init(self: fastapi_v2.ModelField) -> None:
+    key = _fastapi_type_adapter_key(self)
+    adapter = _MEMOIZED_FASTAPI_TYPE_ADAPTERS.get(key)
+    if adapter is None:
+        _BUILD_FASTAPI_TYPE_ADAPTER(self)
+        if len(_MEMOIZED_FASTAPI_TYPE_ADAPTERS) < _FASTAPI_TYPE_ADAPTER_CACHE_LIMIT:
+            _MEMOIZED_FASTAPI_TYPE_ADAPTERS[key] = self._type_adapter
+    else:
+        self._type_adapter = adapter
+
+
+@pytest.fixture(autouse=True)
+def _memoized_fastapi_type_adapters(
+    request: FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FastAPI rebuilds every route for each app that includes its router, and
+    each route's parameters and response model become ModelFields whose
+    ``__post_init__`` builds a pydantic TypeAdapter, a core schema generated
+    per field per app. An adapter is a pure function of the field's mode,
+    annotation, FieldInfo, and config, and is stateless once built, so the
+    worker memoizes them: every app after the worker's first reuses them. A
+    test that needs fresh adapters opts out with
+    ``@pytest.mark.real_fastapi_type_adapters``."""
+    if request.node.get_closest_marker("real_fastapi_type_adapters"):
+        return
+
+    monkeypatch.setattr(
+        fastapi_v2.ModelField, "__post_init__", _memoized_fastapi_model_field_post_init
+    )
 
 
 # The auth router is left out: its builder reads environment flags at
