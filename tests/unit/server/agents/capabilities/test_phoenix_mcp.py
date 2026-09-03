@@ -91,6 +91,28 @@ def _rest_app(seen: list[Any]) -> FastAPI:
     return app
 
 
+def _span_rest_app() -> FastAPI:
+    app = FastAPI()
+
+    async def list_spans() -> list[dict[str, Any]]:
+        return []
+
+    for path, operation_id in (
+        ("/v1/spans", "getSpans"),
+        ("/v1/spans/otlpv1", "spanSearch"),
+    ):
+        app.add_api_route(
+            path,
+            list_spans,
+            methods=["GET"],
+            tags=["spans"],
+            operation_id=operation_id,
+            summary="List spans.",
+            description="REST span description.",
+        )
+    return app
+
+
 class TestPrincipalPropagation:
     """The whole feature: a call made in-process runs as a stated principal."""
 
@@ -325,11 +347,34 @@ class TestCodeMode:
         mcp, runtime = self._code_mode_server([])
         try:
             async with PhoenixMCPToolset[None](mcp) as toolset:
-                names = {tool.name for tool in await toolset.list_tools()}
+                tools = {tool.name: tool for tool in await toolset.list_tools()}
         finally:
             await runtime.aclose()
 
-        assert names == {"execute", "search", "get_schema", "tags", "list_tools"}
+        assert set(tools) == {"execute", "search", "get_schema", "tags", "list_tools"}
+        execute_description = tools["execute"].description or ""
+        assert "restricted standard library is importable (`json`" in execute_description
+        assert "End the code with `return <value>`" in execute_description
+        assert "exceptions indicate failure" in execute_description
+
+    async def test_span_tool_description_redirects_aggregates_to_sql(self) -> None:
+        runtime = MontyRuntime()
+        mcp, _ = build_phoenix_mcp_server(
+            _span_rest_app(),
+            monty_runtime=runtime,
+            code_mode=True,
+            monty_consumer="agent",
+            read_only=True,
+            db=_unused_db(),
+        )
+        try:
+            async with PhoenixMCPToolset[None](mcp) as toolset:
+                catalog = str(await toolset.direct_call_tool("list_tools", {}))
+        finally:
+            await runtime.aclose()
+
+        assert all(name in catalog for name in ("getSpans", "spanSearch", "executeSql"))
+        assert "count, group, average, or rank spans" in catalog
 
     async def test_principal_reaches_v1_through_guest_code(self) -> None:
         """Guest code calls back into the host to reach a tool, so the binding has
