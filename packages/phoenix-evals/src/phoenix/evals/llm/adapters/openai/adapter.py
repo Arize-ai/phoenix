@@ -15,7 +15,14 @@ from ...prompts import (
     validate_message_dict,
 )
 from ...registries import register_adapter, register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ...types import (
+    BaseLLMAdapter,
+    MalformedOutputError,
+    ObjectGenerationMethod,
+    RefusalError,
+    TruncatedResponseError,
+    capability_mismatch_only,
+)
 from .factories import OpenAIClientWrapper, create_azure_openai_client, create_openai_client
 
 logger = logging.getLogger(__name__)
@@ -162,25 +169,19 @@ class OpenAIAdapter(BaseLLMAdapter):
             # failure (which would silently drop server-side schema enforcement).
             from openai import BadRequestError as _OpenAIBadRequestError
 
-            try:
-                result = self._generate_with_structured_output(prompt, schema, **kwargs)
-                self._preferred_method = ObjectGenerationMethod.STRUCTURED_OUTPUT
-                return result
-            except _OpenAIBadRequestError as structured_error:
-                logger.debug(
-                    f"Structured output rejected by {self.model_name}, falling back "
-                    f"to tool calling: {structured_error}"
-                )
-                try:
-                    result = self._generate_with_tool_calling(prompt, schema, **kwargs)
-                    self._preferred_method = ObjectGenerationMethod.TOOL_CALLING
-                    return result
-                except _OpenAIBadRequestError as tool_error:
-                    raise ValueError(
-                        f"OpenAI model {self.model_name} failed with both structured "
-                        f"output and tool calling. Structured output error: "
-                        f"{structured_error}. Tool calling error: {tool_error}"
-                    ) from tool_error
+            result, path = self._try_with_fallback(
+                primary=lambda: self._generate_with_structured_output(prompt, schema, **kwargs),
+                fallback=lambda: self._generate_with_tool_calling(prompt, schema, **kwargs),
+                primary_name="structured output",
+                fallback_name="tool calling",
+                is_capability_mismatch=capability_mismatch_only(_OpenAIBadRequestError),
+            )
+            self._preferred_method = (
+                ObjectGenerationMethod.STRUCTURED_OUTPUT
+                if path == "primary"
+                else ObjectGenerationMethod.TOOL_CALLING
+            )
+            return result
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -219,25 +220,21 @@ class OpenAIAdapter(BaseLLMAdapter):
             # failure (which would silently drop server-side schema enforcement).
             from openai import BadRequestError as _OpenAIBadRequestError
 
-            try:
-                result = await self._async_generate_with_structured_output(prompt, schema, **kwargs)
-                self._preferred_method = ObjectGenerationMethod.STRUCTURED_OUTPUT
-                return result
-            except _OpenAIBadRequestError as structured_error:
-                logger.debug(
-                    f"Structured output rejected by {self.model_name}, falling back "
-                    f"to tool calling: {structured_error}"
-                )
-                try:
-                    result = await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
-                    self._preferred_method = ObjectGenerationMethod.TOOL_CALLING
-                    return result
-                except _OpenAIBadRequestError as tool_error:
-                    raise ValueError(
-                        f"OpenAI model {self.model_name} failed with both structured "
-                        f"output and tool calling. Structured output error: "
-                        f"{structured_error}. Tool calling error: {tool_error}"
-                    ) from tool_error
+            result, path = await self._try_with_fallback_async(
+                primary=lambda: self._async_generate_with_structured_output(
+                    prompt, schema, **kwargs
+                ),
+                fallback=lambda: self._async_generate_with_tool_calling(prompt, schema, **kwargs),
+                primary_name="structured output",
+                fallback_name="tool calling",
+                is_capability_mismatch=capability_mismatch_only(_OpenAIBadRequestError),
+            )
+            self._preferred_method = (
+                ObjectGenerationMethod.STRUCTURED_OUTPUT
+                if path == "primary"
+                else ObjectGenerationMethod.TOOL_CALLING
+            )
+            return result
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -266,10 +263,26 @@ class OpenAIAdapter(BaseLLMAdapter):
             response_format=response_format,
             **kwargs,
         )
-        content = response.choices[0].message.content
+        choice = response.choices[0]
+        if getattr(choice.message, "refusal", None):
+            raise RefusalError(
+                f"{self.model_name} refused to generate output: {choice.message.refusal}"
+            )
+        if choice.finish_reason == "length":
+            raise TruncatedResponseError(
+                f"{self.model_name} response was truncated (hit the token limit) "
+                "before structured output completed."
+            )
+        content = choice.message.content
         if content is None:
             raise ValueError("OpenAI returned no content")
-        return cast(Dict[str, Any], json.loads(content))
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise MalformedOutputError(
+                f"{self.model_name} structured output was not valid JSON: {e}"
+            ) from e
+        return self._validate_against_schema(data, schema)
 
     def _generate_with_tool_calling(
         self,
@@ -292,16 +305,32 @@ class OpenAIAdapter(BaseLLMAdapter):
             **kwargs,
         )
 
-        tool_calls = response.choices[0].message.tool_calls
+        choice = response.choices[0]
+        if getattr(choice.message, "refusal", None):
+            raise RefusalError(
+                f"{self.model_name} refused to generate output: {choice.message.refusal}"
+            )
+        if choice.finish_reason == "length":
+            raise TruncatedResponseError(
+                f"{self.model_name} response was truncated (hit the token limit) "
+                "before the tool call completed."
+            )
+        tool_calls = choice.message.tool_calls
         if not tool_calls:
             raise ValueError("No tool calls in response")
 
         tool_call = tool_calls[0]
         arguments = tool_call.function.arguments
         if isinstance(arguments, str):
-            return cast(Dict[str, Any], json.loads(arguments))
+            try:
+                data = json.loads(arguments)
+            except json.JSONDecodeError as e:
+                raise MalformedOutputError(
+                    f"{self.model_name} tool call arguments were not valid JSON: {e}"
+                ) from e
         else:
-            return cast(Dict[str, Any], arguments)
+            data = arguments
+        return self._validate_against_schema(data, schema)
 
     async def _async_generate_with_structured_output(
         self,
@@ -327,10 +356,26 @@ class OpenAIAdapter(BaseLLMAdapter):
             response_format=response_format,
             **kwargs,
         )
-        content = response.choices[0].message.content
+        choice = response.choices[0]
+        if getattr(choice.message, "refusal", None):
+            raise RefusalError(
+                f"{self.model_name} refused to generate output: {choice.message.refusal}"
+            )
+        if choice.finish_reason == "length":
+            raise TruncatedResponseError(
+                f"{self.model_name} response was truncated (hit the token limit) "
+                "before structured output completed."
+            )
+        content = choice.message.content
         if content is None:
             raise ValueError("OpenAI returned no content")
-        return cast(Dict[str, Any], json.loads(content))
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise MalformedOutputError(
+                f"{self.model_name} structured output was not valid JSON: {e}"
+            ) from e
+        return self._validate_against_schema(data, schema)
 
     async def _async_generate_with_tool_calling(
         self,
@@ -353,16 +398,32 @@ class OpenAIAdapter(BaseLLMAdapter):
             **kwargs,
         )
 
-        tool_calls = response.choices[0].message.tool_calls
+        choice = response.choices[0]
+        if getattr(choice.message, "refusal", None):
+            raise RefusalError(
+                f"{self.model_name} refused to generate output: {choice.message.refusal}"
+            )
+        if choice.finish_reason == "length":
+            raise TruncatedResponseError(
+                f"{self.model_name} response was truncated (hit the token limit) "
+                "before the tool call completed."
+            )
+        tool_calls = choice.message.tool_calls
         if not tool_calls:
             raise ValueError("No tool calls in response")
 
         tool_call = tool_calls[0]
         arguments = tool_call.function.arguments
         if isinstance(arguments, str):
-            return cast(Dict[str, Any], json.loads(arguments))
+            try:
+                data = json.loads(arguments)
+            except json.JSONDecodeError as e:
+                raise MalformedOutputError(
+                    f"{self.model_name} tool call arguments were not valid JSON: {e}"
+                ) from e
         else:
-            return cast(Dict[str, Any], arguments)
+            data = arguments
+        return self._validate_against_schema(data, schema)
 
     @property
     def model_name(self) -> str:

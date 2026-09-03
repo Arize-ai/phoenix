@@ -14,7 +14,14 @@ from ...prompts import (
     validate_message_dict,
 )
 from ...registries import register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ...types import (
+    BaseLLMAdapter,
+    MalformedOutputError,
+    ObjectGenerationMethod,
+    RefusalError,
+    TruncatedResponseError,
+    capability_mismatch_only,
+)
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
@@ -197,26 +204,15 @@ class LiteLLMAdapter(BaseLLMAdapter):
                     return self._generate_with_structured_output(prompt, schema, **kwargs)
                 return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
-            try:
-                result = _run(primary)
-                self._preferred_method = primary
-                return result
-            except _LiteLLMBadRequestError as primary_error:
-                logger.debug(
-                    f"{primary.value} rejected by {self.client.model}, falling back "
-                    f"to {fallback.value}: {primary_error}"
-                )
-                try:
-                    result = _run(fallback)
-                    self._preferred_method = fallback
-                    return result
-                except _LiteLLMBadRequestError as fallback_error:
-                    raise ValueError(
-                        f"LiteLLM model {self.client.model} failed with both "
-                        f"{primary.value} and {fallback.value}. "
-                        f"{primary.value} error: {primary_error}. "
-                        f"{fallback.value} error: {fallback_error}"
-                    ) from fallback_error
+            result, path = self._try_with_fallback(
+                primary=lambda: _run(primary),
+                fallback=lambda: _run(fallback),
+                primary_name=primary.value,
+                fallback_name=fallback.value,
+                is_capability_mismatch=capability_mismatch_only(_LiteLLMBadRequestError),
+            )
+            self._preferred_method = primary if path == "primary" else fallback
+            return result
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -264,26 +260,15 @@ class LiteLLMAdapter(BaseLLMAdapter):
                     )
                 return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
-            try:
-                result = await _run(primary)
-                self._preferred_method = primary
-                return result
-            except _LiteLLMBadRequestError as primary_error:
-                logger.debug(
-                    f"{primary.value} rejected by {self.client.model}, falling back "
-                    f"to {fallback.value}: {primary_error}"
-                )
-                try:
-                    result = await _run(fallback)
-                    self._preferred_method = fallback
-                    return result
-                except _LiteLLMBadRequestError as fallback_error:
-                    raise ValueError(
-                        f"LiteLLM model {self.client.model} failed with both "
-                        f"{primary.value} and {fallback.value}. "
-                        f"{primary.value} error: {primary_error}. "
-                        f"{fallback.value} error: {fallback_error}"
-                    ) from fallback_error
+            result, path = await self._try_with_fallback_async(
+                primary=lambda: _run(primary),
+                fallback=lambda: _run(fallback),
+                primary_name=primary.value,
+                fallback_name=fallback.value,
+                is_capability_mismatch=capability_mismatch_only(_LiteLLMBadRequestError),
+            )
+            self._preferred_method = primary if path == "primary" else fallback
+            return result
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -312,10 +297,26 @@ class LiteLLMAdapter(BaseLLMAdapter):
             response_format=response_format,
             **kwargs,
         )
-        content = response.choices[0].message.content  # pyright: ignore
+        choice = response.choices[0]  # pyright: ignore
+        if getattr(choice.message, "refusal", None):
+            raise RefusalError(
+                f"{self.model_name} refused to generate output: {choice.message.refusal}"
+            )
+        if choice.finish_reason == "length":
+            raise TruncatedResponseError(
+                f"{self.model_name} response was truncated (hit the token limit) "
+                "before structured output completed."
+            )
+        content = choice.message.content
         if content is None:
             raise ValueError("LiteLLM returned no content")
-        return cast(Dict[str, Any], json.loads(content))
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise MalformedOutputError(
+                f"{self.model_name} structured output was not valid JSON: {e}"
+            ) from e
+        return self._validate_against_schema(data, schema)
 
     def _generate_with_tool_calling(
         self,
@@ -335,12 +336,30 @@ class LiteLLMAdapter(BaseLLMAdapter):
             **kwargs,
         )
 
-        tool_call = response.choices[0].message.tool_calls[0]
-        arguments = tool_call.function.arguments
+        choice = response.choices[0]
+        if getattr(choice.message, "refusal", None):
+            raise RefusalError(
+                f"{self.model_name} refused to generate output: {choice.message.refusal}"
+            )
+        if choice.finish_reason == "length":
+            raise TruncatedResponseError(
+                f"{self.model_name} response was truncated (hit the token limit) "
+                "before the tool call completed."
+            )
+        tool_calls = choice.message.tool_calls
+        if not tool_calls:
+            raise ValueError("No tool calls in response")
+        arguments = tool_calls[0].function.arguments
         if isinstance(arguments, str):
-            return cast(Dict[str, Any], json.loads(arguments))
+            try:
+                data = json.loads(arguments)
+            except json.JSONDecodeError as e:
+                raise MalformedOutputError(
+                    f"{self.model_name} tool call arguments were not valid JSON: {e}"
+                ) from e
         else:
-            return cast(Dict[str, Any], arguments)
+            data = arguments
+        return self._validate_against_schema(data, schema)
 
     async def _async_generate_with_structured_output(
         self,
@@ -366,10 +385,26 @@ class LiteLLMAdapter(BaseLLMAdapter):
             response_format=response_format,
             **kwargs,
         )
-        content = response.choices[0].message.content  # pyright: ignore
+        choice = response.choices[0]  # pyright: ignore
+        if getattr(choice.message, "refusal", None):
+            raise RefusalError(
+                f"{self.model_name} refused to generate output: {choice.message.refusal}"
+            )
+        if choice.finish_reason == "length":
+            raise TruncatedResponseError(
+                f"{self.model_name} response was truncated (hit the token limit) "
+                "before structured output completed."
+            )
+        content = choice.message.content
         if content is None:
             raise ValueError("LiteLLM returned no content")
-        return cast(Dict[str, Any], json.loads(content))
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise MalformedOutputError(
+                f"{self.model_name} structured output was not valid JSON: {e}"
+            ) from e
+        return self._validate_against_schema(data, schema)
 
     async def _async_generate_with_tool_calling(
         self,
@@ -389,12 +424,30 @@ class LiteLLMAdapter(BaseLLMAdapter):
             **kwargs,
         )
 
-        tool_call = response.choices[0].message.tool_calls[0]
-        arguments = tool_call.function.arguments
+        choice = response.choices[0]
+        if getattr(choice.message, "refusal", None):
+            raise RefusalError(
+                f"{self.model_name} refused to generate output: {choice.message.refusal}"
+            )
+        if choice.finish_reason == "length":
+            raise TruncatedResponseError(
+                f"{self.model_name} response was truncated (hit the token limit) "
+                "before the tool call completed."
+            )
+        tool_calls = choice.message.tool_calls
+        if not tool_calls:
+            raise ValueError("No tool calls in response")
+        arguments = tool_calls[0].function.arguments
         if isinstance(arguments, str):
-            return cast(Dict[str, Any], json.loads(arguments))
+            try:
+                data = json.loads(arguments)
+            except json.JSONDecodeError as e:
+                raise MalformedOutputError(
+                    f"{self.model_name} tool call arguments were not valid JSON: {e}"
+                ) from e
         else:
-            return cast(Dict[str, Any], arguments)
+            data = arguments
+        return self._validate_against_schema(data, schema)
 
     @property
     def model_name(self) -> str:

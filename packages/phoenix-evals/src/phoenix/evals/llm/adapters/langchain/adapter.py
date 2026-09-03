@@ -12,13 +12,57 @@ from ...prompts import (
     validate_message_dict,
 )
 from ...registries import register_adapter, register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ...types import BaseLLMAdapter, ObjectGenerationMethod, RefusalError, TruncatedResponseError
 from .factories import (
     create_anthropic_langchain_client,  # pyright: ignore
     create_openai_langchain_client,  # pyright: ignore
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _is_langchain_capability_mismatch(error: BaseException) -> bool:
+    """A genuine capability-mismatch signal from whichever provider backs this
+    LangChain model (only openai/anthropic are wired up as LangChain
+    providers here). Authentication, rate-limit, quota, timeout errors, and
+    any :class:`~phoenix.evals.llm.types.LLMOutputError` must return directly
+    instead of triggering a fallback attempt.
+    """
+    try:
+        from openai import BadRequestError as _OpenAIBadRequestError
+
+        if isinstance(error, _OpenAIBadRequestError):
+            return True
+    except ImportError:
+        pass
+    try:
+        from anthropic import BadRequestError as _AnthropicBadRequestError
+
+        if isinstance(error, _AnthropicBadRequestError):
+            return True
+    except ImportError:
+        pass
+    return False
+
+
+def _check_finish_reason(model_name: str, response: Any) -> None:
+    """Best-effort truncation/refusal check from LangChain's
+    ``response_metadata`` (populated for OpenAI/Anthropic-backed models on
+    the tool-calling path). Not available on the structured-output path,
+    since ``with_structured_output`` returns an already-parsed dict with no
+    metadata attached.
+    """
+    finish_reason = getattr(response, "response_metadata", {}).get("finish_reason") or getattr(
+        response, "response_metadata", {}
+    ).get("stop_reason")
+    if finish_reason in ("length", "max_tokens"):
+        raise TruncatedResponseError(
+            f"{model_name} response was truncated (hit the token limit) before completion."
+        )
+    if finish_reason in ("content_filter", "refusal"):
+        raise RefusalError(
+            f"{model_name} declined to generate output (finish_reason={finish_reason})."
+        )
 
 
 def identify_langchain_client(client: Any) -> bool:
@@ -136,7 +180,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
             structured_model = self.client.with_structured_output(normalized_schema)
             response = structured_model.invoke(prompt_input, **kwargs)
             if isinstance(response, dict):
-                return response  # pyright: ignore[reportReturnType,reportUnknownVariableType]
+                return self._validate_against_schema(response, schema)
             else:
                 # If not a dict, this is unexpected for object schemas
                 raise ValueError(
@@ -157,14 +201,16 @@ class LangChainModelAdapter(BaseLLMAdapter):
             else:
                 raise ValueError("No tool binding method available")
 
+            _check_finish_reason(self.model_name, response)
             if hasattr(response, "tool_calls") and response.tool_calls:
                 tool_call = response.tool_calls[0]
                 if isinstance(tool_call, dict) and "args" in tool_call:
-                    return cast(Dict[str, Any], tool_call["args"])
+                    data = tool_call["args"]
                 elif hasattr(tool_call, "args"):  # pyright: ignore[reportArgumentType,reportUnknownArgumentType]
-                    return cast(Dict[str, Any], tool_call.args)  # pyright: ignore[reportAttributeAccessIssue]
+                    data = tool_call.args  # pyright: ignore[reportAttributeAccessIssue]
                 else:
                     raise ValueError("Tool call format not supported")
+                return self._validate_against_schema(data, schema)
             else:
                 raise ValueError("No tool calls found in response")
 
@@ -173,22 +219,19 @@ class LangChainModelAdapter(BaseLLMAdapter):
         elif method == ObjectGenerationMethod.TOOL_CALLING:
             return _generate_tool_call_output()
 
-        if supports_structured_output:
-            try:
-                return _generate_structured_output()
-            except Exception as e:
-                logger.warning(f"Structured output failed: {e}, falling back to tool calling")
-
-        if supports_tool_calls:
-            try:
-                return _generate_tool_call_output()
-            except Exception as e:
-                logger.warning(f"Tool calling failed: {e}")
-
-        raise ValueError(
-            "Failed to generate structured output: neither structured output nor tool "
-            "calling succeeded"
-        )
+        if supports_structured_output and supports_tool_calls:
+            result, _ = self._try_with_fallback(
+                primary=_generate_structured_output,
+                fallback=_generate_tool_call_output,
+                primary_name="structured output",
+                fallback_name="tool calling",
+                is_capability_mismatch=_is_langchain_capability_mismatch,
+            )
+            return result
+        elif supports_structured_output:
+            return _generate_structured_output()
+        else:
+            return _generate_tool_call_output()
 
     async def async_generate_object(
         self,
@@ -221,7 +264,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 response = structured_model.invoke(prompt_input, **kwargs)
 
             if isinstance(response, dict):
-                return response  # pyright: ignore[reportReturnType,reportUnknownVariableType]
+                return self._validate_against_schema(response, schema)
             else:
                 raise ValueError(
                     f"Expected dict from structured output with object schema, "
@@ -244,14 +287,16 @@ class LangChainModelAdapter(BaseLLMAdapter):
             else:
                 response = tool_model.invoke(prompt_input, **kwargs)
 
+            _check_finish_reason(self.model_name, response)
             if hasattr(response, "tool_calls") and response.tool_calls:
                 tool_call = response.tool_calls[0]
                 if isinstance(tool_call, dict) and "args" in tool_call:
-                    return cast(Dict[str, Any], tool_call["args"])
+                    data = tool_call["args"]
                 elif hasattr(tool_call, "args"):  # pyright: ignore[reportArgumentType,reportUnknownArgumentType]
-                    return cast(Dict[str, Any], tool_call.args)  # pyright: ignore[reportAttributeAccessIssue]
+                    data = tool_call.args  # pyright: ignore[reportAttributeAccessIssue]
                 else:
                     raise ValueError("Tool call format not supported")
+                return self._validate_against_schema(data, schema)
             else:
                 raise ValueError("No tool calls found in response")
 
@@ -260,22 +305,19 @@ class LangChainModelAdapter(BaseLLMAdapter):
         elif method == ObjectGenerationMethod.TOOL_CALLING:
             return await _async_generate_tool_call_output()
 
-        if supports_structured_output:
-            try:
-                return await _async_generate_structured_output()
-            except Exception as e:
-                logger.warning(f"Async structured output failed: {e}, falling back to tool calling")
-
-        if supports_tool_calls:
-            try:
-                return await _async_generate_tool_call_output()
-            except Exception as e:
-                logger.warning(f"Async tool calling failed: {e}")
-
-        raise ValueError(
-            "Failed to generate structured output: neither structured output nor tool "
-            "calling succeeded"
-        )
+        if supports_structured_output and supports_tool_calls:
+            result, _ = await self._try_with_fallback_async(
+                primary=_async_generate_structured_output,
+                fallback=_async_generate_tool_call_output,
+                primary_name="structured output",
+                fallback_name="tool calling",
+                is_capability_mismatch=_is_langchain_capability_mismatch,
+            )
+            return result
+        elif supports_structured_output:
+            return await _async_generate_structured_output()
+        else:
+            return await _async_generate_tool_call_output()
 
     @property
     def model_name(self) -> str:
