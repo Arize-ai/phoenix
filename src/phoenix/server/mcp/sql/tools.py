@@ -30,7 +30,7 @@ from phoenix.server.mcp.sql.output import (
     ExecuteSqlSuccessEnvelope,
 )
 from phoenix.server.mcp.sql.teaching import describe_sql_schema
-from phoenix.server.mcp_server import _META_ANNOTATIONS, _META_TAG
+from phoenix.server.mcp_server import _META_ANNOTATIONS
 from phoenix.server.types import DbSessionFactory
 
 _ANALYTICS_TAG = "phoenix-analytics-sql"
@@ -191,7 +191,7 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
     # returns reaches the model, so neither representation is charged for. It
     # matters for a client that surfaces each tool result directly, where the
     # document would otherwise arrive twice.
-    @mcp.tool(tags={_META_TAG, _ANALYTICS_TAG}, annotations=_META_ANNOTATIONS, output_schema=None)
+    @mcp.tool(tags={_ANALYTICS_TAG}, annotations=_META_ANNOTATIONS, output_schema=None)
     async def describeSqlSchema(
         area: Optional[str] = None,
         tables: Optional[list[str]] = None,
@@ -255,7 +255,7 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
     # string would put a JSON parse in front of every one of those steps to
     # save bytes that were never spent.
     @mcp.tool(
-        tags={_META_TAG, _ANALYTICS_TAG},
+        tags={_ANALYTICS_TAG},
         annotations=_META_ANNOTATIONS,
         output_schema=_EXECUTE_SQL_OUTPUT_SCHEMA,
     )

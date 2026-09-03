@@ -59,8 +59,14 @@ dependencies = [
   "arize-phoenix-evals>=3.6.0",
   "arize-phoenix-otel>=0.17.0",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
-  "fastmcp-slim[client,server]>=3.4.2,<4",  # client powers pydantic-ai's MCPToolset used by the agent assistant; server powers the in-process MCP server mounted at /mcp. Cap below 4: FastMCP 4 is an SDK-v2 engine swap (mcp_types, httpx2, sampling removals) still in prerelease.
-  # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose ==0.0.17 pin conflicts and would ship in wheel metadata.
+  "fastmcp-slim[client,server]>=4,<5",  # client: pydantic-ai's MCPToolset, used by the agent assistant. server: the in-process MCP server mounted at /mcp.
+  # Imported directly by the MCP server: `mcp_types` for the wire types it stamps
+  # onto tools, `httpx2` for the client FastMCP's OpenAPI provider dispatches
+  # through. Both arrive via fastmcp-slim today; declared so an import Phoenix
+  # makes does not depend on another package's extras.
+  "mcp-types>=2,<3",
+  "httpx2>=2.5",
+  # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
   "pydantic-monty==0.0.19",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.34.0,<3",
