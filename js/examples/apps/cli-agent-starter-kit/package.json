@@ -45,7 +45,7 @@
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "@clack/prompts": "^1.7.0",
-    "ai": "^6.0.272",
+    "ai": "^6.0.274",
     "zod": "^4.5.4"
   },
   "devDependencies": {
