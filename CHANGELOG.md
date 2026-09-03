@@ -1,5 +1,29 @@
 # Changelog
 
+## [20.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.6.0...arize-phoenix-v20.7.0) (2026-09-03)
+
+
+### Features
+
+* **server:** move the MCP server to FastMCP 4 and the stateless protocol ([#15903](https://github.com/Arize-ai/phoenix/issues/15903)) ([f11c885](https://github.com/Arize-ai/phoenix/commit/f11c885c063f1c9b6146693cda401c5d645d8294))
+
+
+### Bug Fixes
+
+* **agents:** record the tool name on pxi llm tool schemas ([#15693](https://github.com/Arize-ai/phoenix/issues/15693)) ([3f01ebb](https://github.com/Arize-ai/phoenix/commit/3f01ebbd4ebdf86ba324f60b8482437ca152d340))
+* **mcp/sql:** make AnalyticsSqlError a real exception ([#15906](https://github.com/Arize-ai/phoenix/issues/15906)) ([59c7934](https://github.com/Arize-ai/phoenix/commit/59c79341a79c67f26965d4e1434a0f15337e27b3))
+* **model-pricing:** sync minimax pricing from LiteLLM ([#15901](https://github.com/Arize-ai/phoenix/issues/15901)) ([e346f8a](https://github.com/Arize-ai/phoenix/commit/e346f8af40d8d1631060da925d375faa21970861)), closes [#15592](https://github.com/Arize-ai/phoenix/issues/15592)
+
+
+### Performance Improvements
+
+* **traces:** correlate and scope filtered trace query lowering ([#15788](https://github.com/Arize-ai/phoenix/issues/15788)) ([3b73314](https://github.com/Arize-ai/phoenix/commit/3b73314548ef04648fa6ee032cd3ccb74001d54b))
+
+
+### Documentation
+
+* **skills:** record the unit-test startup shortcuts and daemon rules in phoenix-server ([#15900](https://github.com/Arize-ai/phoenix/issues/15900)) ([be57b06](https://github.com/Arize-ai/phoenix/commit/be57b0687b46e8d38e513ee3a885cf80fe69198b))
+
 ## [20.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.5.0...arize-phoenix-v20.6.0) (2026-09-03)
 
 
