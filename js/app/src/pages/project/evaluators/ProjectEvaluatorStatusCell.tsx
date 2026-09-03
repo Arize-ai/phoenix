@@ -1,7 +1,7 @@
 import { Focusable } from "react-aria";
 
 import { Flex, Text } from "@phoenix/components";
-import { Badge } from "@phoenix/components/core/badge";
+import { Token } from "@phoenix/components/core/token";
 import {
   Tooltip,
   TooltipArrow,
@@ -32,7 +32,9 @@ export function ProjectEvaluatorStatusCell({
   return (
     <TooltipTrigger delay={0}>
       <Focusable>
-        <Badge variant={status.variant}>{status.label}</Badge>
+        <Token role="button" color={status.color}>
+          {status.label}
+        </Token>
       </Focusable>
       <Tooltip>
         <TooltipArrow />

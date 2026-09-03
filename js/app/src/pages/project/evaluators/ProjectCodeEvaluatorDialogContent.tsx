@@ -21,7 +21,6 @@ export const ProjectCodeEvaluatorDialogContent = ({
   inlineCode,
   scope,
   onScopeChange,
-  onFieldChange,
   onSubmit,
   isSubmitting,
   error,
@@ -39,8 +38,6 @@ export const ProjectCodeEvaluatorDialogContent = ({
   inlineCode?: ProjectEvaluatorInlineCode;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
-  /** Fires on any form-section edit, so stale error banners can be cleared. */
-  onFieldChange?: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
   error?: string;
@@ -68,23 +65,20 @@ export const ProjectCodeEvaluatorDialogContent = ({
       )}
       left={
         <ProjectCodeEvaluatorFormSections
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
-          isTargetDisabled={mode === "update"}
           codeEvaluatorName={evaluatorName}
           codeDefinition={codeDefinition}
-          onFieldChange={onFieldChange}
         />
       }
       right={
         <ProjectEvaluatorScopePanel
           projectId={projectId}
           scope={scope}
+          onScopeChange={onScopeChange}
+          onFilterValidityChange={setIsFilterValid}
           codeEvaluatorId={inlineCode ? undefined : evaluatorId}
           inlineCode={inlineCode}
           requiredVariables={requiredVariables}
+          isTargetDisabled={mode === "update"}
         />
       }
     />
