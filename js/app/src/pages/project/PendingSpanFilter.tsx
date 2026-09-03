@@ -6,7 +6,6 @@ import {
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
-/** The span filter field, standing in for a spans table -- see `PendingDSLFilter`. */
 export function PendingSpanFilter({
   onResolved,
 }: {
@@ -28,8 +27,7 @@ export function PendingSpanFilter({
           rootSpansOnly: selectsRootSpansOnly ?? false,
         })
       }
-      // The default shows root spans, as a link with no filter does, rather
-      // than every span -- wider than was asked for.
+      // Fall back to what a link with no filter shows: root spans, not every span.
       onRejected={() =>
         onResolved(
           {

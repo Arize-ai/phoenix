@@ -4,7 +4,6 @@ import { isKnownRootSpanCondition } from "./spanFilterRootScopeConstants";
 import { useSpanFilterCondition } from "./SpanFiltersContext";
 import type { SettledSpanFilterSeed } from "./spanFilterSeed";
 
-/** The span filter field over a failed spans table -- see `DSLFilterErrorFallback`. */
 export function SpanFilterErrorFallback({
   error,
   onResolved,
