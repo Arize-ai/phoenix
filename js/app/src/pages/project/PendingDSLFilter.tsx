@@ -22,14 +22,15 @@ export function PendingDSLFilter<TValidArgs>({
 }: {
   onValidCondition: (args: TValidArgs) => void;
   /**
-   * Must still resolve to something loadable; the field keeps showing the
-   * rejected text and its own error.
+   * The field keeps the rejected text and its own error on screen, so the
+   * caller need only load a fallback condition.
    */
   onRejected: () => void;
   renderField: (props: PendingDSLFilterFieldProps<TValidArgs>) => ReactNode;
 }) {
-  // A transport failure is not a verdict on the condition: falling back would
-  // load rows for a wider filter than the URL names. Hold and offer a retry.
+  // A transport failure is not a verdict on the condition, so it must not
+  // trigger the fallback: the table would load rows for a condition other
+  // than the one on screen. Hold and offer a retry.
   const [hasTransportError, setHasTransportError] = useState(false);
   const [validationRetryKey, setValidationRetryKey] = useState(0);
   return (

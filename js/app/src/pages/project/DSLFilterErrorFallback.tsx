@@ -2,10 +2,7 @@ import type { ReactNode } from "react";
 
 import { Alert, Text, View } from "@phoenix/components";
 
-/**
- * Database errors embed the generated SQL and can run to thousands of
- * characters. The boundary logs the full text to the console.
- */
+/** Database errors embed the generated SQL and can run to thousands of characters. */
 const MAX_SURFACED_ERROR = 200;
 
 function truncate(error: string) {
@@ -24,12 +21,8 @@ export function DSLFilterErrorFallback({
   children,
 }: {
   error?: string | null;
-  /**
-   * Whether the user wrote the condition. The error may be the table's own, so
-   * the filter is named as a likely cause only when someone wrote one.
-   */
+  /** Whether someone wrote the condition, as opposed to a default this app seeded */
   hasUserFilter: boolean;
-  /** The filter field. */
   children: ReactNode;
 }) {
   return (
