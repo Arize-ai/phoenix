@@ -27,6 +27,9 @@ PXI_SKILLS_ROOTS: tuple[Path, ...] = (
 )
 
 SKILL_TOOLS_TAG = "phoenix-mcp-skills"
+LOAD_SKILL_TOOL_NAME = "load_skill"
+LOAD_SKILL_REFERENCE_TOOL_NAME = "load_skill_reference"
+SKILL_TOOL_NAMES: tuple[str, ...] = (LOAD_SKILL_TOOL_NAME, LOAD_SKILL_REFERENCE_TOOL_NAME)
 
 _INSTRUCTIONS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 
@@ -223,6 +226,7 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
 
     load = Tool.from_function(
         load_skill,
+        name=LOAD_SKILL_TOOL_NAME,
         description=(
             "Load a Phoenix skill's instructions. Call this before working in a skill's "
             "domain, once per skill per conversation, and follow what it returns."
@@ -233,6 +237,7 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
     )
     read = Tool.from_function(
         load_skill_reference,
+        name=LOAD_SKILL_REFERENCE_TOOL_NAME,
         description=(
             "Load a reference file of a skill already loaded with `load_skill`, "
             "using the exact skill and reference names that load listed."
@@ -263,6 +268,7 @@ __all__ = [
     "PXI_SKILLS_ROOT",
     "PXI_SKILLS_ROOTS",
     "SKILL_TOOLS_TAG",
+    "SKILL_TOOL_NAMES",
     "Skill",
     "SkillReference",
     "load_skills",
