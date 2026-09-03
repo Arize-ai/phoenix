@@ -23,9 +23,13 @@ const contentCSS = css`
 
 export interface ExperimentInputCellProps {
   /**
-   * The example ID to display
+   * The example node ID (used as the default display label)
    */
   exampleId: string;
+  /**
+   * Optional human-facing ID (e.g. dataset externalId). Falls back to exampleId.
+   */
+  exampleDisplayId?: string | null;
   /**
    * The input value to render in the cell
    */
@@ -46,10 +50,12 @@ export interface ExperimentInputCellProps {
  */
 export function ExperimentInputCell({
   exampleId,
+  exampleDisplayId,
   value,
   height,
   onExpand,
 }: ExperimentInputCellProps) {
+  const displayId = exampleDisplayId || exampleId;
   return (
     <Flex direction="column" height="100%">
       <CellTop
@@ -74,7 +80,7 @@ export function ExperimentInputCell({
           css={css`
             white-space: nowrap;
           `}
-        >{`example ${exampleId}`}</Text>
+        >{`example ${displayId}`}</Text>
       </CellTop>
       <ExpandableContent height={height}>
         <div css={contentCSS}>

@@ -283,6 +283,7 @@ export function ExperimentCompareListPage({
                     }
                     example {
                       id
+                      externalId
                       revision {
                         input
                         referenceOutput: output
@@ -453,6 +454,7 @@ export function ExperimentCompareListPage({
         const tableData = {
           id: example.id,
           example: example.id,
+          exampleExternalId: example.externalId ?? null,
           repetitionNumber: baseExperimentRun.repetitionNumber,
           input: example.revision.input,
           referenceOutput: example.revision.referenceOutput,
@@ -521,9 +523,10 @@ export function ExperimentCompareListPage({
       size: 110,
       cell: ({ getValue, row }) => {
         const exampleId = getValue() as string;
+        const displayId = row.original.exampleExternalId || exampleId;
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
-            <TextOverflow>{exampleId}</TextOverflow>
+            <TextOverflow>{displayId}</TextOverflow>
             <TooltipTrigger>
               <IconButton
                 size="S"
