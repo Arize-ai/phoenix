@@ -270,13 +270,13 @@ class _CodeModeWithDirectSkillTools(CodeMode):
     https://github.com/PrefectHQ/fastmcp/issues/4925.
 
     Args:
-        direct_tool_names: Tools served alongside ``execute`` that ``call_tool``
-            cannot reach, named as such in the ``execute`` description.
+        skill_tool_names: Skill tools served alongside ``execute``, named in its
+            description as out of ``call_tool``'s reach.
     """
 
-    def __init__(self, *, direct_tool_names: Sequence[str], **kwargs: Any) -> None:
+    def __init__(self, *, skill_tool_names: Sequence[str], **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._direct_tool_names = direct_tool_names
+        self._skill_tool_names = skill_tool_names
 
     async def transform_tools(self, tools: "Sequence[Tool]") -> "Sequence[Tool]":
         """The ``tools/list`` response."""
@@ -297,7 +297,10 @@ class _CodeModeWithDirectSkillTools(CodeMode):
         resolves against, and nothing else tells the model, so it batches
         ``load_skill`` calls through ``execute`` and is told the tool is unknown.
         """
-        direct_tools = ", ".join(f"`{name}`" for name in self._direct_tool_names)
+        discovery_tool_names = [tool.name for tool in self._build_discovery_tools()]
+        direct_tools = ", ".join(
+            f"`{name}`" for name in (*discovery_tool_names, *self._skill_tool_names)
+        )
         return (
             f"{super()._build_execute_description()}\n"
             "`call_tool` can only invoke the tools `search` and `list_tools` describe. "
@@ -337,7 +340,6 @@ def _build_code_mode(
         The transform to install and its FastMCP sandbox adapter.
     """
     sandbox_provider = MontyPoolSandboxProvider(runtime=runtime, consumer=consumer)
-    discovery_tool_names = ("search", "get_schema", "tags", "list_tools")
     return (
         _CodeModeWithDirectSkillTools(
             discovery_tools=[
@@ -347,7 +349,7 @@ def _build_code_mode(
                 _read_only(ListTools()),
             ],
             sandbox_provider=sandbox_provider,
-            direct_tool_names=(*discovery_tool_names, *skill_tool_names),
+            skill_tool_names=skill_tool_names,
         ),
         sandbox_provider,
     )
