@@ -347,7 +347,7 @@ class TestTraceRetentionRuleMaxCount:
                 )
             )
             assert retained_session.content_complete is False
-            assert retained_work.status == "EXPIRED"
+            assert retained_work.status == "CONTENT_LOST"
             assert retained_work.claimed_by is None
             assert (
                 await session.get(models.ProjectSessionAnnotation, online_eval_annotation_id)
