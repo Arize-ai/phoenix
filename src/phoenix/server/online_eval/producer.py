@@ -363,7 +363,7 @@ class OnlineEvalProducer(DaemonTask):
                         models.EvalWorkUnit.created_at < pending_cutoff,
                     )
                     .values(
-                        status="EXPIRED",
+                        status="DROPPED",
                         error=func.coalesce(
                             models.EvalWorkUnit.error,
                             _PENDING_TTL_EXCEEDED_ERROR,

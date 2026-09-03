@@ -892,7 +892,7 @@ async def test_consumer_stale_fingerprint_expiry_is_revived_when_config_reverts(
     assert unit.error is None
 
 
-async def test_ttl_expired_row_is_not_resurrected(
+async def test_ttl_dropped_row_is_not_resurrected(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS", "1")
@@ -921,7 +921,7 @@ async def test_ttl_expired_row_is_not_resurrected(
 
     async with db() as session:
         unit = (await session.scalars(select(models.EvalWorkUnit))).one()
-    assert unit.status == "EXPIRED"
+    assert unit.status == "DROPPED"
     assert unit.error == "pending ttl exceeded"
 
 
@@ -993,7 +993,7 @@ async def test_reaper_transitions_and_deletes(
             unit.id: (unit.status, unit.error)
             for unit in await session.scalars(select(models.EvalWorkUnit))
         }
-    assert remaining.get(ids["stale_pending"]) == ("EXPIRED", "pending ttl exceeded")
+    assert remaining.get(ids["stale_pending"]) == ("DROPPED", "pending ttl exceeded")
     assert remaining.get(ids["fresh_pending"]) == ("PENDING", None)
     assert ids["done_outside"] not in remaining
     assert remaining.get(ids["done_inside"]) == ("DONE", None)

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c73fb43e2deadaafeab068c4be9c999>>
+ * @generated SignedSource<<faa2880155b2305078dd5162737c81c9>>
  * @lightSyntaxTransform
  */
 
@@ -14,7 +14,7 @@ export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
+export type ProjectEvaluatorRunStatus = "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
 export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TRACE_TARGET_UNSUPPORTED";
 export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
@@ -60,6 +60,7 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly id: string;
   readonly name: string;
   readonly runSummary: {
+    readonly droppedCount: number;
     readonly evaluatedCount: number;
     readonly failedCount: number;
     readonly lastRunAt: string | null;
@@ -82,6 +83,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "4077d339eee46a54c24d51345d464b8b";
+(node as any).hash = "d883db8db1faa5b1f62d52268f90855d";
 
 export default node;

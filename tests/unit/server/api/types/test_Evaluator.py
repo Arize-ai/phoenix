@@ -1741,7 +1741,7 @@ async def test_project_evaluator_run_summary(
                 cumulative_llm_token_count_prompt=0,
                 cumulative_llm_token_count_completion=0,
             )
-            for index in range(6)
+            for index in range(7)
         ]
         session.add_all(spans)
         await session.flush()
@@ -1805,6 +1805,17 @@ async def test_project_evaluator_run_summary(
                     error="execution deadline exceeded",
                     updated_at=now - timedelta(minutes=5),
                 ),
+                # Shed from the backlog under load — the newest unit of all, so were it
+                # counted as a failure it would flip the status and own lastError.
+                models.EvalWorkUnit(
+                    span_rowid=spans[6].id,
+                    evaluator_id=evaluator.id,
+                    project_evaluator_id=project_evaluator.id,
+                    config_fingerprint=fingerprint,
+                    status="DROPPED",
+                    error="pending ttl exceeded",
+                    updated_at=now + timedelta(minutes=1),
+                ),
                 models.EvalSessionWorkUnit(
                     project_session_rowid=project_session.id,
                     evaluator_id=evaluator.id,
@@ -1841,6 +1852,7 @@ async def test_project_evaluator_run_summary(
                         queuedCount
                         evaluatedCount
                         failedCount
+                        droppedCount
                         lastError
                     }
                 }
@@ -1851,11 +1863,12 @@ async def test_project_evaluator_run_summary(
 
     assert not response.errors and response.data
     run_summary = response.data["node"]["runSummary"]
-    assert run_summary["status"] == "HEALTHY"
+    assert run_summary["status"] == "RUNNING"
     assert run_summary["evaluatedCount"] == 2
-    # Given up on: the ERROR at MAX_ATTEMPTS and the non-stale EXPIRED. The
-    # stale-fingerprint and content-incomplete expiries fall outside every bucket.
+    # Given up on: the FAILED unit and the EXPIRED one. SUPERSEDED and CONTENT_LOST
+    # fall outside every bucket; DROPPED has its own.
     assert run_summary["failedCount"] == 2
+    assert run_summary["droppedCount"] == 1
     # Waiting: the PENDING unit and the ERROR with attempts remaining.
     assert run_summary["queuedCount"] == 2
     # The newest FAILED unit's error — not the retrying unit's, which is newer but
@@ -1864,7 +1877,7 @@ async def test_project_evaluator_run_summary(
     assert datetime.fromisoformat(run_summary["lastRunAt"]) == now - timedelta(minutes=1)
 
 
-async def test_project_evaluator_run_summary_reports_failing_when_failure_is_newest(
+async def test_project_evaluator_run_summary_reports_error_when_failure_is_newest(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -1958,7 +1971,7 @@ async def test_project_evaluator_run_summary_reports_failing_when_failure_is_new
 
     assert not response.errors and response.data
     run_summary = response.data["node"]["runSummary"]
-    assert run_summary["status"] == "FAILING"
+    assert run_summary["status"] == "ERROR"
     assert run_summary["lastError"] == "credentials expired"
 
 
