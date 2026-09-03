@@ -94,11 +94,8 @@ between the emptiest and the busiest page in the app."""
 
 
 def build_agent(**kwargs: Any) -> Any:
-    """Build an agent for factory tests with inert DB-backed tool dependencies."""
     kwargs.setdefault("name", "PXIAgent")
     kwargs.setdefault("headless", False)
-    kwargs.setdefault("db", Mock(spec=DbSessionFactory))
-    kwargs.setdefault("event_queue", Mock())
     return _build_agent(**kwargs)
 
 
@@ -827,7 +824,6 @@ class TestHeadlessMode:
         assert {
             "bash",
             "get_current_datetime",
-            "write_span_note",
         } <= tool_names
         instructions = result.all_messages()[0].instructions
         assert instructions is not None
@@ -1116,7 +1112,6 @@ class TestSkills:
         assert "execute" in tool_names
         assert "load_skill" in tool_names
         assert "load_skill_reference" in tool_names
-        assert "write_span_note" in tool_names
 
     async def test_absent_without_a_server(
         self,

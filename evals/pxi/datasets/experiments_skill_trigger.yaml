@@ -372,7 +372,7 @@ examples:
         agreement: high
         n_opinions: 3
         notes: >-
-          Cross-trace failure diagnosis routes to debug-trace, not experiments,
+          Cross-trace failure diagnosis routes to phoenix-open-coding, not experiments,
           even with a dataset mounted. Dataset presence must not pull the
           experiments skill onto a trace-diagnosis ask.
 

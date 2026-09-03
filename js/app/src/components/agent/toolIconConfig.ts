@@ -41,14 +41,11 @@ export const TOOL_ICON_BY_CATEGORY = {
 
 /** Built-in skills with a natural Phoenix noun icon override the skill glyph. */
 export const SKILL_ICON_BY_NAME: Partial<Record<string, IconKey>> = {
-  "annotate-spans": "Edit2",
   datasets: "Database",
-  "debug-trace": "Trace",
   evaluators: "Scale",
   experiments: "Experiment",
   "phoenix-graphql": "Code",
   playground: "Play",
-  "span-coding": "PriceTags",
 };
 
 const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
@@ -112,7 +109,6 @@ const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
   submit_llm_evaluator_draft: "edit",
   update_annotation_config: "edit",
   write_prompt_tools: "edit",
-  write_span_note: "edit",
 
   // Filtering
   set_spans_filter: "filter",
