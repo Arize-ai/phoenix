@@ -34,7 +34,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import InstrumentedAttribute, aliased, with_polymorphic
+from sqlalchemy.orm import aliased, with_polymorphic
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.sql.selectable import ScalarSelect, Subquery
@@ -91,14 +91,15 @@ class _SweepTarget:
 
     Everything the sweep does differently per target is spelled here; the sweep
     itself reads only these fields, so a new target is a new entry rather than a
-    second copy of the sweep.
+    second copy of the sweep. Columns are named rather than bound, and resolved
+    against the model beside them at each use.
     """
 
     entity_model: _EntityModel
-    entity_project_id_column: InstrumentedAttribute[int]
-    sample_key_column: InstrumentedAttribute[str]
+    entity_project_id_column: str
+    sample_key_column: str
     work_unit_model: _WorkUnitModel
-    work_unit_target_column: InstrumentedAttribute[int]
+    work_unit_target_column: str
     live_work_index_predicate: TextClause
     filtered_entity_rowids_subquery: Callable[[str, Sequence[int]], ScalarSelect[int]]
     is_evaluable: Callable[[], ColumnElement[bool]]
@@ -109,10 +110,10 @@ class _SweepTarget:
 _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
     "SESSION": _SweepTarget(
         entity_model=models.ProjectSession,
-        entity_project_id_column=models.ProjectSession.project_id,
-        sample_key_column=models.ProjectSession.session_id,
+        entity_project_id_column="project_id",
+        sample_key_column="session_id",
         work_unit_model=models.EvalSessionWorkUnit,
-        work_unit_target_column=models.EvalSessionWorkUnit.project_session_rowid,
+        work_unit_target_column="project_session_rowid",
         live_work_index_predicate=text(live_eval_session_work_index_predicate()),
         filtered_entity_rowids_subquery=get_filtered_session_rowids_subquery,
         is_evaluable=lambda: models.ProjectSession.content_complete.is_(True),
@@ -209,7 +210,7 @@ def _live_work_exists(
         select(1)
         .select_from(live_work)
         .where(
-            getattr(live_work, target.work_unit_target_column.key) == target.entity_model.id,
+            getattr(live_work, target.work_unit_target_column) == target.entity_model.id,
             live_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             live_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
             or_(
@@ -235,13 +236,13 @@ def _eligible_pairs_statement(
     filter_matches: ColumnElement[bool],
 ) -> Select[Any]:
     entity_model = target.entity_model
-    target_column_key = target.work_unit_target_column.key
+    target_column = target.work_unit_target_column
     successful_work = aliased(target.work_unit_model)
     terminal_work = aliased(target.work_unit_model)
     terminal_watermark = (
         select(func.max(terminal_work.evaluated_through))
         .where(
-            getattr(terminal_work, target_column_key) == entity_model.id,
+            getattr(terminal_work, target_column) == entity_model.id,
             terminal_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             terminal_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
             or_(
@@ -267,7 +268,7 @@ def _eligible_pairs_statement(
         select(1)
         .select_from(successful_work)
         .where(
-            getattr(successful_work, target_column_key) == entity_model.id,
+            getattr(successful_work, target_column) == entity_model.id,
             successful_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             successful_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
             successful_work.status == "DONE",
@@ -290,7 +291,7 @@ def _eligible_pairs_statement(
     return (
         select(
             entity_model.id.label("entity_rowid"),
-            target.sample_key_column.label("sample_identity"),
+            getattr(entity_model, target.sample_key_column).label("sample_identity"),
             project_evaluator_relation.c.project_evaluator_id,
             project_evaluator_relation.c.evaluator_id,
             project_evaluator_relation.c.config_fingerprint,
@@ -302,7 +303,8 @@ def _eligible_pairs_statement(
         .select_from(entity_model)
         .join(
             project_evaluator_relation,
-            target.entity_project_id_column == project_evaluator_relation.c.project_id,
+            getattr(entity_model, target.entity_project_id_column)
+            == project_evaluator_relation.c.project_id,
         )
         .where(
             target.is_evaluable(),
@@ -368,7 +370,7 @@ def _work_insert_statement(
     """Insert scheduling decisions whose PostgreSQL evaluator and entity rows are locked."""
     work_unit_model = target.work_unit_model
     index_elements = (
-        target.work_unit_target_column,
+        getattr(work_unit_model, target.work_unit_target_column),
         work_unit_model.evaluator_id,
         work_unit_model.config_fingerprint,
     )
@@ -724,7 +726,6 @@ class EvalSweeper(DaemonTask):
                 eligible_page.c.entity_rowid.in_(locked_entity_rowids)
             )
         rows = (await session.execute(selected_page)).all()
-        target_column_key = target.work_unit_target_column.key
         decisions: list[dict[str, Any]] = []
         for row in rows:
             if not row.filter_matches:
@@ -735,7 +736,7 @@ class EvalSweeper(DaemonTask):
                 status = "PENDING"
             decisions.append(
                 {
-                    target_column_key: row.entity_rowid,
+                    target.work_unit_target_column: row.entity_rowid,
                     "evaluator_id": row.evaluator_id,
                     "project_evaluator_id": row.project_evaluator_id,
                     "config_fingerprint": row.config_fingerprint,
@@ -795,7 +796,7 @@ class EvalSweeper(DaemonTask):
             .select_from(work_unit_model)
             .join(
                 entity_model,
-                target.work_unit_target_column == entity_model.id,
+                getattr(work_unit_model, target.work_unit_target_column) == entity_model.id,
             )
             .where(
                 work_unit_model.status == "DONE",
