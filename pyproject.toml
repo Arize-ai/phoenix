@@ -33,7 +33,7 @@ dependencies = [
   "starlette>=0.37.0",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.320.4",
+  "strawberry-graphql==0.327.0",
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
@@ -153,7 +153,7 @@ dev = [
   "requests",  # this is needed to type-check third-party packages
   "responses",
   "respx>=0.22.0",
-  "strawberry-graphql[opentelemetry,cli]==0.320.4",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
+  "strawberry-graphql[opentelemetry,cli]==0.327.0",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
   "syrupy",
   "tenacity",
   "tiktoken",
@@ -234,7 +234,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy==0.64b0",
   "opentelemetry-instrumentation-grpc==0.64b0",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.320.4",
+  "strawberry-graphql[opentelemetry]==0.327.0",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
   "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
