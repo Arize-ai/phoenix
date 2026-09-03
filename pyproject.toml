@@ -319,6 +319,11 @@ addopts = [
   "--ignore=src/phoenix/db/migrations/env.py",
   "--new-first",
   "--showlocals",
+  # arize-phoenix-client's pytest plugin records marked tests as Phoenix experiments
+  # and, under xdist, collects the whole suite on the controller to find them. No
+  # test here carries its marker.
+  "-p",
+  "no:phoenix",
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 testpaths = [
