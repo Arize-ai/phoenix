@@ -7,13 +7,24 @@ from functools import partial
 from importlib.metadata import version
 from random import getrandbits
 from secrets import token_hex
-from typing import Any, AsyncIterator, Awaitable, Callable, Iterator, Literal, Optional
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterable,
+    Iterator,
+    Literal,
+    Optional,
+    Union,
+)
 
 import aiosqlite
 import httpx
 import pytest
 import sqlalchemy
 import sqlean
+import strawberry
 from _pytest.config import Config
 from _pytest.fixtures import SubRequest
 from _pytest.tmpdir import TempPathFactory
@@ -28,6 +39,7 @@ from sqlalchemy import URL, StaticPool
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, create_async_engine
 from starlette.types import ASGIApp
+from strawberry.extensions import SchemaExtension
 
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
@@ -42,6 +54,7 @@ from phoenix.db.engines import (
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.insertion.helpers import DataManipulation
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
+from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import _db, create_app
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
@@ -88,6 +101,11 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "pristine_db: give the test an empty database instead of one carrying the rows the "
         "app seeds at startup",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_graphql_schema_build: build a fresh GraphQL schema for the app instead of "
+        "reusing the worker's memoized one",
     )
 
 
@@ -243,6 +261,52 @@ def _memoized_key_derivation(request: FixtureRequest, monkeypatch: pytest.Monkey
         EncryptionService, "_derive_encryption_key", staticmethod(_memoized_encryption_key)
     )
     monkeypatch.setattr(Redactor, "_derive_key", staticmethod(_memoized_redaction_key))
+
+
+_GraphQLExtensions = Iterable[Union[type[SchemaExtension], Callable[[], SchemaExtension]]]
+_MEMOIZED_GRAPHQL_SCHEMAS: dict[tuple[Any, ...], strawberry.Schema] = {}
+
+
+def _graphql_extension_key(extension: Any) -> Any:
+    # Extension classes identify themselves. The app passes its other
+    # extensions as lambdas built fresh per app; two such lambdas are
+    # equivalent when they share code, defaults, and captured values.
+    if isinstance(extension, type):
+        return extension
+    code = getattr(extension, "__code__", None)
+    if code is None:
+        return extension
+    captured = tuple(cell.cell_contents for cell in (extension.__closure__ or ()))
+    return (code, extension.__defaults__, captured)
+
+
+def _memoized_graphql_schema(extensions: Optional[_GraphQLExtensions] = None) -> strawberry.Schema:
+    extension_list = list(extensions or ())
+    key = tuple(_graphql_extension_key(extension) for extension in extension_list)
+    try:
+        schema = _MEMOIZED_GRAPHQL_SCHEMAS.get(key)
+    except TypeError:
+        return build_graphql_schema(extension_list)
+    if schema is None:
+        schema = _MEMOIZED_GRAPHQL_SCHEMAS[key] = build_graphql_schema(extension_list)
+    return schema
+
+
+@pytest.fixture(autouse=True)
+def _memoized_graphql_schema_build(
+    request: FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Building the Strawberry schema converts every type, field, and enum of
+    the API into GraphQL core objects, a full pass over the API per app. The
+    schema is a pure function of the extension list, so the worker memoizes
+    it per list: every app after the worker's first reuses the same schema
+    object. A test that needs its own schema opts out with
+    ``@pytest.mark.real_graphql_schema_build``."""
+    if request.node.get_closest_marker("real_graphql_schema_build"):
+        return
+
+    monkeypatch.setattr("phoenix.server.app.build_graphql_schema", _memoized_graphql_schema)
 
 
 @pytest.fixture(autouse=True)
