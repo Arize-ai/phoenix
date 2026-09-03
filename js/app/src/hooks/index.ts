@@ -20,5 +20,6 @@ export * from "./usePersistedState";
 export * from "./useOwnedPreloadedQuery";
 export * from "./useScopedHotkeys";
 export * from "./useLabelFilterSearchParams";
+export * from "./useFilterSearchParam";
 export * from "./useMediaQuery";
 export * from "./useUnsavedChangesBlocker";
