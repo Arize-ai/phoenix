@@ -15,7 +15,7 @@ from phoenix.server.settings.registry import (
     AgentSessionRetentionSetting,
 )
 from phoenix.server.types import DbSessionFactory
-from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
+from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid, _user_role_id
 
 
 async def _make_settings(
@@ -59,11 +59,8 @@ async def _add_user(
     role_name: models.UserRoleName,
 ) -> int:
     async with db() as session:
-        user_role = models.UserRole(name=role_name)
-        session.add(user_role)
-        await session.flush()
         user = models.User(
-            user_role_id=user_role.id,
+            user_role_id=await _user_role_id(session, role_name),
             username=username,
             email=f"{username}@example.com",
             password_hash=b"hash",
