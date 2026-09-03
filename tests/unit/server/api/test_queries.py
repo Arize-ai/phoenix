@@ -2822,14 +2822,11 @@ async def test_available_agent_skills_returns_the_whole_catalog(
     assert names == [
         "phoenix-axial-coding",
         "phoenix-open-coding",
-        "annotate-spans",
         "datasets",
-        "debug-trace",
         "evaluators",
         "experiments",
         "phoenix-graphql",
         "playground",
-        "span-coding",
     ]
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])

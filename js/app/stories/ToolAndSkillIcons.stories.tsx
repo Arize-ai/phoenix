@@ -250,14 +250,11 @@ const toolIconItems = [
 ] satisfies Array<{ label: string; part: ToolPartType }>;
 
 const builtInSkillIconItems = [
-  "annotate-spans",
   "datasets",
-  "debug-trace",
   "evaluators",
   "experiments",
   "phoenix-graphql",
   "playground",
-  "span-coding",
 ].map((skillName) => ({
   skillName,
   part: makePart({
