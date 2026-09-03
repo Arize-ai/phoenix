@@ -46,7 +46,11 @@ export const MetadataTableCell = ({
 
   return (
     <div style={{ maxWidth: "100%" }}>
-      <MetadataTooltip width="800px" metadata={parsedMetadata}>
+      <MetadataTooltip
+        width="800px"
+        metadata={parsedMetadata}
+        appendFilterCondition={appendFilterCondition}
+      >
         <MetadataLabel
           metadata={stringifiedMetadata}
           onClick={() => {

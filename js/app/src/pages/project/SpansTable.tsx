@@ -1,5 +1,10 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, SortingState, Table } from "@tanstack/react-table";
+import type {
+  CellContext,
+  ColumnDef,
+  SortingState,
+  Table,
+} from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -212,10 +217,20 @@ export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
+const MetadataCell = <TData extends { metadata: unknown }, TValue>({
+  row,
+}: CellContext<TData, TValue>) => {
+  const { appendFilterCondition } = useSpanFilterActions();
+  return (
+    <MetadataTableCell
+      metadata={row.original.metadata}
+      appendFilterCondition={appendFilterCondition}
+    />
+  );
+};
 
 export function SpansTable(props: SpansTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { appendFilterCondition } = useSpanFilterActions();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -716,12 +731,7 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "metadata",
       accessorKey: "metadata",
-      cell: ({ row }) => (
-        <MetadataTableCell
-          metadata={row.original.metadata}
-          appendFilterCondition={appendFilterCondition}
-        />
-      ),
+      cell: MetadataCell,
       enableSorting: false,
     },
     {
