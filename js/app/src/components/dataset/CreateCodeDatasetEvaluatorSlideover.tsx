@@ -219,7 +219,7 @@ const CreateCodeEvaluatorDialog = ({
   }, [datasetId]);
 
   const initialLanguage = "PYTHON";
-  const initialSourceCode = getDefaultCodeEvaluatorSource("PYTHON");
+  const initialSourceCode = getDefaultCodeEvaluatorSource("PYTHON", "dataset");
   const initialSandboxConfigId: string | null = null;
 
   const onSubmit = (

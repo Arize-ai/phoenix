@@ -102,7 +102,6 @@ export const RegexEvaluatorForm = () => {
               value={String(field.value ?? "")}
               isInvalid={!!error}
               error={error?.message}
-              description="The regex pattern to match against the text. e.g. ^[0-9]+$"
               label="Pattern*"
               placeholder="e.g. ^[0-9]+$"
               onValidationChange={handleRegexValidationChange}
@@ -112,7 +111,6 @@ export const RegexEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="text"
           label="Text"
-          description="The text to search."
           defaultMode={textDefaultMode}
           control={control}
           setValue={setValue}

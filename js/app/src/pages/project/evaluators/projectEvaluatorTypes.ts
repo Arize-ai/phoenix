@@ -1,25 +1,77 @@
 import { formatDistanceToNow } from "date-fns";
 
 import type { BadgeVariant } from "@phoenix/components/core/badge";
+import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
+import {
+  EVALUATOR_MAPPING_SOURCE_GRAINS,
+  getEvaluatorMetadataEntryNames,
+} from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import type {
   EvaluatorInputMapping,
   EvaluatorMappingSourceGrain,
 } from "@phoenix/types";
-import { assertUnreachable } from "@phoenix/typeUtils";
-import { getValueAtPath, parsePathSegments } from "@phoenix/utils/objectUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 
-/** A span evaluation context has no counterpart to a dataset `reference`. */
-export function dropReferencePathMappings(
-  inputMapping: EvaluatorInputMapping
+/**
+ * Drops paths rooted at a `metadata` name the new record kind does not carry —
+ * a path that matches nothing fails the evaluation server-side.
+ */
+export function dropOtherGrainEntityPathMappings(
+  inputMapping: EvaluatorInputMapping,
+  grain: ProjectEvaluatorMappingSourceGrain
 ): EvaluatorInputMapping {
+  const ownNames = getEvaluatorMetadataEntryNames(grain);
+  const staleNames = EVALUATOR_MAPPING_SOURCE_GRAINS.filter(
+    (otherGrain) => otherGrain !== grain
+  )
+    .flatMap((otherGrain) => [...getEvaluatorMetadataEntryNames(otherGrain)])
+    .filter((name) => !ownNames.has(name));
   const pathMapping = Object.fromEntries(
     Object.entries(inputMapping.pathMapping).filter(
-      ([, path]) => path !== "reference" && !path.startsWith("reference.")
+      ([, path]) =>
+        !staleNames.some((name) => isPathRootedAt(path, `metadata.${name}`))
     )
   );
   return { ...inputMapping, pathMapping };
+}
+
+/**
+ * Whether two input mappings carry the same entries, ignoring key order.
+ *
+ * An edit form compares what it loaded against what the store holds to decide
+ * whether to send a mapping at all. The two differ in key order — the store
+ * merges the loaded value onto its own defaults, which list `literalMapping`
+ * first — so comparing serialized objects reports a change on a form nobody
+ * touched, and an evaluator that stored no mapping gets an empty one written
+ * over it.
+ */
+export function isSameInputMapping(
+  a: EvaluatorInputMapping,
+  b: EvaluatorInputMapping
+): boolean {
+  return (
+    sortedEntriesJson(a.pathMapping) === sortedEntriesJson(b.pathMapping) &&
+    sortedEntriesJson(a.literalMapping) === sortedEntriesJson(b.literalMapping)
+  );
+}
+
+function sortedEntriesJson(mapping: Record<string, unknown> | undefined) {
+  return JSON.stringify(
+    Object.entries(mapping ?? {}).sort(([x], [y]) =>
+      x < y ? -1 : x > y ? 1 : 0
+    )
+  );
+}
+
+/** `metadata.turns` and `metadata.turns[0]` are rooted there; `metadata.turnsX` is not. */
+function isPathRootedAt(path: string, root: string): boolean {
+  if (!path.startsWith(root)) {
+    return false;
+  }
+  const next = path.charAt(root.length);
+  return next === "" || next === "." || next === "[";
 }
 
 /**
@@ -88,6 +140,12 @@ export const isProjectEvaluatorTarget = (
 ): value is ProjectEvaluatorTarget =>
   PROJECT_EVALUATOR_TARGETS.includes(value as ProjectEvaluatorTarget);
 
+/** A project evaluator runs on a record, never on a dataset example. */
+export type ProjectEvaluatorMappingSourceGrain = Exclude<
+  EvaluatorMappingSourceGrain,
+  "dataset"
+>;
+
 /**
  * Which mapping-source vocabulary the records of an evaluated target speak.
  *
@@ -97,7 +155,7 @@ export const isProjectEvaluatorTarget = (
  */
 export function toEvaluatorMappingSourceGrain(
   target: ProjectEvaluatorTarget
-): EvaluatorMappingSourceGrain {
+): ProjectEvaluatorMappingSourceGrain {
   switch (target) {
     case "SESSION":
       return "session";
@@ -172,9 +230,19 @@ export type ProjectEvaluatorRunSummary = {
 
 export type ProjectEvaluatorStatus = {
   label: string;
+  color: string;
   variant: BadgeVariant;
   /** Why the evaluator is in this state, shown on hover and on the details page. */
   explanation: string;
+};
+
+/** `Badge` takes the variant; `Token` takes the color. One choice, two spellings. */
+const STATUS_COLOR_BY_VARIANT: Record<BadgeVariant, string> = {
+  warning: "var(--global-color-warning)",
+  danger: "var(--global-color-danger)",
+  success: "var(--global-color-success)",
+  info: "var(--global-color-info)",
+  default: "var(--global-color-gray-300)",
 };
 
 /**
@@ -189,44 +257,41 @@ export function getProjectEvaluatorStatus({
 }: {
   schedulabilityStatus: string;
   schedulabilityReason: string | null | undefined;
-  // Only the status is read, so callers that have just that need not fetch
-  // the counts as well.
+  // Narrowed so status cells can render without fetching run counts.
   runSummary: Pick<ProjectEvaluatorRunSummary, "status">;
 }): ProjectEvaluatorStatus {
-  if (schedulabilityStatus === "NOT_SCHEDULABLE") {
-    return {
-      label: "Not scheduled",
-      variant: "warning",
-      explanation: getSchedulabilityExplanation(schedulabilityReason),
-    };
-  }
-  switch (runSummary.status) {
-    case "FAILING":
-      return {
-        label: "Failing",
-        variant: "danger",
-        explanation: "The most recent evaluation failed.",
-      };
-    case "HEALTHY":
-      return {
-        label: "Healthy",
-        variant: "success",
-        explanation: "Evaluations are running and producing annotations.",
-      };
-    case "QUEUED":
-      return {
-        label: "Queued",
-        variant: "info",
-        explanation: "Evaluations are waiting to run.",
-      };
-    default:
-      return {
-        label: "Never ran",
-        variant: "default",
-        explanation:
-          "No evaluations have been scheduled for this evaluator yet.",
-      };
-  }
+  const status =
+    schedulabilityStatus === "NOT_SCHEDULABLE"
+      ? {
+          label: "Not scheduled",
+          variant: "warning" as const,
+          explanation: getSchedulabilityExplanation(schedulabilityReason),
+        }
+      : runSummary.status === "FAILING"
+        ? {
+            label: "Failing",
+            variant: "danger" as const,
+            explanation: "The most recent evaluation failed.",
+          }
+        : runSummary.status === "HEALTHY"
+          ? {
+              label: "Healthy",
+              variant: "success" as const,
+              explanation: "Evaluations are running and producing annotations.",
+            }
+          : runSummary.status === "QUEUED"
+            ? {
+                label: "Queued",
+                variant: "info" as const,
+                explanation: "Evaluations are waiting to run.",
+              }
+            : {
+                label: "Never ran",
+                variant: "default" as const,
+                explanation:
+                  "No evaluations have been scheduled for this evaluator yet.",
+              };
+  return { ...status, color: STATUS_COLOR_BY_VARIANT[status.variant] };
 }
 
 export function formatLastRun(lastRunAt: string | null): string {
@@ -257,6 +322,12 @@ export type ProjectEvaluatorMappingDiagnostic = {
   variable: string;
   path: string;
   status: "resolved" | "missing" | "optional-missing" | "unverified";
+  /**
+   * Where the value comes from: a path the author wrote, or a field of the same
+   * name at the top of the evaluation context. Only `path` carries a path worth
+   * showing.
+   */
+  source: "path" | "context";
 };
 
 export function getProjectEvaluatorMappingDiagnostics({
@@ -271,21 +342,44 @@ export function getProjectEvaluatorMappingDiagnostics({
   requiredVariables?: string[];
 }): ProjectEvaluatorMappingDiagnostic[] {
   const requiredVariableNames = new Set(requiredVariables);
-  return variables.map((variable) => {
-    const path = pathMapping[variable] ?? variable;
-    // Wildcards and slices only the server can resolve are left to it.
-    if (parsePathSegments(path) === null) {
-      return { variable, path, status: "unverified" };
+  const missingStatus = (variable: string) =>
+    requiredVariableNames.has(variable) ? "missing" : "optional-missing";
+  const source = isStringKeyedObject(context) ? context : {};
+  return variables.map((variable): ProjectEvaluatorMappingDiagnostic => {
+    const mappedPath = pathMapping[variable];
+    if (mappedPath != null) {
+      // One resolver reads every path this feature writes; what it cannot
+      // answer from here — a wildcard only the server resolves, a context
+      // with nothing in it yet — is unverified rather than wrong.
+      const resolution = resolveEvaluatorPath({ source, path: mappedPath });
+      return {
+        variable,
+        path: mappedPath,
+        status:
+          resolution.status === "unverifiable"
+            ? "unverified"
+            : resolution.status === "unresolved"
+              ? missingStatus(variable)
+              : "resolved",
+        source: "path",
+      };
+    }
+    // An unmapped variable binds only from a field of the same name at the top
+    // of the context — never by walking into it — so a dotted variable name
+    // resolves here exactly as little as it does at evaluation time.
+    if (isStringKeyedObject(context) && variable in context) {
+      return {
+        variable,
+        path: variable,
+        status: "resolved",
+        source: "context",
+      };
     }
     return {
       variable,
-      path,
-      status:
-        getValueAtPath(context, path) === undefined
-          ? requiredVariableNames.has(variable)
-            ? "missing"
-            : "optional-missing"
-          : "resolved",
+      path: variable,
+      status: missingStatus(variable),
+      source: "context",
     };
   });
 }

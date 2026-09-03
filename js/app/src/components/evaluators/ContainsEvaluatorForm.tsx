@@ -80,7 +80,6 @@ export const ContainsEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="text"
           label="Text"
-          description="The text to search for the words in."
           defaultMode={textDefaultMode}
           control={control}
           setValue={setValue}
@@ -94,7 +93,6 @@ export const ContainsEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="words"
           label="Words"
-          description="A comma separated list of words to search for in the text."
           defaultMode={wordsDefaultMode}
           control={control}
           setValue={setValue}

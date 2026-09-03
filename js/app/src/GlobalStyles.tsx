@@ -1,5 +1,7 @@
 import { css, Global } from "@emotion/react";
 
+import { typeaheadMenuCSS } from "@phoenix/components/filter/styles";
+
 import type { ThemeContextType } from "./contexts";
 import { useTheme } from "./contexts";
 
@@ -1677,6 +1679,7 @@ export function GlobalStyles() {
         mediumRootCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
+        typeaheadMenuCSS,
         chartCSS,
         fontFamilyCSS
       )}

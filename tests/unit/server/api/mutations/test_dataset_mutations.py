@@ -211,7 +211,30 @@ async def test_add_span_to_dataset(
                                     "input": {"input": "chain-span-input-value"},
                                     "output": {"output": "chain-span-output-value"},
                                     "metadata": {
+                                        "span_id": "1",
+                                        "trace_id": "1",
+                                        "parent_id": None,
+                                        "name": "chain span",
                                         "span_kind": "CHAIN",
+                                        "status_code": "OK",
+                                        "status_message": "okay",
+                                        "latency_ms": 30000.0,
+                                        "cumulative_llm_token_count_prompt": 0,
+                                        "cumulative_llm_token_count_completion": 0,
+                                        "cumulative_llm_token_count_total": 0,
+                                        "start_time": "2021-01-01T00:00:00+00:00",
+                                        "end_time": "2021-01-01T00:00:30+00:00",
+                                        "events": [],
+                                        "attributes": {
+                                            "input": {
+                                                "value": "chain-span-input-value",
+                                                "mime_type": "text/plain",
+                                            },
+                                            "output": {
+                                                "value": "chain-span-output-value",
+                                                "mime_type": "text/plain",
+                                            },
+                                        },
                                         "annotations": {
                                             "test annotation": [
                                                 {
@@ -243,7 +266,38 @@ async def test_add_span_to_dataset(
                                         ]
                                     },
                                     "metadata": {
+                                        "span_id": "2",
+                                        "trace_id": "1",
+                                        "parent_id": "1",
+                                        "name": "retriever span",
                                         "span_kind": "RETRIEVER",
+                                        "status_code": "OK",
+                                        "status_message": "okay",
+                                        "latency_ms": 15000.0,
+                                        "cumulative_llm_token_count_prompt": 0,
+                                        "cumulative_llm_token_count_completion": 0,
+                                        "cumulative_llm_token_count_total": 0,
+                                        "start_time": "2021-01-01T00:00:05+00:00",
+                                        "end_time": "2021-01-01T00:00:20+00:00",
+                                        "events": [],
+                                        "attributes": {
+                                            "input": {
+                                                "value": "retriever-span-input",
+                                                "mime_type": "text/plain",
+                                            },
+                                            "retrieval": {
+                                                "documents": [
+                                                    {
+                                                        "document": {
+                                                            "content": (
+                                                                "retrieved-document-content"
+                                                            ),
+                                                            "score": 1,
+                                                        }
+                                                    },
+                                                ],
+                                            },
+                                        },
                                         "annotations": {},
                                     },
                                 }
@@ -258,7 +312,43 @@ async def test_add_span_to_dataset(
                                         ]
                                     },
                                     "metadata": {
+                                        "span_id": "3",
+                                        "trace_id": "1",
+                                        "parent_id": "1",
+                                        "name": "llm span",
                                         "span_kind": "LLM",
+                                        "status_code": "OK",
+                                        "status_message": "okay",
+                                        "latency_ms": 15000.0,
+                                        "cumulative_llm_token_count_prompt": 0,
+                                        "cumulative_llm_token_count_completion": 0,
+                                        "cumulative_llm_token_count_total": 0,
+                                        "start_time": "2021-01-01T00:00:05+00:00",
+                                        "end_time": "2021-01-01T00:00:20+00:00",
+                                        "events": [],
+                                        "attributes": {
+                                            "llm": {
+                                                "input_messages": [
+                                                    {
+                                                        "message": {
+                                                            "role": "user",
+                                                            "content": "user-message-content",
+                                                        }
+                                                    }
+                                                ],
+                                                "output_messages": [
+                                                    {
+                                                        "message": {
+                                                            "role": "assistant",
+                                                            "content": (
+                                                                "assistant-message-content"
+                                                            ),
+                                                        }
+                                                    },
+                                                ],
+                                                "invocation_parameters": {"temperature": 1},
+                                            },
+                                        },
                                         "annotations": {},
                                     },
                                     "output": {

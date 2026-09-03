@@ -82,7 +82,11 @@ export function generateTypeScriptTypes(
           },
         ]
       : []),
-    { name: "metadata", typeName: "Metadata", data: mappingSource.metadata },
+    {
+      name: "metadata",
+      typeName: "Metadata",
+      data: mappingSource.metadata,
+    },
   ];
 
   for (const { typeName, data } of fields) {
