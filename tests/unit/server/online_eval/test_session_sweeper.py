@@ -88,9 +88,7 @@ def test_live_key_predicate_is_single_sourced() -> None:
     assert str(live_key_index.dialect_options["postgresql"]["where"]) == predicate
     assert str(live_key_index.dialect_options["sqlite"]["where"]) == predicate
     assert str(session_sweeper._LIVE_WORK_INDEX_PREDICATE) == predicate
-    assert (
-        migration.live_eval_session_work_index_predicate is live_eval_session_work_index_predicate
-    )
+    assert migration._LIVE_EVAL_SESSION_WORK_PREDICATE == predicate
 
 
 @pytest.mark.parametrize(

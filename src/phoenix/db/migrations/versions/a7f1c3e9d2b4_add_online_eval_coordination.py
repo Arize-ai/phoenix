@@ -14,13 +14,24 @@ from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
-from phoenix.db.eval_work import (
-    eval_session_work_status_check,
-    eval_work_status_check,
-    live_eval_session_work_index_predicate,
-    live_eval_work_index_predicate,
-    terminal_eval_session_work_index_predicate,
-    terminal_eval_work_index_predicate,
+# Deliberately literal: a migration records what was applied, so it must not read these
+# from phoenix.db.eval_work, where a later edit would silently rewrite it. The model's
+# copies must stay byte-identical (PostgreSQL matches ON CONFLICT ... WHERE to a partial
+# index by predicate text); tests/unit/db/test_eval_work_coordination.py pins them equal.
+_EVAL_WORK_STATUS_CHECK = (
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED')"
+)
+_EVAL_SESSION_WORK_STATUS_CHECK = (
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', "
+    "'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
+)
+_LIVE_EVAL_WORK_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
+_LIVE_EVAL_SESSION_WORK_PREDICATE = (
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'FILTERED_OUT', 'SAMPLED_OUT')"
+)
+_TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED')"
+_TERMINAL_EVAL_SESSION_WORK_PREDICATE = (
+    "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'CONTENT_LOST')"
 )
 
 _Integer = sa.Integer().with_variant(
@@ -83,7 +94,7 @@ def _create_session_work_units_table() -> None:
         sa.Column(
             "status",
             sa.String(),
-            sa.CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
+            sa.CheckConstraint(_EVAL_SESSION_WORK_STATUS_CHECK, name="valid_eval_work_status"),
             nullable=False,
             server_default="PENDING",
         ),
@@ -110,22 +121,22 @@ def _create_session_work_units_table() -> None:
         "eval_session_work_units",
         ["project_session_rowid", "evaluator_id", "config_fingerprint"],
         unique=True,
-        postgresql_where=sa.text(live_eval_session_work_index_predicate()),
-        sqlite_where=sa.text(live_eval_session_work_index_predicate()),
+        postgresql_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
     )
     op.create_index(
         "ix_eval_session_work_units_claimable",
         "eval_session_work_units",
         ["status", "id"],
-        postgresql_where=sa.text(live_eval_work_index_predicate()),
-        sqlite_where=sa.text(live_eval_work_index_predicate()),
+        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
     )
     op.create_index(
         "ix_eval_session_work_units_terminal",
         "eval_session_work_units",
         ["updated_at"],
-        postgresql_where=sa.text(terminal_eval_session_work_index_predicate()),
-        sqlite_where=sa.text(terminal_eval_session_work_index_predicate()),
+        postgresql_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
+        sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
     )
     op.create_index(
         "ix_eval_session_work_units_terminal_watermark",
@@ -352,7 +363,7 @@ def upgrade() -> None:
         sa.Column(
             "status",
             sa.String(),
-            sa.CheckConstraint(eval_work_status_check(), name="valid_eval_work_status"),
+            sa.CheckConstraint(_EVAL_WORK_STATUS_CHECK, name="valid_eval_work_status"),
             nullable=False,
             server_default="PENDING",
         ),
@@ -379,15 +390,15 @@ def upgrade() -> None:
         "ix_eval_work_units_claimable",
         "eval_work_units",
         ["status", "id"],
-        postgresql_where=sa.text(live_eval_work_index_predicate()),
-        sqlite_where=sa.text(live_eval_work_index_predicate()),
+        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
     )
     op.create_index(
         "ix_eval_work_units_terminal",
         "eval_work_units",
         ["updated_at"],
-        postgresql_where=sa.text(terminal_eval_work_index_predicate()),
-        sqlite_where=sa.text(terminal_eval_work_index_predicate()),
+        postgresql_where=sa.text(_TERMINAL_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_TERMINAL_EVAL_WORK_PREDICATE),
     )
     op.create_index(
         "ix_eval_work_units_evaluator_id",
