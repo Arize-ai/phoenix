@@ -29,8 +29,8 @@ Phoenix offers several types of integrations to support your AI development work
   <Card title="Eval Model Integrations" icon="brain" href="#eval-model-integrations">
     Use any LLM provider to power Phoenix's evaluation capabilities for scoring and classifying your traces.
   </Card>
-  <Card title="Eval Library Integrations" icon="clipboard-check" href="#eval-library-integrations">
-    Integrate with external evaluation libraries like Ragas, Cleanlab, and MLflow to visualize results in Phoenix.
+  <Card title="Evaluation Integrations" icon="clipboard-check" href="#evaluation-integrations">
+    Record results from evaluation frameworks and libraries such as Harbor, Ragas, Cleanlab, and MLflow.
   </Card>
   <Card title="Span Processors" icon="arrows-rotate" href="#span-processors">
     Convert traces from other instrumentation libraries to the OpenInference format.
@@ -184,11 +184,12 @@ Phoenix's evaluation library (`phoenix-evals`) can use any LLM provider to power
 
 ---
 
-## Eval Library Integrations
+## Evaluation Integrations
 
-Use external evaluation libraries alongside Phoenix to get the best of both worlds:
+Connect external evaluation frameworks and libraries to Phoenix:
 
 <CardGroup cols={4}>
+  <Card title="Harbor" href="/docs/phoenix/integrations/evaluation-integrations/harbor" icon="anchor" description="Sandboxed agent evaluation tracking"/>
   <Card title="Ragas" href="/docs/phoenix/integrations/evaluation-integrations/ragas" icon="clipboard-check" description="RAG evaluation library"/>
   <Card title="Cleanlab" href="/docs/phoenix/integrations/evaluation-integrations/cleanlab" icon="check-circle" description="Model quality diagnostics"/>
   <Card title="Pydantic Evals" href="/docs/phoenix/integrations/python/pydantic/pydantic-evals" icon="code" description="Pydantic-based evals"/>
@@ -218,4 +219,3 @@ Run Phoenix [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluat
   <Card title="Vercel Sandbox" href="/docs/phoenix/integrations/sandboxes/vercel" icon="cube" description="Ephemeral compute on Vercel infrastructure"/>
   <Card title="Modal" href="/docs/phoenix/integrations/sandboxes/modal" icon="cube" description="Serverless containers, Python-first"/>
 </CardGroup>
-
