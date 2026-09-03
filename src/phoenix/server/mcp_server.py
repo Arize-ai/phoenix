@@ -57,6 +57,7 @@ from phoenix.server.bearer_auth import (
     token_audience_permits,
 )
 from phoenix.server.mcp.skills import (
+    SKILL_TOOL_NAMES,
     SKILL_TOOLS_TAG,
     get_skill_instructions,
     load_skills,
@@ -282,8 +283,38 @@ class _CodeModeWithDirectSkillTools(CodeMode):
         return [tool for tool in catalog if SKILL_TOOLS_TAG not in tool.tags]
 
 
+_UPSTREAM_EXECUTE_DESCRIPTION = (
+    "Chain `await call_tool(...)` calls in one Python block; prefer returning the final "
+    "answer from a single block.\n"
+    "Use `return` to produce output.\n"
+    "Only `call_tool(tool_name: str, params: dict) -> Any` is available in scope."
+)
+
+
+def _execute_description(direct_tool_names: Sequence[str]) -> str:
+    """fastmcp's ``execute`` description, plus the direct tools ``call_tool`` cannot reach.
+
+    ``_CodeModeWithDirectSkillTools`` keeps the skill tools out of the catalog
+    ``call_tool`` resolves against, and nothing else tells the model, so it
+    batches ``load_skill`` calls through ``execute`` and is told the tool is unknown.
+    Passing ``execute_description`` replaces the upstream text rather than
+    extending it, so the first three lines restate it verbatim from
+    https://github.com/PrefectHQ/fastmcp/blob/v3.4.7/fastmcp_slim/fastmcp/experimental/transforms/code_mode.py#L566-L574
+    """
+    *rest, last = [f"`{name}`" for name in direct_tool_names]
+    unreachable = f"{', '.join(rest)}, or {last}" if rest else last
+    return (
+        f"{_UPSTREAM_EXECUTE_DESCRIPTION}\n"
+        "`call_tool` reaches only the catalog `search` and `list_tools` describe; "
+        f"it cannot invoke {unreachable}, which are direct tools."
+    )
+
+
 def _build_code_mode(
-    runtime: "MontyRuntime", consumer: "MontyConsumer"
+    runtime: "MontyRuntime",
+    consumer: "MontyConsumer",
+    *,
+    skill_tool_names: Sequence[str] = (),
 ) -> tuple[CodeMode, MontyPoolSandboxProvider]:
     """Code-mode tool surface: discovery meta-tools plus a sandboxed ``execute``.
 
@@ -301,10 +332,17 @@ def _build_code_mode(
     of the whole server. The provider adapts the application-owned shared Monty
     runtime to FastMCP's sandbox interface.
 
+    Args:
+        runtime: Shared Monty runtime the sandbox runs guest code on.
+        consumer: Admission class the sandbox spends against.
+        skill_tool_names: Skill tools registered as direct tools, named in the
+            ``execute`` description as out of ``call_tool``'s reach.
+
     Returns:
         The transform to install and its FastMCP sandbox adapter.
     """
     sandbox_provider = MontyPoolSandboxProvider(runtime=runtime, consumer=consumer)
+    discovery_tool_names = ("search", "get_schema", "tags", "list_tools")
     return (
         _CodeModeWithDirectSkillTools(
             discovery_tools=[
@@ -314,6 +352,7 @@ def _build_code_mode(
                 _read_only(ListTools()),
             ],
             sandbox_provider=sandbox_provider,
+            execute_description=_execute_description((*discovery_tool_names, *skill_tool_names)),
         ),
         sandbox_provider,
     )
@@ -480,7 +519,11 @@ def build_phoenix_mcp_server(
         # Replaces the tool surface wholesale: clients see the discovery tools and
         # ``execute``, never the per-endpoint tools.
         assert monty_runtime is not None
-        transform, sandbox_provider = _build_code_mode(monty_runtime, monty_consumer)
+        transform, sandbox_provider = _build_code_mode(
+            monty_runtime,
+            monty_consumer,
+            skill_tool_names=SKILL_TOOL_NAMES if skills else (),
+        )
         mcp.add_transform(transform)
     # Registered for every consumer, and after the code-mode transform: the
     # catalog resolves lazily, so these reach `call_tool` there and `tools/list`

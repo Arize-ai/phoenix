@@ -141,16 +141,37 @@ class TestTools:
                 skills_roots=PXI_SKILLS_ROOTS,
             )
             async with Client(mcp) as client:
-                names = {tool.name for tool in await client.list_tools()}
+                tools = {tool.name: tool for tool in await client.list_tools()}
                 catalog = await _text(client, "list_tools")
                 loaded = await _text(client, "load_skill", skill_name="datasets")
         finally:
             await runtime.aclose()
 
+        names = set(tools)
         assert {"execute", "search", "load_skill", "load_skill_reference"} <= names
         assert "load_skill" not in catalog
         assert "load_skill_reference" not in catalog
         assert loaded.startswith("---\nname: datasets")
+        # The model has no other way to learn that a direct tool is not in the
+        # catalog `call_tool` resolves against.
+        execute = tools["execute"].description or ""
+        for direct in names - {"execute"}:
+            assert f"`{direct}`" in execute, direct
+
+    async def test_execute_names_no_skill_tools_when_there_are_none(self) -> None:
+        runtime = MontyRuntime()
+        try:
+            mcp, _ = build_phoenix_mcp_server(
+                FastAPI(), monty_runtime=runtime, code_mode=True, read_only=True, db=_unused_db()
+            )
+            async with Client(mcp) as client:
+                tools = {tool.name: tool for tool in await client.list_tools()}
+        finally:
+            await runtime.aclose()
+
+        execute = tools["execute"].description or ""
+        assert "`list_tools`" in execute
+        assert "load_skill" not in execute
 
 
 class TestLoadSkills:
