@@ -1184,3 +1184,49 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
 
     metrics["ONLINE_EVAL_SESSION_SWEEP_FAILURES"].inc.assert_called_once_with()
     assert metrics["ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS"].observe.call_count == 3
+
+
+async def test_stop_releases_the_lease_despite_a_second_cancellation(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = SessionEvalSweeper(db, tick_interval_seconds=60)
+    swept = asyncio.Event()
+    released = asyncio.Event()
+    tick = sweeper._tick
+    release_lease = sweeper._release_lease
+
+    async def _tick_and_signal() -> None:
+        await tick()
+        swept.set()
+
+    async def _release_and_signal() -> None:
+        await release_lease()
+        released.set()
+
+    monkeypatch.setattr(sweeper, "_tick", _tick_and_signal)
+    monkeypatch.setattr(sweeper, "_release_lease", _release_and_signal)
+    sweeper._running = True
+    run = asyncio.create_task(sweeper._run())
+    await swept.wait()
+    assert sweeper._lease_held
+
+    # Stopping the sweeper cancels its task once, then cancels it again when the
+    # stop timeout lapses. The second cancel arrives while the release is in
+    # flight and must not abandon it.
+    run.cancel()
+    await asyncio.sleep(0)
+    run.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await run
+    await asyncio.wait_for(released.wait(), timeout=5)
+
+    async with db() as session:
+        lease = (
+            await session.scalars(
+                select(models.EvalWorkLease).where(models.EvalWorkLease.name == sweeper._lease_name)
+            )
+        ).one()
+    assert lease.holder is None
+    assert lease.heartbeat_at is None
