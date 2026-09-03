@@ -130,7 +130,7 @@ spans with `SpanQuery().where("parent_id is None")` — the `root_spans_only=Tru
 deprecated. Use `parent_span is None` instead if you also want orphans (spans whose parent is
 absent) counted as roots.
 For RAG systems, you often need child spans separately — retriever spans for
-DocumentRelevance and LLM spans for Faithfulness. Choose the right span level
+RetrievalRelevance and LLM spans for Faithfulness. Choose the right span level
 for your evaluation target.
 
 ## Assuming Span Output is Plain Text
