@@ -17,4 +17,5 @@ export const PromptModelProviders: Record<PromptModelProvider, string> = {
   GROQ: "Groq",
   MOONSHOT: "Moonshot",
   PERPLEXITY: "Perplexity",
+  ZAI: "Z.ai",
 };

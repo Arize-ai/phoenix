@@ -243,6 +243,14 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    ZAI: [
+      [
+        "return tools as they are for zai",
+        "ZAI",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
   };
 
   test.for(Object.values(ProviderToToolTestMap).flat())(

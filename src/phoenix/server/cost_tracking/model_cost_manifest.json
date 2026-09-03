@@ -204,6 +204,33 @@
       ]
     },
     {
+      "name": "claude-fable-5-1",
+      "name_pattern": "claude-fable-5-1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00005,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "claude-haiku-4-5",
       "name_pattern": "claude-haiku-4-5",
       "source": "litellm",
@@ -1115,7 +1142,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 2.5e-8,
+          "base_rate": 1e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         },
@@ -1169,18 +1196,23 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 3e-7,
+          "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 2e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 1e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
           "token_type": "audio"
         }
       ]
@@ -1191,18 +1223,23 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 3e-7,
+          "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 2e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 1e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
           "token_type": "audio"
         }
       ]
@@ -1213,18 +1250,23 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 3e-7,
+          "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 2e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 1e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
           "token_type": "audio"
         }
       ]
@@ -1245,7 +1287,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 7.5e-8,
+          "base_rate": 3e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         },
@@ -1267,12 +1309,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 3e-7,
+          "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 0.00001,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -1324,37 +1366,19 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 1.25e-6,
+          "base_rate": 1e-6,
           "is_prompt": true,
-          "token_type": "input",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 2.5e-6
-          }
+          "token_type": "input"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 0.00002,
           "is_prompt": false,
-          "token_type": "output",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 0.000015
-          }
+          "token_type": "output"
         },
         {
           "base_rate": 1.25e-7,
           "is_prompt": true,
-          "token_type": "cache_read",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 2.5e-7
-          }
+          "token_type": "cache_read"
         },
         {
           "base_rate": 7e-7,
@@ -1906,12 +1930,39 @@
       ]
     },
     {
+      "name": "gemini-live-2.5-flash-native-audio",
+      "name_pattern": "gemini-live-2\\.5-flash-native-audio",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
       "name": "gemini-live-2.5-flash-preview-native-audio-09-2025",
       "name_pattern": "gemini-live-2\\.5-flash-preview-native-audio-09-2025",
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 3e-7,
+          "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "input"
         },
@@ -2048,47 +2099,47 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 5e-6,
+          "base_rate": 4e-6,
           "is_prompt": true,
           "token_type": "input",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.00001
+            "new_rate": 8e-6
           }
         },
         {
-          "base_rate": 0.00003,
+          "base_rate": 0.00002,
           "is_prompt": false,
           "token_type": "output",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.000045
+            "new_rate": 0.00003
           }
         },
         {
-          "base_rate": 5e-7,
+          "base_rate": 4e-7,
           "is_prompt": true,
           "token_type": "cache_read",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 1e-6
+            "new_rate": 8e-7
           }
         },
         {
-          "base_rate": 6.25e-6,
+          "base_rate": 5e-6,
           "is_prompt": true,
           "token_type": "cache_write",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.0000125
+            "new_rate": 0.00001
           }
         }
       ]
@@ -5427,47 +5478,47 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 5.5e-6,
+          "base_rate": 4.4e-6,
           "is_prompt": true,
           "token_type": "input",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.000011
+            "new_rate": 8.8e-6
           }
         },
         {
-          "base_rate": 0.000033,
+          "base_rate": 0.000022,
           "is_prompt": false,
           "token_type": "output",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.0000495
+            "new_rate": 0.000033
           }
         },
         {
-          "base_rate": 5.5e-7,
+          "base_rate": 4.4e-7,
           "is_prompt": true,
           "token_type": "cache_read",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 1.1e-6
+            "new_rate": 8.8e-7
           }
         },
         {
-          "base_rate": 6.875e-6,
+          "base_rate": 5.5e-6,
           "is_prompt": true,
           "token_type": "cache_write",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.00001375
+            "new_rate": 0.000011
           }
         }
       ]
@@ -5520,6 +5571,24 @@
             "threshold": 272000.0,
             "new_rate": 5.5e-6
           }
+        }
+      ]
+    },
+    {
+      "name": "cerebras/gemma-4-31b",
+      "name_pattern": "gemma-4-31b",
+      "source": "litellm",
+      "provider": "cerebras",
+      "token_prices": [
+        {
+          "base_rate": 9.9e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.49e-6,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     },
@@ -5922,6 +5991,24 @@
       ]
     },
     {
+      "name": "groq/qwen/qwen3.8-27b",
+      "name_pattern": "qwen/qwen3\\.8-27b",
+      "source": "litellm",
+      "provider": "groq",
+      "token_prices": [
+        {
+          "base_rate": 8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "moonshot/kimi-k2-0711-preview",
       "name_pattern": "kimi-k2-0711-preview",
       "source": "litellm",
@@ -6070,6 +6157,28 @@
         },
         {
           "base_rate": 1.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "moonshot/kimi-k2.7-code",
+      "name_pattern": "kimi-k2\\.7-code",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 9.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.9e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -6540,6 +6649,11 @@
           "base_rate": 1.2e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -6666,6 +6780,11 @@
           "base_rate": 3.6e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 3.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -6712,14 +6831,19 @@
       "provider": "together",
       "token_prices": [
         {
-          "base_rate": 1.25e-6,
+          "base_rate": 2.5e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 3.75e-6,
+          "base_rate": 7.5e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -6754,6 +6878,29 @@
         },
         {
           "base_rate": 6.25e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen3.8-Flash",
+      "name_pattern": "Qwen/Qwen3\\.8-Flash",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.7e-7,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -6864,6 +7011,11 @@
           "base_rate": 2.8e-7,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 3e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -6882,6 +7034,11 @@
           "base_rate": 3.48e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -6900,6 +7057,11 @@
           "base_rate": 3.96e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 1.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -7098,6 +7260,11 @@
           "base_rate": 1.5e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 4e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -7188,6 +7355,11 @@
           "base_rate": 4e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 1.9e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -7206,6 +7378,11 @@
           "base_rate": 0.000015,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -7224,6 +7401,11 @@
           "base_rate": 3.6e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -7296,6 +7478,11 @@
           "base_rate": 4.05e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 1.7e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -7314,6 +7501,11 @@
           "base_rate": 1.2e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -7386,6 +7578,349 @@
           "base_rate": 4.4e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 2.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/zai-org/GLM-5.3",
+      "name_pattern": "zai-org/GLM-5\\.3",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/zai-org/GLM-5.3-Flash",
+      "name_pattern": "zai-org/GLM-5\\.3-Flash",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-4-32b-0414-128k",
+      "name_pattern": "glm-4-32b-0414-128k",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-4.5",
+      "name_pattern": "glm-4\\.5",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-4.5-air",
+      "name_pattern": "glm-4\\.5-air",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-4.5-airx",
+      "name_pattern": "glm-4\\.5-airx",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-4.5-x",
+      "name_pattern": "glm-4\\.5-x",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8.9e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-4.5v",
+      "name_pattern": "glm-4\\.5v",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.8e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-4.6",
+      "name_pattern": "glm-4\\.6",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-4.7",
+      "name_pattern": "glm-4\\.7",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-5",
+      "name_pattern": "glm-5",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-5-code",
+      "name_pattern": "glm-5-code",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 1.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-5.1",
+      "name_pattern": "glm-5\\.1",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 1.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-5.2",
+      "name_pattern": "glm-5\\.2",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 1.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-5.3",
+      "name_pattern": "glm-5\\.3",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 1.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "zai/glm-5.3-flash",
+      "name_pattern": "glm-5\\.3-flash",
+      "source": "litellm",
+      "provider": "zai",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     }

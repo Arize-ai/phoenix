@@ -2,16 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from jinja2 import Template
-
 from phoenix.server.agents.prompts.static_prompts import read_static_prompt
 from phoenix.server.agents.prompts.templating import get_template
 
 _BASE_INSTRUCTIONS = read_static_prompt("base/BASE_INSTRUCTIONS.xml")
-_BASE_SUBAGENT_INSTRUCTIONS = read_static_prompt("base/BASE_SUBAGENT_INSTRUCTIONS.xml")
 _VIEWER_ACCESS_INSTRUCTIONS = read_static_prompt("base/VIEWER_ACCESS_INSTRUCTIONS.xml")
+_SUBAGENT_INSTRUCTIONS = read_static_prompt("base/SUBAGENT_INSTRUCTIONS.xml")
 _DOCS_TOOL_INSTRUCTIONS = read_static_prompt("tools/DOCS_TOOL_INSTRUCTIONS.xml")
 _PHOENIX_MCP_TOOL_INSTRUCTIONS = read_static_prompt("tools/PHOENIX_MCP_TOOL_INSTRUCTIONS.xml")
+_GITHUB_TOOL_INSTRUCTIONS = read_static_prompt("tools/GITHUB_TOOL_INSTRUCTIONS.xml")
 
 _UI_CONTEXT_PROMPT_NAMES = (
     "context/PROJECT_CONTEXT_INSTRUCTIONS.xml",
@@ -29,9 +28,6 @@ _UI_CONTEXT_PROMPT_NAMES = (
 
 _UI_CONTEXT_INSTRUCTIONS = "\n".join(read_static_prompt(name) for name in _UI_CONTEXT_PROMPT_NAMES)
 
-_SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
-_LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
-
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
 )
@@ -46,30 +42,17 @@ UI_STATE_TEMPLATE = get_template("ui_state/UI_STATE.xml.j2")
 class AgentPrompts:
     base: str = _BASE_INSTRUCTIONS
     viewer_access: str = _VIEWER_ACCESS_INSTRUCTIONS
+    subagent: str = _SUBAGENT_INSTRUCTIONS
     docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
     phoenix_mcp_tools: str = _PHOENIX_MCP_TOOL_INSTRUCTIONS
+    github_tools: str = _GITHUB_TOOL_INSTRUCTIONS
     ui_contexts: str = _UI_CONTEXT_INSTRUCTIONS
-    skills: Template = _SKILLS_TEMPLATE
-    load_skill: Template = _LOAD_SKILL_TEMPLATE
-
-
-@dataclass(frozen=True)
-class ServerAgentPrompts:
-    """Every prompt the server agent uses."""
-
-    base: str = _BASE_SUBAGENT_INSTRUCTIONS
-    viewer_access: str = _VIEWER_ACCESS_INSTRUCTIONS
-    docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
-    phoenix_mcp_tools: str = _PHOENIX_MCP_TOOL_INSTRUCTIONS
-    skills: Template = _SKILLS_TEMPLATE
-    load_skill: Template = _LOAD_SKILL_TEMPLATE
 
 
 __all__ = [
     "AgentPrompts",
     "COMPACTION_INSTRUCTIONS_TEMPLATE",
     "COMPACTION_MESSAGE_TEMPLATE",
-    "ServerAgentPrompts",
     "SUMMARIZATION_INSTRUCTIONS_TEMPLATE",
     "UI_STATE_TEMPLATE",
 ]

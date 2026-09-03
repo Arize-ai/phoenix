@@ -4,29 +4,26 @@ import type { UIOperationDescriptor } from "../types";
 import { defineUIOperation } from "../types";
 
 /**
- * Approval-gated navigation. The handler registers
+ * Navigation as a state-changing operation. The handler registers
  * at the app root, so the operation is available from every page — exactly
  * right, since its job is to be reachable when the operation the script
- * wants is not. Unlike every other approval operation it is NEVER
- * auto-accepted, even in bypass edit mode: an edit changes something the
- * user is looking at, a navigation moves their view.
+ * wants is not. Like every other state-changing operation it is covered by
+ * the script-level approval: the user consents to the script's
+ * `write_description` (which should mention the navigation) before the
+ * script runs, and the navigation then applies without a second per-call
+ * card.
  */
 export const navigationGoToOperation = defineUIOperation({
   name: "navigation.goTo",
   description:
-    "Ask the user to navigate to another Phoenix page. Stages an approval card that names the " +
-    "destination and your reason; on accept the app navigates and the promise resolves after " +
-    "the route change commits, so the destination page's operations can register. `path` must " +
-    "match a route from get_route_info — a path outside the route catalog is rejected. Use " +
-    "this when an operation you need is not available on the current page. This operation is " +
-    "never auto-approved; if the user declines, do not retry — offer a markdown link to the " +
-    "destination instead.",
+    "Navigate the user to another Phoenix page. The promise resolves after the route change " +
+    "commits, so the destination page's operations can register. `path` must match a route " +
+    "from get_route_info — a path outside the route catalog is rejected. Use this when an " +
+    "operation you need is not available on the current page, then retry that operation. " +
+    "Navigation changes state, so the calling script must carry a write_description that " +
+    "mentions the destination.",
   inputSchema: navigationGoToInputSchema,
   operationKind: "approval",
-  // Never auto-accepted, even in bypass edit mode — so dispatch must open
-  // the host execute_browser_action card for its approval card in every mode, not just
-  // manual.
-  alwaysRequiresApproval: true,
   requireSession: true,
   UIBehavior: {
     scrollIntoViewOnMount: true,

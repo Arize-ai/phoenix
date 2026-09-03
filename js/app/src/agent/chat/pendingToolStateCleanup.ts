@@ -10,73 +10,9 @@ import type { AgentState } from "@phoenix/store/agentStore";
 type PendingToolStateCleanup = (state: AgentState, toolCallId: string) => void;
 
 /**
- * The approval pending-state maps that `execute_browser_action` script calls can write.
- * Entries are keyed by the inner operation call id
- * (`<executeBrowserActionToolCallId>:<sequence>`), so cleanup for an `execute_browser_action` tool
- * call clears every entry whose key carries that tool call's prefix.
- */
-const EXECUTE_BROWSER_ACTION_PENDING_MAP_CLEANERS: ReadonlyArray<{
-  getKeys: (state: AgentState) => string[];
-  clear: (state: AgentState, key: string) => void;
-}> = [
-  {
-    getKeys: (state) => Object.keys(state.pendingPromptEditsByToolCallId),
-    clear: (state, key) => state.setPendingPromptEdit(key, null),
-  },
-  {
-    getKeys: (state) =>
-      Object.keys(state.pendingPromptInstanceRemovalsByToolCallId),
-    clear: (state, key) => state.setPendingPromptInstanceRemoval(key, null),
-  },
-  {
-    getKeys: (state) => Object.keys(state.pendingPromptToolWritesByToolCallId),
-    clear: (state, key) => state.setPendingPromptToolWrite(key, null),
-  },
-  {
-    getKeys: (state) => Object.keys(state.pendingSavePromptsByToolCallId),
-    clear: (state, key) => state.setPendingSavePrompt(key, null),
-  },
-  {
-    getKeys: (state) =>
-      Object.keys(state.pendingCodeEvaluatorEditsByToolCallId),
-    clear: (state, key) => state.setPendingCodeEvaluatorEdit(key, null),
-  },
-  {
-    getKeys: (state) => Object.keys(state.pendingLlmEvaluatorEditsByToolCallId),
-    clear: (state, key) => state.setPendingLlmEvaluatorEdit(key, null),
-  },
-  {
-    getKeys: (state) => Object.keys(state.pendingLoadDatasetsByToolCallId),
-    clear: (state, key) => state.setPendingLoadDataset(key, null),
-  },
-  {
-    getKeys: (state) => Object.keys(state.pendingDatasetWritesByToolCallId),
-    clear: (state, key) => state.setPendingDatasetWrite(key, null),
-  },
-  {
-    getKeys: (state) =>
-      Object.keys(state.pendingAnnotationConfigWritesByToolCallId),
-    clear: (state, key) => state.setPendingAnnotationConfigWrite(key, null),
-  },
-  {
-    getKeys: (state) => Object.keys(state.pendingPatchExperimentsByToolCallId),
-    clear: (state, key) => state.setPendingPatchExperiment(key, null),
-  },
-  {
-    getKeys: (state) =>
-      Object.keys(state.pendingBatchSpanAnnotatesByToolCallId),
-    clear: (state, key) => state.setPendingBatchSpanAnnotate(key, null),
-  },
-  {
-    getKeys: (state) => Object.keys(state.pendingNavigationsByToolCallId),
-    clear: (state, key) => state.setPendingNavigation(key, null),
-  },
-];
-
-/**
  * Cleans up everything an interrupted or dropped `execute_browser_action` call owns:
- * aborts the script run (terminating its worker) and clears any pending
- * approval entries its inner operation calls staged.
+ * aborts the script run (terminating its worker) or its parked whole-script
+ * approval, then clears the staged script-approval entry.
  */
 function cleanupExecuteBrowserActionToolState(
   state: AgentState,
@@ -86,14 +22,9 @@ function cleanupExecuteBrowserActionToolState(
     toolCallId,
     reason: "The script run was interrupted.",
   });
-  const childKeyPrefix = `${toolCallId}:`;
-  for (const cleaner of EXECUTE_BROWSER_ACTION_PENDING_MAP_CLEANERS) {
-    for (const key of cleaner.getKeys(state)) {
-      if (key.startsWith(childKeyPrefix)) {
-        cleaner.clear(state, key);
-      }
-    }
-  }
+  // Usually a no-op: a locally parked approval is already cleared by the
+  // abort above. This also covers entries whose abort callback is gone.
+  state.setPendingScriptApproval(toolCallId, null);
 }
 
 /**
@@ -103,8 +34,7 @@ function cleanupExecuteBrowserActionToolState(
  * tool calls don't leave dangling Accept/Reject affordances.
  *
  * The playground/evaluator approval tools that used to register here now run
- * as `execute_browser_action` operations; their pending state is keyed by inner call id
- * and cleaned by the `execute_browser_action` entry.
+ * as `execute_browser_action` operations covered by one whole-script approval.
  */
 const PENDING_TOOL_STATE_CLEANUP: Readonly<
   Record<string, PendingToolStateCleanup>

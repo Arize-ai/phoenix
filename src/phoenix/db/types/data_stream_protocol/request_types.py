@@ -1,5 +1,5 @@
-# Vendored from pydantic-ai v2.26.0:
-# https://github.com/pydantic/pydantic-ai/tree/v2.26.0/pydantic_ai_slim/pydantic_ai/ui/vercel_ai
+# Vendored from pydantic-ai v2.34.0:
+# https://github.com/pydantic/pydantic-ai/tree/v2.34.0/pydantic_ai_slim/pydantic_ai/ui/vercel_ai
 # Copyright (c) Pydantic Services Inc. 2024 to present
 # SPDX-License-Identifier: MIT
 #
@@ -53,6 +53,9 @@ class ReasoningUIPart(BaseUIPart):
     """A reasoning part of a message."""
 
     type: Literal["reasoning"] = "reasoning"
+
+    id: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    """UI part ID from the AI SDK client; not mapped to `ThinkingPart.id`."""
 
     text: str
     """The reasoning text."""

@@ -761,7 +761,11 @@ export interface paths {
         get: operations["listProjectTraces"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete traces from a project
+         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.
+         */
+        delete: operations["deleteProjectTraces"];
         options?: never;
         head?: never;
         patch?: never;
@@ -998,7 +1002,11 @@ export interface paths {
          */
         get: operations["listPromptVersions"];
         put?: never;
-        post?: never;
+        /**
+         * Create prompt version
+         * @description Create a new version for an existing prompt by identifier.
+         */
+        post: operations["createPromptVersion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1564,7 +1572,7 @@ export interface paths {
         put?: never;
         /**
          * OpenAI-compatible chat completions
-         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
+         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
          *
          *     **Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.
          */
@@ -1740,7 +1748,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Run Server Agent
+         * Run Headless Agent
          * @deprecated
          */
         post: operations["legacyServerAgentChat"];
@@ -2421,6 +2429,11 @@ export interface components {
              */
             lastMessageId?: string | null;
             /**
+             * Credentials
+             * @description Client-held credentials for optional integrations (e.g. the user's own GitHub personal access token under the key ``GITHUB_PERSONAL_ACCESS_TOKEN``), used only for the duration of the turn and never persisted. Unknown keys are rejected.
+             */
+            credentials?: components["schemas"]["ChatRequestCredential"][];
+            /**
              * Recordlocaltraces
              * @default false
              */
@@ -2436,6 +2449,28 @@ export interface components {
              * @default false
              */
             instrumentUserId?: boolean;
+        };
+        /**
+         * ChatRequestCredential
+         * @description One client-held credential riding the request for the duration of a turn.
+         *
+         *     The value is ephemeral: it is injected server-side as transport auth for
+         *     the matching integration and is never persisted, traced, or echoed. It is
+         *     top-level on the request body — never part of the message — so it cannot
+         *     reach the session transcript.
+         */
+        ChatRequestCredential: {
+            /**
+             * Key
+             * @description The credential's secret-key name.
+             * @constant
+             */
+            key: "GITHUB_PERSONAL_ACCESS_TOKEN";
+            /**
+             * Value
+             * Format: password
+             */
+            value: string;
         };
         /** CodeEvaluatorUIContext */
         CodeEvaluatorUIContext: {
@@ -2557,7 +2592,7 @@ export interface components {
         CreateChatCompletionRequestBody: {
             /**
              * Model
-             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
+             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
              */
             model: string;
             /** Messages */
@@ -2764,6 +2799,16 @@ export interface components {
         };
         /** CreatePromptResponseBody */
         CreatePromptResponseBody: {
+            data: components["schemas"]["PromptVersion"];
+        };
+        /** CreatePromptVersionRequestBody */
+        CreatePromptVersionRequestBody: {
+            version: components["schemas"]["PromptVersionData"];
+            /** Tags */
+            tags?: components["schemas"]["PromptVersionTagData"][] | null;
+        };
+        /** CreatePromptVersionResponseBody */
+        CreatePromptVersionResponseBody: {
             data: components["schemas"]["PromptVersion"];
         };
         /** CreateSessionNoteRequestBody */
@@ -4043,7 +4088,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "PERPLEXITY" | "TOGETHER";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "PERPLEXITY" | "TOGETHER" | "ZAI";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -5222,7 +5267,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -5241,7 +5286,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -5309,6 +5354,43 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** PromptZAIInvocationParameters */
+        PromptZAIInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "zai";
+            zai: components["schemas"]["PromptZAIInvocationParametersContent"];
+        };
+        /** PromptZAIInvocationParametersContent */
+        PromptZAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /** Stop */
+            stop?: string[];
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
+        };
         /**
          * PydanticAIMessageMetadata
          * @description Local pin of pydantic-ai's message-level ``pydantic_ai`` metadata
@@ -5330,6 +5412,8 @@ export interface components {
              * @constant
              */
             type?: "reasoning";
+            /** Id */
+            id?: string | null;
             /** Text */
             text: string;
             /** State */
@@ -9971,7 +10055,7 @@ export interface operations {
                 order?: "asc" | "desc";
                 /** @description Maximum number of traces to return */
                 limit?: number;
-                /** @description Pagination cursor (Trace GlobalID) */
+                /** @description Pagination cursor returned by a previous request */
                 cursor?: string | null;
                 /** @description If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible. */
                 include_spans?: boolean;
@@ -9995,6 +10079,59 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GetTracesResponseBody"];
                 };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteProjectTraces: {
+        parameters: {
+            query: {
+                /** @description Required inclusive lower bound on trace start time (ISO 8601). */
+                start_time: string;
+                /** @description Required exclusive upper bound on trace start time (ISO 8601). */
+                end_time: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned after the matching traces are deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Forbidden */
             403: {
@@ -10698,6 +10835,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetPromptVersionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createPromptVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePromptVersionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The created prompt version */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatePromptVersionResponseBody"];
                 };
             };
             /** @description Forbidden */

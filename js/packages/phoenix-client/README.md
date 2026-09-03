@@ -151,7 +151,7 @@ effort conversion to your LLM provider SDK of choice.
 The following LLM provider SDKs are supported:
 
 - Vercel AI SDK: `ai` [ai](https://www.npmjs.com/package/ai)
-- OpenAI: `openai` [openai](https://www.npmjs.com/package/openai)
+- OpenAI: `openai` [openai](https://www.npmjs.com/package/openai) (v6 and v7)
 - Anthropic: `anthropic` [@anthropic-ai/sdk](https://www.npmjs.com/package/@anthropic-ai/sdk)
 
 > **Note:** These provider SDKs are optional peer dependencies — installing `@arizeai/phoenix-client` does not pull them in. Install the one you convert to yourself, e.g. `npm install ai`, `npm install openai`, or `npm install @anthropic-ai/sdk`. Calling `toSDK({ sdk: "ai" | "openai" | "anthropic" })` without the matching SDK installed fails at runtime.
@@ -431,7 +431,7 @@ const sessionTraces = await getTraces({
 | `sort`         | `"start_time" \| "latency_ms"` | Sort field                                 |
 | `order`        | `"asc" \| "desc"`              | Sort direction                             |
 | `limit`        | `number`                       | Maximum number of traces to return         |
-| `cursor`       | `string \| null`               | Pagination cursor (Trace GlobalID)         |
+| `cursor`       | `string \| null`               | Pagination cursor                          |
 | `includeSpans` | `boolean`                      | Include full span details for each trace   |
 | `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)     |
 
@@ -732,7 +732,7 @@ await addSessionNote({
 
 ## Projects
 
-The `@arizeai/phoenix-client` package provides a `projects` export for listing projects.
+The `@arizeai/phoenix-client` package provides a `projects` export for listing projects and managing their retention-policy assignments.
 
 ### Fetching Projects
 
@@ -754,6 +754,30 @@ Pass `nameContains` to filter by a case-insensitive substring of the project nam
 ```ts
 const agentProjects = await getProjects({ nameContains: "agent" });
 ```
+
+### Assigning a Retention Policy
+
+Use `setProjectRetentionPolicy` to assign an existing trace retention policy by GlobalID. Select the project by name or GlobalID.
+
+```ts
+import { setProjectRetentionPolicy } from "@arizeai/phoenix-client/projects";
+
+await setProjectRetentionPolicy({
+  projectName: "support-bot",
+  policyId: "UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI=",
+});
+```
+
+Pass `policyId: null` to reset the project to Phoenix's default retention policy:
+
+```ts
+await setProjectRetentionPolicy({
+  projectId: "UHJvamVjdDox",
+  policyId: null,
+});
+```
+
+This helper only changes a project's assignment to an existing policy. Creating, reading, updating, and deleting retention policies is outside the scope of the TypeScript projects helper.
 
 ## Examples
 

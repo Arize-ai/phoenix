@@ -98,6 +98,13 @@ export const LIST_PROJECT_TRACES: RouteRequirement = {
   minServerVersion: [13, 15, 0],
 };
 
+export const TRANSFER_TRACES: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/traces/transfer",
+  minServerVersion: [20, 4, 0],
+};
+
 export const GET_SPANS_BY_ATTRIBUTE: ParameterRequirement = {
   kind: "parameter",
   parameterName: "attribute",
@@ -136,6 +143,13 @@ export const ADD_SESSION_NOTE_IDENTIFIER: ParameterRequirement = {
   parameterLocation: "body",
   route: "POST /v1/session_notes",
   minServerVersion: [15, 5, 0],
+};
+
+export const DELETE_PROMPT: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/prompts/{prompt_identifier}",
+  minServerVersion: [13, 20, 0],
 };
 
 export const PATCH_PROMPT: RouteRequirement = {
@@ -220,10 +234,12 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_SPANS_FILTERS,
   GET_SPANS_BY_ATTRIBUTE,
   LIST_PROJECT_TRACES,
+  TRANSFER_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
   ADD_TRACE_NOTE_IDENTIFIER,
   ADD_SPAN_NOTE_IDENTIFIER,
   ADD_SESSION_NOTE_IDENTIFIER,
+  DELETE_PROMPT,
   PATCH_PROMPT,
   AGENT_SESSION_CREATE,
   AGENT_SESSION_LIST,

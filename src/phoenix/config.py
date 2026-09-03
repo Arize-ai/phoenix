@@ -32,7 +32,6 @@ from starlette.datastructures import URL
 from typing_extensions import TypeAlias, get_args
 
 from phoenix.utilities.logging import log_a_list
-from phoenix.utilities.re import parse_env_headers
 
 if TYPE_CHECKING:
     from phoenix.db.models import SandboxBackendType
@@ -55,12 +54,6 @@ ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
-ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
-"""
-The headers to include in Phoenix client requests.
-Note: This overrides OTEL_EXPORTER_OTLP_HEADERS in the case where
-phoenix.trace instrumentors are used.
-"""
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 """
 The endpoint traces and evals are sent to. This must be set if the Phoenix
@@ -93,6 +86,18 @@ ENV_PHOENIX_AGENTS_DISABLE_BASH = "PHOENIX_AGENTS_DISABLE_BASH"
 """
 Disables the server-side bash tool by preventing subagents from being attached to
 the assistant. When true, the option to enable subagents is also hidden from the UI settings.
+"""
+ENV_PHOENIX_AGENTS_DISABLE_GITHUB = "PHOENIX_AGENTS_DISABLE_GITHUB"
+"""
+Disables the PXI GitHub tools (backed by GitHub's MCP server) even when external
+resources are otherwise allowed. When true, the capability never registers and
+the GitHub settings UI is hidden.
+"""
+ENV_PHOENIX_AGENTS_GITHUB_MCP_URL = "PHOENIX_AGENTS_GITHUB_MCP_URL"
+"""
+Base URL of the GitHub MCP server the PXI GitHub tools connect to. Defaults to
+GitHub's hosted endpoint; point it at a self-hosted github-mcp-server instance
+for GitHub Enterprise Server or air-gapped deployments.
 """
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
@@ -384,7 +389,7 @@ ENV_PHOENIX_ALLOWED_PROVIDERS = "PHOENIX_ALLOWED_PROVIDERS"
 Comma-separated list of provider names to show in the UI.
 Provider names should match GenerativeProviderKey enum names:
 OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA,
-AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER.
+AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER, ZAI.
 Case-insensitive. When unset, all providers are shown.
 Set to NONE to hide all providers.
 Example: PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
@@ -420,7 +425,6 @@ explicitly set. Note that changing this value will have no effect if the default
 record already exists in the database. In such cases, the default admin password must
 be updated manually in the application.
 """
-ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 ENV_PHOENIX_COOKIES_PATH = "PHOENIX_COOKIES_PATH"
 ENV_PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES = "PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES"
@@ -1404,10 +1408,6 @@ def get_env_phoenix_use_secure_cookies() -> bool:
     return _bool_val(ENV_PHOENIX_USE_SECURE_COOKIES, False)
 
 
-def get_env_phoenix_api_key() -> Optional[str]:
-    return getenv(ENV_PHOENIX_API_KEY)
-
-
 def get_env_phoenix_agents_collector_endpoint() -> Optional[str]:
     return getenv(ENV_PHOENIX_AGENTS_COLLECTOR_ENDPOINT)
 
@@ -1434,6 +1434,21 @@ def get_env_phoenix_agents_web_access_enabled() -> bool:
 
 def get_env_phoenix_agents_disable_bash() -> bool:
     return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_BASH, False)
+
+
+def get_env_phoenix_agents_disable_github() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_GITHUB, False)
+
+
+def get_env_phoenix_agents_github_enabled() -> bool:
+    return get_env_allow_external_resources() and not get_env_phoenix_agents_disable_github()
+
+
+DEFAULT_GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/"
+
+
+def get_env_phoenix_agents_github_mcp_url() -> str:
+    return getenv(ENV_PHOENIX_AGENTS_GITHUB_MCP_URL) or DEFAULT_GITHUB_MCP_URL
 
 
 class AuthSettings(NamedTuple):
@@ -3439,15 +3454,6 @@ def get_env_max_spans_queue_size() -> int:
             f"{max_size}. Value must be a positive integer."
         )
     return max_size
-
-
-def get_env_client_headers() -> dict[str, str]:
-    headers = parse_env_headers(getenv(ENV_PHOENIX_CLIENT_HEADERS))
-    if (api_key := get_env_phoenix_api_key()) and "authorization" not in [
-        k.lower() for k in headers
-    ]:
-        headers["Authorization"] = f"Bearer {api_key}"
-    return headers
 
 
 def get_env_root_url() -> URL:

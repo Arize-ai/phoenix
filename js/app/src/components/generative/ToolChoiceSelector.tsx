@@ -42,6 +42,7 @@ export const TOOL_CHOICE_CONFIG_BY_PROVIDER = {
   MOONSHOT: { oneOrMoreToken: "required" },
   PERPLEXITY: { oneOrMoreToken: "required" },
   TOGETHER: { oneOrMoreToken: "required" },
+  ZAI: { oneOrMoreToken: "required" },
   ANTHROPIC: { oneOrMoreToken: "any" },
   AWS: { oneOrMoreToken: "any" },
   GOOGLE: { oneOrMoreToken: "any" },

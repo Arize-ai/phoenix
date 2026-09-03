@@ -61,6 +61,7 @@ PROVIDER_PREFIXES: dict[str, str | None] = {
     "moonshot/": None,
     "perplexity/": None,
     "together_ai/": "together",
+    "zai/": "zai",
 }
 
 

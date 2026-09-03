@@ -68,6 +68,88 @@ export function getPromptToolsSnapshot({
  * and materialize a before/after diff at *propose* time, then re-plan and commit
  * the same input when the user accepts (re-checking the revision then too).
  */
+function validatePromptToolChanges({
+  tools,
+  writeEntries,
+  deleteIds,
+  instanceId,
+}: {
+  tools: Tool[];
+  writeEntries: WritePromptToolEntry[];
+  deleteIds: Set<number>;
+  instanceId: number;
+}): PromptToolsActionResult<never> | null {
+  for (let index = 0; index < writeEntries.length; index++) {
+    const entry = writeEntries[index]!;
+    const requestedId = "id" in entry ? entry.id : undefined;
+    if (requestedId == null) continue;
+    const existing = tools.find((candidate) => candidate.id === requestedId);
+    if (!existing) {
+      return {
+        ok: false,
+        error: `tools[${index}]: prompt tool ${requestedId} was not found on instance ${instanceId}.`,
+        code: "NOT_FOUND",
+      };
+    }
+    if (existing.kind !== "function") {
+      return {
+        ok: false,
+        error: `tools[${index}]: prompt tool ${requestedId} is a vendor passthrough (raw) tool and cannot be edited via PXI. Edit it in the playground tool editor.`,
+      };
+    }
+    if (deleteIds.has(requestedId)) {
+      return {
+        ok: false,
+        error: `tools[${index}]: prompt tool ${requestedId} cannot be both updated and deleted in the same batch.`,
+      };
+    }
+  }
+  for (const deleteId of deleteIds) {
+    if (!tools.some((candidate) => candidate.id === deleteId)) {
+      return {
+        ok: false,
+        error: `deleteToolIds: prompt tool ${deleteId} was not found on instance ${instanceId}.`,
+        code: "NOT_FOUND",
+      };
+    }
+  }
+  return null;
+}
+
+function applyPromptToolWrites({
+  tools,
+  writeEntries,
+  deleteIds,
+}: {
+  tools: Tool[];
+  writeEntries: WritePromptToolEntry[];
+  deleteIds: Set<number>;
+}): { tools: Tool[]; results: WritePromptToolResult[] } {
+  let nextTools = tools.filter((candidate) => !deleteIds.has(candidate.id));
+  const results: WritePromptToolResult[] = [];
+  for (const entry of writeEntries) {
+    const requestedId = "id" in entry ? entry.id : undefined;
+    if (requestedId != null) {
+      nextTools = nextTools.map((candidate) =>
+        candidate.id === requestedId && candidate.kind === "function"
+          ? { ...candidate, definition: patchDefinition(candidate, entry) }
+          : candidate
+      );
+      results.push({ status: "updated", toolId: requestedId });
+    } else {
+      const toolId = generateToolId();
+      nextTools.push({
+        kind: "function",
+        id: toolId,
+        editorType: "json",
+        definition: patchDefinition(null, entry),
+      });
+      results.push({ status: "created", toolId });
+    }
+  }
+  return { tools: nextTools, results };
+}
+
 export function planWritePromptTools({
   playgroundStore,
   input,
@@ -106,81 +188,18 @@ export function planWritePromptTools({
   const writeEntries = input.tools ?? [];
   const deleteIds = new Set(input.deleteToolIds ?? []);
 
-  // Validation pass — all-or-nothing. Update entries must reference an existing
-  // function tool from the snapshot we just read; ids assigned to tools created
-  // earlier in the same batch are not addressable here. Nothing is computed
-  // until every entry and delete id is known to be applicable.
-  for (let index = 0; index < writeEntries.length; index++) {
-    const entry = writeEntries[index]!;
-    const requestedId = "id" in entry ? entry.id : undefined;
-    if (requestedId == null) continue;
-    const existing = playgroundInstance.tools.find(
-      (candidate) => candidate.id === requestedId
-    );
-    if (!existing) {
-      return {
-        ok: false,
-        error: `tools[${index}]: prompt tool ${requestedId} was not found on instance ${playgroundInstance.id}.`,
-        code: "NOT_FOUND",
-      };
-    }
-    if (existing.kind !== "function") {
-      return {
-        ok: false,
-        error: `tools[${index}]: prompt tool ${requestedId} is a vendor passthrough (raw) tool and cannot be edited via PXI. Edit it in the playground tool editor.`,
-      };
-    }
-    if (deleteIds.has(requestedId)) {
-      return {
-        ok: false,
-        error: `tools[${index}]: prompt tool ${requestedId} cannot be both updated and deleted in the same batch.`,
-      };
-    }
-  }
-
-  for (const deleteId of deleteIds) {
-    const existing = playgroundInstance.tools.find(
-      (candidate) => candidate.id === deleteId
-    );
-    if (!existing) {
-      return {
-        ok: false,
-        error: `deleteToolIds: prompt tool ${deleteId} was not found on instance ${playgroundInstance.id}.`,
-        code: "NOT_FOUND",
-      };
-    }
-  }
-
-  // Compute pass — drop deleted tools first, then fold each write entry over the
-  // working copy so multiple entries (including repeated patches to the same
-  // id) compose in order.
-  let workingTools: Tool[] = playgroundInstance.tools.filter(
-    (candidate) => !deleteIds.has(candidate.id)
-  );
-  const results: WritePromptToolResult[] = [];
-  for (const entry of writeEntries) {
-    const requestedId = "id" in entry ? entry.id : undefined;
-    if (requestedId != null) {
-      workingTools = workingTools.map((candidate) =>
-        candidate.id === requestedId && candidate.kind === "function"
-          ? { ...candidate, definition: patchDefinition(candidate, entry) }
-          : candidate
-      );
-      results.push({ status: "updated", toolId: requestedId });
-    } else {
-      const newId = generateToolId();
-      workingTools = [
-        ...workingTools,
-        {
-          kind: "function",
-          id: newId,
-          editorType: "json",
-          definition: patchDefinition(null, entry),
-        },
-      ];
-      results.push({ status: "created", toolId: newId });
-    }
-  }
+  const validationError = validatePromptToolChanges({
+    tools: playgroundInstance.tools,
+    writeEntries,
+    deleteIds,
+    instanceId: playgroundInstance.id,
+  });
+  if (validationError) return validationError;
+  const { tools: workingTools, results } = applyPromptToolWrites({
+    tools: playgroundInstance.tools,
+    writeEntries,
+    deleteIds,
+  });
 
   const forcedChoice = playgroundInstance.toolChoice;
   const forcedFunctionName =

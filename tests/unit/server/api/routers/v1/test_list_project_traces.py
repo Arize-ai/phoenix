@@ -10,6 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import Cursor
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
@@ -575,3 +576,100 @@ class TestListProjectTraces:
         assert trace_data["token_count_prompt"] == 100
         assert trace_data["token_count_completion"] == 50
         assert trace_data["token_count_total"] == 150
+
+
+#: Trace durations in microseconds, one per inserted trace. Sub-millisecond parts
+#: differ from the rounded `latency_ms` the database emits, and the last two agree
+#: once rounded so the row id has to break the tie.
+_DURATIONS_US = (60_234_567, 120_245_678, 180_267_900, 240_279_011, 300_279_040, 300_279_010)
+
+
+async def _insert_traces_out_of_order(db: DbSessionFactory) -> models.Project:
+    """Insert traces whose row ids ascend while their start times descend.
+
+    Ingestion order is independent of event time, so row id and a time-based sort
+    key need not agree. Durations vary per row so latency ordering differs again.
+    """
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+        )
+        assert project_rowid is not None
+        base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        for i, duration_us in enumerate(_DURATIONS_US):
+            start = base + timedelta(hours=len(_DURATIONS_US) - i)
+            await session.execute(
+                insert(models.Trace).values(
+                    trace_id=token_hex(16),
+                    project_rowid=project_rowid,
+                    start_time=start,
+                    end_time=start + timedelta(microseconds=duration_us),
+                )
+            )
+        project = await session.get(models.Project, project_rowid)
+        assert project is not None
+        return project
+
+
+class TestListProjectTracesKeysetPagination:
+    async def _page_all(
+        self, client: httpx.AsyncClient, project: models.Project, **params: str | int
+    ) -> list[str]:
+        seen: list[str] = []
+        cursor: Optional[str] = None
+        for _ in range(20):  # Bounded so a cursor that fails to advance fails the test.
+            query: dict[str, str | int] = {"limit": 2, **params}
+            if cursor:
+                query["cursor"] = cursor
+            response = await client.get(f"v1/projects/{project.name}/traces", params=query)
+            assert response.status_code == 200, response.text
+            body = response.json()
+            seen.extend(t["id"] for t in body["data"])
+            cursor = body["next_cursor"]
+            if cursor is None:
+                return seen
+        raise AssertionError("pagination did not terminate")
+
+    async def test_paged_order_matches_unpaged_order(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+    ) -> None:
+        project = await _insert_traces_out_of_order(db)
+        for sort in ("start_time", "latency_ms"):
+            for order in ("asc", "desc"):
+                response = await httpx_client.get(
+                    f"v1/projects/{project.name}/traces",
+                    params={"limit": 100, "sort": sort, "order": order},
+                )
+                assert response.status_code == 200
+                expected = [t["id"] for t in response.json()["data"]]
+                assert (
+                    await self._page_all(httpx_client, project, sort=sort, order=order, limit=1)
+                    == expected
+                )
+
+    async def test_cursor_from_another_sort_field_is_rejected(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+    ) -> None:
+        project = await _insert_traces_out_of_order(db)
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces", params={"limit": 2, "sort": "start_time"}
+        )
+        cursor = response.json()["next_cursor"]
+        assert cursor is not None
+        # A timestamp cursor cannot be compared against a latency column.
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"limit": 2, "sort": "latency_ms", "cursor": cursor},
+        )
+        assert response.status_code == 422
+
+    async def test_cursor_without_a_sort_value_is_rejected(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+    ) -> None:
+        project = await _insert_traces_out_of_order(db)
+        # A rowid-only cursor cannot place a row in the sort order.
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/traces",
+            params={"limit": 2, "cursor": str(Cursor(rowid=1))},
+        )
+        assert response.status_code == 422

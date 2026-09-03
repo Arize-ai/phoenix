@@ -249,9 +249,8 @@ export const readLlmEvaluatorDraftOperation = defineUIOperation({
 export const editLlmEvaluatorDraftOperation = defineUIOperation({
   name: "evaluators.llm.edit",
   description:
-    "Propose edits to the open LLM-evaluator draft. This operation does not change " +
-    "the form immediately: the browser renders an inline diff and the user must " +
-    "accept or reject it. Call `evaluators.llm.read` first to see the " +
+    "Edit the open LLM-evaluator draft. The edit is a state change covered by the " +
+    "script-level approval (write_description). Call `evaluators.llm.read` first to see the " +
     "current draft before proposing edits. " +
     "Use camelCase field names exactly as shown. Common valid examples: " +
     '{"type":"set_judge_prompt","messages":[{"role":"system","content":' +

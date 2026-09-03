@@ -42,6 +42,19 @@ PARAMETERS: dict[str, Any] = {
                 "oversized return values are truncated."
             ),
         },
+        "write_description": {
+            "type": "string",
+            "description": (
+                "Provide if and only if the script calls any operation of kind `write` "
+                "(shown in search_browser_actions results): a concise, user-facing "
+                "description of the changes the script will make, starting with 'This "
+                "script will ...'. This is the entire approval prompt the user reads "
+                "before the script runs, so describe the actual changes, not your goal. "
+                "Omitting it on a state-changing script does not skip approval — the "
+                "state-changing operation is refused and you must re-issue the call "
+                "with it."
+            ),
+        },
     },
     "required": ["summary", "script"],
     "additionalProperties": False,
@@ -56,12 +69,12 @@ Branch on the failure `code`, never on the `error` prose: `STALE_REVISION` → r
 Feature-detect operations with `in` or `Object.keys` — `'prompt' in ui.playground`, `Object.keys(ui.playground)` — which answer truthfully from the catalog. Never use `typeof`: property access always returns a callable (so unknown-name calls can fail with did-you-mean suggestions), which makes `typeof ui.anything === 'function'` true for names that do not exist.
 Call `log(message)` to emit progress the user can see while a longer script runs. The script's return value becomes the tool output — `return` the data you need for your next step (for example, a read operation's `output`). Constrain it in the script the way you would with grep/head/tail in bash: slice arrays, project only the fields you need, return counts instead of collections. Oversized return values are pruned structure-aware (object keys survive; long arrays keep leading items plus an omission marker) and the truncation note lists the pruned paths; the output's `Calls:` lines show each call's duration and output size, so the call that produced the bulk is identifiable without a probe.
 When embedding another language's source code as a string (e.g. Python for a code evaluator), prefer an ordinary quoted string with `\\n` escapes; inside a template literal, backticks in the embedded code must be escaped as `\\`` (a single backslash) — `\\\\`` ends the literal and the script fails to parse.
-Operations of kind `approval` stage a change the user must accept or reject in the UI; the awaited promise resolves with the user's decision. Treat a rejection as an answer, not an error — do not retry the same change. The staged approval card is the confirmation surface: propose the change by calling the operation directly, and do not ask a separate yes/no question (or call `ask_user`) first.
+Approval is script-level, not per-operation. Operations of kind `write` change state; a script that calls any of them must include `write_description`, and when the user requires manual approval they accept or reject the entire script before it runs. Treat a rejection as an answer, not an error — do not re-run the same script; ask what should change instead. The approval card is the confirmation surface: propose the change by writing the script, and do not ask a separate yes/no question (or call `ask_user`) first. A state-changing call from a script that omitted `write_description` fails with code `APPROVAL_REQUIRED` — re-issue the whole `execute_browser_action` call with a `write_description` covering all of the script's changes.
 Dataset write operations (`ui.dataset.*`) that act on "the dataset the user is viewing" resolve their target from the page the user has open, never from an id you pass. If no dataset is in view they fail with an explanatory error — ask the user to open the dataset rather than retrying.
 Batch every related operation into one script: one script per coherent unit of work, never one script per operation. Each `execute_browser_action` call costs a full model turn; another `await` inside the script is free. Read state, branch on it, loop over items, and apply all the changes in the same script — if you are about to issue several one-line scripts back to back, combine them.
-Approvals batch too: awaiting an `approval` operation parks the script (without burning its time budget) until the user decides, so a script may stage an approval and keep working after the decision resolves. Split into a follow-up script only when what comes next depends on the decision or on an intermediate result in a way you cannot express as a branch in the script.
-Error recovery: an unknown-operation error includes suggested near-miss names — call `search_browser_actions` to confirm before retrying. An operation that is unavailable on the user's current page fails with a route hint describing where it becomes available; stage a `ui.navigation.goTo({path, reason})` approval to take the user there (it resolves after the route change commits), then retry the operation. If the user declines the navigation, offer a markdown link instead — never retry the navigation.
-Example — set a model, run the playground, and read the output in one script (one turn, not three):
+Batching also batches approval: because the user approves the whole script once, one script with five writes costs one decision, while five single-write scripts cost five. Make `write_description` cover every change the script makes — an approved script's writes all execute without further prompts, so never smuggle in a change the description does not mention.
+Error recovery: an unknown-operation error includes suggested near-miss names — call `search_browser_actions` to confirm before retrying. An operation that is unavailable on the user's current page fails with a route hint describing where it becomes available; call `ui.navigation.goTo({path, reason})` to take the user there (it resolves after the route change commits), then retry the operation. Navigation changes state, so the calling script needs a `write_description` that mentions the destination. If the user rejects a script that navigates, offer a markdown link instead — never re-run the navigation.
+Example — set a model, run the playground, and read the output in one script (one turn, not three). Setting the model and running are state changes, so this script would carry e.g. `write_description`: "This script will set the playground model to gpt-5 and run the playground once."
 ```
 const model = await ui.playground.model.set({target: {type: 'builtin', provider: 'OPENAI', modelName: 'gpt-5'}});
 if (!model.ok) return model;

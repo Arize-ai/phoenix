@@ -31,6 +31,35 @@ import {
 } from "./TableAside";
 import { TraceAnnotationSummary } from "./TraceAnnotationSummary";
 
+type SpansAsideProject = SpansTableAsideQuery["response"]["project"];
+
+function getSpansAsideCosts(project: SpansAsideProject) {
+  const costSummary = project?.costSummary;
+  return {
+    completionCost: costSummary?.completion?.cost ?? 0,
+    promptCost: costSummary?.prompt?.cost ?? 0,
+    totalCost: costSummary?.total?.cost ?? 0,
+  };
+}
+
+function getSpansAsideValues(project: SpansAsideProject) {
+  return {
+    ...getSpansAsideCosts(project),
+    description: project?.description,
+    documentEvaluationNames: project?.documentEvaluationNames ?? [],
+    latencyMsP50: project?.latencyMsP50,
+    latencyMsP99: project?.latencyMsP99,
+    name: project?.name,
+    spanAnnotationNames: getNonNoteAnnotationNames(
+      project?.spanAnnotationNames ?? []
+    ),
+    traceAnnotationNames: getNonNoteAnnotationNames(
+      project?.traceAnnotationsNames ?? []
+    ),
+    traceCount: project?.timeRangeTraceCount,
+  };
+}
+
 export function SpansTableAside(props: { filterCondition?: string | null }) {
   const filterCondition = props.filterCondition || null;
   const projectId = useTracingContext((state) => state.projectId);
@@ -91,20 +120,26 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
   );
 
   const project = data?.project;
-  const spanAnnotationNames = getNonNoteAnnotationNames(
-    project?.spanAnnotationNames ?? []
-  );
-  const traceAnnotationNames = getNonNoteAnnotationNames(
-    project?.traceAnnotationsNames ?? []
-  );
-  const documentEvaluationNames = project?.documentEvaluationNames ?? [];
+  const {
+    completionCost,
+    description,
+    documentEvaluationNames,
+    latencyMsP50,
+    latencyMsP99,
+    name,
+    promptCost,
+    spanAnnotationNames,
+    totalCost,
+    traceAnnotationNames,
+    traceCount,
+  } = getSpansAsideValues(project);
 
   return (
     <Group orientation="vertical">
       <ProjectInfoTitledPanel
         projectId={projectId}
-        name={project?.name}
-        description={project?.description}
+        name={name}
+        description={description}
       />
       <TitledPanel resizable title="Stats" panelProps={{ minSize: "10%" }}>
         <View padding="size-200" overflow="auto" height="100%">
@@ -112,36 +147,30 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
             <Flex direction="column" gap="size-200" alignItems="start">
               <StatItem label="Total Traces">
                 <Text size="L" fontFamily="mono">
-                  {intFormatter(project?.timeRangeTraceCount)}
+                  {intFormatter(traceCount)}
                 </Text>
               </StatItem>
               <StatItem label="Total Cost">
                 <TooltipTrigger delay={0}>
                   <Focusable>
                     <Text size="L" role="button" fontFamily="mono">
-                      {costFormatter(project?.costSummary?.total?.cost ?? 0)}
+                      {costFormatter(totalCost)}
                     </Text>
                   </Focusable>
                   <RichTooltip placement="bottom">
                     <TooltipArrow />
                     <View width="size-3600">
                       <TokenCostsDetails
-                        total={project?.costSummary?.total?.cost ?? 0}
-                        prompt={project?.costSummary?.prompt?.cost ?? 0}
-                        completion={project?.costSummary?.completion?.cost ?? 0}
+                        total={totalCost}
+                        prompt={promptCost}
+                        completion={completionCost}
                       />
                     </View>
                   </RichTooltip>
                 </TooltipTrigger>
               </StatItem>
-              <LatencyStatItem
-                label="Latency P50"
-                latencyMs={project?.latencyMsP50}
-              />
-              <LatencyStatItem
-                label="Latency P99"
-                latencyMs={project?.latencyMsP99}
-              />
+              <LatencyStatItem label="Latency P50" latencyMs={latencyMsP50} />
+              <LatencyStatItem label="Latency P99" latencyMs={latencyMsP99} />
             </Flex>
             {spanAnnotationNames.length > 0 ? (
               <StatsSection title="Span Annotations">

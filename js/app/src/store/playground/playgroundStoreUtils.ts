@@ -30,6 +30,7 @@ export const convertMessageToolCallsToProvider = ({
       case "MOONSHOT":
       case "PERPLEXITY":
       case "TOGETHER":
+      case "ZAI":
       case "AZURE_OPENAI": {
         return toOpenAIToolCall(toolCall) ?? toolCall;
       }

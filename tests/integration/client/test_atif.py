@@ -107,17 +107,21 @@ class TestAtifTrajectoryUpload:
         ]
         assert not unresolvable, f"spans persisted with unresolvable parents: {unresolvable}"
 
-        # Each trajectory root hangs off the trial span. The summarization step
-        # declares subagent refs without a tool call, so its sub-trajectories
-        # have no in-batch parent and are adopted by the trial rather than
-        # dangling. See https://github.com/Arize-ai/phoenix/issues/15417.
+        # The parent trajectory hangs off the trial span. Its summarization
+        # step has no matching TOOL span, so the parent trajectory's root
+        # parents the referenced sub-trajectories instead.
         roots = {s["name"] for s in fetched if s.get("parent_id") == parent_span_id}
-        assert roots == {
-            "terminus-2",
+        assert roots == {"terminus-2"}
+
+        parent_root_id = next(s["context"]["span_id"] for s in fetched if s["name"] == "terminus-2")
+        subagent_root_names = {
             "terminus-2-summarization-questions",
             "terminus-2-summarization-answers",
             "terminus-2-summarization-summary",
         }
+        assert {
+            s["name"]: s.get("parent_id") for s in fetched if s["name"] in subagent_root_names
+        } == {name: parent_root_id for name in subagent_root_names}
 
     async def test_separate_trials_with_distinct_trajectory_ids_do_not_collide(
         self,

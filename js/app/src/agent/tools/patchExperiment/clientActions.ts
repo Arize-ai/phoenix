@@ -1,3 +1,4 @@
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
 import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
@@ -65,7 +66,10 @@ export function createPatchExperimentClientAction({
           agentStore.getState().setPendingPatchExperiment,
       });
 
-      if (agentStore.getState().permissions.edits === "bypass") {
+      if (
+        agentStore.getState().permissions.edits === "bypass" ||
+        isOperationCallApprovalGranted(context.callId)
+      ) {
         void pendingPatch.accept?.({ approvalSource: "auto" });
         return;
       }

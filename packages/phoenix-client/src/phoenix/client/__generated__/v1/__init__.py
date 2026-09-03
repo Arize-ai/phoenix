@@ -108,6 +108,11 @@ class ChatCompletionUsagePromptTokensDetails(TypedDict):
     cached_tokens: int
 
 
+class ChatRequestCredential(TypedDict):
+    key: Literal["GITHUB_PERSONAL_ACCESS_TOKEN"]
+    value: str
+
+
 class CodeEvaluatorUIContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
@@ -756,6 +761,19 @@ class PromptXAIInvocationParametersContent(TypedDict):
     extra_body: NotRequired[Mapping[str, Any]]
 
 
+class PromptZAIInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
+    reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
+
+
 class PydanticAIMessageMetadata(TypedDict):
     timestamp: NotRequired[str]
 
@@ -763,6 +781,7 @@ class PydanticAIMessageMetadata(TypedDict):
 class ReasoningUIPart(TypedDict):
     type: Literal["reasoning"]
     text: str
+    id: NotRequired[str]
     state: NotRequired[Literal["streaming", "done"]]
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
 
@@ -1380,6 +1399,7 @@ class BuiltInModelProvider(TypedDict):
         "MOONSHOT",
         "PERPLEXITY",
         "TOGETHER",
+        "ZAI",
     ]
     name: str
 
@@ -1401,6 +1421,7 @@ class BuiltInProviderModelSelection(TypedDict):
         "MOONSHOT",
         "PERPLEXITY",
         "TOGETHER",
+        "ZAI",
     ]
     modelName: str
 
@@ -1833,6 +1854,11 @@ class PromptXAIInvocationParameters(TypedDict):
     xai: PromptXAIInvocationParametersContent
 
 
+class PromptZAIInvocationParameters(TypedDict):
+    type: Literal["zai"]
+    zai: PromptZAIInvocationParametersContent
+
+
 class ResponseBodyUpsertOrDeleteSecretsResult(TypedDict):
     data: UpsertOrDeleteSecretsResult
 
@@ -2223,6 +2249,7 @@ class ChatRequestBody(TypedDict):
     ]
     toolApprovals: NotRequired[Sequence[ToolApproval]]
     lastMessageId: NotRequired[str]
+    credentials: NotRequired[Sequence[ChatRequestCredential]]
     recordLocalTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     instrumentUserId: NotRequired[bool]
@@ -2258,6 +2285,7 @@ class PromptVersionData(TypedDict):
         "MOONSHOT",
         "PERPLEXITY",
         "TOGETHER",
+        "ZAI",
     ]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
@@ -2278,6 +2306,7 @@ class PromptVersionData(TypedDict):
         PromptMoonshotInvocationParameters,
         PromptPerplexityInvocationParameters,
         PromptTogetherInvocationParameters,
+        PromptZAIInvocationParameters,
     ]
     description: NotRequired[str]
     tools: NotRequired[PromptTools]
@@ -2294,6 +2323,15 @@ class CreatePromptRequestBody(TypedDict):
 
 
 class CreatePromptResponseBody(TypedDict):
+    data: PromptVersion
+
+
+class CreatePromptVersionRequestBody(TypedDict):
+    version: PromptVersionData
+    tags: NotRequired[Sequence[PromptVersionTagData]]
+
+
+class CreatePromptVersionResponseBody(TypedDict):
     data: PromptVersion
 
 

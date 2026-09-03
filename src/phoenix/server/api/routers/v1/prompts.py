@@ -4,8 +4,10 @@ from typing import Any, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field, ValidationError, field_validator, model_validator
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never
@@ -25,6 +27,11 @@ from phoenix.db.types.prompts import (
     PromptTools,
     normalize_invocation_parameters_for_write,
 )
+from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.input_types.PromptVersionInput import (
+    validate_invocation_parameters_match_provider,
+)
+from phoenix.server.api.mutations.prompt_version_tag_mutations import upsert_prompt_version_tag
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -474,14 +481,7 @@ async def create_prompt(
         HTTPException: If the template type is not supported, the name identifier is invalid,
                       or any other validation error occurs.
     """
-    if (
-        request_body.version.template.type.lower() != "chat"
-        or request_body.version.template_type != PromptTemplateType.CHAT
-    ):
-        raise HTTPException(
-            422,
-            "Only CHAT template type is supported for prompts",
-        )
+    _require_chat_template(request_body.version)
     prompt = request_body.prompt
     try:
         name = Identifier.model_validate(prompt.name)
@@ -531,6 +531,110 @@ class PromptVersionTag(PromptVersionTagData):
 
 class GetPromptVersionTagsResponseBody(PaginatedResponseBody[PromptVersionTag]):
     pass
+
+
+class CreatePromptVersionRequestBody(V1RoutesBaseModel):
+    version: PromptVersionData
+    tags: Optional[list[PromptVersionTagData]] = None
+
+
+class CreatePromptVersionResponseBody(ResponseBody[PromptVersion]):
+    pass
+
+
+@router.post(
+    "/prompts/{prompt_identifier}/versions",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="createPromptVersion",
+    summary="Create prompt version",
+    description="Create a new version for an existing prompt by identifier.",
+    response_description="The created prompt version",
+    status_code=201,
+    responses=add_errors_to_responses([404, 422]),
+    response_model_by_alias=True,
+    response_model_exclude_defaults=True,
+    response_model_exclude_unset=True,
+)
+async def create_prompt_version(
+    request: Request,
+    request_body: CreatePromptVersionRequestBody,
+    prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
+) -> CreatePromptVersionResponseBody:
+    """
+    Create a new version for an existing prompt.
+
+    Args:
+        request (Request): The FastAPI request object.
+        request_body (CreatePromptVersionRequestBody): The request body containing version data
+            and optional tags.
+        prompt_identifier (str): The identifier of the prompt (name or ID).
+
+    Returns:
+        CreatePromptVersionResponseBody: Response containing the created prompt version.
+
+    Raises:
+        HTTPException: If the prompt identifier is invalid, the prompt is not found, the template
+            type is unsupported, or any other validation error occurs.
+    """
+    version = request_body.version
+    _require_chat_template(version)
+    try:
+        validate_invocation_parameters_match_provider(
+            model_provider=version.model_provider,
+            invocation_parameters=version.invocation_parameters,
+        )
+    except BadRequest as e:
+        raise HTTPException(422, str(e))
+
+    identifier = _parse_prompt_identifier(prompt_identifier)
+    if isinstance(identifier, _PromptId):
+        where_clause = models.Prompt.id == int(identifier)
+    elif isinstance(identifier, Identifier):
+        where_clause = models.Prompt.name == identifier
+    else:
+        assert_never(identifier)
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled:
+        assert isinstance(user := request.user, PhoenixUser)
+        user_id = int(user.identity)
+
+    async with request.app.state.db() as session:
+        prompt_id = await session.scalar(select(models.Prompt.id).where(where_clause))
+        if prompt_id is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+
+        version_orm = models.PromptVersion(
+            user_id=user_id,
+            prompt_id=prompt_id,
+            description=version.description,
+            model_provider=version.model_provider,
+            model_name=version.model_name,
+            template_type=version.template_type,
+            template_format=version.template_format,
+            template=version.template,
+            invocation_parameters=version.invocation_parameters,
+            tools=version.tools,
+            response_format=version.response_format,
+        )
+        session.add(version_orm)
+        try:
+            await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise HTTPException(status_code=404, detail="Prompt not found")
+
+        for tag in request_body.tags or []:
+            await upsert_prompt_version_tag(
+                session,
+                prompt_id,
+                version_orm.id,
+                tag.name,
+                tag.description,
+                user_id=user_id,
+            )
+
+    data = _prompt_version_from_orm_version(version_orm)
+    return CreatePromptVersionResponseBody(data=data)
 
 
 @router.get(
@@ -886,6 +990,11 @@ def _filter_by_prompt_identifier(
     if isinstance(identifier, Identifier):
         return stmt.where(models.Prompt.name == identifier)
     assert_never(identifier)
+
+
+def _require_chat_template(version: PromptVersionData) -> None:
+    if version.template_type is not PromptTemplateType.CHAT:
+        raise HTTPException(422, "Only CHAT template type is supported for prompts")
 
 
 def _prompt_version_from_orm_version(

@@ -8,6 +8,7 @@ import {
   getUIOperationDescriptor,
   suggestUIOperationNames,
 } from "./catalog";
+import { isOperationCallApprovalGranted } from "./scriptApprovalGrant";
 import type { UIOperationCallContext, UIOperationResult } from "./types";
 
 /** Everything dispatch needs from the enclosing `execute_browser_action` tool call. */
@@ -22,7 +23,7 @@ export type UIOperationDispatchContext = {
  *
  * This is the single choke point every scripted effect flows through:
  * catalog lookup → capability gate → session gate → mounted check → schema
- * validation → handler invocation. It is the relocated core of the retired
+ * validation → script-approval gate → handler invocation. It is the relocated core of the retired
  * `defineClientActionTool` execute path, run once per `ui.*` call instead of
  * once per tool call.
  *
@@ -34,7 +35,6 @@ export async function dispatchUIOperationCall({
   operationName,
   input,
   callId,
-  hostToolCallId,
   agentStore,
   sessionId,
   capabilities,
@@ -47,12 +47,6 @@ export async function dispatchUIOperationCall({
    * interrupt cleanup cancels pending entries by tool-call-id prefix.
    */
   callId: string;
-  /**
-   * The enclosing `execute_browser_action` tool-call id — the chat card that hosts any
-   * approval this call stages. Dispatch requests that card open when a
-   * user-facing approval is about to appear.
-   */
-  hostToolCallId: string;
 } & UIOperationDispatchContext): Promise<UIOperationResult> {
   const descriptor = getUIOperationDescriptor(operationName);
   if (descriptor == null) {
@@ -108,24 +102,32 @@ export async function dispatchUIOperationCall({
     };
   }
 
-  const context: UIOperationCallContext = { callId, sessionId };
-
-  // A user-facing approval card is about to be staged inside the host
-  // execute_browser_action card: request it open so Accept/Reject is never hidden behind
-  // a collapsed disclosure, and release the request once the user decides so
-  // the card collapses again when nothing awaits them. This is the single
-  // choke point every approval operation flows through, so new approval
-  // operations inherit the behavior from their `kind` — no per-operation
-  // wiring. In bypass edit mode most approvals auto-accept without a card,
-  // so nothing opens unless the operation always asks
-  // (`alwaysRequiresApproval`).
-  const opensHostCard =
-    descriptor.operationKind === "approval" &&
-    (descriptor.alwaysRequiresApproval === true ||
-      agentStore.getState().permissions.edits === "manual");
-  if (opensHostCard) {
-    agentStore.getState().requestToolPartOpen(hostToolCallId);
+  // Script-level approval gate — the operation counterpart of phoenix-gql's
+  // mutation policy. Reads are always free. State-changing operations (kind
+  // `write` or `approval`) execute only with the user's consent: implicit in
+  // bypass edit mode, and in manual edit mode granted when the user accepted
+  // the enclosing script's `write_description` before the run. A
+  // state-changing call from an unapproved script is refused with
+  // instructions to re-issue — exactly how phoenix-gql refuses an unapproved
+  // mutation — so omitting `write_description` never skips approval.
+  if (
+    descriptor.operationKind !== "read" &&
+    agentStore.getState().permissions.edits === "manual" &&
+    !isOperationCallApprovalGranted(callId)
+  ) {
+    return {
+      ok: false,
+      code: "APPROVAL_REQUIRED",
+      error:
+        `Operation "${operationName}" changes state and requires the user's ` +
+        "approval, which this script did not request. Re-issue the " +
+        "execute_browser_action call with a write_description describing the " +
+        "changes the script will make, so the user can approve the script " +
+        "before it runs.",
+    };
   }
+
+  const context: UIOperationCallContext = { callId, sessionId };
 
   try {
     const result = await handler(parsed.data, context);
@@ -139,9 +141,5 @@ export async function dispatchUIOperationCall({
       code: "HANDLER_ERROR",
       error: error instanceof Error ? error.message : String(error),
     };
-  } finally {
-    if (opensHostCard) {
-      agentStore.getState().releaseToolPartOpen(hostToolCallId);
-    }
   }
 }

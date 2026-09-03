@@ -131,6 +131,14 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS
+from phoenix.server.mcp_server import (
+    MCP_MOUNT_PATH,
+    BearerAuthGuard,
+    MountPathNormalizer,
+    build_phoenix_mcp_server,
+    create_phoenix_mcp_app,
+)
 from phoenix.server.middleware.anonymous_cors import (
     AnonymousCorsMiddleware,
     AnonymousPaths,
@@ -964,12 +972,9 @@ def create_app(
     # Resolved before the middleware stack: the anonymous-surface path set feeds
     # both the CSRF origin validator below and AnonymousCorsMiddleware at the end
     # of this function, and it depends on whether the MCP endpoint is mounted
-    # (the mount itself happens after the routers). The import stays deferred so
-    # fastmcp is only loaded when the mount is enabled.
+    # (the mount itself happens after the routers).
     mcp_mount_path: Optional[str] = None
     if get_env_enable_mcp_server():
-        from phoenix.server.mcp_server import MCP_MOUNT_PATH
-
         mcp_mount_path = MCP_MOUNT_PATH
     anonymous_surfaces = anonymous_paths(mcp_mount_path)
     middlewares: list[Middleware] = [
@@ -1207,12 +1212,6 @@ def create_app(
         # the same /v1 schema, and mount before the static UI ("/") catch-all so
         # requests to the MCP endpoint are not swallowed by it. The app's
         # lifespan (its session manager) is entered in ``_lifespan`` above.
-        from phoenix.server.mcp_server import (
-            BearerAuthGuard,
-            MountPathNormalizer,
-            create_phoenix_mcp_app,
-        )
-
         mcp_http_app, mcp_code_mode_sandbox = create_phoenix_mcp_app(
             app,
             monty_runtime=sandbox_runtime.monty,
@@ -1242,8 +1241,6 @@ def create_app(
     pxi_mcp_server = None
     pxi_mcp_sandbox = None
     if not get_env_disable_agent_assistant():
-        from phoenix.server.mcp_server import build_phoenix_mcp_server
-
         pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
             app,
             monty_runtime=sandbox_runtime.monty,
@@ -1251,6 +1248,7 @@ def create_app(
             monty_consumer="agent",
             read_only=True,
             db=db,
+            skills_roots=PXI_SKILLS_ROOTS,
         )
     app.state.pxi_mcp_server = pxi_mcp_server
     app.state.pxi_mcp_sandbox = pxi_mcp_sandbox

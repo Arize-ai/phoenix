@@ -105,6 +105,11 @@ import {
   getExecuteBrowserActionToolPreview,
 } from "./ExecuteBrowserActionToolDetails";
 import {
+  getLoadSkillReferenceToolPreview,
+  LOAD_SKILL_REFERENCE_TOOL_NAME,
+  LoadSkillReferenceToolDetails,
+} from "./LoadSkillReferenceToolDetails";
+import {
   getLoadSkillToolPreview,
   LOAD_SKILL_TOOL_NAME,
   LoadSkillToolDetails,
@@ -115,11 +120,6 @@ import {
   getPatchExperimentToolPreview,
   PatchExperimentToolDetails,
 } from "./PatchExperimentToolDetails";
-import {
-  getReadSkillResourceToolPreview,
-  READ_SKILL_RESOURCE_TOOL_NAME,
-  ReadSkillResourceToolDetails,
-} from "./ReadSkillResourceToolDetails";
 import { getScrollableParent } from "./scrollAnchor";
 import {
   getSearchUIToolPreview,
@@ -602,7 +602,7 @@ function ToolInvocationPartDetails({
   const hasAutoOpenedRef = useRef(false);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
   const { preview, stateLabel, statusVariant, details, variant, quietLabel } =
-    getToolPresentation(toolName, part);
+    getToolPresentation({ toolName, part });
   // Store-driven open request: set when this call stages a user-facing
   // approval (see `requestToolPartOpen`), so Accept/Reject is never hidden
   // behind a collapsed disclosure. It layers under the same manual-toggle
@@ -730,7 +730,7 @@ function shouldAutoOpenToolPart(part: ToolInvocationPart): boolean {
 }
 
 export function getToolPartPreview(part: ToolInvocationPart): string {
-  return getToolPresentation(getToolName(part), part).preview;
+  return getToolPresentation({ toolName: getToolName(part), part }).preview;
 }
 
 // ---------------------------------------------------------------------------
@@ -1058,226 +1058,226 @@ function getSetSpansFilterToolPreview(part: ToolInvocationPart): string {
   return parsed.condition.trim() || "All spans";
 }
 
-function getToolPresentation(
-  toolName: string,
-  part: ToolInvocationPart
-): {
+type ToolPresentation = {
   preview: string;
   stateLabel: string;
   statusVariant?: StatusVariant;
   details: React.ReactNode;
   variant?: ToolVariant;
   quietLabel?: string;
-} {
+};
+
+type ToolPresentationBuilder = (
+  part: ToolInvocationPart,
+  statusVariant: StatusVariant | undefined,
+  toolName: string
+) => ToolPresentation;
+
+const DATASET_WRITE_TOOL_NAMES = new Set([
+  CREATE_DATASET_SPLIT_TOOL_NAME,
+  SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME,
+  CREATE_DATASET_LABEL_TOOL_NAME,
+  SET_DATASET_LABELS_TOOL_NAME,
+  PATCH_DATASET_TOOL_NAME,
+  DELETE_DATASET_TOOL_NAME,
+  PATCH_DATASET_EXAMPLES_TOOL_NAME,
+  DELETE_DATASET_EXAMPLES_TOOL_NAME,
+  PATCH_DATASET_SPLIT_TOOL_NAME,
+  DELETE_DATASET_SPLITS_TOOL_NAME,
+  DELETE_DATASET_LABELS_TOOL_NAME,
+  ADD_SPANS_TO_DATASET_TOOL_NAME,
+]);
+
+const TOOL_PRESENTATION_BUILDERS: Partial<
+  Record<string, ToolPresentationBuilder>
+> = {
+  [EXECUTE_BROWSER_ACTION_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getExecuteBrowserActionToolPreview(part),
+    stateLabel: formatExecuteBrowserActionState(part),
+    statusVariant,
+    details: <ExecuteBrowserActionToolDetails part={part} />,
+  }),
+  [SEARCH_BROWSER_ACTIONS_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getSearchUIToolPreview(part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <SearchUIToolDetails part={part} />,
+  }),
+  bash: (part, statusVariant) => ({
+    preview: getBashToolPreview(part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <BashToolDetails part={part} />,
+  }),
+  ask_user: (part, statusVariant) => {
+    const stateLabel = formatAskUserState(part.state, part);
+    return {
+      preview: getAskUserToolPreview(part),
+      stateLabel,
+      statusVariant: stateLabel === "Error" ? "danger" : statusVariant,
+      details: <AskUserToolDetails part={part} />,
+    };
+  },
+  [CREATE_DATASET_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getCreateDatasetToolPreview(part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <CreateDatasetToolDetails part={part} />,
+  }),
+  [LIST_DATASET_EXAMPLES_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getListDatasetExamplesToolPreview(part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <DatasetReadToolDetails part={part} label="Examples" />,
+  }),
+  [LIST_DATASETS_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getListDatasetsToolPreview(part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <DatasetReadToolDetails part={part} label="Datasets" />,
+  }),
+  [LIST_DATASET_SPLITS_TOOL_NAME]: (part, statusVariant) => ({
+    preview: "",
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <DatasetReadToolDetails part={part} label="Splits" />,
+  }),
+  [LIST_SPLITS_TOOL_NAME]: (part, statusVariant) => ({
+    preview: "",
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <DatasetReadToolDetails part={part} label="Splits" />,
+  }),
+  [LIST_DATASET_LABELS_TOOL_NAME]: (part, statusVariant) => ({
+    preview: "",
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <DatasetReadToolDetails part={part} label="Labels" />,
+  }),
+  [LIST_LABELS_TOOL_NAME]: (part, statusVariant) => ({
+    preview: "",
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <DatasetReadToolDetails part={part} label="Labels" />,
+  }),
+  [ADD_DATASET_EXAMPLES_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getAddDatasetExamplesToolPreview(part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <AddDatasetExamplesToolDetails part={part} />,
+  }),
+  [BATCH_SPAN_ANNOTATE_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getBatchSpanAnnotateToolPreview(part),
+    stateLabel: formatBatchSpanAnnotateState(part),
+    statusVariant,
+    details: <BatchSpanAnnotateToolDetails part={part} />,
+  }),
+  [PATCH_EXPERIMENT_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getPatchExperimentToolPreview(part),
+    stateLabel: formatPatchExperimentState(part),
+    statusVariant: getPatchExperimentStatusVariant(part) ?? statusVariant,
+    details: <PatchExperimentToolDetails part={part} />,
+  }),
+  [CREATE_ANNOTATION_CONFIG_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getCreateAnnotationConfigToolPreview(part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <AnnotationConfigWriteToolDetails part={part} />,
+  }),
+  [UPDATE_ANNOTATION_CONFIG_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getUpdateAnnotationConfigToolPreview(part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <AnnotationConfigWriteToolDetails part={part} />,
+  }),
+  [EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getEditCodeEvaluatorDraftToolPreview(part),
+    stateLabel: formatEditCodeEvaluatorDraftState(part),
+    statusVariant,
+    details: <EditCodeEvaluatorDraftToolDetails part={part} />,
+  }),
+  [EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getEditLlmEvaluatorDraftToolPreview(part),
+    stateLabel: formatEditLlmEvaluatorDraftState(part),
+    statusVariant,
+    details: <EditLLMEvaluatorDraftToolDetails part={part} />,
+  }),
+  [LOAD_SKILL_TOOL_NAME]: (part, statusVariant) => {
+    const skillName = getLoadSkillToolPreview(part);
+    return {
+      preview: skillName,
+      stateLabel: formatToolState(part.state),
+      statusVariant,
+      details: <LoadSkillToolDetails part={part} />,
+      variant: part.state === "output-available" ? "quiet" : "default",
+      quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
+    };
+  },
+  [LOAD_SKILL_REFERENCE_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getLoadSkillReferenceToolPreview(part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <LoadSkillReferenceToolDetails part={part} />,
+  }),
+  [NATIVE_WEB_SEARCH_TOOL_NAME]: (part, statusVariant, toolName) => ({
+    preview: getNativeWebToolPreview(toolName, part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <GenericToolDetails part={part} />,
+  }),
+  [NATIVE_WEB_FETCH_TOOL_NAME]: (part, statusVariant, toolName) => ({
+    preview: getNativeWebToolPreview(toolName, part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <GenericToolDetails part={part} />,
+  }),
+  [CALL_SUBAGENT_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getCallSubagentName(part),
+    stateLabel:
+      part.state === "output-available" && part.preliminary === true
+        ? "Running"
+        : formatToolState(part.state),
+    statusVariant,
+    details: <CallSubagentToolDetails part={part} />,
+  }),
+  [SET_SPANS_FILTER_TOOL_NAME]: (part, statusVariant) => ({
+    preview: getSetSpansFilterToolPreview(part),
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <GenericToolDetails part={part} />,
+  }),
+};
+
+function getToolPresentation({
+  toolName,
+  part,
+}: {
+  toolName: string;
+  part: ToolInvocationPart;
+}): ToolPresentation {
   const statusVariant = getStatusVariant(part.state);
-  switch (toolName) {
-    case EXECUTE_BROWSER_ACTION_TOOL_NAME:
-      return {
-        preview: getExecuteBrowserActionToolPreview(part),
-        stateLabel: formatExecuteBrowserActionState(part),
-        statusVariant,
-        details: <ExecuteBrowserActionToolDetails part={part} />,
-      };
-    case SEARCH_BROWSER_ACTIONS_TOOL_NAME:
-      return {
-        preview: getSearchUIToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <SearchUIToolDetails part={part} />,
-      };
-    case "bash":
-      return {
-        preview: getBashToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <BashToolDetails part={part} />,
-      };
-    case "ask_user": {
-      const stateLabel = formatAskUserState(part.state, part);
-      const isError = stateLabel === "Error";
-      return {
-        preview: getAskUserToolPreview(part),
-        stateLabel,
-        statusVariant: isError ? "danger" : statusVariant,
-        details: <AskUserToolDetails part={part} />,
-      };
-    }
-    case CREATE_DATASET_TOOL_NAME:
-      return {
-        preview: getCreateDatasetToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <CreateDatasetToolDetails part={part} />,
-      };
-    case LIST_DATASET_EXAMPLES_TOOL_NAME:
-      return {
-        preview: getListDatasetExamplesToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <DatasetReadToolDetails part={part} label="Examples" />,
-      };
-    case LIST_DATASETS_TOOL_NAME:
-      return {
-        preview: getListDatasetsToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <DatasetReadToolDetails part={part} label="Datasets" />,
-      };
-    case LIST_DATASET_SPLITS_TOOL_NAME:
-      return {
-        preview: "",
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <DatasetReadToolDetails part={part} label="Splits" />,
-      };
-    case LIST_SPLITS_TOOL_NAME:
-      return {
-        preview: "",
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <DatasetReadToolDetails part={part} label="Splits" />,
-      };
-    case CREATE_DATASET_SPLIT_TOOL_NAME:
-    case SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME:
-    case CREATE_DATASET_LABEL_TOOL_NAME:
-    case SET_DATASET_LABELS_TOOL_NAME:
-    case PATCH_DATASET_TOOL_NAME:
-    case DELETE_DATASET_TOOL_NAME:
-    case PATCH_DATASET_EXAMPLES_TOOL_NAME:
-    case DELETE_DATASET_EXAMPLES_TOOL_NAME:
-    case PATCH_DATASET_SPLIT_TOOL_NAME:
-    case DELETE_DATASET_SPLITS_TOOL_NAME:
-    case DELETE_DATASET_LABELS_TOOL_NAME:
-    case ADD_SPANS_TO_DATASET_TOOL_NAME:
-      return {
-        preview: "",
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <DatasetSplitWriteToolDetails part={part} />,
-      };
-    case LIST_DATASET_LABELS_TOOL_NAME:
-      return {
-        preview: "",
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <DatasetReadToolDetails part={part} label="Labels" />,
-      };
-    case LIST_LABELS_TOOL_NAME:
-      return {
-        preview: "",
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <DatasetReadToolDetails part={part} label="Labels" />,
-      };
-    case ADD_DATASET_EXAMPLES_TOOL_NAME:
-      return {
-        preview: getAddDatasetExamplesToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <AddDatasetExamplesToolDetails part={part} />,
-      };
-    case BATCH_SPAN_ANNOTATE_TOOL_NAME:
-      return {
-        preview: getBatchSpanAnnotateToolPreview(part),
-        stateLabel: formatBatchSpanAnnotateState(part),
-        statusVariant,
-        details: <BatchSpanAnnotateToolDetails part={part} />,
-      };
-    case PATCH_EXPERIMENT_TOOL_NAME:
-      return {
-        preview: getPatchExperimentToolPreview(part),
-        stateLabel: formatPatchExperimentState(part),
-        statusVariant: getPatchExperimentStatusVariant(part) ?? statusVariant,
-        details: <PatchExperimentToolDetails part={part} />,
-      };
-    case CREATE_ANNOTATION_CONFIG_TOOL_NAME:
-      return {
-        preview: getCreateAnnotationConfigToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <AnnotationConfigWriteToolDetails part={part} />,
-      };
-    case UPDATE_ANNOTATION_CONFIG_TOOL_NAME:
-      return {
-        preview: getUpdateAnnotationConfigToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <AnnotationConfigWriteToolDetails part={part} />,
-      };
-    case EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME:
-      return {
-        preview: getEditCodeEvaluatorDraftToolPreview(part),
-        stateLabel: formatEditCodeEvaluatorDraftState(part),
-        statusVariant,
-        details: <EditCodeEvaluatorDraftToolDetails part={part} />,
-      };
-    case EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME:
-      return {
-        preview: getEditLlmEvaluatorDraftToolPreview(part),
-        stateLabel: formatEditLlmEvaluatorDraftState(part),
-        statusVariant,
-        details: <EditLLMEvaluatorDraftToolDetails part={part} />,
-      };
-    case LOAD_SKILL_TOOL_NAME: {
-      const skillName = getLoadSkillToolPreview(part);
-      return {
-        preview: skillName,
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <LoadSkillToolDetails part={part} />,
-        variant: part.state === "output-available" ? "quiet" : "default",
-        quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
-      };
-    }
-    case READ_SKILL_RESOURCE_TOOL_NAME:
-      return {
-        preview: getReadSkillResourceToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <ReadSkillResourceToolDetails part={part} />,
-      };
-    case NATIVE_WEB_SEARCH_TOOL_NAME:
-    case NATIVE_WEB_FETCH_TOOL_NAME:
-      return {
-        preview: getNativeWebToolPreview(toolName, part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        // Native web tools have no bespoke renderer — fall back to the generic
-        // input/output/error JSON view.
-        details: <GenericToolDetails part={part} />,
-      };
-    case CALL_SUBAGENT_TOOL_NAME:
-      return {
-        preview: getCallSubagentName(part),
-        stateLabel:
-          part.state === "output-available" && part.preliminary === true
-            ? "Running"
-            : formatToolState(part.state),
-        statusVariant,
-        details: <CallSubagentToolDetails part={part} />,
-      };
-    case SET_SPANS_FILTER_TOOL_NAME:
-      return {
-        preview: getSetSpansFilterToolPreview(part),
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <GenericToolDetails part={part} />,
-      };
-    default: {
-      if (isDocsToolName(toolName)) {
-        return {
-          preview: getDocsToolPreview(part),
-          stateLabel: formatDocsToolState(part.state, part),
-          statusVariant,
-          details: <DocsToolDetails part={part} />,
-        };
-      }
-      return {
-        preview: "",
-        stateLabel: formatToolState(part.state),
-        statusVariant,
-        details: <GenericToolDetails part={part} />,
-      };
-    }
+  if (DATASET_WRITE_TOOL_NAMES.has(toolName)) {
+    return {
+      preview: "",
+      stateLabel: formatToolState(part.state),
+      statusVariant,
+      details: <DatasetSplitWriteToolDetails part={part} />,
+    };
   }
+  const builder = TOOL_PRESENTATION_BUILDERS[toolName];
+  if (builder) return builder(part, statusVariant, toolName);
+  if (isDocsToolName(toolName)) {
+    return {
+      preview: getDocsToolPreview(part),
+      stateLabel: formatDocsToolState(part.state, part),
+      statusVariant,
+      details: <DocsToolDetails part={part} />,
+    };
+  }
+  return {
+    preview: "",
+    stateLabel: formatToolState(part.state),
+    statusVariant,
+    details: <GenericToolDetails part={part} />,
+  };
 }

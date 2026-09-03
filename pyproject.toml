@@ -56,19 +56,19 @@ dependencies = [
   "arize-phoenix-sqlean",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=3.5.1",
+  "arize-phoenix-evals>=3.6.0",
   "arize-phoenix-otel>=0.17.0",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "fastmcp-slim[client,server]>=3.4.2,<4",  # client powers pydantic-ai's MCPToolset used by the agent assistant; server powers the in-process MCP server mounted at /mcp. Cap below 4: FastMCP 4 is an SDK-v2 engine swap (mcp_types, httpx2, sampling removals) still in prerelease.
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose ==0.0.17 pin conflicts and would ship in wheel metadata.
   "pydantic-monty==0.0.19",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.33.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.34.0,<3",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
   # here so the major version is chosen deliberately rather than by resolution.
   "anthropic>=1,<2",
   "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
-  "authlib>=1.7.0",
+  "authlib>=1.8.0",
   "joserfc",
   "arize-phoenix-client>=3.2.0",
   "email-validator",
@@ -88,7 +88,7 @@ phoenix = "phoenix.server.main:main"
 dev = [
   "check-wheel-contents",
   "twine",
-  "aiobotocore>=3.1.1",
+  "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
   "aioboto3",
   "aiosqlite>=0.22.1",
   "anthropic>=1,<2",
@@ -108,6 +108,7 @@ dev = [
   "grpc-interceptor[testing]",
   "grpcio",
   "httpx",
+  "httpx2",
   "jsonpath-ng",
   "ldap3",
   "litellm>=1.83.14; python_version < '3.14'",  # >=1.83.14 fixes CVE-2026-42208; excluded because upstream metadata does not support Python 3.14 (https://github.com/BerriAI/litellm/issues/26343)
@@ -208,6 +209,7 @@ pg = [
 ]
 aws = [
   "aioboto3",
+  "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
   "types-aiobotocore-bedrock-runtime>=3.6.0",
 ]
 azure = [
@@ -235,6 +237,7 @@ container = [
   "strawberry-graphql[opentelemetry]==0.320.4",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
+  "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
   "types-aiobotocore-bedrock-runtime>=3.6.0",
   # Sandbox provider SDKs — bundled so the shipped container can use any
   # configured provider without a rebuild. Each pin matches the matching
@@ -270,6 +273,7 @@ artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
+  "src/phoenix/server/mcp/skills",
   "src/phoenix/db/migrations",
   "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
@@ -294,6 +298,7 @@ artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/server/generative_ui",
   "src/phoenix/server/agents/prompts",
+  "src/phoenix/server/mcp/skills",
   "src/phoenix/db/migrations",
   "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
@@ -303,6 +308,8 @@ artifacts = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope="function"
+faulthandler_timeout = 300.0
+faulthandler_exit_on_timeout = false
 addopts = [
   "-rA",
   "--import-mode=importlib",
@@ -443,7 +450,7 @@ line-ending = "native"
 script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
-required-version = "==0.12.1"  # When updating this version, also update ARG UV_IMAGE in the Dockerfile
+required-version = "==0.12.7"  # When updating this version, also update ARG UV_IMAGE in the Dockerfile
 exclude-newer = "3 days"
 # Exempt our own packages from the `exclude-newer` window so freshly published
 # versions are immediately resolvable. arize-phoenix-sqlean is not a workspace

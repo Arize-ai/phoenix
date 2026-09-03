@@ -14,8 +14,8 @@ import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 // oxlint-disable-next-line import/default -- Vite `?raw` import; the resolver can't see the synthesized default export
 import JSSandboxBridgeSource from "../jsSandboxBridge.ts?raw";
 
-/** A real approval-kind operation, so the bridge pauses the budget for it. */
-const APPROVAL_OP = "playground.prompt.edit";
+/** A real long-running operation, so the bridge pauses the budget for it. */
+const LONG_RUNNING_OP = "playground.run";
 
 /** A deferred promise whose resolver is exposed for the test to fire later. */
 function createDeferred<T>() {
@@ -83,7 +83,7 @@ describe("runJSSandboxScript worker failure backstop", () => {
     expect(worker.isTerminated).toBe(true);
   });
 
-  it("keeps the budget paused until the last of several concurrent approvals settles", async () => {
+  it("keeps the budget paused until the last of several concurrent long-running ops settles", async () => {
     vi.useFakeTimers();
     try {
       const worker = createFakeWorker();
@@ -99,31 +99,31 @@ describe("runJSSandboxScript worker failure backstop", () => {
         timeoutMs: 1000,
       });
 
-      // Two approvals staged concurrently (as a Promise.all would).
+      // Two long-running ops in flight concurrently (as a Promise.all would).
       worker.emitMessage({
         type: "call",
         callId: 1,
-        operationName: APPROVAL_OP,
+        operationName: LONG_RUNNING_OP,
         input: {},
       });
       worker.emitMessage({
         type: "call",
         callId: 2,
-        operationName: APPROVAL_OP,
+        operationName: LONG_RUNNING_OP,
         input: {},
       });
       await Promise.resolve();
 
-      // Accept the first; the second is still awaiting the user.
+      // The first completes; the second is still in flight.
       first.resolve({ ok: true, output: "one" });
       await Promise.resolve();
 
-      // Burn far past the 1000ms budget while the second approval is pending.
+      // Burn far past the 1000ms budget while the second op is pending.
       // Before the pause-depth fix this re-armed the clock and timed the run
-      // out mid-approval; now the budget stays frozen.
+      // out mid-flight; now the budget stays frozen.
       await vi.advanceTimersByTimeAsync(5000);
 
-      // Accept the second, then let the worker report completion.
+      // Complete the second, then let the worker report completion.
       second.resolve({ ok: true, output: "two" });
       await Promise.resolve();
       worker.emitMessage({ type: "done", returnValue: "done" });
@@ -136,7 +136,7 @@ describe("runJSSandboxScript worker failure backstop", () => {
     }
   });
 
-  it("hard-kills a run whose approval never settles, once the wait budget is spent", async () => {
+  it("hard-kills a run whose long-running op never settles, once the wait budget is spent", async () => {
     vi.useFakeTimers();
     try {
       const worker = createFakeWorker();
@@ -151,18 +151,19 @@ describe("runJSSandboxScript worker failure backstop", () => {
         maxPausedMs: 2000,
       });
 
-      // An approval goes in flight, switching the clock to the wait budget...
+      // A long-running op goes in flight, switching the clock to the wait
+      // budget...
       worker.emitMessage({
         type: "call",
         callId: 1,
-        operationName: APPROVAL_OP,
+        operationName: LONG_RUNNING_OP,
         input: {},
       });
       await Promise.resolve();
 
-      // ...and the user never decides. Without a wait budget the run would
-      // live forever with the execution clock paused; now it dies when the
-      // 2000ms of waiting is spent.
+      // ...and it never completes. Without a wait budget the run would live
+      // forever with the execution clock paused; now it dies when the 2000ms
+      // of waiting is spent.
       await vi.advanceTimersByTimeAsync(1999);
       expect(worker.isTerminated).toBe(false);
       await vi.advanceTimersByTimeAsync(2);
@@ -170,7 +171,7 @@ describe("runJSSandboxScript worker failure backstop", () => {
       const result = await runPromise;
       expect(result).toMatchObject({
         ok: false,
-        error: expect.stringContaining("awaiting approvals"),
+        error: expect.stringContaining("awaiting long-running operations"),
       });
       expect(worker.isTerminated).toBe(true);
     } finally {
@@ -178,7 +179,7 @@ describe("runJSSandboxScript worker failure backstop", () => {
     }
   });
 
-  it("still enforces the execution budget when no approval is in flight", async () => {
+  it("still enforces the execution budget when no long-running op is in flight", async () => {
     vi.useFakeTimers();
     try {
       const worker = createFakeWorker();

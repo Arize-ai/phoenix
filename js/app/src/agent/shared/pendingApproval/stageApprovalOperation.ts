@@ -1,13 +1,12 @@
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import type { ApprovalApplyResult, PendingApproval } from "./types";
 
 /**
  * Stage an approval-gated write on behalf of a `ui.*` operation call and
- * return the promise the calling `execute_browser_action` script awaits. The operation
- * counterpart of {@link bindPendingApproval} + `stage*Write`: instead of
- * reporting the outcome through `addToolOutput` (the retired one-tool-call
- * contract), accept/reject resolve the returned promise —
+ * return the promise the calling `execute_browser_action` script awaits.
+ * Accept/reject resolve the returned promise —
  * `{ ok: true, output: { status: "accepted" | "rejected", … } }` — so the
  * script parked on the `await` continues with the user's decision. A failed
  * apply resolves `{ ok: false, error }`.
@@ -34,7 +33,12 @@ export function stageApprovalOperation<TPreview>({
     toolCallId: string,
     pending: PendingApproval<TPreview> | null
   ) => void;
-  /** Bypass edit mode auto-accepts without staging a card. */
+  /**
+   * Bypass edit mode auto-accepts without staging a card. A script-level
+   * approval grant (the user accepted the enclosing script's
+   * `write_description`) auto-accepts too — checked here centrally, via the
+   * pending entry's operation call id.
+   */
   shouldAutoAccept: () => boolean;
   /** Message resolved to the model when the user rejects. */
   rejectedMessage: string;
@@ -67,7 +71,7 @@ export function stageApprovalOperation<TPreview>({
         });
       },
     };
-    if (shouldAutoAccept()) {
+    if (shouldAutoAccept() || isOperationCallApprovalGranted(toolCallId)) {
       void bound.accept?.({ approvalSource: "auto" });
       return;
     }

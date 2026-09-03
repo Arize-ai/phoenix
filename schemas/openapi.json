@@ -4704,10 +4704,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Trace GlobalID)",
+              "description": "Pagination cursor returned by a previous request",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Trace GlobalID)"
+            "description": "Pagination cursor returned by a previous request"
           },
           {
             "name": "include_spans",
@@ -4753,6 +4753,86 @@
                 }
               }
             }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Delete traces from a project",
+        "description": "Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.",
+        "operationId": "deleteProjectTraces",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Required inclusive lower bound on trace start time (ISO 8601).",
+              "title": "Start Time"
+            },
+            "description": "Required inclusive lower bound on trace start time (ISO 8601)."
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Required exclusive upper bound on trace start time (ISO 8601).",
+              "title": "End Time"
+            },
+            "description": "Required exclusive upper bound on trace start time (ISO 8601)."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned after the matching traces are deleted"
           },
           "403": {
             "content": {
@@ -6076,6 +6156,79 @@
               }
             },
             "description": "Not Found"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Create prompt version",
+        "description": "Create a new version for an existing prompt by identifier.",
+        "operationId": "createPromptVersion",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromptVersionRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created prompt version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePromptVersionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -8432,7 +8585,7 @@
           "chat_completions"
         ],
         "summary": "OpenAI-compatible chat completions",
-        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
+        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
         "operationId": "createChatCompletion",
         "requestBody": {
           "content": {
@@ -8843,7 +8996,7 @@
         "tags": [
           "chat"
         ],
-        "summary": "Run Server Agent",
+        "summary": "Run Headless Agent",
         "operationId": "legacyServerAgentChat",
         "deprecated": true,
         "parameters": [
@@ -11065,6 +11218,14 @@
             "title": "Lastmessageid",
             "description": "The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` \u2014 the client should refetch the session before retrying."
           },
+          "credentials": {
+            "items": {
+              "$ref": "#/components/schemas/ChatRequestCredential"
+            },
+            "type": "array",
+            "title": "Credentials",
+            "description": "Client-held credentials for optional integrations (e.g. the user's own GitHub personal access token under the key ``GITHUB_PERSONAL_ACCESS_TOKEN``), used only for the duration of the turn and never persisted. Unknown keys are rejected."
+          },
           "recordLocalTraces": {
             "type": "boolean",
             "title": "Recordlocaltraces",
@@ -11090,6 +11251,29 @@
         ],
         "title": "ChatRequestBody",
         "description": "Assistant chat submit request payload."
+      },
+      "ChatRequestCredential": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "const": "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "title": "Key",
+            "description": "The credential's secret-key name."
+          },
+          "value": {
+            "type": "string",
+            "format": "password",
+            "title": "Value",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "ChatRequestCredential",
+        "description": "One client-held credential riding the request for the duration of a turn.\n\nThe value is ephemeral: it is injected server-side as transport auth for\nthe matching integration and is never persisted, traced, or echoed. It is\ntop-level on the request body \u2014 never part of the message \u2014 so it cannot\nreach the session transcript."
       },
       "CodeEvaluatorUIContext": {
         "properties": {
@@ -11381,7 +11565,7 @@
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
+            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
           },
           "messages": {
             "items": {
@@ -11920,6 +12104,44 @@
           "data"
         ],
         "title": "CreatePromptResponseBody"
+      },
+      "CreatePromptVersionRequestBody": {
+        "properties": {
+          "version": {
+            "$ref": "#/components/schemas/PromptVersionData"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PromptVersionTagData"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "CreatePromptVersionRequestBody"
+      },
+      "CreatePromptVersionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PromptVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreatePromptVersionResponseBody"
       },
       "CreateSessionNoteRequestBody": {
         "properties": {
@@ -15194,7 +15416,8 @@
           "GROQ",
           "MOONSHOT",
           "PERPLEXITY",
-          "TOGETHER"
+          "TOGETHER",
+          "ZAI"
         ],
         "title": "ModelProvider"
       },
@@ -18057,6 +18280,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptZAIInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -18076,7 +18302,8 @@
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
                 "together": "#/components/schemas/PromptTogetherInvocationParameters",
-                "xai": "#/components/schemas/PromptXAIInvocationParameters"
+                "xai": "#/components/schemas/PromptXAIInvocationParameters",
+                "zai": "#/components/schemas/PromptZAIInvocationParameters"
               }
             }
           },
@@ -18215,6 +18442,9 @@
               },
               {
                 "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptZAIInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -18234,7 +18464,8 @@
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
                 "together": "#/components/schemas/PromptTogetherInvocationParameters",
-                "xai": "#/components/schemas/PromptXAIInvocationParameters"
+                "xai": "#/components/schemas/PromptXAIInvocationParameters",
+                "zai": "#/components/schemas/PromptZAIInvocationParameters"
               }
             }
           },
@@ -18435,6 +18666,84 @@
         "type": "object",
         "title": "PromptXAIInvocationParametersContent"
       },
+      "PromptZAIInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "zai",
+            "title": "Type"
+          },
+          "zai": {
+            "$ref": "#/components/schemas/PromptZAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "zai"
+        ],
+        "title": "PromptZAIInvocationParameters"
+      },
+      "PromptZAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptZAIInvocationParametersContent"
+      },
       "PydanticAIMessageMetadata": {
         "properties": {
           "timestamp": {
@@ -18462,6 +18771,17 @@
             "const": "reasoning",
             "title": "Type",
             "default": "reasoning"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
           },
           "text": {
             "type": "string",

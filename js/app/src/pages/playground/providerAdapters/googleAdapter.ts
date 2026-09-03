@@ -371,49 +371,81 @@ export function googleWriteField(
     return normalizeGoogleConfig({ ...config, [name]: value });
   }
   switch (name) {
-    case "stopSequences": {
-      if (value === undefined) {
-        const next = { ...config };
-        delete next.stopSequences;
-        return normalizeGoogleConfig(next);
-      }
-      if (!Array.isArray(value)) return config;
-      return normalizeGoogleConfig({
-        ...config,
-        stopSequences: value.map(String),
-      });
-    }
-    case "thinkingBudget": {
-      const prev = config.thinkingConfig ?? {};
-      const nextTc: GoogleThinkingConfig = { ...prev };
-      if (value === undefined) delete nextTc.thinkingBudget;
-      else if (typeof value === "number" && !Number.isNaN(value))
-        nextTc.thinkingBudget = value;
-      else return config;
-      return applyThinkingConfig(config, nextTc);
-    }
-    case "thinkingLevel": {
-      const prev = config.thinkingConfig ?? {};
-      const nextTc: GoogleThinkingConfig = { ...prev };
-      if (value === undefined) delete nextTc.thinkingLevel;
-      else {
-        const parsed = thinkingLevelSchema.safeParse(value);
-        if (!parsed.success || !parsed.data) return config;
-        nextTc.thinkingLevel = parsed.data;
-      }
-      return applyThinkingConfig(config, nextTc);
-    }
-    case "includeThoughts": {
-      const prev = config.thinkingConfig ?? {};
-      const nextTc: GoogleThinkingConfig = { ...prev };
-      if (value === undefined) delete nextTc.includeThoughts;
-      else if (typeof value === "boolean") nextTc.includeThoughts = value;
-      else return config;
-      return applyThinkingConfig(config, nextTc);
-    }
+    case "stopSequences":
+      return writeGoogleStopSequences({ config, value });
+    case "thinkingBudget":
+      return writeGoogleThinkingBudget({ config, value });
+    case "thinkingLevel":
+      return writeGoogleThinkingLevel({ config, value });
+    case "includeThoughts":
+      return writeGoogleIncludeThoughts({ config, value });
     default:
       return config;
   }
+}
+
+function writeGoogleStopSequences({
+  config,
+  value,
+}: {
+  config: GoogleConfig;
+  value: unknown;
+}): GoogleConfig {
+  if (value === undefined) {
+    const next = { ...config };
+    delete next.stopSequences;
+    return normalizeGoogleConfig(next);
+  }
+  return Array.isArray(value)
+    ? normalizeGoogleConfig({ ...config, stopSequences: value.map(String) })
+    : config;
+}
+
+function writeGoogleThinkingBudget({
+  config,
+  value,
+}: {
+  config: GoogleConfig;
+  value: unknown;
+}): GoogleConfig {
+  const next = { ...config.thinkingConfig };
+  if (value === undefined) delete next.thinkingBudget;
+  else if (typeof value === "number" && !Number.isNaN(value)) {
+    next.thinkingBudget = value;
+  } else return config;
+  return applyThinkingConfig(config, next);
+}
+
+function writeGoogleThinkingLevel({
+  config,
+  value,
+}: {
+  config: GoogleConfig;
+  value: unknown;
+}): GoogleConfig {
+  const next = { ...config.thinkingConfig };
+  if (value === undefined) {
+    delete next.thinkingLevel;
+  } else {
+    const parsed = thinkingLevelSchema.safeParse(value);
+    if (!parsed.success || !parsed.data) return config;
+    next.thinkingLevel = parsed.data;
+  }
+  return applyThinkingConfig(config, next);
+}
+
+function writeGoogleIncludeThoughts({
+  config,
+  value,
+}: {
+  config: GoogleConfig;
+  value: unknown;
+}): GoogleConfig {
+  const next = { ...config.thinkingConfig };
+  if (value === undefined) delete next.includeThoughts;
+  else if (typeof value === "boolean") next.includeThoughts = value;
+  else return config;
+  return applyThinkingConfig(config, next);
 }
 
 function applyThinkingConfig(

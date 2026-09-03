@@ -542,6 +542,7 @@ dependencies = [
 [package.optional-dependencies]
 aws = [
     { name = "aioboto3" },
+    { name = "aiobotocore" },
     { name = "types-aiobotocore-bedrock-runtime" },
 ]
 azure = [
@@ -550,6 +551,7 @@ azure = [
 ]
 container = [
     { name = "aioboto3" },
+    { name = "aiobotocore" },
     { name = "aiohttp" },
     { name = "anthropic" },
     { name = "azure-identity" },
@@ -621,6 +623,7 @@ dev = [
     { name = "grpcio" },
     { name = "grpcio-tools" },
     { name = "httpx" },
+    { name = "httpx2" },
     { name = "jinja2" },
     { name = "jsonpath-ng" },
     { name = "jupyter" },
@@ -702,6 +705,8 @@ dev = [
 requires-dist = [
     { name = "aioboto3", marker = "extra == 'aws'" },
     { name = "aioboto3", marker = "extra == 'container'" },
+    { name = "aiobotocore", marker = "extra == 'aws'", specifier = ">=3.2.0" },
+    { name = "aiobotocore", marker = "extra == 'container'", specifier = ">=3.2.0" },
     { name = "aiohttp", marker = "extra == 'azure'" },
     { name = "aiohttp", marker = "extra == 'container'" },
     { name = "aioitertools" },
@@ -714,7 +719,7 @@ requires-dist = [
     { name = "arize-phoenix-otel", editable = "packages/phoenix-otel" },
     { name = "arize-phoenix-sqlean" },
     { name = "asyncpg", marker = "extra == 'pg'" },
-    { name = "authlib", specifier = ">=1.7.0" },
+    { name = "authlib", specifier = ">=1.8.0" },
     { name = "azure-identity", marker = "extra == 'azure'", specifier = ">=1.18.0" },
     { name = "azure-identity", marker = "extra == 'container'", specifier = ">=1.18.0" },
     { name = "bashkit", specifier = ">=0.10.0,!=0.14.2" },
@@ -762,7 +767,7 @@ requires-dist = [
     { name = "py-grpc-prometheus", marker = "extra == 'container'" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=2.1.0" },
-    { name = "pydantic-ai-slim", extras = ["anthropic", "bedrock", "google", "mcp", "openai", "ui"], specifier = ">=2.33.0,<3" },
+    { name = "pydantic-ai-slim", extras = ["anthropic", "bedrock", "google", "mcp", "openai", "ui"], specifier = ">=2.34.0,<3" },
     { name = "pydantic-monty", specifier = "==0.0.19" },
     { name = "pystache" },
     { name = "python-dateutil" },
@@ -794,7 +799,7 @@ provides-extras = ["aws", "azure", "container", "daytona", "e2b", "evals", "expe
 [package.metadata.requires-dev]
 dev = [
     { name = "aioboto3" },
-    { name = "aiobotocore", specifier = ">=3.1.1" },
+    { name = "aiobotocore", specifier = ">=3.2.0" },
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "anthropic", specifier = ">=1,<2" },
     { name = "arize", specifier = ">=8.1.0" },
@@ -816,6 +821,7 @@ dev = [
     { name = "grpcio" },
     { name = "grpcio-tools", specifier = ">=1.78.0" },
     { name = "httpx" },
+    { name = "httpx2" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "jsonpath-ng" },
     { name = "jupyter", specifier = ">=1.1.1" },
@@ -933,7 +939,7 @@ provides-extras = ["pytest", "evals", "harbor"]
 
 [[package]]
 name = "arize-phoenix-evals"
-version = "3.5.1"
+version = "3.6.0"
 source = { editable = "packages/phoenix-evals" }
 dependencies = [
     { name = "jsonpath-ng" },
@@ -963,7 +969,6 @@ test = [
     { name = "openinference-semantic-conventions" },
     { name = "pandas" },
     { name = "pandas-stubs" },
-    { name = "respx" },
     { name = "tqdm" },
     { name = "types-tqdm" },
     { name = "typing-extensions" },
@@ -990,7 +995,6 @@ requires-dist = [
     { name = "pandas-stubs", marker = "extra == 'test'", specifier = "==2.0.3.230814" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pystache" },
-    { name = "respx", marker = "extra == 'test'" },
     { name = "tqdm" },
     { name = "tqdm", marker = "extra == 'test'" },
     { name = "types-tqdm", marker = "extra == 'test'" },
@@ -1274,15 +1278,15 @@ wheels = [
 
 [[package]]
 name = "authlib"
-version = "1.7.2"
+version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "joserfc" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/36/98/7d93f30d029643c0275dbc0bd6d5a6f670661ee6c9a94d93af7ab4887600/authlib-1.7.2.tar.gz", hash = "sha256:2cea25fefcd4e7173bdf1372c0afc265c8034b23a8cd5dcb6a9164b826c64231", size = 176511, upload-time = "2026-05-06T08:10:23.116Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f1/51/bc1729d3cfdc214b4935f4e886e4dd443c3065fd8e1e66423fe84b490f81/authlib-1.8.0.tar.gz", hash = "sha256:f3ecd5f1da737262fb53bf1a4d95c4ea1ad9dd509316587a255c99ab1838a4f0", size = 177759, upload-time = "2026-08-30T12:12:34.833Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/95/adcb68e20c34162e9135f370d6e31737719c2b6f94bc953fe7ed1f10fe21/authlib-1.7.2-py2.py3-none-any.whl", hash = "sha256:3e1faedc9d87e7d56a164eca3ccb6ace0d61b94abe83e92242f8dc8bba9b4a9f", size = 259548, upload-time = "2026-05-06T08:10:21.436Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/c6/6f124bcfbbfb20fba22c939b4e43a06dccfc0e1ca20e5634ca573cb1e271/authlib-1.8.0-py2.py3-none-any.whl", hash = "sha256:88aebbd9af6757e14e912d5dc007ae1dc1f3e27e3b2152ce7c552ee2c3b3c121", size = 260804, upload-time = "2026-08-30T12:12:33.162Z" },
 ]
 
 [[package]]
@@ -6110,7 +6114,7 @@ email = [
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "2.33.0"
+version = "2.34.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -6123,9 +6127,9 @@ dependencies = [
     { name = "pydantic-graph" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ae/00/ab2ec7a91f499e33fadd524f380acae3acf960f2f9140c8adce2e91c872b/pydantic_ai_slim-2.33.0.tar.gz", hash = "sha256:7809e3000df0265ee93e7c55ff1d852621a23b22ccb5ad790d9228e457cfb10a", size = 1229403, upload-time = "2026-08-21T05:05:55.276Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/d3/1a6c6fea55d3ea6458852d70f18f4725d7d0c49882bf3c50aedd5abe117e/pydantic_ai_slim-2.34.0.tar.gz", hash = "sha256:e1e9ca1e35063a676c7a9afc783492fa85b62760b0a71084f5282e3c071c2a30", size = 1259113, upload-time = "2026-08-25T02:01:15.377Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dc/c0/d6120efa7f6466da2194e80032c483f8f8ececc5bafcf07cf064792f9702/pydantic_ai_slim-2.33.0-py3-none-any.whl", hash = "sha256:5ab28c9f6d7c0a6dd8e5c4f75ba4bcfa84a7f6aa0faa7b64209fbcaa981f922b", size = 1448791, upload-time = "2026-08-21T05:05:46.881Z" },
+    { url = "https://files.pythonhosted.org/packages/40/70/cdc87d6a8d85405a4730bca7fb9fd1481c4e05d921a6c31f3a34fb900d02/pydantic_ai_slim-2.34.0-py3-none-any.whl", hash = "sha256:933acdd8139674df53e8453c1ccc39b08d6b1a80bf238d212bd6fed1d023c95d", size = 1486367, upload-time = "2026-08-25T02:01:07.611Z" },
 ]
 
 [package.optional-dependencies]
@@ -6267,7 +6271,7 @@ wheels = [
 
 [[package]]
 name = "pydantic-graph"
-version = "2.33.0"
+version = "2.34.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -6275,9 +6279,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/82/68/7bbebffe9d7a2033182c92b5610e5c52840d3ca877337435e1737fe59ed3/pydantic_graph-2.33.0.tar.gz", hash = "sha256:ff4bfd7f6e10b85b0fb77c85100140733f295e9bd445ed60318221446413e224", size = 45163, upload-time = "2026-08-21T05:05:58.095Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/92/b50def44bf5a25523e2f032fd767c1797f888f3c1783494970ac6f36110c/pydantic_graph-2.34.0.tar.gz", hash = "sha256:192e7ed6f8381ed8cc4cf91a6e9406637caeea163976c864cf08f336a3195cba", size = 45158, upload-time = "2026-08-25T02:01:17.718Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/97/a5/73a9cd5a6dd5ca41391022597a9298aa50f9879df60299ac44f0eb7373e2/pydantic_graph-2.33.0-py3-none-any.whl", hash = "sha256:44e0ab3e0557e8e6f6ff2c939e1f15684b32029a14b55146cc88808a1c5cc464", size = 52648, upload-time = "2026-08-21T05:05:50.524Z" },
+    { url = "https://files.pythonhosted.org/packages/ed/f3/090aa40d7dd5130e5b570b2b25673c2162b3790b23c0a152fb84f28d9c05/pydantic_graph-2.34.0-py3-none-any.whl", hash = "sha256:33a8514a3ab53b20f101fa4a2eb01b3b0045cebb778394b80534dbe93e97bdf7", size = 52648, upload-time = "2026-08-25T02:01:11.12Z" },
 ]
 
 [[package]]

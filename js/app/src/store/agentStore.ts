@@ -27,6 +27,7 @@ import type {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
+import type { PendingScriptApproval } from "@phoenix/agent/uiOperations/pendingScriptApproval";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
 
@@ -54,6 +55,14 @@ export type AgentFabPlacement =
  */
 export type AgentFabMode = "pinned" | "floating";
 
+/**
+ * Secret-key name for the user's personal GitHub token in
+ * {@link AgentProps.integrationCredentials} and on the chat request wire.
+ * Matches the server's workspace secret / environment variable name.
+ */
+export const GITHUB_PAT_CREDENTIAL_KEY =
+  "GITHUB_PERSONAL_ACCESS_TOKEN" as const;
+
 /** Server-provided PXI configuration exposed to the frontend. */
 export type AgentServerConfig = {
   /** Remote collector used for optional agent trace export. */
@@ -65,6 +74,12 @@ export type AgentServerConfig = {
   /** Whether this Phoenix instance allows PXI web search/fetch. */
   webAccessEnabled: boolean;
   assistantEnabled: boolean;
+  /** Deploy-time ceiling for the PXI GitHub tools (env configuration). */
+  githubServerEnabled: boolean;
+  /** Whether the PXI GitHub tools are effectively enabled (env and admin setting). */
+  githubEnabled: boolean;
+  /** Whether a workspace-wide GitHub token is configured server-side. */
+  githubWorkspaceTokenConfigured: boolean;
   allowLocalTraces: boolean;
   allowRemoteExport: boolean;
   /**
@@ -216,6 +231,9 @@ const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
   forceTracing: false,
   webAccessEnabled: false,
   assistantEnabled: false,
+  githubServerEnabled: false,
+  githubEnabled: false,
+  githubWorkspaceTokenConfigured: false,
   allowLocalTraces: false,
   allowRemoteExport: false,
   sessionRetentionMaxIdleDays: null,
@@ -336,6 +354,13 @@ export interface AgentProps {
   permissions: AgentPermissions;
   /** Typed runtime capabilities that influence tool and session behavior. */
   capabilities: AgentCapabilities;
+  /**
+   * Client-held credentials for optional integrations, keyed by secret-key
+   * name (e.g. {@link GITHUB_PAT_CREDENTIAL_KEY}). Persisted only in this
+   * browser's local storage and sent ephemerally with each chat request —
+   * never stored server-side. Cleared credentials are removed from the map.
+   */
+  integrationCredentials: Record<string, string>;
 }
 
 /**
@@ -365,6 +390,8 @@ export interface AgentState extends AgentProps {
       Pick<
         AgentServerConfig,
         | "assistantEnabled"
+        | "githubEnabled"
+        | "githubWorkspaceTokenConfigured"
         | "allowLocalTraces"
         | "allowRemoteExport"
         | "sessionRetentionMaxIdleDays"
@@ -376,6 +403,11 @@ export interface AgentState extends AgentProps {
   setCapability: (params: {
     key: AgentCapabilityKey;
     enabled: boolean;
+  }) => void;
+  /** Set or clear (null) a client-held integration credential. */
+  setIntegrationCredential: (params: {
+    key: string;
+    value: string | null;
   }) => void;
 
   // -- Elicitation (ephemeral, not persisted) --
@@ -512,6 +544,16 @@ export interface AgentState extends AgentProps {
   setPendingNavigation: (
     toolCallId: string,
     pending: PendingNavigation | null
+  ) => void;
+  // Whole-script approvals staged by `execute_browser_action` before a
+  // state-changing script runs, keyed by the host tool-call id (no
+  // `:<sequence>` suffix — the approval covers the entire script).
+  pendingScriptApprovalsByToolCallId: Partial<
+    Record<string, PendingScriptApproval>
+  >;
+  setPendingScriptApproval: (
+    toolCallId: string,
+    pending: PendingScriptApproval | null
   ) => void;
   pendingAnnotationConfigWritesByToolCallId: Partial<
     Record<string, PendingAnnotationConfigWrite>
@@ -702,6 +744,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     permissions: DEFAULT_AGENT_PERMISSIONS,
     capabilities: createDefaultAgentCapabilities(),
+    integrationCredentials: {},
     routeContexts: [],
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
@@ -709,6 +752,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingDatasetWritesByToolCallId: {},
     pendingNavigationsByToolCallId: {},
+    pendingScriptApprovalsByToolCallId: {},
     pendingAnnotationConfigWritesByToolCallId: {},
     pendingPatchExperimentsByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
@@ -853,6 +897,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         }),
         false,
         { type: "setCapability" }
+      );
+    },
+    setIntegrationCredential: ({ key, value }) => {
+      set(
+        (state) => {
+          const integrationCredentials = { ...state.integrationCredentials };
+          if (value) {
+            integrationCredentials[key] = value;
+          } else {
+            delete integrationCredentials[key];
+          }
+          return { integrationCredentials };
+        },
+        false,
+        { type: "setIntegrationCredential" }
       );
     },
 
@@ -1195,6 +1254,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "setPendingNavigation" }
       );
     },
+    setPendingScriptApproval: (toolCallId, pending) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingScriptApprovalsByToolCallId };
+          if (pending) {
+            next[toolCallId] = pending;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingScriptApprovalsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingScriptApproval" }
+      );
+    },
     setPendingAnnotationConfigWrite: (toolCallId, pending) => {
       set(
         (state) => {
@@ -1340,6 +1414,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         observability: state.observability,
         permissions: state.permissions,
         capabilities: state.capabilities,
+        integrationCredentials: state.integrationCredentials,
       }),
       merge: mergeAgentPersistedState,
     })
