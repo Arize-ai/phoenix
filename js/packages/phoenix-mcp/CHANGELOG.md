@@ -1,5 +1,12 @@
 # @arizeai/phoenix-mcp
 
+## 4.3.7
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
 ## 4.3.6
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @arizeai/phoenix-cli
 
+## 1.17.0
+
+### Minor Changes
+
+- 58b7017: Add Z.ai (GLM models) as a built-in OpenAI-compatible model provider (`ZAI`).
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
 ## 1.16.5
 
 ### Patch Changes
