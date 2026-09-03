@@ -1,5 +1,5 @@
 """Policy governing SESSION evaluation work: scheduling delays, schedulability, and
-the transcript assembly caps.
+the turn cap on what a session evaluation loads.
 """
 
 from __future__ import annotations
@@ -13,11 +13,6 @@ from typing import TYPE_CHECKING, Callable
 from sqlalchemy import and_, not_
 from sqlalchemy.sql.elements import ColumnElement
 
-from phoenix.config import (
-    get_env_online_eval_max_llm_message_bytes,
-    get_env_online_eval_max_transcript_bytes,
-)
-
 if TYPE_CHECKING:
     from phoenix.db import models
 
@@ -28,11 +23,11 @@ MINIMUM_EVALUATION_DELAY_SECONDS = 10
 # mutation so a preview run under the online limits reports the rejection in the
 # same words the scheduled evaluation would.
 ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION = (
-    "Reduce the dominant evaluator source or mapped inputs, or raise the limit with "
-    "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
+    "Narrow the slot with a path mapping, reduce the evaluator source, or raise the "
+    "limit with PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
 )
 
-TRANSCRIPT_POLICY_VERSION = "2"
+SESSION_POLICY_VERSION = "3"
 MAX_SESSION_EVAL_TURNS = 1_000
 
 
@@ -88,38 +83,15 @@ def session_project_evaluator_is_schedulable(
     )
 
 
-@dataclass(frozen=True)
-class SessionTranscriptPolicy:
-    """The caps that decide what text a session evaluation actually reads.
+def session_policy_fingerprint() -> str:
+    """Identity of the session policy in force, for the config fingerprint.
 
-    Every field enters the config fingerprint, so results published under one
-    annotation identifier are comparable to each other. That only holds while the
-    fingerprint and the assembly it describes read the same values, which is why the
-    environment is read once, here: a materializer that fingerprinted one cap while an
-    executor assembled under another would agree only by accident, and the mismatch
-    would surface as expired work rather than as a configuration error.
+    Bumping ``SESSION_POLICY_VERSION`` is what expires pending session work, so
+    old and new results never share an annotation identifier.
     """
-
-    max_transcript_bytes: int
-    max_llm_message_bytes: int
-    max_turns: int = MAX_SESSION_EVAL_TURNS
-    version: str = TRANSCRIPT_POLICY_VERSION
-
-    @classmethod
-    def from_env(cls) -> SessionTranscriptPolicy:
-        return cls(
-            max_transcript_bytes=get_env_online_eval_max_transcript_bytes(),
-            max_llm_message_bytes=get_env_online_eval_max_llm_message_bytes(),
-        )
-
-    @property
-    def fingerprint(self) -> str:
-        """Identity of the transcript policy in force, for the config fingerprint."""
-        payload = {
-            "policy_version": self.version,
-            "max_transcript_bytes": self.max_transcript_bytes,
-            "max_turns": self.max_turns,
-            "max_llm_message_bytes": self.max_llm_message_bytes,
-        }
-        serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    payload = {
+        "policy_version": SESSION_POLICY_VERSION,
+        "max_turns": MAX_SESSION_EVAL_TURNS,
+    }
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()

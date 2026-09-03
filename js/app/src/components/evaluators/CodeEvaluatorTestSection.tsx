@@ -207,22 +207,20 @@ export const CodeEvaluatorTestSection = ({
   ]);
 
   const agentStore = useAgentStore();
-  useEffect(
-    () =>
-      registerUIOperations({
-        agentStore,
-        operations: [
-          {
-            descriptor: testCodeEvaluatorDraftOperation,
-            handler: createTestCodeEvaluatorDraftClientAction({
-              isDraftMounted,
-              runEvaluatorPreview,
-            }),
-          },
-        ],
-      }),
-    [agentStore, isDraftMounted, runEvaluatorPreview]
-  );
+  useEffect(() => {
+    return registerUIOperations({
+      agentStore,
+      operations: [
+        {
+          descriptor: testCodeEvaluatorDraftOperation,
+          handler: createTestCodeEvaluatorDraftClientAction({
+            isDraftMounted,
+            runEvaluatorPreview,
+          }),
+        },
+      ],
+    });
+  }, [agentStore, isDraftMounted, runEvaluatorPreview]);
 
   const onTestEvaluator = () => {
     void runEvaluatorPreview();
