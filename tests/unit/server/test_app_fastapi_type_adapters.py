@@ -72,10 +72,12 @@ def _route_fields(app: FastAPI) -> dict[str, fastapi_v2.ModelField]:
     return fields
 
 
+@pytest.mark.real_fastapi_dependants
 def test_unit_test_apps_share_route_type_adapters(app: FastAPI, second_app: FastAPI) -> None:
     """The suite-wide fixture is in force: two apps built in one worker hand
     back the same adapter object for every route field except the ones whose
-    annotation embeds a FieldInfo."""
+    annotation embeds a FieldInfo. The dependency analysis runs fresh here so
+    the fields themselves are new objects and only the adapters can be shared."""
     first, second = _route_fields(app), _route_fields(second_app)
     assert first.keys() == second.keys()
     not_shared = sorted(
@@ -107,6 +109,7 @@ def test_fields_with_different_default_factories_do_not_share_an_adapter() -> No
 
 
 @pytest.mark.real_fastapi_type_adapters
+@pytest.mark.real_fastapi_dependants
 def test_marker_restores_fresh_route_type_adapters(app: FastAPI, second_app: FastAPI) -> None:
     first, second = _route_fields(app), _route_fields(second_app)
     assert first.keys() == second.keys()
