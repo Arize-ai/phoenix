@@ -158,8 +158,11 @@ class MontyAdapter(SandboxAdapter[MontyConfig, NoCredentials, MontyDeployment]):
     language_dialect = "restricted"
     runtime_notes = (
         "Restricted Python running in isolated worker subprocesses. A limited standard library "
-        "is importable, while filesystem, network, environment, subprocess, and third-party "
-        "package access are blocked."
+        "is importable — json, re, math, datetime, pathlib, typing, collections, itertools, and "
+        "dataclasses, each exposing a subset of its CPython API — while filesystem, network, "
+        "environment, subprocess, and third-party package access are blocked. "
+        "Decorated functions and plain classes are supported; "
+        "class inheritance, metaclasses, and method decorators are not."
     )
     config_model = MontyConfig
     credentials_model = NoCredentials
