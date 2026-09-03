@@ -16,7 +16,6 @@ TypeScript. For `minimize` evaluators a high score is the bad outcome.
 | --------- | --------------------- | ------------------ | --------- |
 | Conciseness | `input`, `output` | `concise` / `verbose` | maximize |
 | Correctness | `input`, `output` | `correct` / `incorrect` | maximize |
-| DocumentRelevance | `input`, `document_text` | `relevant` / `unrelated` | maximize |
 | Faithfulness | `input`, `output`, `context` | `faithful` / `unfaithful` | maximize |
 | Hallucination | `input`, `output` | `hallucinated` / `grounded` | minimize |
 | PiiDetection | `conversation` | `pii_detected` / `no_pii_detected` | minimize |
@@ -69,6 +68,60 @@ const faithfulnessEval = createFaithfulnessEvaluator({ model: openai("gpt-4o") }
   `555-01xx` numbers, `example.com` addresses, anything marked as a sample)
   are deliberately not flagged, so don't build test cases out of dummy
   identifiers.
+
+## Retrieval relevance
+
+`RetrievalRelevanceEvaluator` is source-agnostic and scores the retrieved
+information *as a whole*: if any meaningful part of it materially helps address
+the request, the step is `relevant`. Labels are `relevant` / `irrelevant`, the
+score is **maximized** (`relevant` is `1.0`, `irrelevant` is `0.0`), and each
+result carries an `explanation` from the judge.
+
+Pass one retrieved document as `context` for per-document evaluation. To judge
+the whole retrieval step, join all returned items into one `context` value.
+
+Two field conventions matter, and getting them wrong quietly changes what you
+measured:
+
+- `input` should be the **user's request** — e.g. the trace root's
+  `input.value` — not a reformulated tool argument or a generated SQL query.
+- `context` should contain the retrieved information at the scope you want to
+  judge: one document for per-document evaluation, or all returned items joined
+  together for holistic step evaluation.
+
+Relevance is not correctness: outdated or later-contradicted information still
+scores `relevant` if it was genuinely about the right subject. A failed
+retrieval — an error, a timeout, or "no results found" — scores `irrelevant`.
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import RetrievalRelevanceEvaluator
+
+relevance_eval = RetrievalRelevanceEvaluator(llm=LLM(provider="openai", model="gpt-4o-mini"))
+scores = relevance_eval.evaluate({
+    "input": "What is the capital of France?",
+    "context": "Paris is the capital and largest city of France.",
+})
+print(scores[0].label)  # "relevant"
+```
+
+```typescript
+import { createRetrievalRelevanceEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = createRetrievalRelevanceEvaluator({ model: openai("gpt-4o-mini") });
+const result = await evaluator.evaluate({
+  input: "What is the capital of France?",
+  context: "Paris is the capital and largest city of France.",
+});
+console.log(result.label); // "relevant"
+```
+
+`RetrievalRelevanceEvaluator` takes `llm` plus arbitrary `**kwargs` forwarded to
+the LLM client (e.g. `temperature=0.0`), and requires a model that supports tool
+calling or structured output. The TypeScript factory accepts optional `name`,
+`choices`, `promptTemplate`, and `optimizationDirection` overrides on top of the
+usual classification evaluator arguments.
 
 ## When to Use
 
