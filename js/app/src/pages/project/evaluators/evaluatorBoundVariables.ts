@@ -1,8 +1,8 @@
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
- * The values a span or session supplies to an evaluator by name alone, with no
- * mapping entry.
+ * The values a span or session carries under `metadata`, each read by a mapping
+ * entry whose path is `metadata.<name>`.
  *
  * These are the names a filter condition on the same record already resolves,
  * so a name that selects records can also be read inside the evaluator. The
