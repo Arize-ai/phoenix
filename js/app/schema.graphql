@@ -2422,6 +2422,7 @@ enum GenerativeProviderKey {
   MOONSHOT
   PERPLEXITY
   TOGETHER
+  ZAI
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2570,6 +2571,7 @@ enum ModelProvider {
   MOONSHOT
   PERPLEXITY
   TOGETHER
+  ZAI
 }
 
 input ModelsInput {
