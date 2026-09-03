@@ -108,33 +108,10 @@ def build_harbor_trace(
     missing: list[str] = []
     for location in _root_locations(trial_result):
         root_path = location.directory / _CANONICAL_FILENAME
-        if not root_path.is_file():
+        if root_path.is_file():
+            _load_root(loader, location, trial_result)
+        else:
             missing.append(_display_path(root_path, loader.trial_root))
-            continue
-        documents_before = set(loader.documents)
-        document = _load_file(
-            loader,
-            path=root_path,
-            allowed_directory=location.directory.resolve(),
-            role=location.role,
-            step_name=location.step_name,
-            fallback_timestamp=_agent_execution_finished_at(
-                trial_result,
-                location.step_name,
-            ),
-        )
-        if document is not None:
-            loaded_documents = [
-                loaded for path, loaded in loader.documents.items() if path not in documents_before
-            ]
-            _apply_request_times(
-                loaded_documents or [document],
-                (
-                    _agent_context(trial_result, location.step_name)
-                    if location.role == "agent"
-                    else None
-                ),
-            )
 
     if missing:
         loader.warn(
@@ -178,7 +155,35 @@ def harbor_trace_id(plan: JobPlan, trial_result: TrialResult) -> str:
     return _hex_id(f"{_NAMESPACE}:{_trial_key(plan, trial_result)}:trace", length=32)
 
 
+def _load_root(loader: _Loader, location: _RootLocation, trial_result: TrialResult) -> None:
+    """Load one role root with everything it references, then time its LLM steps."""
+    loaded_before = set(loader.documents)
+    document = _load_file(
+        loader,
+        path=location.directory / _CANONICAL_FILENAME,
+        allowed_directory=location.directory.resolve(),
+        role=location.role,
+        step_name=location.step_name,
+        fallback_timestamp=_agent_execution_finished_at(trial_result, location.step_name),
+    )
+    if document is None or location.role != "agent":
+        return
+    new_documents = [
+        loaded for path, loaded in loader.documents.items() if path not in loaded_before
+    ]
+    _apply_request_times(
+        new_documents or [document],
+        _agent_context(trial_result, location.step_name),
+    )
+
+
 def _root_locations(trial_result: TrialResult) -> tuple[_RootLocation, ...]:
+    """Return the role directories whose ``trajectory.json`` is a trial root.
+
+    A single-step trial has an agent root and, for simulated-user trials, a
+    user-agent root. A multi-step trial has one agent root per attempted step;
+    with native resume, only the last cumulative snapshot is a root.
+    """
     config = trial_result.config
     paths = TrialPaths(Path(config.trials_dir) / str(trial_result.trial_name))
     step_results = trial_result.step_results
@@ -281,11 +286,9 @@ def _request_timed_llm_steps(
         if not isinstance(raw_timestamp, str):
             return None
         try:
-            timestamp = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+            timestamp = _parse_timestamp(raw_timestamp)
         except ValueError:
             return None
-        if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
         timed_candidates.append((timestamp, document_index, step_index, step))
     timed_candidates.sort(key=lambda item: item[:3])
     return [step for _, _, _, step in timed_candidates]
@@ -332,23 +335,16 @@ def _load_file(
 ) -> MutableMapping[str, Any] | None:
     """Load, validate, and normalize one ATIF file and everything it references.
 
-    ``allowed_directory`` must already be canonical. ``reference`` is the raw
-    reference string when this file was reached through one, so rejected
-    references can be reported on the trial root span.
+    Args:
+        allowed_directory: Canonical role directory. Files outside it are rejected.
+        reference: The raw reference string when this file was reached through
+            one. Rejected references are reported on the trial root span.
+        continuation_index: Position in the ``continued_trajectory_ref`` chain;
+            zero for the chain's first document.
     """
-    try:
-        canonical_path = path.resolve(strict=True)
-        canonical_path.relative_to(allowed_directory)
-        if not canonical_path.is_file() or canonical_path.suffix.lower() != ".json":
-            raise ValueError("reference is not a regular JSON file")
-    except (OSError, ValueError) as error:
-        if reference is not None:
-            loader.unresolved_references.append(reference)
-        loader.warn(
-            f"Rejected Harbor ATIF path {_display_path(path, loader.trial_root)!r}: {error}"
-        )
+    canonical_path = _accepted_path(loader, path, allowed_directory, reference)
+    if canonical_path is None:
         return None
-
     if canonical_path in loader.active:
         loader.warn(
             f"Stopped cyclic Harbor ATIF reference at "
@@ -357,19 +353,8 @@ def _load_file(
         return None
     if canonical_path in loader.documents:
         return loader.documents[canonical_path]
-
-    try:
-        validated = Trajectory.model_validate_json(canonical_path.read_text())
-        document = cast(
-            MutableMapping[str, Any],
-            validated.model_dump(mode="json", exclude_none=True),
-        )
-    except Exception as error:
-        kind = "referenced trajectory" if reference is not None else "root"
-        loader.warn(
-            f"Skipped invalid Harbor ATIF {kind} "
-            f"{_display_path(canonical_path, loader.trial_root)!r}: {error}"
-        )
+    document = _read_document(loader, canonical_path, reference)
+    if document is None:
         return None
 
     loader.documents[canonical_path] = document
@@ -415,6 +400,49 @@ def _load_file(
     finally:
         loader.active.discard(canonical_path)
     return document
+
+
+def _accepted_path(
+    loader: _Loader,
+    path: Path,
+    allowed_directory: Path,
+    reference: str | None,
+) -> Path | None:
+    """Return the canonical path of a JSON file inside the role directory, or None."""
+    try:
+        canonical_path = path.resolve(strict=True)
+        canonical_path.relative_to(allowed_directory)
+        if not canonical_path.is_file() or canonical_path.suffix.lower() != ".json":
+            raise ValueError("reference is not a regular JSON file")
+    except (OSError, ValueError) as error:
+        if reference is not None:
+            loader.unresolved_references.append(reference)
+        loader.warn(
+            f"Rejected Harbor ATIF path {_display_path(path, loader.trial_root)!r}: {error}"
+        )
+        return None
+    return canonical_path
+
+
+def _read_document(
+    loader: _Loader,
+    canonical_path: Path,
+    reference: str | None,
+) -> MutableMapping[str, Any] | None:
+    """Parse a file with Harbor's ATIF model, or warn and return None."""
+    try:
+        validated = Trajectory.model_validate_json(canonical_path.read_text())
+        return cast(
+            MutableMapping[str, Any],
+            validated.model_dump(mode="json", exclude_none=True),
+        )
+    except Exception as error:
+        kind = "referenced trajectory" if reference is not None else "root"
+        loader.warn(
+            f"Skipped invalid Harbor ATIF {kind} "
+            f"{_display_path(canonical_path, loader.trial_root)!r}: {error}"
+        )
+        return None
 
 
 def _normalize_document(
@@ -487,10 +515,9 @@ def _resolve_file_references(
 ) -> None:
     """Load ``trajectory_path`` references and point them at the loaded IDs.
 
-    The rejected path of a reference that cannot be loaded is reported on the
-    trial root span. The reference itself stays only when it still names a
-    ``trajectory_id`` (an embedded child, for example); the converter rejects
-    path-only references.
+    A reference that cannot be loaded is reported on the trial root span and
+    dropped unless it still names a ``trajectory_id`` (an embedded child, for
+    example), because the converter cannot resolve path-only references.
     """
     for child in _embedded_subagents(document):
         _resolve_file_references(
@@ -502,31 +529,33 @@ def _resolve_file_references(
             step_name=step_name,
             fallback_timestamp=fallback_timestamp,
         )
+
+    def resolve(ref: Any) -> bool:
+        """Rewrite one ref to its loaded child; return whether to keep the ref."""
+        reference = ref.get("trajectory_path") if isinstance(ref, MutableMapping) else None
+        if not isinstance(reference, str) or not reference:
+            return True
+        target = _local_reference(loader, reference=reference, referring_path=physical_path)
+        child = (
+            _load_file(
+                loader,
+                path=target,
+                allowed_directory=allowed_directory,
+                role=role,
+                step_name=step_name,
+                fallback_timestamp=fallback_timestamp,
+                reference=reference,
+            )
+            if target is not None
+            else None
+        )
+        if child is not None:
+            ref["trajectory_id"] = child["trajectory_id"]
+            return True
+        return bool(ref.get("trajectory_id"))
+
     for refs in _subagent_reference_lists(document):
-        retained: list[Any] = []
-        for ref in refs:
-            reference = ref.get("trajectory_path") if isinstance(ref, MutableMapping) else None
-            if isinstance(ref, MutableMapping) and isinstance(reference, str) and reference:
-                target = _local_reference(loader, reference=reference, referring_path=physical_path)
-                loaded_child = (
-                    _load_file(
-                        loader,
-                        path=target,
-                        allowed_directory=allowed_directory,
-                        role=role,
-                        step_name=step_name,
-                        fallback_timestamp=fallback_timestamp,
-                        reference=reference,
-                    )
-                    if target is not None
-                    else None
-                )
-                if loaded_child is not None:
-                    ref["trajectory_id"] = loaded_child["trajectory_id"]
-                elif not ref.get("trajectory_id"):
-                    continue
-            retained.append(ref)
-        refs[:] = retained
+        refs[:] = [ref for ref in refs if resolve(ref)]
 
 
 def _embedded_subagents(document: Mapping[str, Any]) -> Iterator[MutableMapping[str, Any]]:
@@ -597,8 +626,8 @@ def _trial_root_span(
     finished_at = trial_result.finished_at
     if started_at is None or finished_at is None:
         raise ValueError("Harbor trial has no complete start and end timestamps")
-    starts = [started_at, *(_parse_span_time(span["start_time"]) for span in converted)]
-    ends = [finished_at, *(_parse_span_time(span["end_time"]) for span in converted)]
+    starts = [started_at, *(_parse_timestamp(span["start_time"]) for span in converted)]
+    ends = [finished_at, *(_parse_timestamp(span["end_time"]) for span in converted)]
     failures = infrastructure_failures(trial_result)
     metadata: dict[str, Any] = {
         "integration": "harbor",
@@ -673,6 +702,6 @@ def _sanitized_reference(reference: str) -> str:
     return reference
 
 
-def _parse_span_time(value: str) -> datetime:
+def _parse_timestamp(value: str) -> datetime:
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed

@@ -130,13 +130,33 @@ def write(path: Path, value: dict[str, Any]) -> None:
 
 def build(tmp_path: Path, **kwargs: Any) -> Any:
     plan, slot, task, result = context(tmp_path, **kwargs)
+    return build_from(plan, slot, task, result)
+
+
+def build_from(plan: JobPlan, slot: TrialSlot, task: TaskRecord, result: TrialResult) -> Any:
     return build_harbor_trace(
         plan=plan,
         slot=slot,
         task=task,
         trial_result=result,
-        run_output={"harbor_trial_id": "trial-id"},
+        run_output={"harbor_trial_id": str(result.id)},
     )
+
+
+def build_with_request_times(tmp_path: Path, request_times: list[float], **kwargs: Any) -> Any:
+    plan, slot, task, result = context(tmp_path, **kwargs)
+    cast(Any, result).agent_result = SimpleNamespace(
+        metadata={"api_request_times_msec": request_times}
+    )
+    return build_from(plan, slot, task, result)
+
+
+def llm_metadata(trace: Any, key: str) -> list[Any]:
+    return [
+        span.get("attributes", {}).get("metadata", {}).get(key)
+        for span in trace.spans
+        if span["span_kind"] == "LLM"
+    ]
 
 
 def agent_roots(trace: Any) -> list[Any]:
@@ -185,25 +205,15 @@ def test_harbor_request_measurements_time_matching_llm_steps(tmp_path: Path) -> 
     source = trajectory()
     source["steps"][1]["timestamp"] = "2026-08-26T12:00:05+00:00"
     write(tmp_path / "task-a__1/agent/trajectory.json", source)
-    plan, slot, task, result = context(tmp_path)
-    cast(Any, result).finished_at = datetime.fromisoformat("2026-08-26T12:00:06+00:00")
-    cast(Any, result).agent_result = SimpleNamespace(metadata={"api_request_times_msec": [2500.0]})
 
-    trace = build_harbor_trace(
-        plan=plan,
-        slot=slot,
-        task=task,
-        trial_result=result,
-        run_output={},
-    )
+    trace = build_with_request_times(tmp_path, [2500.0])
 
     assert trace is not None
     llm_span = next(span for span in trace.spans if span["span_kind"] == "LLM")
     assert llm_span["start_time"] == NOW
     assert llm_span["end_time"] == "2026-08-26T12:00:02.500000+00:00"
-    metadata = cast(dict[str, Any], llm_span.get("attributes", {}).get("metadata"))
-    assert metadata["atif.timing"] == "harbor.api_request_times_msec"
-    assert metadata["atif.measured_latency_ms"] == 2500.0
+    assert llm_metadata(trace, "atif.timing") == ["harbor.api_request_times_msec"]
+    assert llm_metadata(trace, "atif.measured_latency_ms") == [2500.0]
 
 
 def test_every_span_shares_one_trial_session(tmp_path: Path) -> None:
@@ -248,8 +258,8 @@ def test_multi_step_uses_only_attempted_steps_in_result_order(tmp_path: Path) ->
     trial_root_id = result.spans[0]["context"]["span_id"]
     assert [span["parent_id"] for span in agent_roots(result)] == [trial_root_id] * 2
     assert [span["name"] for span in agent_roots(result)] == [
-        "terminus-2 · prepare",
-        "terminus-2 · solve",
+        "invoke_agent terminus-2 · prepare",
+        "invoke_agent terminus-2 · solve",
     ]
 
 
@@ -297,25 +307,11 @@ def test_agent_request_measurements_do_not_leak_to_simulated_user(tmp_path: Path
     user_trajectory = trajectory(session_id="user-agent-session")
     user_trajectory["agent"]["name"] = "user-simulator"
     write(tmp_path / "task-a__1/user-agent/trajectory.json", user_trajectory)
-    plan, slot, task, result = context(tmp_path, simulated_user=True)
-    cast(Any, result).agent_result = SimpleNamespace(metadata={"api_request_times_msec": [100.0]})
 
-    trace = build_harbor_trace(
-        plan=plan,
-        slot=slot,
-        task=task,
-        trial_result=result,
-        run_output={},
-    )
+    trace = build_with_request_times(tmp_path, [100.0], simulated_user=True)
 
     assert trace is not None
-    measured = [
-        span
-        for span in trace.spans
-        if span["span_kind"] == "LLM"
-        and span.get("attributes", {}).get("metadata", {}).get("atif.measured_latency_ms") == 100.0
-    ]
-    assert len(measured) == 1
+    assert sorted(llm_metadata(trace, "atif.measured_latency_ms"), key=str) == [100.0, None]
 
 
 def test_continuation_chain_is_discovered(tmp_path: Path) -> None:
@@ -337,8 +333,8 @@ def test_continuation_chain_is_discovered(tmp_path: Path) -> None:
         root["attributes"]["metadata"].get("is_continuation") for root in agent_roots(result)
     ] == [None, True]
     assert [span["name"] for span in agent_roots(result)] == [
-        "terminus-2",
-        "terminus-2 (continuation 1)",
+        "invoke_agent terminus-2",
+        "invoke_agent terminus-2 (continuation 1)",
     ]
 
 
@@ -351,25 +347,11 @@ def test_request_measurements_cover_continuation_documents(tmp_path: Path) -> No
     continuation["steps"][1]["timestamp"] = "2026-08-26T12:00:03+00:00"
     write(tmp_path / "task-a__1/agent/trajectory.json", root)
     write(tmp_path / "task-a__1/agent/trajectory.cont-1.json", continuation)
-    plan, slot, task, result = context(tmp_path)
-    cast(Any, result).agent_result = SimpleNamespace(
-        metadata={"api_request_times_msec": [100.0, 200.0]}
-    )
 
-    trace = build_harbor_trace(
-        plan=plan,
-        slot=slot,
-        task=task,
-        trial_result=result,
-        run_output={},
-    )
+    trace = build_with_request_times(tmp_path, [100.0, 200.0])
 
     assert trace is not None
-    llm_spans = [span for span in trace.spans if span["span_kind"] == "LLM"]
-    assert [
-        span.get("attributes", {}).get("metadata", {}).get("atif.measured_latency_ms")
-        for span in llm_spans
-    ] == [100.0, 200.0]
+    assert llm_metadata(trace, "atif.measured_latency_ms") == [100.0, 200.0]
 
 
 def test_cross_document_request_measurements_require_complete_clocks(tmp_path: Path) -> None:
@@ -379,25 +361,11 @@ def test_cross_document_request_measurements_require_complete_clocks(tmp_path: P
     continuation["steps"][1].pop("timestamp")
     write(tmp_path / "task-a__1/agent/trajectory.json", root)
     write(tmp_path / "task-a__1/agent/trajectory.cont-1.json", continuation)
-    plan, slot, task, result = context(tmp_path)
-    cast(Any, result).agent_result = SimpleNamespace(
-        metadata={"api_request_times_msec": [100.0, 200.0]}
-    )
 
-    trace = build_harbor_trace(
-        plan=plan,
-        slot=slot,
-        task=task,
-        trial_result=result,
-        run_output={},
-    )
+    trace = build_with_request_times(tmp_path, [100.0, 200.0])
 
     assert trace is not None
-    llm_spans = [span for span in trace.spans if span["span_kind"] == "LLM"]
-    assert all(
-        span.get("attributes", {}).get("metadata", {}).get("atif.timing") == "event"
-        for span in llm_spans
-    )
+    assert llm_metadata(trace, "atif.timing") == ["event", "event"]
 
 
 def test_embedded_subagent_remains_linked_after_id_rewrite(tmp_path: Path) -> None:
@@ -468,6 +436,49 @@ def test_external_subagent_is_followed_and_rewritten(tmp_path: Path) -> None:
     assert all(span["attributes"].get("session.id") == session for span in roots)
 
 
+def test_pre_v17_session_keyed_ref_links_child_without_cycles(tmp_path: Path) -> None:
+    """A v1.6 ref keyed by session_id resolves to the loaded child, not to the trial session."""
+    parent = trajectory()
+    parent["schema_version"] = "ATIF-v1.6"
+    del parent["trajectory_id"]
+    parent["steps"][1]["tool_calls"] = [
+        {"tool_call_id": "call-1", "function_name": "delegate", "arguments": {}}
+    ]
+    parent["steps"][1]["observation"] = {
+        "results": [
+            {
+                "source_call_id": "call-1",
+                "subagent_trajectory_ref": [
+                    {"session_id": "child-session", "trajectory_path": "child.json"}
+                ],
+            }
+        ]
+    }
+    child = trajectory(session_id="child-session")
+    child["schema_version"] = "ATIF-v1.6"
+    del child["trajectory_id"]
+    child["agent"]["name"] = "delegate"
+    write(tmp_path / "task-a__1/agent/trajectory.json", parent)
+    write(tmp_path / "task-a__1/agent/child.json", child)
+
+    result = build(tmp_path)
+
+    assert result is not None
+    assert result.source_paths == ("agent/trajectory.json", "agent/child.json")
+    span_ids = {span["context"]["span_id"] for span in result.spans}
+    assert all(span.get("parent_id") in span_ids for span in result.spans[1:])
+    parent_root = next(
+        span for span in agent_roots(result) if span["name"] == "invoke_agent terminus-2"
+    )
+    child_root = next(
+        span for span in agent_roots(result) if span["name"] == "invoke_agent delegate"
+    )
+    tool = next(span for span in result.spans if span["span_kind"] == "TOOL")
+    assert parent_root["parent_id"] == result.spans[0]["context"]["span_id"]
+    assert child_root["parent_id"] == tool["context"]["span_id"]
+    assert tool["parent_id"] != child_root["context"]["span_id"]
+
+
 def test_pre_v17_unresolved_ref_does_not_capture_a_continuation(tmp_path: Path) -> None:
     parent = trajectory()
     parent["schema_version"] = "ATIF-v1.6"
@@ -525,7 +536,9 @@ def test_system_handoff_without_tool_stays_at_its_causal_step(tmp_path: Path) ->
 
     assert result is not None
     system_step = next(span for span in result.spans if span["name"] == "system_action_1")
-    child_root = next(span for span in agent_roots(result) if span["name"] == "summarizer")
+    child_root = next(
+        span for span in agent_roots(result) if span["name"] == "invoke_agent summarizer"
+    )
     assert child_root["parent_id"] == system_step["context"]["span_id"]
 
 
@@ -661,7 +674,7 @@ def test_scored_step_failure_marks_root_error(tmp_path: Path) -> None:
         )
     ]
 
-    trace = build_harbor_trace(plan=plan, slot=slot, task=task, trial_result=result, run_output={})
+    trace = build_from(plan, slot, task, result)
 
     assert trace is not None
     assert trace.spans[0]["status_code"] == "ERROR"
@@ -674,13 +687,7 @@ def test_different_trials_namespace_reused_producer_ids(tmp_path: Path) -> None:
     first = build(tmp_path)
     plan, slot, task, result = context(tmp_path)
     cast(Any, result).id = "other-trial-id"
-    second = build_harbor_trace(
-        plan=plan,
-        slot=slot,
-        task=task,
-        trial_result=result,
-        run_output={"harbor_trial_id": "other-trial-id"},
-    )
+    second = build_from(plan, slot, task, result)
 
     assert first is not None and second is not None
     assert first.trace_id != second.trace_id

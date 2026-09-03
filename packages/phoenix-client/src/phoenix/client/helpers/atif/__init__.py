@@ -62,141 +62,110 @@ def upload_atif_trajectories_as_spans(
     """Upload one or more ATIF trajectories as spans to Phoenix.
 
     Converts ATIF (Agent Trajectory Interchange Format) trajectory dicts
-    into Phoenix/OpenTelemetry-compatible span trees and uploads them.
-    Supports ATIF schema versions v1.0 through v1.7.
+    into Phoenix span trees and uploads them. Supports ATIF schema versions
+    v1.0 through v1.7.
 
     **Trace structure**
 
-    Each trajectory produces one trace. Fresh ATIF steps that represent
-    observable execution become CHAIN spans. User messages remain prompt
-    context; agent steps and operational system steps own the LLM, TOOL, and
-    subagent work that ATIF associates with them.
+    Each trajectory produces one trace. Span names follow the OpenTelemetry
+    GenAI conventions where one exists: ``invoke_agent <agent>`` for the
+    root, ``chat <model>`` for LLM calls, and ``execute_tool <tool>`` for
+    tool calls. Each fresh ATIF step that represents observable execution
+    becomes a CHAIN span named with a per-source ordinal (``agent_action_2``,
+    ``system_action_1``, ``compaction_1``); the producer's ``step_id`` is kept
+    in ``metadata.atif.step_id``. User messages are prompt context, not spans.
 
-    - Single-turn trajectories put each operation directly under the root::
+    Single-turn trajectories place each step under the root::
 
-        AGENT (root, input=user message, output=final agent reply)
-          CHAIN agent_action_1
-            LLM
-            TOOL
+        AGENT invoke_agent assistant (input=user request, output=final reply)
+          CHAIN agent_action_1 (input=request, output=reply and observations)
+            LLM chat gpt-4
+            TOOL execute_tool search
           CHAIN agent_action_2
-            LLM
+            LLM chat gpt-4
 
-    - Multi-turn trajectories (multiple user messages) get nested AGENT
-      spans, one per turn. A new turn starts at each follow-up user
-      message::
+    Multi-turn trajectories add one AGENT span per turn. A turn starts at
+    each user message that follows agent activity::
 
-        AGENT (root, input=first user message, output=final agent reply)
-          AGENT turn_1 (input=user msg 1, output=agent reply 1)
+        AGENT invoke_agent assistant
+          AGENT turn_1 (input=user message 1, output=reply 1)
             CHAIN agent_action_1
-              LLM
-              TOOL
-          AGENT turn_2 (input=user msg 2, output=agent reply 2)
+              LLM chat gpt-4
+          AGENT turn_2 (input=user message 2, output=reply 2)
             CHAIN agent_action_2
-              LLM
+              LLM chat gpt-4
 
-    **Multi-agent / subagent handoffs**
+    **Subagents**
 
-    When trajectories in the batch reference each other via
-    ``subagent_trajectory_ref``, the child trajectory's spans join the
-    parent's trace. A matching emitted TOOL span parents the child when the
-    reference's ``source_call_id`` identifies one of the agent step's tool
-    calls; otherwise the referencing source step's CHAIN parents the child,
-    falling back to the parent trajectory's root AGENT span. Upload the
-    parent and child trajectories together in one call for linking to work.
-    ATIF v1.7 embedded ``subagent_trajectories`` are flattened and uploaded
-    automatically, with ``trajectory_id`` used as the canonical embedded
-    reference key::
+    When trajectories in a batch reference each other through
+    ``subagent_trajectory_ref``, the child's spans join the parent's trace
+    under the closest span the document proves: the TOOL span whose
+    ``source_call_id`` the reference names, else the referencing step's
+    CHAIN, else the parent's root. Upload parent and child together for the
+    link to resolve. ATIF v1.7 embedded ``subagent_trajectories`` are
+    flattened automatically and resolved by ``trajectory_id``::
 
-        AGENT (parent)
+        AGENT invoke_agent orchestrator
           CHAIN agent_action_1
-            LLM
-            TOOL (delegate_task)
-              AGENT (child agent)
+            LLM chat gpt-4
+            TOOL execute_tool delegate_task
+              AGENT invoke_agent researcher
                 CHAIN agent_action_1
-                  LLM
-                  TOOL
+                  LLM chat gpt-4
 
-    A child with a matching ``source_call_id`` is attached to that TOOL
-    span. If ATIF records only a handoff observation, it is attached to the
-    source step CHAIN instead. This preserves the closest causal parent the
-    document can prove without inventing a tool call.
+    **Continuations**
 
-    **Continuation trajectories**
-
-    When an agent's context window is exhausted, Harbor splits the
-    session across files using ``continued_trajectory_ref``. The
-    continuation trajectory gets a ``session_id`` ending in
-    ``-cont-{N}``. These are automatically detected and merged into the
-    same trace as the original, so the full agent session appears as one
-    trace. The continuation's root span is annotated with
-    ``metadata.is_continuation = True``.
-
-    **Multimodal content (v1.6+)**
-
-    Image content parts are written using the OpenInference
-    ``message.contents`` array format, with image URLs stored in
-    ``message_content.image.image.url``. Text-only messages use the
-    standard ``message.content`` string attribute.
+    Harbor splits a session across files with ``continued_trajectory_ref``
+    when the context window is exhausted, giving the continuation a
+    ``session_id`` ending in ``-cont-{N}``. Continuations join the original
+    trace; their roots are named ``invoke_agent <agent> (continuation N)``
+    and carry ``metadata.is_continuation = True``.
 
     **Copied context**
 
-    Steps marked ``is_copied_context: true`` are replayed history, not work
-    executed by the current trajectory. They contribute to reconstructed
-    ``llm.input_messages`` but do not create turns, operation spans, or
-    elapsed time. LLM spans whose prompt includes copied history are
-    annotated with ``metadata.has_copied_context = True``.
+    Steps marked ``is_copied_context: true`` are replayed history. They
+    contribute to reconstructed ``llm.input_messages`` but create no turns,
+    steps, or elapsed time. LLM spans whose prompt includes copied history
+    carry ``metadata.has_copied_context = True``.
 
-    **Timing and display order**
+    **Timing**
 
-    ATIF gives each step one event timestamp, not a start/end interval. A
-    fresh operation is therefore bounded by the preceding fresh event and
-    its own event timestamp. The general converter does not interpret
-    provider-specific ``metrics.extra`` fields as duration. An adapter may
-    supply a measured LLM duration through Phoenix-private input; otherwise
-    the LLM is a zero-duration event at the exact step timestamp. TOOL calls
-    are also zero-duration events because ATIF does not say whether calls in
-    one step ran serially or concurrently. Missing or non-monotonic clocks
-    collapse to the preceding event rather than fabricating elapsed time.
-
-    The converter preserves ATIF document order and declared tool-call array
-    order. That order is not evidence of serial tool execution.
-
-    **Deterministic dispatch (v1.7+)**
-
-    Agent steps with ``llm_call_count: 0`` represent non-LLM orchestration
-    that issued tool calls. These steps do not create synthetic LLM spans;
-    their TOOL spans are still emitted under the source step CHAIN.
+    ATIF records one event timestamp per step, not an interval. A step's
+    CHAIN spans from the preceding fresh event to its own timestamp. LLM and
+    TOOL spans are zero-duration events at the step timestamp unless an
+    adapter supplies a measured LLM latency; ATIF does not say whether tool
+    calls in one step ran serially or concurrently. Missing or non-monotonic
+    timestamps collapse onto the preceding event rather than inventing
+    duration. Document order and tool-call array order are preserved.
 
     **Attribute mapping**
 
     - ``metrics.prompt_tokens`` / ``completion_tokens`` →
-      ``llm.token_count.prompt`` / ``completion`` / ``total``
+      ``llm.token_count.prompt`` / ``completion`` / ``total`` (LLM spans)
     - ``metrics.cached_tokens`` →
       ``llm.token_count.prompt_details.cache_read``
     - ``metrics.cost_usd`` → ``llm.cost.total``
     - ``agent.model_name`` or step ``model_name`` → ``llm.model_name``
     - ``agent.tool_definitions`` → ``llm.tools.{i}.tool.json_schema``
     - ``reasoning_content`` → ``metadata.reasoning_content``
+    - ``final_metrics`` → ``metadata.final_metrics`` on the root span
     - ``session_id`` → ``session.id`` on all spans
+    - Multimodal message parts (v1.6+) → OpenInference ``message.contents``
+    - Agent steps with ``llm_call_count: 0`` (v1.7+) emit TOOL spans without
+      an LLM span
 
     **Deterministic IDs**
 
-    Trace IDs are derived from the run-scoped ``session_id`` when present.
-    For ATIF v1.7 standalone trajectories that omit ``trajectory_id`` and
-    do not declare a continuation, a stable document hash is used instead
-    so separate trajectory documents that share a run-scoped ``session_id``
-    do not collapse into one trace. Span IDs use document-scoped
-    ``trajectory_id`` when available, with the same v1.7 document-hash
-    fallback to avoid collisions.
+    Trace IDs derive from the run-scoped ``session_id``; span IDs derive from
+    the document-scoped ``trajectory_id``. A v1.7 document that has neither
+    falls back to a stable content hash, so re-uploading a trajectory yields
+    the same trace and sibling documents that share a session do not collide.
 
-    **Known limitation: long conversations**
+    **Known limitation**
 
-    Each LLM span includes the full conversation history up to that
-    point as ``llm.input_messages`` attributes. For long multi-turn
-    sessions (roughly 16+ turns with dense tool calls), this can exceed
-    OpenTelemetry attribute size limits, causing spans to be truncated
-    or rejected. This matches the behavior of real-time instrumentors
-    and is a known platform-wide issue, not specific to ATIF conversion.
+    Each LLM span carries the full conversation history as
+    ``llm.input_messages``. Very long sessions can exceed attribute size
+    limits and be truncated or rejected, as with live instrumentation.
 
     Args:
         client: A Phoenix ``Client`` instance.

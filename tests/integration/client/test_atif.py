@@ -17,6 +17,7 @@ from secrets import token_hex
 from typing import Any, Dict, Iterator, List
 
 import pytest
+
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.atif import (  # pyright: ignore[reportPrivateUsage]
@@ -108,15 +109,15 @@ class TestAtifTrajectoryUpload:
         assert not unresolvable, f"spans persisted with unresolvable parents: {unresolvable}"
 
         roots = {s["name"] for s in fetched if s.get("parent_id") == parent_span_id}
-        assert roots == {"terminus-2"}
+        assert roots == {"invoke_agent terminus-2"}
 
         handoff_step_id = next(
             s["context"]["span_id"] for s in fetched if s["name"] == "system_action_1"
         )
         subagent_root_names = {
-            "terminus-2-summarization-questions",
-            "terminus-2-summarization-answers",
-            "terminus-2-summarization-summary",
+            "invoke_agent terminus-2-summarization-questions",
+            "invoke_agent terminus-2-summarization-answers",
+            "invoke_agent terminus-2-summarization-summary",
         }
         assert {
             s["name"]: s.get("parent_id") for s in fetched if s["name"] in subagent_root_names
