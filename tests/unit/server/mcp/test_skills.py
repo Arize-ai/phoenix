@@ -152,8 +152,6 @@ class TestTools:
         assert "load_skill" not in catalog
         assert "load_skill_reference" not in catalog
         assert loaded.startswith("---\nname: datasets")
-        # The model has no other way to learn that a direct tool is not in the
-        # catalog `call_tool` resolves against.
         execute = tools["execute"].description or ""
         for direct in names - {"execute"}:
             assert f"`{direct}`" in execute, direct
