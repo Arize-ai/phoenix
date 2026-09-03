@@ -14,10 +14,6 @@ from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
-# Deliberately literal: a migration records what was applied, so it must not read these
-# from phoenix.db.eval_work, where a later edit would silently rewrite it. The model's
-# copies must stay byte-identical (PostgreSQL matches ON CONFLICT ... WHERE to a partial
-# index by predicate text); tests/unit/db/test_eval_work_coordination.py pins them equal.
 _EVAL_WORK_STATUS_CHECK = (
     "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED')"
 )

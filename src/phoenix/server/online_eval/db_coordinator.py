@@ -347,7 +347,6 @@ class DbEvalWorkCoordinator:
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
             claim_owner=claimed_by,
-            # The budget is spent at the transition; nothing reads `attempts` back for it.
             status=case((attempts >= self._max_attempts, "FAILED"), else_="ERROR"),
             attempts=attempts,
             error=error,
@@ -446,7 +445,6 @@ class DbEvalWorkCoordinator:
             running_count=counts.get("RUNNING", 0),
             retryable_error_count=counts.get("ERROR", 0),
             exhausted_error_count=counts.get("FAILED", 0),
-            # Every way a unit is retired without an evaluation.
             expired_count=sum(
                 counts.get(status, 0) for status in ("EXPIRED", "SUPERSEDED", "CONTENT_LOST")
             ),

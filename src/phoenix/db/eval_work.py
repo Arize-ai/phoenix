@@ -6,26 +6,12 @@ This module has no Phoenix imports so the schema (``models``), the queries
 
 from __future__ import annotations
 
-# Retry budget: a unit whose counted attempts reach this becomes FAILED. Read by the
-# consumer-side coordinator (claim and fail transitions) and by lease reaping. It appears
-# in no schema predicate, so changing it needs no migration.
 MAX_ATTEMPTS = 3
 
-# Work that still holds its dedup key and may still produce a result. ERROR is a retry
-# waiting out its cooldown, not an outcome.
 LIVE_EVAL_WORK_STATUSES = ("PENDING", "RUNNING", "ERROR")
-
-# Outcomes. FAILED spent its retry budget. EXPIRED was retired without an evaluation
-# for a reason that stays retired. SUPERSEDED was retired because its evaluator's
-# configuration changed under it; the producer revives it if the configuration reverts
-# before an annotation lands.
 TERMINAL_EVAL_WORK_STATUSES = ("DONE", "FAILED", "EXPIRED", "SUPERSEDED")
-
 EVAL_WORK_STATUSES = (*LIVE_EVAL_WORK_STATUSES, *TERMINAL_EVAL_WORK_STATUSES)
 
-# Session work adds decisions not to evaluate, which hold the dedup key so the scheduler
-# does not re-decide them every tick, and CONTENT_LOST: the session's traces were deleted
-# before the evaluation ran.
 SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
 TERMINAL_EVAL_SESSION_WORK_STATUSES = (*TERMINAL_EVAL_WORK_STATUSES, "CONTENT_LOST")
 EVAL_SESSION_WORK_STATUSES = (
@@ -34,8 +20,6 @@ EVAL_SESSION_WORK_STATUSES = (
     *SESSION_DECLINED_STATUSES,
 )
 
-# The message stamped on session work retired as CONTENT_LOST by the content-incomplete
-# transition; read by operators and matched in tests, so it is spelled once here.
 SESSION_CONTENT_INCOMPLETE_ERROR = "session content incomplete"
 
 
