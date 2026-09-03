@@ -18,6 +18,7 @@ import {
 } from "@phoenix/components";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useViewer } from "@phoenix/contexts";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { classNames } from "@phoenix/utils/classNames";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -42,6 +43,7 @@ const identityCSS = css`
 export function AccountMenu({ isExpanded }: { isExpanded: boolean }) {
   const navigate = useNavigate();
   const { viewer } = useViewer();
+  const agentStore = useAgentStore();
   const { authenticationEnabled } = useFunctionality();
   const displayName = viewer?.username || "Account";
   const managementUrl =
@@ -115,9 +117,14 @@ export function AccountMenu({ isExpanded }: { isExpanded: boolean }) {
             ) : null}
             {authenticationEnabled ? (
               <MenuItem
-                onAction={() =>
-                  window.location.replace(prependBasename("/auth/logout"))
-                }
+                onAction={() => {
+                  // Integration credentials (e.g. a personal GitHub PAT) are
+                  // persisted per deployment, not per user — purge them so the
+                  // next user of this browser cannot inherit them. The persist
+                  // middleware writes to local storage synchronously.
+                  agentStore.getState().clearIntegrationCredentials();
+                  window.location.replace(prependBasename("/auth/logout"));
+                }}
                 leadingContent={<Icon svg={<Icons.LogOut />} />}
               >
                 Log Out
