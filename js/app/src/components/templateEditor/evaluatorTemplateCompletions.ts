@@ -19,6 +19,7 @@ import {
   EVALUATOR_ROOT_PATH_PATTERN,
   getEvaluatorPathCursor,
   getEvaluatorPathMembers,
+  getTypedKey,
   reachEvaluatorContainerPath,
   resolveEvaluatorPath,
   toMemberCompletionType,
@@ -36,6 +37,9 @@ const BLOCK_SECTION: CompletionSection = { name: "Blocks", rank: 3 };
 
 /** A drill level leads the menu it opened; blocks follow it. */
 const TEMPLATE_MEMBER_SECTION_RANK = 1;
+
+/** The level below a name typed in full sits after the name's own. */
+const TEMPLATE_CONTINUATION_SECTION_RANK = 2;
 
 /** What the typeahead keeps matching against as the member name grows. */
 const MEMBER_NAME_PATTERN = /^\w*$/;
@@ -71,6 +75,7 @@ export function getEvaluatorTemplateCompletions({
     return null;
   }
   const from = variable.from + cursor.from;
+  const typedKey = getTypedKey({ textBeforeCursor: variable.text, cursor });
   const section = getSectionItem({ evaluationContext, sectionStack });
 
   if (cursor.containerPath === "") {
@@ -85,13 +90,11 @@ export function getEvaluatorTemplateCompletions({
           from,
           options: toMemberOptions({
             members: getEvaluatorPathMembers(section.item, ""),
+            levelPath: section.path,
             evaluationContext,
-            section: toMemberSection(
-              section.path,
-              TEMPLATE_MEMBER_SECTION_RANK
-            ),
             closingBrackets,
             isBrowsing: cursor.partial === "",
+            typedKey,
           }),
           validFor: MEMBER_NAME_PATTERN,
         });
@@ -132,11 +135,12 @@ export function getEvaluatorTemplateCompletions({
     from: reached === null ? from : variable.from,
     options: toMemberOptions({
       members,
+      levelPath: containerPath,
       evaluationContext,
-      section: toMemberSection(containerPath, TEMPLATE_MEMBER_SECTION_RANK),
       closingBrackets,
       isBrowsing: cursor.partial === "",
       writesWholePath: reached !== null,
+      typedKey,
     }),
     // A whole-path row is matched against the whole path, which the written
     // name and its dot sit inside; a second dot leaves that level.
@@ -206,49 +210,115 @@ function getRootOptions({
   );
 }
 
+/**
+ * One level's rows: its members, and — when the cursor sits at the end of a
+ * member name typed in full that holds more — the level below that name too.
+ * `attributes` is a variable in its own right, and `attributes.llm` is one the
+ * author can go on to without first typing the dot.
+ */
 function toMemberOptions({
   members,
+  levelPath,
   evaluationContext,
-  section,
   closingBrackets,
   isBrowsing,
   writesWholePath = false,
+  typedKey,
 }: {
   members: EvaluatorPathMember[];
+  /** The whole path of the level the members belong to. */
+  levelPath: string;
   evaluationContext: MaterializedEvaluatorContext;
-  section: CompletionSection;
   closingBrackets: string;
   isBrowsing: boolean;
   /** Whether a row names the level from the root rather than from its parent. */
   writesWholePath?: boolean;
+  /** The member name the cursor sits at the end of, if it was typed whole. */
+  typedKey: string | null;
 }): Completion[] {
   // A template reads nested properties with a dot, so a member a dot cannot
   // name — an index, a key with a dot of its own — is left out rather than
   // offered as a path that would render nothing. A whole path has to be
   // dotted the whole way down.
-  const addressable = members.filter(
-    (member) =>
-      !member.isIndex &&
-      BARE_IDENTIFIER_PATTERN.test(member.key) &&
-      (!writesWholePath || !member.path.includes("["))
-  );
+  const isAddressable = (member: EvaluatorPathMember) =>
+    !member.isIndex &&
+    BARE_IDENTIFIER_PATTERN.test(member.key) &&
+    (!writesWholePath || !member.path.includes("["));
+  const addressable = members.filter(isAddressable);
   const shown = capBrowsedMembers({ members: addressable, isBrowsing });
-  return shown.map((member, index) => {
-    const detail = toMemberDetail({ member, evaluationContext });
-    const name = writesWholePath ? member.path : member.key;
-    return {
-      label: name,
-      type: toMemberCompletionType(member.value),
-      ...(detail ? { detail } : {}),
+  const section = toMemberSection(levelPath, TEMPLATE_MEMBER_SECTION_RANK);
+  const options = shown.map((member, index) =>
+    toMemberOption({
+      member,
+      name: writesWholePath ? member.path : member.key,
       section,
       boost: 100 - index,
-      apply: applyTemplateInsertion(
-        name,
-        closingBrackets,
-        isStringKeyedObject(member.value)
+      evaluationContext,
+      closingBrackets,
+      // A name typed in full is already the variable; accepting it again ends
+      // the variable rather than reopening what its row already shows.
+      drills:
+        isStringKeyedObject(member.value) &&
+        (writesWholePath || member.key !== typedKey),
+    })
+  );
+  const typed = addressable.find(
+    (member) => member.key === typedKey && isStringKeyedObject(member.value)
+  );
+  if (typed !== undefined) {
+    const below = toMemberSection(
+      typed.path,
+      TEMPLATE_CONTINUATION_SECTION_RANK
+    );
+    const continued = capBrowsedMembers({
+      members: getEvaluatorPathMembers(typed.value, typed.path).filter(
+        isAddressable
       ),
-    };
-  });
+      isBrowsing: true,
+    });
+    continued.forEach((member, index) => {
+      options.push(
+        toMemberOption({
+          member,
+          name: writesWholePath ? member.path : `${typed.key}.${member.key}`,
+          section: below,
+          boost: 100 - index,
+          evaluationContext,
+          closingBrackets,
+          drills: isStringKeyedObject(member.value),
+        })
+      );
+    });
+  }
+  return options;
+}
+
+function toMemberOption({
+  member,
+  name,
+  section,
+  boost,
+  evaluationContext,
+  closingBrackets,
+  drills,
+}: {
+  member: EvaluatorPathMember;
+  name: string;
+  section: CompletionSection;
+  boost: number;
+  evaluationContext: MaterializedEvaluatorContext;
+  closingBrackets: string;
+  drills: boolean;
+}): Completion {
+  const detail = toMemberDetail({ member, evaluationContext });
+  return {
+    label: name,
+    type: toMemberCompletionType(member.value),
+    ...(detail ? { detail } : {}),
+    section,
+    boost,
+    apply: applyTemplateInsertion(name, closingBrackets, drills),
+  };
 }
 
 function getBlockCompletions({
@@ -395,9 +465,10 @@ function getSectionItem({
 /**
  * Writes a name into the variable, closing it if the braces are not there.
  *
- * A nested object is not a finished variable: the cursor stays inside after a
- * dot and the level below opens. A leaf is accepted whole, with the cursor past
- * the braces where the prose continues.
+ * A nested object is a finished variable that can also go on: the cursor stays
+ * before the braces and the menu reopens on the name with what it holds. A
+ * leaf is accepted whole, with the cursor past the braces where the prose
+ * continues.
  */
 function applyTemplateInsertion(
   insertText: string,
@@ -416,11 +487,15 @@ function applyTemplateInsertion(
     );
     const actualTo =
       afterCursor === closingBrackets ? to + closingBrackets.length : to;
-    const name = drills ? `${insertText}.` : insertText;
     view.dispatch({
-      changes: { from, to: actualTo, insert: `${name}${closingBrackets}` },
+      changes: {
+        from,
+        to: actualTo,
+        insert: `${insertText}${closingBrackets}`,
+      },
       selection: {
-        anchor: from + name.length + (drills ? 0 : closingBrackets.length),
+        anchor:
+          from + insertText.length + (drills ? 0 : closingBrackets.length),
       },
     });
     if (drills) {

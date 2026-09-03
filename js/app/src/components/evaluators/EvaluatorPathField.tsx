@@ -13,8 +13,8 @@ import { DSLFilterConditionField } from "@phoenix/components/filter/DSLFilterCon
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorMappingSourceState } from "@phoenix/store/evaluatorStore";
 import type { EvaluatorInputMapping } from "@phoenix/types";
-import { isStringKeyedObject } from "@phoenix/typeUtils";
 
+import { closeCompletionOnEscape } from "./completionKeys";
 import { materializeEvaluatorContext } from "./evaluatorContext";
 import { buildEvaluatorContextCandidates } from "./evaluatorContextCompletions";
 import type { EvaluatorPathCompletion } from "./evaluatorPathCompletions";
@@ -22,6 +22,7 @@ import {
   applyEvaluatorPathCompletion,
   EVALUATOR_ROOT_PATH_PATTERN,
   getEvaluatorPathCompletions,
+  isEvaluatorPathContainer,
   resolveEvaluatorPath,
   SUGGESTED_PATH_SECTION,
   toWholePathValidFor,
@@ -118,7 +119,7 @@ export function EvaluatorPathField({
               // One of the evaluator's own inputs is a finished path; its
               // members have rows of their own.
               drills:
-                candidate.isNested && isStringKeyedObject(candidate.value),
+                candidate.isNested && isEvaluatorPathContainer(candidate.value),
             })
           ),
     [evaluationContext]
@@ -167,7 +168,7 @@ export function EvaluatorPathField({
       onChange={onChange}
       completions={NO_COMPLETIONS}
       completionSources={completionSources}
-      extensions={pathFieldKeymap}
+      extensions={pathFieldKeys}
       selectOnOpen
       validateCondition={validatePath}
       getErrorRange={getErrorRange}
@@ -181,7 +182,10 @@ export function EvaluatorPathField({
 function noop() {}
 
 /** Tab accepts the highlighted row; with no menu open it leaves the field. */
-const pathFieldKeymap = [keymap.of([{ key: "Tab", run: acceptCompletion }])];
+const pathFieldKeys = [
+  keymap.of([{ key: "Tab", run: acceptCompletion }]),
+  closeCompletionOnEscape,
+];
 
 /**
  * Offers the level of the evaluation context the cursor sits in.

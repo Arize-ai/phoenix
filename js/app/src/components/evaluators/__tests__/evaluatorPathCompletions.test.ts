@@ -10,6 +10,7 @@ import {
   getEvaluatorPathCompletions,
   getEvaluatorPathCursor,
   MAX_BROWSE_MEMBERS,
+  PATH_CONTINUATION_SECTION_RANK,
   PATH_MEMBER_SECTION_RANK,
   resolveEvaluatorPath,
   SUGGESTED_PATH_SECTION,
@@ -166,6 +167,31 @@ describe("getEvaluatorPathCompletions", () => {
     expect(result?.completions[0]?.section).toEqual(
       toMemberSection("metadata.attributes", PATH_MEMBER_SECTION_RANK)
     );
+  });
+
+  // A container typed in full is a path in its own right, and the menu that
+  // reopens on it has to show what comes next.
+  it("offers a name typed in full by what it holds", () => {
+    const result = completionsFor("metadata.attributes");
+
+    expect(result?.from).toBe(9);
+    expect(result?.completions.map(({ key, drills }) => [key, drills])).toEqual(
+      [
+        ["span_id", false],
+        ["latency_ms", false],
+        // The name itself is already written, so its row ends the path.
+        ["attributes", false],
+        ["events", true],
+        ["attributes.llm", true],
+        ["attributes['llm.deprecated']", false],
+      ]
+    );
+    expect(result?.completions[4]?.section).toEqual(
+      toMemberSection("metadata.attributes", PATH_CONTINUATION_SECTION_RANK)
+    );
+    expect(
+      completionsFor("metadata.events")?.completions.map((c) => c.key)
+    ).toContain("events[0]");
   });
 
   it("previews the value each member holds on the record", () => {
@@ -418,7 +444,7 @@ describe("applyEvaluatorPathCompletion", () => {
     return { doc: state.doc.toString(), head: state.selection.main.head };
   }
 
-  it("keeps the cursor after a dot on an object and ends a finished path", () => {
+  it("writes a container as it is and ends a finished path", () => {
     const section = { name: "metadata" };
     expect(
       accept(
@@ -431,7 +457,7 @@ describe("applyEvaluatorPathCompletion", () => {
         },
         "attr"
       )
-    ).toEqual({ doc: "metadata.attributes.", head: 20 });
+    ).toEqual({ doc: "metadata.attributes", head: 19 });
     expect(
       accept(
         {

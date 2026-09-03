@@ -23,6 +23,7 @@ import {
   getCodeEvaluatorCompletionPosition,
   getCodeEvaluatorSignatureNameSlot,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import { closeCompletionOnEscape } from "@phoenix/components/evaluators/completionKeys";
 import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import {
   buildEvaluatorContextCandidates,
@@ -612,6 +613,7 @@ export function createEvaluatorAutocompletion({
     // Tab accepts the highlighted row ahead of the editor's indent binding;
     // with no menu open it indents as before.
     Prec.highest(keymap.of([{ key: "Tab", run: acceptCompletion }])),
+    closeCompletionOnEscape,
     autocompletion({
       override: [
         createEvaluatorCompletions({

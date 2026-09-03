@@ -110,8 +110,8 @@ export type EvaluatorPathCursor = {
  * not a path a member could be appended to.
  *
  * A trailing member name is always taken as still being typed — `span` offers
- * the record's `span_id` and `span_kind`, and it takes the `.` in `span.` to
- * ask for what is inside it.
+ * the record's `span_id` and `span_kind` — and the `.` in `span.` asks for what
+ * is inside it.
  */
 export function getEvaluatorPathCursor(
   textBeforeCursor: string
@@ -207,8 +207,13 @@ export function reachEvaluatorContainerPath({
 /** A row that can be drilled with `.` — styled with a trailing chevron. */
 export const CONTAINER_COMPLETION_TYPE = `${TYPEAHEAD_COMPLETION_CLASS_PREFIX}container`;
 
+/** Whether a path can keep reaching into what it names. */
+export function isEvaluatorPathContainer(value: unknown): boolean {
+  return Array.isArray(value) || isStringKeyedObject(value);
+}
+
 export function toMemberCompletionType(value: unknown): string {
-  return Array.isArray(value) || isStringKeyedObject(value)
+  return isEvaluatorPathContainer(value)
     ? CONTAINER_COMPLETION_TYPE
     : "variable";
 }
@@ -245,13 +250,14 @@ export type EvaluatorPathCompletion = {
   type?: string;
   /** One line on what the row reaches, shown when highlighted. */
   description?: string;
-  /** Whether the row names an object the path can keep reaching into. */
+  /** Whether the row names a container the path can keep reaching into. */
   drills?: boolean;
 };
 
 /**
- * Writes a row's whole path into the field. A row that names an object is not
- * a finished path: the cursor stays after a dot and the level below opens.
+ * Writes a row's whole path into the field. A row that names a container is a
+ * finished path that can also go on, so the menu reopens on it with what comes
+ * next.
  */
 export function applyEvaluatorPathCompletion(
   completion: EvaluatorPathCompletion
@@ -262,10 +268,9 @@ export function applyEvaluatorPathCompletion(
     _from: number,
     to: number
   ) => {
-    const insert = completion.drills ? `${completion.path}.` : completion.path;
     view.dispatch({
-      changes: { from: 0, to, insert },
-      selection: { anchor: insert.length },
+      changes: { from: 0, to, insert: completion.path },
+      selection: { anchor: completion.path.length },
     });
     if (completion.drills) {
       startCompletion(view);
@@ -332,6 +337,9 @@ export function toMemberSection(
 /** Where a drill level sits among the path field's own groups. */
 export const PATH_MEMBER_SECTION_RANK = 3;
 
+/** Where the level below a name typed in full sits: after the name's own. */
+export const PATH_CONTINUATION_SECTION_RANK = 4;
+
 export type EvaluatorSlotSuggestedPathLike = {
   path: string;
   description: string;
@@ -381,7 +389,7 @@ export function getEvaluatorPathCompletions({
           preview: toMemberPreview(resolution.value),
           section: SUGGESTED_PATH_SECTION,
           description,
-          drills: isStringKeyedObject(resolution.value),
+          drills: isEvaluatorPathContainer(resolution.value),
         });
       }
     }
@@ -411,17 +419,62 @@ export function getEvaluatorPathCompletions({
     members,
     isBrowsing: cursor.partial === "",
   });
+  const typedKey = getTypedKey({ textBeforeCursor, cursor });
+  const completions = shown.map((member) => ({
+    ...toCompletion(member, section),
+    ...(reached === null ? {} : { key: member.path }),
+    // A name typed in full is already the path; accepting it again ends the
+    // path rather than reopening what its row already shows.
+    ...(reached === null && member.key === typedKey ? { drills: false } : {}),
+  }));
+  // A name typed in full that holds more is offered by what it holds as well:
+  // `attributes` is a path in its own right, and `attributes.llm` is one the
+  // author can go on to without first typing the dot.
+  const typed = members.find(
+    (member) =>
+      member.key === typedKey && isEvaluatorPathContainer(member.value)
+  );
+  if (typed !== undefined) {
+    const below = toMemberSection(typed.path, PATH_CONTINUATION_SECTION_RANK);
+    for (const member of capBrowsedMembers({
+      members: getEvaluatorPathMembers(typed.value, typed.path),
+      isBrowsing: true,
+    })) {
+      completions.push({
+        ...toCompletion(member, below),
+        key:
+          reached === null
+            ? appendPathSegment(typed.key, member.key, member.isIndex)
+            : member.path,
+      });
+    }
+  }
   return {
     // A level reached through a home the author left out is offered as whole
     // paths, so the typeahead matches what was written against the whole path
     // too rather than against a member name it does not lead with.
     from: reached === null ? cursor.from : 0,
     containerPath,
-    completions: shown.map((member) => ({
-      ...toCompletion(member, section),
-      ...(reached === null ? {} : { key: member.path }),
-    })),
+    completions,
   };
+}
+
+/**
+ * The member name the cursor sits at the end of, when it was written with a
+ * dot. A name inside a subscript is matched from after its quote, so a row
+ * that read past it would have nowhere to write its path from.
+ */
+export function getTypedKey({
+  textBeforeCursor,
+  cursor,
+}: {
+  textBeforeCursor: string;
+  cursor: EvaluatorPathCursor;
+}): string | null {
+  const fragment = textBeforeCursor.slice(cursor.containerPath.length);
+  return cursor.partial !== "" && !fragment.startsWith("[")
+    ? cursor.partial
+    : null;
 }
 
 function toCompletion(
@@ -434,7 +487,7 @@ function toCompletion(
     preview: toMemberPreview(member.value),
     type: toMemberCompletionType(member.value),
     section,
-    drills: isStringKeyedObject(member.value),
+    drills: isEvaluatorPathContainer(member.value),
   };
 }
 

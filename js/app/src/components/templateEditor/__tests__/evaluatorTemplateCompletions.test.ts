@@ -246,16 +246,42 @@ describe("getEvaluatorTemplateCompletions", () => {
   });
 
   it("keeps the cursor inside a nested object and closes everything else", () => {
-    // A record's object is a level to keep drilling: the dot is written and
-    // the cursor stays before the braces.
+    // A record's object is a variable that can still go on: the cursor stays
+    // before the braces, with no dot written for the author to take back.
     expect(
       applyCompletion({ before: "{{attr", label: "metadata.attributes" })
-    ).toEqual({ doc: "{{metadata.attributes.}}", head: 22 });
+    ).toEqual({ doc: "{{metadata.attributes}}", head: 21 });
     // One of the evaluator's own inputs is accepted whole, object or not.
     expect(applyCompletion({ before: "{{inp", label: "input" })).toEqual({
       doc: "{{input}}",
       head: 9,
     });
+  });
+
+  // The menu the accepted object reopens on has to show what comes next, or
+  // the cursor would be left inside a variable with nothing to do there.
+  it("offers a name typed in full by what it holds, and ends it on a second accept", () => {
+    const typed = complete({ doc: "{{metadata.attributes.llm" });
+
+    expect(typed?.from).toBe(22);
+    expect(typed?.options.map((option) => option.label)).toEqual([
+      "llm",
+      "llm.model_name",
+      "llm.input_messages",
+    ]);
+    expect(typed?.options[1]).toMatchObject({
+      section: { name: "metadata.attributes.llm" },
+    });
+    // The name itself is already written, so its row closes the variable.
+    expect(
+      applyCompletion({ before: "{{metadata.attributes.llm", label: "llm" })
+    ).toEqual({ doc: "{{metadata.attributes.llm}}", head: 27 });
+    expect(
+      applyCompletion({
+        before: "{{metadata.attributes.llm",
+        label: "llm.model_name",
+      })
+    ).toEqual({ doc: "{{metadata.attributes.llm.model_name}}", head: 38 });
   });
 
   it("drills a level per dot in both formats", () => {
@@ -307,7 +333,7 @@ describe("getEvaluatorTemplateCompletions", () => {
         before: "{{attributes.",
         label: "metadata.attributes.llm",
       })
-    ).toEqual({ doc: "{{metadata.attributes.llm.}}", head: 26 });
+    ).toEqual({ doc: "{{metadata.attributes.llm}}", head: 25 });
 
     // Mustache has no bracket syntax, so the session's turns are reached as a
     // repeat block rather than by index — offered at the root by the same
