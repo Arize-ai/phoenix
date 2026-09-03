@@ -1,5 +1,22 @@
 # Changelog
 
+## [20.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.5.0...arize-phoenix-v20.6.0) (2026-09-03)
+
+
+### Features
+
+* **app:** add Z.ai as a built-in GLM model provider ([#15857](https://github.com/Arize-ai/phoenix/issues/15857)) ([58b7017](https://github.com/Arize-ai/phoenix/commit/58b7017284e2f7b4391397ce2080cb67a23e066c))
+* **js:** reorganize assistant settings page into topical tabs ([#15801](https://github.com/Arize-ai/phoenix/issues/15801)) ([c41b8b8](https://github.com/Arize-ai/phoenix/commit/c41b8b82d5c253667a44ff89a235c0c7dec5d7a5))
+* **playground:** add support for Gemini 3.8 Flash ([#15885](https://github.com/Arize-ai/phoenix/issues/15885)) ([20c8be3](https://github.com/Arize-ai/phoenix/commit/20c8be3eb4dd18ff555ffda6181b13eafc13f296))
+* **server:** add DELETE /projects/{project_identifier}/traces ([#15409](https://github.com/Arize-ai/phoenix/issues/15409)) ([bf659ca](https://github.com/Arize-ai/phoenix/commit/bf659ca540f37e832a30d21a5a760ed6df6ee23b))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#15839](https://github.com/Arize-ai/phoenix/issues/15839)) ([466863d](https://github.com/Arize-ai/phoenix/commit/466863d1f861b5303c331b39b6e3a14360b9f633))
+* **experiments:** count dispatched work items as in-flight ([#15832](https://github.com/Arize-ai/phoenix/issues/15832)) ([0d1d92e](https://github.com/Arize-ai/phoenix/commit/0d1d92e7dee92a0ee352b71f4dafa6fcb6d2e94c))
+* **server:** replace deprecated json_encoders with an IsoDatetime serializer ([#15853](https://github.com/Arize-ai/phoenix/issues/15853)) ([93e55d8](https://github.com/Arize-ai/phoenix/commit/93e55d881f3784372a1a0f371f671558184e695c))
+
 ## [20.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.4.0...arize-phoenix-v20.5.0) (2026-09-01)
 
 
