@@ -30,6 +30,10 @@ from phoenix.db.types.trace_retention import (
 )
 from phoenix.server.types import DbSessionFactory
 
+# These tests exercise seeding from an empty database, so they opt out of the
+# seeded template every other test's database comes from.
+pytestmark = pytest.mark.pristine_db
+
 
 class _MockWelcomeEmailSender:
     def __init__(self, email_sending_fails: bool = False) -> None:

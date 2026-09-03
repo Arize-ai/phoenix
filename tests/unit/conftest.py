@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import os
+import threading
 from asyncio import AbstractEventLoop
 from functools import partial
 from importlib.metadata import version
@@ -38,6 +39,7 @@ from phoenix.db.engines import (
     aio_sqlite_engine,
     set_sqlite_pragma,
 )
+from phoenix.db.facilitator import Facilitator
 from phoenix.db.insertion.helpers import DataManipulation
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.app import _db, create_app
@@ -81,6 +83,11 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "real_key_derivation: derive the encryption and redaction keys with the real PBKDF2 "
         "rounds instead of the memoized ones",
+    )
+    config.addinivalue_line(
+        "markers",
+        "pristine_db: give the test an empty database instead of one carrying the rows the "
+        "app seeds at startup",
     )
 
 
@@ -330,15 +337,28 @@ def _postgresql_template_db(postgresql_proc: Any) -> Iterator[str]:
     sync_engine = sqlalchemy.create_engine(sync_url)
     models.Base.metadata.create_all(sync_engine)
     sync_engine.dispose()
+    async_url = URL.create(
+        "postgresql+asyncpg",
+        username=postgresql_proc.user,
+        password=postgresql_proc.password or None,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        database=template_name,
+    )
+    _seed_template_database(lambda: aio_postgresql_engine(async_url, migrate=False), "postgresql")
     yield template_name
     janitor.drop()
 
 
 @pytest.fixture(scope="function")
 async def postgresql_engine(
+    request: SubRequest,
     postgresql_proc: Any,
     _postgresql_template_db: str,
 ) -> AsyncIterator[AsyncEngine]:
+    # A pristine database is created from scratch with the schema only,
+    # instead of cloned from the seeded template.
+    pristine = request.node.get_closest_marker("pristine_db") is not None
     dbname = f"phoenix_test_{os.getpid()}_{token_hex(4)}"
     janitor = DatabaseJanitor(
         user=postgresql_proc.user,
@@ -347,7 +367,7 @@ async def postgresql_engine(
         version=postgresql_proc.version,
         dbname=dbname,
         password=postgresql_proc.password or None,
-        template_dbname=_postgresql_template_db,
+        template_dbname=None if pristine else _postgresql_template_db,
     )
     janitor.init()
     url = URL.create(
@@ -359,6 +379,9 @@ async def postgresql_engine(
         database=dbname,
     )
     engine = aio_postgresql_engine(url, migrate=False)
+    if pristine:
+        async with engine.begin() as conn:
+            await conn.run_sync(models.Base.metadata.create_all)
     yield engine
     await engine.dispose()
     janitor.drop()
@@ -379,9 +402,73 @@ def sqlalchemy_dialect(dialect: str) -> Any:
         raise ValueError(f"Unsupported dialect: {dialect}")
 
 
+def _seed_template_database(make_engine: Callable[[], AsyncEngine], dialect: str) -> None:
+    """Run the app's startup seeding once against a template database, so the
+    Facilitator every app runs at startup finds its rows already in place and
+    each of its steps is a read or a delete that matches nothing. The model
+    cost manifest is left out: the suite stubs that step, and a test opts into
+    it per app.
+
+    The seeding runs on its own thread with its own event loop, because the
+    template fixtures are synchronous and pytest-asyncio owns the calling
+    thread's loop."""
+
+    async def skip_model_costs(db: DbSessionFactory) -> None:
+        return None
+
+    async def seed() -> None:
+        engine = make_engine()
+        try:
+            db = DbSessionFactory(db=_db(engine), dialect=dialect)
+            with pytest.MonkeyPatch.context() as mp:
+                mp.setattr("phoenix.db.facilitator._ensure_model_costs", skip_model_costs)
+                await Facilitator(db=db)()
+        finally:
+            await engine.dispose()
+
+    failure: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            asyncio.run(seed())
+        except BaseException as exc:
+            failure.append(exc)
+
+    thread = threading.Thread(target=run, name=f"seed-{dialect}-template")
+    thread.start()
+    thread.join()
+    if failure:
+        raise failure[0]
+
+
+def _named_memory_sqlite_engine(uri: str) -> AsyncEngine:
+    """An async engine on a named shared-cache in-memory SQLite database."""
+
+    def async_creator() -> aiosqlite.Connection:
+        conn = aiosqlite.Connection(
+            lambda: sqlean.connect(uri, uri=True),
+            iter_chunk_size=64,
+        )
+        # aiosqlite>=0.22 moved the worker to Connection._thread; SQLAlchemy's
+        # aiosqlite dialect daemonizes it only when it creates the connection
+        # itself, not when an async_creator is used.
+        conn._thread.daemon = True
+        return conn
+
+    engine = create_async_engine(
+        url="sqlite+aiosqlite://",
+        async_creator=async_creator,
+        poolclass=StaticPool,
+        json_serializer=_json_serializer,
+    )
+    sqlalchemy.event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+    return engine
+
+
 @pytest.fixture(scope="session")
 def _sqlite_schema_db() -> Iterator[str]:
-    """Create the schema once per session in a named in-memory SQLite database."""
+    """Create and seed the schema once per session in a named in-memory
+    SQLite database."""
     db_name = f"phoenix_test_{os.getpid()}"
     uri = f"file:{db_name}?mode=memory&cache=shared"
     # Keeper connection keeps the named in-memory DB alive for the session
@@ -391,6 +478,7 @@ def _sqlite_schema_db() -> Iterator[str]:
         creator=lambda: sqlean.connect(uri, uri=True),
     )
     models.Base.metadata.create_all(sync_engine)
+    _seed_template_database(lambda: _named_memory_sqlite_engine(uri), "sqlite")
     yield db_name
     sync_engine.dispose()
     keeper.close()
@@ -413,30 +501,27 @@ async def sqlite_engine(
         async with engine.begin() as conn:
             await conn.run_sync(models.Base.metadata.drop_all)
             await conn.run_sync(models.Base.metadata.create_all)
+        if not request.node.get_closest_marker("pristine_db"):
+            _seed_template_database(lambda: aio_sqlite_engine(url, migrate=False), "sqlite")
         yield engine
         await engine.dispose()
+    elif request.node.get_closest_marker("pristine_db"):
+        # A private, unseeded database: the schema only.
+        uri = f"file:phoenix_pristine_{os.getpid()}_{token_hex(4)}?mode=memory&cache=shared"
+        keeper = sqlean.connect(uri, uri=True)
+        sync_engine = sqlalchemy.create_engine(
+            "sqlite://", creator=lambda: sqlean.connect(uri, uri=True)
+        )
+        models.Base.metadata.create_all(sync_engine)
+        engine = _named_memory_sqlite_engine(uri)
+        yield engine
+        await engine.dispose()
+        sync_engine.dispose()
+        keeper.close()
     else:
         db_name = _sqlite_schema_db
         uri = f"file:{db_name}?mode=memory&cache=shared"
-
-        def async_creator() -> aiosqlite.Connection:
-            conn = aiosqlite.Connection(
-                lambda: sqlean.connect(uri, uri=True),
-                iter_chunk_size=64,
-            )
-            # aiosqlite>=0.22 moved the worker to Connection._thread; SQLAlchemy's
-            # aiosqlite dialect daemonizes it only when it creates the connection
-            # itself, not when an async_creator is used.
-            conn._thread.daemon = True
-            return conn
-
-        engine = create_async_engine(
-            url="sqlite+aiosqlite://",
-            async_creator=async_creator,
-            poolclass=StaticPool,
-            json_serializer=_json_serializer,
-        )
-        sqlalchemy.event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+        engine = _named_memory_sqlite_engine(uri)
         yield engine
         await engine.dispose()
 
