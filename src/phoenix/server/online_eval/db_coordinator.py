@@ -1,4 +1,4 @@
-"""Database-backed ``EvalWorkCoordinator`` for span and session work units.
+"""Database-backed ``EvalWorkCoordinator`` for span, session, and trace work units.
 
 Claiming is dialect-split: PostgreSQL locks candidate rows with ``FOR UPDATE SKIP
 LOCKED`` so competing consumers never block on each other's claims; SQLite (no row
@@ -97,7 +97,7 @@ class DbEvalWorkCoordinator:
         max_attempts: int = MAX_ATTEMPTS,
     ) -> None:
         self._db = db
-        self._evaluation_target = evaluation_target
+        self._evaluation_target: models.EvaluationTarget = evaluation_target
         self._max_attempts = max_attempts
         if evaluation_target == "SPAN":
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
@@ -105,9 +105,12 @@ class DbEvalWorkCoordinator:
         elif evaluation_target == "SESSION":
             self._work_unit_model = models.EvalSessionWorkUnit
             self._target_row_column = models.EvalSessionWorkUnit.project_session_rowid
+        elif evaluation_target == "TRACE":
+            self._work_unit_model = models.EvalTraceWorkUnit
+            self._target_row_column = models.EvalTraceWorkUnit.trace_rowid
         else:
             raise ValueError(
-                "Online evaluation work coordination supports SPAN and SESSION targets"
+                f"Online evaluation work coordination does not support {evaluation_target}"
             )
 
     def _claimable(self, now: datetime) -> ColumnElement[bool]:
@@ -251,6 +254,16 @@ class DbEvalWorkCoordinator:
                     work_unit_model.project_evaluator_id,
                     self._target_row_column.label("project_session_rowid"),
                 ).where(work_unit_model.id == work_unit_id)
+            elif self._evaluation_target == "TRACE":
+                identity_statement = (
+                    select(
+                        work_unit_model.project_evaluator_id,
+                        models.Trace.id.label("trace_rowid"),
+                    )
+                    .select_from(work_unit_model)
+                    .join(models.Trace, self._target_row_column == models.Trace.id)
+                    .where(work_unit_model.id == work_unit_id)
+                )
             else:
                 identity_statement = (
                     select(
@@ -266,9 +279,15 @@ class DbEvalWorkCoordinator:
             if identity is None:
                 raise PublicationClaimLostError(f"work unit {work_unit_id} no longer exists")
 
-            # Global lock order: project evaluator (E) -> session (S) -> work unit (W) -> write.
-            # Publication takes E -> S -> W; SESSION materialization takes E -> S before
-            # inserting W. Retention takes S -> W, and no path may invert either edge.
+            # Lock order within online eval: project evaluator (E) -> session (S) ->
+            # trace (T) -> work unit (W) -> write. Publication takes E -> S -> W for
+            # SPAN and SESSION and E -> T -> W for TRACE; materialization takes E -> S
+            # or E -> T before inserting W; retention takes S -> T -> W. No path may
+            # invert an edge, so TRACE publication never locks that trace's session:
+            # `delete_traces` locks the sessions losing content before deleting the
+            # traces, and taking S after T here would deadlock against it. Span ingest
+            # writes traces and sessions but locks no evaluator or work unit, so it
+            # shares no edge with this order.
             project_evaluator_enabled = await session.scalar(
                 select(models.ProjectEvaluator.enabled)
                 .where(models.ProjectEvaluator.id == identity.project_evaluator_id)
@@ -278,21 +297,30 @@ class DbEvalWorkCoordinator:
                 raise PublicationClaimLostError(
                     f"work unit {work_unit_id} project evaluator is disabled or missing"
                 )
-            project_session_rowid = identity.project_session_rowid
-            if project_session_rowid is not None:
-                content_complete = await session.scalar(
-                    select(models.ProjectSession.content_complete)
-                    .where(models.ProjectSession.id == project_session_rowid)
+            if self._evaluation_target == "TRACE":
+                trace_rowid = await session.scalar(
+                    select(models.Trace.id)
+                    .where(models.Trace.id == identity.trace_rowid)
                     .with_for_update()
                 )
-                if content_complete is not True:
-                    raise PublicationClaimLostError(
-                        f"work unit {work_unit_id} session content is incomplete or missing"
+                if trace_rowid is None:
+                    raise PublicationClaimLostError(f"work unit {work_unit_id} trace is missing")
+            else:
+                project_session_rowid = identity.project_session_rowid
+                if project_session_rowid is not None:
+                    content_complete = await session.scalar(
+                        select(models.ProjectSession.content_complete)
+                        .where(models.ProjectSession.id == project_session_rowid)
+                        .with_for_update()
                     )
-            elif self._evaluation_target == "SESSION":
-                raise PublicationClaimLostError(
-                    f"work unit {work_unit_id} session content is missing"
-                )
+                    if content_complete is not True:
+                        raise PublicationClaimLostError(
+                            f"work unit {work_unit_id} session content is incomplete or missing"
+                        )
+                elif self._evaluation_target == "SESSION":
+                    raise PublicationClaimLostError(
+                        f"work unit {work_unit_id} session content is missing"
+                    )
 
             fenced = await session.scalar(
                 select(work_unit_model.id)
