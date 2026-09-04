@@ -29,6 +29,8 @@ from phoenix.server.online_eval.bound_variables import (
     SPAN_ANNOTATION_ENTRY_FIELD_NAMES,
     SPAN_BOUND_VARIABLE_NAMES,
     SPAN_METADATA_FIELD_NAMES,
+    TRACE_BOUND_VARIABLE_NAMES,
+    TRACE_METADATA_FIELD_NAMES,
 )
 from phoenix.server.online_eval.executor import span_eval_context
 
@@ -192,9 +194,19 @@ def test_span_metadata_is_exactly_the_vocabulary_and_the_record_fields() -> None
     )
 
 
-def test_no_record_field_name_collides_with_a_vocabulary_name() -> None:
-    assert not SPAN_BOUND_VARIABLE_NAMES & SPAN_METADATA_FIELD_NAMES
-    assert not SESSION_BOUND_VARIABLE_NAMES & SESSION_METADATA_FIELD_NAMES, (
+@pytest.mark.parametrize(
+    "vocabulary,record_fields",
+    [
+        pytest.param(SPAN_BOUND_VARIABLE_NAMES, SPAN_METADATA_FIELD_NAMES, id="span"),
+        pytest.param(SESSION_BOUND_VARIABLE_NAMES, SESSION_METADATA_FIELD_NAMES, id="session"),
+        pytest.param(TRACE_BOUND_VARIABLE_NAMES, TRACE_METADATA_FIELD_NAMES, id="trace"),
+    ],
+)
+def test_no_record_field_name_collides_with_a_vocabulary_name(
+    vocabulary: frozenset[str],
+    record_fields: frozenset[str],
+) -> None:
+    assert not vocabulary & record_fields, (
         "Record fields share `metadata` with the grain vocabulary flat, so a "
         "vocabulary name spelled like a record field would shadow it. Rename "
         "the new name."

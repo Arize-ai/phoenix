@@ -79,6 +79,15 @@ def project_evaluator_is_schedulable(
     )
 
 
+def project_evaluator_is_schedulable_record(
+    record: "models.ProjectEvaluator",
+    *,
+    evaluation_target: "models.EvaluationTarget",
+) -> bool:
+    """The ``blocks`` side of every condition, for one evaluation target."""
+    return record.evaluation_target == evaluation_target and schedulability_reason(record) is None
+
+
 def session_policy_fingerprint() -> str:
     """Identity of the session policy in force, for the config fingerprint.
 
