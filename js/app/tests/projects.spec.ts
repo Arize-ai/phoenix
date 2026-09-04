@@ -1,5 +1,61 @@
 import { randomUUID } from "crypto";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Locator,
+  type Page,
+  type Request,
+} from "@playwright/test";
+
+/**
+ * Resolves once no GraphQL request has been in flight for half a second.
+ * Playwright's "networkidle" load state belongs to a document navigation, so
+ * after an in-app history move it is already satisfied; this watches the
+ * requests themselves. Call it before the action whose requests it should see.
+ */
+function waitForGraphQLToSettle(page: Page): Promise<void> {
+  const isGraphQL = (request: Request) => request.url().includes("/graphql");
+  return new Promise((resolve, reject) => {
+    let inFlight = 0;
+    let quiet: NodeJS.Timeout | undefined;
+    const deadline = setTimeout(() => {
+      stop();
+      reject(new Error("GraphQL requests did not settle within 30s"));
+    }, 30_000);
+    const stop = () => {
+      clearTimeout(quiet);
+      clearTimeout(deadline);
+      page.off("request", onRequest);
+      page.off("requestfinished", onSettled);
+      page.off("requestfailed", onSettled);
+    };
+    const armQuiet = () => {
+      clearTimeout(quiet);
+      if (inFlight === 0) {
+        quiet = setTimeout(() => {
+          stop();
+          resolve();
+        }, 500);
+      }
+    };
+    const onRequest = (request: Request) => {
+      if (isGraphQL(request)) {
+        inFlight += 1;
+        clearTimeout(quiet);
+      }
+    };
+    const onSettled = (request: Request) => {
+      if (isGraphQL(request)) {
+        inFlight -= 1;
+        armQuiet();
+      }
+    };
+    page.on("request", onRequest);
+    page.on("requestfinished", onSettled);
+    page.on("requestfailed", onSettled);
+    armQuiet();
+  });
+}
 
 async function createProject(
   page: Page,
@@ -215,6 +271,9 @@ test.describe.serial("Projects", () => {
       page.getByRole("region", { name: "Evaluator categories" })
     ).toBeVisible();
     await expect(
+      page.getByText("Evaluators read span inputs", { exact: false })
+    ).toBeVisible();
+    await expect(
       page.getByRole("link", { name: "Browse eval gallery" })
     ).toBeVisible();
     await expect(
@@ -244,7 +303,7 @@ test.describe.serial("Projects", () => {
     });
     await expect(createDialog).toBeVisible();
     await expect(
-      createDialog.getByRole("tab", { name: "Bindings" })
+      createDialog.getByRole("tab", { name: "Values" })
     ).toBeVisible();
     await page.goBack();
     await expect(createDialog).not.toBeVisible();
@@ -311,8 +370,15 @@ test.describe.serial("Projects", () => {
     ).toBeVisible();
 
     // Deletion lives on the list's row action menu, not the details page.
+    const listSettled = waitForGraphQLToSettle(page);
     await page.goBack();
     await expect(page).toHaveURL(EVALUATORS_URL);
+    // The list renders from the Relay store and refreshes over the network
+    // in the background; nothing visible marks that refresh landing. Deleting
+    // while it is in flight makes the refresh resolve the deleted row's
+    // evaluator after the commit, which errors the query and unmounts the
+    // page, so let the refresh land first — a user would not beat a request.
+    await listSettled;
     const updatedRow = table
       .getByRole("row")
       .filter({ hasText: updatedEvaluatorName });

@@ -120,7 +120,7 @@ const EvaluatorInputPreviewContent = () => {
   // this value is the one that will actually be used when testing an evaluator
   const setEvaluatorInputObject = useEffectEvent(setEvaluatorMappingSource);
   useEffect(() => {
-    setEvaluatorInputObject(defaultValue);
+    setEvaluatorInputObject({ grain: "dataset", source: defaultValue });
   }, [defaultValue]);
 
   if (evaluatorMappingSource.grain !== "dataset") {

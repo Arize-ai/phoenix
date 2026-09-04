@@ -451,6 +451,7 @@ function ChatCompactionStatus({ children }: { children: string }) {
  * Pure chat view used both by the legacy mounted panel and by the headless
  * controller path that keeps streaming alive while the panel is hidden.
  */
+// oxlint-disable-next-line complexity -- The view coordinates session, elicitation, rewind, and compaction state.
 export function ChatView({
   sessionId,
   messages,

@@ -121,6 +121,10 @@ input AgentCustomProviderModelSelectionInput {
   modelName: String!
 }
 
+type AgentGithubEnabled {
+  enabled: Boolean!
+}
+
 union AgentModelSelection = AgentCustomProviderModelSelection | AgentBuiltinProviderModelSelection
 
 input AgentModelSelectionInput @oneOf {
@@ -230,6 +234,21 @@ type AgentsConfig {
   Admin ceiling for the agent assistant feature. Sourced from the `agent.assistant.enabled` system setting. When False, agent chat is disabled for the entire workspace regardless of individual user preferences.
   """
   assistantEnabled: Boolean!
+
+  """
+  Deploy-time ceiling for the PXI GitHub tools: true when external resources are allowed and PHOENIX_AGENTS_DISABLE_GITHUB is unset. When false, the GitHub settings UI is hidden entirely.
+  """
+  githubServerEnabled: Boolean!
+
+  """
+  Whether the PXI GitHub tools are effectively enabled: requires the `agent.assistant.github` system setting to be on (default on), PHOENIX_AGENTS_DISABLE_GITHUB to be unset, and external resources to be allowed.
+  """
+  githubEnabled: Boolean!
+
+  """
+  Whether a workspace-wide GitHub token is configured (the GITHUB_PERSONAL_ACCESS_TOKEN secret or environment variable). When false, each user must supply their own personal access token.
+  """
+  githubWorkspaceTokenConfigured: Boolean!
 
   """
   Admin ceiling for persisting PXI traces in this Phoenix instance. Sourced from the `agent.assistant.trace_recording` system setting. When False, users cannot turn on local trace recording for themselves.
@@ -1831,6 +1850,25 @@ interface Evaluator implements Node {
   datasetEvaluators: [DatasetEvaluator!]!
 }
 
+type EvaluatorAnnotationScoreMetrics {
+  annotationName: String!
+
+  """
+  Aggregates over the requested time range, or null when the range holds none.
+  """
+  summary: AnnotationSummary
+
+  """
+  Aggregates over the window of equal length immediately before the requested time range, for change-over-time comparisons.
+  """
+  previousSummary: AnnotationSummary
+
+  """
+  Mean score per time bin across the requested time range. Bins follow the project metrics convention: spans and traces bucket by their trace's start time, sessions by their own.
+  """
+  series: [EvaluatorScoreSeriesBin!]!
+}
+
 """
 Stable category identifiers whose display labels are supplied by clients.
 """
@@ -1994,6 +2032,16 @@ enum EvaluatorScope {
   SPAN
   TRACE
   SESSION
+}
+
+type EvaluatorScoreSeriesBin {
+  timestamp: DateTime!
+  meanScore: Float
+
+  """
+  How many scored spans, traces, or sessions the bin's mean averages over; the weight to use when merging adjacent bins. Zero for an empty bin.
+  """
+  count: Int!
 }
 
 """The sort key and direction for evaluator connections"""
@@ -2583,8 +2631,10 @@ enum GenerativeProviderKey {
   FIREWORKS
   GROQ
   MOONSHOT
+  MINIMAX
   PERPLEXITY
   TOGETHER
+  ZAI
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2732,8 +2782,10 @@ enum ModelProvider {
   FIREWORKS
   GROQ
   MOONSHOT
+  MINIMAX
   PERPLEXITY
   TOGETHER
+  ZAI
 }
 
 input ModelsInput {
@@ -2889,6 +2941,7 @@ type Mutation {
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   setAgentAssistantEnabled(input: SetAgentAssistantEnabledInput!): AgentAssistantEnabled!
+  setAgentGithubEnabled(input: SetAgentGithubEnabledInput!): AgentGithubEnabled!
   setAgentTraceRecording(input: SetAgentTraceRecordingInput!): AgentTraceRecording!
   setAgentSessionRetention(input: SetAgentSessionRetentionInput!): AgentSessionRetention!
   createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
@@ -3419,6 +3472,11 @@ type ProjectEvaluator implements Node {
   runSummary: ProjectEvaluatorRunSummary!
 
   """
+  Score aggregates for each annotation this evaluator writes on the evaluated project: totals over the requested time range, totals over the equal-length window immediately before it, and a binned mean-score series. Loading is batched across the project's evaluators, so requesting this for a page of evaluators costs a fixed number of queries.
+  """
+  annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): [EvaluatorAnnotationScoreMetrics!]!
+
+  """
   Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New project evaluators store the default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.
   """
   evaluationDelaySeconds: Int!
@@ -3545,7 +3603,7 @@ type ProjectSession implements Node {
   lastOutput: SpanIOValue
 
   """
-  The canonical input, output, and metadata context that online evaluators bind against when they run on this session. Null whenever a live evaluation would refuse this session: its content was trimmed after ingestion, it has no eligible root turn to transcribe, or no whole turn fits the evaluation byte cap. An over-cap transcript that still fits whole turns is truncated and returned, exactly as a live evaluation reads it.
+  The canonical context that online evaluators bind against when they run on this session. Null whenever a live evaluation would refuse this session: its content was trimmed after ingestion, or it has no eligible root turn to evaluate.
   """
   sessionEvaluationContext: JSON
 
@@ -4227,7 +4285,7 @@ type Query {
     names: [String!]
   ): DatasetSplitConnection!
   builtInEvaluators: [BuiltInEvaluator!]!
-  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
+  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter, excludeProjectId: ID): EvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   classificationEvaluatorConfigs(labels: [String!]): [ClassificationEvaluatorConfig!]!
   evaluatorGalleryConfigs: [ClassificationEvaluatorConfig!]!
@@ -4483,6 +4541,10 @@ input SetAgentAssistantEnabledInput {
   enabled: Boolean!
 }
 
+input SetAgentGithubEnabledInput {
+  enabled: Boolean!
+}
+
 input SetAgentSessionRetentionInput {
   """
   Delete persisted sessions idle longer than this many days. Omit to leave unchanged; set null to disable idle-based deletion.
@@ -4590,7 +4652,7 @@ type Span implements Node {
   context: SpanContext!
 
   """
-  The canonical input, output, and metadata context that online evaluators bind against when they run on this span.
+  The canonical context that online evaluators bind against when they run on this span.
   """
   evaluationContext: JSON!
 

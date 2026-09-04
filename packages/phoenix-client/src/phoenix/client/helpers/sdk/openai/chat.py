@@ -206,6 +206,7 @@ class _InvocationParametersConversion:
             v1.PromptMoonshotInvocationParameters,
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
+            v1.PromptZAIInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = {}
@@ -502,6 +503,29 @@ class _InvocationParametersConversion:
                 ans["stop"] = list(together_params["stop"])
             if "extra_body" in together_params:
                 ans["extra_body"] = dict(together_params["extra_body"])
+        elif obj["type"] == "zai":
+            zai_params: v1.PromptZAIInvocationParametersContent
+            zai_params = obj["zai"]
+            if "max_completion_tokens" in zai_params:
+                ans["max_completion_tokens"] = zai_params["max_completion_tokens"]
+            if "max_tokens" in zai_params:
+                ans["max_tokens"] = zai_params["max_tokens"]
+            if "temperature" in zai_params:
+                ans["temperature"] = zai_params["temperature"]
+            if "top_p" in zai_params:
+                ans["top_p"] = zai_params["top_p"]
+            if "presence_penalty" in zai_params:
+                ans["presence_penalty"] = zai_params["presence_penalty"]
+            if "frequency_penalty" in zai_params:
+                ans["frequency_penalty"] = zai_params["frequency_penalty"]
+            if "seed" in zai_params:
+                ans["seed"] = zai_params["seed"]
+            if "reasoning_effort" in zai_params:
+                ans["reasoning_effort"] = zai_params["reasoning_effort"]
+            if "stop" in zai_params:
+                ans["stop"] = list(zai_params["stop"])
+            if "extra_body" in zai_params:
+                ans["extra_body"] = dict(zai_params["extra_body"])
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans

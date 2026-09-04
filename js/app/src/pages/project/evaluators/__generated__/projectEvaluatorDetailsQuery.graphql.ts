@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b26ac4d73d8f15c0a464fcdd23c174e>>
+ * @generated SignedSource<<2f1e71a04b535ac9e76732247443c3b9>>
  * @lightSyntaxTransform
  */
 
@@ -9,79 +9,13 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type Language = "PYTHON" | "TYPESCRIPT";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type projectEvaluatorDetailsQuery$variables = {
   id: string;
 };
 export type projectEvaluatorDetailsQuery$data = {
   readonly evaluator: {
     readonly __typename: string;
-    readonly description?: string | null;
-    readonly id?: string;
-    readonly kind?: EvaluatorKind;
-    readonly language?: Language;
-    readonly name?: string;
-    readonly outputConfigs?: ReadonlyArray<{
-      readonly __typename: "CategoricalAnnotationConfig";
-      readonly name: string;
-      readonly optimizationDirection: OptimizationDirection;
-      readonly values: ReadonlyArray<{
-        readonly label: string;
-        readonly score: number | null;
-      }>;
-    } | {
-      readonly __typename: "ContinuousAnnotationConfig";
-      readonly lowerBound: number | null;
-      readonly name: string;
-      readonly optimizationDirection: OptimizationDirection;
-      readonly upperBound: number | null;
-    } | {
-      readonly __typename: "FreeformAnnotationConfig";
-      readonly lowerBound: number | null;
-      readonly name: string;
-      readonly optimizationDirection: OptimizationDirection;
-      readonly threshold: number | null;
-      readonly upperBound: number | null;
-    } | {
-      // This will never be '%other', but we need some
-      // value in case none of the concrete values match.
-      readonly __typename: "%other";
-    }>;
-    readonly promptVersion?: {
-      readonly template: {
-        readonly __typename: "PromptChatTemplate";
-        readonly messages: ReadonlyArray<{
-          readonly " $fragmentSpreads": FragmentRefs<"promptUtils_promptMessages">;
-        }>;
-      } | {
-        readonly __typename: "PromptStringTemplate";
-        readonly template: string;
-      } | {
-        // This will never be '%other', but we need some
-        // value in case none of the concrete values match.
-        readonly __typename: "%other";
-      };
-      readonly templateFormat: PromptTemplateFormat;
-      readonly tools: {
-        readonly tools: ReadonlyArray<{
-          readonly __typename: "PromptToolFunction";
-          readonly function: {
-            readonly parameters: any;
-          };
-        } | {
-          readonly __typename: "PromptToolRaw";
-          readonly raw: any;
-        } | {
-          // This will never be '%other', but we need some
-          // value in case none of the concrete values match.
-          readonly __typename: "%other";
-        }>;
-      } | null;
-    };
-    readonly sourceCode?: string;
+    readonly " $fragmentSpreads": FragmentRefs<"projectEvaluatorOptions_codeEvaluatorDetails" | "projectEvaluatorOptions_llmEvaluatorDetails">;
   };
 };
 export type projectEvaluatorDetailsQuery = {
@@ -367,7 +301,45 @@ v20 = {
   "name": "language",
   "storageKey": null
 },
-v21 = {
+v21 = [
+  (v3/*:: as any*/)
+],
+v22 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "SandboxConfig",
+  "kind": "LinkedField",
+  "name": "sandboxConfig",
+  "plural": false,
+  "selections": (v21/*:: as any*/),
+  "storageKey": null
+},
+v23 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "EvaluatorInputMapping",
+  "kind": "LinkedField",
+  "name": "inputMapping",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "pathMapping",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "literalMapping",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v24 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -381,9 +353,7 @@ v21 = {
     (v12/*:: as any*/),
     {
       "kind": "InlineFragment",
-      "selections": [
-        (v3/*:: as any*/)
-      ],
+      "selections": (v21/*:: as any*/),
       "type": "Node",
       "abstractKey": "__isNode"
     }
@@ -407,98 +377,115 @@ return {
         "selections": [
           (v2/*:: as any*/),
           {
-            "kind": "InlineFragment",
+            "kind": "InlineDataFragmentSpread",
+            "name": "projectEvaluatorOptions_llmEvaluatorDetails",
             "selections": [
-              (v3/*:: as any*/),
-              (v4/*:: as any*/),
-              (v5/*:: as any*/),
-              (v6/*:: as any*/)
-            ],
-            "type": "Evaluator",
-            "abstractKey": "__isEvaluator"
-          },
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              (v13/*:: as any*/),
               {
-                "alias": null,
-                "args": null,
-                "concreteType": "PromptVersion",
-                "kind": "LinkedField",
-                "name": "promptVersion",
-                "plural": false,
+                "kind": "InlineFragment",
                 "selections": [
-                  (v14/*:: as any*/),
+                  (v2/*:: as any*/),
+                  (v3/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
+                  (v13/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": null,
+                    "concreteType": "PromptVersion",
                     "kind": "LinkedField",
-                    "name": "template",
+                    "name": "promptVersion",
                     "plural": false,
                     "selections": [
-                      (v2/*:: as any*/),
+                      (v14/*:: as any*/),
                       {
-                        "kind": "InlineFragment",
+                        "alias": null,
+                        "args": null,
+                        "concreteType": null,
+                        "kind": "LinkedField",
+                        "name": "template",
+                        "plural": false,
                         "selections": [
+                          (v2/*:: as any*/),
                           {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "PromptMessage",
-                            "kind": "LinkedField",
-                            "name": "messages",
-                            "plural": true,
+                            "kind": "InlineFragment",
                             "selections": [
                               {
-                                "kind": "InlineDataFragmentSpread",
-                                "name": "promptUtils_promptMessages",
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "PromptMessage",
+                                "kind": "LinkedField",
+                                "name": "messages",
+                                "plural": true,
                                 "selections": [
                                   {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": null,
-                                    "kind": "LinkedField",
-                                    "name": "content",
-                                    "plural": true,
+                                    "kind": "InlineDataFragmentSpread",
+                                    "name": "promptUtils_promptMessages",
                                     "selections": [
-                                      (v15/*:: as any*/)
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": null,
+                                        "kind": "LinkedField",
+                                        "name": "content",
+                                        "plural": true,
+                                        "selections": [
+                                          (v15/*:: as any*/)
+                                        ],
+                                        "storageKey": null
+                                      },
+                                      (v16/*:: as any*/)
                                     ],
-                                    "storageKey": null
-                                  },
-                                  (v16/*:: as any*/)
+                                    "args": null,
+                                    "argumentDefinitions": []
+                                  }
                                 ],
-                                "args": null,
-                                "argumentDefinitions": []
+                                "storageKey": null
                               }
                             ],
-                            "storageKey": null
-                          }
+                            "type": "PromptChatTemplate",
+                            "abstractKey": null
+                          },
+                          (v17/*:: as any*/)
                         ],
-                        "type": "PromptChatTemplate",
-                        "abstractKey": null
+                        "storageKey": null
                       },
-                      (v17/*:: as any*/)
+                      (v18/*:: as any*/)
                     ],
                     "storageKey": null
-                  },
-                  (v18/*:: as any*/)
+                  }
                 ],
-                "storageKey": null
+                "type": "LLMEvaluator",
+                "abstractKey": null
               }
             ],
-            "type": "LLMEvaluator",
-            "abstractKey": null
+            "args": null,
+            "argumentDefinitions": []
           },
           {
-            "kind": "InlineFragment",
+            "kind": "InlineDataFragmentSpread",
+            "name": "projectEvaluatorOptions_codeEvaluatorDetails",
             "selections": [
-              (v13/*:: as any*/),
-              (v19/*:: as any*/),
-              (v20/*:: as any*/)
+              {
+                "kind": "InlineFragment",
+                "selections": [
+                  (v2/*:: as any*/),
+                  (v3/*:: as any*/),
+                  (v4/*:: as any*/),
+                  (v5/*:: as any*/),
+                  (v6/*:: as any*/),
+                  (v13/*:: as any*/),
+                  (v19/*:: as any*/),
+                  (v20/*:: as any*/),
+                  (v22/*:: as any*/),
+                  (v23/*:: as any*/)
+                ],
+                "type": "CodeEvaluator",
+                "abstractKey": null
+              }
             ],
-            "type": "CodeEvaluator",
-            "abstractKey": null
+            "args": null,
+            "argumentDefinitions": []
           }
         ],
         "storageKey": null
@@ -528,15 +515,8 @@ return {
             "selections": [
               (v4/*:: as any*/),
               (v5/*:: as any*/),
-              (v6/*:: as any*/)
-            ],
-            "type": "Evaluator",
-            "abstractKey": "__isEvaluator"
-          },
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              (v21/*:: as any*/),
+              (v6/*:: as any*/),
+              (v24/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -603,9 +583,14 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v21/*:: as any*/),
+              (v4/*:: as any*/),
+              (v5/*:: as any*/),
+              (v6/*:: as any*/),
+              (v24/*:: as any*/),
               (v19/*:: as any*/),
-              (v20/*:: as any*/)
+              (v20/*:: as any*/),
+              (v22/*:: as any*/),
+              (v23/*:: as any*/)
             ],
             "type": "CodeEvaluator",
             "abstractKey": null
@@ -616,16 +601,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c28e93537bb65edc0592e1dd328c2426",
+    "cacheID": "9142867e7a26fc8cca78b4ace9c8f639",
     "id": null,
     "metadata": {},
     "name": "projectEvaluatorDetailsQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorDetailsQuery(\n  $id: ID!\n) {\n  evaluator: node(id: $id) {\n    __typename\n    ... on Evaluator {\n      __isEvaluator: __typename\n      id\n      name\n      description\n      kind\n    }\n    ... on LLMEvaluator {\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          name\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n      promptVersion {\n        templateFormat\n        template {\n          __typename\n          ... on PromptChatTemplate {\n            messages {\n              ...promptUtils_promptMessages\n            }\n          }\n          ... on PromptStringTemplate {\n            template\n          }\n        }\n        tools {\n          tools {\n            __typename\n            ... on PromptToolFunction {\n              function {\n                parameters\n              }\n            }\n            ... on PromptToolRaw {\n              raw\n            }\n          }\n        }\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          name\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n      sourceCode\n      language\n    }\n    id\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query projectEvaluatorDetailsQuery(\n  $id: ID!\n) {\n  evaluator: node(id: $id) {\n    __typename\n    ...projectEvaluatorOptions_llmEvaluatorDetails\n    ...projectEvaluatorOptions_codeEvaluatorDetails\n    id\n  }\n}\n\nfragment projectEvaluatorOptions_codeEvaluatorDetails on CodeEvaluator {\n  __typename\n  id\n  name\n  description\n  kind\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  sourceCode\n  language\n  sandboxConfig {\n    id\n  }\n  inputMapping {\n    pathMapping\n    literalMapping\n  }\n}\n\nfragment projectEvaluatorOptions_llmEvaluatorDetails on LLMEvaluator {\n  __typename\n  id\n  name\n  description\n  kind\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  promptVersion {\n    templateFormat\n    template {\n      __typename\n      ... on PromptChatTemplate {\n        messages {\n          ...promptUtils_promptMessages\n        }\n      }\n      ... on PromptStringTemplate {\n        template\n      }\n    }\n    tools {\n      tools {\n        __typename\n        ... on PromptToolFunction {\n          function {\n            parameters\n          }\n        }\n        ... on PromptToolRaw {\n          raw\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f024fbc74b4c1a8306536a2d98d2ab78";
+(node as any).hash = "54f77ca32506ba049155671c42aa80ce";
 
 export default node;

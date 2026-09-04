@@ -37,7 +37,30 @@ const IDENTIFIER_SEGMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*/;
 const BRACKET_SEGMENT_PATTERN = /^\[(?:'((?:[^'\\]|\\.)*)'|(\d+))\]/;
 
 /**
- * Splits a JSONPath expression into the keys it addresses.
+ * Reads a quoted bracket key back out of the notation it was written in: the
+ * resolver on both sides treats a backslash as escaping the character after
+ * it, so `a\'b` is the key `a'b`.
+ */
+export function unescapeQuotedPathKey(quotedKey: string): string {
+  return quotedKey.replace(/\\(.)/g, "$1");
+}
+
+/**
+ * One key of a parsed JSONPath expression, with where it sits in the
+ * expression — so a caller that finds a key unresolvable can point at the
+ * text that named it rather than at the whole path.
+ *
+ * The range covers the key's own text (`turns`, `['a.b']`, `[0]`), not the
+ * separator that introduced it.
+ */
+export type ParsedPathSegment = {
+  key: string;
+  from: number;
+  to: number;
+};
+
+/**
+ * Splits a JSONPath expression into the keys it addresses, with their ranges.
  *
  * Covers the subset the server resolves that can also be resolved against an
  * in-memory context: dot notation (`input.query`), quoted bracket segments for
@@ -49,36 +72,54 @@ const BRACKET_SEGMENT_PATTERN = /^\[(?:'((?:[^'\\]|\\.)*)'|(\d+))\]/;
  *   marker), so callers can tell "cannot check here" from "resolved to
  *   undefined".
  */
-export function parsePathSegments(path: string): string[] | null {
-  const segments: string[] = [];
-  let rest = path;
+export function parsePathSegmentRanges(
+  path: string
+): ParsedPathSegment[] | null {
+  const segments: ParsedPathSegment[] = [];
+  let offset = 0;
   let expectSeparator = false;
 
-  while (rest.length > 0) {
-    const bracket = BRACKET_SEGMENT_PATTERN.exec(rest);
+  while (offset < path.length) {
+    const bracket = BRACKET_SEGMENT_PATTERN.exec(path.slice(offset));
     if (bracket) {
       const [matched, quotedKey, index] = bracket;
-      segments.push(quotedKey?.replace(/\\(.)/g, "$1") ?? index);
-      rest = rest.slice(matched.length);
+      segments.push({
+        key: quotedKey === undefined ? index : unescapeQuotedPathKey(quotedKey),
+        from: offset,
+        to: offset + matched.length,
+      });
+      offset += matched.length;
       expectSeparator = true;
       continue;
     }
     if (expectSeparator) {
-      if (!rest.startsWith(".")) {
+      if (path[offset] !== ".") {
         return null;
       }
-      rest = rest.slice(1);
+      offset += 1;
     }
-    const identifier = IDENTIFIER_SEGMENT_PATTERN.exec(rest);
+    const identifier = IDENTIFIER_SEGMENT_PATTERN.exec(path.slice(offset));
     if (!identifier) {
       return null;
     }
-    segments.push(identifier[0]);
-    rest = rest.slice(identifier[0].length);
+    segments.push({
+      key: identifier[0],
+      from: offset,
+      to: offset + identifier[0].length,
+    });
+    offset += identifier[0].length;
     expectSeparator = true;
   }
 
   return segments;
+}
+
+/**
+ * The keys {@link parsePathSegmentRanges} addresses, for callers that only
+ * need to walk the path rather than point back into it.
+ */
+export function parsePathSegments(path: string): string[] | null {
+  return parsePathSegmentRanges(path)?.map((segment) => segment.key) ?? null;
 }
 
 /**

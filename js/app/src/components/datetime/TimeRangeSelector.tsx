@@ -223,6 +223,47 @@ const OPEN_VALUE_MIN_WIDTH = "var(--global-dimension-size-4000)";
  * options. The leading badge surfaces the active preset's shorthand and the
  * trailing label shows the time zone the range is displayed in.
  */
+function getTimeRangeSelectorDisplay({
+  value,
+  locale,
+  timeZone,
+  timeZoneShortName,
+  searchText,
+  valueWidth,
+  isEditing,
+  isPresetsOpen,
+}: {
+  value: TimeRangeSelectorProps["value"];
+  locale: string;
+  timeZone: string;
+  timeZoneShortName: string | undefined;
+  searchText: string;
+  valueWidth: number | undefined;
+  isEditing: boolean;
+  isPresetsOpen: boolean;
+}) {
+  const { timeRangeKey, start, end } = value;
+  const isCustom = timeRangeKey === "custom";
+  const badgeLabel = isCustom ? "Custom" : timeRangeKey;
+  const valueLabel = isLastNTimeRangeKey(timeRangeKey)
+    ? getLastNTimeRangeLabel(timeRangeKey)
+    : createTimeRangeFormatter({ locale, timeZone })({ start, end });
+  const searchSuggestions = getTimeRangeSearchSuggestions(searchText);
+  const fieldsKey = `${timeRangeKey}|${start?.getTime() ?? ""}|${end?.getTime() ?? ""}|${timeZone}`;
+  return {
+    badgeLabel,
+    fieldsKey,
+    isCustom,
+    presetItems: LAST_N_TIME_RANGES.filter(
+      ({ key }) => !searchSuggestions.includes(key)
+    ),
+    searchSuggestions,
+    triggerLayoutKey: `${isEditing}|${fieldsKey}|${valueLabel}|${badgeLabel}|${timeZoneShortName ?? ""}`,
+    valueLabel,
+    valueWidth: isPresetsOpen || valueWidth == null ? undefined : valueWidth,
+  };
+}
+
 export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const { value, isDisabled, onChange, size = "S" } = props;
   const { timeRangeKey, start, end } = value;
@@ -338,27 +379,25 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
     timeZone,
   });
 
-  const isCustom = timeRangeKey === "custom";
-  const badgeLabel = isCustom ? "Custom" : timeRangeKey;
-  const timeRangeFormatter = createTimeRangeFormatter({ locale, timeZone });
-  const valueLabel = isLastNTimeRangeKey(timeRangeKey)
-    ? getLastNTimeRangeLabel(timeRangeKey)
-    : timeRangeFormatter({ start, end });
-
-  // A duration typed into the search (e.g. "25m") becomes a selectable
-  // "Last 25 minutes" option ahead of the presets, and a bare quantity
-  // ("25") suggests it in every unit. Colliding presets are dropped so each
-  // option appears once.
-  const searchSuggestions = getTimeRangeSearchSuggestions(searchText);
-  const presetItems = LAST_N_TIME_RANGES.filter(
-    ({ key }) => !searchSuggestions.includes(key)
-  );
-
-  // Forces the inline fields to reset whenever the committed range or the
-  // display time zone changes from the outside (e.g. selecting a preset).
-  const fieldsKey = `${timeRangeKey}|${start?.getTime() ?? ""}|${end?.getTime() ?? ""}|${timeZone}`;
-  const valueWidth = valueDimensions?.width;
-  const triggerLayoutKey = `${isEditing}|${fieldsKey}|${valueLabel}|${badgeLabel}|${timeZoneShortName ?? ""}`;
+  const {
+    badgeLabel,
+    fieldsKey,
+    isCustom,
+    presetItems,
+    searchSuggestions,
+    triggerLayoutKey,
+    valueLabel,
+    valueWidth,
+  } = getTimeRangeSelectorDisplay({
+    value,
+    locale,
+    timeZone,
+    timeZoneShortName,
+    searchText,
+    valueWidth: valueDimensions?.width,
+    isEditing,
+    isPresetsOpen,
+  });
   const isPopoverReady = isPresetsOpen && popoverWidth != null;
 
   /**
@@ -424,7 +463,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         <div
           className="time-range-selector__value-shell"
           style={{
-            width: isPresetsOpen || valueWidth == null ? "auto" : valueWidth,
+            width: valueWidth ?? "auto",
             minWidth: isEditing ? OPEN_VALUE_MIN_WIDTH : undefined,
           }}
         >

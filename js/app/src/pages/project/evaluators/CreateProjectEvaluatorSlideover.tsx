@@ -1,11 +1,16 @@
 import { useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
-import { graphql, useMutation, useRelayEnvironment } from "react-relay";
+import {
+  ConnectionHandler,
+  graphql,
+  useMutation,
+  useRelayEnvironment,
+} from "react-relay";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
+import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
@@ -28,6 +33,7 @@ import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryConstants";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
@@ -37,6 +43,7 @@ import {
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
+  withProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import {
@@ -50,6 +57,10 @@ import {
   type AnnotationConfig,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
+import type {
+  CodeEvaluatorLanguage,
+  EvaluatorInputMapping,
+} from "@phoenix/types";
 
 type SeededLlmEvaluatorInitialState = {
   name: string;
@@ -64,12 +75,27 @@ type TemplateLlmEvaluatorInitialState = SeededLlmEvaluatorInitialState & {
   targetType: ProjectEvaluatorTarget;
 };
 
+type SeededCodeEvaluatorInitialState = {
+  name: string;
+  copyName: string;
+  description: string;
+  outputConfigs: AnnotationConfig[];
+  language: CodeEvaluatorLanguage;
+  sourceCode: string;
+  sandboxConfigId: string | null;
+  inputMapping: EvaluatorInputMapping;
+};
+
 export type ProjectEvaluatorCreationMode =
   | { kind: "scratch" }
   | { kind: "newCode" }
   | {
-      kind: "copy";
+      kind: "copyLlm";
       initialState: SeededLlmEvaluatorInitialState;
+    }
+  | {
+      kind: "copyCode";
+      initialState: SeededCodeEvaluatorInitialState;
     }
   | {
       kind: "template";
@@ -95,8 +121,11 @@ function getProjectEvaluatorCreationTitle(
   if (creationMode.kind === "newCode") {
     return "Create new code evaluator";
   }
-  if (creationMode.kind === "copy") {
+  if (creationMode.kind === "copyLlm") {
     return `Copy LLM evaluator “${creationMode.initialState.name}”`;
+  }
+  if (creationMode.kind === "copyCode") {
+    return `Duplicate code evaluator “${creationMode.initialState.name}”`;
   }
   if (creationMode.kind === "template") {
     return `Create “${creationMode.initialState.name}” evaluator`;
@@ -133,7 +162,7 @@ function CreateProjectEvaluatorDialogForMode(
   const { creationMode } = props;
   if (
     creationMode.kind === "scratch" ||
-    creationMode.kind === "copy" ||
+    creationMode.kind === "copyLlm" ||
     creationMode.kind === "template"
   ) {
     const defaultMessages =
@@ -172,36 +201,48 @@ const CreateProjectEvaluatorDialog = ({
     creationMode.kind === "template"
       ? creationMode.initialState.targetType
       : "SPAN";
-  const [scope, setScope] = useState<ProjectEvaluatorScope>({
-    targetType: initialTargetType,
-    filterCondition: "",
-    samplingRate: 1,
-    evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
-  });
+  const [scope, setScope] = useState<ProjectEvaluatorScope>(() =>
+    withProjectEvaluatorTarget({
+      scope: {
+        targetType: initialTargetType,
+        filterCondition: "",
+        samplingRate: 1,
+        evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
+      },
+      targetType: initialTargetType,
+    })
+  );
 
   const initialState = (() => {
-    if (creationMode.kind === "newCode") {
+    if (creationMode.kind === "newCode" || creationMode.kind === "copyCode") {
+      const copiedState =
+        creationMode.kind === "copyCode" ? creationMode.initialState : null;
       return {
         ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
         evaluator: {
           ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
-          globalName: "",
-          description: "",
-          inputMapping: { pathMapping: {}, literalMapping: {} },
+          globalName: copiedState?.copyName ?? "",
+          description: copiedState?.description ?? "",
+          inputMapping: copiedState?.inputMapping ?? {
+            pathMapping: {},
+            literalMapping: {},
+          },
           kind: "CODE",
         },
-        outputConfigs: [createDefaultFreeformOutputConfig("")],
+        outputConfigs: copiedState?.outputConfigs ?? [
+          createDefaultFreeformOutputConfig(""),
+        ],
         evaluatorMappingSource: defaultEvaluatorMappingSourceState(
           toEvaluatorMappingSourceGrain(scope.targetType)
         ),
       } satisfies EvaluatorStoreProps;
     }
     const seededState =
-      creationMode.kind === "copy" || creationMode.kind === "template"
+      creationMode.kind === "copyLlm" || creationMode.kind === "template"
         ? creationMode.initialState
         : undefined;
     const defaultEvaluatorName =
-      creationMode.kind === "copy"
+      creationMode.kind === "copyLlm"
         ? creationMode.initialState.name
           ? `${creationMode.initialState.name} copy`
           : DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator.globalName
@@ -253,7 +294,7 @@ const CreateProjectEvaluatorDialog = ({
 
   return (
     <EvaluatorStoreProvider initialState={initialState}>
-      {creationMode.kind === "newCode" ? (
+      {creationMode.kind === "newCode" || creationMode.kind === "copyCode" ? (
         <CreateNewCodeProjectEvaluatorDialog
           title={title}
           projectId={projectId}
@@ -261,6 +302,15 @@ const CreateProjectEvaluatorDialog = ({
           onScopeChange={setScope}
           onSuccess={finishCreation}
           registerDirtyCheck={registerDirtyCheck}
+          initialValues={
+            creationMode.kind === "copyCode"
+              ? {
+                  language: creationMode.initialState.language,
+                  sourceCode: creationMode.initialState.sourceCode,
+                  sandboxConfigId: creationMode.initialState.sandboxConfigId,
+                }
+              : undefined
+          }
         />
       ) : creationMode.kind === "code" ? (
         <AttachCodeProjectEvaluatorDialog
@@ -294,6 +344,7 @@ function CreateNewCodeProjectEvaluatorDialog({
   onScopeChange,
   onSuccess,
   registerDirtyCheck,
+  initialValues,
 }: {
   title: string;
   projectId: string;
@@ -301,6 +352,11 @@ function CreateNewCodeProjectEvaluatorDialog({
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   onSuccess: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
+  initialValues?: {
+    language: CodeEvaluatorLanguage;
+    sourceCode: string;
+    sandboxConfigId: string | null;
+  };
 }) {
   const store = useEvaluatorStoreInstance();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
@@ -316,6 +372,7 @@ function CreateNewCodeProjectEvaluatorDialog({
       scope={scope}
       onScopeChange={onScopeChange}
       onSuccess={onSuccess}
+      initialValues={initialValues}
     />
   );
 }
@@ -378,7 +435,6 @@ function AttachCodeProjectEvaluatorDialog({
       onScopeChange={onScopeChange}
       isSubmitting={isAddingCodeEvaluator}
       error={error}
-      onFieldChange={() => setError(undefined)}
       onSubmit={() => {
         setError(undefined);
         addCodeEvaluator({
@@ -400,6 +456,19 @@ function AttachCodeProjectEvaluatorDialog({
               setError(errors.map(({ message }) => message).join("\n"));
               return;
             }
+            environment.commitUpdate((relayStore) => {
+              const galleryConnection = ConnectionHandler.getConnection(
+                relayStore.getRoot(),
+                PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY,
+                { excludeProjectId: projectId }
+              );
+              if (galleryConnection) {
+                ConnectionHandler.deleteNode(
+                  galleryConnection,
+                  creationMode.evaluatorId
+                );
+              }
+            });
             void refetchProjectEvaluators({
               environment,
               projectId,
@@ -549,7 +618,10 @@ const ScratchLlmDialogContent = ({
   isSubmitting: boolean;
   error?: string;
 }) => {
-  const submitHint = useProjectEvaluatorSubmitHint({ isFilterValid });
+  const submitHint = useProjectEvaluatorSubmitHint({
+    targetType: scope.targetType,
+    isFilterValid,
+  });
   return (
     <EditLLMEvaluatorDialogContent
       title={title}
@@ -569,7 +641,11 @@ const ScratchLlmDialogContent = ({
         />
       }
       formRightPanel={
-        <ProjectEvaluatorScopePanel projectId={projectId} scope={scope} />
+        <ProjectEvaluatorScopePanel
+          projectId={projectId}
+          scope={scope}
+          showScopeFields={false}
+        />
       }
     />
   );

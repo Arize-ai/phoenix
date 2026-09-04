@@ -7,7 +7,10 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
-from phoenix.config import get_env_online_eval_max_sandbox_payload_bytes
+from phoenix.config import (
+    get_env_online_eval_max_llm_message_bytes,
+    get_env_online_eval_max_sandbox_payload_bytes,
+)
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -54,10 +57,7 @@ from phoenix.server.monty_runtime import (
     MontyWorkerCrashed,
     MontyWorkerTurnTimedOut,
 )
-from phoenix.server.online_eval.session_policy import (
-    ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
-    SessionTranscriptPolicy,
-)
+from phoenix.server.online_eval.session_policy import ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION
 from phoenix.server.sandbox import (
     MissingSecretError,
     SecretsContext,
@@ -249,7 +249,7 @@ class ChatCompletionMutationMixin:
             max_message_bytes: Optional[int] = None
             max_payload_bytes: Optional[int] = None
             if preview_item.apply_online_evaluation_limits:
-                max_message_bytes = SessionTranscriptPolicy.from_env().max_llm_message_bytes
+                max_message_bytes = get_env_online_eval_max_llm_message_bytes()
                 max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
 
             if evaluator_id := evaluator_input.built_in_evaluator_id:

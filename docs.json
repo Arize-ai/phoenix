@@ -947,6 +947,7 @@
                 "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/projects",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/traces",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/spans",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/annotations",
@@ -954,6 +955,7 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/document-annotations",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/session-annotations",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/users",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
@@ -1113,6 +1115,7 @@
                     "group": "Traces",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/list-traces-for-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-traces-from-a-project",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-trace-annotations",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-a-trace-note"
@@ -1378,8 +1381,15 @@
         "pages": [
           "docs/phoenix/release-notes",
           {
+            "group": "09.2026",
+            "pages": [
+              "docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates"
+            ]
+          },
+          {
             "group": "08.2026",
             "pages": [
+              "docs/phoenix/release-notes/08-2026/08-25-2026-pxi-browser-actions-and-retrieval-relevance",
               "docs/phoenix/release-notes/08-2026/08-17-2026-trace-filters-and-analytics-sql",
               "docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config",
               "docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions",

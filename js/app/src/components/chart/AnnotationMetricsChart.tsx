@@ -176,6 +176,39 @@ export function AnnotationMetricsChart(props: AnnotationMetricsChartProps) {
   );
 }
 
+function getAnnotationChartState({
+  series,
+  view,
+}: Pick<AnnotationMetricsChartProps, "series" | "view">) {
+  const { data, reference } = series;
+  const isScoreView = view === "scores";
+  const domain = isScoreView
+    ? getScoreDomain([...data, reference])
+    : UNIT_DOMAIN;
+  const isReferencePrepended =
+    !isScoreView &&
+    reference != null &&
+    !data.some(({ x }) => x === reference.x);
+  const baseChartData = isScoreView
+    ? data
+    : getAnnotationMetricsChartData({ data, reference });
+  const chartData = isScoreView
+    ? baseChartData
+    : baseChartData.map((point) => ({
+        ...point,
+        otherFraction: getAnnotationOtherFraction({ point }),
+      }));
+  return {
+    chartData,
+    domain,
+    hasOtherValues: chartData.some(
+      (point) => "otherFraction" in point && point.otherFraction != null
+    ),
+    isReferencePrepended,
+    isScoreView,
+  };
+}
+
 function AnnotationMetricsChartContent({
   series,
   view,
@@ -197,12 +230,14 @@ function AnnotationMetricsChartContent({
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
   const { data, reference, labels } = series;
-  const isScoreView = view === "scores";
-  // Label fractions always span the unit domain; scores only when they fit.
-  const domain = isScoreView
-    ? getScoreDomain([...data, reference])
-    : UNIT_DOMAIN;
   // Null means "no good-versus-bad reading": stay on the categorical palette.
+  const {
+    chartData,
+    domain,
+    hasOtherValues,
+    isReferencePrepended,
+    isScoreView,
+  } = getAnnotationChartState({ series, view });
   const appliedLabelOptimizations =
     (isScoreView ? null : labelOptimizations) ?? null;
   const getLabelFill = (index: number) =>
@@ -211,26 +246,6 @@ function AnnotationMetricsChartContent({
         ? semanticColors.success
         : semanticColors.danger
       : getCategoryChartColor({ index, colors: categoryColors });
-  const isReferencePrepended =
-    !isScoreView &&
-    reference != null &&
-    !data.some(({ x }) => x === reference.x);
-  // A score baseline is a non-chronological comparison value, so show it as
-  // a horizontal reference without inserting it into the connected line.
-  const baseChartData = isScoreView
-    ? data
-    : getAnnotationMetricsChartData({ data, reference });
-  // Labels hidden interactively stay classified so toggling a series does not
-  // change the other values.
-  const chartData = isScoreView
-    ? baseChartData
-    : baseChartData.map((point) => ({
-        ...point,
-        otherFraction: getAnnotationOtherFraction({ point }),
-      }));
-  const hasOtherValues = chartData.some(
-    (point) => "otherFraction" in point && point.otherFraction != null
-  );
 
   return (
     <ChartEmptyStateOverlay

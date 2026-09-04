@@ -42,6 +42,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    SecretStr,
     StrictBool,
     TypeAdapter,
     model_validator,
@@ -126,6 +127,7 @@ from phoenix.db.types.data_stream_protocol import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.agents.agent_factory import build_agent, build_agent_tracer
 from phoenix.server.agents.capabilities import get_external_tool_definition
+from phoenix.server.agents.config import AgentsEnvConfig
 from phoenix.server.agents.context import (
     AppContext,
     ChatContext,
@@ -134,6 +136,11 @@ from phoenix.server.agents.context import (
     sanitize_untrusted_value,
 )
 from phoenix.server.agents.exceptions import AgentError, CompactionError
+from phoenix.server.agents.github import (
+    ChatRequestCredentialKey,
+    GitHubMCPConfig,
+    resolve_github_mcp_config,
+)
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import UI_STATE_TEMPLATE, AgentPrompts
@@ -174,7 +181,7 @@ from phoenix.server.api.helpers.agent_sessions import (
     set_session_model,
 )
 from phoenix.server.api.openapi.registry import register_openapi_schema
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -482,6 +489,19 @@ def _validate_submitted_tool_approvals(tool_approvals: Sequence[ToolApproval]) -
         raise ValueError("Each toolApprovals entry must have a distinct toolCallId")
 
 
+class ChatRequestCredential(_CamelBaseModel):
+    """One client-held credential riding the request for the duration of a turn.
+
+    The value is ephemeral: it is injected server-side as transport auth for
+    the matching integration and is never persisted, traced, or echoed. It is
+    top-level on the request body — never part of the message — so it cannot
+    reach the session transcript.
+    """
+
+    key: ChatRequestCredentialKey = Field(description="The credential's secret-key name.")
+    value: SecretStr
+
+
 class ChatRequestBody(_CamelBaseModel):
     """Assistant chat submit request payload."""
 
@@ -550,6 +570,15 @@ class ChatRequestBody(_CamelBaseModel):
             "transcript) once it does. On mismatch the server rejects the "
             "send with HTTP 409 and code ``agent_session_messages_stale`` — the "
             "client should refetch the session before retrying."
+        ),
+    )
+    credentials: list[ChatRequestCredential] = Field(
+        default_factory=list,
+        description=(
+            "Client-held credentials for optional integrations (e.g. the "
+            "user's own GitHub personal access token under the key "
+            "``GITHUB_PERSONAL_ACCESS_TOKEN``), used only for the duration of "
+            "the turn and never persisted. Unknown keys are rejected."
         ),
     )
     record_local_traces: bool = False
@@ -716,8 +745,8 @@ class PatchAgentSessionRequestBody(V1RoutesBaseModel):
 class AgentSessionSummary(V1RoutesBaseModel):
     id: str
     title: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: IsoDatetime
+    updated_at: IsoDatetime
     is_ephemeral: bool
 
 
@@ -3227,6 +3256,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     else None
                 )
                 tracer_provider = tracer.tracer_provider if tracer is not None else None
+                github_mcp_config: GitHubMCPConfig | None = None
+                github_enabled = AgentsEnvConfig.from_env().allows_github(
+                    request.app.state.system_settings.agent_github
+                )
                 async with request.app.state.db() as session:
                     phoenix_user_email = await _load_phoenix_user_email(
                         session=session,
@@ -3236,6 +3269,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         session,
                         agent_session_rowid=agent_session_rowid,
                     )
+                    if github_enabled:
+                        github_mcp_config = await resolve_github_mcp_config(
+                            session,
+                            request.app.state.decrypt,
+                            {credential.key: credential.value for credential in body.credentials},
+                        )
                 model = await build_model(
                     session_model,
                     db=db_session_factory,
@@ -3307,6 +3346,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 ),
                 docs_mcp_server=request.app.state.docs_mcp_server,
                 phoenix_mcp_server=request.app.state.pxi_mcp_server,
+                github_mcp_config=github_mcp_config,
                 tracer_provider=tracer_provider,
                 read_only=request.app.state.read_only,
                 auth_enabled=request.app.state.authentication_enabled,

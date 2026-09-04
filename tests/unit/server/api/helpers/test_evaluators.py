@@ -34,6 +34,7 @@ from phoenix.db.types.model_provider import (
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptMessage,
+    PromptMessageRole,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
     PromptResponseFormatJSONSchema,
@@ -56,6 +57,7 @@ from phoenix.server.api.evaluators import (
     apply_input_mapping,
     cast_template_variable_types,
     get_evaluators,
+    infer_input_schema_from_template,
     json_diff_count,
     levenshtein_distance,
     validate_template_variables,
@@ -69,7 +71,14 @@ from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_configs,
 )
 from phoenix.server.api.helpers.playground_clients import OpenAIChatCompletionsClient
+from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.PromptVersionInput import (
+    ContentPartInput,
+    PromptChatTemplateInput,
+    PromptMessageInput,
+    TextContentValueInput,
+)
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
@@ -1114,8 +1123,8 @@ class TestCastTemplateVariableTypes:
         )
         assert result == {"count": "42"}
 
-    def test_converts_list_to_string(self) -> None:
-        template_variables = {"items": [1, 2, 3]}
+    def test_serializes_list_as_json(self) -> None:
+        template_variables = {"items": [1, 2, None]}
         input_schema = {
             "type": "object",
             "properties": {"items": {"type": "string"}},
@@ -1124,10 +1133,10 @@ class TestCastTemplateVariableTypes:
             template_variables=template_variables,
             input_schema=input_schema,
         )
-        assert result == {"items": "[1, 2, 3]"}
+        assert result == {"items": "[1, 2, null]"}
 
-    def test_converts_dict_to_string(self) -> None:
-        template_variables = {"data": {"key": "value"}}
+    def test_serializes_dict_as_json(self) -> None:
+        template_variables = {"data": {"key": "value", "missing": None, "flag": True}}
         input_schema = {
             "type": "object",
             "properties": {"data": {"type": "string"}},
@@ -1136,7 +1145,7 @@ class TestCastTemplateVariableTypes:
             template_variables=template_variables,
             input_schema=input_schema,
         )
-        assert result == {"data": "{'key': 'value'}"}
+        assert result == {"data": '{"key": "value", "missing": null, "flag": true}'}
 
     def test_converts_none_to_string(self) -> None:
         template_variables = {"value": None}
@@ -1197,6 +1206,86 @@ class TestCastTemplateVariableTypes:
             input_schema=input_schema,
         )
         assert result == {"key": 42}
+
+
+class TestDottedTemplateTokenBinding:
+    """
+    A dotted token binds the root it names, so what the renderer walks is the
+    root's own structure rather than a flat key spelled with a dot in it.
+    """
+
+    @staticmethod
+    def _render(template_text: str, context: dict[str, Any]) -> str:
+        template = PromptChatTemplateInput(
+            messages=[
+                PromptMessageInput(
+                    role=PromptMessageRole.USER,
+                    content=[ContentPartInput(text=TextContentValueInput(text=template_text))],
+                )
+            ]
+        )
+        input_schema = infer_input_schema_from_template(
+            template=template,
+            template_format=PromptTemplateFormat.MUSTACHE,
+        )
+        variables = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=InputMapping(path_mapping={}, literal_mapping={}),
+            context=context,
+        )
+        variables = cast_template_variable_types(
+            template_variables=variables,
+            input_schema=input_schema,
+        )
+        validate_template_variables(
+            template_variables=variables,
+            input_schema=input_schema,
+        )
+        formatter = get_template_formatter(PromptTemplateFormat.MUSTACHE)
+        return formatter.format(template_text, **variables)
+
+    def test_requires_one_variable_per_root(self) -> None:
+        template = PromptChatTemplateInput(
+            messages=[
+                PromptMessageInput(
+                    role=PromptMessageRole.USER,
+                    content=[
+                        ContentPartInput(
+                            text=TextContentValueInput(text="{{input.input}} {{input}} {{output}}")
+                        )
+                    ],
+                )
+            ]
+        )
+        assert infer_input_schema_from_template(
+            template=template,
+            template_format=PromptTemplateFormat.MUSTACHE,
+        ) == {
+            "type": "object",
+            # `input` is read into, so it stays whatever the context holds;
+            # `output` is named on its own, so it is serialized for the prompt.
+            "properties": {"input": {}, "output": {"type": "string"}},
+            "required": ["input", "output"],
+        }
+
+    def test_renders_the_traversed_value_and_the_whole_root(self) -> None:
+        context = {
+            "input": {"input": "Is there a free tier?"},
+            "output": {"output": "Yes."},
+            "metadata": {"span_kind": "AGENT"},
+        }
+        rendered = self._render(
+            "A=[{{input.input}}] B=[{{metadata.span_kind}}] C=[{{output.output}}] D=[{{input}}]",
+            context,
+        )
+        assert rendered == (
+            'A=[Is there a free tier?] B=[AGENT] C=[Yes.] D=[{"input": "Is there a free tier?"}]'
+        )
+
+    def test_renders_a_missing_member_as_empty(self) -> None:
+        # Mustache resolves an unmatched path to nothing; only an explicit path
+        # mapping that matches no value is an error.
+        assert self._render("A=[{{input.absent}}]", {"input": {"input": "present"}}) == "A=[]"
 
 
 class TestValidateTemplateVariables:

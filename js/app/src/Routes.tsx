@@ -37,7 +37,7 @@ import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/setti
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
 import { settingsSecretsPageLoader } from "@phoenix/pages/settings/secrets/settingsSecretsPageLoader";
-import { settingsAgentsPageLoader } from "@phoenix/pages/settings/settingsAgentsPageLoader";
+import { settingsAgentsChatsLoader } from "@phoenix/pages/settings/settingsAgentsChatsLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -67,6 +67,7 @@ import {
   AttachCodeProjectEvaluatorPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
+  CopyCodeProjectEvaluatorPage,
   CopyLlmProjectEvaluatorPage,
   dashboardsLoader,
   DashboardsEmptyPage,
@@ -127,7 +128,12 @@ import {
   settingsGeneralPageLoader,
   SettingsPage,
   SettingsPromptsPage,
+  SettingsAgentsChatsTab,
+  SettingsAgentsGeneralTab,
   SettingsAgentsPage,
+  SettingsAgentsPermissionsTab,
+  SettingsAgentsToolsTab,
+  SettingsAgentsTracingTab,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
   SupportPage,
@@ -494,6 +500,10 @@ export const appRouteObjects = createRoutesFromElements(
                 path="evaluators"
                 element={<ProjectEvaluatorsPage />}
                 loader={projectEvaluatorsLoader}
+                // Time range changes are search-param writes; the table
+                // refetches its own fragment for those, so re-running the
+                // loader would fetch the first page twice.
+                shouldRevalidate={revalidateOnPathChange}
                 handle={{
                   agentRoute: {
                     label: "Project Evaluators",
@@ -525,13 +535,24 @@ export const appRouteObjects = createRoutesFromElements(
                   }}
                 />
                 <Route
-                  path="new/copy/:evaluatorId"
+                  path="new/copy-llm/:evaluatorId"
                   element={<CopyLlmProjectEvaluatorPage />}
                   handle={{
                     agentRoute: {
                       label: "Copy LLM Evaluator Into Project",
                       description:
                         "Create a project evaluator seeded from an existing LLM evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/copy-code/:evaluatorId"
+                  element={<CopyCodeProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Duplicate Code Evaluator Into Project",
+                      description:
+                        "Create and attach a new project code evaluator seeded from an existing code evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being duplicated.",
                     },
                   }}
                 />
@@ -598,13 +619,24 @@ export const appRouteObjects = createRoutesFromElements(
                 }}
               />
               <Route
-                path="new/copy/:evaluatorId"
+                path="new/copy-llm/:evaluatorId"
                 element={<CopyLlmProjectEvaluatorPage />}
                 handle={{
                   agentRoute: {
                     label: "Copy LLM Evaluator Into Project From Gallery",
                     description:
                       "Create a project evaluator seeded from an existing LLM evaluator while browsing the evaluator gallery. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+                  },
+                }}
+              />
+              <Route
+                path="new/copy-code/:evaluatorId"
+                element={<CopyCodeProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Duplicate Code Evaluator Into Project From Gallery",
+                    description:
+                      "Create and attach a new project code evaluator seeded from an existing code evaluator while browsing the evaluator gallery. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being duplicated.",
                   },
                 }}
               />
@@ -1321,16 +1353,28 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path="agents"
             element={<SettingsAgentsPage />}
-            loader={settingsAgentsPageLoader}
             handle={{
               crumb: () => "Agents",
               agentRoute: {
                 label: "Agent Settings",
                 description:
-                  "Configure the assistant, PXI enablement, agent model, edit approvals, experiment flags, trace collection, and manage saved assistant sessions.",
+                  "Configure the assistant across topical tabs, each a nested route: General (enable assistant, model, floating button, temporary chats), tools (web search, subagents, GitHub token), permissions (assistant access, edit approvals), tracing (trace saving, export, attribution), and chats (retention rules, saved assistant sessions).",
               },
             }}
-          />
+          >
+            <Route index element={<SettingsAgentsGeneralTab />} />
+            <Route path="tools" element={<SettingsAgentsToolsTab />} />
+            <Route
+              path="permissions"
+              element={<SettingsAgentsPermissionsTab />}
+            />
+            <Route path="tracing" element={<SettingsAgentsTracingTab />} />
+            <Route
+              path="chats"
+              element={<SettingsAgentsChatsTab />}
+              loader={settingsAgentsChatsLoader}
+            />
+          </Route>
         </Route>
         <Route
           path="/redirects/spans/:span_otel_id"

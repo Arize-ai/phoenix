@@ -11,8 +11,8 @@ import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
 import {
+  buildAnnotationDeleteFilter,
   formatAnnotationDeleteOutput,
-  type AnnotationDeleteFilter,
 } from "./formatAnnotationDelete";
 import type { AnnotationsDeleteOptions } from "./options";
 
@@ -118,16 +118,14 @@ async function sessionAnnotationsDeleteHandler(
       );
     }
 
-    const filter: AnnotationDeleteFilter = {
-      ...(options.identifier !== undefined && {
-        identifier: options.identifier,
-      }),
-      ...(options.name !== undefined && { name: options.name }),
-      ...(annotatorKind !== undefined && { annotator_kind: annotatorKind }),
-      ...(options.startTime !== undefined && { start_time: options.startTime }),
-      ...(options.endTime !== undefined && { end_time: options.endTime }),
-      ...(options.all === true && { all: true }),
-    };
+    const filter = buildAnnotationDeleteFilter({
+      identifier: options.identifier,
+      name: options.name,
+      annotatorKind,
+      startTime: options.startTime,
+      endTime: options.endTime,
+      all: options.all,
+    });
 
     writeOutput({
       message: formatAnnotationDeleteOutput({

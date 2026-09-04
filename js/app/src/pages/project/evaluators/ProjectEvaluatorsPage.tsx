@@ -1,21 +1,39 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
-import { Outlet, useParams } from "react-router";
+import { Suspense, useCallback, useState } from "react";
+import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, Skeleton, Text, View } from "@phoenix/components";
+import { Flex, Loading, Text, View } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
-import type { ProjectEvaluatorsPageQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsPageQuery.graphql";
+import { EVALUATOR_FILTER_PARAM } from "@phoenix/constants/searchParams";
+import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
+import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
+import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
+import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
 
 export function ProjectEvaluatorsPage() {
   const { projectId } = useParams();
   invariant(projectId, "projectId is required");
-  const [filter, setFilter] = useState("");
+  const [urlFilter, setUrlFilter] = useFilterSearchParam(
+    EVALUATOR_FILTER_PARAM
+  );
+  // One debounced onChange feeds both: the raw text drives the table while
+  // the hook lands the trimmed value in the URL. Seeded from the URL so a
+  // shared or reloaded link restores the search; the route loader preloads
+  // the first page with the same param.
+  const [filter, setFilter] = useState(urlFilter);
+  const handleFilterChange = useCallback(
+    (nextFilter: string) => {
+      setFilter(nextFilter);
+      setUrlFilter(nextFilter);
+    },
+    [setUrlFilter]
+  );
   return (
     <main
       css={css`
@@ -25,12 +43,14 @@ export function ProjectEvaluatorsPage() {
         min-height: 0;
       `}
     >
-      <Suspense fallback={<ProjectEvaluatorsPageSkeleton />}>
-        <ProjectEvaluatorsPageContent
-          projectId={projectId}
-          filter={filter}
-          onFilterChange={setFilter}
-        />
+      <Suspense fallback={<Loading />}>
+        <ProjectEvaluatorsTableProvider>
+          <ProjectEvaluatorsPageContent
+            projectId={projectId}
+            filter={filter}
+            onFilterChange={handleFilterChange}
+          />
+        </ProjectEvaluatorsTableProvider>
       </Suspense>
       {/* The create and edit slideovers, each on its own nested route. The
           copy and attach routes suspend while loading the evaluator they are
@@ -52,34 +72,18 @@ function ProjectEvaluatorsPageContent({
   onFilterChange: (filter: string) => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
-  // The owner query supplies the initial filter and range. Subsequent toolbar,
-  // live, or user-selected changes refetch the pagination fragment in
-  // ProjectEvaluatorsTable without reloading this query.
-  const [initialFilter] = useState(() => filter.trim());
-  const [initialTimeRange] = useState(() => timeRangeISOStrings);
-  const data = useLazyLoadQuery<ProjectEvaluatorsPageQuery>(
-    graphql`
-      query ProjectEvaluatorsPageQuery(
-        $projectId: ID!
-        $filter: ProjectEvaluatorFilter
-        $timeRange: TimeRange!
-      ) {
-        project: node(id: $projectId) {
-          ... on Project {
-            evaluatorCount
-            ...ProjectEvaluatorsTable_project
-              @arguments(filter: $filter, timeRange: $timeRange)
-          }
-        }
-      }
-    `,
-    {
-      projectId,
-      filter: initialFilter ? { col: "name", value: initialFilter } : null,
-      timeRange: initialTimeRange,
-    },
-    { fetchPolicy: "store-and-network" }
-  );
+  // The route loader preloads the owner query (with the filter and time
+  // range resolved from the URL). Subsequent toolbar, live, or user-selected
+  // changes refetch the pagination fragment in ProjectEvaluatorsTable without
+  // reloading this query.
+  const loaderData = useLoaderData<ProjectEvaluatorsLoaderData>();
+  invariant(loaderData?.queryRef, "loaderData with a queryRef is required");
+  // Frozen at mount: a loader revalidation must not re-key the table below.
+  const [initialTimeRange] = useState(() => loaderData.timeRange);
+  const data = useOwnedPreloadedQuery<projectEvaluatorsLoaderQuery>({
+    query: projectEvaluatorsLoaderGQL,
+    queryRef: loaderData.queryRef,
+  });
   invariant(data.project, "project is required");
   const paths = useProjectEvaluatorPaths();
   const isEmptyState =
@@ -121,29 +125,11 @@ function ProjectEvaluatorsPageContent({
         projectId={projectId}
         filter={filter}
         timeRange={timeRangeISOStrings}
-        initialFilter={initialFilter}
+        initialFilter={loaderData.filter}
         initialTimeRange={initialTimeRange}
+        initialScoreWindow={loaderData.scoreWindow}
+        initialIncludeMeanScore={loaderData.includeMeanScore}
       />
-    </>
-  );
-}
-
-function ProjectEvaluatorsPageSkeleton() {
-  return (
-    <>
-      <View
-        padding="size-100"
-        borderBottomWidth="thin"
-        borderBottomColor="default"
-        flex="none"
-      >
-        <Flex justifyContent="end">
-          <Skeleton width={140} height={40} animation="wave" />
-        </Flex>
-      </View>
-      <View padding="size-100">
-        <Skeleton width="100%" height={180} animation="wave" />
-      </View>
     </>
   );
 }

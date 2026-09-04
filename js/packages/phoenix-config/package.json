@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=18"

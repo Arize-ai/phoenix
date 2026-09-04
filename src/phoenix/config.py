@@ -88,6 +88,18 @@ ENV_PHOENIX_AGENTS_DISABLE_BASH = "PHOENIX_AGENTS_DISABLE_BASH"
 Disables the server-side bash tool by preventing subagents from being attached to
 the assistant. When true, the option to enable subagents is also hidden from the UI settings.
 """
+ENV_PHOENIX_AGENTS_DISABLE_GITHUB = "PHOENIX_AGENTS_DISABLE_GITHUB"
+"""
+Disables the PXI GitHub tools (backed by GitHub's MCP server) even when external
+resources are otherwise allowed. When true, the capability never registers and
+the GitHub settings UI is hidden.
+"""
+ENV_PHOENIX_AGENTS_GITHUB_MCP_URL = "PHOENIX_AGENTS_GITHUB_MCP_URL"
+"""
+Base URL of the GitHub MCP server the PXI GitHub tools connect to. Defaults to
+GitHub's hosted endpoint; point it at a self-hosted github-mcp-server instance
+for GitHub Enterprise Server or air-gapped deployments.
+"""
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
 Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
@@ -402,11 +414,6 @@ Seconds an online-eval consumer sleeps between claim cycles. Together with
 PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE this bounds per-replica evaluation throughput.
 Defaults to 5.0.
 """
-ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES = "PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES"
-"""
-The maximum UTF-8 byte size of the default transcript supplied to session evaluators.
-Defaults to 32768.
-"""
 ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES = "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES"
 """
 The maximum aggregate UTF-8 byte size of rendered messages sent by an online LLM evaluator.
@@ -472,7 +479,7 @@ ENV_PHOENIX_ALLOWED_PROVIDERS = "PHOENIX_ALLOWED_PROVIDERS"
 Comma-separated list of provider names to show in the UI.
 Provider names should match GenerativeProviderKey enum names:
 OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA,
-AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER.
+AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI.
 Case-insensitive. When unset, all providers are shown.
 Set to NONE to hide all providers.
 Example: PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
@@ -1517,6 +1524,21 @@ def get_env_phoenix_agents_web_access_enabled() -> bool:
 
 def get_env_phoenix_agents_disable_bash() -> bool:
     return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_BASH, False)
+
+
+def get_env_phoenix_agents_disable_github() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_GITHUB, False)
+
+
+def get_env_phoenix_agents_github_enabled() -> bool:
+    return get_env_allow_external_resources() and not get_env_phoenix_agents_disable_github()
+
+
+DEFAULT_GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/"
+
+
+def get_env_phoenix_agents_github_mcp_url() -> str:
+    return getenv(ENV_PHOENIX_AGENTS_GITHUB_MCP_URL) or DEFAULT_GITHUB_MCP_URL
 
 
 class AuthSettings(NamedTuple):
@@ -3694,22 +3716,6 @@ def get_env_online_eval_consumer_tick_interval_seconds() -> float:
             f"{seconds}. Value must be a finite positive number."
         )
     return seconds
-
-
-def get_env_online_eval_max_transcript_bytes() -> int:
-    """Get the session transcript cap, whose minimum is 256 UTF-8 bytes.
-
-    The cap bounds only the rendered ``input`` string. Structured ``turns`` values used
-    by explicit mappings are not truncated.
-    """
-    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES, 32_768)
-    if max_bytes < 256:
-        raise ValueError(
-            f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES}: "
-            f"{max_bytes}. Value must be an integer of at least 256."
-        )
-    return max_bytes
 
 
 def get_env_online_eval_max_llm_message_bytes() -> int:

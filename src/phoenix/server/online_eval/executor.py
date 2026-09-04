@@ -18,11 +18,11 @@ from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Seq
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import with_polymorphic
+from sqlalchemy.orm import joinedload, selectinload, with_polymorphic
 from strawberry.relay import GlobalID
 
 from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES,
+    get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_sandbox_payload_bytes,
 )
 from phoenix.db import models
@@ -41,6 +41,11 @@ from phoenix.server.api.evaluators import (
     LLMEvaluator,
     get_builtin_evaluator_by_key,
 )
+from phoenix.server.api.helpers.dataset_helpers import (
+    get_dataset_example_input,
+    get_dataset_example_metadata,
+    get_dataset_example_output,
+)
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.dml_event import (
@@ -48,6 +53,8 @@ from phoenix.server.dml_event import (
     ProjectSessionAnnotationInsertEvent,
     SpanAnnotationInsertEvent,
 )
+from phoenix.server.online_eval import session_policy
+from phoenix.server.online_eval.bound_variables import load_session_bound_variables
 from phoenix.server.online_eval.coordinator import ClaimedWorkUnit, EvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
     STALE_FINGERPRINT_ERROR,
@@ -57,7 +64,6 @@ from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.session_policy import (
     ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
-    SessionTranscriptPolicy,
     session_project_evaluator_is_schedulable,
 )
 from phoenix.server.online_eval.tracing import (
@@ -76,7 +82,7 @@ logger = logging.getLogger(__name__)
 _TRACE_PERSIST_DRAIN_SECONDS = 30.0
 
 _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
-_TRANSCRIPT_POLICY_METADATA_KEY = "phoenix.online_eval.transcript_policy"
+_SESSION_POLICY_METADATA_KEY = "phoenix.online_eval.session_policy"
 _EVALUATOR_TRACE_ID_METADATA_KEY = "phoenix.evaluator_trace_id"
 _DEFAULT_EXECUTION_DEADLINE_SECONDS = 600.0
 
@@ -95,10 +101,6 @@ class EvaluatorResultValidationError(EvalExecutionError):
         count_attempt=True,
         code="EVALUATOR_RESULT_INVALID",
     )
-
-
-class TranscriptTooLargeError(Exception):
-    """No complete session turn fits within the transcript limit."""
 
 
 class OnlineEvalStoragePaused(Exception):
@@ -121,7 +123,6 @@ class HydrationFailureReason(str, Enum):
     SESSION_CONTENT_INCOMPLETE = "SESSION_CONTENT_INCOMPLETE"
     UNSUPPORTED_TARGET = "UNSUPPORTED_TARGET"
     NO_ROOT_TURNS = "NO_ROOT_TURNS"
-    TRANSCRIPT_TOO_LARGE = "TRANSCRIPT_TOO_LARGE"
 
 
 @dataclass(frozen=True)
@@ -182,97 +183,70 @@ ConfigurationSnapshotOutcome = (
 )
 
 
-def span_eval_context(span: models.Span) -> dict[str, Any]:
-    """Span context; ``metadata.attributes`` roots attribute ``path_mapping`` expressions."""
+@dataclass(frozen=True)
+class SessionEvalContext:
+    """A session's bindable context and the record of what was loaded to build it."""
+
+    context: dict[str, Any]
+    applied_policy: dict[str, Any]
+
+
+def span_eval_context(
+    span: models.Span,
+    *,
+    trace_id: str,
+    annotations: Sequence[models.SpanAnnotation],
+) -> dict[str, Any]:
+    """Span context, sharing the span→dataset-example conversion so an
+    evaluator sees the same values on a span and on the example made from it."""
     return {
-        "input": span.input_value,
-        "output": span.output_value,
-        "metadata": {
-            "attributes": span.attributes,
-            "name": span.name,
-            "span_kind": span.span_kind,
-            "status_code": span.status_code,
-            "status_message": span.status_message,
-        },
+        "input": get_dataset_example_input(span),
+        "output": get_dataset_example_output(span),
+        "metadata": get_dataset_example_metadata(span, trace_id=trace_id, annotations=annotations),
     }
 
 
 def session_eval_context(
     *,
     turns: Sequence[dict[str, Any]],
-    policy: SessionTranscriptPolicy,
+    vocabulary: Mapping[str, Any],
     total_eligible_root_count: Optional[int] = None,
-) -> dict[str, Any]:
-    """Build the transcript, turn metadata, and applied transcript policy."""
-    max_transcript_bytes = policy.max_transcript_bytes
+) -> SessionEvalContext:
+    """Session context. ``input`` and ``output`` bind the values the session filter
+    language spells ``first_input`` and ``last_output``, so one concept keeps one
+    spelling across a filter, a preview, and an evaluation. ``vocabulary`` must
+    carry every name in ``SESSION_BOUND_VARIABLE_NAMES`` plus the session's
+    ``start_time``/``end_time`` record fields, as ``load_session_bound_variables``
+    returns it.
+
+    The applied policy is returned beside the context rather than inside it: it is
+    published on the annotation, not bound by the evaluator, and every top-level
+    context key is bindable.
+    """
     total_root_count = (
         len(turns) if total_eligible_root_count is None else total_eligible_root_count
     )
-    turn_cap_omitted_count = max(0, total_root_count - len(turns))
-    turn_blocks = [
-        "User: "
-        f"{'' if turn['input'] is None else turn['input']}\n"
-        "Assistant: "
-        f"{'' if turn['output'] is None else turn['output']}"
-        for turn in turns
-    ]
-    transcript = "\n\n".join(turn_blocks)
-    transcript_bytes = len(transcript.encode("utf-8"))
-    byte_cap_omitted_count = 0
-    if transcript_bytes > max_transcript_bytes:
-        block_sizes = [len(block.encode("utf-8")) for block in turn_blocks]
-        suffix_sizes = [0] * (len(turn_blocks) + 1)
-        for index in range(len(turn_blocks) - 1, -1, -1):
-            separator_size = 2 if index + 1 < len(turn_blocks) else 0
-            suffix_sizes[index] = block_sizes[index] + separator_size + suffix_sizes[index + 1]
-        for omitted_turns in range(1, len(turn_blocks) + 1):
-            marker = f"[transcript truncated: first {omitted_turns} turns omitted]"
-            retained_size = suffix_sizes[omitted_turns]
-            candidate_size = len(marker.encode("utf-8"))
-            if retained_size:
-                candidate_size += 2 + retained_size
-            if candidate_size <= max_transcript_bytes:
-                if omitted_turns == len(turn_blocks):
-                    raise TranscriptTooLargeError(
-                        f"Session transcript is {transcript_bytes} bytes, exceeding the "
-                        f"{max_transcript_bytes}-byte cap, and no complete turns fit after "
-                        f"truncation. Raise {ENV_PHOENIX_ONLINE_EVAL_MAX_TRANSCRIPT_BYTES} "
-                        "to evaluate this session."
-                    )
-                retained = "\n\n".join(turn_blocks[omitted_turns:])
-                transcript = f"{marker}\n\n{retained}"
-                byte_cap_omitted_count = omitted_turns
-                break
-
-    retained_turns = list(turns[byte_cap_omitted_count:])
-    first_loaded = turns[0].get("event_time") if turns else None
-    last_loaded = turns[-1].get("event_time") if turns else None
-    first_retained = retained_turns[0].get("event_time") if retained_turns else None
-    last_retained = retained_turns[-1].get("event_time") if retained_turns else None
-    output = turns[-1]["output"] if turns and turns[-1]["output"] is not None else ""
     applied_policy = {
-        "version": policy.version,
+        "version": session_policy.SESSION_POLICY_VERSION,
         "ordering": "trace_start_time_then_trace_id_with_earliest_root_span",
-        "max_turns": policy.max_turns,
-        "max_bytes": max_transcript_bytes,
+        "max_turns": session_policy.MAX_SESSION_EVAL_TURNS,
         "total_eligible_root_count": total_root_count,
         "loaded_turn_count": len(turns),
-        "retained_turn_count": len(retained_turns),
-        "turn_cap_omitted_count": turn_cap_omitted_count,
-        "byte_cap_omitted_count": byte_cap_omitted_count,
-        "first_loaded_event_time": first_loaded,
-        "last_loaded_event_time": last_loaded,
-        "first_retained_event_time": first_retained,
-        "last_retained_event_time": last_retained,
+        "turn_cap_omitted_count": max(0, total_root_count - len(turns)),
+        "first_loaded_event_time": turns[0].get("event_time") if turns else None,
+        "last_loaded_event_time": turns[-1].get("event_time") if turns else None,
     }
-    return {
-        "input": transcript,
-        "output": output,
-        "metadata": {
-            "turns": list(turns),
-            _TRANSCRIPT_POLICY_METADATA_KEY: applied_policy,
+    return SessionEvalContext(
+        context={
+            "input": vocabulary["first_input"],
+            "output": vocabulary["last_output"],
+            "metadata": {
+                **vocabulary,
+                "turns": list(turns),
+            },
         },
-    }
+        applied_policy=applied_policy,
+    )
 
 
 async def load_session_eval_context(
@@ -280,20 +254,24 @@ async def load_session_eval_context(
     *,
     project_session_rowid: int,
     project_id: int,
-    policy: SessionTranscriptPolicy,
-) -> dict[str, Any]:
+    vocabulary: Mapping[str, Any],
+) -> SessionEvalContext:
     """The session's evaluation context, exactly as an online evaluation reads it.
 
     The executor and the GraphQL preview field both call this, so what an author
-    previews is the same transcript, turn ordering, turn cap, and truncation the
-    runtime binds against. Raises ``TranscriptTooLargeError`` when no whole turn
-    fits the byte cap.
+    previews is the same session document, turn ordering, and turn cap the runtime
+    binds against. ``vocabulary`` is supplied by the caller because the executor
+    reads it for a whole batch of sessions at once.
     """
     root_filters = (
         models.Trace.project_session_rowid == project_session_rowid,
         models.Trace.project_rowid == project_id,
         models.Span.parent_id.is_(None),
     )
+    # Counted rather than derived from the loaded turns because the turns are
+    # capped: the difference is what `turn_cap_omitted_count` reports on every
+    # published annotation, telling a reader how much of the session the score
+    # did not see.
     total_eligible_root_count = (
         await session.scalar(
             select(func.count(func.distinct(models.Trace.id)))
@@ -337,7 +315,7 @@ async def load_session_eval_context(
                 ranked_roots.c.trace_start_time.desc(),
                 ranked_roots.c.trace_id.desc(),
             )
-            .limit(policy.max_turns)
+            .limit(session_policy.MAX_SESSION_EVAL_TURNS)
         )
     ).all()
     turns = [
@@ -352,21 +330,22 @@ async def load_session_eval_context(
     ]
     return session_eval_context(
         turns=turns,
-        policy=policy,
+        vocabulary=vocabulary,
         total_eligible_root_count=total_eligible_root_count,
     )
 
 
-def has_eligible_root_turns(context: Mapping[str, Any]) -> bool:
-    """Whether an assembled session context has a turn to evaluate.
+def has_eligible_root_turns(applied_policy: Mapping[str, Any]) -> bool:
+    """Whether a loaded session has a turn to evaluate.
 
-    A session whose traces carry no root span assembles to an empty transcript.
-    Live hydration refuses it (``NO_ROOT_TURNS``) rather than evaluating that
-    emptiness, so the preview field reads the same predicate and reports the
-    session as unevaluable instead of offering the empty context.
+    A session whose traces carry no root span loads no turns. Live hydration
+    refuses it (``NO_ROOT_TURNS``) rather than evaluating that emptiness, so the
+    preview field reads the same predicate and reports the session as unevaluable
+    instead of offering the empty context. Reading it off the applied policy
+    keeps one spelling of the question, though an empty count and an empty turn
+    list always agree.
     """
-    policy = context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
-    return bool(policy["total_eligible_root_count"])
+    return bool(applied_policy["total_eligible_root_count"])
 
 
 def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
@@ -376,21 +355,21 @@ def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
     return {_EVALUATOR_TRACE_ID_METADATA_KEY: trace_id} if trace_id else {}
 
 
-def _transcript_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
-    """Newest root-span time actually included in the evaluated transcript.
+def _session_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
+    """Newest root-span time actually loaded into the evaluated session.
 
     A session row is materialized with ``evaluated_through`` set to the ingest
-    watermark seen at sweep time, but the transcript is assembled later and can
-    cover more; publication records what the annotation read separately.
+    watermark seen at sweep time, but the session is loaded later and can cover
+    more; publication records what the annotation read separately.
     """
-    policy = hydrated.annotation_metadata.get(_TRANSCRIPT_POLICY_METADATA_KEY)
+    policy = hydrated.annotation_metadata.get(_SESSION_POLICY_METADATA_KEY)
     if not isinstance(policy, dict):
         return None
-    last_retained_event_time = policy.get("last_retained_event_time")
-    if not isinstance(last_retained_event_time, str):
+    last_loaded_event_time = policy.get("last_loaded_event_time")
+    if not isinstance(last_loaded_event_time, str):
         return None
     try:
-        watermark = datetime.fromisoformat(last_retained_event_time)
+        watermark = datetime.fromisoformat(last_loaded_event_time)
     except ValueError:
         return None
     return watermark if watermark.tzinfo is not None else watermark.replace(tzinfo=timezone.utc)
@@ -421,9 +400,6 @@ class OnlineEvalExecutor:
         self._tracer_factory = tracer_factory
         self._execution_deadline_seconds = execution_deadline_seconds
         self._db_semaphore = db_semaphore
-        # Read once, at construction: the same caps are fingerprinted at
-        # materialization, and assembling under different ones expires the work.
-        self._session_transcript_policy = SessionTranscriptPolicy.from_env()
 
     async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
         configuration = (await self.hydrate_configuration_snapshots([unit]))[0]
@@ -553,11 +529,30 @@ class OnlineEvalExecutor:
                 continue
             outcomes.append(None)
 
+        session_vocabularies: dict[int, dict[str, Any]] = {}
+        session_indices = [
+            index
+            for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True))
+            if outcome is None and unit.evaluation_target == "SESSION"
+        ]
+        if session_indices:
+            try:
+                # One savepointed batch read: a failure here is infrastructure,
+                # not a property of any one session's data.
+                async with session.begin_nested():
+                    session_vocabularies = await load_session_bound_variables(
+                        session,
+                        project_session_rowids={
+                            units[index].target_rowid for index in session_indices
+                        },
+                    )
+            except Exception as error:
+                for index in session_indices:
+                    outcomes[index] = SharedHydrationFailure(error)
+
         contexts: list[Optional[dict[str, Any]]] = [None for _ in units]
+        applied_policies: list[Optional[dict[str, Any]]] = [None for _ in units]
         input_mappings: list[Optional[InputMapping]] = [None for _ in units]
-        # Recorded on the annotation, never in the evaluated context: it is
-        # decided per evaluator, after the context an author previews is built.
-        maps_structured_turns: list[bool] = [False for _ in units]
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
@@ -568,6 +563,7 @@ class OnlineEvalExecutor:
                         session,
                         unit,
                         project_id=project_evaluator.project_id,
+                        session_vocabularies=session_vocabularies,
                     )
             except Exception as error:
                 outcomes[index] = error
@@ -575,6 +571,7 @@ class OnlineEvalExecutor:
             if isinstance(hydrated_context, HydrationFailure):
                 outcomes[index] = hydrated_context
                 continue
+            target_context, applied_policy = hydrated_context
             resolved = resolved_by_project_evaluator_id[unit.project_evaluator_id]
             assert resolved is not None
             try:
@@ -586,12 +583,8 @@ class OnlineEvalExecutor:
             except Exception as error:
                 outcomes[index] = error
                 continue
-            if unit.evaluation_target == "SESSION":
-                maps_structured_turns[index] = any(
-                    path_expression.removeprefix("$.").startswith("metadata.turns")
-                    for path_expression in (resolved_input_mapping.path_mapping or {}).values()
-                )
-            contexts[index] = hydrated_context
+            contexts[index] = target_context
+            applied_policies[index] = applied_policy
             input_mappings[index] = resolved_input_mapping
             matching_project_evaluator_ids.add(unit.project_evaluator_id)
 
@@ -638,23 +631,12 @@ class OnlineEvalExecutor:
             if snapshot_input_mapping is None:
                 outcomes[index] = RuntimeError("Input mapping hydration did not produce a result")
                 continue
-            annotation_metadata: dict[str, Any] = {}
-            if unit.evaluation_target == "SESSION":
-                policy = snapshot_context["metadata"][_TRANSCRIPT_POLICY_METADATA_KEY]
-                evaluator_input_schema = getattr(
-                    evaluator_snapshot_outcome.evaluator,
-                    "input_schema",
-                    {},
-                )
-                annotation_metadata = {
-                    _TRANSCRIPT_POLICY_METADATA_KEY: {
-                        **policy,
-                        "structured_turns_mapped": bool(
-                            maps_structured_turns[index]
-                            or "metadata" in evaluator_input_schema.get("properties", {})
-                        ),
-                    }
-                }
+            snapshot_applied_policy = applied_policies[index]
+            annotation_metadata: dict[str, Any] = (
+                {_SESSION_POLICY_METADATA_KEY: snapshot_applied_policy}
+                if snapshot_applied_policy is not None
+                else {}
+            )
             outcomes[index] = HydratedConfigurationSnapshot(
                 project_id=project_evaluator.project_id,
                 fingerprint=unit.config_fingerprint,
@@ -694,34 +676,48 @@ class OnlineEvalExecutor:
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
-    ) -> dict[str, Any] | HydrationFailure:
+        session_vocabularies: Mapping[int, Mapping[str, Any]],
+    ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
+        """The bindable context, plus the applied session policy for a SESSION unit."""
         if unit.evaluation_target == "SPAN":
-            span = await session.get(models.Span, unit.target_rowid)
+            span = await session.get(
+                models.Span,
+                unit.target_rowid,
+                options=[
+                    joinedload(models.Span.trace),
+                    selectinload(models.Span.span_annotations).selectinload(
+                        models.SpanAnnotation.user
+                    ),
+                ],
+            )
             if span is None:
                 return HydrationFailure(HydrationFailureReason.SPAN_MISSING)
-            return span_eval_context(span)
-        project_session = await session.get(models.ProjectSession, unit.target_rowid)
-        if project_session is None:
-            return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
-        if project_session.project_id != project_id:
-            return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
-        if not project_session.content_complete:
-            return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
-        try:
-            context = await load_session_eval_context(
+            return (
+                span_eval_context(
+                    span,
+                    trace_id=span.trace.trace_id,
+                    annotations=span.span_annotations,
+                ),
+                None,
+            )
+        if unit.evaluation_target == "SESSION":
+            project_session = await session.get(models.ProjectSession, unit.target_rowid)
+            if project_session is None:
+                return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
+            if project_session.project_id != project_id:
+                return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
+            if not project_session.content_complete:
+                return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
+            loaded = await load_session_eval_context(
                 session,
                 project_session_rowid=project_session.id,
                 project_id=project_id,
-                policy=self._session_transcript_policy,
+                vocabulary=session_vocabularies[unit.target_rowid],
             )
-        except TranscriptTooLargeError as error:
-            return HydrationFailure(
-                HydrationFailureReason.TRANSCRIPT_TOO_LARGE,
-                str(error),
-            )
-        if not has_eligible_root_turns(context):
-            return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
-        return context
+            if not has_eligible_root_turns(loaded.applied_policy):
+                return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+            return loaded.context, loaded.applied_policy
+        raise EvalExecutionError(f"unsupported online evaluation target {unit.evaluation_target!r}")
 
     def hydrate_from_snapshot(
         self,
@@ -817,7 +813,7 @@ class OnlineEvalExecutor:
             llm_client=llm_client,
             output_configs=evaluator_orm.output_configs,
             prompt_name=prompt.name.root,
-            max_message_bytes=self._session_transcript_policy.max_llm_message_bytes,
+            max_message_bytes=get_env_online_eval_max_llm_message_bytes(),
         )
         return _HydratedEvaluatorSnapshot(
             annotator_kind="LLM",
@@ -917,9 +913,9 @@ class OnlineEvalExecutor:
     ) -> None:
         """Run the eval and publish successful results as target annotations under
         the unit's identifier. Span results are first-write-wins; session results
-        replace a prior attempt so the annotation stays paired with its transcript
-        coverage. Raises before writing unless the evaluator returns one complete,
-        error-free result set. No DB session is open while the evaluator runs."""
+        replace a prior attempt so the annotation stays paired with its coverage.
+        Raises before writing unless the evaluator returns one complete, error-free
+        result set. No DB session is open while the evaluator runs."""
         tracer = (
             marked_evaluator_tracer(
                 self._tracer_factory(),
@@ -1030,10 +1026,14 @@ class OnlineEvalExecutor:
                 annotation_table = models.SpanAnnotation
                 unique_by = ("name", "span_rowid", "identifier")
                 on_conflict = OnConflict.DO_NOTHING
-            else:
+            elif unit.evaluation_target == "SESSION":
                 annotation_table = models.ProjectSessionAnnotation
                 unique_by = ("name", "project_session_id", "identifier")
                 on_conflict = OnConflict.DO_UPDATE
+            else:
+                raise EvalExecutionError(
+                    f"unsupported online evaluation target {unit.evaluation_target!r}"
+                )
             inserted_ids: Sequence[int] = ()
 
             async def _write_annotations(session: AsyncSession) -> None:
@@ -1058,7 +1058,7 @@ class OnlineEvalExecutor:
                     claimed_by=unit.claimed_by,
                     write=_write_annotations,
                     coverage_watermark=(
-                        _transcript_coverage_watermark(hydrated)
+                        _session_coverage_watermark(hydrated)
                         if unit.evaluation_target == "SESSION"
                         else None
                     ),
@@ -1068,8 +1068,12 @@ class OnlineEvalExecutor:
             if self._event_queue is not None and inserted_ids:
                 if unit.evaluation_target == "SPAN":
                     self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
-                else:
+                elif unit.evaluation_target == "SESSION":
                     self._event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
+                else:
+                    raise EvalExecutionError(
+                        f"unsupported online evaluation target {unit.evaluation_target!r}"
+                    )
         if not records:
             raise EvalExecutionError("evaluator returned no results")
 

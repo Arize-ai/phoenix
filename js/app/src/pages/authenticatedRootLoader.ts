@@ -13,6 +13,9 @@ export const authenticatedRootLoaderQueryNode = graphql`
       forceTracing
       webAccessEnabled
       assistantEnabled
+      githubServerEnabled
+      githubEnabled
+      githubWorkspaceTokenConfigured
       allowLocalTraces
       allowRemoteExport
       sessionRetentionMaxIdleDays

@@ -169,8 +169,10 @@ export type DatasetEvaluatorMappingSource = {
 };
 
 /**
- * As produced by the server: `input`/`output` are raw attribute values
- * (commonly a string or null), and `metadata` is rooted at `metadata.attributes`.
+ * As produced by the server: `input` and `output` are the span's own input and
+ * output values, and everything else sits flat under `metadata` — the span
+ * filter language's names beside the record's timestamps, `attributes`,
+ * `events`, and `annotations`.
  */
 export type SpanEvaluatorMappingSource = {
   input: unknown;
@@ -179,9 +181,10 @@ export type SpanEvaluatorMappingSource = {
 };
 
 /**
- * As produced by the server: `input` is the session transcript, `output` is the
- * last response in the session, and `metadata` holds the ordered turns and the
- * transcript policy that assembled them.
+ * As produced by the server: `input` and `output` are the values the session
+ * filter language spells `first_input` and `last_output`, and everything else
+ * sits flat under `metadata` — those names beside the session's timestamps
+ * and `turns`.
  *
  * Structurally identical to a span source, but semantically distinct: the two
  * grains name different records and offer different mapping vocabulary, so the

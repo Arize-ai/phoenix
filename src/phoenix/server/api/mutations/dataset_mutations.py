@@ -3,16 +3,9 @@ from datetime import datetime
 from typing import Any, Optional, cast
 
 import strawberry
-from openinference.semconv.trace import (
-    MessageAttributes,
-    MessageContentAttributes,
-    SpanAttributes,
-    ToolAttributes,
-    ToolCallAttributes,
-)
 from sqlalchemy import and_, delete, distinct, func, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import contains_eager, joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
@@ -25,6 +18,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
+    get_dataset_example_metadata,
     get_dataset_example_output,
 )
 from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
@@ -166,9 +160,10 @@ class DatasetMutationMixin:
                         )
                         .where(models.Span.id.in_(span_rowids))
                         .options(
+                            joinedload(models.Span.trace),
                             contains_eager(models.Span.span_annotations).contains_eager(
                                 models.SpanAnnotation.user
-                            )
+                            ),
                         )
                     )
                 )
@@ -195,17 +190,6 @@ class DatasetMutationMixin:
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
             DatasetExampleRevision = models.DatasetExampleRevision
 
-            all_span_attributes = {
-                **SpanAttributes.__dict__,
-                **MessageAttributes.__dict__,
-                **MessageContentAttributes.__dict__,
-                **ToolCallAttributes.__dict__,
-                **ToolAttributes.__dict__,
-            }
-            nonprivate_span_attributes = {
-                k: v for k, v in all_span_attributes.items() if not k.startswith("_")
-            }
-
             await session.execute(
                 insert(DatasetExampleRevision),
                 [
@@ -214,16 +198,11 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.dataset_version_id.key: dataset_version.id,
                         DatasetExampleRevision.input.key: get_dataset_example_input(span),
                         DatasetExampleRevision.output.key: get_dataset_example_output(span),
-                        DatasetExampleRevision.metadata_.key: {
-                            **(span.attributes.get(SpanAttributes.METADATA) or dict()),
-                            **{
-                                k: v
-                                for k, v in span.attributes.items()
-                                if k in nonprivate_span_attributes
-                            },
-                            "span_kind": span.span_kind,
-                            "annotations": _gather_span_annotations_by_name(span.span_annotations),
-                        },
+                        DatasetExampleRevision.metadata_.key: get_dataset_example_metadata(
+                            span,
+                            trace_id=span.trace.trace_id,
+                            annotations=span.span_annotations,
+                        ),
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
                     for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
@@ -625,19 +604,6 @@ def _check_dataset_scope(dataset: models.Dataset, dataset_gid: Optional[GlobalID
         )
 
 
-def _span_attribute(semconv: str) -> Any:
-    """
-    Extracts an attribute from the ORM span attributes column and labels the
-    result.
-
-    E.g., "input.value" -> Span.attributes["input"]["value"].label("input_value")
-    """
-    attribute_value: Any = models.Span.attributes
-    for key in semconv.split("."):
-        attribute_value = attribute_value[key]
-    return attribute_value.label(semconv.replace(".", "_"))
-
-
 def _to_orm_revision(
     *,
     existing_revision: models.DatasetExampleRevision,
@@ -666,41 +632,3 @@ def _to_orm_revision(
             (db_rev.revision_kind, "PATCH"),
         )
     }
-
-
-def _gather_span_annotations_by_name(
-    span_annotations: list[models.SpanAnnotation],
-) -> dict[str, list[dict[str, Any]]]:
-    span_annotations_by_name: dict[str, list[dict[str, Any]]] = {}
-    for span_annotation in span_annotations:
-        if span_annotation.name not in span_annotations_by_name:
-            span_annotations_by_name[span_annotation.name] = []
-        span_annotations_by_name[span_annotation.name].append(
-            _to_span_annotation_dict(span_annotation)
-        )
-    return span_annotations_by_name
-
-
-def _to_span_annotation_dict(span_annotation: models.SpanAnnotation) -> dict[str, Any]:
-    return {
-        "label": span_annotation.label,
-        "score": span_annotation.score,
-        "explanation": span_annotation.explanation,
-        "metadata": span_annotation.metadata_,
-        "annotator_kind": span_annotation.annotator_kind,
-        "user_id": str(GlobalID(models.User.__name__, str(user_id)))
-        if (user_id := span_annotation.user_id) is not None
-        else None,
-        "username": user.username if (user := span_annotation.user) is not None else None,
-        "email": user.email if user is not None else None,
-    }
-
-
-INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
-INPUT_VALUE = SpanAttributes.INPUT_VALUE
-OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
-OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
-LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
-LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
-LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
-RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS

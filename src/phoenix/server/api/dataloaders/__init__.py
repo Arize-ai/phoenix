@@ -10,6 +10,7 @@ from phoenix.server.types import DbSessionFactory
 
 from .agent_session_message_text import AgentSessionMessageTextDataLoader
 from .annotation_configs_by_project import AnnotationConfigsByProjectDataLoader
+from .annotation_mean_score_time_series import AnnotationMeanScoreTimeSeriesDataLoader
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_repeated_run_group_latency import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
@@ -160,6 +161,7 @@ class DataLoaders:
     agent_session_first_inputs: AgentSessionMessageTextDataLoader
     agent_session_latest_outputs: AgentSessionMessageTextDataLoader
     annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
+    annotation_mean_score_time_series: AnnotationMeanScoreTimeSeriesDataLoader
     annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_repeated_run_group_latency: (
         AverageExperimentRepeatedRunGroupLatencyDataLoader
@@ -314,6 +316,7 @@ def build_data_loaders(
         agent_session_first_inputs=AgentSessionMessageTextDataLoader(db, "first_input"),
         agent_session_latest_outputs=AgentSessionMessageTextDataLoader(db, "latest_output"),
         annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
+        annotation_mean_score_time_series=AnnotationMeanScoreTimeSeriesDataLoader(db),
         average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
             db
         ),

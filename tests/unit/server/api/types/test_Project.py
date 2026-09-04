@@ -2347,6 +2347,28 @@ class TestProject:
             projects=projects,
         )
 
+    async def test_unsorted_sessions_pagination_advances(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        unpaged = await self._node("sessions(first:50){edges{node{id}}}", project, httpx_client)
+        expected = [edge["node"]["id"] for edge in unpaged["edges"]]
+
+        seen: list[str] = []
+        cursor = ""
+        while True:
+            field = f'sessions(first:2,after:"{cursor}"){{edges{{node{{id}}cursor}}}}'
+            result = await self._node(field, project, httpx_client)
+            edges = result["edges"]
+            if not edges:
+                break
+            seen.extend(edge["node"]["id"] for edge in edges)
+            cursor = edges[-1]["cursor"]
+            assert len(seen) <= len(expected), "pagination did not advance"
+        assert seen == expected
+
     async def test_sessions_sort_token_count_total(
         self,
         _data: _Data,

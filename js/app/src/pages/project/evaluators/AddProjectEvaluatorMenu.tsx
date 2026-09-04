@@ -5,7 +5,7 @@ import type {
 } from "react-aria-components";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
-import { useHref, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 
 import type { ButtonProps } from "@phoenix/components/core/button";
 import { Button } from "@phoenix/components/core/button";
@@ -127,7 +127,6 @@ function ProjectEvaluatorMenuItems({
 }) {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
-  const galleryHref = useHref(paths.gallery);
   const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
     projectEvaluatorOptionsQueryNode,
     {},
@@ -156,9 +155,8 @@ function ProjectEvaluatorMenuItems({
         {shouldShowGalleryLink ? (
           <MenuSection>
             <MenuItem
+              href={paths.gallery}
               leadingContent={<Icon svg={<Icons.Grid />} />}
-              id="browseGallery"
-              href={galleryHref}
             >
               Browse eval gallery
             </MenuItem>
@@ -195,6 +193,14 @@ function ProjectEvaluatorMenuItems({
             evaluators={codeEvaluators}
             onAction={(evaluatorId) =>
               navigate(creationPaths.attachCode(evaluatorId))
+            }
+          />
+          <EvaluatorSubmenu
+            label="Duplicate existing code evaluator"
+            icon={<Icons.Duplicate />}
+            evaluators={codeEvaluators}
+            onAction={(evaluatorId) =>
+              navigate(creationPaths.copyCode(evaluatorId))
             }
           />
         </MenuSection>

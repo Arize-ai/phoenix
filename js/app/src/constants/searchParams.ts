@@ -57,6 +57,14 @@ export const TIME_RANGE_END_PARAM = "timeRangeEnd";
  */
 export const LABEL_ID_PARAM = "labelId";
 
+/**
+ * The evaluator name search applied to an evaluators list. Absent means
+ * unfiltered — a cleared search removes the param rather than writing an
+ * empty one. Persisting to the URL makes the search shareable and lets the
+ * route loader preload the already-filtered first page.
+ */
+export const EVALUATOR_FILTER_PARAM = "evaluatorsFilter";
+
 export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
 
 export const CREATE_LLM_EVALUATOR_PARAM = "createLlmEvaluator";
@@ -66,6 +74,11 @@ export const CREATE_LLM_EVALUATOR_PARAM = "createLlmEvaluator";
  * Uses the stable GraphQL enum value rather than the display label.
  */
 export const PROJECT_EVALUATOR_CATEGORY_PARAM = "category";
+
+/**
+ * The existing evaluator selected in the project evaluator gallery.
+ */
+export const PROJECT_EVALUATOR_PARAM = "evaluator";
 
 /**
  * The evaluator template selected in the project evaluator gallery.
