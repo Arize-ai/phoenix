@@ -383,11 +383,7 @@ def _materialize_project_evaluator_evaluation_delay(
     evaluation_delay_seconds: Optional[int],
     evaluation_target: EvaluationTarget,
 ) -> int:
-    """Resolve the delay to store; TRACE and SESSION targets are the ones that wait it out.
-
-    Span work is scheduled as spans arrive, so a delay supplied for a span evaluator is
-    refused rather than stored as a setting that never applies.
-    """
+    """Resolve the delay to store; TRACE and SESSION targets are the ones that wait it out."""
     if evaluation_delay_seconds is None:
         return DEFAULT_EVALUATION_DELAY_SECONDS
     if evaluation_target is EvaluationTarget.SPAN:
