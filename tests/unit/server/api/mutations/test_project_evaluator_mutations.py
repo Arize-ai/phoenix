@@ -836,8 +836,7 @@ async def test_trace_filter_validation_uses_trace_dsl(
     sandbox_config: models.SandboxConfig,
 ) -> None:
     project = await _add_project(db)
-    # Span-element iteration compiles in the trace DSL and not in the span DSL, so a
-    # TRACE evaluator accepting it is what shows the target's own language ran.
+    # Span-element iteration compiles in the trace DSL and not in the span DSL.
     condition = "any(span.span_kind == 'LLM' for span in spans)"
     valid_input = _code_create_input(project, sandbox_config, filter_condition=condition)
     valid_input["evaluationTarget"] = "TRACE"

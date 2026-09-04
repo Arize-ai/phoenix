@@ -81,8 +81,6 @@ logger = logging.getLogger(__name__)
 SWEEP_LEASE_TTL_SECONDS = 90.0
 SWEEP_INTERVAL_SECONDS = 10.0
 
-# Ceiling on outstanding trace work, so an unclaimed backlog cannot grow without
-# bound. Unlike its session counterpart this is not configurable by environment.
 TRACE_SWEEP_MAX_OUTSTANDING = 10_000
 
 _CONSUMER_GROUP = "default"
@@ -137,19 +135,6 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
         work_unit_target_column="trace_rowid",
         live_work_index_predicate=text(live_eval_session_work_index_predicate()),
         filtered_entity_rowids_subquery=get_filtered_trace_rowids_subquery,
-        # Traces carry no completeness flag, so nothing here holds a due trace back.
-        # An unconditionally true gate is also what makes
-        # ``_advance_watermarks_to_due_horizon`` safe for this target: that branch
-        # advances every loaded evaluator past rows the PostgreSQL lock ladder's
-        # ``is_evaluable()`` re-filter dropped, and a gate that drops nothing cannot
-        # lose work that way. A target whose gate a row can fail now and pass later
-        # would instead need every admission path to consult it: both watermark
-        # branches derived from the rows that survived locking, and the
-        # stale-fingerprint revival, which re-offers a unit straight from the
-        # work-unit table without re-checking the gate.
-        # The re-filter can still drop a row for the other reason it exists — the
-        # trace was deleted between the page read and the lock — and advancing past
-        # that row is safe because there is nothing left to evaluate.
         is_evaluable=lambda: true(),
         project_evaluator_is_schedulable=partial(
             project_evaluator_is_schedulable,
@@ -663,14 +648,7 @@ class EvalSweeper(DaemonTask):
         return project_evaluator_rows
 
     def _filter_compiles(self, project_evaluator: models.ProjectEvaluator) -> bool:
-        """Whether this evaluator's stored filter compiles in this target's filter language.
-
-        An evaluator stored before its target's language was enforced can carry a condition
-        the sweep cannot compile. One relation covers the whole tick, so a condition that
-        raises while it is built stops every evaluator of this target rather than its own:
-        compile each one here, against the same call the relation makes, and drop the
-        ones that fail.
-        """
+        """Whether this evaluator's stored filter compiles in this target's filter language."""
         try:
             self._target.filtered_entity_rowids_subquery(
                 project_evaluator.filter_condition,

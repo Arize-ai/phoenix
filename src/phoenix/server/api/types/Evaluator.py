@@ -149,9 +149,6 @@ strawberry.enum(SchedulabilityReason, name="ProjectEvaluatorSchedulabilityReason
 def _project_evaluator_schedulability(
     record: models.ProjectEvaluator,
 ) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[SchedulabilityReason]]:
-    # Every condition is declared once in session_policy, beside the SQL the sweeper
-    # and the executor gate on, so this field cannot advertise an evaluator as
-    # schedulable that they will never pick up.
     if (reason := schedulability_reason(record)) is not None:
         return ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE, reason
     return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None

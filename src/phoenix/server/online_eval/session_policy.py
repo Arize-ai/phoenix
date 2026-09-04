@@ -39,12 +39,9 @@ class SchedulabilityReason(Enum):
 
 @dataclass(frozen=True)
 class SchedulabilityCondition:
-    """One reason a project evaluator is unschedulable, in both languages that ask.
-
-    ``blocks`` answers for a loaded row (the GraphQL field), ``blocks_sql`` for a
-    query (the sweeper's evaluator load and the executor's hydration guard). They are
-    written side by side because drift between them is silent: the UI would advertise
-    an evaluator as schedulable that the sweeper never picks up.
+    """One reason a project evaluator is unschedulable, in both languages that ask:
+    ``blocks`` for a loaded row (the GraphQL field), ``blocks_sql`` for a query (the
+    sweeper's evaluator load and the executor's hydration guard).
     """
 
     reason: SchedulabilityReason
