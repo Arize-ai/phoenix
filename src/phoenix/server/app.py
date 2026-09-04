@@ -1216,6 +1216,7 @@ def create_app(
             app,
             monty_runtime=sandbox_runtime.monty,
             db=db,
+            read_only=read_only,
         )
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).
