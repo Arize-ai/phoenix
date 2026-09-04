@@ -1,0 +1,14 @@
+# Calibration, not a question: with no work to do, what it spends is the tool
+# surface itself. Excluded from any published question list.
+name: noop-surface-cost
+task_class: noop
+prompt: "Reply with exactly: ok"
+expect:
+  contains: ok
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- ok
+- ok.
+reject:
+- I cannot help with that.
