@@ -7,6 +7,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import partial
 from secrets import token_hex
 from typing import Any, Callable, Optional, Sequence
 
@@ -27,6 +28,7 @@ from sqlalchemy import (
     or_,
     select,
     text,
+    true,
     type_coerce,
     union_all,
     update,
@@ -60,7 +62,7 @@ from phoenix.server.online_eval.derivation import (
     sample_key,
 )
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
-from phoenix.server.online_eval.session_policy import session_project_evaluator_is_schedulable
+from phoenix.server.online_eval.session_policy import project_evaluator_is_schedulable
 from phoenix.server.prometheus import (
     ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG,
     ONLINE_EVAL_MATERIALIZED_WORK_UNITS,
@@ -71,22 +73,28 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_SWEEP_SUCCESSES,
 )
 from phoenix.server.session_filters import get_filtered_session_rowids_subquery
+from phoenix.server.trace_filters import get_filtered_trace_rowids_subquery
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
-SESSION_SWEEP_LEASE_TTL_SECONDS = 90.0
-SESSION_SWEEP_INTERVAL_SECONDS = 10.0
+SWEEP_LEASE_TTL_SECONDS = 90.0
+SWEEP_INTERVAL_SECONDS = 10.0
+
+# Ceiling on outstanding trace work, so an unclaimed backlog cannot grow without
+# bound. Unlike its session counterpart this is not configurable by environment.
+TRACE_SWEEP_MAX_OUTSTANDING = 10_000
 
 _CONSUMER_GROUP = "default"
 _SESSION_SWEEP_LEASE_NAME = "session-sweep"
+_TRACE_SWEEP_LEASE_NAME = "trace-sweep"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 # Only work terminated within this window feeds the watermark-lag gauge; the table has
 # no retention, so an unbounded aggregate would scan more rows on every tick forever.
 _WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
 
-_EntityModel = type[models.ProjectSession]
-_WorkUnitModel = type[models.EvalSessionWorkUnit]
+_EntityModel = type[models.ProjectSession] | type[models.Trace]
+_WorkUnitModel = type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
 
 
 @dataclass(frozen=True)
@@ -115,8 +123,36 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
         live_work_index_predicate=text(live_eval_session_work_index_predicate()),
         filtered_entity_rowids_subquery=get_filtered_session_rowids_subquery,
         is_evaluable=lambda: models.ProjectSession.content_complete.is_(True),
-        project_evaluator_is_schedulable=session_project_evaluator_is_schedulable,
+        project_evaluator_is_schedulable=partial(
+            project_evaluator_is_schedulable,
+            evaluation_target="SESSION",
+        ),
         lease_name_prefix=_SESSION_SWEEP_LEASE_NAME,
+    ),
+    "TRACE": _SweepTarget(
+        entity_model=models.Trace,
+        entity_project_id_column="project_rowid",
+        sample_key_column="trace_id",
+        work_unit_model=models.EvalTraceWorkUnit,
+        work_unit_target_column="trace_rowid",
+        live_work_index_predicate=text(live_eval_session_work_index_predicate()),
+        filtered_entity_rowids_subquery=get_filtered_trace_rowids_subquery,
+        # Traces carry no completeness flag, so nothing here holds a due trace back.
+        # An unconditionally true gate is also what makes
+        # ``_advance_watermarks_to_due_horizon`` safe for this target: that branch
+        # advances every loaded evaluator past rows the PostgreSQL lock ladder's
+        # ``is_evaluable()`` re-filter dropped, and a gate that drops nothing cannot
+        # lose work that way. A target whose gate a row can fail now and pass later
+        # would instead need every admission path to consult it: both watermark
+        # branches derived from the rows that survived locking, and the
+        # stale-fingerprint revival, which re-offers a unit straight from the
+        # work-unit table without re-checking the gate.
+        is_evaluable=lambda: true(),
+        project_evaluator_is_schedulable=partial(
+            project_evaluator_is_schedulable,
+            evaluation_target="TRACE",
+        ),
+        lease_name_prefix=_TRACE_SWEEP_LEASE_NAME,
     ),
 }
 
@@ -411,7 +447,7 @@ class EvalSweeper(DaemonTask):
         evaluation_target: models.EvaluationTarget,
         max_outstanding: int,
         consumer_group: str = _CONSUMER_GROUP,
-        tick_interval_seconds: float = SESSION_SWEEP_INTERVAL_SECONDS,
+        tick_interval_seconds: float = SWEEP_INTERVAL_SECONDS,
     ) -> None:
         super().__init__()
         if (target := _SWEEP_TARGETS.get(evaluation_target)) is None:
@@ -435,7 +471,7 @@ class EvalSweeper(DaemonTask):
                 try:
                     await self._tick()
                 except Exception:
-                    logger.exception("Session evaluation sweep failed")
+                    logger.exception(f"{self._evaluation_target} evaluation sweep failed")
                 await asyncio.sleep(self._tick_interval_seconds)
         finally:
             release = asyncio.ensure_future(self._release_lease())
@@ -458,7 +494,7 @@ class EvalSweeper(DaemonTask):
         )
         if not renewed:
             self._lease_held = False
-            logger.warning("Session evaluation sweeper lost its lease")
+            logger.warning(f"{self._evaluation_target} evaluation sweeper lost its lease")
 
     async def _acquire_lease(self, *, allow_insert: bool = True) -> Optional[int]:
         for _ in range(2):
@@ -472,7 +508,7 @@ class EvalSweeper(DaemonTask):
                             models.EvalWorkLease.holder.is_(None),
                             models.EvalWorkLease.holder == self._sweeper_id,
                             models.EvalWorkLease.heartbeat_at
-                            < database_now - timedelta(seconds=SESSION_SWEEP_LEASE_TTL_SECONDS),
+                            < database_now - timedelta(seconds=SWEEP_LEASE_TTL_SECONDS),
                         ),
                     )
                     .values(holder=self._sweeper_id, heartbeat_at=database_now)
@@ -931,7 +967,9 @@ class EvalSweeper(DaemonTask):
                 database_now = await self._database_now(session)
                 await self._publish_watermark_lag(session, database_now)
         except Exception:
-            logger.exception("Failed to publish session evaluation watermark lag")
+            logger.exception(
+                f"Failed to publish {self._evaluation_target} evaluation watermark lag"
+            )
 
     async def _publish_watermark_lag(
         self,
@@ -990,7 +1028,7 @@ class EvalSweeper(DaemonTask):
         budget = max(0, self._max_outstanding - outstanding_count)
         if budget == 0:
             logger.warning(
-                f"Session evaluation admission gate closed: "
+                f"{self._evaluation_target} evaluation admission gate closed: "
                 f"{outstanding_count} outstanding work units reached "
                 f"{self._max_outstanding}"
             )
@@ -1011,4 +1049,4 @@ class EvalSweeper(DaemonTask):
                     .values(holder=None, heartbeat_at=None)
                 )
         except Exception:
-            logger.exception("Failed to release session evaluation sweep lease")
+            logger.exception(f"Failed to release {self._evaluation_target} evaluation sweep lease")

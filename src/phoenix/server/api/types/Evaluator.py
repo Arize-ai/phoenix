@@ -47,7 +47,7 @@ from phoenix.server.online_eval.session_policy import (
     DEFAULT_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
     SchedulabilityReason,
-    session_schedulability_reason,
+    schedulability_reason,
 )
 
 if TYPE_CHECKING:
@@ -150,10 +150,10 @@ def _project_evaluator_schedulability(
     record: models.ProjectEvaluator,
 ) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[SchedulabilityReason]]:
     if record.evaluation_target == "SESSION":
-        # Every SESSION condition is declared once in session_policy, beside the SQL
-        # the sweeper and the executor gate on, so this field cannot advertise an
+        # Every condition is declared once in session_policy, beside the SQL the
+        # sweeper and the executor gate on, so this field cannot advertise an
         # evaluator as schedulable that they will never pick up.
-        if (reason := session_schedulability_reason(record)) is not None:
+        if (reason := schedulability_reason(record)) is not None:
             return ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE, reason
         return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
     if not record.enabled:

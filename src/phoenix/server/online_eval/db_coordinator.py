@@ -33,7 +33,9 @@ from phoenix.server.types import DbSessionFactory
 
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
 
-_WorkUnitModel = type[models.EvalWorkUnit] | type[models.EvalSessionWorkUnit]
+_WorkUnitModel = (
+    type[models.EvalWorkUnit] | type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
+)
 _DATABASE_NOW = object()
 
 

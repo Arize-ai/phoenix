@@ -28,7 +28,8 @@ from phoenix.server.online_eval.derivation import (
 )
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.sweeper import (
-    SESSION_SWEEP_LEASE_TTL_SECONDS,
+    SWEEP_LEASE_TTL_SECONDS,
+    TRACE_SWEEP_MAX_OUTSTANDING,
     EvalSweeper,
 )
 from phoenix.server.types import DbSessionFactory
@@ -1057,7 +1058,7 @@ async def test_lost_lease_rolls_back_sweep(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
     assert work_count == 0
-    assert "Session evaluation sweeper lost its lease" in caplog.text
+    assert "SESSION evaluation sweeper lost its lease" in caplog.text
 
 
 async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
@@ -1083,7 +1084,7 @@ async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
         await session.execute(
             update(models.EvalWorkLease)
             .where(models.EvalWorkLease.name == sweeper._lease_name)
-            .values(heartbeat_at=_now() - timedelta(seconds=SESSION_SWEEP_LEASE_TTL_SECONDS + 1))
+            .values(heartbeat_at=_now() - timedelta(seconds=SWEEP_LEASE_TTL_SECONDS + 1))
         )
     await sweeper._tick()
 
@@ -1319,7 +1320,7 @@ async def test_declined_oldest_page_does_not_starve_later_match(
     }
 
 
-async def test_trace_criteria_remain_unscheduled(
+async def test_trace_criteria_do_not_reach_the_session_sweeper(
     db: DbSessionFactory,
 ) -> None:
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
@@ -1329,6 +1330,70 @@ async def test_trace_criteria_remain_unscheduled(
     async with db() as session:
         count = await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit))
     assert count == 0
+
+
+async def _add_trace_liveness(
+    db: DbSessionFactory,
+    *,
+    age_seconds: float,
+) -> tuple[int, int, datetime]:
+    last_span_ingested_at = _now() - timedelta(seconds=age_seconds)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        await _add_span(session, trace)
+        await session.execute(
+            update(models.Trace)
+            .where(models.Trace.id == trace.id)
+            .values(last_span_ingested_at=last_span_ingested_at)
+        )
+        return project.id, trace.id, last_span_ingested_at
+
+
+async def test_materializes_due_trace_with_activity_snapshot(
+    db: DbSessionFactory,
+) -> None:
+    project_id, trace_rowid, last_span_ingested_at = await _add_trace_liveness(
+        db,
+        age_seconds=600,
+    )
+    evaluator_id, project_evaluator_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="TRACE",
+    )
+
+    sweeper = EvalSweeper(
+        db,
+        evaluation_target="TRACE",
+        max_outstanding=TRACE_SWEEP_MAX_OUTSTANDING,
+    )
+    await sweeper._tick()
+
+    async with db() as session:
+        unit = (
+            await session.scalars(
+                select(models.EvalTraceWorkUnit).where(
+                    models.EvalTraceWorkUnit.trace_rowid == trace_rowid
+                )
+            )
+        ).one()
+        lease = (
+            await session.scalars(
+                select(models.EvalWorkLease).where(
+                    models.EvalWorkLease.name == sweeper._lease_name,
+                )
+            )
+        ).one()
+        session_work_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionWorkUnit)
+        )
+    assert unit.evaluator_id == evaluator_id
+    assert unit.project_evaluator_id == project_evaluator_id
+    assert unit.evaluated_through == last_span_ingested_at
+    assert unit.status == "PENDING"
+    assert lease.holder == sweeper._sweeper_id
+    assert session_work_count == 0
 
 
 async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
