@@ -807,7 +807,6 @@ async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
 
     await sweeper._tick()
 
-    # The revival re-offers the expired row in place rather than adding a second one.
     assert await _work_statuses(db) == ["PENDING"]
 
 
@@ -831,7 +830,6 @@ async def test_incomplete_session_is_never_scheduled(
 async def test_quiet_session_predating_criterion_creation_is_not_live(
     db: DbSessionFactory,
 ) -> None:
-    # 330s is due at the default delay and still inside a first due-horizon write's reach.
     project_id, _, _ = await _add_session_liveness(db, age_seconds=330)
     await _seed_criteria_raw(db, project_id, evaluation_target="SESSION")
     sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
