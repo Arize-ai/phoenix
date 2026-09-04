@@ -440,11 +440,7 @@ def _no_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
 
 @dataclass(frozen=True)
 class _EvaluationTargetSpec:
-    """What one evaluation target contributes to hydration and publication.
-
-    Hydration and the annotation write read only these fields, so supporting a
-    further target is an entry here rather than another branch at each site.
-    """
+    """What one evaluation target contributes to hydration and publication."""
 
     requires_schedulable_evaluator: bool
     load_context: _TargetContextLoader
@@ -473,8 +469,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         target_column="project_session_id",
         annotation_table=models.ProjectSessionAnnotation,
         unique_by=("name", "project_session_id", "identifier"),
-        # A later evaluation of the same session reads more of it, so its
-        # annotation is replaced where a span's is left alone.
         on_conflict=OnConflict.DO_UPDATE,
         coverage_watermark=_session_coverage_watermark,
         insert_event=ProjectSessionAnnotationInsertEvent,

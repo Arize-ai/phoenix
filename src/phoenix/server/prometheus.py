@@ -135,9 +135,7 @@ RETENTION_POLICY_EXECUTIONS = Counter(
     labelnames=["status"],
 )
 
-# Online-eval metrics are one family across evaluation targets: a dashboard panel adds a
-# target by adding a series, and a new target needs no new metric. The label values are
-# the EvaluationTarget names ("SPAN", "SESSION").
+# Label values are the EvaluationTarget names ("SPAN", "SESSION").
 _EVALUATION_TARGET_LABELS = ["evaluation_target"]
 
 ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(

@@ -87,13 +87,7 @@ _WorkUnitModel = type[models.EvalSessionWorkUnit]
 
 @dataclass(frozen=True)
 class _SweepTarget:
-    """The tables, columns and predicates one evaluation target sweeps over.
-
-    Everything the sweep does differently per target is spelled here; the sweep
-    itself reads only these fields, so a new target is a new entry rather than a
-    second copy of the sweep. Columns are named rather than bound, and resolved
-    against the model beside them at each use.
-    """
+    """The tables, columns and predicates one evaluation target sweeps over."""
 
     entity_model: _EntityModel
     entity_project_id_column: str

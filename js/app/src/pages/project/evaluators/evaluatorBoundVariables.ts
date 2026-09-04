@@ -2,18 +2,9 @@ import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/
 
 /**
  * The values a span or session carries under `metadata`, each read by a mapping
- * entry whose path is `metadata.<name>`.
- *
- * These are the names a filter condition on the same record already resolves,
- * so a name that selects records can also be read inside the evaluator. The
- * server's list is the one that binds at evaluation time
- * (`phoenix.server.online_eval.bound_variables`); this mirrors it so the
- * authoring surface can name and order them without a round trip.
- *
- * The two lists are held together by
- * `tests/unit/server/online_eval/test_bound_variables.py`, which fails if
- * either side gains or loses a name. Adding one here without adding it there
- * offers authors a variable no evaluation will bind.
+ * entry whose path is `metadata.<name>`. Mirrors the server's
+ * `phoenix.server.online_eval.bound_variables`, held in sync by
+ * `tests/unit/server/online_eval/test_bound_variables.py`.
  */
 export type EvaluatorBoundVariable = {
   name: string;
