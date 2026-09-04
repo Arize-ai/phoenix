@@ -133,7 +133,6 @@ const ProjectEvaluatorEvaluationDelayField = ({
   value,
   onChange,
 }: {
-  /** Seconds a record must stay quiet before its evaluation is scheduled. */
   value: number;
   onChange: (evaluationDelaySeconds: number) => void;
 }) => {
@@ -160,7 +159,6 @@ const ProjectEvaluatorEvaluationDelayField = ({
   );
 };
 
-/** The targets this form offers, in the order the segmented control shows them. */
 const AUTHORABLE_PROJECT_EVALUATOR_TARGETS = [
   "SPAN",
   "TRACE",
@@ -366,7 +364,6 @@ type ProjectEvaluatorFilterField = {
   emptyHint: string;
 };
 
-/** The filter each target authors, one row per target. */
 const FILTER_FIELDS_BY_TARGET: Record<
   ProjectEvaluatorTarget,
   ProjectEvaluatorFilterField
@@ -419,7 +416,6 @@ function SessionScopeFilterFieldWithVocabulary(
   return <SessionFilterConditionFieldCore {...props} vocabulary={vocabulary} />;
 }
 
-/** The trace DSL's field, on the same terms as the session one above. */
 function TraceScopeFilterField(
   props: Omit<TraceFilterConditionFieldCoreProps, "vocabulary">
 ) {

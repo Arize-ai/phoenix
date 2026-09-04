@@ -29,11 +29,6 @@ const filterValueCSS = css`
   overflow-wrap: anywhere;
 `;
 
-/**
- * Read-only view of the policy a project evaluator runs under: what it
- * targets, which records it matches, and how many of them it samples. Whether
- * the evaluator runs at all is the page header's enabled switch.
- */
 export function ProjectEvaluatorScopeDetails({
   projectEvaluatorRef,
 }: {

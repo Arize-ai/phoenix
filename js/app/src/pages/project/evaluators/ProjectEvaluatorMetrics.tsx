@@ -21,10 +21,6 @@ import type {
 import type { ProjectEvaluatorResultAnnotation } from "./useProjectEvaluatorResultAnnotations";
 import { useProjectEvaluatorResultAnnotations } from "./useProjectEvaluatorResultAnnotations";
 
-/**
- * The evaluator's result annotations live at the level its target selects on
- * the evaluated project.
- */
 function getAnnotationLevel(
   evaluationTarget: EvaluationTarget
 ): MetricChartTableView {

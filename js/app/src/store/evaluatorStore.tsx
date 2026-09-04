@@ -242,7 +242,6 @@ export const SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"s
     metadata: {},
   };
 
-/** Stands in until a recorded trace's server-computed context arrives. */
 export const TRACE_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"trace"> =
   {
     input: "",

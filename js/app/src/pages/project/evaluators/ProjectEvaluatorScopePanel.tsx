@@ -595,10 +595,7 @@ function MatchedSessionCountLine({
   );
 }
 
-/**
- * The API exposes no trace count under a trace-filter condition, so the count is read off
- * the matching traces; past this it reports a floor instead.
- */
+/** The API has no filtered trace count; the count is probed from listed traces and floors here. */
 const TRACE_COUNT_PROBE_LIMIT = 100;
 
 /** Traces are listed as their root spans, the only trace-filtered listing the API offers. */
@@ -919,15 +916,12 @@ type RecordedRun =
   | { status: "done"; results: RecordedRunResult[] }
   | { status: "error"; message: string };
 
-/** One recorded span, trace, or session, with the context an evaluator binds against. */
 type RecordedRunListRow = {
   key: string;
   name: string;
-  /** Prefixes the card title on a span row; no other grain has a kind. */
   spanKind?: string;
   context: unknown;
   isSample: boolean;
-  /** An at-a-glance measure of the record, such as a trace's span count. */
   metric?: string;
   /**
    * Why this record has no context to bind against. Set only when the server
@@ -1821,10 +1815,6 @@ export function useEvaluatorMappingSourceBoundToRow({
   }, [grain, rowKey, contextIdentity]);
 }
 
-/**
- * Narrows the shape, never the grain: every record context shares this one. Only
- * `metadata` is guaranteed to be an object; `input`/`output` are raw attribute values.
- */
 function hasEvaluatorMappingSourceShape(
   value: unknown
 ): value is EvaluatorMappingSource<ProjectEvaluatorMappingSourceGrain> {

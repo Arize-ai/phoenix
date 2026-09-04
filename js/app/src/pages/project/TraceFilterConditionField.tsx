@@ -280,14 +280,10 @@ export function getTraceFilterContextualCompletions({
   return null;
 }
 
-/** A project whose vocabulary has not loaded still filters, without typeahead. */
 export const EMPTY_TRACE_FILTER_VOCABULARY: readonly TraceFilterVocabularyTerm[] =
   [];
 
-/**
- * The project's trace-filter autocomplete vocabulary. Suspends; render the field with
- * {@link EMPTY_TRACE_FILTER_VOCABULARY} until it arrives.
- */
+/** Suspends until the vocabulary loads; render with {@link EMPTY_TRACE_FILTER_VOCABULARY} until then. */
 export function useTraceFilterVocabulary(
   projectId: string
 ): readonly TraceFilterVocabularyTerm[] {
@@ -312,10 +308,7 @@ export function useTraceFilterVocabulary(
   return data.project?.traceFilterVocabulary ?? EMPTY_TRACE_FILTER_VOCABULARY;
 }
 
-/**
- * Requires `TraceFiltersProvider`/`TracingProvider`; use
- * {@link TraceFilterConditionFieldCore} outside them.
- */
+/** Requires `TraceFiltersProvider`/`TracingProvider`; use {@link TraceFilterConditionFieldCore} outside them. */
 export function TraceFilterConditionField(
   props: TraceFilterConditionFieldProps
 ) {
@@ -345,10 +338,6 @@ export type TraceFilterConditionFieldCoreProps = {
   placeholder?: string;
 };
 
-/**
- * Takes all filter state as props, so it can mount outside
- * `TraceFiltersProvider`/`TracingProvider`.
- */
 export function TraceFilterConditionFieldCore(
   props: TraceFilterConditionFieldCoreProps
 ) {

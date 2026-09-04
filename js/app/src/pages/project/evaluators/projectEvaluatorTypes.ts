@@ -137,11 +137,9 @@ export type ProjectEvaluatorScope = {
   targetType: ProjectEvaluatorTarget;
   filterCondition: string;
   samplingRate: number;
-  /** Only quiet-period targets schedule off this; see `toEvaluationDelayInput`. */
   evaluationDelaySeconds: number;
 };
 
-/** The targets whose records are evaluated after a quiet period. */
 const DELAYED_PROJECT_EVALUATOR_TARGETS: readonly ProjectEvaluatorTarget[] = [
   "TRACE",
   "SESSION",
@@ -167,11 +165,7 @@ export function withProjectEvaluatorTarget({
   };
 }
 
-/**
- * The delay half of a create or update input, spread in by every mutation that
- * carries a scope. Span work is scheduled as spans arrive and the server
- * rejects a delay sent for it, so a span target sends nothing.
- */
+/** The server rejects `evaluationDelaySeconds` for span targets. */
 export function toEvaluationDelayInput(scope: ProjectEvaluatorScope): {
   evaluationDelaySeconds?: number;
 } {
@@ -180,7 +174,6 @@ export function toEvaluationDelayInput(scope: ProjectEvaluatorScope): {
     : {};
 }
 
-/** Whether this target waits out {@link ProjectEvaluatorScope.evaluationDelaySeconds}. */
 export function hasEvaluationDelay(target: EvaluationTarget): boolean {
   return DELAYED_PROJECT_EVALUATOR_TARGETS.includes(
     target as ProjectEvaluatorTarget
@@ -198,10 +191,6 @@ export type ProjectEvaluatorMappingSourceGrain = Exclude<
   "dataset"
 >;
 
-/**
- * Which mapping-source vocabulary the records of an evaluated target speak. Every place
- * that builds or resets a project evaluator's mapping source goes through here.
- */
 export function toEvaluatorMappingSourceGrain(
   target: ProjectEvaluatorTarget
 ): ProjectEvaluatorMappingSourceGrain {

@@ -197,10 +197,8 @@ export type SessionEvaluatorMappingSource = {
 };
 
 /**
- * As produced by the server: `input` and `output` are the displayed root span's values,
- * under the names the trace filter language spells for them, and everything else sits flat
- * under `metadata` — those names beside the trace's timestamps, the root span's
- * `attributes` and `events`, and `trace_annotations`.
+ * As produced by the server: the root span's `input`/`output` under their trace-filter
+ * names, and everything else flat under `metadata`.
  */
 export type TraceEvaluatorMappingSource = {
   input: unknown;
