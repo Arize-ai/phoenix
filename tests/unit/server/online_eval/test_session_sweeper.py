@@ -374,8 +374,6 @@ async def test_materialization_waits_for_retention_session_lock(
         work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
-        # The write stays above the entity locks, so a session the ladder drops does
-        # not hold the evaluator's watermark back.
         assert await session.scalar(select(models.ProjectEvaluator.swept_through_at)) is not None
     assert work_count == 0
 
@@ -443,8 +441,6 @@ async def test_evaluator_deleted_mid_page_does_not_advance_the_watermark(
         work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
-        # The page named an evaluator that is gone, so the tick records nothing for the
-        # evaluator that survived either, and its pairs are offered again.
         assert (
             await session.scalar(
                 select(models.ProjectEvaluator.swept_through_at).where(
@@ -800,9 +796,7 @@ async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
 
     await sweeper._tick()
 
-    # The session's last ingest sits far below the scan floor the first tick left, so
-    # the eligibility scan can no longer reach the pair and the revival re-offers the
-    # expired row in place.
+    # The revival re-offers the expired row in place rather than adding a second one.
     assert await _work_statuses(db) == ["PENDING"]
 
 
@@ -826,9 +820,7 @@ async def test_incomplete_session_is_never_scheduled(
 async def test_quiet_session_predating_criterion_creation_is_not_live(
     db: DbSessionFactory,
 ) -> None:
-    # Old enough to be due at the default evaluation delay, and inside the stretch of
-    # history a first due-horizon write would reach back over if it were allowed to
-    # land below the evaluator's creation. The second tick is what sees that write.
+    # 330s is due at the default delay and still inside a first due-horizon write's reach.
     project_id, _, _ = await _add_session_liveness(db, age_seconds=330)
     await _seed_criteria_raw(db, project_id, evaluation_target="SESSION")
     sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
@@ -897,10 +889,6 @@ async def _rename_project_evaluator(
 async def test_edited_criterion_does_not_re_sweep_history_below_its_watermark(
     db: DbSessionFactory,
 ) -> None:
-    """An edit moves the config fingerprint, which opens a fresh dedup key for every
-    session the criterion has ever scored. The swept-through watermark is what keeps the
-    edit forward-only, matching how span evaluators already behave.
-    """
     project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
     _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
