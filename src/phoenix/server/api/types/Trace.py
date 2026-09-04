@@ -222,9 +222,6 @@ class Trace(Node):
         from phoenix.server.online_eval.executor import load_trace_eval_context
 
         async with info.context.db.read() as session:
-            # Read inside the field rather than carried from the list this trace was
-            # read in, because the trace can lose its root span, or the whole trace,
-            # in between; one unevaluable trace must not fail the list it appears in.
             vocabularies = await load_trace_bound_variables(session, [self.id])
             context = await load_trace_eval_context(
                 session,

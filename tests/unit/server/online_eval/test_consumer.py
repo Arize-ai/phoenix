@@ -1120,8 +1120,7 @@ async def test_load_trace_bound_variables_reads_filter_language_values(
         )
         await _add_span(session, trace, parent_span=root_span, span_kind="TOOL")
         empty_trace = await _add_trace(session, project, start_time=start_time)
-        # An attribute trie that collided on ingest keeps the literal wire key. The
-        # trace filter matches that spelling, so the loader has to read it too.
+        # A collided attribute trie keeps the literal wire key, which the loader must read too.
         wire_key_trace = await _add_trace(session, project, start_time=start_time)
         await _add_span(session, wire_key_trace, attributes={"input.value": "question"})
 
@@ -1151,7 +1150,6 @@ async def test_load_trace_bound_variables_reads_filter_language_values(
     assert populated["llm_span_count"] == 1
     assert populated["tool_span_count"] == 1
     assert populated["total_cost"] == 0
-    # A trace with nothing to aggregate reads zero, as it does in a filter.
     assert resolved[empty_trace.id]["num_spans"] == 0
     assert resolved[empty_trace.id]["input"] is None
     assert resolved[wire_key_trace.id]["input"] == "question"
@@ -1176,8 +1174,7 @@ async def test_trace_hydration_binds_the_trace_context(db: DbSessionFactory) -> 
         evaluation_target="TRACE",
     )
     fingerprint = await _config_fingerprint(db, evaluator_id, project_evaluator_id)
-    # Hydration does not reach the coordinator, so the target it is bound to is
-    # immaterial to what this asserts.
+    # Hydration never reaches the coordinator, so the executor's bound target is immaterial.
     executor = _executor(db)
 
     hydrated = await executor.hydrate(
@@ -1195,8 +1192,6 @@ async def test_trace_hydration_binds_the_trace_context(db: DbSessionFactory) -> 
     assert set(metadata) == TRACE_BOUND_VARIABLE_NAMES | TRACE_METADATA_FIELD_NAMES
     assert metadata["trace_id"] == trace.trace_id
     assert metadata["num_spans"] == 1
-    # A session evaluation publishes its turn policy on the annotation; a trace
-    # evaluation has no policy to report.
     assert hydrated.annotation_metadata == {}
 
     assert await executor.hydrate(
@@ -3484,7 +3479,6 @@ async def test_trace_consumer_writes_a_trace_annotation(
     assert annotation.annotator_kind == "LLM"
     assert annotation.source == "API"
     assert annotation.identifier == annotation_identifier(fingerprint)
-    # A session evaluation publishes its turn policy here; a trace has none.
     assert annotation.metadata_ == {}
     assert events.get_nowait() == TraceAnnotationInsertEvent((annotation.id,))
     assert events.empty()

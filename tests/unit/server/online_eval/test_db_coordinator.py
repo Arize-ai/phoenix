@@ -810,8 +810,6 @@ async def test_trace_claim_lifecycle(db: DbSessionFactory) -> None:
 async def test_trace_publish_refuses_a_trace_deleted_under_the_fence(
     postgresql_engine: AsyncEngine,
 ) -> None:
-    """The trace re-check is a locked read, so a delete that commits after
-    publication read the trace's identity is still caught."""
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     trace_rowid, _, (unit_id,) = await _seed_trace_work_units(db, 1)
     coordinator = DbEvalWorkCoordinator(db, evaluation_target="TRACE")
@@ -830,8 +828,7 @@ async def test_trace_publish_refuses_a_trace_deleted_under_the_fence(
                 write=_write,
             )
         )
-        # The uncommitted delete is invisible to the identity read, so
-        # publication reaches the locked re-check and blocks there.
+        # Publication blocks at the locked re-check, so the timeout is the pass condition.
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(asyncio.shield(publication), timeout=0.1)
 
@@ -844,8 +841,7 @@ async def test_trace_publish_refuses_a_trace_deleted_under_the_fence(
 async def test_trace_publish_never_waits_on_the_traces_session(
     postgresql_engine: AsyncEngine,
 ) -> None:
-    """Trace retention locks the sessions losing content before deleting the
-    traces, so publication must not take the session row after the trace row."""
+    """Publication must not lock the trace's session row, which retention holds first."""
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     _, project_session_rowid, (unit_id,) = await _seed_trace_work_units(
         db,
