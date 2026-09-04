@@ -16,6 +16,7 @@ import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import {
   dropOtherGrainEntityPathMappings,
   formatEvaluationTarget,
+  hasEvaluationDelay,
   isProjectEvaluatorTarget,
   MIN_EVALUATION_DELAY_SECONDS,
   toEvaluatorMappingSourceGrain,
@@ -35,6 +36,12 @@ import {
   SpanFilterConditionFieldCore,
   type SpanFilterValidConditionArgs,
 } from "@phoenix/pages/project/SpanFilterConditionField";
+import {
+  EMPTY_TRACE_FILTER_VOCABULARY,
+  TraceFilterConditionFieldCore,
+  type TraceFilterConditionFieldCoreProps,
+  useTraceFilterVocabulary,
+} from "@phoenix/pages/project/TraceFilterConditionField";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
@@ -59,14 +66,8 @@ export const ProjectEvaluatorScopeFieldGroup = ({
   fillSampling?: boolean;
   children?: ReactNode;
 }) => {
-  const isSessionTarget = scope.targetType === "SESSION";
+  const isDelayedTarget = hasEvaluationDelay(scope.targetType);
   const evaluatorStore = useEvaluatorStoreInstance();
-  // A target change is the one act that moves a form between kinds of record,
-  // so everything written against the old kind changes here with it: the
-  // filter (a different language), the store's grain (span and session
-  // contexts are structurally identical, so the store cannot infer it), and
-  // mapping paths rooted at a name the new record does not carry (a path that
-  // matches nothing fails the evaluation).
   const handleTargetChange = (targetType: ProjectEvaluatorTarget) => {
     if (targetType === scope.targetType) {
       return;
@@ -93,11 +94,11 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         <ProjectEvaluatorSamplingField
           // A filled slider takes the whole row, which would wrap the delay
           // field onto a line of its own.
-          fill={fillSampling && !isSessionTarget}
+          fill={fillSampling && !isDelayedTarget}
           value={scope.samplingRate}
           onChange={(samplingRate) => onScopeChange({ ...scope, samplingRate })}
         />
-        {isSessionTarget ? (
+        {isDelayedTarget ? (
           <ProjectEvaluatorEvaluationDelayField
             value={scope.evaluationDelaySeconds}
             onChange={(evaluationDelaySeconds) =>
@@ -107,9 +108,9 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         ) : null}
         {children}
       </Flex>
-      {isSessionTarget ? (
+      {isDelayedTarget ? (
         <Text size="XS" color="text-500">
-          Sessions are evaluated after this many seconds of inactivity.
+          {`${formatEvaluationTarget(scope.targetType)}s are evaluated after this many seconds of inactivity.`}
         </Text>
       ) : null}
       {/* Remounted per target so the draft condition does not survive a switch
@@ -132,7 +133,7 @@ const ProjectEvaluatorEvaluationDelayField = ({
   value,
   onChange,
 }: {
-  /** Seconds a session must stay quiet before its evaluation is scheduled. */
+  /** Seconds a record must stay quiet before its evaluation is scheduled. */
   value: number;
   onChange: (evaluationDelaySeconds: number) => void;
 }) => {
@@ -159,13 +160,9 @@ const ProjectEvaluatorEvaluationDelayField = ({
   );
 };
 
-/**
- * The targets this form offers. TRACE is a stored target that is never
- * scheduled, so it is deliberately unauthorable; offering it is this list plus
- * a TRACE row in {@link FILTER_FIELDS_BY_TARGET}.
- */
 const AUTHORABLE_PROJECT_EVALUATOR_TARGETS = [
   "SPAN",
+  "TRACE",
   "SESSION",
 ] as const satisfies readonly ProjectEvaluatorTarget[];
 
@@ -318,6 +315,17 @@ const ProjectEvaluatorFilterField = ({
             placeholder={placeholder}
           />
         );
+      case "trace":
+        return (
+          <TraceScopeFilterField
+            projectId={projectId}
+            filterCondition={draft}
+            onFilterConditionChange={setDraft}
+            onValidCondition={applyValidCondition}
+            onValidityChange={onValidityChange}
+            placeholder={placeholder}
+          />
+        );
       case "span":
         return (
           <SpanFilterConditionFieldCore
@@ -357,24 +365,22 @@ type ProjectEvaluatorFilterField = {
   emptyHint: string;
 };
 
-const SPAN_FILTER_FIELD: ProjectEvaluatorFilterField = {
-  language: "span",
-  label: "Span filter",
-  placeholder: "span_kind == 'LLM'",
-  emptyHint: "Leave empty to evaluate every span.",
-};
-
-/**
- * The filter each target authors, one row per target. TRACE collapses onto the
- * span grain — see `toEvaluatorMappingSourceGrain` — so it filters spans by
- * saying so here, rather than by falling through to the span row.
- */
 const FILTER_FIELDS_BY_TARGET: Record<
   ProjectEvaluatorTarget,
   ProjectEvaluatorFilterField
 > = {
-  SPAN: SPAN_FILTER_FIELD,
-  TRACE: SPAN_FILTER_FIELD,
+  SPAN: {
+    language: "span",
+    label: "Span filter",
+    placeholder: "span_kind == 'LLM'",
+    emptyHint: "Leave empty to evaluate every span.",
+  },
+  TRACE: {
+    language: "trace",
+    label: "Trace filter",
+    placeholder: "num_spans >= 5",
+    emptyHint: "Leave empty to evaluate every trace.",
+  },
   SESSION: {
     language: "session",
     label: "Session filter",
@@ -409,4 +415,28 @@ function SessionScopeFilterFieldWithVocabulary(
 ) {
   const vocabulary = useSessionFilterVocabulary(props.projectId);
   return <SessionFilterConditionFieldCore {...props} vocabulary={vocabulary} />;
+}
+
+function TraceScopeFilterField(
+  props: Omit<TraceFilterConditionFieldCoreProps, "vocabulary">
+) {
+  return (
+    <Suspense
+      fallback={
+        <TraceFilterConditionFieldCore
+          {...props}
+          vocabulary={EMPTY_TRACE_FILTER_VOCABULARY}
+        />
+      }
+    >
+      <TraceScopeFilterFieldWithVocabulary {...props} />
+    </Suspense>
+  );
+}
+
+function TraceScopeFilterFieldWithVocabulary(
+  props: Omit<TraceFilterConditionFieldCoreProps, "vocabulary">
+) {
+  const vocabulary = useTraceFilterVocabulary(props.projectId);
+  return <TraceFilterConditionFieldCore {...props} vocabulary={vocabulary} />;
 }

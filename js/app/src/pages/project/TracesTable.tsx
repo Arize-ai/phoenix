@@ -114,7 +114,10 @@ import {
   normalizeAnnotationColumnOrder,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
-import { TraceFilterConditionField } from "./TraceFilterConditionField";
+import {
+  EMPTY_TRACE_FILTER_VOCABULARY,
+  TraceFilterConditionField,
+} from "./TraceFilterConditionField";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
@@ -131,8 +134,6 @@ const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
   min-width: min(100%, 320px);
 `;
-
-const EMPTY_TRACE_FILTER_VOCABULARY = [] as const;
 
 function TraceFilterConditionFieldWithVocabulary({
   projectId,
