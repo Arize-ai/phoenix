@@ -830,6 +830,29 @@ async def test_session_filter_validation_uses_session_dsl(
     assert await _row_counts(db) == before
 
 
+async def test_trace_filter_validation_uses_trace_dsl(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    # Span-element iteration compiles in the trace DSL and not in the span DSL, so a
+    # TRACE evaluator accepting it is what shows the target's own language ran.
+    condition = "any(span.span_kind == 'LLM' for span in spans)"
+    valid_input = _code_create_input(project, sandbox_config, filter_condition=condition)
+    valid_input["evaluationTarget"] = "TRACE"
+
+    valid_result = await gql_client.execute(_CREATE_CODE, {"input": valid_input})
+
+    assert valid_result.data and not valid_result.errors
+    before = await _row_counts(db)
+    span_input = _code_create_input(project, sandbox_config, filter_condition=condition)
+    span_result = await gql_client.execute(_CREATE_CODE, {"input": span_input})
+    assert span_result.errors
+    assert "Invalid filter condition:" in str(span_result.errors)
+    assert await _row_counts(db) == before
+
+
 async def test_sampling_rate_rejected_at_project_evaluator_input_boundary(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,

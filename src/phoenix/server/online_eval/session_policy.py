@@ -35,7 +35,6 @@ class SchedulabilityReason(Enum):
     """Why a project evaluator will never be picked up for scheduling."""
 
     DISABLED = "DISABLED"
-    TRACE_TARGET_UNSUPPORTED = "TRACE_TARGET_UNSUPPORTED"
 
 
 @dataclass(frozen=True)
