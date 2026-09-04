@@ -356,6 +356,7 @@ def _get_db_trace(
         trace_id=format_trace_id(trace_id),
         start_time=start_time,
         end_time=end_time,
+        last_span_ingested_at=datetime.now(timezone.utc),
     )
 
 
