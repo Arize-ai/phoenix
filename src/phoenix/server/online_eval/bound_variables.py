@@ -70,9 +70,8 @@ BOUND_VARIABLE_NAMES = (
     SPAN_BOUND_VARIABLE_NAMES | SESSION_BOUND_VARIABLE_NAMES | TRACE_BOUND_VARIABLE_NAMES
 )
 
-# The trace filter's names for the displayed root span's input and output. A trace
-# context binds them at its top level, so they are loaded with the vocabulary but
-# left out of `metadata`, where they would be a second spelling of one concept.
+# Trace-filter names for the root span's input/output; a trace context binds them at its
+# top level, so they load with the vocabulary but stay out of `metadata`.
 TRACE_ROOT_IO_NAMES = TRACE_BINDINGS.caller_bound_string_names
 
 # Mirrored by the frontend's SPAN/SESSION_METADATA_FIELDS via test_bound_variables.py.
@@ -163,14 +162,7 @@ async def load_trace_bound_variables(
     session: AsyncSession,
     trace_rowids: Collection[int],
 ) -> dict[int, dict[str, Any]]:
-    """Trace vocabulary values for a batch of traces, keyed by trace row id.
-
-    Every name in ``TRACE_BOUND_VARIABLE_NAMES`` is loaded, plus the trace's
-    ``start_time``/``end_time`` record fields and the displayed root span's
-    ``input``/``output``, so a caller cannot hand a context builder a vocabulary
-    short of the names it binds. Aggregates sharing one builder are answered for
-    the whole batch in a single statement.
-    """
+    """Trace vocabulary values for a batch of traces, keyed by trace row id."""
     rowids = sorted(set(trace_rowids))
     resolved: dict[int, dict[str, Any]] = {rowid: {} for rowid in rowids}
     if not rowids:
@@ -217,8 +209,7 @@ async def load_trace_bound_variables(
             values = resolved[aggregate_row[TRACE_ROWID]]
             for name, spec in zip(group, specs):
                 values[name] = aggregate_row[spec.value_column]
-    # A trace with nothing to aggregate reads as it does in a filter condition,
-    # where every aggregate is coalesced to zero.
+    # Aggregates default to zero, the way a filter condition coalesces them.
     for values in resolved.values():
         for name in chain(TRACE_BOUND_VARIABLE_NAMES, TRACE_ROOT_IO_NAMES):
             values.setdefault(name, 0 if name in TRACE_BINDINGS.aggregate_names else None)
