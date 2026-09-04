@@ -78,6 +78,73 @@ async def test_validate_code_runs_in_worker(runtime: MontyRuntime) -> None:
     assert "ModuleNotFoundError" in error
 
 
+#: A representative API per advertised module. Each module exposes a subset of its
+#: CPython contents, so importing the module proves less than importing from it. Keyed
+#: by ``MontyAdapter.IMPORTABLE_MODULES``, which the advertisement is built from, so a
+#: module added to the notes has no entry here and fails rather than going untested.
+_REPRESENTATIVE_API = {
+    "json": "from json import loads, dumps",
+    "re": "from re import search, match",
+    "math": "from math import sqrt",
+    "datetime": "from datetime import date, timezone",
+    "pathlib": "from pathlib import Path",
+    "typing": "from typing import Optional",
+    "collections": "from collections import Counter, defaultdict, deque, namedtuple",
+    "itertools": "from itertools import chain, islice, pairwise",
+    "dataclasses": "from dataclasses import dataclass",
+}
+
+
+@pytest.mark.parametrize("module_name", MontyAdapter.IMPORTABLE_MODULES)
+async def test_advertised_modules_are_importable_in_the_guest(
+    module_name: str, runtime: MontyRuntime
+) -> None:
+    assert (
+        await runtime.run(
+            f"{_REPRESENTATIVE_API[module_name]}\n'imported'",
+            consumer="validation",
+            limits=None,
+        )
+        == "imported"
+    )
+
+
+async def test_guest_rejects_inheritance_and_method_decorators(
+    runtime: MontyRuntime,
+) -> None:
+    """Decorators apply to functions, not methods; classes cannot inherit."""
+    adapter = MontyAdapter()
+
+    supported = await adapter.validate_code(
+        MontyConfig(),
+        "def double(func):\n"
+        "    def inner(value):\n"
+        "        return func(value) * 2\n"
+        "    return inner\n"
+        "@double\n"
+        "def scale(value):\n"
+        "    return value\n"
+        "class Scorer:\n"
+        "    def score(self, value):\n"
+        "        return scale(value)\n"
+        "def evaluate(output):\n"
+        "    return {'score': Scorer().score(output)}\n",
+        runtime=SandboxRuntimeContext(monty=runtime),
+    )
+    assert supported is None
+
+    for unsupported, expected in (
+        ("class Base:\n    pass\nclass Child(Base):\n    pass\n", "inheritance"),
+        ("class Scorer:\n    @property\n    def score(self):\n        return 1\n", "decorators"),
+    ):
+        error = await adapter.validate_code(
+            MontyConfig(),
+            f"{unsupported}def evaluate(output):\n    return output",
+            runtime=SandboxRuntimeContext(monty=runtime),
+        )
+        assert error is not None and expected in error
+
+
 async def test_validate_code_reports_unavailable_runtime(runtime: MontyRuntime) -> None:
     runtime.run = AsyncMock(side_effect=MontyBusy("validation capacity is busy"))  # type: ignore[method-assign]
 
