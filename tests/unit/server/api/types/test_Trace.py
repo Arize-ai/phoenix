@@ -10,6 +10,10 @@ from phoenix.server.api.types.pagination import Cursor
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.online_eval.bound_variables import (
+    TRACE_BOUND_VARIABLE_NAMES,
+    TRACE_METADATA_FIELD_NAMES,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -82,6 +86,24 @@ class TestTrace:
             "id": str(GlobalID(Span.__name__, str(span.id))),
             "name": span.name,
         }
+
+    async def test_evaluation_context(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        traces = _data.traces
+        field = "evaluationContext"
+        # The first trace has no spans, so there is no root span to evaluate.
+        assert await self._node(field, traces[0], httpx_client) is None
+        context = await self._node(field, traces[1], httpx_client)
+        assert set(context) == {"input", "output", "metadata"}
+        metadata = context["metadata"]
+        assert set(metadata) == set(TRACE_BOUND_VARIABLE_NAMES) | TRACE_METADATA_FIELD_NAMES
+        assert metadata["trace_id"] == traces[1].trace_id
+        assert metadata["start_time"] == traces[1].start_time.isoformat()
+        assert metadata["num_spans"] == 2
+        assert metadata["trace_annotations"] == {}
 
     async def test_user_id(
         self,

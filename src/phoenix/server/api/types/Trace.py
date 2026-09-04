@@ -12,6 +12,7 @@ from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, or_, select
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias
 
@@ -205,6 +206,32 @@ class Trace(Node):
         if span_rowid is None:
             return None
         return Span(id=span_rowid)
+
+    @strawberry.field(
+        description=(
+            "The canonical context that online evaluators bind against when they "
+            "run on this trace. Null whenever a live evaluation would refuse this "
+            "trace: it has no root span to evaluate."
+        ),
+    )  # type: ignore
+    async def evaluation_context(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[JSON]:
+        from phoenix.server.online_eval.bound_variables import load_trace_bound_variables
+        from phoenix.server.online_eval.executor import load_trace_eval_context
+
+        async with info.context.db.read() as session:
+            # Read inside the field rather than carried from the list this trace was
+            # read in, because the trace can lose its root span, or the whole trace,
+            # in between; one unevaluable trace must not fail the list it appears in.
+            vocabularies = await load_trace_bound_variables(session, [self.id])
+            context = await load_trace_eval_context(
+                session,
+                trace_rowid=self.id,
+                vocabulary=vocabularies[self.id],
+            )
+        return None if context is None else JSON(context)
 
     @strawberry.field(
         description='The first non-null "user.id" span attribute in the trace, '
