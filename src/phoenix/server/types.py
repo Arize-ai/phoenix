@@ -12,7 +12,9 @@ from datetime import datetime, timezone
 from typing import Any, Generic, Optional, Protocol, TypeVar, final
 
 from cachetools import LRUCache
+from sqlalchemy import Connection, event
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, SessionTransaction
 from typing_extensions import Self
 
 from phoenix.auth import CanReadToken, ClaimSet, Token, TokenAttributes
@@ -50,7 +52,7 @@ class DbSessionFactory:
         """
 
     def __call__(self) -> AbstractAsyncContextManager[AsyncSession]:
-        return self._db()
+        return self._guarded(self._db())
 
     def read(self) -> AbstractAsyncContextManager[AsyncSession]:
         """A session for reads that need not observe their own writes.
@@ -59,7 +61,50 @@ class DbSessionFactory:
         arbitrarily stale. Without a read engine it falls back to the writer's,
         whose pool then serialises it with writes.
         """
-        return self._read_db()
+        return self._guarded(self._read_db())
+
+    def _guarded(
+        self, session_context: AbstractAsyncContextManager[AsyncSession]
+    ) -> AbstractAsyncContextManager[AsyncSession]:
+        if self.dialect is not SupportedSQLDialect.POSTGRESQL:
+            return session_context
+        return _terminating_on_cancel(session_context)
+
+
+def _remember_connection(session: Session, _: SessionTransaction, connection: Connection) -> None:
+    session.info.setdefault(_CONNECTIONS_KEY, []).append(connection)
+
+
+def _terminate_connections(session: AsyncSession) -> None:
+    for connection in session.sync_session.info.get(_CONNECTIONS_KEY, ()):
+        try:
+            dbapi = connection.connection.dbapi_connection
+            terminate = getattr(dbapi, "terminate", None) or getattr(
+                getattr(dbapi, "_connection", None), "terminate", None
+            )
+            if terminate is not None:
+                terminate()
+        except Exception:
+            pass
+
+
+@asynccontextmanager
+async def _terminating_on_cancel(
+    session_context: AbstractAsyncContextManager[AsyncSession],
+) -> AsyncIterator[AsyncSession]:
+    """Close the socket under a session whose task is cancelled mid-statement. asyncpg then
+    fails every pending future at once, so the session's shielded close completes instead
+    of waiting for a cancelled query to be acknowledged."""
+    async with session_context as session:
+        event.listen(session.sync_session, "after_begin", _remember_connection)
+        try:
+            yield session
+        except asyncio.CancelledError:
+            _terminate_connections(session)
+            raise
+
+
+_CONNECTIONS_KEY = "phoenix.connections"
 
 
 _AnyT = TypeVar("_AnyT")
@@ -87,7 +132,7 @@ class _HasBatch(Generic[_ItemT_contra], ABC):
         self._batch.put(item)
 
 
-DAEMON_STOP_GRACE_SECONDS = 3.0
+DAEMON_STOP_GRACE_SECONDS = 1.0
 DAEMON_CANCEL_TIMEOUT_SECONDS = 10.0
 
 
