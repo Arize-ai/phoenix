@@ -135,7 +135,6 @@ RETENTION_POLICY_EXECUTIONS = Counter(
     labelnames=["status"],
 )
 
-# Label values are the EvaluationTarget names ("SPAN", "SESSION").
 _EVALUATION_TARGET_LABELS = ["evaluation_target"]
 
 ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(
