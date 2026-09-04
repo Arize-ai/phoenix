@@ -1,6 +1,7 @@
 import type { Completion, CompletionSection } from "@codemirror/autocomplete";
 import { snippetCompletion } from "@codemirror/autocomplete";
 import { useCallback, useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   AIQueryDSLFilterField,
@@ -16,6 +17,7 @@ import {
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
+import type { TraceFilterConditionFieldVocabularyQuery } from "./__generated__/TraceFilterConditionFieldVocabularyQuery.graphql";
 import {
   createTraceFilterAIQueryDSL,
   getTraceFilterLoopVariable,
@@ -278,16 +280,88 @@ export function getTraceFilterContextualCompletions({
   return null;
 }
 
+/** A project whose vocabulary has not loaded still filters, without typeahead. */
+export const EMPTY_TRACE_FILTER_VOCABULARY: readonly TraceFilterVocabularyTerm[] =
+  [];
+
+/**
+ * The project's trace-filter autocomplete vocabulary. Suspends: the resolver
+ * scans annotation names and root-span attributes, so callers render the field
+ * with {@link EMPTY_TRACE_FILTER_VOCABULARY} until it arrives.
+ */
+export function useTraceFilterVocabulary(
+  projectId: string
+): readonly TraceFilterVocabularyTerm[] {
+  const data = useLazyLoadQuery<TraceFilterConditionFieldVocabularyQuery>(
+    graphql`
+      query TraceFilterConditionFieldVocabularyQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            traceFilterVocabulary {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId }
+  );
+  return data.project?.traceFilterVocabulary ?? EMPTY_TRACE_FILTER_VOCABULARY;
+}
+
+/**
+ * Requires `TraceFiltersProvider`/`TracingProvider`; use
+ * {@link TraceFilterConditionFieldCore} outside them.
+ */
 export function TraceFilterConditionField(
   props: TraceFilterConditionFieldProps
 ) {
-  const {
-    onValidCondition,
-    vocabulary,
-    placeholder = "filter condition (e.g. num_spans >= 5)",
-  } = props;
+  const { onValidCondition, vocabulary, placeholder } = props;
   const { filterCondition, setFilterCondition } = useTraceFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  return (
+    <TraceFilterConditionFieldCore
+      projectId={projectId}
+      vocabulary={vocabulary}
+      filterCondition={filterCondition}
+      onFilterConditionChange={setFilterCondition}
+      onValidCondition={onValidCondition}
+      placeholder={placeholder}
+    />
+  );
+}
+
+export type TraceFilterConditionFieldCoreProps = {
+  projectId: string;
+  vocabulary: readonly TraceFilterVocabularyTerm[];
+  filterCondition: string;
+  onFilterConditionChange: (condition: string) => void;
+  onValidCondition: (condition: string) => void;
+  /** An empty condition reports as valid (unfiltered). */
+  onValidityChange?: (isValid: boolean) => void;
+  placeholder?: string;
+};
+
+/**
+ * Takes all filter state as props, so it can mount outside
+ * `TraceFiltersProvider`/`TracingProvider`.
+ */
+export function TraceFilterConditionFieldCore(
+  props: TraceFilterConditionFieldCoreProps
+) {
+  const {
+    projectId,
+    vocabulary,
+    filterCondition,
+    onFilterConditionChange,
+    onValidCondition,
+    onValidityChange,
+    placeholder = "filter condition (e.g. num_spans >= 5)",
+  } = props;
   // An empty vocabulary means the project's terms haven't arrived (the field
   // renders ahead of them, see the Suspense fallback in TracesTable), so AI
   // query waits rather than prompting the model with no field names.
@@ -361,7 +435,7 @@ export function TraceFilterConditionField(
       aria-label="Filter traces"
       className="trace-filter-condition-field"
       value={filterCondition}
-      onChange={setFilterCondition}
+      onChange={onFilterConditionChange}
       placeholder={placeholder}
       completions={completions}
       snippets={traceFilterSnippets}
@@ -370,6 +444,7 @@ export function TraceFilterConditionField(
       getErrorRange={findDSLFilterComprehensionRange}
       validateCondition={validateCondition}
       onValidCondition={handleValidCondition}
+      onValidationStateChange={onValidityChange}
       aiQuery={traceFilterAIQuery}
     />
   );
