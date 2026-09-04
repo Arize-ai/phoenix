@@ -74,6 +74,8 @@ import type {
 import type { ProjectEvaluatorScopePanelSessionCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionCountQuery.graphql";
 import type { ProjectEvaluatorScopePanelSessionsQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSessionsQuery.graphql";
 import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelSpansQuery.graphql";
+import type { ProjectEvaluatorScopePanelTraceCountQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelTraceCountQuery.graphql";
+import type { ProjectEvaluatorScopePanelTracesQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopePanelTracesQuery.graphql";
 import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
@@ -84,6 +86,7 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
+import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
 import type {
   CodeEvaluatorLanguage,
   EvaluatorInputMapping,
@@ -204,6 +207,11 @@ const MATCHING_RECORDS_BY_GRAIN: Record<
   }
 > = {
   span: { CountLine: MatchedSpanCountLine, RunList: SpanRunList },
+  trace: {
+    CountLine: MatchedTraceCountLine,
+    RunList: TraceRunList,
+    note: <TraceInputNote />,
+  },
   session: {
     CountLine: MatchedSessionCountLine,
     RunList: SessionRunList,
@@ -259,9 +267,8 @@ export const ProjectEvaluatorScopePanel = (
       Test All
     </Button>
   );
-  // Every target maps onto a mapping-source grain, and the preview reads the
-  // grain's records: TRACE collapses onto span, so a trace evaluator previews
-  // spans by way of that mapping, not by default.
+  // Every target maps onto a mapping-source grain, and the preview reads that
+  // grain's records.
   const { CountLine, RunList, note } =
     MATCHING_RECORDS_BY_GRAIN[mappingSourceGrain];
   const records = `${mappingSourceGrain}s`;
@@ -364,6 +371,20 @@ function LlmRunList({
 }) {
   const playgroundStore = usePlaygroundStore();
   return <RunList {...props} playgroundStore={playgroundStore} />;
+}
+
+/** Names the bindings a trace evaluator receives, which no span vocabulary covers. */
+function TraceInputNote() {
+  return (
+    <Flex direction="column" gap="size-25">
+      <Heading level={2}>Trace input</Heading>
+      <Text color="text-500" size="S">
+        The root span's input as <code>input</code>, its output as{" "}
+        <code>output</code>, and its attributes under{" "}
+        <code>metadata.attributes</code>.
+      </Text>
+    </Flex>
+  );
 }
 
 /** Names the bindings a session evaluator receives, which no span vocabulary covers. */
@@ -577,6 +598,201 @@ function MatchedSessionCountLine({
   );
 }
 
+/**
+ * How far the matching-trace count reads before it stops counting. The API
+ * exposes no trace count under a trace-filter condition, so the count is read
+ * off the matching traces themselves; past this it reports a floor instead.
+ */
+const TRACE_COUNT_PROBE_LIMIT = 100;
+
+/**
+ * Traces are listed as their representative root spans — one per trace, the
+ * same span whose input and output a trace evaluation binds — because that is
+ * the only trace-filtered listing the API offers.
+ */
+function MatchedTraceCountLine({
+  projectId,
+  filterCondition,
+  timeWindow,
+}: MatchedCountLineProps) {
+  const { startIso, prose } = timeWindow;
+  const data = useLazyLoadQuery<ProjectEvaluatorScopePanelTraceCountQuery>(
+    graphql`
+      query ProjectEvaluatorScopePanelTraceCountQuery(
+        $projectId: ID!
+        $timeRange: TimeRange
+        $traceFilterCondition: String
+        $first: Int!
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            rootSpans: spans(
+              first: $first
+              rootSpansOnly: true
+              sort: { col: startTime, dir: desc }
+              traceFilterCondition: $traceFilterCondition
+              timeRange: $timeRange
+            ) {
+              edges {
+                span: node {
+                  id
+                }
+              }
+              pageInfo {
+                hasNextPage
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      projectId,
+      traceFilterCondition: filterCondition.trim() || null,
+      timeRange: { start: startIso },
+      first: TRACE_COUNT_PROBE_LIMIT,
+    },
+    { fetchPolicy: "store-and-network" }
+  );
+  const matchedCount = data.project?.rootSpans?.edges.length ?? 0;
+  const hasMore = data.project?.rootSpans?.pageInfo.hasNextPage ?? false;
+  return (
+    <Text size="S" color="text-500">
+      {matchedCount === 0
+        ? `No traces matched this scope ${prose}.`
+        : hasMore
+          ? `Over ${TRACE_COUNT_PROBE_LIMIT.toLocaleString()} traces matched ${prose}. The most recent are shown below.`
+          : `${matchedCount.toLocaleString()} trace${
+              matchedCount === 1 ? "" : "s"
+            } matched ${prose}. The most recent are shown below.`}
+    </Text>
+  );
+}
+
+const TRACE_LIST_PAGE_SIZE = 5;
+
+function formatTraceMetric(numSpans: number, totalTokens: number): string {
+  const spans = `${numSpans.toLocaleString()} span${numSpans === 1 ? "" : "s"}`;
+  return `${spans} · ${totalTokens.toLocaleString()} tokens`;
+}
+
+/**
+ * The traces this evaluator would run on, each carrying the same evaluation
+ * context a live trace evaluation binds against, so a row can be tested.
+ */
+function TraceRunList({
+  projectId,
+  filterCondition,
+  timeWindow,
+  codeEvaluatorId,
+  inlineCode,
+  playgroundStore,
+  requiredVariables,
+  runAllRecordsRef,
+  onCanRunAllChange,
+}: RecordRunListProps) {
+  const [limit, setLimit] = useState(TRACE_LIST_PAGE_SIZE);
+  // A transition keeps the current rows visible instead of collapsing the list
+  // to its Suspense fallback while the wider page loads.
+  const [isShowingMore, startShowMoreTransition] = useTransition();
+  const data = useLazyLoadQuery<ProjectEvaluatorScopePanelTracesQuery>(
+    graphql`
+      query ProjectEvaluatorScopePanelTracesQuery(
+        $projectId: ID!
+        $traceFilterCondition: String
+        $timeRange: TimeRange
+        $first: Int!
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            rootSpans: spans(
+              first: $first
+              rootSpansOnly: true
+              sort: { col: startTime, dir: desc }
+              traceFilterCondition: $traceFilterCondition
+              timeRange: $timeRange
+            ) {
+              edges {
+                span: node {
+                  id
+                  trace {
+                    id
+                    traceId
+                    numSpans
+                    evaluationContext
+                    costSummary {
+                      total {
+                        tokens
+                      }
+                    }
+                  }
+                }
+              }
+              pageInfo {
+                hasNextPage
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      projectId,
+      traceFilterCondition: filterCondition.trim() || null,
+      timeRange: { start: timeWindow.startIso },
+      first: limit,
+    },
+    { fetchPolicy: "store-and-network" }
+  );
+  const traces = data.project?.rootSpans?.edges.map(({ span }) => span.trace);
+  const sample = traces?.length ? null : getSampleTraceEvaluationContext();
+  const rows: RecordedRunListRow[] = traces?.length
+    ? traces.map((trace) => ({
+        key: trace.id,
+        name: trace.traceId,
+        context: trace.evaluationContext,
+        isSample: false,
+        unavailableReason:
+          trace.evaluationContext == null
+            ? "This trace has no root span to evaluate."
+            : undefined,
+        metric: formatTraceMetric(
+          trace.numSpans,
+          trace.costSummary.total.tokens ?? 0
+        ),
+      }))
+    : sample
+      ? [
+          {
+            key: SAMPLE_ROW_KEY,
+            name: "Sample trace",
+            context: sample.context,
+            isSample: true,
+          },
+        ]
+      : [];
+  return (
+    <RecordedRunList
+      rows={rows}
+      recordNoun="trace"
+      listLabel="Recent matching traces"
+      hasMore={data.project?.rootSpans?.pageInfo.hasNextPage ?? false}
+      isLoadingMore={isShowingMore}
+      onLoadMore={() =>
+        startShowMoreTransition(() => {
+          setLimit((current) => current + TRACE_LIST_PAGE_SIZE);
+        })
+      }
+      codeEvaluatorId={codeEvaluatorId}
+      inlineCode={inlineCode}
+      playgroundStore={playgroundStore}
+      requiredVariables={requiredVariables}
+      runAllRecordsRef={runAllRecordsRef}
+      onCanRunAllChange={onCanRunAllChange}
+    />
+  );
+}
+
 const SESSION_LIST_PAGE_SIZE = 5;
 
 function formatSessionMetric(numTraces: number, totalTokens: number): string {
@@ -719,15 +935,15 @@ type RecordedRun =
   | { status: "done"; results: RecordedRunResult[] }
   | { status: "error"; message: string };
 
-/** One recorded span or session, with the context an evaluator binds against. */
+/** One recorded span, trace, or session, with the context an evaluator binds against. */
 type RecordedRunListRow = {
   key: string;
   name: string;
-  /** Prefixes the card title on a span row; a session has no kind. */
+  /** Prefixes the card title on a span row; no other grain has a kind. */
   spanKind?: string;
   context: unknown;
   isSample: boolean;
-  /** An at-a-glance measure of the record, such as a session's trace count. */
+  /** An at-a-glance measure of the record, such as a trace's span count. */
   metric?: string;
   /**
    * Why this record has no context to bind against. Set only when the server
@@ -1624,10 +1840,10 @@ export function useEvaluatorMappingSourceBoundToRow({
 }
 
 /**
- * Span and session contexts share this shape, so this cannot tell them apart —
- * the grain the row is bound under does, and the store decides from that what
- * of `metadata` to keep. Only `metadata` is guaranteed to be an object by the
- * server context shape; `input`/`output` are raw attribute values.
+ * Every record grain's context shares this shape, so this cannot tell them
+ * apart — the grain the row is bound under does, and the store decides from
+ * that what of `metadata` to keep. Only `metadata` is guaranteed to be an
+ * object by the server context shape; `input`/`output` are raw attribute values.
  */
 function hasEvaluatorMappingSourceShape(
   value: unknown
@@ -1726,8 +1942,8 @@ function useEvaluatorPreviewRuns({
               context,
               evaluator,
               inputMapping: state.evaluator.inputMapping,
-              // Every row here stands in for a scheduled run, span or
-              // session, so the run has to fail wherever the live one would.
+              // Every row here stands in for a scheduled run, whatever its
+              // grain, so the run has to fail wherever the live one would.
               applyOnlineEvaluationLimits: true,
             },
           ],
