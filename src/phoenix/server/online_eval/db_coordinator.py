@@ -279,8 +279,7 @@ class DbEvalWorkCoordinator:
             if identity is None:
                 raise PublicationClaimLostError(f"work unit {work_unit_id} no longer exists")
 
-            # TRACE publication must not lock a session after a trace: `delete_traces`
-            # locks the sessions losing content first, and the reverse order deadlocks.
+            # Match `delete_traces`: session locks must precede trace locks.
             project_evaluator_enabled = await session.scalar(
                 select(models.ProjectEvaluator.enabled)
                 .where(models.ProjectEvaluator.id == identity.project_evaluator_id)

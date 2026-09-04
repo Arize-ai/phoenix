@@ -828,7 +828,6 @@ async def test_trace_publish_refuses_a_trace_deleted_under_the_fence(
                 write=_write,
             )
         )
-        # Publication blocks at the locked re-check, so the timeout is the pass condition.
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(asyncio.shield(publication), timeout=0.1)
 

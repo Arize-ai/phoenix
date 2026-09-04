@@ -70,8 +70,7 @@ BOUND_VARIABLE_NAMES = (
     SPAN_BOUND_VARIABLE_NAMES | SESSION_BOUND_VARIABLE_NAMES | TRACE_BOUND_VARIABLE_NAMES
 )
 
-# Trace-filter names for the root span's input/output; a trace context binds them at its
-# top level, so they load with the vocabulary but stay out of `metadata`.
+# Trace-filter root I/O binds at the context's top level, outside `metadata`.
 TRACE_ROOT_IO_NAMES = TRACE_BINDINGS.caller_bound_string_names
 
 # Mirrored by the frontend's SPAN/SESSION_METADATA_FIELDS via test_bound_variables.py.
