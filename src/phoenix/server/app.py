@@ -1144,8 +1144,9 @@ def create_app(
         # A consumer without its sweeper would claim from a table only the sweeper
         # can fill, so the session halves start together. The trace sweeper below is
         # the deliberate exception: it runs ahead of its consumer, and until that
-        # consumer lands, trace work accumulates under the sweeper's admission
-        # ceiling and is shed by PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS.
+        # consumer lands the sweeper's admission ceiling is the only bound on the
+        # work it materializes. Nothing sheds a pending trace unit before a consumer
+        # claims it: the pending TTL applies to span work alone.
         online_eval_session_consumer = OnlineEvalConsumer(
             db,
             decrypt=encryption_service.decrypt,
