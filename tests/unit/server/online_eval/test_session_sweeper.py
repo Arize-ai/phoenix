@@ -7,7 +7,7 @@ from typing import Sequence, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from sqlalchemy import Table, func, select, update
+from sqlalchemy import Table, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.config import get_env_online_eval_max_session_outstanding
@@ -378,6 +378,87 @@ async def test_materialization_waits_for_retention_session_lock(
         # not hold the evaluator's watermark back.
         assert await session.scalar(select(models.ProjectEvaluator.swept_through_at)) is not None
     assert work_count == 0
+
+
+@pytest.mark.postgres_only
+async def test_evaluator_deleted_mid_page_does_not_advance_the_watermark(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    _, deleted_project_evaluator_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+    )
+    _, surviving_project_evaluator_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+    )
+    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    materialization_started = asyncio.Event()
+    materialization_backend_pid: int | None = None
+
+    async def materialize() -> tuple[int, int | None]:
+        nonlocal materialization_backend_pid
+        async with db() as session:
+            materialization_backend_pid = await session.scalar(select(func.pg_backend_pid()))
+            assert materialization_backend_pid is not None
+            database_now = await sweeper._database_now(session)
+            materialization_started.set()
+            return await sweeper._sweep(session, database_now)
+
+    async with db() as deletion_session:
+        deletion_backend_pid = await deletion_session.scalar(select(func.pg_backend_pid()))
+        assert deletion_backend_pid is not None
+        await deletion_session.execute(
+            delete(models.ProjectEvaluator).where(
+                models.ProjectEvaluator.id == deleted_project_evaluator_id
+            )
+        )
+        materialization = asyncio.create_task(materialize())
+        await materialization_started.wait()
+
+        async def wait_for_the_delete_to_block_materialization() -> Sequence[int]:
+            assert materialization_backend_pid is not None
+            while True:
+                async with db() as observer:
+                    blocking_pids = await observer.scalar(
+                        select(func.pg_blocking_pids(materialization_backend_pid))
+                    )
+                if blocking_pids:
+                    return cast(Sequence[int], blocking_pids)
+                await asyncio.sleep(0)
+
+        blocking_pids = await asyncio.wait_for(
+            wait_for_the_delete_to_block_materialization(),
+            timeout=5,
+        )
+        assert deletion_backend_pid in blocking_pids
+
+    inserted_count, _ = await asyncio.wait_for(materialization, timeout=5)
+    assert inserted_count == 0
+    async with db() as session:
+        work_count = await session.scalar(
+            select(func.count()).select_from(models.EvalSessionWorkUnit)
+        )
+        # The page named an evaluator that is gone, so the tick records nothing for the
+        # evaluator that survived either, and its pairs are offered again.
+        assert (
+            await session.scalar(
+                select(models.ProjectEvaluator.swept_through_at).where(
+                    models.ProjectEvaluator.id == surviving_project_evaluator_id
+                )
+            )
+            is None
+        )
+    assert work_count == 0
+
+    async with db() as session:
+        database_now = await sweeper._database_now(session)
+        inserted_count, _ = await sweeper._sweep(session, database_now)
+    assert inserted_count == 1
 
 
 async def test_session_with_null_liveness_is_never_eligible(
