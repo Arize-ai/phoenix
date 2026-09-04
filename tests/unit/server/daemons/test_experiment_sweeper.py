@@ -21,7 +21,7 @@ class Rendezvous(NamedTuple):
 async def rendezvous() -> AsyncIterator[Rendezvous]:
     """Rendezvous fixture for ExperimentSweeper.
 
-    The sweeper runs work first, then sleeps. The patched sleep signals `done`
+    The sweeper runs work first, then sleeps. The patched `_sleep` signals `done`
     (work is finished) before parking on `release` (waiting for the test to
     release the loop). This gives the test an exact signal that the daemon has
     parked and holds no open DB sessions, avoiding SQLite savepoint ordering
@@ -34,7 +34,7 @@ async def rendezvous() -> AsyncIterator[Rendezvous]:
         await rendezvous.release.wait()
         rendezvous.release.clear()
 
-    with patch("phoenix.server.daemons.experiment_sweeper.sleep", wait_for_event):
+    with patch.object(ExperimentSweeper, "_sleep", wait_for_event):
         yield rendezvous
 
 

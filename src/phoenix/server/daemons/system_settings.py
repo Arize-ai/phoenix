@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 from typing import Literal, Mapping, Optional, overload
 
@@ -150,10 +149,11 @@ class SystemSettings(DaemonTask):
     async def _run(self) -> None:
         while self._running:
             try:
-                await self._fetch()
+                async with self._ticking():
+                    await self._fetch()
             except Exception:
                 logger.exception("Failed to refresh system_settings")
-            await sleep(self._refresh_interval_seconds)
+            await self._sleep(self._refresh_interval_seconds)
 
     async def _fetch(self) -> None:
         now = datetime.now(timezone.utc)

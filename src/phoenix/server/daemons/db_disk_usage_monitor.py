@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -72,17 +71,19 @@ class DbDiskUsageMonitor(DaemonTask):
 
         while self._running:
             try:
-                current_usage_bytes = await self._check_disk_usage_bytes()
+                async with self._ticking():
+                    current_usage_bytes = await self._check_disk_usage_bytes()
             except Exception:
                 logger.exception("Failed to check disk space")
             else:
                 DB_DISK_USAGE_BYTES.set(current_usage_bytes)
                 current_usage_gibibytes = current_usage_bytes / _BYTES_PER_GIBIBYTE
                 try:
-                    await self._check_thresholds(current_usage_gibibytes)
+                    async with self._ticking():
+                        await self._check_thresholds(current_usage_gibibytes)
                 except Exception:
                     logger.exception("Failed to check database usage thresholds")
-            await sleep(_SLEEP_SECONDS)
+            await self._sleep(_SLEEP_SECONDS)
 
     async def _check_disk_usage_bytes(self) -> float:
         if self._db.dialect is SupportedSQLDialect.SQLITE:

@@ -12,7 +12,6 @@ that became visible after their window was scanned.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass
@@ -157,10 +156,11 @@ class OnlineEvalProducer(DaemonTask):
         try:
             while self._running:
                 try:
-                    await self._tick()
+                    async with self._ticking():
+                        await self._tick()
                 except Exception:
                     logger.exception("Online-eval producer tick failed")
-                await asyncio.sleep(self._tick_interval_seconds)
+                await self._sleep(self._tick_interval_seconds)
         finally:
             await self._release_lease()
 

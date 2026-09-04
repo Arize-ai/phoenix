@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Optional
 
@@ -63,12 +62,13 @@ class GenerativeModelStore(DaemonTask):
             # Capture time before query with a 10-second buffer for clock skew tolerance
             fetch_start_time = datetime.now(timezone.utc) - _FETCH_CLOCK_SKEW_BUFFER
             try:
-                await self._fetch_models()
+                async with self._ticking():
+                    await self._fetch_models()
             except Exception:
                 logger.exception("Failed to refresh generative models")
             else:
                 self._last_fetch_time = fetch_start_time
-            await sleep(self._refresh_interval_seconds)
+            await self._sleep(self._refresh_interval_seconds)
 
     async def _fetch_models(self) -> None:
         """

@@ -1,7 +1,7 @@
 import asyncio
 from asyncio import Event, sleep
 from datetime import datetime, timezone
-from typing import AsyncIterator, Callable
+from typing import Any, AsyncIterator, Callable
 from unittest.mock import patch
 
 import pytest
@@ -20,11 +20,11 @@ async def fetch_trigger() -> AsyncIterator[Event]:
     """
     event = Event()
 
-    async def wait_for_event(seconds: int) -> None:
+    async def wait_for_event(*_: Any, **__: Any) -> None:
         await event.wait()
         event.clear()
 
-    with patch("phoenix.server.daemons.generative_model_store.sleep", wait_for_event):
+    with patch.object(GenerativeModelStore, "_sleep", wait_for_event):
         yield event
 
 

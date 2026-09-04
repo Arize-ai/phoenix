@@ -351,10 +351,11 @@ class SandboxSessionManager(DaemonTask):
     async def _run(self) -> None:
         while self._running:
             try:
-                await self._sweep_idle()
+                async with self._ticking():
+                    await self._sweep_idle()
             except Exception:
                 logger.exception("Sandbox session manager sweep failed")
-            await sleep(self._sweep_interval_seconds)
+            await self._sleep(self._sweep_interval_seconds)
 
     async def stop(self) -> None:
         """Drain in-flight sessions, then cancel the sweeper.

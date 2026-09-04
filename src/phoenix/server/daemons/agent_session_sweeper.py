@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import random
-from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 
 import sqlalchemy as sa
@@ -30,10 +29,11 @@ class AgentSessionSweeper(DaemonTask):
     async def _run(self) -> None:
         while self._running:
             try:
-                await self._sweep()
+                async with self._ticking():
+                    await self._sweep()
             except Exception:
                 logger.exception("Failed to clean up expired agent sessions")
-            await sleep(_SLEEP_SECONDS + random.uniform(-_JITTER_SECONDS, _JITTER_SECONDS))
+            await self._sleep(_SLEEP_SECONDS + random.uniform(-_JITTER_SECONDS, _JITTER_SECONDS))
 
     async def _sweep(self) -> None:
         await self._delete_idle_sessions(

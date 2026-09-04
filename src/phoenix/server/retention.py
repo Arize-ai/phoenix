@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from asyncio import create_task, gather, sleep
+from asyncio import create_task, gather
 from datetime import datetime, timedelta, timezone
 from time import time
 
@@ -36,20 +36,24 @@ class TraceDataSweeper(DaemonTask):
         """Check hourly, apply policies, then clean up orphaned sessions."""
         while self._running:
             await self._sleep_until_next_hour()
+            if not self._running:
+                break
             RETENTION_SWEEPER_LAST_RUN.set(time())
             try:
-                if policies := await self._get_policies():
-                    current_hour = self._current_hour()
-                    if tasks := [
-                        create_task(self._apply(policy))
-                        for policy in policies
-                        if self._should_apply(policy, current_hour)
-                    ]:
-                        await gather(*tasks, return_exceptions=True)
+                async with self._ticking():
+                    if policies := await self._get_policies():
+                        current_hour = self._current_hour()
+                        if tasks := [
+                            create_task(self._apply(policy))
+                            for policy in policies
+                            if self._should_apply(policy, current_hour)
+                        ]:
+                            await gather(*tasks, return_exceptions=True)
             except Exception:
                 logger.exception("Unexpected error in retention sweeper main loop")
             try:
-                await self._delete_orphan_sessions()
+                async with self._ticking():
+                    await self._delete_orphan_sessions()
             except Exception:
                 logger.exception("Failed to delete orphaned project sessions")
 
@@ -161,4 +165,4 @@ class TraceDataSweeper(DaemonTask):
 
     async def _sleep_until_next_hour(self) -> None:
         next_hour = self._now().replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
-        await sleep((next_hour - self._now()).total_seconds())
+        await self._sleep((next_hour - self._now()).total_seconds())
