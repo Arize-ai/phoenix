@@ -1,5 +1,7 @@
 import { css, Global } from "@emotion/react";
 
+import { typeaheadMenuCSS } from "@phoenix/components/filter/styles";
+
 import type { ThemeContextType } from "./contexts";
 import { useTheme } from "./contexts";
 
@@ -88,6 +90,9 @@ const staticCSS = css`
     --global-button-height-s: var(--global-input-height-s);
     --global-button-height-m: var(--global-input-height-m);
     --global-button-height-l: var(--global-input-height-l);
+
+    // layout sizing
+    --global-text-content-max-width: 800px;
   }
 `;
 
@@ -1655,6 +1660,7 @@ export function GlobalStyles() {
         mediumRootCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
+        typeaheadMenuCSS,
         chartCSS,
         fontFamilyCSS
       )}

@@ -3,10 +3,17 @@ import type {
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
-import { autocompletion } from "@codemirror/autocomplete";
+import { autocompletion, startCompletion } from "@codemirror/autocomplete";
 import type { Extension } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+
+import { closeCompletionOnEscape } from "@phoenix/components/evaluators/completionKeys";
+import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
+import { toEvaluatorCompletionClass } from "@phoenix/components/evaluators/evaluatorContextCompletions";
+import { typeaheadTooltips } from "@phoenix/components/filter/typeaheadTooltip";
 
 import { TemplateFormats } from "./constants";
+import { getEvaluatorTemplateCompletions } from "./evaluatorTemplateCompletions";
 import type { TemplateFormat } from "./types";
 
 /**
@@ -162,25 +169,88 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** The template variable the cursor sits inside, and where its content starts. */
+export type OpenTemplateVariable = { from: number; text: string };
+
+/** Finds the unclosed `{{`/`{` the cursor is writing inside. */
+export function findOpenTemplateVariable(
+  beforeCursor: string,
+  templateFormat: TemplateFormat
+): OpenTemplateVariable | null {
+  return findTemplateVariableMatch({
+    beforeCursor,
+    isMustache: templateFormat === TemplateFormats.Mustache,
+  });
+}
+
 /**
  * Creates an autocomplete extension for template variables.
  *
  * @param availablePaths - Array of available paths for autocomplete (e.g., ["input", "input.query", "reference.label"])
  * @param templateFormat - The template format (Mustache or FString)
+ * @param evaluationContext - Materialized evaluator inputs for project evaluators
  * @returns A CodeMirror extension for autocomplete
  */
 export function createTemplateAutocomplete(
   availablePaths: string[],
-  templateFormat: TemplateFormat
+  templateFormat: TemplateFormat,
+  evaluationContext: MaterializedEvaluatorContext | null = null
 ): Extension {
   const completionFn = (context: CompletionContext): CompletionResult | null =>
-    templateVariableCompletions(context, availablePaths, templateFormat);
+    templateVariableCompletions(
+      context,
+      availablePaths,
+      templateFormat,
+      evaluationContext
+    );
 
-  return autocompletion({
-    override: [completionFn],
-    defaultKeymap: true,
-    activateOnTyping: true,
+  return [
+    openEmptyVariableMenu(templateFormat),
+    typeaheadTooltips(),
+    ...(evaluationContext === null ? [] : [closeCompletionOnEscape]),
+    autocompletion({
+      override: [completionFn],
+      defaultKeymap: true,
+      activateOnTyping: true,
+      ...(evaluationContext === null
+        ? {}
+        : {
+            icons: false,
+            tooltipClass: () => "dsl-filter-typeahead",
+            optionClass: toEvaluatorCompletionClass,
+          }),
+    }),
+  ];
+}
+
+function openEmptyVariableMenu(templateFormat: TemplateFormat): Extension {
+  return EditorView.updateListener.of((update) => {
+    if (!update.view.hasFocus) return;
+    if (!update.selectionSet && !update.docChanged && !update.focusChanged)
+      return;
+    const cursor = update.state.selection.main;
+    if (!cursor.empty) return;
+    if (
+      !isAtEmptyTemplateVariable({
+        beforeCursor: update.state.doc.sliceString(0, cursor.head),
+        templateFormat,
+      })
+    ) {
+      return;
+    }
+    startCompletion(update.view);
   });
+}
+
+/** Whether the cursor sits in a variable with nothing typed into it. */
+export function isAtEmptyTemplateVariable({
+  beforeCursor,
+  templateFormat,
+}: {
+  beforeCursor: string;
+  templateFormat: TemplateFormat;
+}): boolean {
+  return findOpenTemplateVariable(beforeCursor, templateFormat)?.text === "";
 }
 
 /**
@@ -192,16 +262,30 @@ export function createTemplateAutocomplete(
 function templateVariableCompletions(
   context: CompletionContext,
   availablePaths: string[],
-  templateFormat: TemplateFormat
+  templateFormat: TemplateFormat,
+  evaluationContext: MaterializedEvaluatorContext | null
 ): CompletionResult | null {
-  if (availablePaths.length === 0 || templateFormat === TemplateFormats.NONE) {
+  if (templateFormat === TemplateFormats.NONE) {
     return null;
   }
 
   const isMustache = templateFormat === TemplateFormats.Mustache;
   const beforeCursor = context.state.doc.sliceString(0, context.pos);
-  const match = findTemplateVariableMatch({ beforeCursor, isMustache });
+  const match = findOpenTemplateVariable(beforeCursor, templateFormat);
   if (!match) return null;
+
+  if (evaluationContext !== null) {
+    return getEvaluatorTemplateCompletions({
+      evaluationContext,
+      templateFormat,
+      variable: match,
+      sectionStack: isMustache
+        ? detectMustacheSectionContext(beforeCursor)
+        : [],
+    });
+  }
+
+  if (availablePaths.length === 0) return null;
 
   const typedText = match.text.toLowerCase();
   const { paths, isInSection } = getContextualTemplatePaths({

@@ -130,6 +130,46 @@ describe("flattenObject", () => {
     });
   });
 
+  describe("bracketNonIdentifierKeys parameter", () => {
+    it("brackets keys that dot notation cannot address", () => {
+      expect(
+        flattenObject({
+          obj: {
+            metadata: {
+              "phoenix.online_eval.transcript_policy": { version: 2 },
+              "custom-key": 1,
+              turns: 3,
+            },
+          },
+          bracketNonIdentifierKeys: true,
+        })
+      ).toEqual({
+        "metadata['phoenix.online_eval.transcript_policy'].version": 2,
+        "metadata['custom-key']": 1,
+        "metadata.turns": 3,
+      });
+    });
+
+    it("escapes quotes and backslashes so the segment ends where the key does", () => {
+      expect(
+        flattenObject({
+          obj: {
+            metadata: {
+              "a'b": 1,
+              "a\\b": 2,
+              "a\\'b": 3,
+            },
+          },
+          bracketNonIdentifierKeys: true,
+        })
+      ).toEqual({
+        "metadata['a\\'b']": 1,
+        "metadata['a\\\\b']": 2,
+        "metadata['a\\\\\\'b']": 3,
+      });
+    });
+  });
+
   describe("parentKey parameter", () => {
     it("uses no parent key by default", () => {
       expect(flattenObject({ obj: { a: 1 } })).toEqual({ a: 1 });

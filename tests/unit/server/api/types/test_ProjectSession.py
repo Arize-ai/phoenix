@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, NamedTuple
+from types import SimpleNamespace
+from typing import Any, NamedTuple, cast
 
 import httpx
 import pytest
@@ -9,6 +10,10 @@ from phoenix.db import models
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.online_eval.bound_variables import (
+    SESSION_BOUND_VARIABLE_NAMES,
+    SESSION_METADATA_FIELD_NAMES,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -285,6 +290,111 @@ class TestProjectSession:
         project_sessions = _data.project_sessions
         field = "traceLatencyMsQuantile(probability: 0.5)"
         assert await self._node(field, project_sessions[0], httpx_client) == 10000.0
+
+    async def test_session_evaluation_context(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project_session = _data.project_sessions[0]
+        context = await self._node("sessionEvaluationContext", project_session, httpx_client)
+        assert set(context) == {"input", "output", "metadata"}
+        assert context["input"] == _LONG_FIRST_INPUT
+        assert context["output"] == _LONG_LAST_OUTPUT
+        metadata = context["metadata"]
+        assert set(metadata) == set(SESSION_BOUND_VARIABLE_NAMES) | SESSION_METADATA_FIELD_NAMES
+        assert [(turn["input"], turn["output"]) for turn in metadata["turns"]] == [
+            (_LONG_FIRST_INPUT, "321"),
+            ("1234", _LONG_LAST_OUTPUT),
+        ]
+        assert metadata["session_id"] == project_session.session_id
+        assert metadata["start_time"] == project_session.start_time.isoformat()
+        assert metadata["end_time"] == project_session.end_time.isoformat()
+        assert metadata["duration_ms"] == 0.0
+        assert metadata["num_traces"] == 2
+        assert metadata["num_traces_with_error"] == 1
+        assert metadata["token_count_prompt"] == 4
+        assert metadata["token_count_completion"] == 6
+        assert metadata["token_count_total"] == 10
+        assert metadata["llm_span_count"] == 2
+        assert metadata["tool_span_count"] == 0
+        assert metadata["total_cost"] == 0
+        assert metadata["user_id"] is None
+
+    async def test_session_evaluation_context_is_null_when_content_is_incomplete(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+            trimmed_session = await _add_project_session(session, project)
+            trace = await _add_trace(session, project, trimmed_session)
+            await _add_span(
+                session,
+                trace,
+                attributes={"input": {"value": "hi"}, "output": {"value": "hello"}},
+            )
+            trimmed_session.content_complete = False
+        # The sweeper never claims a trimmed session, so its remaining turns are
+        # not a context any live evaluation would read.
+        assert await self._node("sessionEvaluationContext", trimmed_session, httpx_client) is None
+
+    async def test_session_evaluation_context_is_null_for_a_raced_away_session(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        # The sessions connection reads its page first and resolves this field
+        # afterwards, so a session deleted in between reaches the field as a
+        # live-looking record. That one row must read null rather than fail the
+        # whole list.
+        async with db() as session:
+            project = await _add_project(session)
+            rowids = []
+            for value in ("raced", "live"):
+                project_session = await _add_project_session(session, project)
+                trace = await _add_trace(session, project, project_session)
+                await _add_span(
+                    session,
+                    trace,
+                    attributes={"input": {"value": value}, "output": {"value": value}},
+                )
+                rowids.append(project_session.id)
+            project_rowid = project.id
+        raced_rowid, live_rowid = rowids
+        async with db() as session:
+            await session.delete(await session.get(models.ProjectSession, raced_rowid))
+        info = cast(Any, SimpleNamespace(context=SimpleNamespace(db=db)))
+        listed = [
+            ProjectSession(
+                id=rowid,
+                db_record=models.ProjectSession(
+                    id=rowid,
+                    project_id=project_rowid,
+                    content_complete=True,
+                ),
+            )
+            for rowid in (raced_rowid, live_rowid)
+        ]
+        raced_context, live_context = [
+            await project_session.session_evaluation_context(info) for project_session in listed
+        ]
+        assert raced_context is None
+        assert live_context is not None
+        assert live_context["input"] == "live"
+
+    async def test_session_evaluation_context_is_null_without_eligible_root_turns(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+            rootless_session = await _add_project_session(session, project)
+            await _add_trace(session, project, rootless_session)
+        # Live hydration returns NO_ROOT_TURNS here, so the preview reports the
+        # session as unevaluable rather than offering an empty context.
+        assert await self._node("sessionEvaluationContext", rootless_session, httpx_client) is None
 
     async def test_project(
         self,

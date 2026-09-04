@@ -1,7 +1,12 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { Suspense, useMemo, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import {
+  fetchQuery,
+  graphql,
+  useLazyLoadQuery,
+  useRelayEnvironment,
+} from "react-relay";
 
 import {
   Alert,
@@ -34,7 +39,14 @@ const usersCardContainerCSS = css`
   }
 `;
 
+const usersCardQuery = graphql`
+  query UsersCardQuery {
+    ...UsersTable_users
+  }
+`;
+
 export function UsersCard() {
+  const environment = useRelayEnvironment();
   const [fetchKey, setFetchKey] = useState(0);
   const [dialog, setDialog] = useState<ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,11 +66,7 @@ export function UsersCard() {
   }, []);
 
   const data = useLazyLoadQuery<UsersCardQuery>(
-    graphql`
-      query UsersCardQuery {
-        ...UsersTable_users
-      }
-    `,
+    usersCardQuery,
     {},
     {
       fetchKey: fetchKey,
@@ -89,7 +97,16 @@ export function UsersCard() {
                       title: "User added",
                       message: `User ${username} has been added.`,
                     });
-                    setFetchKey((prev) => prev + 1);
+                    // A fetchKey bump alone dedupes into any UsersCardQuery that
+                    // was already in flight when the user was created, and that
+                    // response predates the insert. Join such a fetch first so
+                    // the bump below always issues a fresh network request.
+                    const bump = () => setFetchKey((prev) => prev + 1);
+                    fetchQuery<UsersCardQuery>(
+                      environment,
+                      usersCardQuery,
+                      {}
+                    ).subscribe({ complete: bump, error: bump });
                   }}
                   onNewUserCreationError={(error) => {
                     const formattedError =

@@ -135,6 +135,99 @@ RETENTION_POLICY_EXECUTIONS = Counter(
     labelnames=["status"],
 )
 
+# Queue-lag gauges are one family across evaluation targets: a dashboard panel adds a
+# target by adding a series, and a new target needs no new metric. The label values are
+# the EvaluationTarget names ("SPAN", "SESSION").
+_EVALUATION_TARGET_LABELS = ["evaluation_target"]
+
+ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_pending_work_units",
+    documentation="Current number of online-eval work units in PENDING status",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_RUNNING_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_running_work_units",
+    documentation="Current number of online-eval work units in RUNNING status",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_retryable_error_work_units",
+    documentation="Current number of retryable online-eval work units in ERROR status",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_exhausted_error_work_units",
+    documentation="Current number of exhausted online-eval work units in ERROR status",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_expired_work_units",
+    documentation="Current number of online-eval work units in EXPIRED status: work shed "
+    "unevaluated and still within the retention window — by the pending TTL for spans, or "
+    "by a deletion stand-down for sessions whose content is gone. A nonzero value means "
+    "evaluations were dropped.",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_OLDEST_ACTIONABLE_AGE_SECONDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_oldest_actionable_age_seconds",
+    documentation="Age in seconds of the oldest PENDING or retryable ERROR online-eval work unit "
+    "(0 when the backlog is empty)",
+    labelnames=_EVALUATION_TARGET_LABELS,
+)
+ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_frontier_gap_span_ids",
+    documentation="Distance in span ids between the online-eval producer's observed "
+    "high-water mark and its produced-through watermark",
+)
+ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
+    namespace="phoenix",
+    name="online_eval_ingest_spans_per_second",
+    documentation="Span ingest rate derived from successive online-eval cursor "
+    "high-water observations",
+)
+ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG = Gauge(
+    namespace="phoenix",
+    name="online_eval_session_eligible_pair_backlog",
+    documentation="Current number of session and evaluator pairs eligible for work",
+)
+ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_session_result_watermark_lag_seconds",
+    documentation="Largest gap between session activity and a successful result watermark",
+)
+ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS = Counter(
+    namespace="phoenix",
+    name="online_eval_session_sweep_attempts_total",
+    documentation="Total number of session evaluation sweep attempts",
+)
+ONLINE_EVAL_SESSION_SWEEP_SUCCESSES = Counter(
+    namespace="phoenix",
+    name="online_eval_session_sweep_successes_total",
+    documentation="Total number of committed session evaluation sweeps",
+)
+ONLINE_EVAL_SESSION_SWEEP_FAILURES = Counter(
+    namespace="phoenix",
+    name="online_eval_session_sweep_failures_total",
+    documentation="Total number of failed or rolled-back session evaluation sweeps",
+)
+ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS = Histogram(
+    namespace="phoenix",
+    name="online_eval_session_sweep_duration_seconds",
+    documentation="Session evaluation sweep duration in seconds",
+)
+ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS = Counter(
+    namespace="phoenix",
+    name="online_eval_session_materialized_work_units_total",
+    documentation="Total number of session evaluation work units materialized",
+)
+
 
 def _join_paths(prefix: str, path: str) -> str:
     if not prefix:

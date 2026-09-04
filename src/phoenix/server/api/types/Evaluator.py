@@ -1,7 +1,8 @@
+import asyncio
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, Sequence, Union
 
 import sqlalchemy as sa
 import strawberry
@@ -11,6 +12,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.datetime_utils import get_timestamp_range
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -18,17 +20,22 @@ from phoenix.db.types.annotation_configs import (
     FreeformOutputConfig,
     OptimizationDirection,
     OutputConfigType,
+    as_output_configs,
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
+from phoenix.server.api.dataloaders.project_evaluator_run_counts import ProjectEvaluatorRunCounts
 from phoenix.server.api.evaluators import BuiltInEvaluator as BuiltInEvaluatorClass
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
     ContinuousAnnotationConfig,
     FreeformAnnotationConfig,
 )
+from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -36,6 +43,12 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.online_eval.session_policy import (
+    DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
+    MINIMUM_EVALUATION_DELAY_SECONDS,
+    SchedulabilityReason,
+    session_schedulability_reason,
+)
 
 if TYPE_CHECKING:
     from .Dataset import Dataset
@@ -46,12 +59,114 @@ if TYPE_CHECKING:
     from .SandboxConfig import SandboxConfig
     from .User import User
 
+_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
+    "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
+    "session at the first quiet period after the evaluation delay: it applies the session "
+    "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
+    "A filter non-match or sampling miss is permanently declined for that evaluator "
+    "configuration; later activity does not reopen the decision. TRACE evaluators are stored "
+    "but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. "
+    "The target can change only until evaluation work exists for the project evaluator."
+)
+
 
 @strawberry.enum
 class EvaluatorKind(Enum):
     LLM = "LLM"
     CODE = "CODE"
     BUILTIN = "BUILTIN"
+
+
+@strawberry.enum
+class EvaluationTarget(Enum):
+    SPAN = "SPAN"
+    TRACE = "TRACE"
+    SESSION = "SESSION"
+
+
+@strawberry.enum
+class ProjectEvaluatorSchedulabilityStatus(Enum):
+    SCHEDULABLE = "SCHEDULABLE"
+    NOT_SCHEDULABLE = "NOT_SCHEDULABLE"
+
+
+@strawberry.enum
+class ProjectEvaluatorRunStatus(Enum):
+    NEVER_RUN = "NEVER_RUN"
+    QUEUED = "QUEUED"
+    HEALTHY = "HEALTHY"
+    FAILING = "FAILING"
+
+
+@strawberry.type(
+    description=(
+        "How a project evaluator is doing, derived from the evaluations it has produced "
+        "within the online evaluation retention window."
+    )
+)
+class ProjectEvaluatorRunSummary:
+    status: ProjectEvaluatorRunStatus
+    last_run_at: Optional[datetime] = strawberry.field(
+        description="When this evaluator last finished an evaluation, or null if it never has."
+    )
+    queued_count: int = strawberry.field(
+        description="Evaluations waiting to run, including ones awaiting a retry."
+    )
+    evaluated_count: int = strawberry.field(description="Evaluations that produced an annotation.")
+    failed_count: int = strawberry.field(description="Evaluations that were given up on.")
+    last_error: Optional[str] = strawberry.field(
+        description="The most recent evaluation error, or null if none was recorded."
+    )
+
+
+def _project_evaluator_run_summary(counts: ProjectEvaluatorRunCounts) -> ProjectEvaluatorRunSummary:
+    last_evaluated_at, last_failed_at = counts.last_evaluated_at, counts.last_failed_at
+    if last_failed_at is not None and (
+        last_evaluated_at is None or last_failed_at >= last_evaluated_at
+    ):
+        status = ProjectEvaluatorRunStatus.FAILING
+    elif counts.evaluated:
+        status = ProjectEvaluatorRunStatus.HEALTHY
+    elif counts.queued:
+        status = ProjectEvaluatorRunStatus.QUEUED
+    else:
+        status = ProjectEvaluatorRunStatus.NEVER_RUN
+    return ProjectEvaluatorRunSummary(
+        status=status,
+        last_run_at=max(filter(None, (last_evaluated_at, last_failed_at)), default=None),
+        queued_count=counts.queued,
+        evaluated_count=counts.evaluated,
+        failed_count=counts.failed,
+        last_error=counts.last_error,
+    )
+
+
+# The reason vocabulary is declared beside the conditions it names, in session_policy;
+# this only registers it with the schema under its GraphQL name.
+strawberry.enum(SchedulabilityReason, name="ProjectEvaluatorSchedulabilityReason")
+
+
+def _project_evaluator_schedulability(
+    record: models.ProjectEvaluator,
+) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[SchedulabilityReason]]:
+    if record.evaluation_target == "SESSION":
+        # Every SESSION condition is declared once in session_policy, beside the SQL
+        # the sweeper and the executor gate on, so this field cannot advertise an
+        # evaluator as schedulable that they will never pick up.
+        if (reason := session_schedulability_reason(record)) is not None:
+            return ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE, reason
+        return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
+    if not record.enabled:
+        return (
+            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
+            SchedulabilityReason.DISABLED,
+        )
+    if record.evaluation_target == "SPAN":
+        return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
+    return (
+        ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
+        SchedulabilityReason.TRACE_TARGET_UNSUPPORTED,
+    )
 
 
 @strawberry.type
@@ -101,6 +216,16 @@ class Evaluator(Node):
         return self.id < 0
 
     @strawberry.field
+    async def output_configs(
+        self,
+        info: Info[Context, None],
+    ) -> list[BuiltInEvaluatorOutputConfig]:
+        # Every concrete evaluator declares the annotations it writes. Exposing
+        # that on the interface lets callers select it once instead of repeating
+        # the selection for each implementing type.
+        raise NotImplementedError
+
+    @strawberry.field
     async def datasets(
         self,
         info: Info[Context, None],
@@ -112,6 +237,21 @@ class Evaluator(Node):
         from .Dataset import Dataset
 
         return connection_from_list([Dataset(id=d.id, db_record=d) for d in dataset_records], args)
+
+    @strawberry.field
+    async def projects(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        after: Optional[CursorString] = UNSET,
+    ) -> Connection[Annotated["Project", strawberry.lazy(".Project")]]:
+        args = ConnectionArgs(first=first, after=after if isinstance(after, CursorString) else None)
+        project_records = await info.context.data_loaders.projects_by_evaluator.load(self.id)
+        from .Project import Project
+
+        return connection_from_list(
+            [Project(id=project.id, db_record=project) for project in project_records], args
+        )
 
     @strawberry.field
     async def dataset_evaluators(
@@ -285,10 +425,7 @@ class CodeEvaluator(Evaluator, Node):
                 id_prefix="CodeEvaluator",
                 evaluator_id=self.id,
             )
-            for config in (configs or [])
-            if isinstance(
-                config, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
-            )
+            for config in as_output_configs(configs)
         ]
 
     @strawberry.field
@@ -1003,14 +1140,7 @@ class DatasetEvaluator(Node):
             if isinstance(evaluator, models.LLMEvaluator):
                 configs = list(evaluator.output_configs)
             elif isinstance(evaluator, models.CodeEvaluator):
-                configs = [
-                    config
-                    for config in evaluator.output_configs
-                    if isinstance(
-                        config,
-                        (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
-                    )
-                ]
+                configs = as_output_configs(evaluator.output_configs)
             elif isinstance(evaluator, models.BuiltinEvaluator):
                 builtin = get_builtin_evaluator_by_key(evaluator.key)
                 if builtin is None:
@@ -1018,7 +1148,7 @@ class DatasetEvaluator(Node):
                 configs = list(builtin().output_configs)
             else:
                 return []
-        configs_list: list[OutputConfigType] = configs if configs is not None else []
+        configs_list: Sequence[OutputConfigType] = configs if configs is not None else []
         return [
             _to_gql_output_config(
                 config,
@@ -1075,5 +1205,287 @@ class DatasetEvaluator(Node):
         record = await info.context.data_loaders.dataset_evaluators_by_id.load(self.id)
         if record is None:
             raise NotFound(f"DatasetEvaluator not found: {self.id}")
+        self.db_record = record
+        return record
+
+
+@strawberry.type
+class EvaluatorScoreSeriesBin:
+    """One time bin of an evaluator annotation's mean score."""
+
+    timestamp: datetime
+    mean_score: Optional[float]
+    count: int = strawberry.field(
+        description=(
+            "How many scored spans, traces, or sessions the bin's mean averages over; "
+            "the weight to use when merging adjacent bins. Zero for an empty bin."
+        )
+    )
+
+
+@strawberry.type
+class EvaluatorAnnotationScoreMetrics:
+    """Score aggregates for one annotation a project evaluator writes."""
+
+    annotation_name: str
+    summary: Optional[AnnotationSummary] = strawberry.field(
+        description="Aggregates over the requested time range, or null when the range holds none."
+    )
+    previous_summary: Optional[AnnotationSummary] = strawberry.field(
+        description=(
+            "Aggregates over the window of equal length immediately before the requested "
+            "time range, for change-over-time comparisons."
+        )
+    )
+    series: list[EvaluatorScoreSeriesBin] = strawberry.field(
+        description=(
+            "Mean score per time bin across the requested time range. Bins follow the "
+            "project metrics convention: spans and traces bucket by their trace's start "
+            "time, sessions by their own."
+        )
+    )
+
+
+_ANNOTATION_KIND_BY_TARGET: dict[str, Literal["span", "trace", "session"]] = {
+    "SPAN": "span",
+    "TRACE": "trace",
+    "SESSION": "session",
+}
+
+
+def _result_annotation_names(
+    project_evaluator_name: str,
+    output_configs: Sequence[Any],
+) -> list[str]:
+    """The names this evaluator's runs persist annotations under.
+
+    Mirrors `BaseEvaluator.evaluate`: a lone output config (or none declared)
+    writes under the project evaluator's own name; multiple configs each write
+    under `"{name}.{config_name}"`.
+    """
+    if len(output_configs) > 1:
+        return [f"{project_evaluator_name}.{config.name}" for config in output_configs]
+    return [project_evaluator_name]
+
+
+@strawberry.type
+class ProjectEvaluator(Node):
+    """An evaluator and its project-specific online evaluation policy."""
+
+    id: NodeID[int]
+    db_record: strawberry.Private[Optional[models.ProjectEvaluator]] = None
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="The project whose spans this evaluator evaluates."
+    )
+    async def project(
+        self, info: Info[Context, None]
+    ) -> Annotated["Project", strawberry.lazy(".Project")]:
+        record = await self._get_record(info)
+        from .Project import Project
+
+        return Project(id=record.project_id)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "The project holding the traces this evaluator produces when it runs. Each "
+            "evaluator traces into its own dedicated project, created with the evaluator."
+        )
+    )
+    async def trace_project(
+        self, info: Info[Context, None]
+    ) -> Annotated["Project", strawberry.lazy(".Project")]:
+        record = await self._get_record(info)
+        from .Project import Project
+
+        return Project(id=record.trace_project_id)
+
+    @strawberry.field
+    async def evaluator(self, info: Info[Context, None]) -> Evaluator:
+        record = await self._get_record(info)
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        if isinstance(evaluator, models.LLMEvaluator):
+            return LLMEvaluator(id=evaluator.id)
+        if isinstance(evaluator, models.CodeEvaluator):
+            return CodeEvaluator(id=evaluator.id)
+        if isinstance(evaluator, models.BuiltinEvaluator):
+            return BuiltInEvaluator(id=evaluator.id)
+        project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
+        raise NotFound(f"Evaluator not found for project evaluator: {project_evaluator_id}")
+
+    @strawberry.field
+    async def name(self, info: Info[Context, None]) -> Identifier:
+        record = await self._get_record(info)
+        return Identifier(record.name.root)
+
+    @strawberry.field
+    async def filter_condition(self, info: Info[Context, None]) -> str:
+        return (await self._get_record(info)).filter_condition
+
+    @strawberry.field
+    async def sampling_rate(self, info: Info[Context, None]) -> float:
+        return (await self._get_record(info)).sampling_rate
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION
+    )
+    async def evaluation_target(self, info: Info[Context, None]) -> EvaluationTarget:
+        record = await self._get_record(info)
+        return EvaluationTarget(record.evaluation_target)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Whether this project evaluator is currently eligible for scheduling."
+    )
+    async def schedulability_status(
+        self,
+        info: Info[Context, None],
+    ) -> ProjectEvaluatorSchedulabilityStatus:
+        record = await self._get_record(info)
+        status, _ = _project_evaluator_schedulability(record)
+        return status
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Machine-readable reason the project evaluator is not schedulable, or null when "
+            "it is schedulable."
+        )
+    )
+    async def schedulability_reason(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[SchedulabilityReason]:
+        record = await self._get_record(info)
+        _, reason = _project_evaluator_schedulability(record)
+        return reason
+
+    @strawberry.field
+    async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:
+        counts = await info.context.data_loaders.project_evaluator_run_counts.load(self.id)
+        return _project_evaluator_run_summary(counts)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Score aggregates for each annotation this evaluator writes on the evaluated "
+            "project: totals over the requested time range, totals over the equal-length "
+            "window immediately before it, and a binned mean-score series. Loading is "
+            "batched across the project's evaluators, so requesting this for a page of "
+            "evaluators costs a fixed number of queries."
+        )
+    )
+    async def annotation_score_metrics(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> list[EvaluatorAnnotationScoreMetrics]:
+        if time_range.start is None or time_range.end is None:
+            raise BadRequest("time_range must have both a start and an end")
+        window_start, window_end = time_range.start, time_range.end
+        record = await self._get_record(info)
+        kind = _ANNOTATION_KIND_BY_TARGET.get(record.evaluation_target)
+        if kind is None:
+            return []
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        output_configs = as_output_configs(getattr(evaluator, "output_configs", None))
+        annotation_names = _result_annotation_names(record.name.root, output_configs)
+        stride: Literal["minute", "hour", "day", "week", "month", "year"]
+        if isinstance(time_bin_config, TimeBinConfig):
+            stride = time_bin_config.scale.value
+            utc_offset_minutes = time_bin_config.utc_offset_minutes
+        else:
+            stride, utc_offset_minutes = "hour", 0
+        previous_time_range = TimeRange(
+            start=window_start - (window_end - window_start),
+            end=window_start,
+        )
+        loaders = info.context.data_loaders
+        project_rowid = record.project_id
+
+        async def load_metrics(annotation_name: str) -> EvaluatorAnnotationScoreMetrics:
+            summary, previous_summary, mean_scores_by_bucket = await asyncio.gather(
+                loaders.annotation_summaries.load(
+                    (kind, project_rowid, time_range, None, None, annotation_name)
+                ),
+                loaders.annotation_summaries.load(
+                    (kind, project_rowid, previous_time_range, None, None, annotation_name)
+                ),
+                loaders.annotation_mean_score_time_series.load(
+                    (
+                        kind,
+                        project_rowid,
+                        (window_start, window_end),
+                        stride,
+                        utc_offset_minutes,
+                        annotation_name,
+                    )
+                ),
+            )
+            series = [
+                EvaluatorScoreSeriesBin(
+                    timestamp=timestamp,
+                    mean_score=mean_bin.mean_score if mean_bin is not None else None,
+                    count=mean_bin.scored_entity_count if mean_bin is not None else 0,
+                )
+                for timestamp in get_timestamp_range(
+                    window_start, window_end, stride, utc_offset_minutes
+                )
+                for mean_bin in (mean_scores_by_bucket.get(timestamp),)
+            ]
+            return EvaluatorAnnotationScoreMetrics(
+                annotation_name=annotation_name,
+                summary=summary,
+                previous_summary=previous_summary,
+                series=series,
+            )
+
+        return list(await asyncio.gather(*map(load_metrics, annotation_names)))
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at "
+            f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New project evaluators store the "
+            f"default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds when no value is "
+            "provided. A session is evaluated only once, and later activity does not schedule "
+            "another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator "
+            "cannot set one, and TRACE evaluators are not scheduled."
+        )
+    )
+    async def evaluation_delay_seconds(self, info: Info[Context, None]) -> int:
+        return (await self._get_record(info)).evaluation_delay_seconds
+
+    @strawberry.field
+    async def input_mapping(self, info: Info[Context, None]) -> EvaluatorInputMapping:
+        record = await self._get_record(info)
+        input_mapping = record.input_mapping
+        if input_mapping is None:
+            evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+            if isinstance(evaluator, models.CodeEvaluator):
+                input_mapping = evaluator.input_mapping
+        if input_mapping is None:
+            return EvaluatorInputMapping(literal_mapping=JSON({}), path_mapping=JSON({}))
+        return EvaluatorInputMapping(
+            literal_mapping=JSON(input_mapping.literal_mapping),
+            path_mapping=JSON(input_mapping.path_mapping),
+        )
+
+    @strawberry.field
+    async def enabled(self, info: Info[Context, None]) -> bool:
+        return (await self._get_record(info)).enabled
+
+    @strawberry.field
+    async def created_at(self, info: Info[Context, None]) -> datetime:
+        return (await self._get_record(info)).created_at
+
+    @strawberry.field
+    async def updated_at(self, info: Info[Context, None]) -> datetime:
+        return (await self._get_record(info)).updated_at
+
+    async def _get_record(self, info: Info[Context, None]) -> models.ProjectEvaluator:
+        if self.db_record is not None:
+            return self.db_record
+        record = await info.context.data_loaders.project_evaluator_by_id.load(self.id)
+        if record is None:
+            project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
+            raise NotFound(f"ProjectEvaluator not found: {project_evaluator_id}")
         self.db_record = record
         return record

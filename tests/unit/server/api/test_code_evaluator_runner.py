@@ -18,7 +18,11 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.server.api.evaluators import CodeEvaluatorRunner
+from phoenix.server.api.evaluators import (
+    CodeEvaluatorRunner,
+    SandboxBackendExecutionError,
+    SandboxPayloadTooLargeError,
+)
 from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
 from phoenix.server.monty_runtime import MontyBusy, MontyRuntime
 from phoenix.server.sandbox.monty_backend import MontySandboxBackend
@@ -104,6 +108,7 @@ def _make_runner(
     timeout: int | None = None,
     fence_stdout: bool = True,
     evaluator_version_id: str | None = None,
+    max_payload_bytes: int | None = None,
 ) -> tuple[CodeEvaluatorRunner, Any]:
     backend = _StatelessTestBackend()
     mock_execute = cast(AsyncMock, backend.execute)
@@ -127,6 +132,7 @@ def _make_runner(
         evaluator_version_id=evaluator_version_id,
         sandbox_session_manager=SandboxSessionManager(),
         session_key="evaluator:test-runner",
+        max_payload_bytes=max_payload_bytes,
     )
     return runner, backend
 
@@ -241,29 +247,38 @@ class TestInputSchemaInference:
         assert error is not None
         assert "Use a destructured object parameter" in error
 
-    def test_python_input_schema_returns_error_for_unsupported_parameter_names(self) -> None:
+    def test_python_input_schema_accepts_bound_variable_parameter_names(self) -> None:
         runner, _ = _make_runner(
-            source_code="def evaluate(outputs, reference=None):\n    return 1\n"
+            source_code="def evaluate(output, latency_ms=None):\n    return 1\n"
         )
 
         schema, error = runner._infer_input_schema()
-        assert schema == {}
-        assert error is not None
-        assert "unsupported parameter names: `outputs`" in error
+        assert error is None
+        assert schema["properties"] == {"output": {}, "latency_ms": {}}
 
-    def test_typescript_input_schema_returns_error_for_unsupported_parameter_names(self) -> None:
+    def test_python_input_schema_accepts_any_parameter_name(self) -> None:
+        """A parameter is an input to map, not a name to police — the mapping decides."""
+        runner, _ = _make_runner(
+            source_code="def evaluate(custom_field, reference=None):\n    return 1\n"
+        )
+
+        schema, error = runner._infer_input_schema()
+        assert error is None
+        assert schema["properties"] == {"custom_field": {}, "reference": {}}
+        assert schema["required"] == ["custom_field"]
+
+    def test_typescript_input_schema_accepts_any_parameter_name(self) -> None:
         runner, _ = _make_runner(
             source_code=(
-                "function evaluate({ outputs, reference, input, metadata }: EvaluatorParams) "
+                "function evaluate({ custom_field, reference, input, metadata }: EvaluatorParams) "
                 "{ return 1; }"
             ),
             language="TYPESCRIPT",
         )
 
         schema, error = runner._infer_input_schema()
-        assert schema == {}
-        assert error is not None
-        assert "unsupported parameter names: `outputs`" in error
+        assert error is None
+        assert set(schema["properties"]) == {"custom_field", "reference", "input", "metadata"}
 
 
 class TestEvaluateSuccessPath:
@@ -401,6 +416,62 @@ class TestEvaluateSuccessPath:
 
 
 class TestEvaluateErrorPaths:
+    @pytest.mark.parametrize(
+        ("language", "source_code"),
+        [
+            pytest.param(
+                "PYTHON",
+                'def evaluate(input=None): return "pass"',
+                id="python",
+            ),
+            pytest.param(
+                "TYPESCRIPT",
+                'function evaluate({ input }: EvaluatorParams) { return "pass"; }',
+                id="typescript",
+            ),
+        ],
+    )
+    async def test_payload_cap_rejects_final_rendered_harness_before_backend_call(
+        self,
+        language: str,
+        source_code: str,
+    ) -> None:
+        max_payload_bytes = 1024
+        mapped_input = "🐍" * 400
+        runner, backend = _make_runner(
+            source_code=source_code,
+            language=language,
+            max_payload_bytes=max_payload_bytes,
+        )
+        expected_inputs = {"input": mapped_input}
+        if language == "PYTHON":
+            code = runner._build_python_harness(expected_inputs)
+        else:
+            code = runner._build_typescript_harness(expected_inputs)
+        payload_bytes = len(code.encode("utf-8"))
+        assert payload_bytes > max_payload_bytes
+
+        results = await runner.evaluate(
+            context={"session_input": mapped_input},
+            input_mapping=InputMapping(
+                literal_mapping={},
+                path_mapping={"input": "$.session_input"},
+            ),
+            name="test",
+            output_configs=[_categorical_config()],
+        )
+
+        assert len(results) == 1
+        error = results[0]["error"]
+        assert error is not None
+        assert f"{payload_bytes} bytes" in error
+        assert f"allowed {max_payload_bytes} bytes" in error
+        assert "mapped inputs" in error
+        assert isinstance(results[0].get("error_exc"), SandboxPayloadTooLargeError)
+        assert "Reduce the mapped inputs or raise the caller's payload limit." in error
+        assert "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES" not in error
+        cast(AsyncMock, backend.execute).assert_not_awaited()
+
     async def test_inference_failure_returns_human_readable_python_error(self) -> None:
         runner, backend = _make_runner(source_code="def not_evaluate(output): return 1")
 
@@ -434,30 +505,6 @@ class TestEvaluateErrorPaths:
         assert "Use a destructured object parameter" in results[0]["error"]
         backend.execute.assert_not_called()
 
-    async def test_inference_failure_returns_human_readable_error_for_renamed_typescript_param(
-        self,
-    ) -> None:
-        runner, backend = _make_runner(
-            source_code=(
-                "function evaluate({ outputs, reference, input, metadata }: EvaluatorParams) { "
-                "const candidate = typeof output?.answer === 'string' ? output.answer : ''; "
-                "return 1; }"
-            ),
-            language="TYPESCRIPT",
-        )
-
-        results = await runner.evaluate(
-            context={"output": {"answer": "a"}},
-            input_mapping=_EMPTY_MAPPING,
-            name="pytest",
-            output_configs=[_categorical_config()],
-        )
-
-        assert len(results) == 1
-        assert results[0]["error"] is not None
-        assert "unsupported parameter names: `outputs`" in results[0]["error"]
-        backend.execute.assert_not_called()
-
     async def test_input_mapping_failure_returns_error_result(self) -> None:
         runner, _ = _make_runner()
         bad_mapping = InputMapping(
@@ -485,6 +532,7 @@ class TestEvaluateErrorPaths:
         assert len(results) == 1
         assert results[0]["error"] is not None
         assert "Sandbox execution failed" in results[0]["error"]
+        assert isinstance(results[0].get("error_exc"), RuntimeError)
 
     async def test_monty_infrastructure_error_propagates(self) -> None:
         runner, _ = _make_runner(backend_raises=MontyBusy("sandbox capacity is busy"))
@@ -506,6 +554,7 @@ class TestEvaluateErrorPaths:
             output_configs=[_categorical_config()],
         )
         assert results[0]["error"] == "SyntaxError: invalid syntax"
+        assert isinstance(results[0].get("error_exc"), SandboxBackendExecutionError)
 
 
 class TestBackendConfiguration:

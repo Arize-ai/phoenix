@@ -161,9 +161,53 @@ export type SandboxBackendType =
  * This object contains all of the context that input mappings are applied against
  * to extract values for an evaluator.
  */
-export type EvaluatorMappingSource = {
+export type DatasetEvaluatorMappingSource = {
   input: Record<string, unknown>;
   output: Record<string, unknown>;
   reference: Record<string, unknown>;
   metadata: Record<string, unknown>;
 };
+
+/**
+ * As produced by the server: `input` and `output` are the span's own input and
+ * output values, and everything else sits flat under `metadata` — the span
+ * filter language's names beside the record's timestamps, `attributes`,
+ * `events`, and `annotations`.
+ */
+export type SpanEvaluatorMappingSource = {
+  input: unknown;
+  output: unknown;
+  metadata: Record<string, unknown>;
+};
+
+/**
+ * As produced by the server: `input` and `output` are the values the session
+ * filter language spells `first_input` and `last_output`, and everything else
+ * sits flat under `metadata` — those names beside the session's timestamps
+ * and `turns`.
+ *
+ * Structurally identical to a span source, but semantically distinct: the two
+ * grains name different records and offer different mapping vocabulary, so the
+ * grain a source belongs to can never be inferred from its shape.
+ */
+export type SessionEvaluatorMappingSource = {
+  input: unknown;
+  output: unknown;
+  metadata: Record<string, unknown>;
+};
+
+export type EvaluatorMappingSourceGrain = "dataset" | "span" | "session";
+
+export type EvaluatorMappingSourceByGrain = {
+  dataset: DatasetEvaluatorMappingSource;
+  span: SpanEvaluatorMappingSource;
+  session: SessionEvaluatorMappingSource;
+};
+
+export type EvaluatorMappingSource<
+  TGrain extends EvaluatorMappingSourceGrain = EvaluatorMappingSourceGrain,
+> = EvaluatorMappingSourceByGrain[TGrain];
+
+export type EvaluatorMappingSourceField<
+  TGrain extends EvaluatorMappingSourceGrain,
+> = keyof EvaluatorMappingSourceByGrain[TGrain];

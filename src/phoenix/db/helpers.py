@@ -29,8 +29,12 @@ from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME, get_env_database_schema
+from phoenix.config import (
+    PLAYGROUND_PROJECT_NAME,
+    get_env_database_schema,
+)
 from phoenix.db import models
+from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 
 SupportedSQLDialectName = Literal["postgresql", "sqlite"]
 
@@ -427,6 +431,36 @@ def exclude_dataset_evaluator_projects(
     ).where(models.DatasetEvaluators.project_id.is_(None))
 
 
+def exclude_project_evaluator_trace_projects(
+    stmt: Select[_AnyTuple],
+) -> Select[_AnyTuple]:
+    return stmt.outerjoin(
+        models.ProjectEvaluator,
+        models.Project.id == models.ProjectEvaluator.trace_project_id,
+    ).where(models.ProjectEvaluator.trace_project_id.is_(None))
+
+
+async def delete_projects_and_evaluator_trace_projects(
+    session: AsyncSession,
+    project_ids: Iterable[int],
+) -> None:
+    ids = set(project_ids)
+    if not ids:
+        return
+    trace_project_ids = (
+        await session.scalars(
+            select(models.ProjectEvaluator.trace_project_id).where(
+                models.ProjectEvaluator.project_id.in_(ids)
+            )
+        )
+    ).all()
+    await session.execute(sa.delete(models.Project).where(models.Project.id.in_(ids)))
+    if trace_project_ids:
+        await session.execute(
+            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
+        )
+
+
 def date_trunc(
     dialect: SupportedSQLDialect,
     field: Literal["minute", "hour", "day", "week", "month", "year"],
@@ -615,6 +649,122 @@ def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
         )
     )
     return select(ancestors.c.id)
+
+
+_SESSION_CONTENT_DELETE_BATCH_SIZE = 1_000
+
+
+async def delete_traces(
+    session: AsyncSession,
+    trace_filter: sa.ColumnElement[bool],
+) -> None:
+    """Delete the traces matching this filter, standing down the evaluations of every
+    session that loses content.
+
+    Deleting traces is what makes a session's evaluation wrong, so the delete and the
+    stand-down belong to one function rather than to five callers who each have to
+    remember. Route new trace deletions through here.
+    """
+    while trace_rowids := tuple(
+        await session.scalars(
+            sa.select(models.Trace.id)
+            .where(trace_filter)
+            .order_by(models.Trace.id)
+            .limit(_SESSION_CONTENT_DELETE_BATCH_SIZE)
+        )
+    ):
+        affected_session_rowids = (
+            sa.select(models.Trace.project_session_rowid)
+            .where(
+                models.Trace.id.in_(trace_rowids),
+                models.Trace.project_session_rowid.is_not(None),
+            )
+            .distinct()
+        )
+        await mark_session_content_incomplete(session, affected_session_rowids)
+        await session.execute(sa.delete(models.Trace).where(models.Trace.id.in_(trace_rowids)))
+
+
+async def delete_spans(
+    session: AsyncSession,
+    span_filter: sa.ColumnElement[bool],
+) -> None:
+    """Delete the spans matching this filter, standing down the evaluations of every
+    session that loses content.
+
+    Removing a span changes what the session contains whether or not its trace survives,
+    so span deletion stands down the same way trace deletion does. See `delete_traces`.
+    """
+    while span_rowids := tuple(
+        await session.scalars(
+            sa.select(models.Span.id)
+            .where(span_filter)
+            .order_by(models.Span.id)
+            .limit(_SESSION_CONTENT_DELETE_BATCH_SIZE)
+        )
+    ):
+        affected_session_rowids = (
+            sa.select(models.Trace.project_session_rowid)
+            .where(
+                models.Trace.id.in_(
+                    sa.select(models.Span.trace_rowid).where(models.Span.id.in_(span_rowids))
+                ),
+                models.Trace.project_session_rowid.is_not(None),
+            )
+            .distinct()
+        )
+        await mark_session_content_incomplete(session, affected_session_rowids)
+        await session.execute(sa.delete(models.Span).where(models.Span.id.in_(span_rowids)))
+
+
+async def mark_session_content_incomplete(
+    session: AsyncSession,
+    project_session_rowids: Union[Iterable[int], InElementRole],
+) -> None:
+    """Record that content was removed from these sessions, and stand down their evals.
+
+    A session evaluation scores the session as a whole, so once part of it is gone the
+    score describes content that no longer exists. Session scheduling is evaluate-once,
+    which makes a wrong score permanent — every path that destroys session content must
+    call this before or with the delete. `delete_traces` and `delete_spans` are how
+    deletion paths get that for free.
+    """
+    session_rowids_stmt = (
+        sa.select(models.ProjectSession.id)
+        .where(models.ProjectSession.id.in_(project_session_rowids))
+        .order_by(models.ProjectSession.id)
+    )
+    if SupportedSQLDialect(session.bind.dialect.name) is SupportedSQLDialect.POSTGRESQL:
+        session_rowids_stmt = session_rowids_stmt.with_for_update()
+    session_rowids = tuple(await session.scalars(session_rowids_stmt))
+    if not session_rowids:
+        return
+
+    await session.execute(
+        sa.update(models.ProjectSession)
+        .where(models.ProjectSession.id.in_(session_rowids))
+        .values(content_complete=False)
+    )
+    await session.execute(
+        sa.update(models.EvalSessionWorkUnit)
+        .where(
+            models.EvalSessionWorkUnit.project_session_rowid.in_(session_rowids),
+            models.EvalSessionWorkUnit.status.in_(("PENDING", "RUNNING", "ERROR")),
+        )
+        .values(
+            status="EXPIRED",
+            claimed_at=None,
+            claimed_by=None,
+            cooldown_until=None,
+            error=SESSION_CONTENT_INCOMPLETE_ERROR,
+        )
+    )
+    await session.execute(
+        sa.delete(models.ProjectSessionAnnotation).where(
+            models.ProjectSessionAnnotation.project_session_id.in_(session_rowids),
+            models.ProjectSessionAnnotation.identifier.startswith("online:"),
+        )
+    )
 
 
 def truncate_name(name: str, max_len: int = 63) -> str:

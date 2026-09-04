@@ -50,7 +50,9 @@ export const LevenshteinDistanceEvaluatorForm = () => {
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+  const allExampleKeys = useFlattenedEvaluatorInputKeys({
+    evaluatorMappingSource,
+  });
 
   // Register validator for required SwitchableEvaluatorInput fields.
   const triggerValidation = useCallback(async () => {
@@ -80,7 +82,6 @@ export const LevenshteinDistanceEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="expected"
           label="Expected"
-          description="The expected text."
           defaultMode={expectedDefaultMode}
           control={control}
           setValue={setValue}
@@ -94,7 +95,6 @@ export const LevenshteinDistanceEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="actual"
           label="Actual"
-          description="The actual text to compare."
           defaultMode={actualDefaultMode}
           control={control}
           setValue={setValue}

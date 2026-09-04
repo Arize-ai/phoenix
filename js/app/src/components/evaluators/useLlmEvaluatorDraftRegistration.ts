@@ -77,7 +77,7 @@ export const useLlmEvaluatorDraftRegistration = ({
         name: state.evaluator.name || state.evaluator.globalName,
         description: state.evaluator.description,
         inputMapping: state.evaluator.inputMapping,
-        testPayload: state.evaluatorMappingSource,
+        testPayload: state.evaluatorMappingSource.source,
         includeExplanation: state.evaluator.includeExplanation,
         outputConfigs: toOutputConfigDrafts(state.outputConfigs),
         judge: {
@@ -137,7 +137,10 @@ export const useLlmEvaluatorDraftRegistration = ({
       if (
         JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
       ) {
-        state.setEvaluatorMappingSource(next.testPayload);
+        state.setEvaluatorMappingSource({
+          grain: state.evaluatorMappingSource.grain,
+          source: next.testPayload,
+        });
       }
       reconcileJudgeOperations({
         playgroundStore,

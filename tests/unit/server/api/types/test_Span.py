@@ -17,6 +17,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.online_eval.executor import span_eval_context
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
 from tests.unit.graphql import AsyncGraphQLClient
@@ -26,6 +27,12 @@ _SpanRowId: TypeAlias = int
 _SpanId: TypeAlias = str
 
 fake = Faker()
+
+
+def _as_stored(value: Any) -> Any:
+    """The shape a JSON column reads back as: the ORM re-encodes it, so an event
+    timestamp arrives as a string rather than the datetime it was written from."""
+    return json.loads(json.dumps(value, default=lambda item: item.isoformat()))
 
 
 async def test_project_resolver_returns_correct_project(
@@ -164,6 +171,7 @@ async def test_span_fields(
           spanId
           traceId
         }
+        evaluationContext
         trace {
           id
           numSpans
@@ -251,6 +259,13 @@ async def test_span_fields(
         assert span["spanKind"] == db_span.span_kind.lower()
         assert span["context"]["spanId"] == db_span.span_id
         assert span["context"]["traceId"] == db_traces[db_span.trace_rowid].trace_id
+        expected_context = span_eval_context(
+            db_span,
+            trace_id=db_traces[db_span.trace_rowid].trace_id,
+            annotations=[],
+        )
+        assert set(span["evaluationContext"]) == {"input", "output", "metadata"}
+        assert span["evaluationContext"] == _as_stored(expected_context)
         assert isinstance(span["attributes"], str) and span["attributes"]
         assert json.loads(span["attributes"]) == db_span.attributes
         assert span["tokenCountPrompt"] == db_span.llm_token_count_prompt
@@ -1007,6 +1022,11 @@ async def test_as_example_revision_with_annotations(
     assert metadata is not None
     assert "span_kind" in metadata
     assert metadata["span_kind"] == "LLM"
+    # The preview shares the converter's metadata builder wholesale.
+    assert "trace_id" in metadata
+    assert "attributes" in metadata
+    assert "events" in metadata
+    assert "latency_ms" in metadata
 
     # Check annotations are present and structured as lists
     annotations = metadata.get("annotations")

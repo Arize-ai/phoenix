@@ -16,11 +16,9 @@ import type { EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutati
 import type { EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation.graphql";
+import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluators/CodeEvaluatorAnnotationSection";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
-import {
-  createDefaultFreeformOutputConfig,
-  EditCodeEvaluatorDialogContent,
-} from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+import { EditCodeEvaluatorDialogContent } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
@@ -365,7 +363,10 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       selectedExampleId: null,
       selectedSplitIds: [],
     },
-    evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+    evaluatorMappingSource: {
+      grain: "dataset",
+      source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+    },
     showPromptPreview: false,
   };
 

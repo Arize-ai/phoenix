@@ -103,6 +103,23 @@ export function createShortDateTimeFormatter(
 }
 
 /**
+ * Creates a date-only formatter (e.g. "Aug 25, 2026")
+ * @param displayOptions - The display options to use for the formatter
+ * @returns A short date formatter
+ */
+export function createShortDateFormatter(
+  displayOptions: TimeDisplayOptions
+): TimeFormatter {
+  const { locale, timeZone } = displayOptions;
+  return createTimeFormatter(locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone,
+  });
+}
+
+/**
  * Creates a time range formatter
  * @param displayOptions - The display options to use for the formatter
  * @returns A time range formatter

@@ -51,7 +51,9 @@ export const JSONDistanceEvaluatorForm = () => {
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+  const allExampleKeys = useFlattenedEvaluatorInputKeys({
+    evaluatorMappingSource,
+  });
 
   // Register validator for required SwitchableEvaluatorInput fields.
   const triggerValidation = useCallback(async () => {
@@ -81,7 +83,6 @@ export const JSONDistanceEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="expected"
           label="Expected"
-          description="The expected JSON string."
           defaultMode={expectedDefaultMode}
           control={control}
           setValue={setValue}
@@ -95,7 +96,6 @@ export const JSONDistanceEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="actual"
           label="Actual"
-          description="The actual JSON string to compare."
           defaultMode={actualDefaultMode}
           control={control}
           setValue={setValue}

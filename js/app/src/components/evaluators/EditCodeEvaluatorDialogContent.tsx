@@ -1,8 +1,9 @@
+import { startCompletion } from "@codemirror/autocomplete";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { indentUnit } from "@codemirror/language";
 import { css } from "@emotion/react";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { type EditorView } from "@uiw/react-codemirror";
 import {
   useCallback,
   useEffect,
@@ -80,9 +81,9 @@ import { CodeEvaluatorTestSection } from "@phoenix/components/evaluators/CodeEva
 import { generateEvaluatorTypes } from "@phoenix/components/evaluators/codeEvaluatorTypeGeneration";
 import {
   extractCodeEvaluatorVariables,
-  getAllGeneratedSources,
   getDefaultCodeEvaluatorSource,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import { EvaluatorDescriptionInput } from "@phoenix/components/evaluators/EvaluatorDescriptionInput";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
@@ -102,6 +103,7 @@ import type {
   CodeEvaluatorLanguage,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 export const createDefaultFreeformOutputConfig = (
   name: string
@@ -150,6 +152,9 @@ export const EditCodeEvaluatorDialogContent = ({
   evaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
+  const grain = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource.grain
+  );
   const [showValidationError, setShowValidationError] = useState(false);
   const [sourceCode, setSourceCode] = useState(initialSourceCode);
   const [language, setLanguage] =
@@ -183,7 +188,9 @@ export const EditCodeEvaluatorDialogContent = ({
       description: state.evaluator.description,
       outputConfigs: JSON.stringify(state.outputConfigs),
       inputMapping: JSON.stringify(state.evaluator.inputMapping),
-      evaluatorMappingSource: JSON.stringify(state.evaluatorMappingSource),
+      evaluatorMappingSource: JSON.stringify(
+        state.evaluatorMappingSource.source
+      ),
     };
   }, [store]);
 
@@ -210,7 +217,7 @@ export const EditCodeEvaluatorDialogContent = ({
     const inputMappingChanged =
       JSON.stringify(state.evaluator.inputMapping) !== initial.inputMapping;
     const evaluatorMappingSourceChanged =
-      JSON.stringify(state.evaluatorMappingSource) !==
+      JSON.stringify(state.evaluatorMappingSource.source) !==
       initial.evaluatorMappingSource;
 
     const isDirty =
@@ -269,10 +276,6 @@ export const EditCodeEvaluatorDialogContent = ({
   useEffect(() => {
     sandboxConfigIndexRef.current = sandboxConfigIndex;
   }, [sandboxConfigIndex]);
-  const sandboxConfigsRef = useRef(sandboxConfigs);
-  useEffect(() => {
-    sandboxConfigsRef.current = sandboxConfigs;
-  }, [sandboxConfigs]);
 
   const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
   const isDraftMounted = useCallback(() => draftHostRef.current != null, []);
@@ -299,14 +302,8 @@ export const EditCodeEvaluatorDialogContent = ({
         sourceCode: local.sourceCode,
         sandboxConfigId: local.sandboxConfigId,
         inputMapping: state.evaluator.inputMapping,
-        testPayload: state.evaluatorMappingSource,
+        testPayload: state.evaluatorMappingSource.source,
         outputConfigs: toOutputConfigDrafts(state.outputConfigs),
-        availableSandboxConfigs: sandboxConfigsRef.current.map((config) => ({
-          id: config.id,
-          name: config.name,
-          language: config.language,
-          backendType: config.backendType,
-        })),
       };
     };
 
@@ -380,7 +377,10 @@ export const EditCodeEvaluatorDialogContent = ({
       if (
         JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
       ) {
-        state.setEvaluatorMappingSource(next.testPayload);
+        state.setEvaluatorMappingSource({
+          grain: state.evaluatorMappingSource.grain,
+          source: next.testPayload,
+        });
       }
       return { ok: true as const, output: buildSnapshot() };
     };
@@ -515,7 +515,14 @@ export const EditCodeEvaluatorDialogContent = ({
           {mode === "create" ? "Create Code Evaluator" : "Edit Code Evaluator"}
         </DialogTitle>
         <DialogTitleExtra>
-          <DialogCloseButton />
+          {onCancel ? (
+            <DialogCloseButton
+              isDisabled={isSubmitting}
+              onPress={handleCancel}
+            />
+          ) : (
+            <DialogCloseButton isDisabled={isSubmitting} />
+          )}
         </DialogTitleExtra>
       </DialogHeader>
 
@@ -574,13 +581,14 @@ export const EditCodeEvaluatorDialogContent = ({
                   language={language}
                   onLanguageChange={(nextLanguage) => {
                     setLanguage((currentLanguage) => {
-                      // Auto-swap only if sourceCode is still a generated
+                      // Auto-swap only if sourceCode is still the generated
                       // placeholder — never overwrite user-authored code.
-                      const currentDefaults =
-                        getAllGeneratedSources(currentLanguage);
-                      if (currentDefaults.includes(sourceCode)) {
+                      if (
+                        sourceCode ===
+                        getDefaultCodeEvaluatorSource(currentLanguage, grain)
+                      ) {
                         setSourceCode(
-                          getDefaultCodeEvaluatorSource(nextLanguage)
+                          getDefaultCodeEvaluatorSource(nextLanguage, grain)
                         );
                       }
                       return nextLanguage;
@@ -592,12 +600,12 @@ export const EditCodeEvaluatorDialogContent = ({
                   isLanguageEditable={mode === "create"}
                   isSandboxRequired={mode === "create"}
                 />
-                <CodeEditor
+                <CodeEvaluatorSourceEditor
                   language={language}
                   sourceCode={sourceCode}
                   onChange={setSourceCode}
                 />
-                <EvaluatorAnnotationSection />
+                <CodeEvaluatorAnnotationSection />
                 <InputMappingSection />
               </div>
             </Panel>
@@ -642,10 +650,6 @@ export const EditCodeEvaluatorDialogContent = ({
   );
 };
 
-/**
- * Top-of-panel form for the evaluator's identifying metadata:
- * Name, Language, Sandbox, and Description.
- */
 const EvaluatorMetadataForm = ({
   language,
   onLanguageChange,
@@ -833,7 +837,7 @@ function getSandboxDependenciesConfigLabel(config: SandboxConfigForLabels) {
  * Editable source-code editor with a read-only auto-generated type footer.
  * Ships its own description line and Reset-to-default button.
  */
-const CodeEditor = ({
+export const CodeEvaluatorSourceEditor = ({
   language,
   sourceCode,
   onChange,
@@ -847,15 +851,43 @@ const CodeEditor = ({
   // The auto-generated type footer is hidden by default.
   const [showTypes, setShowTypes] = useState(false);
 
-  // Get the evaluator mapping source from the store for type generation
-  const evaluatorMappingSource = useEvaluatorStore(
+  const evaluatorMappingSourceState = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
+  const inputMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping
+  );
+  const evaluatorMappingSource = evaluatorMappingSourceState.source;
+  const evaluationContext = useMemo(() => {
+    const grain = evaluatorMappingSourceState.grain;
+    return grain === "dataset"
+      ? null
+      : materializeEvaluatorContext({
+          grain,
+          evaluatorMappingSource: evaluatorMappingSourceState,
+          inputMapping,
+        });
+  }, [evaluatorMappingSourceState, inputMapping]);
 
-  // Generate the type footer based on language and available data
+  // The footer names what `evaluate` receives, so for a project grain it reads
+  // the mapping applied rather than the record as it arrived — the same
+  // context the autocomplete offers from. A dataset example is bound by name
+  // and has no such gap.
   const typeFooter = useMemo(
-    () => generateEvaluatorTypes(language, evaluatorMappingSource),
-    [language, evaluatorMappingSource]
+    () =>
+      generateEvaluatorTypes(
+        language,
+        evaluationContext === null
+          ? evaluatorMappingSource
+          : {
+              input: evaluationContext.values.input,
+              output: evaluationContext.values.output,
+              metadata: isStringKeyedObject(evaluationContext.values.metadata)
+                ? evaluationContext.values.metadata
+                : {},
+            }
+      ),
+    [language, evaluatorMappingSource, evaluationContext]
   );
 
   const extensions = useMemo(
@@ -863,10 +895,27 @@ const CodeEditor = ({
       language === "PYTHON" ? python() : javascript({ typescript: true }),
       // Python: 4-space indent; JS/TS: 2-space.
       indentUnit.of(language === "PYTHON" ? "    " : "  "),
-      createEvaluatorAutocompletion(evaluatorMappingSource, language),
+      createEvaluatorAutocompletion({
+        mappingSource: evaluatorMappingSource,
+        language,
+        evaluationContext,
+      }),
     ],
-    [language, evaluatorMappingSource]
+    [language, evaluatorMappingSource, evaluationContext]
   );
+
+  // The sampled record can arrive after the user has already put the cursor
+  // in a completable position — the reconfigure it causes discards any open
+  // dropdown, so re-open it, the same way DSLFilterConditionField does. The
+  // source offers nothing outside those positions, so this is inert
+  // elsewhere in the source code.
+  const editorViewRef = useRef<EditorView | null>(null);
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (editorView?.hasFocus) {
+      startCompletion(editorView);
+    }
+  }, [extensions]);
 
   const descriptionText =
     "Define an evaluate function that returns a score or label.";
@@ -926,7 +975,14 @@ const CodeEditor = ({
             size="S"
             variant="quiet"
             leadingVisual={<Icon svg={<Icons.Refresh />} />}
-            onPress={() => onChange(getDefaultCodeEvaluatorSource(language))}
+            onPress={() =>
+              onChange(
+                getDefaultCodeEvaluatorSource(
+                  language,
+                  evaluatorMappingSourceState.grain
+                )
+              )
+            }
           >
             Reset
           </Button>
@@ -970,6 +1026,9 @@ const CodeEditor = ({
                 onChange={onChange}
                 theme={codeMirrorTheme}
                 extensions={extensions}
+                onCreateEditor={(editorView) => {
+                  editorViewRef.current = editorView;
+                }}
                 height="100%"
                 indentWithTab
                 basicSetup={{
@@ -1019,7 +1078,11 @@ const CodeEditor = ({
 /**
  * Heading + bordered card for the evaluator's output annotation config.
  */
-const EvaluatorAnnotationSection = () => {
+export const CodeEvaluatorAnnotationSection = ({
+  onChange,
+}: {
+  onChange?: () => void;
+} = {}) => {
   return (
     <View flex="none">
       <Flex direction="column" gap="size-100">
@@ -1038,7 +1101,7 @@ const EvaluatorAnnotationSection = () => {
           marginTop="size-50"
           borderColor="default"
         >
-          <OutputConfigSection />
+          <OutputConfigSection onChange={onChange} />
         </View>
       </Flex>
     </View>
@@ -1073,7 +1136,7 @@ const InputMappingSection = () => {
   );
 };
 
-const OutputConfigSection = () => {
+const OutputConfigSection = ({ onChange }: { onChange?: () => void }) => {
   const store = useEvaluatorStoreInstance();
   const outputConfig = useEvaluatorStore((state) => state.outputConfigs[0]);
   const setOutputConfigThresholdAtIndex = useEvaluatorStore(
@@ -1106,7 +1169,10 @@ const OutputConfigSection = () => {
             <Label>Name</Label>
             <Input />
           </TextField>
-          <OptimizationDirectionField description="Whether higher or lower scores are better." />
+          <OptimizationDirectionField
+            description="Whether higher or lower scores are better."
+            onChange={onChange}
+          />
         </Flex>
         <Flex direction="column" gap="size-100">
           <OutputConfigValuesHeader />
@@ -1146,15 +1212,19 @@ const OutputConfigSection = () => {
           <Label>Name</Label>
           <Input />
         </TextField>
-        <OptimizationDirectionField description="Whether higher or lower scores are better." />
+        <OptimizationDirectionField
+          description="Whether higher or lower scores are better."
+          onChange={onChange}
+        />
         <NumberField
           value={threshold ?? undefined}
-          onChange={(value) =>
+          onChange={(value) => {
+            onChange?.();
             setOutputConfigThresholdAtIndex(
               0,
               Number.isNaN(value) ? null : value
-            )
-          }
+            );
+          }}
           isDisabled={isThresholdDisabled}
         >
           <Label>Score threshold (optional)</Label>
@@ -1165,12 +1235,13 @@ const OutputConfigSection = () => {
       <Flex direction="row" gap="size-200" alignItems="start">
         <NumberField
           value={lowerBound ?? undefined}
-          onChange={(value) =>
+          onChange={(value) => {
+            onChange?.();
             setOutputConfigLowerBoundAtIndex(
               0,
               Number.isNaN(value) ? null : value
-            )
-          }
+            );
+          }}
         >
           <Label>Minimum score (optional)</Label>
           <Input />
@@ -1180,12 +1251,13 @@ const OutputConfigSection = () => {
         </NumberField>
         <NumberField
           value={upperBound ?? undefined}
-          onChange={(value) =>
+          onChange={(value) => {
+            onChange?.();
             setOutputConfigUpperBoundAtIndex(
               0,
               Number.isNaN(value) ? null : value
-            )
-          }
+            );
+          }}
         >
           <Label>Maximum score (optional)</Label>
           <Input />

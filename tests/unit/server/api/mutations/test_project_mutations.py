@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 
+from ...._helpers import _add_live_session_work_unit
 from ....graphql import AsyncGraphQLClient
 
 PATCH_PROJECT_MUTATION = """
@@ -203,6 +206,69 @@ class TestProjectMutations:
             assert await session.get(models.ProjectSession, project_session.id) is not None, (
                 "Session with a surviving trace must not be deleted"
             )
+
+    async def test_clear_project_leaves_no_live_session_evaluations(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Clearing content expires evaluations of that session content."""
+        cutoff = datetime.now(timezone.utc)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            project_session = models.ProjectSession(
+                project_id=project.id,
+                session_id=token_hex(8),
+                start_time=cutoff - timedelta(hours=2),
+                end_time=cutoff + timedelta(hours=2),
+            )
+            session.add(project_session)
+            await session.flush()
+            for offset in (timedelta(hours=-1), timedelta(hours=1)):
+                session.add(
+                    models.Trace(
+                        project_rowid=project.id,
+                        trace_id=token_hex(16),
+                        start_time=cutoff + offset,
+                        end_time=cutoff + offset,
+                        project_session_rowid=project_session.id,
+                    )
+                )
+            await _add_live_session_work_unit(session, project_session)
+            project_id = project.id
+
+        result = await gql_client.execute(
+            query="""
+            mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) {
+                    __typename
+                }
+            }
+            """,
+            variables={
+                "input": {
+                    "id": str(GlobalID("Project", str(project_id))),
+                    "endTime": cutoff.isoformat(),
+                }
+            },
+        )
+        assert not result.errors
+
+        async with db() as session:
+            statuses = list(
+                await session.scalars(
+                    select(models.EvalSessionWorkUnit.status)
+                    .join(
+                        models.ProjectSession,
+                        models.EvalSessionWorkUnit.project_session_rowid
+                        == models.ProjectSession.id,
+                    )
+                    .where(models.ProjectSession.project_id == project_id)
+                )
+            )
+        assert all(status == "EXPIRED" for status in statuses)
 
     async def test_create_project(
         self,
@@ -443,3 +509,100 @@ class TestProjectMutations:
             assert project.description is None
             assert project.gradient_start_color == "#5bdbff"
             assert project.gradient_end_color == "#1c76fc"
+
+
+async def test_delete_project_also_deletes_its_evaluators_trace_projects(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        evaluated_project = models.Project(name=f"project-{token_hex(4)}")
+        trace_project = models.Project(name=f"trace-sink-{token_hex(4)}")
+        session.add_all([evaluated_project, trace_project])
+        await session.flush()
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluator(
+                project_id=evaluated_project.id,
+                evaluator_id=evaluator.id,
+                trace_project=trace_project,
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+        )
+        await session.flush()
+        evaluated_project_id = evaluated_project.id
+        trace_project_id = trace_project.id
+
+    response = await gql_client.execute(
+        """mutation ($id: ID!) {
+            deleteProject(id: $id) { __typename }
+        }""",
+        variables={"id": str(GlobalID("Project", str(evaluated_project_id)))},
+    )
+    assert not response.errors
+
+    async with db() as session:
+        remaining = (
+            await session.scalars(
+                select(models.Project.id).where(
+                    models.Project.id.in_([evaluated_project_id, trace_project_id])
+                )
+            )
+        ).all()
+    assert remaining == []
+
+
+async def test_delete_project_refuses_an_evaluator_trace_project(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        evaluated_project = models.Project(name=f"project-{token_hex(4)}")
+        trace_project = models.Project(name=f"trace-sink-{token_hex(4)}")
+        session.add_all([evaluated_project, trace_project])
+        await session.flush()
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluator(
+                project_id=evaluated_project.id,
+                evaluator_id=evaluator.id,
+                trace_project=trace_project,
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+        )
+        await session.flush()
+        trace_project_id = trace_project.id
+
+    response = await gql_client.execute(
+        """mutation ($id: ID!) {
+            deleteProject(id: $id) { __typename }
+        }""",
+        variables={"id": str(GlobalID("Project", str(trace_project_id)))},
+    )
+    assert response.errors
+    assert "delete the evaluator instead" in response.errors[0].message
+
+    async with db() as session:
+        assert await session.get(models.Project, trace_project_id) is not None

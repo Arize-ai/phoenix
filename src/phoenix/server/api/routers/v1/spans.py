@@ -19,7 +19,11 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import is_timezone_aware, normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    delete_spans,
+    get_ancestor_span_rowids,
+)
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.utils import df_to_bytes
@@ -1561,16 +1565,15 @@ async def delete_span(
             predicate = models.Span.span_id == span_identifier
             error_detail = f"Span with span_id '{span_identifier}' not found"
 
-        # Delete the span and return its data in one operation
-        target_span = await session.scalar(
-            sa.delete(models.Span).where(predicate).returning(models.Span)
-        )
+        target_span = await session.scalar(select(models.Span).where(predicate))
 
         if target_span is None:
             raise HTTPException(
                 status_code=404,
                 detail=error_detail,
             )
+
+        await delete_spans(session, models.Span.id == target_span.id)
 
         # Store values needed for later operations
         trace_rowid = target_span.trace_rowid
