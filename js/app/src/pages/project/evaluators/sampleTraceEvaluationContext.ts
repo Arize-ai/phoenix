@@ -1,12 +1,8 @@
 import type { EvaluatorMappingSource } from "@phoenix/types";
 
 /**
- * Mirrors the server's `trace_eval_context()`. A project with no recorded
- * traces yet still needs something to author a mapping against, the same way
- * the span and session grains have their own samples.
- *
- * This is the first trace of the sample session, so the three samples read as
- * one product.
+ * Mirrors the server's `trace_eval_context()`. The first trace of the sample session, so
+ * the three grains' samples read as one product.
  */
 export type SampleTraceEvaluationContext = {
   context: EvaluatorMappingSource<"trace">;

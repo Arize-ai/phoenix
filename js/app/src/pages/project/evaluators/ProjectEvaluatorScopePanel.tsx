@@ -267,8 +267,6 @@ export const ProjectEvaluatorScopePanel = (
       Test All
     </Button>
   );
-  // Every target maps onto a mapping-source grain, and the preview reads that
-  // grain's records.
   const { CountLine, RunList, note } =
     MATCHING_RECORDS_BY_GRAIN[mappingSourceGrain];
   const records = `${mappingSourceGrain}s`;
@@ -373,7 +371,6 @@ function LlmRunList({
   return <RunList {...props} playgroundStore={playgroundStore} />;
 }
 
-/** Names the bindings a trace evaluator receives, which no span vocabulary covers. */
 function TraceInputNote() {
   return (
     <Flex direction="column" gap="size-25">
@@ -599,17 +596,12 @@ function MatchedSessionCountLine({
 }
 
 /**
- * How far the matching-trace count reads before it stops counting. The API
- * exposes no trace count under a trace-filter condition, so the count is read
- * off the matching traces themselves; past this it reports a floor instead.
+ * The API exposes no trace count under a trace-filter condition, so the count is read off
+ * the matching traces; past this it reports a floor instead.
  */
 const TRACE_COUNT_PROBE_LIMIT = 100;
 
-/**
- * Traces are listed as their representative root spans — one per trace, the
- * same span whose input and output a trace evaluation binds — because that is
- * the only trace-filtered listing the API offers.
- */
+/** Traces are listed as their root spans, the only trace-filtered listing the API offers. */
 function MatchedTraceCountLine({
   projectId,
   filterCondition,
@@ -676,10 +668,6 @@ function formatTraceMetric(numSpans: number, totalTokens: number): string {
   return `${spans} · ${totalTokens.toLocaleString()} tokens`;
 }
 
-/**
- * The traces this evaluator would run on, each carrying the same evaluation
- * context a live trace evaluation binds against, so a row can be tested.
- */
 function TraceRunList({
   projectId,
   filterCondition,
@@ -692,8 +680,6 @@ function TraceRunList({
   onCanRunAllChange,
 }: RecordRunListProps) {
   const [limit, setLimit] = useState(TRACE_LIST_PAGE_SIZE);
-  // A transition keeps the current rows visible instead of collapsing the list
-  // to its Suspense fallback while the wider page loads.
   const [isShowingMore, startShowMoreTransition] = useTransition();
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelTracesQuery>(
     graphql`
@@ -1840,10 +1826,8 @@ export function useEvaluatorMappingSourceBoundToRow({
 }
 
 /**
- * Every record grain's context shares this shape, so this cannot tell them
- * apart — the grain the row is bound under does, and the store decides from
- * that what of `metadata` to keep. Only `metadata` is guaranteed to be an
- * object by the server context shape; `input`/`output` are raw attribute values.
+ * Narrows the shape, never the grain: every record context shares this one. Only
+ * `metadata` is guaranteed to be an object; `input`/`output` are raw attribute values.
  */
 function hasEvaluatorMappingSourceShape(
   value: unknown
@@ -1942,8 +1926,6 @@ function useEvaluatorPreviewRuns({
               context,
               evaluator,
               inputMapping: state.evaluator.inputMapping,
-              // Every row here stands in for a scheduled run, whatever its
-              // grain, so the run has to fail wherever the live one would.
               applyOnlineEvaluationLimits: true,
             },
           ],
