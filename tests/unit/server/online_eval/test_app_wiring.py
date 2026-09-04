@@ -127,25 +127,18 @@ async def test_app_runs_seeded_criteria_end_to_end(
         assert isinstance(consumer, OnlineEvalConsumer)
         assert isinstance(session_consumer, OnlineEvalConsumer)
         assert isinstance(trace_consumer, OnlineEvalConsumer)
-        assert len({id(consumer), id(session_consumer), id(trace_consumer)}) == 3
+        consumers = (consumer, session_consumer, trace_consumer)
+        assert len({id(target_consumer) for target_consumer in consumers}) == 3
         assert session_consumer._evaluation_target == "SESSION"
         assert trace_consumer._evaluation_target == "TRACE"
-        assert (
-            consumer._claim_batch_size
-            == session_consumer._claim_batch_size
-            == trace_consumer._claim_batch_size
-            == 3
-        )
-        assert consumer._evaluator_semaphore is session_consumer._evaluator_semaphore
-        assert consumer._evaluator_semaphore is trace_consumer._evaluator_semaphore
-        assert consumer._evaluator_semaphore._value == 4
-        assert consumer._db_semaphore is session_consumer._db_semaphore
-        assert consumer._db_semaphore is trace_consumer._db_semaphore
         assert consumer._db_semaphore is not None
+        assert consumer._evaluator_semaphore._value == 4
         assert consumer._db_semaphore._value == 5
-        assert consumer._executor._db_semaphore is consumer._db_semaphore
-        assert session_consumer._executor._db_semaphore is consumer._db_semaphore
-        assert trace_consumer._executor._db_semaphore is consumer._db_semaphore
+        for target_consumer in consumers:
+            assert target_consumer._claim_batch_size == 3
+            assert target_consumer._evaluator_semaphore is consumer._evaluator_semaphore
+            assert target_consumer._db_semaphore is consumer._db_semaphore
+            assert target_consumer._executor._db_semaphore is consumer._db_semaphore
         assert isinstance(session_sweeper, EvalSweeper)
         assert isinstance(trace_sweeper, EvalSweeper)
         assert trace_sweeper._lease_name != session_sweeper._lease_name
