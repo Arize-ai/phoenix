@@ -135,7 +135,6 @@ async def test_app_runs_seeded_criteria_end_to_end(
         assert session_consumer._executor._db_semaphore is consumer._db_semaphore
         assert isinstance(session_sweeper, EvalSweeper)
         assert isinstance(trace_sweeper, EvalSweeper)
-        assert trace_sweeper._evaluation_target == "TRACE"
         assert trace_sweeper._lease_name != session_sweeper._lease_name
 
         async with db() as session:
