@@ -68,12 +68,6 @@ export const ProjectEvaluatorScopeFieldGroup = ({
 }) => {
   const isDelayedTarget = hasEvaluationDelay(scope.targetType);
   const evaluatorStore = useEvaluatorStoreInstance();
-  // A target change is the one act that moves a form between kinds of record,
-  // so everything written against the old kind changes here with it: the
-  // filter (a different language), the store's grain (the record contexts are
-  // structurally identical, so the store cannot infer it), and mapping paths
-  // rooted at a name the new record does not carry (a path that matches
-  // nothing fails the evaluation).
   const handleTargetChange = (targetType: ProjectEvaluatorTarget) => {
     if (targetType === scope.targetType) {
       return;

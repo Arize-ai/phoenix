@@ -199,11 +199,8 @@ export type ProjectEvaluatorMappingSourceGrain = Exclude<
 >;
 
 /**
- * Which mapping-source vocabulary the records of an evaluated target speak.
- *
- * The three sources are structurally identical, so this is the only thing that
- * can tell them apart; every place that builds or resets a project evaluator's
- * mapping source goes through here.
+ * Which mapping-source vocabulary the records of an evaluated target speak. Every place
+ * that builds or resets a project evaluator's mapping source goes through here.
  */
 export function toEvaluatorMappingSourceGrain(
   target: ProjectEvaluatorTarget
