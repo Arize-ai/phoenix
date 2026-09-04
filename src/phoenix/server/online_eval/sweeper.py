@@ -695,10 +695,15 @@ class EvalSweeper(DaemonTask):
         page_project_evaluator_ids: tuple[int, ...] = ()
         if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
             page_project_evaluator_ids = tuple(dict.fromkeys(page_project_evaluator_id_per_row))
-            if page_project_evaluator_ids:
-                page_project_evaluator_ids_parameter = bindparam(
-                    "page_project_evaluator_ids",
-                    page_project_evaluator_ids,
+            watermark_project_evaluator_ids = (
+                tuple(evaluator.project_evaluator_id for evaluator in project_evaluators)
+                if page_row_count < limit
+                else page_project_evaluator_ids
+            )
+            if watermark_project_evaluator_ids:
+                watermark_project_evaluator_ids_parameter = bindparam(
+                    "watermark_project_evaluator_ids",
+                    watermark_project_evaluator_ids,
                     type_=ARRAY(Integer),
                 )
                 locked_project_evaluator_ids = tuple(
@@ -706,13 +711,13 @@ class EvalSweeper(DaemonTask):
                         select(models.ProjectEvaluator.id)
                         .where(
                             models.ProjectEvaluator.id
-                            == any_(page_project_evaluator_ids_parameter),
+                            == any_(watermark_project_evaluator_ids_parameter),
                         )
                         .order_by(models.ProjectEvaluator.id)
                         .with_for_update()
                     )
                 )
-                if len(locked_project_evaluator_ids) != len(page_project_evaluator_ids):
+                if len(locked_project_evaluator_ids) != len(watermark_project_evaluator_ids):
                     return 0, eligible_pair_count
         if page_row_count < limit:
             await self._advance_watermarks_to_due_horizon(
@@ -887,8 +892,6 @@ class EvalSweeper(DaemonTask):
         if not watermarks:
             return
         project_evaluator_ids = sorted(watermarks)
-        # One statement, ids in order: a statement per watermark locks evaluator rows in a
-        # tick-varying order, which deadlocks against the delete mutation's own order.
         watermark = case(
             {
                 project_evaluator_id: literal(

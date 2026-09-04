@@ -272,17 +272,20 @@ async def test_materializes_with_501_schedulable_criteria(
 
 
 @pytest.mark.postgres_only
-async def test_materialization_waits_for_publication_criteria_lock_before_session_locks(
+async def test_materialization_locks_idle_evaluators_before_due_evaluators_and_sessions(
     postgresql_engine: AsyncEngine,
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    async with db() as session:
+        idle_project = await _add_project(session)
+    _, first_criteria_id = await _seed_criteria(db, idle_project.id, evaluation_target="SESSION")
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
     _, second_session_id, _ = await _add_session_liveness(
         db,
         age_seconds=600,
         project_id=project_id,
     )
-    _, first_criteria_id = await _seed_criteria(
+    _, due_criteria_id = await _seed_criteria(
         db,
         project_id,
         evaluation_target="SESSION",
@@ -331,6 +334,14 @@ async def test_materialization_waits_for_publication_criteria_lock_before_sessio
             timeout=5,
         )
         assert publication_backend_pid in blocking_pids
+        assert (
+            await publication_session.scalar(
+                select(models.ProjectEvaluator.id)
+                .where(models.ProjectEvaluator.id == due_criteria_id)
+                .with_for_update(nowait=True)
+            )
+            == due_criteria_id
+        )
         assert (
             await publication_session.scalar(
                 select(models.ProjectSession.id)
