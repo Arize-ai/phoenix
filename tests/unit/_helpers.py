@@ -353,3 +353,11 @@ async def verify_experiment_examples_junction_table(
     assert actual_examples_set == expected_examples_set, (
         f"Junction table entries {actual_examples_set} don't match expected {expected_examples_set}"
     )
+
+
+async def _user_role_id(session: AsyncSession, name: str) -> int:
+    """The id of a user role the app seeds at startup, which every test
+    database already carries."""
+    role_id = await session.scalar(select(models.UserRole.id).where(models.UserRole.name == name))
+    assert role_id is not None, f"user role {name!r} is not seeded"
+    return int(role_id)

@@ -89,4 +89,4 @@ results_df = evaluate_dataframe(dataframe=df, evaluators=[helpfulness])
 3. **Explanations by default** - `ClassificationEvaluator` includes explanations automatically
 4. **Study built-in prompts** - See
    `phoenix.evals.__generated__.classification_evaluator_configs` for examples
-   of well-structured evaluation prompts (Faithfulness, Correctness, DocumentRelevance, etc.)
+   of well-structured evaluation prompts (Faithfulness, Correctness, RetrievalRelevance, etc.)

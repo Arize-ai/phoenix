@@ -611,6 +611,68 @@ export function resetTraceExportSourceLogForTesting(): void {
   loggedTraceExportSources.clear();
 }
 
+type EnvironmentConfig = ReturnType<typeof getEnvConfig>;
+
+function resolveSpanProcessorUrl({
+  paramsUrl,
+  envConfig,
+}: {
+  paramsUrl: string | undefined;
+  envConfig: EnvironmentConfig;
+}): { url: string; usesEnvEndpoint: boolean } {
+  const usesEnvEndpoint = !paramsUrl && envConfig.endpoint.value !== undefined;
+  try {
+    const url = paramsUrl
+      ? ensureCollectorEndpoint(paramsUrl)
+      : toTraceExportUrl(envConfig.endpoint);
+    return { url, usesEnvEndpoint };
+  } catch (error) {
+    if (!usesEnvEndpoint || envConfig.endpoint.source?.kind !== "env-file") {
+      throw error;
+    }
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Ignoring invalid ${envConfig.endpoint.envKey} value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
+    );
+    return {
+      url: ensureCollectorEndpoint(DEFAULT_TRACE_EXPORT_URL),
+      usesEnvEndpoint,
+    };
+  }
+}
+
+function mergeHeaders({
+  inheritedHeaders,
+  paramsHeaders,
+  paramsApiKey,
+}: {
+  inheritedHeaders: Headers;
+  paramsHeaders: RegisterParams["headers"];
+  paramsApiKey: string | undefined;
+}): Headers {
+  const explicitHeaders: Headers = Array.isArray(paramsHeaders)
+    ? Object.fromEntries(paramsHeaders)
+    : { ...paramsHeaders };
+  const headers = { ...inheritedHeaders };
+  for (const [key, value] of Object.entries(explicitHeaders)) {
+    const existingKey = Object.keys(headers).find(
+      (header) => header.toLowerCase() === key.toLowerCase()
+    );
+    if (existingKey) delete headers[existingKey];
+    headers[key] = value;
+  }
+
+  const hasExplicitAuthorization = Object.keys(explicitHeaders).some(
+    (key) => key.toLowerCase() === "authorization"
+  );
+  if (typeof paramsApiKey === "string" && !hasExplicitAuthorization) {
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === "authorization") delete headers[key];
+    }
+  }
+  return headers;
+}
+
 export function getDefaultSpanProcessor({
   url: paramsUrl,
   apiKey: paramsApiKey,
@@ -621,52 +683,21 @@ export function getDefaultSpanProcessor({
   "url" | "apiKey" | "batch" | "headers"
 >): SpanProcessor {
   const envConfig = getEnvConfig();
-  const usesEnvEndpoint = !paramsUrl && envConfig.endpoint.value !== undefined;
-  let url: string;
-  try {
-    url = paramsUrl
-      ? ensureCollectorEndpoint(paramsUrl)
-      : toTraceExportUrl(envConfig.endpoint);
-  } catch (error) {
-    if (usesEnvEndpoint && envConfig.endpoint.source?.kind === "env-file") {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `Ignoring invalid ${envConfig.endpoint.envKey} value from ${envConfig.endpoint.source.filePath}: ${error instanceof Error ? error.message : "invalid URL"}.`
-      );
-      url = ensureCollectorEndpoint(DEFAULT_TRACE_EXPORT_URL);
-    } else {
-      throw error;
-    }
-  }
+  const { url, usesEnvEndpoint } = resolveSpanProcessorUrl({
+    paramsUrl,
+    envConfig,
+  });
   if (usesEnvEndpoint && envConfig.endpoint.rank !== "canonical") {
     logTraceExportSource({ envKey: envConfig.endpoint.envKey, url });
   }
   const apiKey = paramsApiKey || envConfig.credentials.apiKey;
-  const explicitHeaders: Headers = Array.isArray(paramsHeaders)
-    ? Object.fromEntries(paramsHeaders)
-    : { ...paramsHeaders };
-  const headers: Headers = { ...envConfig.credentials.headers };
-  for (const [key, value] of Object.entries(explicitHeaders)) {
-    const existingKey = Object.keys(headers).find(
-      (header) => header.toLowerCase() === key.toLowerCase()
-    );
-    if (existingKey) {
-      delete headers[existingKey];
-    }
-    headers[key] = value;
-  }
-  const hasExplicitAuthorization = Object.keys(explicitHeaders).some(
-    (key) => key.toLowerCase() === "authorization"
-  );
-  if (typeof paramsApiKey === "string" && !hasExplicitAuthorization) {
-    for (const key of Object.keys(headers)) {
-      if (key.toLowerCase() === "authorization") {
-        delete headers[key];
-      }
-    }
-  }
+  const headers = mergeHeaders({
+    inheritedHeaders: envConfig.credentials.headers ?? {},
+    paramsHeaders,
+    paramsApiKey,
+  });
   const hasExplicitCredentials =
-    typeof paramsApiKey === "string" || Object.keys(explicitHeaders).length > 0;
+    typeof paramsApiKey === "string" || Object.keys(paramsHeaders).length > 0;
   const credentialSource = hasExplicitCredentials
     ? "explicit arguments"
     : envConfig.credentials.source?.kind === "process"

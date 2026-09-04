@@ -24,6 +24,12 @@ export interface Session extends Node {
   startTime: string;
   /** ISO 8601 timestamp of when the last trace in the session ended */
   endTime: string;
+  /** Cumulative prompt token count across all spans in the session */
+  tokenCountPrompt?: number;
+  /** Cumulative completion token count across all spans in the session */
+  tokenCountCompletion?: number;
+  /** Cumulative total token count across all spans in the session */
+  tokenCountTotal?: number;
   /** The traces that belong to this session */
   traces: SessionTrace[];
 }

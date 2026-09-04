@@ -25,6 +25,7 @@ from phoenix.server.agents.capabilities import (
     SubagentCapability,
     UIContextsCapability,
     build_anthropic_prompt_cache_capability,
+    build_github_mcp_capability,
 )
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
@@ -36,6 +37,7 @@ from phoenix.server.agents.capabilities.tools.internal import (
 )
 from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
 from phoenix.server.agents.capabilities.viewer_access import ViewerAccessCapability
+from phoenix.server.agents.github import GitHubMCPConfig
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
@@ -71,6 +73,7 @@ def build_agent(
     prompts: AgentPrompts | None = None,
     docs_mcp_server: MCPToolset[AgentDependencies] | None = None,
     phoenix_mcp_server: "FastMCP | None" = None,
+    github_mcp_config: GitHubMCPConfig | None = None,
     principal: "PhoenixUser | None" = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
@@ -93,9 +96,10 @@ def build_agent(
     user_id = int(principal.identity) if principal is not None else None
     is_viewer = principal.is_viewer if principal is not None else False
     can_approve_mutations = not headless
-    allow_mutations = graphql_mutations_enabled and (
-        edit_permission == "bypass" or can_approve_mutations
-    )
+    # Whether externally-visible writes are possible at all this run: either
+    # they bypass approval, or someone is present to approve them.
+    writes_permitted = edit_permission == "bypass" or can_approve_mutations
+    allow_mutations = graphql_mutations_enabled and writes_permitted
     require_mutation_approval = can_approve_mutations and edit_permission == "manual"
     tracer = build_agent_tracer(tracer_provider)
     capabilities: list[AbstractCapability[AgentDependencies]] = [
@@ -152,6 +156,21 @@ def build_agent(
                 initialize_instructions=phoenix_mcp_server.instructions,
             )
         )
+    if github_mcp_config is not None:
+        # Per agent: the toolset carries the turn's resolved GitHub token as
+        # transport auth. Writes share `writes_permitted` with GraphQL
+        # mutations: a headless run has nobody to answer an approval request,
+        # so unless edit permission is "bypass" the write tools are filtered
+        # out entirely (subagents therefore get read/search only — duplicate
+        # checking is delegable, filing stays in the main thread).
+        capabilities.append(
+            build_github_mcp_capability(
+                github_mcp_config,
+                instructions=resolved_prompts.github_tools,
+                allow_writes=writes_permitted,
+                require_write_approval=require_mutation_approval,
+            )
+        )
     if enable_web_access:
         if (web_search := build_web_search_capability(model)) is not None:
             capabilities.append(web_search)
@@ -170,6 +189,7 @@ def build_agent(
             build_graphql_context=build_graphql_context,
             docs_mcp_server=docs_mcp_server,
             phoenix_mcp_server=phoenix_mcp_server,
+            github_mcp_config=github_mcp_config,
             tracer_provider=tracer_provider,
             read_only=read_only,
             auth_enabled=auth_enabled,

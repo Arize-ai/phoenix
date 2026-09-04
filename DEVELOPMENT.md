@@ -139,11 +139,12 @@ Commands corresponding to an environment can be executed by running `tox run -e 
 tox run -e unit_tests
 ```
 
-By default, database tests only run against `sqlite`, in order to run database tests against
-a `postgresql` database as well, use the `--run-postgres` flag
+By default, database tests run against `sqlite`. To run them against `postgresql` instead,
+pass `--db postgresql`; pytest-postgresql finds `pg_ctl` through `pg_config`, or takes
+`--postgresql-exec /path/to/pg_ctl`.
 
 ```bash
-tox run -e unit_tests -- --run-postgres
+tox run -e unit_tests -- --db postgresql
 ```
 
 To run unit tests faster using parallel execution:

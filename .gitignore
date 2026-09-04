@@ -11,6 +11,8 @@ sdist
 **/.ipynb_checkpoints/
 **/.DS_Store
 **/.playwright-mcp/
+# Vitest 5 centralizes run reports, attachments, and screenshots here.
+**/.vitest/
 
 # Server static files
 /src/phoenix/server/static/*
