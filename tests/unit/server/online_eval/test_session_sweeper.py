@@ -374,6 +374,9 @@ async def test_materialization_waits_for_retention_session_lock(
         work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
+        # The write stays above the entity locks, so a session the ladder drops does
+        # not hold the evaluator's watermark back.
+        assert await session.scalar(select(models.ProjectEvaluator.swept_through_at)) is not None
     assert work_count == 0
 
 
@@ -701,7 +704,7 @@ async def test_terminal_history_re_materializes_only_after_new_ingest(
 async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
     db: DbSessionFactory,
 ) -> None:
-    project_id, _, _ = await _add_session_liveness(db, age_seconds=30)
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
     _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
     await _set_delay(db, project_evaluator_id, 10)
     sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
@@ -716,7 +719,10 @@ async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
 
     await sweeper._tick()
 
-    assert await _work_statuses(db) == ["EXPIRED", "PENDING"]
+    # The session's last ingest sits far below the scan floor the first tick left, so
+    # the eligibility scan can no longer reach the pair and the revival re-offers the
+    # expired row in place.
+    assert await _work_statuses(db) == ["PENDING"]
 
 
 async def test_incomplete_session_is_never_scheduled(
@@ -739,10 +745,15 @@ async def test_incomplete_session_is_never_scheduled(
 async def test_quiet_session_predating_criterion_creation_is_not_live(
     db: DbSessionFactory,
 ) -> None:
-    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    # Old enough to be due at the default evaluation delay, and inside the stretch of
+    # history a first due-horizon write would reach back over if it were allowed to
+    # land below the evaluator's creation. The second tick is what sees that write.
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=330)
     await _seed_criteria_raw(db, project_id, evaluation_target="SESSION")
+    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
 
-    await EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)._tick()
+    await sweeper._tick()
+    await sweeper._tick()
 
     async with db() as session:
         assert (

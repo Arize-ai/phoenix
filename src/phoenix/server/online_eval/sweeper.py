@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
@@ -20,6 +19,7 @@ from sqlalchemy import (
     and_,
     any_,
     bindparam,
+    case,
     cast,
     column,
     func,
@@ -128,6 +128,7 @@ class _SweepProjectEvaluator:
     evaluator_id: int
     fingerprint: str
     delay_seconds: int
+    created_at: datetime
     sweep_floor: datetime
     filter_condition: str
     sampling_rate: float
@@ -198,6 +199,18 @@ def _project_evaluator_relation(
     )
 
 
+def _holds_live_key(work_unit: Any) -> ColumnElement[bool]:
+    """Whether a work-unit row still sits inside the live-key index's predicate."""
+    return or_(
+        work_unit.status.in_(("PENDING", "RUNNING")),
+        work_unit.status.in_(SESSION_DECLINED_STATUSES),
+        and_(
+            work_unit.status == "ERROR",
+            work_unit.attempts < MAX_ATTEMPTS,
+        ),
+    )
+
+
 def _live_work_exists(
     target: _SweepTarget,
     project_evaluator_relation: Subquery,
@@ -211,14 +224,7 @@ def _live_work_exists(
             getattr(live_work, target.work_unit_target_column) == target.entity_model.id,
             live_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             live_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
-            or_(
-                live_work.status.in_(("PENDING", "RUNNING")),
-                live_work.status.in_(SESSION_DECLINED_STATUSES),
-                and_(
-                    live_work.status == "ERROR",
-                    live_work.attempts < MAX_ATTEMPTS,
-                ),
-            ),
+            _holds_live_key(live_work),
         )
         .correlate(target.entity_model, project_evaluator_relation)
         .exists()
@@ -610,6 +616,7 @@ class EvalSweeper(DaemonTask):
                     evaluator_id=project_evaluator.evaluator_id,
                     fingerprint=config_fingerprint(resolved),
                     delay_seconds=project_evaluator.evaluation_delay_seconds,
+                    created_at=project_evaluator.created_at,
                     # An ingest transaction stamped before this evaluator's watermark
                     # can still commit after the sweep that set it, so the scan reaches
                     # back past the watermark by the same margin the producer waits
@@ -633,12 +640,20 @@ class EvalSweeper(DaemonTask):
         if work_budget == 0:
             return 0, None
         project_evaluators = await self._load_evaluators(session)
-        return await self._load_eligible_pairs(
+        materialized_work_count, eligible_pair_count = await self._load_eligible_pairs(
             session,
             database_now,
             project_evaluators,
             limit=min(work_budget, _MAX_ELIGIBLE_PAIRS_PER_TICK),
         )
+        # Last, so the work-unit rows it writes are locked after any evaluator and
+        # entity rows the page above locked, and on every path through the page.
+        await self._revive_stale_fingerprint_work(
+            session,
+            project_evaluators,
+            limit=work_budget - materialized_work_count,
+        )
+        return materialized_work_count, eligible_pair_count
 
     async def _load_eligible_pairs(
         self,
@@ -686,35 +701,43 @@ class EvalSweeper(DaemonTask):
         else:
             rows = (await session.execute(select(eligible_page))).all()
             page_row_count = len(rows)
+        locked_project_evaluator_ids: tuple[int, ...] = ()
+        page_project_evaluator_ids: tuple[int, ...] = ()
+        if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
+            page_project_evaluator_ids = tuple(dict.fromkeys(page_project_evaluator_id_per_row))
+            if page_project_evaluator_ids:
+                page_project_evaluator_ids_parameter = bindparam(
+                    "page_project_evaluator_ids",
+                    page_project_evaluator_ids,
+                    type_=ARRAY(Integer),
+                )
+                locked_project_evaluator_ids = tuple(
+                    await session.scalars(
+                        select(models.ProjectEvaluator.id)
+                        .where(
+                            models.ProjectEvaluator.id
+                            == any_(page_project_evaluator_ids_parameter),
+                        )
+                        .order_by(models.ProjectEvaluator.id)
+                        .with_for_update()
+                    )
+                )
+                if len(locked_project_evaluator_ids) != len(page_project_evaluator_ids):
+                    # An evaluator the page named is gone, so this tick inserts nothing
+                    # for any of them and must not record having swept anything either.
+                    return 0, eligible_pair_count
         if page_row_count < limit:
-            # Written before the entity rows are locked: this reaches evaluators the
-            # page never named, and the lock order runs evaluator, then entity, then
-            # work unit.
+            # Written once the page's own evaluators are locked, so a tick that goes on
+            # to create nothing records nothing, and still before the entity rows are
+            # locked, so it reaches evaluators the page never named and the lock order
+            # runs evaluator, then entity, then work unit.
             await self._advance_watermarks_to_due_horizon(
                 session,
                 project_evaluators,
                 database_now,
             )
         if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
-            page_project_evaluator_ids = tuple(dict.fromkeys(page_project_evaluator_id_per_row))
             if not page_project_evaluator_ids:
-                return 0, eligible_pair_count
-            page_project_evaluator_ids_parameter = bindparam(
-                "page_project_evaluator_ids",
-                page_project_evaluator_ids,
-                type_=ARRAY(Integer),
-            )
-            locked_project_evaluator_ids = tuple(
-                await session.scalars(
-                    select(models.ProjectEvaluator.id)
-                    .where(
-                        models.ProjectEvaluator.id == any_(page_project_evaluator_ids_parameter),
-                    )
-                    .order_by(models.ProjectEvaluator.id)
-                    .with_for_update()
-                )
-            )
-            if len(locked_project_evaluator_ids) != len(page_project_evaluator_ids):
                 return 0, eligible_pair_count
             page_ids = tuple(
                 dict.fromkeys(await session.scalars(select(eligible_page.c.entity_rowid)))
@@ -782,6 +805,76 @@ class EvalSweeper(DaemonTask):
         ).all()
         return inserted_statuses.count("PENDING"), eligible_pair_count
 
+    async def _revive_stale_fingerprint_work(
+        self,
+        session: AsyncSession,
+        project_evaluators: Sequence[_SweepProjectEvaluator],
+        *,
+        limit: int,
+    ) -> None:
+        """Re-offer work expired against a configuration the evaluator has moved back to.
+
+        Such a unit is deliberately left out of the terminal watermark so its pair can
+        be offered again, but the pair is only re-offered while the entity is still
+        above the scan floor. This reaches the row directly instead, the way the span
+        producer revives its own expired units rather than rewinding its cursor.
+        """
+        if not project_evaluators or limit <= 0:
+            return
+        work_unit_model = self._target.work_unit_model
+        target_column = getattr(work_unit_model, self._target.work_unit_target_column)
+        relation = _project_evaluator_relation(project_evaluators, self._db.dialect)
+        expired_against_the_current_configuration = (
+            select(1)
+            .select_from(relation)
+            .where(
+                relation.c.project_evaluator_id == work_unit_model.project_evaluator_id,
+                relation.c.config_fingerprint == work_unit_model.config_fingerprint,
+            )
+            .correlate(work_unit_model)
+            .exists()
+        )
+        other_work = aliased(work_unit_model)
+        dedup_key_taken = (
+            select(1)
+            .select_from(other_work)
+            .where(
+                getattr(other_work, self._target.work_unit_target_column) == target_column,
+                other_work.evaluator_id == work_unit_model.evaluator_id,
+                other_work.config_fingerprint == work_unit_model.config_fingerprint,
+                other_work.id != work_unit_model.id,
+                # A pair the base sweep re-materialized already carries a second row on
+                # this key; reviving behind it would double-evaluate, or collide with
+                # the live-key index.
+                or_(other_work.status == "DONE", _holds_live_key(other_work)),
+            )
+            .correlate(work_unit_model)
+            .exists()
+        )
+        revivable = (
+            select(work_unit_model.id)
+            .where(
+                work_unit_model.status == "EXPIRED",
+                work_unit_model.error == STALE_FINGERPRINT_ERROR,
+                expired_against_the_current_configuration,
+                ~dedup_key_taken,
+            )
+            .order_by(work_unit_model.id)
+            .limit(limit)
+        )
+        await session.execute(
+            update(work_unit_model)
+            .where(work_unit_model.id.in_(revivable))
+            .values(
+                status="PENDING",
+                attempts=0,
+                error=None,
+                claimed_by=None,
+                claimed_at=None,
+                cooldown_until=None,
+            )
+        )
+
     async def _advance_watermarks_to_due_horizon(
         self,
         session: AsyncSession,
@@ -792,12 +885,17 @@ class EvalSweeper(DaemonTask):
 
         Called when the page held every eligible pair, so an evaluator that produced no
         rows has nothing outstanding either and advances alongside the ones that did.
+        Never below the evaluator's own creation: an evaluation delay long enough to put
+        the due horizon before it would otherwise open history the evaluator never
+        covered, which is backfill's job rather than the sweep's.
         """
         await self._write_watermarks(
             session,
             {
-                project_evaluator.project_evaluator_id: database_now
-                - timedelta(seconds=project_evaluator.delay_seconds)
+                project_evaluator.project_evaluator_id: max(
+                    project_evaluator.created_at,
+                    database_now - timedelta(seconds=project_evaluator.delay_seconds),
+                )
                 for project_evaluator in project_evaluators
             },
         )
@@ -824,30 +922,41 @@ class EvalSweeper(DaemonTask):
         session: AsyncSession,
         watermarks: dict[int, datetime],
     ) -> None:
-        project_evaluator_ids_by_watermark: dict[datetime, list[int]] = defaultdict(list)
-        for project_evaluator_id, watermark in watermarks.items():
-            project_evaluator_ids_by_watermark[watermark].append(project_evaluator_id)
-        for watermark, project_evaluator_ids in project_evaluator_ids_by_watermark.items():
-            await session.execute(
-                update(models.ProjectEvaluator)
-                .where(
-                    models.ProjectEvaluator.id.in_(sorted(project_evaluator_ids)),
-                    # A raised evaluation delay, or a truncated page whose newest
-                    # surviving row sits inside the late-commit margin, would otherwise
-                    # walk the watermark backwards a margin at a time.
-                    or_(
-                        models.ProjectEvaluator.swept_through_at.is_(None),
-                        models.ProjectEvaluator.swept_through_at < watermark,
-                    ),
+        if not watermarks:
+            return
+        project_evaluator_ids = sorted(watermarks)
+        # One statement, ids in order: a statement per distinct watermark would take the
+        # evaluator row locks in an order that varies between ticks, which can deadlock
+        # against a delete mutation taking them in its own.
+        watermark = case(
+            {
+                project_evaluator_id: literal(
+                    watermarks[project_evaluator_id], models.UtcTimeStamp()
                 )
-                .values(
-                    swept_through_at=watermark,
-                    # Held at its current value: sweeping is not an edit, and the
-                    # column's onupdate would otherwise restamp every enabled
-                    # evaluator on every tick.
-                    updated_at=models.ProjectEvaluator.updated_at,
-                )
+                for project_evaluator_id in project_evaluator_ids
+            },
+            value=models.ProjectEvaluator.id,
+        )
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(
+                models.ProjectEvaluator.id.in_(project_evaluator_ids),
+                # A raised evaluation delay, or a truncated page whose newest
+                # surviving row sits inside the late-commit margin, would otherwise
+                # walk the watermark backwards a margin at a time.
+                or_(
+                    models.ProjectEvaluator.swept_through_at.is_(None),
+                    models.ProjectEvaluator.swept_through_at < watermark,
+                ),
             )
+            .values(
+                swept_through_at=watermark,
+                # Held at its current value: sweeping is not an edit, and the
+                # column's onupdate would otherwise restamp every enabled
+                # evaluator on every tick.
+                updated_at=models.ProjectEvaluator.updated_at,
+            )
+        )
 
     async def _publish_eligibility_metrics(self, eligible_pair_count: Optional[int]) -> None:
         """Publish the sweep's observation gauges from a session of its own.
