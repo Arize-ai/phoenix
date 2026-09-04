@@ -3378,9 +3378,9 @@ type ProjectEvaluator implements Node {
   runSummary: ProjectEvaluatorRunSummary!
 
   """
-  Score aggregates for each annotation this evaluator writes on the evaluated project: totals over the requested time range, totals over the equal-length window immediately before it, and a binned mean-score series. Loading is batched across the project's evaluators, so requesting this for a page of evaluators costs a fixed number of queries.
+  Score aggregates for each annotation this evaluator writes on the evaluated project: totals over the requested time range, totals over the previous window, and a binned mean-score series. An open-ended time range means "up to now" and requires an explicit previousTimeRange, since an open window has no duration to mirror backward; a closed range derives the previous window as the equal-length range before it when previousTimeRange is omitted. Loading is batched across the project's evaluators, so requesting this for a page of evaluators costs a fixed number of queries.
   """
-  annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): [EvaluatorAnnotationScoreMetrics!]!
+  annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, previousTimeRange: TimeRange): [EvaluatorAnnotationScoreMetrics!]!
 
   """
   Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New project evaluators store the default of 300 seconds when no value is provided. A session is evaluated only once, and later activity does not schedule another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator cannot set one, and TRACE evaluators are not scheduled.

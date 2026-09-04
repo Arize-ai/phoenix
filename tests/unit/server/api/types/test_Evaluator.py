@@ -2101,10 +2101,19 @@ async def test_project_evaluator_trace_project_spans_are_scoped_to_the_evaluator
 class TestProjectEvaluatorAnnotationScoreMetrics:
     """Tests for ProjectEvaluator.annotationScoreMetrics."""
 
-    _QUERY = """query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig!) {
+    _QUERY = """query (
+        $id: ID!
+        $timeRange: TimeRange!
+        $timeBinConfig: TimeBinConfig!
+        $previousTimeRange: TimeRange
+    ) {
         node(id: $id) {
             ... on ProjectEvaluator {
-                annotationScoreMetrics(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+                annotationScoreMetrics(
+                    timeRange: $timeRange
+                    timeBinConfig: $timeBinConfig
+                    previousTimeRange: $previousTimeRange
+                ) {
                     annotationName
                     summary { meanScore count scoreCount labelFractions { label fraction } }
                     previousSummary { meanScore }
@@ -2281,7 +2290,7 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
         ]
         assert [bin["count"] for bin in metrics["series"]] == [4, 2, 0, 0]
 
-    async def test_open_time_range_is_rejected(
+    async def test_open_end_requires_an_explicit_previous_window(
         self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         resp = await gql_client.execute(
@@ -2293,7 +2302,39 @@ class TestProjectEvaluatorAnnotationScoreMetrics:
             },
         )
         assert resp.errors
-        assert "start and an end" in resp.errors[0].message
+        assert "previous_time_range is required" in resp.errors[0].message
+
+    async def test_open_ended_window_covers_up_to_now(
+        self, _test_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        """A live window: open end plus an explicit previous window. YEAR bins
+        keep the axis small (the fixture's 2024 data through the present)."""
+        window_start = _test_data["window_start"]
+        resp = await gql_client.execute(
+            self._QUERY,
+            variables={
+                "id": str(GlobalID("ProjectEvaluator", str(_test_data["project_evaluator"]))),
+                "timeRange": {"start": window_start.isoformat()},
+                "previousTimeRange": {
+                    "start": (window_start - timedelta(days=2)).isoformat(),
+                    "end": window_start.isoformat(),
+                },
+                "timeBinConfig": {"scale": "YEAR", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not resp.errors
+        assert resp.data is not None
+        (metrics,) = resp.data["node"]["annotationScoreMetrics"]
+        summary = metrics["summary"]
+        # Everything from the window start onward: 6 annotations, mean 0.5
+        assert summary["count"] == 6
+        assert summary["meanScore"] == pytest.approx(0.5)
+        assert metrics["previousSummary"]["meanScore"] == pytest.approx(1.0)
+        series = metrics["series"]
+        # The axis runs to "now": the 2024 bucket holds the data, later years none
+        assert len(series) >= 2
+        assert series[0]["meanScore"] == pytest.approx(0.5)
+        assert all(bin["meanScore"] is None for bin in series[1:])
 
 
 class TestProjectEvaluatorAnnotationScoreMetricsMultiOutput:
