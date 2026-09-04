@@ -100,7 +100,7 @@ All pre-built evaluators are available from the `@arizeai/phoenix-evals/llm` mod
 | Faithfulness           | `createFaithfulnessEvaluator`         | Detects hallucinations — checks if the output is grounded in the provided context |
 | Conciseness            | `createConcisenessEvaluator`          | Evaluates whether the response is appropriately concise                           |
 | Correctness            | `createCorrectnessEvaluator`          | Checks if the output is factually correct given the input                         |
-| Document Relevance     | `createDocumentRelevanceEvaluator`    | Measures how relevant a retrieved document is to the query                        |
+| Document Relevance     | `createDocumentRelevanceEvaluator`    | **Deprecated** — use `createRetrievalRelevanceEvaluator`; pass the document as `context` |
 | Refusal                | `createRefusalEvaluator`              | Detects whether the model refused to answer                                       |
 | Tool Invocation        | `createToolInvocationEvaluator`       | Evaluates whether the correct tool was invoked with the right arguments           |
 | Tool Selection         | `createToolSelectionEvaluator`        | Checks whether the right tool was selected for the task                           |

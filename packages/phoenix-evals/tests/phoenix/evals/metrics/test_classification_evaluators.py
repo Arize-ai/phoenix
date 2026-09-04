@@ -7,6 +7,8 @@ Covers:
 - kwargs forwarding (e.g. temperature)
 """
 
+import warnings
+
 import pytest
 
 from phoenix.evals.llm.prompts import PromptTemplate
@@ -73,6 +75,10 @@ ALL_EVALUATORS = [
         DocumentRelevanceEvaluator,
         {"input": "Q", "document_text": "D"},
         id="DocumentRelevanceEvaluator",
+        # Deprecated in favour of RetrievalRelevanceEvaluator; still covered here
+        # until it is removed. The deprecation itself is asserted by
+        # test_document_relevance_evaluator_warns_deprecated below.
+        marks=pytest.mark.filterwarnings("ignore::DeprecationWarning"),
     ),
     pytest.param(
         RefusalEvaluator,
@@ -164,3 +170,16 @@ class TestKwargsForwarding:
         llm = MockLLM()
         ev = EvaluatorClass(llm=llm, temperature=0.5)
         assert ev.invocation_parameters.get("temperature") == 0.5
+
+
+def test_document_relevance_evaluator_warns_deprecated() -> None:
+    """DocumentRelevanceEvaluator points callers at RetrievalRelevanceEvaluator."""
+    with pytest.warns(DeprecationWarning, match="RetrievalRelevanceEvaluator"):
+        DocumentRelevanceEvaluator(llm=MockLLM())
+
+
+def test_retrieval_relevance_evaluator_is_not_deprecated() -> None:
+    """The replacement must not warn, or the deprecation is pointing nowhere useful."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        RetrievalRelevanceEvaluator(llm=MockLLM())

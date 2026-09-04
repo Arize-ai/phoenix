@@ -67,7 +67,7 @@ The `phoenix.evals.metrics` module provides ready-to-use evaluators for common t
 | Faithfulness | `FaithfulnessEvaluator` | Detects hallucinations — checks if output is grounded in context |
 | Conciseness | `ConcisenessEvaluator` | Evaluates whether the response is appropriately concise |
 | Correctness | `CorrectnessEvaluator` | Checks if the output is factually correct |
-| Document Relevance | `DocumentRelevanceEvaluator` | Measures how relevant a retrieved document is to a query |
+| Document Relevance | `DocumentRelevanceEvaluator` | **Deprecated** — use `RetrievalRelevanceEvaluator`; pass the document as `context` |
 | Refusal | `RefusalEvaluator` | Detects whether the model refused to answer |
 | Tool Invocation | `ToolInvocationEvaluator` | Checks whether the correct tool was called with the right arguments |
 | Tool Selection | `ToolSelectionEvaluator` | Evaluates whether the right tool was selected for the task |
