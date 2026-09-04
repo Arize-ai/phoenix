@@ -1,4 +1,4 @@
-"""Materialize session evaluation work after session activity becomes old enough."""
+"""Materialize evaluation work after entity activity becomes old enough."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
-from typing import Any, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence
 
 from sqlalchemy import (
     ColumnElement,
@@ -36,10 +36,11 @@ from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, with_polymorphic
 from sqlalchemy.sql import Select
-from sqlalchemy.sql.selectable import Subquery
+from sqlalchemy.sql.elements import TextClause
+from sqlalchemy.sql.selectable import ScalarSelect, Subquery
 from typing_extensions import assert_never
 
-from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_session_outstanding
+from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.eval_work import (
     SESSION_DECLINED_STATUSES,
@@ -57,13 +58,13 @@ from phoenix.server.online_eval.derivation import (
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.session_policy import session_project_evaluator_is_schedulable
 from phoenix.server.prometheus import (
-    ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG,
-    ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS,
-    ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS,
-    ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS,
-    ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS,
-    ONLINE_EVAL_SESSION_SWEEP_FAILURES,
-    ONLINE_EVAL_SESSION_SWEEP_SUCCESSES,
+    ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG,
+    ONLINE_EVAL_MATERIALIZED_WORK_UNITS,
+    ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS,
+    ONLINE_EVAL_SWEEP_ATTEMPTS,
+    ONLINE_EVAL_SWEEP_DURATION_SECONDS,
+    ONLINE_EVAL_SWEEP_FAILURES,
+    ONLINE_EVAL_SWEEP_SUCCESSES,
 )
 from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DaemonTask, DbSessionFactory
@@ -80,11 +81,44 @@ _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 # no retention, so an unbounded aggregate would scan more rows on every tick forever.
 _WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
 
-_LIVE_WORK_INDEX_PREDICATE = text(live_eval_session_work_index_predicate())
+_EntityModel = type[models.ProjectSession]
+_WorkUnitModel = type[models.EvalSessionWorkUnit]
 
 
 @dataclass(frozen=True)
-class _SessionProjectEvaluator:
+class _SweepTarget:
+    """The tables, columns and predicates one evaluation target sweeps over."""
+
+    entity_model: _EntityModel
+    entity_project_id_column: str
+    sample_key_column: str
+    work_unit_model: _WorkUnitModel
+    work_unit_target_column: str
+    live_work_index_predicate: TextClause
+    filtered_entity_rowids_subquery: Callable[[str, Sequence[int]], ScalarSelect[int]]
+    is_evaluable: Callable[[], ColumnElement[bool]]
+    project_evaluator_is_schedulable: Callable[[type[models.ProjectEvaluator]], ColumnElement[bool]]
+    lease_name_prefix: str
+
+
+_SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
+    "SESSION": _SweepTarget(
+        entity_model=models.ProjectSession,
+        entity_project_id_column="project_id",
+        sample_key_column="session_id",
+        work_unit_model=models.EvalSessionWorkUnit,
+        work_unit_target_column="project_session_rowid",
+        live_work_index_predicate=text(live_eval_session_work_index_predicate()),
+        filtered_entity_rowids_subquery=get_filtered_session_rowids_subquery,
+        is_evaluable=lambda: models.ProjectSession.content_complete.is_(True),
+        project_evaluator_is_schedulable=session_project_evaluator_is_schedulable,
+        lease_name_prefix=_SESSION_SWEEP_LEASE_NAME,
+    ),
+}
+
+
+@dataclass(frozen=True)
+class _SweepProjectEvaluator:
     project_evaluator_id: int
     project_id: int
     evaluator_id: int
@@ -96,10 +130,10 @@ class _SessionProjectEvaluator:
 
 
 def _project_evaluator_relation(
-    project_evaluators: Sequence[_SessionProjectEvaluator],
+    project_evaluators: Sequence[_SweepProjectEvaluator],
     dialect: SupportedSQLDialect,
 ) -> Subquery:
-    """Return a portable inline relation for resolved session project evaluators.
+    """Return a portable inline relation for resolved project evaluators.
 
     Bind names are keyed off ``project_evaluator_id`` rather than row position: several of these
     relations are unioned into one statement, and ``text()`` binds are not unique, so
@@ -160,14 +194,17 @@ def _project_evaluator_relation(
     )
 
 
-def _live_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[bool]:
-    """Whether the session still holds a live dedup key for this criterion."""
-    live_work = aliased(models.EvalSessionWorkUnit)
+def _live_work_exists(
+    target: _SweepTarget,
+    project_evaluator_relation: Subquery,
+) -> ColumnElement[bool]:
+    """Whether the entity still holds a live dedup key for this criterion."""
+    live_work = aliased(target.work_unit_model)
     return (
         select(1)
         .select_from(live_work)
         .where(
-            live_work.project_session_rowid == models.ProjectSession.id,
+            getattr(live_work, target.work_unit_target_column) == target.entity_model.id,
             live_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             live_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
             or_(
@@ -179,24 +216,27 @@ def _live_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[boo
                 ),
             ),
         )
-        .correlate(models.ProjectSession, project_evaluator_relation)
+        .correlate(target.entity_model, project_evaluator_relation)
         .exists()
     )
 
 
 def _eligible_pairs_statement(
+    target: _SweepTarget,
     project_evaluator_relation: Subquery,
     database_now: datetime,
     dialect: SupportedSQLDialect,
     *,
     filter_matches: ColumnElement[bool],
 ) -> Select[Any]:
-    successful_work = aliased(models.EvalSessionWorkUnit)
-    terminal_work = aliased(models.EvalSessionWorkUnit)
+    entity_model = target.entity_model
+    target_column = target.work_unit_target_column
+    successful_work = aliased(target.work_unit_model)
+    terminal_work = aliased(target.work_unit_model)
     terminal_watermark = (
         select(func.max(terminal_work.evaluated_through))
         .where(
-            terminal_work.project_session_rowid == models.ProjectSession.id,
+            getattr(terminal_work, target_column) == entity_model.id,
             terminal_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             terminal_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
             or_(
@@ -215,67 +255,69 @@ def _eligible_pairs_statement(
                 ),
             ),
         )
-        .correlate(models.ProjectSession, project_evaluator_relation)
+        .correlate(entity_model, project_evaluator_relation)
         .scalar_subquery()
     )
     successful_result_exists = (
         select(1)
         .select_from(successful_work)
         .where(
-            successful_work.project_session_rowid == models.ProjectSession.id,
+            getattr(successful_work, target_column) == entity_model.id,
             successful_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             successful_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
             successful_work.status == "DONE",
         )
-        .correlate(models.ProjectSession, project_evaluator_relation)
+        .correlate(entity_model, project_evaluator_relation)
         .exists()
     )
     if dialect is SupportedSQLDialect.SQLITE:
         due_at = (
-            cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float) * 86_400
+            cast(func.julianday(entity_model.last_span_ingested_at), Float) * 86_400
             + project_evaluator_relation.c.delay_seconds
         )
         current_time = cast(func.julianday(database_now), Float) * 86_400
     else:
         due_at = (
-            func.extract("epoch", models.ProjectSession.last_span_ingested_at)
+            func.extract("epoch", entity_model.last_span_ingested_at)
             + project_evaluator_relation.c.delay_seconds
         )
         current_time = func.extract("epoch", literal(database_now))
     return (
         select(
-            models.ProjectSession.id.label("project_session_rowid"),
-            models.ProjectSession.session_id,
+            entity_model.id.label("entity_rowid"),
+            getattr(entity_model, target.sample_key_column).label("sample_identity"),
             project_evaluator_relation.c.project_evaluator_id,
             project_evaluator_relation.c.evaluator_id,
             project_evaluator_relation.c.config_fingerprint,
             project_evaluator_relation.c.sampling_rate,
-            models.ProjectSession.last_span_ingested_at.label("evaluated_through"),
+            entity_model.last_span_ingested_at.label("evaluated_through"),
             due_at.label("effective_due_time"),
             filter_matches.label("filter_matches"),
         )
-        .select_from(models.ProjectSession)
+        .select_from(entity_model)
         .join(
             project_evaluator_relation,
-            models.ProjectSession.project_id == project_evaluator_relation.c.project_id,
+            getattr(entity_model, target.entity_project_id_column)
+            == project_evaluator_relation.c.project_id,
         )
         .where(
-            models.ProjectSession.content_complete.is_(True),
-            models.ProjectSession.last_span_ingested_at.is_not(None),
-            models.ProjectSession.last_span_ingested_at >= project_evaluator_relation.c.created_at,
+            target.is_evaluable(),
+            entity_model.last_span_ingested_at.is_not(None),
+            entity_model.last_span_ingested_at >= project_evaluator_relation.c.created_at,
             due_at <= current_time,
             ~successful_result_exists,
-            ~_live_work_exists(project_evaluator_relation),
+            ~_live_work_exists(target, project_evaluator_relation),
             or_(
                 terminal_watermark.is_(None),
-                terminal_watermark < models.ProjectSession.last_span_ingested_at,
+                terminal_watermark < entity_model.last_span_ingested_at,
             ),
         )
     )
 
 
 def _eligible_pairs_relation(
-    project_evaluators: Sequence[_SessionProjectEvaluator],
+    target: _SweepTarget,
+    project_evaluators: Sequence[_SweepProjectEvaluator],
     database_now: datetime,
     dialect: SupportedSQLDialect,
 ) -> Subquery:
@@ -284,6 +326,7 @@ def _eligible_pairs_relation(
     if unfiltered:
         statements.append(
             _eligible_pairs_statement(
+                target,
                 _project_evaluator_relation(unfiltered, dialect),
                 database_now,
                 dialect,
@@ -293,14 +336,15 @@ def _eligible_pairs_relation(
     for project_evaluator in project_evaluators:
         if not project_evaluator.filter_condition:
             continue
-        filter_matches = models.ProjectSession.id.in_(
-            get_filtered_session_rowids_subquery(
+        filter_matches = target.entity_model.id.in_(
+            target.filtered_entity_rowids_subquery(
                 project_evaluator.filter_condition,
                 [project_evaluator.project_id],
             )
         )
         statements.append(
             _eligible_pairs_statement(
+                target,
                 _project_evaluator_relation([project_evaluator], dialect),
                 database_now,
                 dialect,
@@ -312,57 +356,66 @@ def _eligible_pairs_relation(
     return union_all(*statements).subquery("eligible_pairs")
 
 
-def _session_work_insert_statement(
+def _work_insert_statement(
+    target: _SweepTarget,
     decisions: Sequence[dict[str, Any]],
     dialect: SupportedSQLDialect,
 ) -> Insert:
-    """Insert scheduling decisions whose PostgreSQL evaluator and session rows are locked."""
+    """Insert scheduling decisions whose PostgreSQL evaluator and entity rows are locked."""
+    work_unit_model = target.work_unit_model
     index_elements = (
-        models.EvalSessionWorkUnit.project_session_rowid,
-        models.EvalSessionWorkUnit.evaluator_id,
-        models.EvalSessionWorkUnit.config_fingerprint,
+        getattr(work_unit_model, target.work_unit_target_column),
+        work_unit_model.evaluator_id,
+        work_unit_model.config_fingerprint,
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
         return (
-            insert_postgresql(models.EvalSessionWorkUnit)
+            insert_postgresql(work_unit_model)
             .values(decisions)
             .on_conflict_do_nothing(
                 index_elements=index_elements,
-                index_where=_LIVE_WORK_INDEX_PREDICATE,
+                index_where=target.live_work_index_predicate,
             )
-            .returning(models.EvalSessionWorkUnit.status)
+            .returning(work_unit_model.status)
         )
     if dialect is SupportedSQLDialect.SQLITE:
         return (
-            insert_sqlite(models.EvalSessionWorkUnit)
+            insert_sqlite(work_unit_model)
             .values(decisions)
             .on_conflict_do_nothing(
                 index_elements=index_elements,
-                index_where=_LIVE_WORK_INDEX_PREDICATE,
+                index_where=target.live_work_index_predicate,
             )
-            .returning(models.EvalSessionWorkUnit.status)
+            .returning(work_unit_model.status)
         )
     assert_never(dialect)
 
 
-class SessionEvalSweeper(DaemonTask):
-    """Create pending work for eligible project sessions."""
+class EvalSweeper(DaemonTask):
+    """Create pending work for eligible entities of one evaluation target."""
 
     def __init__(
         self,
         db: DbSessionFactory,
         *,
+        evaluation_target: models.EvaluationTarget,
+        max_outstanding: int,
         consumer_group: str = _CONSUMER_GROUP,
         tick_interval_seconds: float = SESSION_SWEEP_INTERVAL_SECONDS,
     ) -> None:
         super().__init__()
+        if (target := _SWEEP_TARGETS.get(evaluation_target)) is None:
+            raise ValueError(f"Online evaluation sweeping does not support {evaluation_target}")
         self._db = db
+        self._evaluation_target = evaluation_target
+        self._target = target
+        self._metric_labels = {"evaluation_target": evaluation_target}
         self._consumer_group = consumer_group
         self._tick_interval_seconds = tick_interval_seconds
-        self._max_outstanding = get_env_online_eval_max_session_outstanding()
+        self._max_outstanding = max_outstanding
         self._publish_metrics = get_env_enable_prometheus()
-        self._sweeper_id = f"session-sweeper-{token_hex(8)}"
-        self._lease_name = f"{_SESSION_SWEEP_LEASE_NAME}:{consumer_group}"
+        self._sweeper_id = f"{evaluation_target.lower()}-sweeper-{token_hex(8)}"
+        self._lease_name = f"{target.lease_name_prefix}:{consumer_group}"
         self._lease_held = False
 
     async def _run(self) -> None:
@@ -455,8 +508,9 @@ class SessionEvalSweeper(DaemonTask):
 
     async def _materialize_and_renew(self, lease_id: int) -> bool:
         started_at = time.monotonic()
+        labels = self._metric_labels
         if self._publish_metrics:
-            ONLINE_EVAL_SESSION_SWEEP_ATTEMPTS.inc()
+            ONLINE_EVAL_SWEEP_ATTEMPTS.labels(**labels).inc()
         materialized_work_count = 0
         eligible_pair_count: Optional[int] = None
         renewed: Optional[int] = None
@@ -480,17 +534,19 @@ class SessionEvalSweeper(DaemonTask):
                     await session.rollback()
         except Exception:
             if self._publish_metrics:
-                ONLINE_EVAL_SESSION_SWEEP_FAILURES.inc()
+                ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
             raise
         finally:
             if self._publish_metrics:
-                ONLINE_EVAL_SESSION_SWEEP_DURATION_SECONDS.observe(time.monotonic() - started_at)
+                ONLINE_EVAL_SWEEP_DURATION_SECONDS.labels(**labels).observe(
+                    time.monotonic() - started_at
+                )
         if self._publish_metrics:
             if renewed is None:
-                ONLINE_EVAL_SESSION_SWEEP_FAILURES.inc()
+                ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
             else:
-                ONLINE_EVAL_SESSION_SWEEP_SUCCESSES.inc()
-                ONLINE_EVAL_SESSION_MATERIALIZED_WORK_UNITS.inc(materialized_work_count)
+                ONLINE_EVAL_SWEEP_SUCCESSES.labels(**labels).inc()
+                ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(**labels).inc(materialized_work_count)
                 await self._publish_eligibility_metrics(eligible_pair_count)
         return renewed is not None
 
@@ -505,7 +561,7 @@ class SessionEvalSweeper(DaemonTask):
             raise RuntimeError("Database did not return its current time")
         return database_now
 
-    async def _load_evaluators(self, session: AsyncSession) -> list[_SessionProjectEvaluator]:
+    async def _load_evaluators(self, session: AsyncSession) -> list[_SweepProjectEvaluator]:
         polymorphic_evaluator = with_polymorphic(
             models.Evaluator,
             [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
@@ -518,14 +574,14 @@ class SessionEvalSweeper(DaemonTask):
                     models.ProjectEvaluator.evaluator_id == polymorphic_evaluator.id,
                 )
                 .where(
-                    session_project_evaluator_is_schedulable(models.ProjectEvaluator),
+                    self._target.project_evaluator_is_schedulable(models.ProjectEvaluator),
                 )
             )
         ).all()
         project_evaluator_pairs = [
             (project_evaluator, evaluator) for project_evaluator, evaluator in rows
         ]
-        project_evaluator_rows: list[_SessionProjectEvaluator] = []
+        project_evaluator_rows: list[_SweepProjectEvaluator] = []
         resolved_rows = await resolve_project_evaluators_bulk(session, project_evaluator_pairs)
         for (project_evaluator, evaluator), resolved in zip(
             project_evaluator_pairs,
@@ -539,7 +595,7 @@ class SessionEvalSweeper(DaemonTask):
                 )
                 continue
             project_evaluator_rows.append(
-                _SessionProjectEvaluator(
+                _SweepProjectEvaluator(
                     project_evaluator_id=project_evaluator.id,
                     project_id=project_evaluator.project_id,
                     evaluator_id=project_evaluator.evaluator_id,
@@ -558,7 +614,7 @@ class SessionEvalSweeper(DaemonTask):
         database_now: datetime,
     ) -> tuple[int, Optional[int]]:
         """Materialize this tick's work, returning (work created, pairs found eligible)."""
-        await reap_lapsed_leases(session, models.EvalSessionWorkUnit)
+        await reap_lapsed_leases(session, self._target.work_unit_model)
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None
@@ -574,13 +630,15 @@ class SessionEvalSweeper(DaemonTask):
         self,
         session: AsyncSession,
         database_now: datetime,
-        project_evaluators: Sequence[_SessionProjectEvaluator],
+        project_evaluators: Sequence[_SweepProjectEvaluator],
         *,
         limit: int,
     ) -> tuple[int, Optional[int]]:
         if not project_evaluators:
             return 0, 0 if self._publish_metrics else None
+        target = self._target
         relation = _eligible_pairs_relation(
+            target,
             project_evaluators,
             database_now,
             self._db.dialect,
@@ -598,14 +656,14 @@ class SessionEvalSweeper(DaemonTask):
             select(relation)
             .order_by(
                 relation.c.effective_due_time,
-                relation.c.project_session_rowid,
+                relation.c.entity_rowid,
                 relation.c.project_evaluator_id,
             )
             .limit(limit)
             .subquery("eligible_pair_page")
         )
         locked_project_evaluator_ids: Optional[Sequence[int]] = None
-        locked_project_session_rowids: Optional[Sequence[int]] = None
+        locked_entity_rowids: Optional[Sequence[int]] = None
         if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
             page_project_evaluator_ids = tuple(
                 dict.fromkeys(await session.scalars(select(eligible_page.c.project_evaluator_id)))
@@ -630,7 +688,7 @@ class SessionEvalSweeper(DaemonTask):
             if len(locked_project_evaluator_ids) != len(page_project_evaluator_ids):
                 return 0, eligible_pair_count
             page_ids = tuple(
-                dict.fromkeys(await session.scalars(select(eligible_page.c.project_session_rowid)))
+                dict.fromkeys(await session.scalars(select(eligible_page.c.entity_rowid)))
             )
             if not page_ids:
                 return 0, eligible_pair_count
@@ -639,40 +697,40 @@ class SessionEvalSweeper(DaemonTask):
                 page_ids,
                 type_=ARRAY(Integer),
             )
-            locked_project_session_rowids = tuple(
+            locked_entity_rowids = tuple(
                 await session.scalars(
-                    select(models.ProjectSession.id)
+                    select(target.entity_model.id)
                     .where(
-                        models.ProjectSession.id == any_(page_ids_parameter),
-                        models.ProjectSession.content_complete.is_(True),
+                        target.entity_model.id == any_(page_ids_parameter),
+                        target.is_evaluable(),
                     )
-                    .order_by(models.ProjectSession.id)
+                    .order_by(target.entity_model.id)
                     .with_for_update()
                 )
             )
-            if not locked_project_session_rowids:
+            if not locked_entity_rowids:
                 return 0, eligible_pair_count
         selected_page = select(eligible_page)
         if locked_project_evaluator_ids is not None:
             selected_page = selected_page.where(
                 eligible_page.c.project_evaluator_id.in_(locked_project_evaluator_ids)
             )
-        if locked_project_session_rowids is not None:
+        if locked_entity_rowids is not None:
             selected_page = selected_page.where(
-                eligible_page.c.project_session_rowid.in_(locked_project_session_rowids)
+                eligible_page.c.entity_rowid.in_(locked_entity_rowids)
             )
         rows = (await session.execute(selected_page)).all()
         decisions: list[dict[str, Any]] = []
         for row in rows:
             if not row.filter_matches:
                 status: models.EvalSessionWorkStatus = "FILTERED_OUT"
-            elif sample_key(row.session_id) >= row.sampling_rate:
+            elif sample_key(row.sample_identity) >= row.sampling_rate:
                 status = "SAMPLED_OUT"
             else:
                 status = "PENDING"
             decisions.append(
                 {
-                    "project_session_rowid": row.project_session_rowid,
+                    target.work_unit_target_column: row.entity_rowid,
                     "evaluator_id": row.evaluator_id,
                     "project_evaluator_id": row.project_evaluator_id,
                     "config_fingerprint": row.config_fingerprint,
@@ -684,7 +742,8 @@ class SessionEvalSweeper(DaemonTask):
             return 0, eligible_pair_count
         inserted_statuses = (
             await session.scalars(
-                _session_work_insert_statement(
+                _work_insert_statement(
+                    target,
                     decisions,
                     self._db.dialect,
                 )
@@ -700,7 +759,7 @@ class SessionEvalSweeper(DaemonTask):
         a stale gauge rather than the sweep that already succeeded.
         """
         if eligible_pair_count is not None:
-            ONLINE_EVAL_SESSION_ELIGIBLE_PAIR_BACKLOG.set(eligible_pair_count)
+            ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG.labels(**self._metric_labels).set(eligible_pair_count)
         try:
             async with self._db.read() as session:
                 database_now = await self._database_now(session)
@@ -713,45 +772,48 @@ class SessionEvalSweeper(DaemonTask):
         session: AsyncSession,
         database_now: datetime,
     ) -> None:
+        target = self._target
+        entity_model = target.entity_model
+        work_unit_model = target.work_unit_model
         if self._db.dialect is SupportedSQLDialect.SQLITE:
             lag_seconds = (
-                cast(func.julianday(models.ProjectSession.last_span_ingested_at), Float)
-                - cast(func.julianday(models.EvalSessionWorkUnit.evaluated_through), Float)
+                cast(func.julianday(entity_model.last_span_ingested_at), Float)
+                - cast(func.julianday(work_unit_model.evaluated_through), Float)
             ) * 86_400
         else:
             lag_seconds = func.extract(
                 "epoch",
-                models.ProjectSession.last_span_ingested_at
-                - models.EvalSessionWorkUnit.evaluated_through,
+                entity_model.last_span_ingested_at - work_unit_model.evaluated_through,
             )
         watermark_lag_seconds = await session.scalar(
             select(func.max(lag_seconds))
-            .select_from(models.EvalSessionWorkUnit)
+            .select_from(work_unit_model)
             .join(
-                models.ProjectSession,
-                models.EvalSessionWorkUnit.project_session_rowid == models.ProjectSession.id,
+                entity_model,
+                getattr(work_unit_model, target.work_unit_target_column) == entity_model.id,
             )
             .where(
-                models.EvalSessionWorkUnit.status == "DONE",
-                models.EvalSessionWorkUnit.updated_at
+                work_unit_model.status == "DONE",
+                work_unit_model.updated_at
                 >= database_now - timedelta(seconds=_WATERMARK_LAG_WINDOW_SECONDS),
-                models.ProjectSession.last_span_ingested_at.is_not(None),
+                entity_model.last_span_ingested_at.is_not(None),
             )
         )
-        ONLINE_EVAL_SESSION_RESULT_WATERMARK_LAG_SECONDS.set(
+        ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS.labels(**self._metric_labels).set(
             max(float(watermark_lag_seconds or 0.0), 0.0)
         )
 
     async def _admission_budget(self, session: AsyncSession) -> int:
+        work_unit_model = self._target.work_unit_model
         outstanding = (
             select(1)
-            .select_from(models.EvalSessionWorkUnit)
+            .select_from(work_unit_model)
             .where(
                 or_(
-                    models.EvalSessionWorkUnit.status.in_(("PENDING", "RUNNING")),
+                    work_unit_model.status.in_(("PENDING", "RUNNING")),
                     and_(
-                        models.EvalSessionWorkUnit.status == "ERROR",
-                        models.EvalSessionWorkUnit.attempts < MAX_ATTEMPTS,
+                        work_unit_model.status == "ERROR",
+                        work_unit_model.attempts < MAX_ATTEMPTS,
                     ),
                 )
             )

@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Sequence
+from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Protocol, Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -371,6 +371,111 @@ def _session_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime
     return watermark if watermark.tzinfo is not None else watermark.replace(tzinfo=timezone.utc)
 
 
+class _TargetContextLoader(Protocol):
+    async def __call__(
+        self,
+        session: AsyncSession,
+        unit: ClaimedWorkUnit,
+        *,
+        project_id: int,
+        session_vocabularies: Mapping[int, Mapping[str, Any]],
+    ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure: ...
+
+
+async def _load_span_context(
+    session: AsyncSession,
+    unit: ClaimedWorkUnit,
+    *,
+    project_id: int,
+    session_vocabularies: Mapping[int, Mapping[str, Any]],
+) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
+    span = await session.get(
+        models.Span,
+        unit.target_rowid,
+        options=[
+            joinedload(models.Span.trace),
+            selectinload(models.Span.span_annotations).selectinload(models.SpanAnnotation.user),
+        ],
+    )
+    if span is None:
+        return HydrationFailure(HydrationFailureReason.SPAN_MISSING)
+    return (
+        span_eval_context(
+            span,
+            trace_id=span.trace.trace_id,
+            annotations=span.span_annotations,
+        ),
+        None,
+    )
+
+
+async def _load_session_context(
+    session: AsyncSession,
+    unit: ClaimedWorkUnit,
+    *,
+    project_id: int,
+    session_vocabularies: Mapping[int, Mapping[str, Any]],
+) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
+    project_session = await session.get(models.ProjectSession, unit.target_rowid)
+    if project_session is None:
+        return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
+    if project_session.project_id != project_id:
+        return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
+    if not project_session.content_complete:
+        return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
+    loaded = await load_session_eval_context(
+        session,
+        project_session_rowid=project_session.id,
+        project_id=project_id,
+        vocabulary=session_vocabularies[unit.target_rowid],
+    )
+    if not has_eligible_root_turns(loaded.applied_policy):
+        return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
+    return loaded.context, loaded.applied_policy
+
+
+def _no_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
+    return None
+
+
+@dataclass(frozen=True)
+class _EvaluationTargetSpec:
+    """What one evaluation target contributes to hydration and publication."""
+
+    requires_schedulable_evaluator: bool
+    load_context: _TargetContextLoader
+    target_column: str
+    annotation_table: type[models.SpanAnnotation] | type[models.ProjectSessionAnnotation]
+    unique_by: tuple[str, ...]
+    on_conflict: OnConflict
+    coverage_watermark: Callable[[HydratedWorkUnit], Optional[datetime]]
+    insert_event: Callable[[tuple[int, ...]], DmlEvent]
+
+
+_EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] = {
+    "SPAN": _EvaluationTargetSpec(
+        requires_schedulable_evaluator=False,
+        load_context=_load_span_context,
+        target_column="span_rowid",
+        annotation_table=models.SpanAnnotation,
+        unique_by=("name", "span_rowid", "identifier"),
+        on_conflict=OnConflict.DO_NOTHING,
+        coverage_watermark=_no_coverage_watermark,
+        insert_event=SpanAnnotationInsertEvent,
+    ),
+    "SESSION": _EvaluationTargetSpec(
+        requires_schedulable_evaluator=True,
+        load_context=_load_session_context,
+        target_column="project_session_id",
+        annotation_table=models.ProjectSessionAnnotation,
+        unique_by=("name", "project_session_id", "identifier"),
+        on_conflict=OnConflict.DO_UPDATE,
+        coverage_watermark=_session_coverage_watermark,
+        insert_event=ProjectSessionAnnotationInsertEvent,
+    ),
+}
+
+
 class OnlineEvalExecutor:
     """Hydrates and executes claimed work units against the eval runtime."""
 
@@ -460,14 +565,15 @@ class OnlineEvalExecutor:
                 failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_MISSING)
             else:
                 project_evaluator, evaluator, session_schedulable = row
+                target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
                 if not project_evaluator.enabled:
                     failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_DISABLED)
-                elif unit.evaluation_target == "SESSION" and not session_schedulable:
+                elif target_spec is None:
+                    failure = HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
+                elif target_spec.requires_schedulable_evaluator and not session_schedulable:
                     failure = HydrationFailure(
                         HydrationFailureReason.PROJECT_EVALUATOR_NOT_SCHEDULABLE
                     )
-                elif unit.evaluation_target not in ("SPAN", "SESSION"):
-                    failure = HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
                 elif evaluator is None:
                     failure = HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
                 elif (
@@ -675,45 +781,17 @@ class OnlineEvalExecutor:
         session_vocabularies: Mapping[int, Mapping[str, Any]],
     ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
         """The bindable context, plus the applied session policy for a SESSION unit."""
-        if unit.evaluation_target == "SPAN":
-            span = await session.get(
-                models.Span,
-                unit.target_rowid,
-                options=[
-                    joinedload(models.Span.trace),
-                    selectinload(models.Span.span_annotations).selectinload(
-                        models.SpanAnnotation.user
-                    ),
-                ],
+        target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
+        if target_spec is None:
+            raise EvalExecutionError(
+                f"unsupported online evaluation target {unit.evaluation_target!r}"
             )
-            if span is None:
-                return HydrationFailure(HydrationFailureReason.SPAN_MISSING)
-            return (
-                span_eval_context(
-                    span,
-                    trace_id=span.trace.trace_id,
-                    annotations=span.span_annotations,
-                ),
-                None,
-            )
-        if unit.evaluation_target == "SESSION":
-            project_session = await session.get(models.ProjectSession, unit.target_rowid)
-            if project_session is None:
-                return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
-            if project_session.project_id != project_id:
-                return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
-            if not project_session.content_complete:
-                return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
-            loaded = await load_session_eval_context(
-                session,
-                project_session_rowid=project_session.id,
-                project_id=project_id,
-                vocabulary=session_vocabularies[unit.target_rowid],
-            )
-            if not has_eligible_root_turns(loaded.applied_policy):
-                return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
-            return loaded.context, loaded.applied_policy
-        raise EvalExecutionError(f"unsupported online evaluation target {unit.evaluation_target!r}")
+        return await target_spec.load_context(
+            session,
+            unit,
+            project_id=project_id,
+            session_vocabularies=session_vocabularies,
+        )
 
     def hydrate_from_snapshot(
         self,
@@ -984,17 +1062,14 @@ class OnlineEvalExecutor:
                         f"categorical output {result['name']!r} returned invalid label "
                         f"{label!r}; expected one of {sorted(allowed_labels)!r}"
                     )
-        if unit.evaluation_target == "SPAN":
-            target_values = {"span_rowid": unit.target_rowid}
-        elif unit.evaluation_target == "SESSION":
-            target_values = {"project_session_id": unit.target_rowid}
-        else:
+        target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
+        if target_spec is None:
             raise EvalExecutionError(
                 f"unsupported online evaluation target {unit.evaluation_target!r}"
             )
         records = [
             {
-                **target_values,
+                target_spec.target_column: unit.target_rowid,
                 "name": result["name"],
                 "label": result["label"],
                 "score": result["score"],
@@ -1012,19 +1087,6 @@ class OnlineEvalExecutor:
             for result in results
         ]
         if records:
-            annotation_table: type[models.SpanAnnotation] | type[models.ProjectSessionAnnotation]
-            if unit.evaluation_target == "SPAN":
-                annotation_table = models.SpanAnnotation
-                unique_by = ("name", "span_rowid", "identifier")
-                on_conflict = OnConflict.DO_NOTHING
-            elif unit.evaluation_target == "SESSION":
-                annotation_table = models.ProjectSessionAnnotation
-                unique_by = ("name", "project_session_id", "identifier")
-                on_conflict = OnConflict.DO_UPDATE
-            else:
-                raise EvalExecutionError(
-                    f"unsupported online evaluation target {unit.evaluation_target!r}"
-                )
             inserted_ids: Sequence[int] = ()
 
             async def _write_annotations(session: AsyncSession) -> None:
@@ -1033,11 +1095,11 @@ class OnlineEvalExecutor:
                     await session.scalars(
                         insert_on_conflict(
                             *records,
-                            table=annotation_table,
+                            table=target_spec.annotation_table,
                             dialect=self._db.dialect,
-                            unique_by=unique_by,
-                            on_conflict=on_conflict,
-                        ).returning(annotation_table.id)
+                            unique_by=target_spec.unique_by,
+                            on_conflict=target_spec.on_conflict,
+                        ).returning(target_spec.annotation_table.id)
                     )
                 ).all()
 
@@ -1048,23 +1110,12 @@ class OnlineEvalExecutor:
                     work_unit_id=unit.work_unit_id,
                     claimed_by=unit.claimed_by,
                     write=_write_annotations,
-                    coverage_watermark=(
-                        _session_coverage_watermark(hydrated)
-                        if unit.evaluation_target == "SESSION"
-                        else None
-                    ),
+                    coverage_watermark=target_spec.coverage_watermark(hydrated),
                 )
             # Span duplicates return no id and need no cache invalidation. Session
             # replacements return their id because the annotation genuinely changed.
             if self._event_queue is not None and inserted_ids:
-                if unit.evaluation_target == "SPAN":
-                    self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
-                elif unit.evaluation_target == "SESSION":
-                    self._event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
-                else:
-                    raise EvalExecutionError(
-                        f"unsupported online evaluation target {unit.evaluation_target!r}"
-                    )
+                self._event_queue.put(target_spec.insert_event(tuple(inserted_ids)))
         if not records:
             raise EvalExecutionError("evaluator returned no results")
 

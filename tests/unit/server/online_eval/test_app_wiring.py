@@ -8,7 +8,6 @@ from contextlib import AsyncExitStack
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from asgi_lifespan import LifespanManager
 from sqlalchemy import select, update
 
 from phoenix.config import (
@@ -23,7 +22,7 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.app import create_app
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
+from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
 from tests.unit.conftest import (
     TestBulkInserter,
@@ -54,7 +53,7 @@ async def test_online_eval_daemons_run_by_default(db: DbSessionFactory) -> None:
     assert isinstance(app.state.online_eval_producer, OnlineEvalProducer)
     assert isinstance(app.state.online_eval_consumer, OnlineEvalConsumer)
     assert isinstance(app.state.online_eval_session_consumer, OnlineEvalConsumer)
-    assert isinstance(app.state.online_eval_session_sweeper, SessionEvalSweeper)
+    assert isinstance(app.state.online_eval_session_sweeper, EvalSweeper)
 
 
 async def test_online_eval_daemons_absent_in_read_only_mode(db: DbSessionFactory) -> None:
@@ -131,12 +130,7 @@ async def test_app_runs_seeded_criteria_end_to_end(
         assert consumer._db_semaphore._value == 5
         assert consumer._executor._db_semaphore is consumer._db_semaphore
         assert session_consumer._executor._db_semaphore is consumer._db_semaphore
-        assert isinstance(session_sweeper, SessionEvalSweeper)
-        await stack.enter_async_context(LifespanManager(app))
-        await consumer.stop()
-        await session_consumer.stop()
-        await producer.stop()
-        await session_sweeper.stop()
+        assert isinstance(session_sweeper, EvalSweeper)
 
         async with db() as session:
             project = await _add_project(session)
@@ -148,9 +142,7 @@ async def test_app_runs_seeded_criteria_end_to_end(
             )
         _, project_evaluator_id = await _seed_llm_criteria(db, project.id)
 
-        # Age the cursor's high-water observation past the frontier lag so the
-        # next tick's scan window covers the seeded span. The daemon's own
-        # startup tick may already have created (and leased) the cursor row.
+        # Age the cursor's high-water observation so the next scan window covers the span.
         async with db() as session:
             await session.execute(
                 insert_on_conflict(
