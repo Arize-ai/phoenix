@@ -114,11 +114,11 @@ This target runs three cases, selectable with `HARBOR_E2E_ATIF_CASES` (comma-sep
 | --- | --- | --- |
 | `terminus` | Terminus-2 on `HARBOR_ATIF_MODEL` | Three Terminal-Bench trials in one experiment: run linkage, measured LLM timing, equal-time ordering, idempotent resume |
 | `compaction` | Terminus-2, forced summarization | The compaction span, continuation trajectory, and three summarizer subagent trajectories |
-| `multi-step` | Claude Code on `HARBOR_ATIF_CLAUDE_MODEL` | The three-step `evals/harbor/plugin_e2e/word-count` task: one trace with an agent root per step, step rewards, idempotent resume |
+| `multi-step` | Claude Code on `HARBOR_ATIF_CLAUDE_MODEL` | The three-step `evals/harbor/plugin_e2e/word-count` task: one trace with a `harbor.step` span per step, step rewards, idempotent resume |
 
 Every case prints the resulting trace tree and checks the shared invariants: one `harbor.trial`
 root, resolvable parents, one session, semconv span names, no `llm.*` attributes outside LLM
-spans, and input and output on every agent step. Set `HARBOR_E2E_ENDPOINT` to reuse a running
+spans, and input and output on every iteration. Set `HARBOR_E2E_ENDPOINT` to reuse a running
 Phoenix server; otherwise the target starts an isolated server.
 
 Browse job results in a local web viewer:

@@ -129,7 +129,7 @@ class TestUploadIntegration:
         tool_spans = [span for span in spans if span["span_kind"] == "TOOL"]
 
         assert root["name"] == "invoke_agent agent (continuation)"
-        assert [span["name"] for span in step_spans] == ["agent_action_1", "agent_action_2"]
+        assert [span["name"] for span in step_spans] == ["iteration 1", "iteration 2"]
         assert [span["name"] for span in tool_spans] == [
             "execute_tool tool_a",
             "execute_tool tool_b",
@@ -187,7 +187,7 @@ class TestUploadIntegration:
         }
 
         spans = _uploaded_spans([parent], "handoff-run")
-        system_step = next(span for span in spans if span["name"] == "system_action_1")
+        system_step = next(span for span in spans if span["name"] == "system event 1")
         child_root = next(span for span in spans if span["name"] == "invoke_agent summarizer")
         span_ids = {span["context"]["span_id"] for span in spans}
 

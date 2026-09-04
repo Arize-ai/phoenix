@@ -5,7 +5,7 @@ Each trajectory becomes one trace: a root AGENT span, an AGENT span per user
 turn when there are several turns, a CHAIN span per fresh operational step,
 and LLM and TOOL spans beneath each step. Span names follow the OpenTelemetry
 GenAI conventions where a convention exists (``invoke_agent``, ``chat``,
-``execute_tool``); step and turn spans keep ATIF vocabulary.
+``execute_tool``); iterations and turns keep ATIF vocabulary.
 
 ATIF fields with no OpenInference equivalent (``notes``, ``reasoning_effort``,
 token ID arrays, and logprobs) are not mapped.
@@ -26,7 +26,6 @@ _PARENT_SPAN_CONTEXT_KEY = "_phoenix_parent_span_context"
 _FALLBACK_TIMESTAMP_KEY = "_phoenix_fallback_timestamp"
 _IS_CONTINUATION_KEY = "_phoenix_is_continuation"
 _CONTINUATION_INDEX_KEY = "_phoenix_continuation_index"
-_STEP_NAME_KEY = "_phoenix_step_name"
 _LLM_LATENCY_MS_KEY = "_phoenix_llm_latency_ms"
 _LLM_LATENCY_SOURCE_KEY = "_phoenix_llm_latency_source"
 
@@ -442,18 +441,26 @@ def _step_names(
     steps: Sequence[Mapping[str, Any]],
     fresh_indices: Sequence[int],
 ) -> Dict[int, str]:
-    """Name operational steps with per-label ordinals (``agent_action_3``)."""
+    """Name operational steps with per-label ordinals (``iteration 3``).
+
+    An agent step is one iteration of the agent loop. A compaction step and
+    an operational system step (a handoff, for example) are labeled by what
+    they are; the ordinal counts steps with the same label.
+    """
     ordinals: Dict[str, int] = {}
     names: Dict[int, str] = {}
     for i in fresh_indices:
         step = steps[i]
         if not _is_operational_step(step):
             continue
-        label = (
-            "compaction" if _is_compaction_step(step) else f"{step.get('source', 'unknown')}_action"
-        )
+        if _is_compaction_step(step):
+            label = "compaction"
+        elif step.get("source") == "agent":
+            label = "iteration"
+        else:
+            label = f"{step.get('source', 'unknown')} event"
         ordinals[label] = ordinals.get(label, 0) + 1
-        names[i] = f"{label}_{ordinals[label]}"
+        names[i] = f"{label} {ordinals[label]}"
     return names
 
 
@@ -901,6 +908,12 @@ class _Document:
         end: datetime,
         attributes: Mapping[str, Any],
     ) -> v1.Span:
+        span_attributes: Dict[str, Any] = {
+            "openinference.span.kind": kind,
+            "session.id": self.ids.session_id,
+            **attributes,
+        }
+        _update_metadata(span_attributes, {"agent_name": self.agent.get("name")})
         span: v1.Span = {
             "name": name,
             "context": {"trace_id": self.ids.trace_id, "span_id": span_id},
@@ -908,11 +921,7 @@ class _Document:
             "start_time": _format_timestamp(start),
             "end_time": _format_timestamp(end),
             "status_code": "OK",
-            "attributes": {
-                "openinference.span.kind": kind,
-                "session.id": self.ids.session_id,
-                **attributes,
-            },
+            "attributes": span_attributes,
         }
         if parent_id is not None:
             span["parent_id"] = parent_id
@@ -945,10 +954,7 @@ def _prepare_document(
 def _root_name_and_metadata(doc: _Document) -> tuple[str, Dict[str, Any]]:
     """Return the root span name and the agent metadata it carries."""
     trajectory, agent = doc.trajectory, doc.agent
-    metadata: Dict[str, Any] = {
-        "agent_name": agent.get("name"),
-        "agent_version": agent.get("version"),
-    }
+    metadata: Dict[str, Any] = {"agent_version": agent.get("version")}
     if _text(trajectory.get("trajectory_id")):
         metadata["trajectory_id"] = trajectory["trajectory_id"]
     if agent.get("model_name"):
@@ -958,11 +964,6 @@ def _root_name_and_metadata(doc: _Document) -> tuple[str, Dict[str, Any]]:
         metadata["final_metrics"] = trajectory["final_metrics"]
 
     name = f"invoke_agent {agent.get('name') or 'agent'}"
-    step_name = trajectory.get(_STEP_NAME_KEY)
-    if isinstance(step_name, str) and step_name:
-        name = f"{name} · {step_name}"
-        metadata["harbor.step_name"] = step_name
-
     session_id = trajectory.get("session_id")
     is_continuation = bool(trajectory.get(_IS_CONTINUATION_KEY)) or (
         isinstance(session_id, str) and session_id != _base_session_id(session_id)
@@ -996,7 +997,7 @@ def _root_span(doc: _Document) -> v1.Span:
 
 def _turn_span(doc: _Document, turn_index: int, step_indices: Sequence[int]) -> v1.Span:
     return doc.span(
-        name=f"turn_{turn_index + 1}",
+        name=f"turn {turn_index + 1}",
         span_id=_sha256_span_id(f"{doc.ids.span_seed}:turn:{turn_index}"),
         kind="AGENT",
         parent_id=doc.root_span_id,
@@ -1150,11 +1151,11 @@ def _convert_atif_trajectory_to_spans(
     trajectories add one AGENT span per turn::
 
         AGENT invoke_agent <name>
-          AGENT turn_1                 (multi-turn only)
-            CHAIN agent_action_1
+          AGENT turn 1                 (multi-turn only)
+            CHAIN iteration 1
               LLM chat <model>
               TOOL execute_tool <tool>
-            CHAIN agent_action_2
+            CHAIN iteration 2
               LLM chat <model>
 
     Copied-context steps contribute to reconstructed prompts only. IDs are

@@ -70,29 +70,31 @@ def upload_atif_trajectories_as_spans(
     Each trajectory produces one trace. Span names follow the OpenTelemetry
     GenAI conventions where one exists: ``invoke_agent <agent>`` for the
     root, ``chat <model>`` for LLM calls, and ``execute_tool <tool>`` for
-    tool calls. Each fresh ATIF step that represents observable execution
-    becomes a CHAIN span named with a per-source ordinal (``agent_action_2``,
-    ``system_action_1``, ``compaction_1``); the producer's ``step_id`` is kept
-    in ``metadata.atif.step_id``. User messages are prompt context, not spans.
+    tool calls. Each fresh agent step (one iteration of the agent loop)
+    becomes a CHAIN span named ``iteration N``; context management and
+    operational system steps become ``compaction N`` and ``system event N``.
+    The producer's ``step_id`` is kept in ``metadata.atif.step_id`` and the
+    agent name in ``metadata.agent_name`` on every span. User messages are
+    prompt context, not spans.
 
     Single-turn trajectories place each step under the root::
 
         AGENT invoke_agent assistant (input=user request, output=final reply)
-          CHAIN agent_action_1 (input=request, output=reply and observations)
+          CHAIN iteration 1 (input=request, output=reply and observations)
             LLM chat gpt-4
             TOOL execute_tool search
-          CHAIN agent_action_2
+          CHAIN iteration 2
             LLM chat gpt-4
 
     Multi-turn trajectories add one AGENT span per turn. A turn starts at
     each user message that follows agent activity::
 
         AGENT invoke_agent assistant
-          AGENT turn_1 (input=user message 1, output=reply 1)
-            CHAIN agent_action_1
+          AGENT turn 1 (input=user message 1, output=reply 1)
+            CHAIN iteration 1
               LLM chat gpt-4
-          AGENT turn_2 (input=user message 2, output=reply 2)
-            CHAIN agent_action_2
+          AGENT turn 2 (input=user message 2, output=reply 2)
+            CHAIN iteration 2
               LLM chat gpt-4
 
     **Subagents**
@@ -106,11 +108,11 @@ def upload_atif_trajectories_as_spans(
     flattened automatically and resolved by ``trajectory_id``::
 
         AGENT invoke_agent orchestrator
-          CHAIN agent_action_1
+          CHAIN iteration 1
             LLM chat gpt-4
             TOOL execute_tool delegate_task
               AGENT invoke_agent researcher
-                CHAIN agent_action_1
+                CHAIN iteration 1
                   LLM chat gpt-4
 
     **Continuations**

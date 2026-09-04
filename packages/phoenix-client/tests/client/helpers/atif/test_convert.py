@@ -268,7 +268,7 @@ class TestSimpleTrajectory:
         )
         assert "parent_id" not in root
         assert len({s["context"]["trace_id"] for s in spans}) == 1
-        assert [c["name"] for c in chains] == ["agent_action_1", "agent_action_2"]
+        assert [c["name"] for c in chains] == ["iteration 1", "iteration 2"]
         assert all(c["parent_id"] == root["context"]["span_id"] for c in chains)
         assert [llm["name"] for llm in llms] == ["chat gpt-4", "chat gpt-4"]
         assert [llm["parent_id"] for llm in llms] == [c["context"]["span_id"] for c in chains]
@@ -810,13 +810,13 @@ class TestMultiTurnBehavior:
     def test_turn_tree(self, multi_turn_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
         root = spans[0]
-        turns = [s for s in spans if s["name"].startswith("turn_")]
+        turns = [s for s in spans if s["name"].startswith("turn ")]
         steps = of_kind(spans, "CHAIN")
         llms = of_kind(spans, "LLM")
 
         assert (root["name"], root["span_kind"]) == ("invoke_agent assistant", "AGENT")
         assert "parent_id" not in root
-        assert [t["name"] for t in turns] == ["turn_1", "turn_2"]
+        assert [t["name"] for t in turns] == ["turn 1", "turn 2"]
         assert all(t.get("parent_id") == root["context"]["span_id"] for t in turns)
         assert all(t["span_kind"] == "AGENT" for t in turns)
         assert [s["parent_id"] for s in steps] == [t["context"]["span_id"] for t in turns]
@@ -825,7 +825,7 @@ class TestMultiTurnBehavior:
 
     def test_turn_timing_and_io(self, multi_turn_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
-        turns = [s for s in spans if s["name"].startswith("turn_")]
+        turns = [s for s in spans if s["name"].startswith("turn ")]
         assert [(t["start_time"], t["end_time"]) for t in turns] == [
             ("2025-01-15T10:00:00+00:00", "2025-01-15T10:00:01+00:00"),
             ("2025-01-15T10:00:02+00:00", "2025-01-15T10:00:03+00:00"),
@@ -838,7 +838,7 @@ class TestMultiTurnBehavior:
     def test_single_turn_skips_turn_agent(self) -> None:
         spans = _convert_atif_trajectory_to_spans(trajectory(user_then_agent("hi")))
         root, step, llm = spans
-        assert not [s for s in spans if s["name"].startswith("turn_")]
+        assert not [s for s in spans if s["name"].startswith("turn ")]
         assert step.get("parent_id") == root["context"]["span_id"]
         assert llm.get("parent_id") == step["context"]["span_id"]
 
@@ -1039,7 +1039,7 @@ class TestOperationNamingAndTiming:
             ]
         )
         chains = of_kind(_convert_atif_trajectory_to_spans(document), "CHAIN")
-        assert [s["name"] for s in chains] == ["agent_action_1", "compaction_1", "agent_action_2"]
+        assert [s["name"] for s in chains] == ["iteration 1", "compaction 1", "iteration 2"]
         assert [metadata(s)["atif.step_id"] for s in chains] == [2, 3, 4]
         assert metadata(chains[1])["atif.context_management"] is True
         assert "atif.context_management" not in metadata(chains[0])
@@ -1058,7 +1058,7 @@ class TestOperationNamingAndTiming:
             ]
         )
         chains = of_kind(_convert_atif_trajectory_to_spans(document), "CHAIN")
-        assert [s["name"] for s in chains] == ["agent_action_1"]
+        assert [s["name"] for s in chains] == ["iteration 1"]
 
     @pytest.mark.parametrize(
         ("extra", "expected_name", "expected_metadata"),
@@ -1073,13 +1073,8 @@ class TestOperationNamingAndTiming:
                 "invoke_agent worker (continuation)",
                 {"is_continuation": True},
             ),
-            (
-                {"_phoenix_step_name": "step_01_aggregate"},
-                "invoke_agent worker · step_01_aggregate",
-                {"harbor.step_name": "step_01_aggregate"},
-            ),
         ],
-        ids=["continuation-index", "continuation-session", "harbor-step"],
+        ids=["continuation-index", "continuation-session"],
     )
     def test_root_name_qualifiers(
         self, extra: Dict[str, Any], expected_name: str, expected_metadata: Dict[str, Any]
@@ -1224,7 +1219,7 @@ class TestStepLevelObservations:
             ]
         )
         chains = of_kind(_convert_atif_trajectory_to_spans(document), "CHAIN")
-        assert [s["name"] for s in chains] == ["agent_action_1", "compaction_1", "agent_action_2"]
+        assert [s["name"] for s in chains] == ["iteration 1", "compaction 1", "iteration 2"]
         assert attrs(chains[0])["input.value"] == "request"
         assert attrs(chains[0])["output.value"]
         assert attrs(chains[1])["input.value"] == "note"
@@ -1249,7 +1244,7 @@ class TestStepLevelObservations:
                 },
             ]
         )
-        step = named(_convert_atif_trajectory_to_spans(document), "agent_action_1")
+        step = named(_convert_atif_trajectory_to_spans(document), "iteration 1")
         assert attrs(step)["input.value"] == "request"
         assert attrs(step)["output.value"] == "first\nsecond"
 
@@ -1273,7 +1268,7 @@ class TestTurnGrouping:
         )
         spans = _convert_atif_trajectory_to_spans(document)
         assert [s["name"] for s in of_kind(spans, "AGENT")] == ["invoke_agent codex"]
-        assert [s["name"] for s in of_kind(spans, "CHAIN")] == ["agent_action_1"]
+        assert [s["name"] for s in of_kind(spans, "CHAIN")] == ["iteration 1"]
         assert attrs(spans[0])["input.value"] == "do the task"
 
     def test_follow_up_user_message_after_agent_activity_starts_turn(self) -> None:
@@ -1296,7 +1291,7 @@ class TestTurnGrouping:
             ]
         )
         spans = _convert_atif_trajectory_to_spans(document)
-        assert [s["name"] for s in spans if s["name"].startswith("turn_")] == ["turn_1", "turn_2"]
+        assert [s["name"] for s in spans if s["name"].startswith("turn ")] == ["turn 1", "turn 2"]
 
     def test_continuation_input_falls_back_to_copied_request(self) -> None:
         document = trajectory(

@@ -361,7 +361,7 @@ def _assert_trace_shape(spans: Sequence[Mapping[str, Any]], trace_id: str) -> Ma
     """Check the invariants every Harbor ATIF trace must satisfy; return the trial root."""
     spans_by_id = {span["context"]["span_id"]: span for span in spans}
     roots = [span for span in spans if span.get("parent_id") is None]
-    _check(len(roots) == 1 and roots[0]["name"] == "harbor.trial", repr(roots))
+    _check(len(roots) == 1 and str(roots[0]["name"]).startswith("harbor.trial "), repr(roots))
     _check(roots[0]["span_kind"] == "CHAIN", repr(roots[0]))
     _check(
         all(span.get("parent_id") in spans_by_id for span in spans if span.get("parent_id")),
@@ -385,14 +385,17 @@ def _assert_trace_shape(spans: Sequence[Mapping[str, Any]], trace_id: str) -> Ma
         if kind == "TOOL":
             _check(name.startswith("execute_tool "), f"unexpected TOOL name {name!r}")
             _check(span["start_time"] == span["end_time"], "ATIF invented tool durations")
-        if kind == "AGENT" and span.get("parent_id") == roots[0]["context"]["span_id"]:
-            _check(name.startswith("invoke_agent "), f"unexpected AGENT root name {name!r}")
+        if kind == "AGENT":
+            _check(
+                name.startswith("invoke_agent ") or name.startswith("turn "),
+                f"unexpected AGENT name {name!r}",
+            )
         if kind in {"LLM", "TOOL"}:
             _check(
                 spans_by_id[str(span["parent_id"])]["span_kind"] == "CHAIN",
                 "ATIF LLM/TOOL spans are not nested under their source step",
             )
-        if kind == "CHAIN" and name.startswith("agent_action_"):
+        if kind == "CHAIN" and name.startswith("iteration "):
             _check(
                 "input.value" in span["attributes"] and "output.value" in span["attributes"],
                 f"agent step {name!r} lacks input or output: {sorted(span['attributes'])!r}",
@@ -539,7 +542,7 @@ def _run_atif_compaction_case(
         and _span_metadata(continuation).get("continuation_index") == 1,
         repr(continuation),
     )
-    compaction_spans = [span for span in spans if span["name"] == "compaction_1"]
+    compaction_spans = [span for span in spans if span["name"] == "compaction 1"]
     _check(len(compaction_spans) == 1, repr(compaction_spans))
     _check(
         _span_metadata(compaction_spans[0]).get("atif.context_management") is True,
@@ -638,26 +641,32 @@ def _run_atif_multi_step_case(
         root_metadata.get("harbor_trial_id") == run_output.get("harbor_trial_id"),
         f"trace root and run disagree on the trial: {root_metadata!r} vs {run!r}",
     )
-    step_roots = [
+    step_spans = [
         span
         for span in spans
-        if span["span_kind"] == "AGENT" and span.get("parent_id") == root["context"]["span_id"]
+        if span["span_kind"] == "CHAIN" and span.get("parent_id") == root["context"]["span_id"]
     ]
     _check(
-        [_span_metadata(span).get("harbor.step_name") for span in step_roots] == step_names,
-        f"expected one agent root per step in order {step_names!r}, got {step_roots!r}",
+        [span["name"] for span in step_spans]
+        == [f"harbor.step {index} {name}" for index, name in enumerate(step_names, start=1)],
+        f"expected one harbor.step span per attempted step, got {step_spans!r}",
     )
-    _check(
-        all(str(span["name"]).endswith(f" · {name}") for span, name in zip(step_roots, step_names)),
-        f"step roots are not qualified with their step name: {step_roots!r}",
-    )
-    for step_root in step_roots:
+    for index, step_span in enumerate(step_spans, start=1):
+        step_name = step_names[index - 1]
+        step_attributes = cast(Mapping[str, Any], step_span["attributes"])
+        _check("input.value" in step_attributes, f"{step_span['name']} has no instruction")
+        _check(
+            json.loads(str(step_attributes.get("output.value") or "{}")).get("reward")
+            == annotations[f"{step_name}.reward"]["score"],
+            f"{step_span['name']} output does not match the step reward",
+        )
         descendants = [
-            span for span in spans if span.get("parent_id") == step_root["context"]["span_id"]
+            span for span in spans if span.get("parent_id") == step_span["context"]["span_id"]
         ]
         _check(
-            any(span["span_kind"] == "CHAIN" for span in descendants),
-            f"step root {step_root['name']!r} has no step spans",
+            any(span["span_kind"] == "AGENT" for span in descendants)
+            and all(_span_metadata(span).get("harbor.step_index") == index for span in descendants),
+            f"{step_span['name']} has no agent root stamped with its step: {descendants!r}",
         )
 
     _assert_resume_is_idempotent(

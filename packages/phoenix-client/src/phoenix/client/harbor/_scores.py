@@ -9,7 +9,12 @@ from typing import Any, Literal, Protocol
 
 from phoenix.client.harbor._errors import HarborPluginError
 
-__all__ = ["ExtractedEvaluation", "extract_evaluations", "infrastructure_failures"]
+__all__ = [
+    "ExtractedEvaluation",
+    "extract_evaluations",
+    "format_exception",
+    "infrastructure_failures",
+]
 
 
 class _ExceptionInfo(Protocol):
@@ -184,16 +189,17 @@ def infrastructure_failures(trial_result: _TrialResult) -> list[str]:
     """
     failures: list[str] = []
     if trial_result.exception_info is not None:
-        failures.append(_format_exception("trial", trial_result.exception_info))
+        failures.append(format_exception("trial", trial_result.exception_info))
     for step_result in trial_result.step_results or ():
         if step_result.exception_info is not None:
             failures.append(
-                _format_exception(str(step_result.step_name), step_result.exception_info)
+                format_exception(str(step_result.step_name), step_result.exception_info)
             )
     return failures
 
 
-def _format_exception(where: str, exception: _ExceptionInfo) -> str:
+def format_exception(where: str, exception: _ExceptionInfo) -> str:
+    """Format a Harbor exception as ``<where>: <type>: <message>``."""
     return f"{where}: {exception.exception_type}: {exception.exception_message}"
 
 

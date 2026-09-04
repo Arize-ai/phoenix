@@ -66,7 +66,7 @@ def _project(_app: _AppInfo) -> Iterator[str]:
 def _trial_span(trace_id: str, span_id: str) -> v1.Span:
     """The caller-owned span standing in for an enclosing operation."""
     return {
-        "name": "harbor.trial",
+        "name": "harbor.trial task-a",
         "context": {"trace_id": trace_id, "span_id": span_id},
         "span_kind": "CHAIN",
         "start_time": "2026-03-26T10:00:00+00:00",
@@ -112,7 +112,7 @@ class TestAtifTrajectoryUpload:
         assert roots == {"invoke_agent terminus-2"}
 
         handoff_step_id = next(
-            s["context"]["span_id"] for s in fetched if s["name"] == "system_action_1"
+            s["context"]["span_id"] for s in fetched if s["name"] == "system event 1"
         )
         subagent_root_names = {
             "invoke_agent terminus-2-summarization-questions",

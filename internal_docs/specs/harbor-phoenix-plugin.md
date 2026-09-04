@@ -60,7 +60,7 @@ pure ATIF conversion and reparenting helpers.
 - The prototype accepts one Harbor dataset or a direct-task-only job. It rejects jobs that
   combine both sources. A single direct task gets a namespaced synthetic dataset name;
   several direct tasks require an explicit `dataset` plugin setting.
-- The prototype does not create wrapper spans for Harbor lifecycle phases or verifiers.
+- The prototype does not wrap Harbor's environment setup, agent setup, or verifier phases in spans. Trial and step spans are built from the saved terminal result.
 - The prototype does not include a post-hoc ingestion command.
 
 ## 3. Data model
@@ -249,39 +249,56 @@ The package-internal pure conversion helpers:
 The conversion layer does not use a client. Harbor-specific discovery, normalization, deterministic
 identity, and upload-repair behavior stay private to the plugin.
 
-The plugin creates one deterministic trial-level CHAIN root named `harbor.trial`. It converts saved trajectories under that root and sends all spans to the experiment's Phoenix project. Harbor-specific identity and replay logic stay in the plugin. The root's status is `ERROR` for the same failures that set the experiment run's error and drive `infra_ok`. Any top-level or step exception is a failure, even when Harbor also records verifier rewards for that step or trial.
+The trace mirrors Harbor's structure: trial → step → agent trajectory. The plugin creates one
+deterministic CHAIN root, `harbor.trial <task id>`, and sends all spans to the experiment's Phoenix
+project. A multi-step trial gets one `harbor.step <index> <step name>` CHAIN span per attempted
+step, in `step_results` order, with that step's trajectories beneath it; a single-step trial hangs
+its trajectories directly beneath the root. The step span's input is the step instruction, its
+output is the step's verifier rewards, and its status is `ERROR` for the step's own exception. The
+root's status is `ERROR` for the same failures that set the experiment run's error and drive
+`infra_ok`: any top-level or step exception, even when Harbor also records verifier rewards. Under
+native resume only the last cumulative snapshot is loaded, so earlier steps keep their `harbor.step`
+span without trajectories beneath it.
 
-Each fresh operational ATIF step becomes a CHAIN span beneath its trajectory root or turn. LLM,
-TOOL, and referenced subagent work hangs beneath that step; a matching `source_call_id` narrows a
-subagent parent to its TOOL call. Copied context is prompt history and does not create duplicate
-execution spans.
+Within a trajectory, each fresh agent step is one iteration of the agent loop and becomes a CHAIN
+span. LLM, TOOL, and referenced subagent work hangs beneath that iteration; a matching
+`source_call_id` narrows a subagent parent to its TOOL call. Copied context is prompt history and
+does not create duplicate execution spans.
 
-Span names follow the OpenTelemetry GenAI semantic conventions where a convention exists, and ATIF
-vocabulary elsewhere:
+Span names use one grammar, `<operation> <target>`. Harbor-owned spans keep a `harbor.` prefix,
+GenAI operations follow the OpenTelemetry GenAI semantic conventions, and ATIF vocabulary covers
+the rest:
 
 | Span | Kind | Name |
 | --- | --- | --- |
-| Trial root | CHAIN | `harbor.trial` |
-| Trajectory root | AGENT | `invoke_agent <agent.name>`, qualified as `invoke_agent terminus-2 · step_01_aggregate` for a multi-step role root and `invoke_agent terminus-2 (continuation N)` for a continuation |
-| Turn (multi-turn only) | AGENT | `turn_N` |
-| Step | CHAIN | `agent_action_N`, `system_action_N`, or `compaction_N` |
+| Trial | CHAIN | `harbor.trial <task id>` |
+| Step (multi-step only) | CHAIN | `harbor.step <index> <step name>` |
+| Trajectory root | AGENT | `invoke_agent <agent name>`; a continuation adds ` (continuation N)` |
+| Turn (multi-turn only) | AGENT | `turn N` |
+| Agent loop iteration | CHAIN | `iteration N` |
+| Context management | CHAIN | `compaction N` |
+| Operational system step (a handoff, for example) | CHAIN | `system event N` |
 | LLM call | LLM | `chat <model>` |
-| Tool call | TOOL | `execute_tool <function_name>` |
+| Tool call | TOOL | `execute_tool <tool name>` |
 
-Step names use per-label ordinals over fresh operational steps: `agent_action_3` is the third agent
-action and `compaction_1` the first context-management step, regardless of interleaving. The
-producer's `step_id` stays in metadata as `atif.step_id`; names never encode document indices. A
-user message never consumes an action ordinal. Consecutive user or system context messages do not
-open new turns; a turn starts only at a user message that follows agent activity.
+Ordinals count fresh operational steps with the same label, regardless of interleaving; the
+producer's `step_id` stays in metadata as `atif.step_id`. A user message never consumes an ordinal.
+Consecutive user or system context messages do not open new turns; a turn starts only at a user
+message that follows agent activity.
+
+Names carry one distinguishing target each; everything else is a filterable attribute. Every span
+of a trajectory carries `metadata.agent_name`, and every span beneath a step carries
+`metadata.harbor.step_index` and `metadata.harbor.step_name`.
 
 Every AGENT and CHAIN span carries `input.value` and `output.value` when the trajectory provides
-them. An agent step's input is the context the agent received just before it (the preceding user or
-system message, or the previous step's observations); its output is the step message plus any
+them. An iteration's input is the context the agent received just before it (the preceding user or
+system message, or the previous iteration's observations); its output is the step message plus any
 observation that no tool call claims (paired to the step's only tool call when that pairing is
-unambiguous), or the tool results when the step only issued tool calls. Only LLM spans carry `llm.*` attributes; a trajectory's `final_metrics` are kept in
-the root span's `metadata.final_metrics`, so Phoenix's cumulative token counts do not double count.
+unambiguous), or the tool results when the step only issued tool calls. Only LLM spans carry
+`llm.*` attributes; a trajectory's `final_metrics` are kept in the root span's
+`metadata.final_metrics`, so Phoenix's cumulative token counts do not double count.
 
-ATIF timestamps are point events. A source CHAIN spans the preceding fresh event through its own
+ATIF timestamps are point events. An iteration spans the preceding fresh event through its own
 event. Harbor enriches Terminus trajectories with `agent_result.metadata.api_request_times_msec`
 only when the number of request measurements exactly matches the number of fresh LLM steps. A
 single document uses its declared step order. Continuation and subagent graphs require timestamps
@@ -317,7 +334,7 @@ Both IDs must be globally unique and stable across replays. The trace ID comes f
 ID and the saved terminal trial UUID, and `session_id` comes from the trace ID. Each
 `trajectory_id` also includes its role, step name, source path, and embedded position.
 
-For a multi-step task, the plugin creates one trial-level trace and places each step trajectory beneath the same root. One logical trial therefore appears as one experiment run with one trace.
+For a multi-step task, the plugin creates one trial-level trace with one `harbor.step` span per attempted step. One logical trial therefore appears as one experiment run with one trace.
 
 Deterministic IDs do not make span upload idempotent. Phoenix has two important ingestion behaviors:
 

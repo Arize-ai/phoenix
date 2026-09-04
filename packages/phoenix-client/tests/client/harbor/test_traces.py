@@ -25,6 +25,7 @@ from phoenix.client.harbor._model import (
     DatasetIdentity,
     ExperimentSlice,
     JobPlan,
+    StepRecord,
     TaskRecord,
     TrialSlot,
 )
@@ -174,7 +175,7 @@ def test_single_step_builds_one_stable_chain_root(tmp_path: Path) -> None:
     assert first is not None and second is not None
     assert first == second
     assert first.source_paths == ("agent/trajectory.json",)
-    assert first.spans[0]["name"] == "harbor.trial"
+    assert first.spans[0]["name"] == "harbor.trial task-a"
     assert first.spans[0]["span_kind"] == "CHAIN"
     assert first.spans[0]["status_code"] == "OK"
     assert all(span["context"]["trace_id"] == first.trace_id for span in first.spans)
@@ -256,11 +257,55 @@ def test_multi_step_uses_only_attempted_steps_in_result_order(tmp_path: Path) ->
     ids = [span["context"]["span_id"] for span in result.spans]
     assert len(ids) == len(set(ids))
     trial_root_id = result.spans[0]["context"]["span_id"]
-    assert [span["parent_id"] for span in agent_roots(result)] == [trial_root_id] * 2
-    assert [span["name"] for span in agent_roots(result)] == [
-        "invoke_agent terminus-2 · prepare",
-        "invoke_agent terminus-2 · solve",
+    steps = [span for span in result.spans if span["name"].startswith("harbor.step ")]
+    assert [span["name"] for span in steps] == ["harbor.step 1 prepare", "harbor.step 2 solve"]
+    assert all(span["span_kind"] == "CHAIN" for span in steps)
+    assert [span["parent_id"] for span in steps] == [trial_root_id] * 2
+    assert [span["parent_id"] for span in agent_roots(result)] == [
+        span["context"]["span_id"] for span in steps
     ]
+    assert [span["name"] for span in agent_roots(result)] == ["invoke_agent terminus-2"] * 2
+    assert all(
+        span["attributes"]["metadata"]["harbor.step_name"] == "solve"
+        for span in result.spans
+        if span.get("parent_id") == steps[1]["context"]["span_id"]
+    )
+
+
+def test_step_span_records_instruction_reward_timing_and_status(tmp_path: Path) -> None:
+    write(tmp_path / "task-a__1/steps/solve/agent/trajectory.json", trajectory())
+    plan, slot, task, result = context(tmp_path, step_names=("solve",))
+    task = TaskRecord(
+        lock=task.lock,
+        name=task.name,
+        instruction=task.instruction,
+        steps=(StepRecord(name="solve", instruction="Solve it"),),
+    )
+    started = datetime.fromisoformat("2026-08-26T11:59:00+00:00")
+    finished = datetime.fromisoformat("2026-08-26T12:00:30+00:00")
+    cast(Any, result).step_results = [
+        SimpleNamespace(
+            step_name="solve",
+            exception_info=SimpleNamespace(exception_type="RuntimeError", exception_message="boom"),
+            verifier_result=SimpleNamespace(rewards={"reward": 0.5}),
+            agent_execution=SimpleNamespace(started_at=started, finished_at=None),
+            verifier=SimpleNamespace(started_at=None, finished_at=finished),
+        )
+    ]
+
+    trace = build_from(plan, slot, task, result)
+
+    assert trace is not None
+    step = next(span for span in trace.spans if span["name"] == "harbor.step 1 solve")
+    assert step["attributes"]["input.value"] == "Solve it"
+    assert json.loads(str(step["attributes"]["output.value"])) == {"reward": 0.5}
+    assert step["attributes"]["metadata"] == {"harbor.step_index": 1, "harbor.step_name": "solve"}
+    assert (step["start_time"], step["end_time"]) == (started.isoformat(), finished.isoformat())
+    assert (step["status_code"], step.get("status_message")) == (
+        "ERROR",
+        "solve: RuntimeError: boom",
+    )
+    assert trace.spans[0]["status_code"] == "ERROR"
 
 
 def test_native_resume_uses_last_cumulative_snapshot(tmp_path: Path) -> None:
@@ -535,7 +580,7 @@ def test_system_handoff_without_tool_stays_at_its_causal_step(tmp_path: Path) ->
     result = build(tmp_path)
 
     assert result is not None
-    system_step = next(span for span in result.spans if span["name"] == "system_action_1")
+    system_step = next(span for span in result.spans if span["name"] == "system event 1")
     child_root = next(
         span for span in agent_roots(result) if span["name"] == "invoke_agent summarizer"
     )

@@ -22,7 +22,7 @@ from harbor.models.trial.result import TrialResult
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.harbor._model import JobPlan, TaskRecord, TrialSlot
-from phoenix.client.harbor._scores import infrastructure_failures
+from phoenix.client.harbor._scores import format_exception, infrastructure_failures
 from phoenix.client.helpers.atif import _convert_atif_trajectories_to_spans
 from phoenix.client.helpers.atif._convert import (
     _CONTINUATION_INDEX_KEY,
@@ -30,7 +30,6 @@ from phoenix.client.helpers.atif._convert import (
     _IS_CONTINUATION_KEY,
     _LLM_LATENCY_MS_KEY,
     _LLM_LATENCY_SOURCE_KEY,
-    _STEP_NAME_KEY,
 )
 from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_parent
 
@@ -106,10 +105,12 @@ def build_harbor_trace(
     )
 
     missing: list[str] = []
+    documents_by_step: dict[str | None, list[MutableMapping[str, Any]]] = {}
     for location in _root_locations(trial_result):
         root_path = location.directory / _CANONICAL_FILENAME
         if root_path.is_file():
-            _load_root(loader, location, trial_result)
+            documents = documents_by_step.setdefault(location.step_name, [])
+            documents.extend(_load_root(loader, location, trial_result))
         else:
             missing.append(_display_path(root_path, loader.trial_root))
 
@@ -123,10 +124,12 @@ def build_harbor_trace(
 
     root_span_id = _hex_id(f"{_NAMESPACE}:{trial_key}:root", length=16)
     try:
-        converted = _reparent_spans_under_common_parent(
-            _convert_atif_trajectories_to_spans(list(loader.documents.values())),
-            parent_id=root_span_id,
-            trace_id=loader.trace_id,
+        converted = _trial_children(
+            task=task,
+            trial_result=trial_result,
+            loader=loader,
+            documents_by_step=documents_by_step,
+            root_span_id=root_span_id,
         )
         root = _trial_root_span(
             plan=plan,
@@ -155,8 +158,15 @@ def harbor_trace_id(plan: JobPlan, trial_result: TrialResult) -> str:
     return _hex_id(f"{_NAMESPACE}:{_trial_key(plan, trial_result)}:trace", length=32)
 
 
-def _load_root(loader: _Loader, location: _RootLocation, trial_result: TrialResult) -> None:
-    """Load one role root with everything it references, then time its LLM steps."""
+def _load_root(
+    loader: _Loader,
+    location: _RootLocation,
+    trial_result: TrialResult,
+) -> list[MutableMapping[str, Any]]:
+    """Load one role root with everything it references and time its LLM steps.
+
+    Returns the documents this root added to the loader.
+    """
     loaded_before = set(loader.documents)
     document = _load_file(
         loader,
@@ -166,15 +176,150 @@ def _load_root(loader: _Loader, location: _RootLocation, trial_result: TrialResu
         step_name=location.step_name,
         fallback_timestamp=_agent_execution_finished_at(trial_result, location.step_name),
     )
-    if document is None or location.role != "agent":
-        return
-    new_documents = [
+    if document is None:
+        return []
+    documents = [
         loaded for path, loaded in loader.documents.items() if path not in loaded_before
+    ] or [document]
+    if location.role == "agent":
+        _apply_request_times(documents, _agent_context(trial_result, location.step_name))
+    return documents
+
+
+def _trial_children(
+    *,
+    task: TaskRecord,
+    trial_result: TrialResult,
+    loader: _Loader,
+    documents_by_step: Mapping[str | None, Sequence[MutableMapping[str, Any]]],
+    root_span_id: str,
+) -> list[v1.Span]:
+    """Convert the loaded documents into the spans beneath the trial root.
+
+    A single-step trial hangs its trajectories directly beneath the root. A
+    multi-step trial gets one ``harbor.step`` span per attempted step, with
+    that step's trajectories beneath it. A step whose trajectory was not
+    found (an earlier step under native resume, for example) still gets its
+    span so its reward and status are visible.
+    """
+    step_results = trial_result.step_results
+    if not step_results:
+        return _reparent_spans_under_common_parent(
+            _convert_atif_trajectories_to_spans(list(loader.documents.values())),
+            parent_id=root_span_id,
+            trace_id=loader.trace_id,
+        )
+    instructions = {step.name: step.instruction for step in task.steps}
+    spans: list[v1.Span] = []
+    for index, step_result in enumerate(step_results, start=1):
+        step_name = str(step_result.step_name)
+        step_span_id = _hex_id(f"{_NAMESPACE}:{loader.trial_key}:step:{index}", length=16)
+        children = _reparent_spans_under_common_parent(
+            _convert_atif_trajectories_to_spans(list(documents_by_step.get(step_name, []))),
+            parent_id=step_span_id,
+            trace_id=loader.trace_id,
+        )
+        step_metadata = {"harbor.step_index": index, "harbor.step_name": step_name}
+        for child in children:
+            _update_metadata(child, step_metadata)
+        spans.append(
+            _step_span(
+                step_result,
+                index=index,
+                instruction=instructions.get(step_name),
+                trial_result=trial_result,
+                trace_id=loader.trace_id,
+                span_id=step_span_id,
+                parent_id=root_span_id,
+                children=children,
+            )
+        )
+        spans.extend(children)
+    return spans
+
+
+def _step_span(
+    step_result: Any,
+    *,
+    index: int,
+    instruction: str | None,
+    trial_result: TrialResult,
+    trace_id: str,
+    span_id: str,
+    parent_id: str,
+    children: Sequence[v1.Span],
+) -> v1.Span:
+    """Build the CHAIN span for one attempted step of a multi-step trial.
+
+    The span runs from the step's agent start to its verifier finish, widened
+    to cover its trajectories. Its status reflects the step's own exception;
+    the trial root reflects every step.
+    """
+    step_name = str(step_result.step_name)
+    trial_start, trial_end = _trial_interval(trial_result)
+    starts = [
+        *_timing_bounds(step_result, "started_at"),
+        *(_parse_timestamp(span["start_time"]) for span in children),
     ]
-    _apply_request_times(
-        new_documents or [document],
-        _agent_context(trial_result, location.step_name),
-    )
+    ends = [
+        *_timing_bounds(step_result, "finished_at"),
+        *(_parse_timestamp(span["end_time"]) for span in children),
+    ]
+    attributes: dict[str, Any] = {
+        "openinference.span.kind": "CHAIN",
+        "session.id": _session_id(trace_id),
+        "metadata": {"harbor.step_index": index, "harbor.step_name": step_name},
+    }
+    if instruction:
+        attributes["input.value"] = instruction
+        attributes["input.mime_type"] = "text/plain"
+    verifier_result = getattr(step_result, "verifier_result", None)
+    rewards = getattr(verifier_result, "rewards", None)
+    if rewards is not None:
+        attributes["output.value"] = json.dumps(dict(rewards))
+        attributes["output.mime_type"] = "application/json"
+    span: v1.Span = {
+        "name": f"harbor.step {index} {step_name}",
+        "context": {"trace_id": trace_id, "span_id": span_id},
+        "parent_id": parent_id,
+        "span_kind": "CHAIN",
+        "start_time": min(starts, default=trial_start).isoformat(),
+        "end_time": max(ends, default=trial_end).isoformat(),
+        "status_code": "OK",
+        "attributes": attributes,
+    }
+    exception = getattr(step_result, "exception_info", None)
+    if exception is not None:
+        span["status_code"] = "ERROR"
+        span["status_message"] = format_exception(step_name, exception)
+    return span
+
+
+def _timing_bounds(step_result: Any, field_name: str) -> list[datetime]:
+    """Return the agent and verifier ``started_at``/``finished_at`` values a step recorded."""
+    values = [
+        getattr(getattr(step_result, phase, None), field_name, None)
+        for phase in ("agent_execution", "verifier")
+    ]
+    return [value for value in values if isinstance(value, datetime)]
+
+
+def _trial_interval(trial_result: TrialResult) -> tuple[datetime, datetime]:
+    started_at = trial_result.started_at
+    finished_at = trial_result.finished_at
+    if started_at is None or finished_at is None:
+        raise ValueError("Harbor trial has no complete start and end timestamps")
+    return started_at, finished_at
+
+
+def _update_metadata(span: v1.Span, values: Mapping[str, Any]) -> None:
+    attributes = cast(dict[str, Any], span.get("attributes") or {})
+    span["attributes"] = attributes
+    metadata = attributes.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+        attributes["metadata"] = metadata
+    metadata.update(values)
 
 
 def _root_locations(trial_result: TrialResult) -> tuple[_RootLocation, ...]:
@@ -372,8 +517,6 @@ def _load_file(
         if continuation_index > 0:
             document[_IS_CONTINUATION_KEY] = True
             document[_CONTINUATION_INDEX_KEY] = continuation_index
-        if step_name is not None and (reference is None or continuation_index > 0):
-            document[_STEP_NAME_KEY] = step_name
         _resolve_file_references(
             loader,
             document,
@@ -622,10 +765,7 @@ def _trial_root_span(
     source_paths: Sequence[str],
     unresolved_references: Sequence[str],
 ) -> v1.Span:
-    started_at = trial_result.started_at
-    finished_at = trial_result.finished_at
-    if started_at is None or finished_at is None:
-        raise ValueError("Harbor trial has no complete start and end timestamps")
+    started_at, finished_at = _trial_interval(trial_result)
     starts = [started_at, *(_parse_timestamp(span["start_time"]) for span in converted)]
     ends = [finished_at, *(_parse_timestamp(span["end_time"]) for span in converted)]
     failures = infrastructure_failures(trial_result)
@@ -641,7 +781,7 @@ def _trial_root_span(
     if unresolved_references:
         metadata["atif_unresolved_references"] = list(unresolved_references)
     span: v1.Span = {
-        "name": "harbor.trial",
+        "name": f"harbor.trial {slot.task_id}",
         "context": {"trace_id": trace_id, "span_id": span_id},
         "span_kind": "CHAIN",
         "start_time": min(starts).isoformat(),
