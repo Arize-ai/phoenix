@@ -641,7 +641,10 @@ def _prompt_messages(
     """Reconstruct the conversation an LLM step most likely received.
 
     The real prompt may differ when the producer used a sliding window or
-    summarization that ATIF does not record.
+    summarization that ATIF does not record. Observations are placed only by
+    ``source_call_id``; an observation without one (Terminus-2 records a
+    multi-command batch's terminal output that way) is left out of the prompt,
+    though the step span still reports it.
     """
     start, replacement = _context_window(steps, step_index)
     messages: List[Dict[str, Any]] = []
@@ -726,6 +729,26 @@ def _io_attributes(
     return attrs
 
 
+def _producer_token_count(metrics: Mapping[str, Any], *paths: str) -> Optional[int]:
+    """Return the first token count found under ``metrics.extra`` at the dotted paths.
+
+    ATIF has no fields for cache-write or reasoning tokens, so producers put
+    them in ``extra`` under their own names: Claude Code writes
+    ``cache_creation_input_tokens`` and ``output_tokens_details.thinking_tokens``;
+    Codex writes ``cache_write_input_tokens`` and ``reasoning_output_tokens``.
+    """
+    extra = metrics.get("extra")
+    if not isinstance(extra, Mapping):
+        return None
+    for path in paths:
+        value: Any = extra
+        for key in path.split("."):
+            value = value.get(key) if isinstance(value, Mapping) else None
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+    return None
+
+
 def _build_llm_attributes(step: Mapping[str, Any], agent: Mapping[str, Any]) -> Dict[str, Any]:
     """Build OpenInference LLM attributes from an agent step."""
     attrs: Dict[str, Any] = {}
@@ -745,6 +768,16 @@ def _build_llm_attributes(step: Mapping[str, Any], agent: Mapping[str, Any]) -> 
         attrs["llm.token_count.total"] = int(prompt_tokens or 0) + int(completion_tokens or 0)
     if metrics.get("cached_tokens") is not None:
         attrs["llm.token_count.prompt_details.cache_read"] = metrics["cached_tokens"]
+    cache_write = _producer_token_count(
+        metrics, "cache_creation_input_tokens", "cache_write_input_tokens"
+    )
+    if cache_write is not None:
+        attrs["llm.token_count.prompt_details.cache_write"] = cache_write
+    reasoning = _producer_token_count(
+        metrics, "reasoning_output_tokens", "output_tokens_details.thinking_tokens"
+    )
+    if reasoning is not None:
+        attrs["llm.token_count.completion_details.reasoning"] = reasoning
     if metrics.get("cost_usd") is not None:
         attrs["llm.cost.total"] = metrics["cost_usd"]
 
@@ -852,9 +885,13 @@ def _step_input(
     """Return what the agent received just before a step.
 
     That is the preceding fresh step's message for user and system steps, or
-    its observations for an agent step.
+    its observations for an agent step. The first fresh step of a continuation
+    document has no fresh predecessor; it received the copied context, so the
+    nearest copied step is the fallback.
     """
-    for i in reversed([i for i in fresh_indices if i < step_index]):
+    fresh_before = [i for i in fresh_indices if i < step_index]
+    copied_before = [i for i in range(step_index) if i not in fresh_before]
+    for i in [*reversed(fresh_before), *reversed(copied_before)]:
         previous = steps[i]
         if previous.get("source") == "agent":
             observation = previous.get("observation") or {}

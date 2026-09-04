@@ -367,6 +367,28 @@ class TestOptionalFields:
         assert llm["name"] == "LLM"
         assert "llm.model_name" not in attrs(llm)
 
+    def test_producer_cache_write_and_reasoning_tokens_are_mapped(self) -> None:
+        """Claude Code and Codex record these only under ``metrics.extra``."""
+
+        def llm_attrs(extra: Dict[str, Any]) -> Dict[str, Any]:
+            steps = user_then_agent("hi")
+            steps[1]["metrics"] = {"prompt_tokens": 10, "completion_tokens": 5, "extra": extra}
+            return attrs(of_kind(_convert_atif_trajectory_to_spans(trajectory(steps)), "LLM")[0])
+
+        claude = llm_attrs(
+            {"cache_creation_input_tokens": 944, "output_tokens_details": {"thinking_tokens": 208}}
+        )
+        assert claude["llm.token_count.prompt_details.cache_write"] == 944
+        assert claude["llm.token_count.completion_details.reasoning"] == 208
+
+        codex = llm_attrs({"cache_write_input_tokens": 12, "reasoning_output_tokens": 34})
+        assert codex["llm.token_count.prompt_details.cache_write"] == 12
+        assert codex["llm.token_count.completion_details.reasoning"] == 34
+
+        absent = llm_attrs({"reasoning_output_tokens": None, "total_tokens": 15})
+        assert "llm.token_count.prompt_details.cache_write" not in absent
+        assert "llm.token_count.completion_details.reasoning" not in absent
+
     def test_single_unmatched_result_pairs_with_the_only_tool_call(self) -> None:
         document = trajectory(
             [
@@ -1303,8 +1325,11 @@ class TestTurnGrouping:
                 },
             ]
         )
-        root = _convert_atif_trajectory_to_spans(document)[0]
-        assert attrs(root)["input.value"] == "handoff answers"
+        spans = _convert_atif_trajectory_to_spans(document)
+        assert attrs(spans[0])["input.value"] == "handoff answers"
+        iteration = named(spans, "iteration 1")
+        assert attrs(iteration)["input.value"] == "handoff answers"
+        assert attrs(iteration)["output.value"] == "continuing"
 
 
 class TestEqualTimeEvents:
