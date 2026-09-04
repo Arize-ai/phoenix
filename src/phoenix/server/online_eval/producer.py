@@ -164,7 +164,13 @@ class OnlineEvalProducer(DaemonTask):
                     logger.exception("Online-eval producer tick failed")
                 await asyncio.sleep(self._tick_interval_seconds)
         finally:
-            await self._release_lease()
+            release = asyncio.ensure_future(self._release_lease())
+            try:
+                await asyncio.shield(release)
+            except asyncio.CancelledError:
+                if not release.done():
+                    await asyncio.wait([release])
+                raise
 
     async def _tick(self) -> None:
         try:
