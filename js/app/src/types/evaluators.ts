@@ -197,15 +197,10 @@ export type SessionEvaluatorMappingSource = {
 };
 
 /**
- * As produced by the server: `input` and `output` are the displayed root span's
- * values, under the names the trace filter language spells for them, and
- * everything else sits flat under `metadata` — those names beside the trace's
- * timestamps, the root span's `attributes` and `events`, and
- * `trace_annotations`.
- *
- * Structurally identical to a span source, but semantically distinct in the
- * same way a session source is: the grain a source belongs to can never be
- * inferred from its shape.
+ * As produced by the server: `input` and `output` are the displayed root span's values,
+ * under the names the trace filter language spells for them, and everything else sits flat
+ * under `metadata` — those names beside the trace's timestamps, the root span's
+ * `attributes` and `events`, and `trace_annotations`.
  */
 export type TraceEvaluatorMappingSource = {
   input: unknown;
