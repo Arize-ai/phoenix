@@ -1,5 +1,11 @@
 # Session Filter DSL
 
+> This spec (with its conformance tests) is the authority on what the language accepts. The
+> **user-facing** grammar reference is the public
+> [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions)
+> doc — a curated derivative of this spec, not a second authority. Keep them in sync when the
+> accepted grammar changes.
+
 Phoenix groups traces into sessions by `session_id`. A trace records one exchange — an input
 and the response produced for it — so a session reads as a conversation. The session filter
 DSL lets a user or an agent select sessions with a small Python expression, e.g.:

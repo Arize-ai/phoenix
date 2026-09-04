@@ -31,7 +31,9 @@ from pydantic_ai.settings import ModelSettings, merge_model_settings
 from pydantic_ai.usage import RequestUsage
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_502_BAD_GATEWAY
+from strawberry.relay import GlobalID
 
+from phoenix.db import models
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.model_factory import build_model
@@ -41,6 +43,7 @@ from phoenix.server.agents.model_selection import (
     CustomProviderModelSelection,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 logger = logging.getLogger(__name__)
 
@@ -197,10 +200,15 @@ class ChatCompletionChoice(V1RoutesBaseModel):
     finish_reason: str
 
 
+class ChatCompletionUsagePromptTokensDetails(V1RoutesBaseModel):
+    cached_tokens: int
+
+
 class ChatCompletionUsage(V1RoutesBaseModel):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+    prompt_tokens_details: Optional[ChatCompletionUsagePromptTokensDetails] = None
 
 
 class ChatCompletion(V1RoutesBaseModel):
@@ -248,6 +256,13 @@ def _parse_model_id(model_id: str) -> AgentModelSelection:
         provider_id, sep, model_name = remainder.partition(":")
         if not sep or not provider_id or not model_name:
             raise _unknown_model_error(model_id)
+        try:
+            from_global_id_with_expected_type(
+                GlobalID.from_id(provider_id),
+                models.GenerativeModelCustomProvider.__name__,
+            )
+        except ValueError:
+            raise _unknown_model_error(model_id) from None
         return CustomProviderModelSelection(
             provider_type="custom",
             provider_id=provider_id,
@@ -341,11 +356,16 @@ def _to_openai_finish_reason(finish_reason: Optional[FinishReason]) -> str:
 
 
 def _to_openai_usage(usage: RequestUsage) -> ChatCompletionUsage:
-    return ChatCompletionUsage(
-        prompt_tokens=usage.input_tokens,
-        completion_tokens=usage.output_tokens,
-        total_tokens=usage.input_tokens + usage.output_tokens,
-    )
+    kwargs: dict[str, Any] = {
+        "prompt_tokens": usage.input_tokens,
+        "completion_tokens": usage.output_tokens,
+        "total_tokens": usage.input_tokens + usage.output_tokens,
+    }
+    if usage.cache_read_tokens:
+        kwargs["prompt_tokens_details"] = ChatCompletionUsagePromptTokensDetails(
+            cached_tokens=usage.cache_read_tokens
+        )
+    return ChatCompletionUsage(**kwargs)
 
 
 def _response_text(response: PydanticAIModelResponse) -> str:
@@ -391,12 +411,11 @@ async def create_chat_completion(
     selection = _parse_model_id(body.model)
     _reject_unsupported_parameters(body)
     try:
-        async with request.app.state.db() as session:
-            model = await build_model(
-                selection,
-                session=session,
-                decrypt=request.app.state.decrypt,
-            )
+        model = await build_model(
+            selection,
+            db=request.app.state.db,
+            decrypt=request.app.state.decrypt,
+        )
     except AgentError as exc:
         return _error_response(str(exc), status_code=exc.status_code)
     except ValueError:
@@ -427,7 +446,7 @@ async def create_chat_completion(
         ],
         usage=_to_openai_usage(response.usage),
     )
-    return Response(completion.model_dump_json(), media_type="application/json")
+    return Response(completion.model_dump_json(exclude_none=True), media_type="application/json")
 
 
 _HTTP_STATUS_CODE_LIMIT = 600

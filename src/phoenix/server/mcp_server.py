@@ -15,25 +15,24 @@ recognizes it. This keeps the caller's token spendable only where it was
 presented — a prerequisite for enforcing RFC 8707 audience at ``/v1``, since no
 legitimate ``/v1`` traffic carries an ``/mcp``-audience token.
 
-The ``/v1`` API has ~70 operations, which is far too many tools to advertise at
-once without degrading tool selection and wasting context. So the server applies
-*progressive disclosure*: tools are grouped by their REST router tag (``projects``,
-``spans``, ``datasets``, ...); only :data:`_DEFAULT_VISIBLE_GROUPS` are advertised
-initially, and a model reveals the rest on demand by calling ``enable_tool_group``.
-Reveals are scoped to the calling session (FastMCP session-visibility rules), so
-one client unlocking a group never affects another, and a ``tools/list_changed``
-notification is emitted to that session automatically.
+Advertising one tool per ``/v1`` operation degrades tool selection and wastes
+context at this API's size. Code mode is the answer: it replaces the
+per-endpoint surface with a few discovery tools plus a sandboxed ``execute``, so
+the catalog a model reads stays small however many endpoints exist. It is the
+default for both consumers. With code mode off, every ``/v1`` operation is
+advertised as its own tool.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-import httpx
+import httpx2
 from fastapi import HTTPException
 from fastmcp import Context, FastMCP
-from fastmcp.exceptions import ToolError
 from fastmcp.experimental.transforms.code_mode import (
     CodeMode,
     GetSchemas,
@@ -45,7 +44,7 @@ from fastmcp.experimental.transforms.code_mode import (
 from fastmcp.server.dependencies import get_http_request
 from fastmcp.server.providers.openapi import MCPType, RouteMap
 from fastmcp.tools.base import Tool
-from mcp.types import ToolAnnotations
+from mcp_types import ToolAnnotations
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
@@ -54,30 +53,30 @@ from phoenix.server.bearer_auth import (
     INTERNAL_PRINCIPAL_SCOPE_KEY,
     PhoenixUser,
     authenticated_claims,
+    get_bound_principal,
     token_audience_permits,
+)
+from phoenix.server.mcp.skills import (
+    SKILL_TOOLS_TAG,
+    get_skill_instructions,
+    load_skills,
+    register_skill_tools,
 )
 from phoenix.server.mcp_code_mode import MontyPoolSandboxProvider
 from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.utils import prepend_root_path
+from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
     from fastmcp.server.http import StarletteWithLifespan
     from starlette.types import ASGIApp, Receive, Scope, Send
 
-    from phoenix.server.monty_runtime import MontyRuntime
+    from phoenix.server.monty_runtime import MontyConsumer, MontyRuntime
+    from phoenix.server.types import DbSessionFactory
 
 #: Path the MCP ASGI app is mounted at on the Phoenix FastAPI app.
 MCP_MOUNT_PATH = "/mcp"
-
-#: Tool groups (REST router tags) advertised before any progressive disclosure.
-#: ``projects`` is the natural entry point — list projects, then unlock the data
-#: groups (spans, traces, ...) for the project you care about. Every other group
-#: is hidden until ``enable_tool_group`` reveals it for the session.
-_DEFAULT_VISIBLE_GROUPS = frozenset({"projects"})
-
-#: Tag applied to the progressive-disclosure meta tools so they are never gated.
-_META_TAG = "phoenix-mcp-meta"
 
 # Tools dispatch back into the Phoenix app via an ASGI transport, so this host is
 # never resolved over the network; it only supplies a syntactically valid base URL.
@@ -92,31 +91,33 @@ _INTERNAL_BASE_URL = "http://phoenix-mcp.internal"
 # datastore, so none of them reach an "open world" of arbitrary external systems.
 _ANNOTATIONS_BY_METHOD: dict[str, ToolAnnotations] = {
     "GET": ToolAnnotations(
-        readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False
+        read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
     ),
     "POST": ToolAnnotations(
-        readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False
+        read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False
     ),
     "PUT": ToolAnnotations(
-        readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=False
+        read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False
     ),
     "PATCH": ToolAnnotations(
-        readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=False
+        read_only_hint=False, destructive_hint=True, idempotent_hint=False, open_world_hint=False
     ),
     "DELETE": ToolAnnotations(
-        readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=False
+        read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False
     ),
 }
 
 # An unrecognized verb is treated as the worst case — possibly mutating — so a client
 # confirms rather than silently auto-approving something we could not classify.
 _DEFAULT_ANNOTATIONS = ToolAnnotations(
-    readOnlyHint=False, destructiveHint=True, openWorldHint=False
+    read_only_hint=False, destructive_hint=True, open_world_hint=False
 )
 
-# The progressive-disclosure meta tools only read or adjust which tools are visible in
-# the current session; they never touch Phoenix data, so a client may auto-approve them.
-_META_ANNOTATIONS = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False)
+# Tools that read or describe rather than mutate, so a client may auto-approve
+# them: code-mode discovery, and the analytics SQL tools.
+_META_ANNOTATIONS = ToolAnnotations(
+    read_only_hint=True, destructive_hint=False, open_world_hint=False
+)
 
 
 _DOCSTRING_SECTION = re.compile(
@@ -150,10 +151,10 @@ def _strip_schema_titles(node: Any) -> None:
     """Recursively remove auto-generated ``title`` keys from a JSON schema.
 
     Pydantic stamps a ``title`` on every field (``"Sync"`` for ``sync``) that only
-    repeats the property name. Across a catalog these dominate the schema an agent must
-    read — one ``get_schema(detail="full")`` on two tools returned 512 ``title`` keys
-    against 14 ``description`` keys. Types, enums, descriptions, and required markers
-    are preserved.
+    repeats the property name. They outnumber the descriptions an agent actually
+    needs by more than an order of magnitude, so across a catalog they dominate the
+    schema it must read. Types, enums, descriptions, and required markers are
+    preserved.
     """
     if isinstance(node, dict):
         node.pop("title", None)
@@ -195,15 +196,23 @@ def _current_mcp_principal() -> Optional[PhoenixUser]:
 
     ``scope["user"]`` is populated by the outer ``AuthenticationMiddleware`` and
     verified by ``BearerAuthGuard`` before any tool runs; ``get_http_request``
-    resolves that request from ambient context at dispatch time. Returns None when
-    authentication is disabled (no middleware, so no user in the scope) or when
-    there is no live HTTP request to inherit from — e.g. a background task, whose
-    synthetic request snapshots only headers, never the authenticated principal.
+    resolves that request from ambient context at dispatch time. A request
+    carrying a ``PhoenixUser`` yields that user, so a live authenticated request
+    always takes precedence over any binding.
+
+    In-process callers have no request at all — ``get_http_request`` raises — and
+    state their principal through ``bind_principal``, which is consulted only on
+    that path.
+
+    Every other case returns None. Authentication being disabled lands here,
+    because no middleware runs to populate the scope. So does a background task:
+    ``get_http_request`` does not raise there, it returns a synthetic request
+    built from snapshotted headers, and that request carries no principal.
     """
     try:
         request = get_http_request()
     except RuntimeError:
-        return None
+        return get_bound_principal()
     user = request.scope.get("user")
     return user if isinstance(user, PhoenixUser) else None
 
@@ -235,62 +244,6 @@ class _InternalIdentityDispatch:
         await self._app(scope, receive, send)
 
 
-def _v1_group_sizes(openapi_spec: dict[str, Any]) -> dict[str, int]:
-    """Map each ``/v1`` router tag to the number of operations it contains."""
-    sizes: dict[str, int] = {}
-    for path, operations in openapi_spec.get("paths", {}).items():
-        if not path.startswith("/v1"):
-            continue
-        for operation in operations.values():
-            if not isinstance(operation, dict):
-                continue
-            for tag in operation.get("tags", []):
-                sizes[tag] = sizes.get(tag, 0) + 1
-    return sizes
-
-
-def _install_progressive_disclosure(mcp: FastMCP, openapi_spec: dict[str, Any]) -> None:
-    """Hide non-default tool groups and add meta tools to reveal them on demand."""
-    group_sizes = _v1_group_sizes(openapi_spec)
-    gated = {tag for tag in group_sizes if tag not in _DEFAULT_VISIBLE_GROUPS}
-    if not gated:
-        return
-
-    # Hidden by default; ``enable_tool_group`` re-enables a group per session.
-    mcp.disable(tags=gated)
-
-    groups_doc = "\n".join(f"- {tag} ({group_sizes[tag]} tools)" for tag in sorted(gated))
-
-    @mcp.tool(tags={_META_TAG}, annotations=_META_ANNOTATIONS)
-    async def list_tool_groups() -> dict[str, Any]:
-        """List the Phoenix tool groups that can be revealed for this session.
-
-        Tools are grouped by domain. Only a small default set is visible up front;
-        call ``enable_tool_group`` to reveal a group's tools before using them.
-        """
-        return {
-            "visible_by_default": sorted(_DEFAULT_VISIBLE_GROUPS & set(group_sizes)),
-            "available_to_enable": {tag: group_sizes[tag] for tag in sorted(gated)},
-        }
-
-    @mcp.tool(
-        tags={_META_TAG},
-        annotations=_META_ANNOTATIONS,
-        description=(
-            "Reveal a group of Phoenix tools for the current session, then use the "
-            "newly available tools. Call this before using tools outside the default "
-            f"set. Groups that can be enabled:\n{groups_doc}"
-        ),
-    )
-    async def enable_tool_group(group: str, ctx: Context) -> str:
-        if group not in gated:
-            raise ToolError(
-                f"Unknown tool group {group!r}. Groups that can be enabled: {sorted(gated)}."
-            )
-        await ctx.enable_components(tags={group})
-        return f"Enabled the {group!r} tool group ({group_sizes[group]} tools) for this session."
-
-
 def _read_only(
     factory: "Callable[[GetToolCatalog], Tool]",
 ) -> "Callable[[GetToolCatalog], Tool]":
@@ -309,14 +262,36 @@ def _read_only(
     return build
 
 
-def _build_code_mode(runtime: "MontyRuntime") -> tuple[CodeMode, MontyPoolSandboxProvider]:
+class _CodeModeWithDirectSkillTools(CodeMode):
+    """Code mode that leaves the skill tools on ``tools/list`` but hides them from inside code mode.
+
+    Upstream has no affordance for this; see
+    https://github.com/PrefectHQ/fastmcp/issues/4925.
+    """
+
+    async def transform_tools(self, tools: "Sequence[Tool]") -> "Sequence[Tool]":
+        """The ``tools/list`` response."""
+        direct = [tool for tool in tools if SKILL_TOOLS_TAG in tool.tags]
+        return [*await super().transform_tools(tools), *direct]
+
+    async def get_tool_catalog(
+        self, ctx: Context, *, run_middleware: bool = True
+    ) -> "Sequence[Tool]":
+        """The catalog ``search``/``list_tools``/``execute`` see."""
+        catalog = await super().get_tool_catalog(ctx, run_middleware=run_middleware)
+        return [tool for tool in catalog if SKILL_TOOLS_TAG not in tool.tags]
+
+
+def _build_code_mode(
+    runtime: "MontyRuntime", consumer: "MontyConsumer"
+) -> tuple[CodeMode, MontyPoolSandboxProvider]:
     """Code-mode tool surface: discovery meta-tools plus a sandboxed ``execute``.
 
     Clients see ``search``/``get_schema``/``tags``/``list_tools`` for discovery and
     an ``execute`` tool that runs LLM-written Python in a pydantic-monty sandbox
     where ``call_tool(name, params)`` is the only function in scope. ``tags``
-    browses the same REST router tags the group-gated surface uses, so both
-    surfaces share one vocabulary. ``execute`` is deliberately left unannotated:
+    browses the REST router tags, so a model can narrow the catalog by domain
+    before reading schemas. ``execute`` is deliberately left unannotated:
     it can invoke mutating tools, and an unannotated tool is treated as
     possibly-destructive by clients, which is the correct default.
 
@@ -329,9 +304,9 @@ def _build_code_mode(runtime: "MontyRuntime") -> tuple[CodeMode, MontyPoolSandbo
     Returns:
         The transform to install and its FastMCP sandbox adapter.
     """
-    sandbox_provider = MontyPoolSandboxProvider(runtime=runtime)
+    sandbox_provider = MontyPoolSandboxProvider(runtime=runtime, consumer=consumer)
     return (
-        CodeMode(
+        _CodeModeWithDirectSkillTools(
             discovery_tools=[
                 _read_only(Search()),
                 _read_only(GetSchemas()),
@@ -432,45 +407,67 @@ class BearerAuthGuard:
         await self._app(scope, receive, send)
 
 
-def create_phoenix_mcp_app(
+def build_phoenix_mcp_server(
     app: "FastAPI",
     *,
     monty_runtime: Optional["MontyRuntime"] = None,
-) -> tuple["StarletteWithLifespan", Optional[MontyPoolSandboxProvider]]:
-    """Build the MCP server from ``app``'s REST API and return its ASGI app.
+    code_mode: bool,
+    monty_consumer: "MontyConsumer" = "mcp",
+    read_only: bool = False,
+    db: "DbSessionFactory",
+    skills_roots: Sequence[Path] = (),
+) -> tuple[FastMCP, Optional[MontyPoolSandboxProvider]]:
+    """Derive an MCP server from ``app``'s REST API.
 
-    The returned app's lifespan (its streamable-HTTP session manager) must be
-    entered by the caller; mounting alone will not start it.
+    The arguments below shape one consumer's tool surface, so each consumer
+    builds its own server. The derivation is shared, so a new ``/v1`` endpoint
+    reaches every consumer.
 
     Args:
         app: Phoenix application whose REST API becomes the MCP tool surface.
         monty_runtime: Shared runtime required only when code mode is enabled.
+        code_mode: Present the surface as a sandboxed ``execute`` plus discovery
+            tools instead of one tool per endpoint.
+        monty_consumer: Admission class the sandbox spends against under code
+            mode. Ignored when code mode is off.
+        read_only: Derive tools from GET routes only.
+        db: Session factory for the analytics SQL tools.
+        skills_roots: Directories whose skill folders this consumer receives.
+            Empty by default: no skill tools, and no skill instructions
+            advertised.
 
     Returns:
-        The ASGI app to mount, and — when code mode is enabled — the sandbox
-        adapter backed by the application-owned Monty runtime. ``None`` when
-        code mode is disabled.
+        The server, and — when code mode is enabled — the sandbox adapter backed
+        by the application-owned Monty runtime. ``None`` when code mode is off.
     """
-    code_mode_enabled = get_env_mcp_code_mode()
-    if code_mode_enabled and monty_runtime is None:
+    if code_mode and monty_runtime is None:
         raise ValueError("Monty runtime is required when MCP code mode is enabled")
 
     # Tool dispatch authenticates by principal passing, not token replay — see
     # ``_InternalIdentityDispatch``.
-    client = httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=_InternalIdentityDispatch(app)),
+    client = httpx2.AsyncClient(
+        transport=httpx2.ASGITransport(app=_InternalIdentityDispatch(app)),
         base_url=_INTERNAL_BASE_URL,
     )
     openapi_spec = app.openapi()
+    skills = load_skills(tuple(skills_roots))
     mcp: FastMCP = FastMCP.from_openapi(
         openapi_spec=openapi_spec,
         client=client,
         name="Arize Phoenix",
+        # Without this the server advertises the FastMCP library version, which
+        # tells a client nothing about the Phoenix it is talking to.
+        version=phoenix_version,
+        instructions=get_skill_instructions(skills) if skills else None,
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not
             # useful to MCP clients).
-            RouteMap(pattern=r"^/v1/", mcp_type=MCPType.TOOL),
+            RouteMap(
+                pattern=r"^/v1/",
+                methods=["GET"] if read_only else "*",
+                mcp_type=MCPType.TOOL,
+            ),
             RouteMap(mcp_type=MCPType.EXCLUDE),
         ],
         # Make each tool's read/write nature legible to the client (see
@@ -479,17 +476,40 @@ def create_phoenix_mcp_app(
         mcp_component_fn=_annotate_from_rest_method,
     )
     sandbox_provider: Optional[MontyPoolSandboxProvider] = None
-    if code_mode_enabled:
-        # Code mode replaces the tool surface wholesale: clients see only the
-        # discovery meta-tools and ``execute``. Group gating must NOT be installed
-        # with it — the code-mode catalog respects tool visibility, so gating would
-        # hide every non-default group from ``search``/``list_tools`` with no way
-        # to reveal them.
+    if code_mode:
+        # Replaces the tool surface wholesale: clients see the discovery tools and
+        # ``execute``, never the per-endpoint tools.
         assert monty_runtime is not None
-        code_mode, sandbox_provider = _build_code_mode(monty_runtime)
-        mcp.add_transform(code_mode)
-    else:
-        _install_progressive_disclosure(mcp, openapi_spec)
+        transform, sandbox_provider = _build_code_mode(monty_runtime, monty_consumer)
+        mcp.add_transform(transform)
+    # Registered for every consumer, and after the code-mode transform: the
+    # catalog resolves lazily, so these reach `call_tool` there and `tools/list`
+    # otherwise.
+    from phoenix.server.mcp.sql.tools import register_analytics_sql_tools
+
+    register_analytics_sql_tools(mcp, db=db)
+    if skills:
+        register_skill_tools(mcp, skills)
+    return mcp, sandbox_provider
+
+
+def create_phoenix_mcp_app(
+    app: "FastAPI",
+    *,
+    monty_runtime: Optional["MontyRuntime"] = None,
+    db: "DbSessionFactory",
+) -> tuple["StarletteWithLifespan", Optional[MontyPoolSandboxProvider]]:
+    """Build the MCP server mounted at :data:`MCP_MOUNT_PATH` and return its ASGI app.
+
+    The returned app's lifespan (its streamable-HTTP session manager) must be
+    entered by the caller; mounting alone will not start it.
+    """
+    mcp, sandbox_provider = build_phoenix_mcp_server(
+        app,
+        monty_runtime=monty_runtime,
+        code_mode=get_env_mcp_code_mode(),
+        db=db,
+    )
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
     # resolves to MCP_MOUNT_PATH itself rather than MCP_MOUNT_PATH + "/mcp".
     return mcp.http_app(path="/"), sandbox_provider

@@ -25,6 +25,7 @@
               "requirements",
               "scripts",
               "tests",
+              "tox.ini",
               "tutorials"
             ]
         },

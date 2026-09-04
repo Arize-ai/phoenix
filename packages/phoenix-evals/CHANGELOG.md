@@ -1,5 +1,38 @@
 # Changelog
 
+## [3.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.5.1...arize-phoenix-evals-v3.6.0) (2026-09-01)
+
+
+### Features
+
+* **evals:** add session-level pii_detection evaluator  ([#15096](https://github.com/Arize-ai/phoenix/issues/15096)) ([0e3b2c2](https://github.com/Arize-ai/phoenix/commit/0e3b2c2ae55b671cdc523363ea18bcc7e6ae6c31))
+
+
+### Bug Fixes
+
+* **evals:** use non-blocking sleep in async rate limiter ([#15404](https://github.com/Arize-ai/phoenix/issues/15404)) ([2ecfd47](https://github.com/Arize-ai/phoenix/commit/2ecfd4788963ee2a01cb981b25baca4eb3372502))
+
+## [3.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.5.0...arize-phoenix-evals-v3.5.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* upgrade to anthropic SDK v1 ([#15588](https://github.com/Arize-ai/phoenix/issues/15588)) ([b28cf94](https://github.com/Arize-ai/phoenix/commit/b28cf94fcd37afeacfd059b4a01e7ad38327e483))
+
+## [3.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.4.0...arize-phoenix-evals-v3.5.0) (2026-08-21)
+
+
+### Features
+
+* **evals:** add retrieval relevance evaluator ([#14766](https://github.com/Arize-ai/phoenix/issues/14766)) ([7efa7b2](https://github.com/Arize-ai/phoenix/commit/7efa7b21fc3284f0af928ddedda15927974ee94d))
+
+## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.3.0...arize-phoenix-evals-v3.4.0) (2026-08-15)
+
+
+### Features
+
+* **evals:** add hallucination evaluator ([#14708](https://github.com/Arize-ai/phoenix/issues/14708)) ([1aa1a84](https://github.com/Arize-ai/phoenix/commit/1aa1a8454b6524a9e7618f3c9970ae9466df67d2))
+
 ## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.3.0...arize-phoenix-evals-v3.4.0) (2026-08-08)
 
 

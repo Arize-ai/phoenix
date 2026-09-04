@@ -58,9 +58,11 @@ class ModelCostManifest(BaseModel):
 PROVIDER_PREFIXES: dict[str, str | None] = {
     "cerebras/": "cerebras",
     "groq/": "groq",
+    "minimax/": "minimax",
     "moonshot/": None,
     "perplexity/": None,
     "together_ai/": "together",
+    "zai/": "zai",
 }
 
 
@@ -262,6 +264,15 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                 TokenPrice(
                     token_type="audio",
                     base_rate=output_audio_cost,
+                    is_prompt=False,
+                )
+            )
+
+        if reasoning_cost := float(model_info.get("output_cost_per_reasoning_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="reasoning",
+                    base_rate=reasoning_cost,
                     is_prompt=False,
                 )
             )

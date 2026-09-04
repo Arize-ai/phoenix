@@ -1,0 +1,78 @@
+/**
+ * Runtime capabilities are feature flags that shape what the agent can do and
+ * how the UI should expose those controls.
+ *
+ * For tool-extension workflow guidance, see the `defineTool` helper in
+ * `./registry` and the registry aggregator
+ * in `./toolRegistry`.
+ */
+export type AgentCapabilityKey = "subagents.enabled" | "web.access";
+
+/** Describes one capability and how it should appear across the app. */
+export type AgentCapabilityDefinition = {
+  key: AgentCapabilityKey;
+  label: string;
+  description: string;
+  defaultValue: boolean;
+  scope: "global" | "session";
+};
+
+/** Boolean runtime snapshot keyed by capability name. */
+export type AgentCapabilities = Record<AgentCapabilityKey, boolean>;
+
+const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
+  "subagents.enabled": false,
+  "web.access": false,
+};
+
+/** Ordered capability catalog used by the UI and runtime. */
+export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
+  {
+    key: "subagents.enabled",
+    label: "Subagents",
+    description:
+      "Lets the assistant delegate work to subagents that run their own tool-using turns. May consume large numbers of tokens.",
+    defaultValue: false,
+    scope: "global",
+  },
+  {
+    key: "web.access",
+    label: "Web search",
+    description:
+      "Lets the assistant use provider-native web search and URL fetching when the selected model supports it.",
+    defaultValue: false,
+    scope: "global",
+  },
+];
+
+/** Fast lookup map derived from the definitions array. */
+const AGENT_CAPABILITY_DEFINITIONS_BY_KEY = Object.fromEntries(
+  AGENT_CAPABILITY_DEFINITIONS.map((def) => [def.key, def])
+) as Record<AgentCapabilityKey, AgentCapabilityDefinition>;
+
+// Runtime completeness check: every key in DEFAULT_AGENT_CAPABILITIES (which is
+// compile-time checked against AgentCapabilityKey) must have a matching entry in
+// the definitions array.  This catches the case where a developer adds a new key
+// to AgentCapabilityKey and DEFAULT_AGENT_CAPABILITIES but forgets to add its
+// definition to AGENT_CAPABILITY_DEFINITIONS.
+for (const key of Object.keys(
+  DEFAULT_AGENT_CAPABILITIES
+) as AgentCapabilityKey[]) {
+  if (!AGENT_CAPABILITY_DEFINITIONS_BY_KEY[key]) {
+    throw new Error(
+      `Missing AGENT_CAPABILITY_DEFINITIONS entry for capability key: "${key}"`
+    );
+  }
+}
+
+/** Returns the default capability state for a fresh agent store. */
+export function createDefaultAgentCapabilities(): AgentCapabilities {
+  return { ...DEFAULT_AGENT_CAPABILITIES };
+}
+
+/** Returns capability metadata for code paths that already know the key. */
+export function getAgentCapabilityDefinition(
+  key: AgentCapabilityKey
+): AgentCapabilityDefinition {
+  return AGENT_CAPABILITY_DEFINITIONS_BY_KEY[key];
+}

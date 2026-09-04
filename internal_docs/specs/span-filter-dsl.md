@@ -1,5 +1,11 @@
 # Span Filter DSL
 
+> This spec (with its conformance tests) is the authority on what the language accepts. The
+> **user-facing** grammar reference is the public
+> [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions)
+> doc — a curated derivative of this spec, not a second authority. Keep them in sync when the
+> accepted grammar changes.
+
 Reference for the filter-condition language implemented in
 `src/phoenix/trace/dsl/filter.py`.
 
@@ -1538,10 +1544,10 @@ go looking for a grammar that does not exist.
 | `src/phoenix/db/models.py` | `SafeJsonFloat`, `SafeJsonBoolean`, `TextContains` — the dialect-specific SQL the guarantees compile to |
 | `src/phoenix/server/api/types/Project.py` | `validateSpanFilterCondition`, `analyzeSpanFilterCondition` |
 | `src/phoenix/server/api/exceptions.py` | Filter errors (`SpanFilterError`, `ExperimentRunFilterConditionSyntaxError`) → GraphQL error mapping |
-| `app/src/components/filter/DSLFilterConditionField.tsx` | Debounced field, error badge |
-| `app/src/pages/project/spanFilterValidation.ts` | Client validation + cache |
-| `app/src/pages/project/spanFilterSeed.ts` | Mount-time seed classification |
-| `app/src/pages/project/SpanFilterErrorFallback.tsx` | Error-boundary fallback |
+| `js/app/src/components/filter/DSLFilterConditionField.tsx` | Debounced field, error badge |
+| `js/app/src/pages/project/spanFilterValidation.ts` | Client validation + cache |
+| `js/app/src/pages/project/spanFilterSeed.ts` | Mount-time seed classification |
+| `js/app/src/pages/project/SpanFilterErrorFallback.tsx` | Error-boundary fallback |
 | `tests/unit/trace/dsl/test_filter.py` | Grammar, type, dialect, and execution tests |
 | `tests/unit/trace/dsl/test_filter_spec_conformance.py` | Executable form of this document's accept/reject tables |
 | `tests/unit/trace/dsl/test_filter_error_messages.py` | Pins the user-facing messages above |

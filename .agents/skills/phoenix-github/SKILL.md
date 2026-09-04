@@ -83,10 +83,13 @@ Every script that writes is **dry-run by default** and takes `--apply`.
 Tunable via env vars: `PHOENIX_MIN_TICKETS` (3), `PHOENIX_MAX_TICKETS` (15),
 `PHOENIX_ROSTER_TEAM` (`oss-eng`; comma-separated list of org teams),
 `PHOENIX_ROSTER_EXCLUDE` (empty; comma-separated logins to omit from all
-reporting), `PHOENIX_STANDUP_DAYS` (2), `PHOENIX_PROJECT_NUMBER` (42),
-`PHOENIX_SNAPSHOT_MAX_AGE_MIN` (120),
-`PHOENIX_ISSUE_LIMIT` (5000). Local overrides for these live in
-`.claude/settings.local.json` (`env` block), not in the scripts.
+reporting), `PHOENIX_ROSTER_INCLUDE` (empty; comma-separated logins to add to
+the roster regardless of team membership), `PHOENIX_STANDUP_DAYS` (2),
+`PHOENIX_PROJECT_NUMBER` (42), `PHOENIX_SNAPSHOT_MAX_AGE_MIN` (120),
+`PHOENIX_ISSUE_LIMIT` (5000). Team-wide values live in `.claude/settings.json`
+(`env` block); personal overrides go in `.claude/settings.local.json`. Neither
+is read by a plain shell — `export` them when running the scripts outside
+Claude Code.
 
 ---
 
@@ -188,7 +191,11 @@ carrying between **3 and 15** tickets. Under 3 means they are about to run dry;
 over 15 means they are buried and the queue is not real.
 
 Roster is the live membership of the `PHOENIX_ROSTER_TEAM` team(s) (default
-**`@Arize-ai/oss-eng`**), so it self-updates as the teams change. Logins listed
+**`@Arize-ai/oss-eng`**), so it self-updates as the teams change. Collaborators
+who carry sprint work without belonging to a roster team are added by login via
+`PHOENIX_ROSTER_INCLUDE`, and show in the roster label as `+login`. Prefer
+adding someone to the org team when that is appropriate — the include list is a
+standing override that does not self-update. Logins listed
 in `PHOENIX_ROSTER_EXCLUDE` are dropped from the roster and filtered out of
 snapshot assignee data at parse time, so they never appear in any report.
 

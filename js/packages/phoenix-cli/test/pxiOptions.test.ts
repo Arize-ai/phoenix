@@ -66,6 +66,19 @@ describe("PXI options", () => {
     });
   });
 
+  it("accepts MiniMax as a built-in provider", () => {
+    const selection = resolveModelSelection({
+      provider: "minimax",
+      model: "MiniMax-M3",
+    });
+
+    expect(selection).toEqual({
+      providerType: "builtin",
+      provider: "MINIMAX",
+      modelName: "MiniMax-M3",
+    });
+  });
+
   it("rejects invalid providers with an actionable error", () => {
     expect(() => resolveModelSelection({ provider: "BAD" })).toThrow(
       "Invalid value for --provider: BAD. Expected one of:"
@@ -102,6 +115,19 @@ describe("PXI options", () => {
     });
 
     expect(options.skipModelPreflight).toBe(false);
+    expect(options.hasExplicitModelSelection).toBe(false);
+  });
+
+  it("records whether model flags were explicitly provided", () => {
+    const options = resolvePxiRuntimeOptions({
+      cliOptions: {
+        endpoint: "http://localhost:6006",
+        model: "claude-opus-4-6",
+      },
+      sessionId: "session-1",
+    });
+
+    expect(options.hasExplicitModelSelection).toBe(true);
   });
 
   it("supports skipping model preflight", () => {

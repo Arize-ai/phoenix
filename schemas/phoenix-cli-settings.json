@@ -75,6 +75,10 @@
             },
             "required": ["accessToken", "refreshToken", "expiresAt", "scope"],
             "additionalProperties": false
+          },
+          "githubPersonalAccessToken": {
+            "description": "GitHub personal access token sent with pxi chat requests so the agent's GitHub tools act as you (requires the Phoenix deployment to enable GitHub tools). Prefer a fine-grained token scoped to Issues read/write. Treat as a secret — the profiles file should be user-readable only (mode 0600).",
+            "type": "string"
           }
         },
         "additionalProperties": false

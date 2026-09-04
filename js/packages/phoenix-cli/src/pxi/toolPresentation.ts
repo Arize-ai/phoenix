@@ -5,7 +5,7 @@ import type { ToolProgressState } from "./toolProgress";
  * one-line preview of what the tool is doing, and a few detail/error lines —
  * from the tool's (possibly still-streaming) input and output. This mirrors
  * the web UI's per-tool presentation registry in
- * `app/src/components/agent/ToolPart.tsx`, which cannot be imported from this
+ * `js/app/src/components/agent/ToolPart.tsx`, which cannot be imported from this
  * package.
  *
  * Everything here is pure string derivation so it stays cheap: the whole
@@ -221,7 +221,10 @@ function getBashPresentation({
   };
   const outputRecord = state === "output-available" ? asRecord(output) : null;
   if (outputRecord) {
-    const exitCode = outputRecord.exit_code;
+    // The CLI is released independently of the server: newer servers emit
+    // camelCase (exitCode), but servers predating the server-side bash
+    // unification still stream snake_case (exit_code).
+    const exitCode = outputRecord.exitCode ?? outputRecord.exit_code;
     if (typeof exitCode === "number" && exitCode !== 0) {
       presentation.statusSuffix = `exit ${exitCode}`;
       const stderr = getStringField({ record: outputRecord, field: "stderr" });
@@ -336,11 +339,11 @@ function getLoadSkillPresentation({
 }
 
 /**
- * Skill resource reads are routine bookkeeping, like skill loads: once
- * complete they collapse to a single dim `Read skill resource
- * <skill>/<resource>` line instead of a full tool row.
+ * Skill reference loads are routine bookkeeping, like skill loads: once
+ * complete they collapse to a single dim `Loaded skill reference
+ * <skill>/<reference>` line instead of a full tool row.
  */
-function getReadSkillResourcePresentation({
+function getLoadSkillReferencePresentation({
   state,
   input,
 }: ToolPresenterOptions): Partial<ToolPresentation> {
@@ -348,32 +351,100 @@ function getReadSkillResourcePresentation({
   const skillName = record
     ? getStringField({ record, field: "skill_name" })
     : "";
-  const resourceName = record
-    ? getStringField({ record, field: "resource_name" })
+  const referenceName = record
+    ? getStringField({ record, field: "reference_name" })
     : "";
-  const resourceLabel = toSingleLine({
-    text: [skillName, resourceName].filter(Boolean).join("/"),
+  const referenceLabel = toSingleLine({
+    text: [skillName, referenceName].filter(Boolean).join("/"),
   });
   const presentation: Partial<ToolPresentation> = {
     icon: "✦",
-    previewText: resourceLabel,
+    previewText: referenceLabel,
   };
   if (state === "output-available") {
     presentation.isQuiet = true;
-    presentation.quietLabel = resourceLabel
-      ? `Read skill resource ${resourceLabel}`
-      : "Read skill resource";
+    presentation.quietLabel = referenceLabel
+      ? `Loaded skill reference ${referenceLabel}`
+      : "Loaded skill reference";
   }
   return presentation;
 }
 
+/** `owner/repo#123` (or the parts that are present) for GitHub issue tools. */
+function getGithubIssueReference(record: Record<string, unknown>): string {
+  const owner = getStringField({ record, field: "owner" });
+  const repo = getStringField({ record, field: "repo" });
+  const repoLabel = [owner, repo].filter(Boolean).join("/");
+  const issueNumber = record.issue_number;
+  const issueLabel = typeof issueNumber === "number" ? `#${issueNumber}` : "";
+  return `${repoLabel}${issueLabel}`;
+}
+
+/**
+ * GitHub issue write (create/update). The full title and a body excerpt are
+ * shown so the approval prompt presents exactly what would be posted.
+ */
+function getGithubIssueWritePresentation({
+  input,
+}: ToolPresenterOptions): Partial<ToolPresentation> {
+  const record = asRecord(input);
+  if (!record) {
+    return { icon: "◈" };
+  }
+  const reference = getGithubIssueReference(record);
+  const title = getStringField({ record, field: "title" });
+  const body = getStringField({ record, field: "body" });
+  return {
+    icon: "◈",
+    previewText: toSingleLine({
+      text: [reference, title].filter(Boolean).join(" "),
+    }),
+    detailLines: body
+      ? getClampedLines({ text: body, maxLines: COMMAND_DETAIL_MAX_LINES })
+      : [],
+  };
+}
+
+function getGithubIssueReadPresentation({
+  input,
+}: ToolPresenterOptions): Partial<ToolPresentation> {
+  const record = asRecord(input);
+  return {
+    icon: "◈",
+    previewText: record
+      ? toSingleLine({ text: getGithubIssueReference(record) })
+      : "",
+  };
+}
+
+/** GitHub issue search: the query, prefixed with any owner/repo scope. */
+function getGithubIssueSearchPresentation({
+  input,
+}: ToolPresenterOptions): Partial<ToolPresentation> {
+  const record = asRecord(input);
+  if (!record) {
+    return { icon: "◈" };
+  }
+  const query = getStringField({ record, field: "query" });
+  return {
+    icon: "◈",
+    previewText: toSingleLine({
+      text: [getGithubIssueReference(record), query].filter(Boolean).join(" "),
+    }),
+  };
+}
+
 const TOOL_PRESENTERS: Record<string, ToolPresenter> = {
   bash: getBashPresentation,
+  issue_write: getGithubIssueWritePresentation,
+  issue_read: getGithubIssueReadPresentation,
+  list_issues: getGithubIssueReadPresentation,
+  search_issues: getGithubIssueSearchPresentation,
   web_search: getWebSearchPresentation,
   web_fetch: getWebFetchPresentation,
   call_subagent: getCallSubagentPresentation,
   load_skill: getLoadSkillPresentation,
-  read_skill_resource: getReadSkillResourcePresentation,
+  load_skill_reference: getLoadSkillReferencePresentation,
 };
 
 /**

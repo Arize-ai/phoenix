@@ -42,8 +42,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p examples/tsconfig.examples.json"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
-    "vitest": "^4.1.10"
+    "@types/node": "^26.2.0",
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=18"

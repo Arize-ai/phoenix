@@ -1,5 +1,77 @@
 # @arizeai/phoenix-cli
 
+## 1.17.0
+
+### Minor Changes
+
+- 58b7017: Add Z.ai (GLM models) as a built-in OpenAI-compatible model provider (`ZAI`).
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
+## 1.16.5
+
+### Patch Changes
+
+- 3a836f7: recommend claude-fable-5-1 for PXI sessions
+
+## 1.16.4
+
+### Patch Changes
+
+- Updated dependencies [1cdff14]
+  - @arizeai/phoenix-client@7.7.1
+
+## 1.16.3
+
+### Patch Changes
+
+- Updated dependencies [37916d7]
+- Updated dependencies [c48e50e]
+- Updated dependencies [773c5e5]
+- Updated dependencies [b27561d]
+  - @arizeai/phoenix-client@7.7.0
+
+## 1.16.2
+
+### Patch Changes
+
+- Updated dependencies [d328c3e]
+  - @arizeai/phoenix-client@7.6.0
+
+## 1.16.1
+
+### Patch Changes
+
+- 2435eba: recommend gemini-3.7-flash for PXI sessions, drop the superseded gemini-3.5-flash from the recommended list, and add the missing claude-opus-5 entry
+
+## 1.16.0
+
+### Minor Changes
+
+- 0ed987a: Re-enable the PXI agent-session server version guard. PXI now fails fast at startup with a clear upgrade message when the connected Phoenix server predates the agent-session chat contract (server < 20.0.0), instead of 404ing on the first send. phoenix-client adds capability requirements for the remaining agent-session routes (list, get, patch, compact, tool outputs), exports all agent-session requirements from the package root, and routes `getServerVersion` through the client's configured fetch.
+
+### Patch Changes
+
+- Updated dependencies [0ed987a]
+  - @arizeai/phoenix-client@7.5.0
+
+## 1.15.2
+
+### Patch Changes
+
+- Updated dependencies [90729f3]
+  - @arizeai/phoenix-client@7.4.0
+
+## 1.15.1
+
+### Patch Changes
+
+- Updated dependencies [c892873]
+  - @arizeai/phoenix-client@7.3.1
+
 ## 1.15.0
 
 ### Minor Changes

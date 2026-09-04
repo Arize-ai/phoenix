@@ -88,8 +88,9 @@ class _InvocationParameters(TypedDict, total=False):
     max_tokens: Required[int]
     output_config: OutputConfigParam
     stop_sequences: list[str]
-    temperature: float
-    top_p: float
+    # Carries `temperature` / `top_p`, which reach the request JSON through
+    # `extra_body` rather than as keyword arguments.
+    extra_body: dict[str, Any]
     thinking: Union[
         ThinkingConfigEnabledParam,
         ThinkingConfigDisabledParam,
@@ -243,20 +244,24 @@ class _InvocationParametersConversion:
             v1.PromptMoonshotInvocationParameters,
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
+            v1.PromptZAIInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = _InvocationParameters(
             max_tokens=_DEFAULT_MAX_TOKENS,
         )
+        # `messages.create()` accepts no sampling parameters. `extra_body` merges them
+        # into the request JSON, which is how the models that support them receive them.
+        sampling: dict[str, Any] = {}
         if obj["type"] == "anthropic":
             anthropic_params: v1.PromptAnthropicInvocationParametersContent
             anthropic_params = obj["anthropic"]
             if "max_tokens" in anthropic_params:
                 ans["max_tokens"] = anthropic_params["max_tokens"]
             if "temperature" in anthropic_params:
-                ans["temperature"] = anthropic_params["temperature"]
+                sampling["temperature"] = anthropic_params["temperature"]
             if "top_p" in anthropic_params:
-                ans["top_p"] = anthropic_params["top_p"]
+                sampling["top_p"] = anthropic_params["top_p"]
             if "stop_sequences" in anthropic_params:
                 ans["stop_sequences"] = list(anthropic_params["stop_sequences"])
             if "output_config" in anthropic_params:
@@ -293,36 +298,36 @@ class _InvocationParametersConversion:
             if "max_tokens" in openai_params:
                 ans["max_tokens"] = openai_params["max_tokens"]
             if "temperature" in openai_params:
-                ans["temperature"] = openai_params["temperature"]
+                sampling["temperature"] = openai_params["temperature"]
             if "top_p" in openai_params:
-                ans["top_p"] = openai_params["top_p"]
+                sampling["top_p"] = openai_params["top_p"]
         elif obj["type"] == "azure_openai":
             azure_params: v1.PromptAzureOpenAIInvocationParametersContent
             azure_params = obj["azure_openai"]
             if "max_tokens" in azure_params:
                 ans["max_tokens"] = azure_params["max_tokens"]
             if "temperature" in azure_params:
-                ans["temperature"] = azure_params["temperature"]
+                sampling["temperature"] = azure_params["temperature"]
             if "top_p" in azure_params:
-                ans["top_p"] = azure_params["top_p"]
+                sampling["top_p"] = azure_params["top_p"]
         elif obj["type"] == "google":
             google_params: v1.PromptGoogleInvocationParametersContent
             google_params = obj["google"]
             if "max_output_tokens" in google_params:
                 ans["max_tokens"] = google_params["max_output_tokens"]
             if "temperature" in google_params:
-                ans["temperature"] = google_params["temperature"]
+                sampling["temperature"] = google_params["temperature"]
             if "top_p" in google_params:
-                ans["top_p"] = google_params["top_p"]
+                sampling["top_p"] = google_params["top_p"]
         elif obj["type"] == "aws":
             aws_params: v1.PromptAwsInvocationParametersContent
             aws_params = obj["aws"]
             if "max_tokens" in aws_params:
                 ans["max_tokens"] = aws_params["max_tokens"]
             if "temperature" in aws_params:
-                ans["temperature"] = aws_params["temperature"]
+                sampling["temperature"] = aws_params["temperature"]
             if "top_p" in aws_params:
-                ans["top_p"] = aws_params["top_p"]
+                sampling["top_p"] = aws_params["top_p"]
             if "stop_sequences" in aws_params:
                 ans["stop_sequences"] = list(aws_params["stop_sequences"])
         elif obj["type"] == "deepseek":
@@ -331,83 +336,94 @@ class _InvocationParametersConversion:
             if "max_tokens" in deepseek_params:
                 ans["max_tokens"] = deepseek_params["max_tokens"]
             if "temperature" in deepseek_params:
-                ans["temperature"] = deepseek_params["temperature"]
+                sampling["temperature"] = deepseek_params["temperature"]
             if "top_p" in deepseek_params:
-                ans["top_p"] = deepseek_params["top_p"]
+                sampling["top_p"] = deepseek_params["top_p"]
         elif obj["type"] == "xai":
             xai_params: v1.PromptXAIInvocationParametersContent
             xai_params = obj["xai"]
             if "max_tokens" in xai_params:
                 ans["max_tokens"] = xai_params["max_tokens"]
             if "temperature" in xai_params:
-                ans["temperature"] = xai_params["temperature"]
+                sampling["temperature"] = xai_params["temperature"]
             if "top_p" in xai_params:
-                ans["top_p"] = xai_params["top_p"]
+                sampling["top_p"] = xai_params["top_p"]
         elif obj["type"] == "ollama":
             ollama_params: v1.PromptOllamaInvocationParametersContent
             ollama_params = obj["ollama"]
             if "max_tokens" in ollama_params:
                 ans["max_tokens"] = ollama_params["max_tokens"]
             if "temperature" in ollama_params:
-                ans["temperature"] = ollama_params["temperature"]
+                sampling["temperature"] = ollama_params["temperature"]
             if "top_p" in ollama_params:
-                ans["top_p"] = ollama_params["top_p"]
+                sampling["top_p"] = ollama_params["top_p"]
         elif obj["type"] == "cerebras":
             cerebras_params: v1.PromptCerebrasInvocationParametersContent
             cerebras_params = obj["cerebras"]
             if "max_tokens" in cerebras_params:
                 ans["max_tokens"] = cerebras_params["max_tokens"]
             if "temperature" in cerebras_params:
-                ans["temperature"] = cerebras_params["temperature"]
+                sampling["temperature"] = cerebras_params["temperature"]
             if "top_p" in cerebras_params:
-                ans["top_p"] = cerebras_params["top_p"]
+                sampling["top_p"] = cerebras_params["top_p"]
         elif obj["type"] == "fireworks":
             fireworks_params: v1.PromptFireworksInvocationParametersContent
             fireworks_params = obj["fireworks"]
             if "max_tokens" in fireworks_params:
                 ans["max_tokens"] = fireworks_params["max_tokens"]
             if "temperature" in fireworks_params:
-                ans["temperature"] = fireworks_params["temperature"]
+                sampling["temperature"] = fireworks_params["temperature"]
             if "top_p" in fireworks_params:
-                ans["top_p"] = fireworks_params["top_p"]
+                sampling["top_p"] = fireworks_params["top_p"]
         elif obj["type"] == "groq":
             groq_params: v1.PromptGroqInvocationParametersContent
             groq_params = obj["groq"]
             if "max_tokens" in groq_params:
                 ans["max_tokens"] = groq_params["max_tokens"]
             if "temperature" in groq_params:
-                ans["temperature"] = groq_params["temperature"]
+                sampling["temperature"] = groq_params["temperature"]
             if "top_p" in groq_params:
-                ans["top_p"] = groq_params["top_p"]
+                sampling["top_p"] = groq_params["top_p"]
         elif obj["type"] == "moonshot":
             moonshot_params: v1.PromptMoonshotInvocationParametersContent
             moonshot_params = obj["moonshot"]
             if "max_tokens" in moonshot_params:
                 ans["max_tokens"] = moonshot_params["max_tokens"]
             if "temperature" in moonshot_params:
-                ans["temperature"] = moonshot_params["temperature"]
+                sampling["temperature"] = moonshot_params["temperature"]
             if "top_p" in moonshot_params:
-                ans["top_p"] = moonshot_params["top_p"]
+                sampling["top_p"] = moonshot_params["top_p"]
         elif obj["type"] == "perplexity":
             perplexity_params: v1.PromptPerplexityInvocationParametersContent
             perplexity_params = obj["perplexity"]
             if "max_tokens" in perplexity_params:
                 ans["max_tokens"] = perplexity_params["max_tokens"]
             if "temperature" in perplexity_params:
-                ans["temperature"] = perplexity_params["temperature"]
+                sampling["temperature"] = perplexity_params["temperature"]
             if "top_p" in perplexity_params:
-                ans["top_p"] = perplexity_params["top_p"]
+                sampling["top_p"] = perplexity_params["top_p"]
         elif obj["type"] == "together":
             together_params: v1.PromptTogetherInvocationParametersContent
             together_params = obj["together"]
             if "max_tokens" in together_params:
                 ans["max_tokens"] = together_params["max_tokens"]
             if "temperature" in together_params:
-                ans["temperature"] = together_params["temperature"]
+                sampling["temperature"] = together_params["temperature"]
             if "top_p" in together_params:
-                ans["top_p"] = together_params["top_p"]
+                sampling["top_p"] = together_params["top_p"]
+        elif obj["type"] == "zai":
+            zai_params: v1.PromptZAIInvocationParametersContent
+            zai_params = obj["zai"]
+            if "max_tokens" in zai_params:
+                ans["max_tokens"] = zai_params["max_tokens"]
+            if "temperature" in zai_params:
+                sampling["temperature"] = zai_params["temperature"]
+            if "top_p" in zai_params:
+                sampling["top_p"] = zai_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
+        if sampling:
+            ans["extra_body"] = sampling
         return ans
 
     @staticmethod
@@ -420,10 +436,16 @@ class _InvocationParametersConversion:
         content = v1.PromptAnthropicInvocationParametersContent(
             max_tokens=obj["max_tokens"],
         )
-        if "temperature" in obj:
-            content["temperature"] = obj["temperature"]
-        if "top_p" in obj:
-            content["top_p"] = obj["top_p"]
+        # Sampling parameters arrive in `extra_body`. Kwargs built against anthropic
+        # 0.x carry them at the top level, so accept either placement.
+        raw = cast("Mapping[str, Any]", obj)
+        raw_extra_body = cast("Mapping[str, Any]", raw.get("extra_body") or {})
+        temperature = raw_extra_body.get("temperature", raw.get("temperature"))
+        if isinstance(temperature, (int, float)):
+            content["temperature"] = float(temperature)
+        top_p = raw_extra_body.get("top_p", raw.get("top_p"))
+        if isinstance(top_p, (int, float)):
+            content["top_p"] = float(top_p)
         if "stop_sequences" in obj:
             content["stop_sequences"] = list(obj["stop_sequences"])
         if "output_config" in obj:
@@ -596,6 +618,8 @@ class _ToolConversion:
                 }
                 if "description" in function:
                     param["description"] = function["description"]
+                if "strict" in function and isinstance(function["strict"], bool):
+                    param["strict"] = function["strict"]
                 yield param
             elif tool["type"] == "raw":
                 # Vendor passthrough: forward the raw dict as a ToolUnionParam
@@ -622,6 +646,8 @@ class _ToolConversion:
                 if "description" in tool_param:
                     function["description"] = tool_param["description"]
                 function["parameters"] = tool_param["input_schema"]
+                if "strict" in tool_param and isinstance(tool_param["strict"], bool):
+                    function["strict"] = tool_param["strict"]
                 yield v1.PromptToolFunction(type="function", function=function)
             else:
                 yield v1.PromptToolRaw(type="raw", raw=dict(cast(Mapping[str, Any], tool)))

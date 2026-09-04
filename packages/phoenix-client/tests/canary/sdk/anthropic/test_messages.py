@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional, cast
 
 import pytest
 from deepdiff.diff import DeepDiff
@@ -9,6 +9,7 @@ from faker import Faker
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.sdk.anthropic.messages import (
+    _InvocationParametersConversion,
     _MessageConversion,
     _TextContentPartConversion,
     _ToolCallContentPartConversion,
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
         ToolResultBlockParam,
         ToolUseBlockParam,
     )
+    from anthropic.types.message_create_params import MessageCreateParamsBase
 
 fake = Faker()
 
@@ -63,8 +65,8 @@ def _tool_result() -> ToolResultBlockParam:
     }
 
 
-def _tool(name: Optional[str] = None) -> ToolParam:
-    return {
+def _tool(name: Optional[str] = None, strict: Optional[bool] = None) -> ToolParam:
+    tool: ToolParam = {
         "name": name or _str(),
         "description": _str(),
         "input_schema": {
@@ -77,6 +79,9 @@ def _tool(name: Optional[str] = None) -> ToolParam:
             "additionalProperties": False,
         },
     }
+    if strict is not None:
+        tool["strict"] = strict
+    return tool
 
 
 class TestMessageConversion:
@@ -100,7 +105,7 @@ class TestMessageConversion:
 class TestToolConversion:
     @pytest.mark.parametrize(
         "tools",
-        [[_tool() for _ in range(3)]],
+        [[_tool(), _tool(strict=True), _tool(strict=False)]],
     )
     def test_round_trip(self, tools: Iterable[ToolParam]) -> None:
         new_tools = list(_ToolConversion.to_anthropic(_ToolConversion.from_anthropic(tools)))
@@ -192,6 +197,52 @@ class TestToolKwargs:
         x: Optional[v1.PromptTools] = _ToolKwargsConversion.from_anthropic(obj)
         new_obj: _ToolKwargs = _ToolKwargsConversion.to_anthropic(x)
         assert not DeepDiff(obj, new_obj)
+
+
+class TestInvocationParametersConversion:
+    @pytest.mark.parametrize(
+        "content",
+        [
+            {"max_tokens": 1024},
+            {"max_tokens": 1024, "temperature": 0.3},
+            {"max_tokens": 1024, "top_p": 0.9},
+            {"max_tokens": 1024, "temperature": 0.3, "top_p": 0.9},
+        ],
+    )
+    def test_round_trip(self, content: dict[str, Any]) -> None:
+        obj = v1.PromptAnthropicInvocationParameters(
+            type="anthropic",
+            anthropic=cast("v1.PromptAnthropicInvocationParametersContent", content),
+        )
+        kwargs = _InvocationParametersConversion.to_anthropic(obj)
+        new_obj = _InvocationParametersConversion.from_anthropic(
+            cast("MessageCreateParamsBase", kwargs)
+        )
+        assert not DeepDiff(content, dict(new_obj["anthropic"]))
+
+    def test_reads_sampling_params_captured_from_an_older_sdk(self) -> None:
+        """Kwargs built against anthropic 0.x carry these at the top level."""
+        obj = cast(
+            "MessageCreateParamsBase",
+            {"max_tokens": 1024, "temperature": 0.3, "top_p": 0.9},
+        )
+        content = _InvocationParametersConversion.from_anthropic(obj)["anthropic"]
+        assert content.get("temperature") == 0.3
+        assert content.get("top_p") == 0.9
+
+    def test_sampling_params_are_sent_through_extra_body(self) -> None:
+        """`messages.create()` rejects them as keyword arguments, so they must reach
+        the request JSON through `extra_body`."""
+        obj = v1.PromptAnthropicInvocationParameters(
+            type="anthropic",
+            anthropic=v1.PromptAnthropicInvocationParametersContent(
+                max_tokens=1024, temperature=0.3, top_p=0.9
+            ),
+        )
+        kwargs = _InvocationParametersConversion.to_anthropic(obj)
+        assert "temperature" not in kwargs
+        assert "top_p" not in kwargs
+        assert kwargs.get("extra_body") == {"temperature": 0.3, "top_p": 0.9}
 
 
 class _MockFormatter:

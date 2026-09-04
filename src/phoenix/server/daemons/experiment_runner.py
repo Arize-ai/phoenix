@@ -95,6 +95,8 @@ from typing import (
 
 import anyio
 from anyio import Semaphore
+from anyio.abc import TaskGroup
+from anyio.lowlevel import checkpoint
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from cachetools import LRUCache
 from opentelemetry.context import Context as OtelContext
@@ -192,7 +194,7 @@ def _sanitize_error_message(error: BaseException) -> str:
 class LLMClient(Protocol):
     """Narrow interface for the LLM client methods the runner actually uses.
 
-    PlaygroundStreamingClient satisfies this implicitly.  The Protocol
+    PlaygroundClient satisfies this implicitly.  The Protocol
     decouples the runner from the ~20-method ABC and enables _NoOpLLMClient
     for EVAL_ONLY experiments.
     """
@@ -527,6 +529,7 @@ class TaskWorkItem(WorkItem):
     async def execute(self) -> None:
         """Execute the task, write to DB, and report results."""
         logger.debug(f"TaskWorkItem {self.debug_identifier} starting execution")
+        tracer = self._tracer_factory()
         example_id = GlobalID(
             DatasetExample.__name__,
             str(self._dataset_example_revision.dataset_example_id),
@@ -570,157 +573,147 @@ class TaskWorkItem(WorkItem):
             await self._running_experiment.on_failure(self, error)
             return
 
-        async with self._tracer_factory() as tracer:
-            try:
-                logger.debug(
-                    f"TaskWorkItem {self.debug_identifier}: "
-                    f"starting streaming (timeout={self._timeout}s)"
+        try:
+            logger.debug(
+                f"TaskWorkItem {self.debug_identifier}: "
+                f"starting streaming (timeout={self._timeout}s)"
+            )
+            with anyio.fail_after(self._timeout):
+                async for chunk in self._llm_client.chat_completion_create(
+                    messages=messages,
+                    tools=self._prompt_task.tools,
+                    response_format=self._prompt_task.response_format,
+                    invocation_parameters=self._prompt_task.invocation_parameters,
+                    tracer=tracer,
+                    otel_context=OtelContext(),
+                    stream_model_output=self._prompt_task.stream_model_output,
+                ):
+                    chunk.dataset_example_id = example_id
+                    chunk.repetition_number = self._repetition_number
+                    self._running_experiment._broadcast(chunk)
+
+        except TimeoutError:
+            logger.warning(f"TaskWorkItem {self.debug_identifier} timed out")
+            await self._running_experiment.on_timeout(self)
+
+        except anyio.get_cancelled_exc_class():
+            logger.debug(f"TaskWorkItem {self.debug_identifier} cancelled")
+            raise
+
+        except Exception as e:
+            err_type = type(e).__name__
+            if self._is_rate_limit_error(e):
+                logger.debug(f"TaskWorkItem {self.debug_identifier} hit rate limit ({err_type})")
+                await self._running_experiment.on_rate_limit(self)
+            elif self._is_transient_error(e):
+                logger.warning(
+                    f"TaskWorkItem {self.debug_identifier} transient error ({err_type}): {e}"
                 )
-                with anyio.fail_after(self._timeout):
-                    async for chunk in self._llm_client.chat_completion_create(
-                        messages=messages,
-                        tools=self._prompt_task.tools,
-                        response_format=self._prompt_task.response_format,
-                        invocation_parameters=self._prompt_task.invocation_parameters,
-                        tracer=tracer,
-                        otel_context=OtelContext(),
-                        stream_model_output=self._prompt_task.stream_model_output,
-                    ):
-                        chunk.dataset_example_id = example_id
-                        chunk.repetition_number = self._repetition_number
-                        self._running_experiment._broadcast(chunk)
-
-            except TimeoutError:
-                logger.warning(f"TaskWorkItem {self.debug_identifier} timed out")
-                await self._running_experiment.on_timeout(self)
-
-            except anyio.get_cancelled_exc_class():
-                logger.debug(f"TaskWorkItem {self.debug_identifier} cancelled")
-                raise
-
-            except Exception as e:
-                err_type = type(e).__name__
-                if self._is_rate_limit_error(e):
-                    logger.debug(
-                        f"TaskWorkItem {self.debug_identifier} hit rate limit ({err_type})"
-                    )
-                    await self._running_experiment.on_rate_limit(self)
-                elif self._is_transient_error(e):
-                    logger.warning(
-                        f"TaskWorkItem {self.debug_identifier} transient error ({err_type}): {e}"
-                    )
-                    await self._running_experiment.on_transient_error(self, e)
-                else:
-                    logger.exception(
-                        f"TaskWorkItem {self.debug_identifier} failed ({err_type}): {e}"
-                    )
-                    error_end_time = datetime.now(timezone.utc)
-                    task_db_traces = tracer.get_db_traces(project_id=self._project_id)
-                    task_db_trace = task_db_traces[0] if task_db_traces else None
-                    db_run = models.ExperimentRun(
-                        experiment_id=self._experiment.id,
-                        dataset_example_id=revision.dataset_example_id,
-                        trace_id=task_db_trace.trace_id if task_db_trace is not None else None,
-                        output={},
-                        repetition_number=self._repetition_number,
-                        start_time=format_start_time,
-                        end_time=error_end_time,
-                        error=str(e),
-                    )
-                    try:
-                        db_run = await self._persist_run(
-                            db_run,
-                            db_traces=task_db_traces if task_db_trace is not None else None,
-                        )
-                    except Exception as persist_err:
-                        logger.warning(
-                            f"TaskWorkItem {self.debug_identifier}: "
-                            f"failed to persist error run to DB",
-                            exc_info=True,
-                        )
-                        await self._running_experiment.on_failure(self, persist_err)
-                        return
-
-                    error_db_span = (
-                        task_db_trace.spans[0]
-                        if task_db_trace is not None and task_db_trace.spans
-                        else None
-                    )
-                    self._running_experiment._broadcast(
-                        ChatCompletionSubscriptionError(
-                            message=str(e),
-                            dataset_example_id=example_id,
-                            repetition_number=self._repetition_number,
-                            span=(
-                                Span(id=error_db_span.id, db_record=error_db_span)
-                                if error_db_span is not None
-                                else None
-                            ),
-                            experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
-                        )
-                    )
-                    await self._running_experiment.on_failure(self, e)
-
+                await self._running_experiment.on_transient_error(self, e)
             else:
-                logger.debug(
-                    f"TaskWorkItem {self.debug_identifier}: stream finished, building traces"
-                )
+                logger.exception(f"TaskWorkItem {self.debug_identifier} failed ({err_type}): {e}")
+                error_end_time = datetime.now(timezone.utc)
                 task_db_traces = tracer.get_db_traces(project_id=self._project_id)
                 task_db_trace = task_db_traces[0] if task_db_traces else None
-                db_span = (
-                    task_db_trace.spans[0]
-                    if task_db_trace is not None and task_db_trace.spans
-                    else None
+                db_run = models.ExperimentRun(
+                    experiment_id=self._experiment.id,
+                    dataset_example_id=revision.dataset_example_id,
+                    trace_id=task_db_trace.trace_id if task_db_trace is not None else None,
+                    output={},
+                    repetition_number=self._repetition_number,
+                    start_time=format_start_time,
+                    end_time=error_end_time,
+                    error=str(e),
                 )
-                if db_span is not None and task_db_trace is not None:
-                    db_run = get_db_experiment_run(
-                        db_span,
-                        task_db_trace,
-                        experiment_id=self._experiment.id,
-                        example_id=self._dataset_example_revision.dataset_example_id,
-                        repetition_number=self._repetition_number,
-                    )
-                else:
-                    logger.warning(
-                        f"TaskWorkItem {self.debug_identifier}: no trace recorded "
-                        "(stream may have completed without emitting spans)"
-                    )
-                    db_run = models.ExperimentRun(
-                        experiment_id=self._experiment.id,
-                        dataset_example_id=revision.dataset_example_id,
-                        trace_id=None,
-                        output={},
-                        repetition_number=self._repetition_number,
-                        start_time=format_start_time,
-                        end_time=datetime.now(timezone.utc),
-                        error=None,
-                        trace=None,
-                    )
                 try:
                     db_run = await self._persist_run(
-                        db_run, db_traces=task_db_traces if task_db_trace is not None else None
+                        db_run,
+                        db_traces=task_db_traces if task_db_trace is not None else None,
                     )
                 except Exception as persist_err:
                     logger.warning(
-                        f"TaskWorkItem {self.debug_identifier}: failed to persist run to DB",
+                        f"TaskWorkItem {self.debug_identifier}: failed to persist error run to DB",
                         exc_info=True,
                     )
                     await self._running_experiment.on_failure(self, persist_err)
                     return
 
+                error_db_span = (
+                    task_db_trace.spans[0]
+                    if task_db_trace is not None and task_db_trace.spans
+                    else None
+                )
                 self._running_experiment._broadcast(
-                    ChatCompletionSubscriptionResult(
-                        span=(
-                            Span(id=db_span.id, db_record=db_span) if db_span is not None else None
-                        ),
-                        experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
+                    ChatCompletionSubscriptionError(
+                        message=str(e),
                         dataset_example_id=example_id,
                         repetition_number=self._repetition_number,
+                        span=(
+                            Span(id=error_db_span.id, db_record=error_db_span)
+                            if error_db_span is not None
+                            else None
+                        ),
+                        experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
                     )
                 )
+                await self._running_experiment.on_failure(self, e)
 
-                logger.debug(f"TaskWorkItem {self.debug_identifier} completed successfully")
-                await self._running_experiment.on_task_success(self, db_run)
+        else:
+            logger.debug(f"TaskWorkItem {self.debug_identifier}: stream finished, building traces")
+            task_db_traces = tracer.get_db_traces(project_id=self._project_id)
+            task_db_trace = task_db_traces[0] if task_db_traces else None
+            db_span = (
+                task_db_trace.spans[0]
+                if task_db_trace is not None and task_db_trace.spans
+                else None
+            )
+            if db_span is not None and task_db_trace is not None:
+                db_run = get_db_experiment_run(
+                    db_span,
+                    task_db_trace,
+                    experiment_id=self._experiment.id,
+                    example_id=self._dataset_example_revision.dataset_example_id,
+                    repetition_number=self._repetition_number,
+                )
+            else:
+                logger.warning(
+                    f"TaskWorkItem {self.debug_identifier}: no trace recorded "
+                    "(stream may have completed without emitting spans)"
+                )
+                db_run = models.ExperimentRun(
+                    experiment_id=self._experiment.id,
+                    dataset_example_id=revision.dataset_example_id,
+                    trace_id=None,
+                    output={},
+                    repetition_number=self._repetition_number,
+                    start_time=format_start_time,
+                    end_time=datetime.now(timezone.utc),
+                    error=None,
+                    trace=None,
+                )
+            try:
+                db_run = await self._persist_run(
+                    db_run, db_traces=task_db_traces if task_db_trace is not None else None
+                )
+            except Exception as persist_err:
+                logger.warning(
+                    f"TaskWorkItem {self.debug_identifier}: failed to persist run to DB",
+                    exc_info=True,
+                )
+                await self._running_experiment.on_failure(self, persist_err)
+                return
+
+            self._running_experiment._broadcast(
+                ChatCompletionSubscriptionResult(
+                    span=(Span(id=db_span.id, db_record=db_span) if db_span is not None else None),
+                    experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
+                    dataset_example_id=example_id,
+                    repetition_number=self._repetition_number,
+                )
+            )
+
+            logger.debug(f"TaskWorkItem {self.debug_identifier} completed successfully")
+            await self._running_experiment.on_task_success(self, db_run)
 
     def _is_rate_limit_error(self, e: Exception) -> bool:
         """Check if exception is a rate limit error using client's provider-specific logic."""
@@ -830,176 +823,168 @@ class EvalWorkItem(WorkItem):
     async def execute(self) -> None:
         """Execute the evaluation, write to DB, and report results."""
         logger.debug(f"EvalWorkItem {self.debug_identifier}: starting (timeout={self._timeout}s)")
-        async with self._tracer_factory() as tracer:
-            try:
-                with anyio.fail_after(self._timeout):
-                    context_dict: dict[str, Any] = {
-                        "input": self._dataset_example_revision.input,
-                        "reference": self._dataset_example_revision.output,
-                        "output": self._experiment_run.output.get("task_output"),
-                        "metadata": self._dataset_example_revision.metadata_,
-                    }
-                    eval_results = await self._evaluator.evaluate(
-                        context=context_dict,
-                        input_mapping=self._input_mapping,
-                        name=self._output_configs[0].name,
-                        output_configs=self._output_configs,
-                        tracer=tracer,
+        tracer = self._tracer_factory()
+        try:
+            with anyio.fail_after(self._timeout):
+                context_dict: dict[str, Any] = {
+                    "input": self._dataset_example_revision.input,
+                    "reference": self._dataset_example_revision.output,
+                    "output": self._experiment_run.output.get("task_output"),
+                    "metadata": self._dataset_example_revision.metadata_,
+                }
+                eval_results = await self._evaluator.evaluate(
+                    context=context_dict,
+                    input_mapping=self._input_mapping,
+                    name=self._output_configs[0].name,
+                    output_configs=self._output_configs,
+                    tracer=tracer,
+                )
+                logger.debug(
+                    f"EvalWorkItem {self.debug_identifier}: evaluator returned "
+                    f"{len(eval_results)} result(s)"
+                )
+                db_traces: list[models.Trace] = list(
+                    tracer.get_db_traces(project_id=self._project_id)
+                )
+                annotations: list[models.ExperimentRunAnnotation] = []
+                seen_names: set[str] = set()
+                for result in eval_results:
+                    annotation = evaluation_result_to_model(
+                        result,
+                        experiment_run_id=self._experiment_run.id,
                     )
-                    logger.debug(
-                        f"EvalWorkItem {self.debug_identifier}: evaluator returned "
-                        f"{len(eval_results)} result(s)"
-                    )
-                    db_traces: list[models.Trace] = list(
-                        tracer.get_db_traces(project_id=self._project_id)
-                    )
-                    annotations: list[models.ExperimentRunAnnotation] = []
-                    seen_names: set[str] = set()
-                    for result in eval_results:
-                        annotation = evaluation_result_to_model(
-                            result,
-                            experiment_run_id=self._experiment_run.id,
-                        )
-                        if annotation.name not in seen_names:
-                            seen_names.add(annotation.name)
-                            annotations.append(annotation)
+                    if annotation.name not in seen_names:
+                        seen_names.add(annotation.name)
+                        annotations.append(annotation)
 
-            except TimeoutError:
-                logger.warning(f"EvalWorkItem {self.debug_identifier} timed out")
-                await self._running_experiment.on_timeout(self)
+        except TimeoutError:
+            logger.warning(f"EvalWorkItem {self.debug_identifier} timed out")
+            await self._running_experiment.on_timeout(self)
 
-            except anyio.get_cancelled_exc_class():
-                # Must re-raise so _run_and_release sees cancellation instead of
-                # misclassifying it as a transient/permanent error via the
-                # generic Exception handler below.
-                logger.debug(f"EvalWorkItem {self.debug_identifier} cancelled")
-                raise
+        except anyio.get_cancelled_exc_class():
+            # Must re-raise so _run_and_release sees cancellation instead of
+            # misclassifying it as a transient/permanent error via the
+            # generic Exception handler below.
+            logger.debug(f"EvalWorkItem {self.debug_identifier} cancelled")
+            raise
 
-            except Exception as e:
-                err_type = type(e).__name__
-                if isinstance(e, MontyBusy):
-                    logger.warning(
-                        f"EvalWorkItem {self.debug_identifier} "
-                        f"sandbox capacity busy ({err_type}): {e}"
-                    )
-                    await self._running_experiment.on_capacity_error(self, e)
-                elif self._is_rate_limit_error(e):
-                    logger.debug(
-                        f"EvalWorkItem {self.debug_identifier} hit rate limit ({err_type})"
-                    )
-                    await self._running_experiment.on_rate_limit(self)
-                elif self._is_transient_error(e):
-                    logger.warning(
-                        f"EvalWorkItem {self.debug_identifier} transient error ({err_type}): {e}"
-                    )
-                    await self._running_experiment.on_transient_error(self, e)
-                else:
-                    logger.exception(
-                        f"EvalWorkItem {self.debug_identifier} failed ({err_type}): {e}"
-                    )
-                    error_end_time = datetime.now(timezone.utc)
-                    annotator_kind = "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
-                    error_annotations: list[models.ExperimentRunAnnotation] = []
-                    for config in self._output_configs:
-                        error_annotations.append(
-                            models.ExperimentRunAnnotation(
-                                experiment_run_id=self._experiment_run.id,
-                                name=config.name,
-                                annotator_kind=annotator_kind,
-                                label=None,
-                                score=None,
-                                explanation=None,
-                                trace_id=None,
-                                error=str(e),
-                                metadata_={},
-                                start_time=error_end_time,
-                                end_time=error_end_time,
-                            )
-                        )
-                    error_db_traces = list(tracer.get_db_traces(project_id=self._project_id))
-                    try:
-                        await self._persist_eval_results(error_annotations, error_db_traces)
-                    except Exception as persist_err:
-                        logger.warning(
-                            f"EvalWorkItem {self.debug_identifier}: "
-                            f"failed to persist error results to DB",
-                            exc_info=True,
-                        )
-                        await self._running_experiment.on_failure(self, persist_err)
-                        return
-
-                    example_id = GlobalID(
-                        DatasetExample.__name__,
-                        str(self._dataset_example_revision.dataset_example_id),
-                    )
-                    for annotation in error_annotations:
-                        self._running_experiment._broadcast(
-                            EvaluationChunk(
-                                evaluator_name=annotation.name,
-                                experiment_run_evaluation=None,
-                                dataset_example_id=example_id,
-                                repetition_number=self._experiment_run.repetition_number,
-                                trace=None,
-                                error=annotation.error,
-                            )
-                        )
-                    await self._running_experiment.on_failure(self, e)
-
+        except Exception as e:
+            err_type = type(e).__name__
+            if isinstance(e, MontyBusy):
+                logger.warning(
+                    f"EvalWorkItem {self.debug_identifier} sandbox capacity busy ({err_type}): {e}"
+                )
+                await self._running_experiment.on_capacity_error(self, e)
+            elif self._is_rate_limit_error(e):
+                logger.debug(f"EvalWorkItem {self.debug_identifier} hit rate limit ({err_type})")
+                await self._running_experiment.on_rate_limit(self)
+            elif self._is_transient_error(e):
+                logger.warning(
+                    f"EvalWorkItem {self.debug_identifier} transient error ({err_type}): {e}"
+                )
+                await self._running_experiment.on_transient_error(self, e)
             else:
+                logger.exception(f"EvalWorkItem {self.debug_identifier} failed ({err_type}): {e}")
+                error_end_time = datetime.now(timezone.utc)
+                annotator_kind = "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
+                error_annotations: list[models.ExperimentRunAnnotation] = []
+                for config in self._output_configs:
+                    error_annotations.append(
+                        models.ExperimentRunAnnotation(
+                            experiment_run_id=self._experiment_run.id,
+                            name=config.name,
+                            annotator_kind=annotator_kind,
+                            label=None,
+                            score=None,
+                            explanation=None,
+                            trace_id=None,
+                            error=str(e),
+                            metadata_={},
+                            start_time=error_end_time,
+                            end_time=error_end_time,
+                        )
+                    )
+                error_db_traces = list(tracer.get_db_traces(project_id=self._project_id))
                 try:
-                    await self._persist_eval_results(annotations, db_traces)
+                    await self._persist_eval_results(error_annotations, error_db_traces)
                 except Exception as persist_err:
                     logger.warning(
                         f"EvalWorkItem {self.debug_identifier}: "
-                        f"failed to persist eval results to DB",
+                        f"failed to persist error results to DB",
                         exc_info=True,
                     )
                     await self._running_experiment.on_failure(self, persist_err)
                     return
 
-                # Broadcast results to UI
                 example_id = GlobalID(
                     DatasetExample.__name__,
                     str(self._dataset_example_revision.dataset_example_id),
                 )
-                traces_by_trace_id = {t.trace_id: t for t in db_traces}
-                for annotation in annotations:
-                    eval_db_trace = (
-                        traces_by_trace_id.get(annotation.trace_id) if annotation.trace_id else None
-                    )
+                for annotation in error_annotations:
                     self._running_experiment._broadcast(
                         EvaluationChunk(
                             evaluator_name=annotation.name,
-                            experiment_run_evaluation=(
-                                ExperimentRunAnnotation(id=annotation.id, db_record=annotation)
-                                if not annotation.error
-                                else None
-                            ),
+                            experiment_run_evaluation=None,
                             dataset_example_id=example_id,
                             repetition_number=self._experiment_run.repetition_number,
-                            trace=(
-                                Trace(id=eval_db_trace.id, db_record=eval_db_trace)
-                                if eval_db_trace
-                                else None
-                            ),
+                            trace=None,
                             error=annotation.error,
                         )
                     )
+                await self._running_experiment.on_failure(self, e)
 
-                # Check for evaluation error - treat as permanent failure for circuit breaker
-                error_result = next((r for r in eval_results if r.get("error") is not None), None)
-                if error_result is not None:
-                    error_exc = error_result.get("error_exc") or Exception(error_result["error"])
-                    logger.debug(
-                        f"EvalWorkItem {self.debug_identifier} returned error: {error_exc}"
+        else:
+            try:
+                await self._persist_eval_results(annotations, db_traces)
+            except Exception as persist_err:
+                logger.warning(
+                    f"EvalWorkItem {self.debug_identifier}: failed to persist eval results to DB",
+                    exc_info=True,
+                )
+                await self._running_experiment.on_failure(self, persist_err)
+                return
+
+            # Broadcast results to UI
+            example_id = GlobalID(
+                DatasetExample.__name__,
+                str(self._dataset_example_revision.dataset_example_id),
+            )
+            traces_by_trace_id = {t.trace_id: t for t in db_traces}
+            for annotation in annotations:
+                eval_db_trace = (
+                    traces_by_trace_id.get(annotation.trace_id) if annotation.trace_id else None
+                )
+                self._running_experiment._broadcast(
+                    EvaluationChunk(
+                        evaluator_name=annotation.name,
+                        experiment_run_evaluation=(
+                            ExperimentRunAnnotation(id=annotation.id, db_record=annotation)
+                            if not annotation.error
+                            else None
+                        ),
+                        dataset_example_id=example_id,
+                        repetition_number=self._experiment_run.repetition_number,
+                        trace=(
+                            Trace(id=eval_db_trace.id, db_record=eval_db_trace)
+                            if eval_db_trace
+                            else None
+                        ),
+                        error=annotation.error,
                     )
-                    await self._running_experiment.on_failure(self, error_exc)
-                else:
-                    logger.debug(
-                        f"EvalWorkItem {self.debug_identifier}: success, "
-                        f"wrote {len(annotations)} annotation(s)"
-                    )
-                    await self._running_experiment.on_eval_success(self)
+                )
+
+            # Check for evaluation error - treat as permanent failure for circuit breaker
+            error_result = next((r for r in eval_results if r.get("error") is not None), None)
+            if error_result is not None:
+                error_exc = error_result.get("error_exc") or Exception(error_result["error"])
+                logger.debug(f"EvalWorkItem {self.debug_identifier} returned error: {error_exc}")
+                await self._running_experiment.on_failure(self, error_exc)
+            else:
+                logger.debug(
+                    f"EvalWorkItem {self.debug_identifier}: success, "
+                    f"wrote {len(annotations)} annotation(s)"
+                )
+                await self._running_experiment.on_eval_success(self)
 
     async def _persist_eval_results(
         self,
@@ -1206,6 +1191,9 @@ class RunningExperiment:
         self._retry_heap: list[RetryItem] = []
         self._in_flight: set[WorkItem] = set()
         self._cancel_scopes: dict[WorkItem, anyio.CancelScope] = {}
+        # Items dispatched to a worker task that has not started yet, mapped to the
+        # callback that puts them back where they came from. See undispatch().
+        self._dispatch_undo: dict[WorkItem, Callable[[], None]] = {}
 
         # UI subscribers for streaming
         self._subscribers: list[MemoryObjectSendStream[ChatCompletionSubscriptionPayload]] = []
@@ -1354,7 +1342,7 @@ class RunningExperiment:
             return None
 
         # Peek at next work item without popping
-        work_item, pop = self._peek_next_work_item()
+        work_item, pop, unpop = self._peek_next_work_item()
         if work_item is None:
             logger.debug(
                 f"Experiment {self._experiment.id}: try_get_ready_work_item() -> None "
@@ -1375,34 +1363,92 @@ class RunningExperiment:
             )
             return None
 
-        # Allowed - pop and return (update fairness so we're served last next time)
-        self.last_served_at = datetime.now(timezone.utc)
+        # Allowed: hand the item over. Ownership moves from its queue to the worker in
+        # one synchronous step with no await in between. The daemon starts the worker
+        # task with start_soon(), which only begins on a later event-loop turn, so
+        # everything the rest of the runner needs to know about the item must already
+        # be in place before this method returns:
+        #   - it is in _in_flight, so a completion check triggered by another task
+        #     finishing before the worker starts still sees pending work;
+        #   - it has its cancel scope, so stop() can cancel it before the worker has
+        #     entered the scope (the worker checkpoints right after entering, so a
+        #     stopped item does no work);
+        #   - it has an undo callback, so a hand-off that fails can put it back where
+        #     it came from (see undispatch()).
+        # The scope is created before the pop so a failure here leaves the queue intact.
+        scope = anyio.CancelScope()
+        self.last_served_at = datetime.now(timezone.utc)  # served last next time
         pop()
+        self._cancel_scopes[work_item] = scope
+        self._in_flight.add(work_item)
+        self._dispatch_undo[work_item] = unpop
         return work_item
 
-    def _peek_next_work_item(self) -> tuple[WorkItem | None, Callable[[], Any]]:
-        """Peek at the next work item in priority order without removing it."""
+    def _peek_next_work_item(
+        self,
+    ) -> tuple[WorkItem | None, Callable[[], Any], Callable[[], None]]:
+        """Peek at the next work item in priority order without removing it.
+
+        Returns the item, a callback that removes it from its source, and a callback
+        that puts it back exactly where it was. A retry is restored as its original
+        RetryItem, so it keeps its ready time and its place in the ordering.
+        """
         # Priority 1: Evals
         if self._eval_queue:
-            return self._eval_queue[0], lambda: self._eval_queue.popleft()
+            eval_item = self._eval_queue[0]
+            return (
+                eval_item,
+                lambda: self._eval_queue.popleft(),
+                lambda: self._eval_queue.appendleft(eval_item),
+            )
 
         # Priority 2: Ready retries
         if self._has_ready_retries():
-            return self._retry_heap[0].work_item, lambda: heapq.heappop(self._retry_heap)
+            retry_item = self._retry_heap[0]
+            return (
+                retry_item.work_item,
+                lambda: heapq.heappop(self._retry_heap),
+                lambda: heapq.heappush(self._retry_heap, retry_item),
+            )
 
         # Priority 3: Tasks
         if self._task_queue:
-            return self._task_queue[0], lambda: self._task_queue.popleft()
+            task_item = self._task_queue[0]
+            return (
+                task_item,
+                lambda: self._task_queue.popleft(),
+                lambda: self._task_queue.appendleft(task_item),
+            )
 
-        return None, lambda: None
+        return None, lambda: None, lambda: None
 
-    def register_cancel_scope(self, work_item: WorkItem, scope: anyio.CancelScope) -> None:
-        """Register a cancel scope for an in-flight work item.
+    def start_execution(self, work_item: WorkItem) -> anyio.CancelScope:
+        """Hand a dispatched item's cancel scope to the worker task about to run it.
 
-        Called by Runner when execution starts.
+        Called by the daemon's worker task as its first step. The scope was created at
+        dispatch, so stop() may already have cancelled it; the worker checkpoints right
+        after entering it, so a stopped item is cancelled before doing any work. From
+        here on the dispatch can no longer be undone, so the undo callback is dropped.
         """
-        self._cancel_scopes[work_item] = scope
-        self._in_flight.add(work_item)
+        self._dispatch_undo.pop(work_item, None)
+        return self._cancel_scopes[work_item]
+
+    def undispatch(self, work_item: WorkItem) -> None:
+        """Reverse a dispatch whose worker task could not be started.
+
+        The item stops counting as in-flight, so the experiment can still complete or
+        drain, and goes back to the front of the source it was taken from, so it is
+        dispatched again on the next pass. If the experiment has been stopped in the
+        meantime its queues are already cleared, and the item is simply dropped along
+        with the rest of the transient queue state.
+        """
+        self._cancel_scopes.pop(work_item, None)
+        self._in_flight.discard(work_item)
+        undo = self._dispatch_undo.pop(work_item, None)
+        if undo is not None and self._active:
+            undo()
+        if not self._active and not self._in_flight:
+            self._drained.set()
 
     async def unregister_cancel_scope(self, work_item: WorkItem) -> None:
         """Unregister a cancel scope when work item completes.
@@ -1410,6 +1456,7 @@ class RunningExperiment:
         Called by Runner when execution ends.
         """
         self._cancel_scopes.pop(work_item, None)
+        self._dispatch_undo.pop(work_item, None)
         self._in_flight.discard(work_item)
         if not self._active and not self._in_flight:
             self._drained.set()
@@ -2265,8 +2312,7 @@ class ExperimentRunner(DaemonTask):
                         work_item = await self._try_get_ready_work_item()
 
                         if work_item:
-                            logger.debug(f"Dispatching work item: {work_item.debug_identifier}")
-                            tg.start_soon(self._run_and_release, work_item)
+                            self._hand_off(tg, work_item)
                             acquired = False  # Ownership transferred to work item
                         else:
                             self._seats.release()
@@ -2365,12 +2411,33 @@ class ExperimentRunner(DaemonTask):
         )
         return None
 
+    def _hand_off(self, tg: TaskGroup, work_item: WorkItem) -> None:
+        """Start the worker task for a dispatched item, undoing the dispatch if that fails.
+
+        Dispatch already moved the item out of its queue and into the experiment's
+        in-flight set. If no worker task gets created (a task group refuses new tasks
+        once it is shutting down), nothing would ever take the item out of that set:
+        the experiment could not complete, and a stop would wait for a drain that
+        never comes. So put the item back where it came from before the error
+        propagates to the dispatch loop, which releases the seat and backs off.
+        """
+        try:
+            logger.debug(f"Dispatching work item: {work_item.debug_identifier}")
+            tg.start_soon(self._run_and_release, work_item)
+        except BaseException:
+            work_item.running_experiment.undispatch(work_item)
+            raise
+
     async def _run_and_release(self, work_item: WorkItem) -> None:
         """Execute work item and release semaphore."""
         try:
-            # Create cancel scope so experiment can cancel this work item
-            with anyio.CancelScope() as scope:
-                work_item.running_experiment.register_cancel_scope(work_item, scope)
+            with work_item.running_experiment.start_execution(work_item):
+                # The scope was created at dispatch, so stop() may have cancelled it
+                # before this task ever ran. That cancellation is delivered at the next
+                # checkpoint, and execute() can do real work before reaching one: format
+                # a template, run a synchronous evaluator, then persist the result under
+                # a shield. Checkpoint first so a stopped item does no work at all.
+                await checkpoint()
                 await work_item.execute()
         except anyio.get_cancelled_exc_class():
             logger.debug(f"Work item {work_item.debug_identifier} was cancelled")

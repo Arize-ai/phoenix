@@ -1,19 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Sequence
+from uuid import UUID
 
 from pydantic_ai.exceptions import ModelHTTPError
-from pydantic_ai.ui.vercel_ai.request_types import (
-    DataUIPart,
-    FileUIPart,
-    ReasoningUIPart,
-    SourceDocumentUIPart,
-    SourceUrlUIPart,
-    StepStartUIPart,
-    TextUIPart,
-    ToolOutputAvailablePart,
-    UIMessage,
-)
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     DataChunk,
@@ -31,14 +21,28 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     TextDeltaChunk,
     TextEndChunk,
     TextStartChunk,
+    ToolApprovalRequestChunk,
     ToolInputAvailableChunk,
     ToolInputDeltaChunk,
     ToolInputStartChunk,
     ToolOutputAvailableChunk,
+    ToolOutputDeniedChunk,
 )
 
+from phoenix.db.types.data_stream_protocol import (
+    DataUIPart,
+    FileUIPart,
+    ReasoningUIPart,
+    SourceDocumentUIPart,
+    SourceUrlUIPart,
+    StepStartUIPart,
+    TextUIPart,
+    ToolApprovalRequestedPart,
+    ToolOutputAvailablePart,
+    ToolOutputDeniedPart,
+    UIMessage,
+)
 from phoenix.server.agents.data_stream_protocol import (
-    accumulate_ui_message_chunks_to_ui_messages,
     build_stream_error_chunk,
     format_stream_error_text,
     is_api_key_error,
@@ -48,6 +52,8 @@ from phoenix.server.agents.exceptions import (
     ProviderCredentialsError,
     SummarizationError,
 )
+from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
+from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 
 
 async def _iter_chunks(chunks: Sequence[BaseChunk]) -> AsyncIterator[BaseChunk]:
@@ -56,13 +62,61 @@ async def _iter_chunks(chunks: Sequence[BaseChunk]) -> AsyncIterator[BaseChunk]:
 
 
 async def _collect_messages(chunks: Sequence[BaseChunk]) -> list[UIMessage]:
+    return [message async for message in read_ui_message_stream(stream=_iter_chunks(chunks))]
+
+
+async def _collect_messages_with_initial(
+    chunks: Sequence[BaseChunk],
+    *,
+    initial_message: UIMessage,
+) -> list[UIMessage]:
     return [
         message
-        async for message in accumulate_ui_message_chunks_to_ui_messages(_iter_chunks(chunks))
+        async for message in read_ui_message_stream(
+            stream=_iter_chunks(chunks),
+            message=initial_message,
+        )
     ]
 
 
-class TestAccumulateUIMessageChunksToUIMessages:
+class TestReadUIMessageStream:
+    async def test_mints_a_unique_uuid_without_a_start_chunk(self) -> None:
+        first = await _collect_messages([TextStartChunk(id="text-1")])
+        second = await _collect_messages([TextStartChunk(id="text-2")])
+
+        assert UUID(first[-1].id).version == 4
+        assert UUID(second[-1].id).version == 4
+        assert first[-1].id != second[-1].id
+
+    async def test_extends_an_initial_assistant_message(self) -> None:
+        initial_message = UIMessage(
+            id="message-1",
+            role="assistant",
+            metadata={"initial": True},
+            parts=[TextUIPart(text="before", state="done")],
+        )
+
+        messages = await _collect_messages_with_initial(
+            [
+                StartChunk(message_id="message-1"),
+                StartStepChunk(),
+                TextStartChunk(id="text-2"),
+                TextDeltaChunk(id="text-2", delta="after"),
+                TextEndChunk(id="text-2"),
+                MessageMetadataChunk(message_metadata={"continued": True}),
+            ],
+            initial_message=initial_message,
+        )
+
+        final_message = messages[-1]
+        assert final_message.id == initial_message.id
+        assert final_message.metadata == {"initial": True, "continued": True}
+        assert final_message.parts[0] == initial_message.parts[0]
+        assert isinstance(final_message.parts[1], StepStartUIPart)
+        assert isinstance(final_message.parts[2], TextUIPart)
+        assert final_message.parts[2].text == "after"
+        assert initial_message.parts == [TextUIPart(text="before", state="done")]
+
     async def test_accumulates_text_reasoning_metadata_and_step_boundaries(self) -> None:
         messages = await _collect_messages(
             [
@@ -152,9 +206,48 @@ class TestAccumulateUIMessageChunksToUIMessages:
         assert tool_part.output == {"rows": 3}
         assert tool_part.preliminary is True
 
-    async def test_accumulates_data_source_file_and_error_chunks(self) -> None:
+    async def test_accumulates_sdk_v7_tool_approval_and_denial_parts(self) -> None:
         messages = await _collect_messages(
             [
+                ToolInputAvailableChunk(
+                    tool_call_id="tool-call-1",
+                    tool_name="lookup",
+                    input={"query": "latency"},
+                    provider_executed=True,
+                    provider_metadata={"provider": {"call": "lookup"}},
+                ),
+                ToolApprovalRequestChunk(
+                    approval_id="approval-1",
+                    tool_call_id="tool-call-1",
+                ),
+                ToolOutputDeniedChunk(tool_call_id="tool-call-1"),
+            ]
+        )
+
+        approval_part = messages[-2].parts[0]
+        assert isinstance(approval_part, ToolApprovalRequestedPart)
+        assert approval_part.type == "tool-lookup"
+        assert approval_part.input == {"query": "latency"}
+        assert approval_part.provider_executed is True
+        assert approval_part.call_provider_metadata == {
+            "provider": {"call": "lookup"},
+        }
+        assert approval_part.approval is not None
+        assert approval_part.approval.id == "approval-1"
+
+        denied_part = messages[-1].parts[0]
+        assert isinstance(denied_part, ToolOutputDeniedPart)
+        assert denied_part.type == "tool-lookup"
+        assert denied_part.input == {"query": "latency"}
+        assert denied_part.provider_executed is True
+        assert denied_part.call_provider_metadata == {
+            "provider": {"call": "lookup"},
+        }
+
+    async def test_accumulates_data_source_and_file_chunks(self) -> None:
+        messages = await _collect_messages(
+            [
+                DataChunk(type="data-status", data="working", transient=True),
                 DataChunk(type="data-progress", id="data-1", data={"percent": 50}),
                 SourceUrlChunk(
                     source_id="source-url-1",
@@ -168,11 +261,10 @@ class TestAccumulateUIMessageChunksToUIMessages:
                     filename="document.txt",
                 ),
                 FileChunk(url="data:text/plain;base64,aGk=", media_type="text/plain"),
-                ErrorChunk(error_text="subagent failed"),
             ]
         )
 
-        data_part, source_url_part, source_document_part, file_part, error_part = messages[-1].parts
+        data_part, source_url_part, source_document_part, file_part = messages[-1].parts
         assert isinstance(data_part, DataUIPart)
         assert data_part.type == "data-progress"
         assert data_part.id == "data-1"
@@ -185,6 +277,18 @@ class TestAccumulateUIMessageChunksToUIMessages:
         assert source_document_part.filename == "document.txt"
         assert isinstance(file_part, FileUIPart)
         assert file_part.url == "data:text/plain;base64,aGk="
+
+    async def test_error_chunks_pair_with_durable_data_error_parts(self) -> None:
+        messages = [
+            message
+            async for message in read_ui_message_stream(
+                stream=iter_chunks_with_error_parts(
+                    _iter_chunks([ErrorChunk(error_text="subagent failed")])
+                )
+            )
+        ]
+
+        [error_part] = messages[-1].parts
         assert isinstance(error_part, DataUIPart)
         assert error_part.type == "data-error"
         assert error_part.data == {"errorText": "subagent failed"}

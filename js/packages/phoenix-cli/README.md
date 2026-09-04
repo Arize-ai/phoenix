@@ -129,7 +129,11 @@ pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
 npx -y @arizeai/phoenix-cli pxi                              # run without installing
 ```
 
-Inside the chat, `/help`, `/clear`, and `/exit` are handled locally. See the
+`pxi` requires a Phoenix server on version **20.0.0 or newer**. It checks the server
+version at startup and exits with an upgrade message against an older server.
+
+Inside the chat, slash commands (`/help`, `/clear`, `/new`, `/temporary`,
+`/sessions`, `/model`, `/compact`, `/exit`) are handled locally. See the
 [PXI documentation](https://arize.com/docs/phoenix/pxi) for the full flag and
 slash-command reference, model setup, and privacy controls.
 

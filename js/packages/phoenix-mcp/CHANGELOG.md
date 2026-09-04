@@ -1,5 +1,57 @@
 # @arizeai/phoenix-mcp
 
+## 4.3.7
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
+## 4.3.6
+
+### Patch Changes
+
+- Updated dependencies [1cdff14]
+  - @arizeai/phoenix-client@7.7.1
+
+## 4.3.5
+
+### Patch Changes
+
+- Updated dependencies [37916d7]
+- Updated dependencies [c48e50e]
+- Updated dependencies [773c5e5]
+- Updated dependencies [b27561d]
+  - @arizeai/phoenix-client@7.7.0
+
+## 4.3.4
+
+### Patch Changes
+
+- Updated dependencies [d328c3e]
+  - @arizeai/phoenix-client@7.6.0
+
+## 4.3.3
+
+### Patch Changes
+
+- Updated dependencies [0ed987a]
+  - @arizeai/phoenix-client@7.5.0
+
+## 4.3.2
+
+### Patch Changes
+
+- Updated dependencies [90729f3]
+  - @arizeai/phoenix-client@7.4.0
+
+## 4.3.1
+
+### Patch Changes
+
+- Updated dependencies [c892873]
+  - @arizeai/phoenix-client@7.3.1
+
 ## 4.3.0
 
 ### Minor Changes

@@ -4,7 +4,7 @@
 
 Design tokens are design decisions translated into CSS custom properties. They provide a single source of truth for colors, sizing, typography, borders, and spacing.
 
-- Defined in `app/src/GlobalStyles.tsx`
+- Defined in `js/app/src/GlobalStyles.tsx`
 - Consumed via `var(--token-name)` in Emotion CSS-in-JS
 - Theme-aware: light and dark themes override token values
 

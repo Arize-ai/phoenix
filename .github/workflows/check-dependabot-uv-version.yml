@@ -82,7 +82,7 @@ jobs:
 
       - name: Install target uv version
         if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ steps.dependabot.outputs.version }}
 
@@ -101,7 +101,7 @@ jobs:
       - name: Run Claude Code
         if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
         id: claude
-        uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1.0.183
+        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
@@ -122,7 +122,7 @@ jobs:
             Bump the pinned uv CLI version across this repo from `${{ steps.repo.outputs.version }}` to `${{ steps.dependabot.outputs.version }}` so it matches the version Dependabot supports.
 
             Steps:
-            1. Use `git grep` (or ripgrep) to find every reference to `${{ steps.repo.outputs.version }}` that pins the uv CLI. Likely locations: `pyproject.toml` (`[tool.uv] required-version`), `Dockerfile` and other Dockerfiles (`ghcr.io/astral-sh/uv:` image tags, `pip install uv==`), and `.github/workflows/*.yml|*.yaml` (`astral-sh/setup-uv` `version:` inputs). Do NOT change unrelated occurrences of the same version string (e.g., CHANGELOG entries, unrelated dependency pins, lockfile-internal version metadata for other packages).
+            1. Use `git grep` (or ripgrep) to find every reference to `${{ steps.repo.outputs.version }}` that pins the uv CLI. Likely locations: `pyproject.toml` (`[tool.uv] required-version`), `Dockerfile` and other Dockerfiles (`ghcr.io/astral-sh/uv:` image tags, `pip install uv==`), and `.github/workflows/*.yml|*.yaml` (`astral-sh/setup-uv` `version:` inputs and any `UV_VERSION` env var feeding one). Most workflow steps use `version-file: "pyproject.toml"` and derive the version from `[tool.uv] required-version`, so they need no edit. Do NOT change unrelated occurrences of the same version string (e.g., CHANGELOG entries, unrelated dependency pins, lockfile-internal version metadata for other packages).
             2. Update each genuine uv pin to `${{ steps.dependabot.outputs.version }}`.
             3. After editing, run `git grep '${{ steps.repo.outputs.version }}'` and confirm any remaining matches are NOT uv pins (CHANGELOG entries, etc.). If any uv pin is left behind, fix it.
             4. Run `uv lock` to regenerate the lockfile against the new uv version.

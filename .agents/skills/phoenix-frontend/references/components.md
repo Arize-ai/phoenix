@@ -2,7 +2,7 @@
 
 ## Core vs. domain split
 
-Explore `app/src/components/` to understand the two layers:
+Explore `js/app/src/components/` to understand the two layers:
 
 - **Core** (`components/core/`) — presentational primitives. MUST NOT contain data fetching or business logic.
 - **Domain** (everything else) — data-rich, composed from core primitives.
@@ -15,7 +15,7 @@ Existing flex and view layout primitives SHOULD be used for consistent spacing a
 
 ## Storybook
 
-New core components MUST include minimal Storybook stories showing primary variants and states. Explore `app/stories/` for the existing convention.
+New core components MUST include minimal Storybook stories showing primary variants and states. Explore `js/app/stories/` for the existing convention.
 
 ## File convention
 
@@ -105,4 +105,4 @@ This pattern keeps the user oriented — they always see which row they selected
 
 ## Shared constants
 
-Shared literals (validation regexes, fixed string sets, etc.) belong in `app/src/constants/` as focused modules re-exported from `index.ts`. Import via `@phoenix/constants`. Do not export them from component or form files.
+Shared literals (validation regexes, fixed string sets, etc.) belong in `js/app/src/constants/` as focused modules re-exported from `index.ts`. Import via `@phoenix/constants`. Do not export them from component or form files.
