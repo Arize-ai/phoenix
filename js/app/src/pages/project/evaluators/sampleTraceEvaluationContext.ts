@@ -1,9 +1,6 @@
 import type { EvaluatorMappingSource } from "@phoenix/types";
 
-/**
- * Mirrors the server's `trace_eval_context()`. The first trace of the sample session, so
- * the three grains' samples read as one product.
- */
+/** Mirrors the server's `trace_eval_context()`. */
 export type SampleTraceEvaluationContext = {
   context: EvaluatorMappingSource<"trace">;
 };
@@ -14,7 +11,6 @@ const ROOT_OUTPUT =
   "It looks like the migration is waiting on a lock. Let's check which " +
   "query is holding it.";
 
-/** The root span's attributes, which a trace context carries whole. */
 const ROOT_ATTRIBUTES = {
   openinference: { span: { kind: "AGENT" } },
   metadata: { environment: "production" },
@@ -22,7 +18,6 @@ const ROOT_ATTRIBUTES = {
   output: { value: ROOT_OUTPUT, mime_type: "text/plain" },
 };
 
-/** The trace's own names, exactly as the trace filter language spells them. */
 const TRACE_VOCABULARY: Record<string, unknown> = {
   trace_id: "4a1e6d0c9b8f47a2b3c5d7e9f1a2b3c4",
   latency_ms: 3500.0,

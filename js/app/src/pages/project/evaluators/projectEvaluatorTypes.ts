@@ -141,7 +141,6 @@ export type ProjectEvaluatorScope = {
   evaluationDelaySeconds: number;
 };
 
-/** The targets whose records are evaluated after a quiet period. */
 const DELAYED_PROJECT_EVALUATOR_TARGETS: readonly ProjectEvaluatorTarget[] = [
   "TRACE",
   "SESSION",
