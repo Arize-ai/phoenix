@@ -59,14 +59,14 @@ if TYPE_CHECKING:
     from .SandboxConfig import SandboxConfig
     from .User import User
 
-_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
-    "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
-    "session at the first quiet period after the evaluation delay: it applies the session "
-    "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
-    "A filter non-match or sampling miss is permanently declined for that evaluator "
-    "configuration; later activity does not reopen the decision. TRACE evaluators are stored "
-    "but not scheduled. Non-SESSION targets preserve the evaluation delay without using it. "
-    "The target can change only until evaluation work exists for the project evaluator."
+PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
+    "SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide "
+    "once per trace or session, at the first quiet period after the evaluation delay: the "
+    "filter applies first, then deterministic sampling, and admitted work is queued. A "
+    "filter non-match or sampling miss is permanently declined for that evaluator "
+    "configuration; later activity does not reopen the decision. A filter is written in the "
+    "filter language of the target it selects. The evaluation delay applies to TRACE and "
+    "SESSION evaluators and is rejected for SPAN. The target is fixed at creation."
 )
 
 
@@ -149,24 +149,12 @@ strawberry.enum(SchedulabilityReason, name="ProjectEvaluatorSchedulabilityReason
 def _project_evaluator_schedulability(
     record: models.ProjectEvaluator,
 ) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[SchedulabilityReason]]:
-    if record.evaluation_target == "SESSION":
-        # Every condition is declared once in session_policy, beside the SQL the
-        # sweeper and the executor gate on, so this field cannot advertise an
-        # evaluator as schedulable that they will never pick up.
-        if (reason := schedulability_reason(record)) is not None:
-            return ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE, reason
-        return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
-    if not record.enabled:
-        return (
-            ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
-            SchedulabilityReason.DISABLED,
-        )
-    if record.evaluation_target == "SPAN":
-        return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
-    return (
-        ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE,
-        SchedulabilityReason.TRACE_TARGET_UNSUPPORTED,
-    )
+    # Every condition is declared once in session_policy, beside the SQL the sweeper
+    # and the executor gate on, so this field cannot advertise an evaluator as
+    # schedulable that they will never pick up.
+    if (reason := schedulability_reason(record)) is not None:
+        return ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE, reason
+    return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
 
 
 @strawberry.type
@@ -1327,7 +1315,7 @@ class ProjectEvaluator(Node):
         return (await self._get_record(info)).sampling_rate
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description=_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION
+        description=PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION
     )
     async def evaluation_target(self, info: Info[Context, None]) -> EvaluationTarget:
         record = await self._get_record(info)

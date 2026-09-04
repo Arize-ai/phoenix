@@ -295,17 +295,27 @@ async def test_project_evaluator_scheduling_fields(
         )
         session.add_all([project, evaluator])
         await session.flush()
-        project_evaluator = models.ProjectEvaluator(
+        session_evaluator = models.ProjectEvaluator(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
-            name=Identifier(f"project-evaluator-name-{token_hex(4)}"),
+            name=Identifier("session-target"),
             evaluation_target="SESSION",
             filter_condition="span_kind == 'LLM'",
             sampling_rate=1.0,
             evaluation_delay_seconds=45,
         )
-        session.add(project_evaluator)
+        trace_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier("trace-target"),
+            evaluation_target="TRACE",
+            filter_condition="num_spans > 3",
+            sampling_rate=1.0,
+            evaluation_delay_seconds=90,
+        )
+        session.add_all([session_evaluator, trace_evaluator])
         await session.flush()
         project_id = project.id
 
@@ -330,9 +340,12 @@ async def test_project_evaluator_scheduling_fields(
 
     assert not response.errors and response.data
     edges = response.data["node"]["evaluators"]["edges"]
-    assert [edge["node"]["evaluationDelaySeconds"] for edge in edges] == [45]
-    assert [edge["node"]["schedulabilityStatus"] for edge in edges] == ["SCHEDULABLE"]
-    assert [edge["node"]["schedulabilityReason"] for edge in edges] == [None]
+    assert [edge["node"]["evaluationDelaySeconds"] for edge in edges] == [45, 90]
+    assert [edge["node"]["schedulabilityStatus"] for edge in edges] == [
+        "SCHEDULABLE",
+        "SCHEDULABLE",
+    ]
+    assert [edge["node"]["schedulabilityReason"] for edge in edges] == [None, None]
 
 
 class TestDatasetEvaluatorDescriptionFallback:

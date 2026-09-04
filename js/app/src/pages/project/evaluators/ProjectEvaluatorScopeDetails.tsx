@@ -111,8 +111,6 @@ function getSchedulabilityExplanation(
   switch (reason) {
     case "DISABLED":
       return "Enable this evaluator to resume scheduling.";
-    case "TRACE_TARGET_UNSUPPORTED":
-      return "Trace evaluators are not scheduled yet.";
     default:
       return "This evaluator does not meet the scheduling requirements.";
   }
