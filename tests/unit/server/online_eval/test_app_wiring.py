@@ -142,8 +142,7 @@ async def test_app_runs_seeded_criteria_end_to_end(
             )
         _, project_evaluator_id = await _seed_llm_criteria(db, project.id)
 
-        # Age the cursor's high-water observation past the frontier lag so the
-        # next tick's scan window covers the seeded span.
+        # Age the cursor's high-water observation so the next scan window covers the span.
         async with db() as session:
             await session.execute(
                 insert_on_conflict(
