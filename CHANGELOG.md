@@ -1,5 +1,23 @@
 # Changelog
 
+## [20.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.7.0...arize-phoenix-v20.8.0) (2026-09-04)
+
+
+### Features
+
+* add MiniMax provider integration ([#14310](https://github.com/Arize-ai/phoenix/issues/14310)) ([7e01ce7](https://github.com/Arize-ai/phoenix/commit/7e01ce703b3830447ebdf641ccbb95089778e810))
+* **server:** add error-status and latency filters to trace list endpoint ([#14037](https://github.com/Arize-ai/phoenix/issues/14037)) ([aea59d7](https://github.com/Arize-ai/phoenix/commit/aea59d7a2857e5523b03c57b23c48d5bb84dafa0))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 3.4.0 ([02b1e51](https://github.com/Arize-ai/phoenix/commit/02b1e51f61f1dceb1ccc2c8ece650aaf5fe171b2))
+
+
+### Documentation
+
+* Add Phoenix release notes — 2026-09-02 ([#15841](https://github.com/Arize-ai/phoenix/issues/15841)) ([1bfd8e8](https://github.com/Arize-ai/phoenix/commit/1bfd8e81475d8d75880931a81490d99e88705eae))
+
 ## [20.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.6.0...arize-phoenix-v20.7.0) (2026-09-03)
 
 
