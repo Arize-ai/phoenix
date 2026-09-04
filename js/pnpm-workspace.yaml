@@ -7,11 +7,7 @@ packages:
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
   - "@arizeai/*"
-  # Adopt the native Vite/Oxc React Compiler releases immediately.
-  - "@vitejs/plugin-react@6.1.0"
-  # These packages and their platform bindings were published together on
-  # August 18, 2026.
-  - "oxlint@1.79.0"
+  - oxlint@1.79.0
   - "@oxlint/binding-android-arm-eabi@1.79.0"
   - "@oxlint/binding-android-arm64@1.79.0"
   - "@oxlint/binding-darwin-arm64@1.79.0"
@@ -31,7 +27,7 @@ minimumReleaseAgeExclude:
   - "@oxlint/binding-win32-arm64-msvc@1.79.0"
   - "@oxlint/binding-win32-ia32-msvc@1.79.0"
   - "@oxlint/binding-win32-x64-msvc@1.79.0"
-  - "oxc-transform-react@0.145.0"
+  - oxc-transform-react@0.145.0
   - "@oxc-transform-react/binding-android-arm-eabi@0.145.0"
   - "@oxc-transform-react/binding-android-arm64@0.145.0"
   - "@oxc-transform-react/binding-darwin-arm64@0.145.0"
@@ -63,6 +59,9 @@ packageExtensions:
 
 allowBuilds:
   "@mongodb-js/zstd": false
+  # Prebuilt platform binaries ship as optional deps; the install script is
+  # only a node-gyp build-from-source fallback.
+  "@parcel/watcher": false
   # Only has a "use pnpm" preinstall guard; no build output needed.
   autoevals: false
   esbuild: true

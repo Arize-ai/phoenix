@@ -59,21 +59,21 @@
     "typecheck": "tsc --noEmit && tsc -p examples/tsconfig.examples.json"
   },
   "dependencies": {
-    "@arizeai/openinference-core": "^2.5.2",
-    "@arizeai/openinference-semantic-conventions": "^2.7.0",
-    "@arizeai/openinference-vercel": "^3.1.5",
+    "@arizeai/openinference-core": "^2.6.1",
+    "@arizeai/openinference-semantic-conventions": "^2.8.0",
+    "@arizeai/openinference-vercel": "^3.1.10",
     "@arizeai/phoenix-config": "workspace:*",
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/context-async-hooks": "^2.10.0",
-    "@opentelemetry/core": "^2.10.0",
+    "@opentelemetry/context-async-hooks": "^2.11.0",
+    "@opentelemetry/core": "^2.11.0",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.220.0",
     "@opentelemetry/instrumentation": "^0.220.0",
-    "@opentelemetry/resources": "^2.10.0",
-    "@opentelemetry/sdk-trace-base": "^2.10.0",
-    "@opentelemetry/sdk-trace-node": "^2.10.0"
+    "@opentelemetry/resources": "^2.11.0",
+    "@opentelemetry/sdk-trace-base": "^2.11.0",
+    "@opentelemetry/sdk-trace-node": "^2.11.0"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "vitest": "^4.1.11"
   },
   "engines": {

@@ -1,6 +1,197 @@
 [
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
+    "source": "upstream",
+    "name": "processUIMessageStream > finish-step > preserves active text and reasoning parts across interleaved step boundaries",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "type": "text-start",
+          "id": "text-1"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "first "
+        },
+        {
+          "type": "reasoning-start",
+          "id": "reasoning-1"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-1",
+          "delta": "thinking "
+        },
+        {
+          "type": "start-step"
+        },
+        {
+          "type": "finish-step"
+        },
+        {
+          "type": "text-delta",
+          "id": "text-1",
+          "delta": "second"
+        },
+        {
+          "type": "reasoning-delta",
+          "id": "reasoning-1",
+          "delta": "continued"
+        },
+        {
+          "type": "text-end",
+          "id": "text-1"
+        },
+        {
+          "type": "reasoning-end",
+          "id": "reasoning-1"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first ",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first ",
+            "state": "streaming"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first ",
+            "state": "streaming"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "thinking ",
+            "state": "streaming"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first second",
+            "state": "streaming"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "thinking ",
+            "state": "streaming"
+          },
+          {
+            "type": "step-start"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first second",
+            "state": "streaming"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "thinking continued",
+            "state": "streaming"
+          },
+          {
+            "type": "step-start"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first second",
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "thinking continued",
+            "state": "streaming"
+          },
+          {
+            "type": "step-start"
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "text",
+            "text": "first second",
+            "state": "done"
+          },
+          {
+            "type": "reasoning",
+            "id": "reasoning-1",
+            "text": "thinking continued",
+            "state": "done"
+          },
+          {
+            "type": "step-start"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > reset-step > removes parts from the current step and accepts retried parts",
     "input": {
@@ -244,7 +435,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > text",
     "input": {
@@ -349,7 +540,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > errors",
     "input": {
@@ -365,7 +556,7 @@
     "writes": []
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when text-delta is received without text-start",
     "input": {
@@ -400,7 +591,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when reasoning-delta is received without reasoning-start",
     "input": {
@@ -435,7 +626,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when tool-input-delta is received without tool-input-start",
     "input": {
@@ -470,7 +661,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing text part ids",
     "input": {
@@ -505,7 +696,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing reasoning part ids",
     "input": {
@@ -540,7 +731,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should not read Object.prototype for missing partial tool call ids",
     "input": {
@@ -575,7 +766,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when text-end is received without text-start",
     "input": {
@@ -609,7 +800,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw descriptive error when reasoning-end is received without reasoning-start",
     "input": {
@@ -643,7 +834,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw UIMessageStreamError with correct properties for text-delta without text-start",
     "input": {
@@ -678,7 +869,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > malformed stream errors > should throw UIMessageStreamError with correct properties for tool-input-delta without tool-input-start",
     "input": {
@@ -713,7 +904,7 @@
     }
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip",
     "input": {
@@ -899,7 +1090,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with existing assistant message",
     "input": {
@@ -1154,7 +1345,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with multiple assistant texts",
     "input": {
@@ -1477,7 +1668,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with multiple assistant reasoning",
     "input": {
@@ -1997,7 +2188,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > server-side tool roundtrip with output-error",
     "input": {
@@ -2173,7 +2364,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > message metadata",
     "input": {
@@ -2381,7 +2572,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > message metadata delayed after finish",
     "input": {
@@ -2490,7 +2681,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > message metadata with existing assistant lastMessage",
     "input": {
@@ -2608,7 +2799,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool call streaming",
     "input": {
@@ -2750,7 +2941,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > start with message id",
     "input": {
@@ -2855,7 +3046,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > reasoning",
     "input": {
@@ -3420,7 +3611,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > onToolCall is executed",
     "input": {
@@ -3476,7 +3667,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > sources",
     "input": {
@@ -3588,7 +3779,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > file parts",
     "input": {
@@ -3817,7 +4008,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > file parts with providerMetadata",
     "input": {
@@ -3906,7 +4097,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (single part)",
     "input": {
@@ -3954,7 +4145,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (transient part)",
     "input": {
@@ -3990,7 +4181,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (single part with id and replacement update)",
     "input": {
@@ -4059,7 +4250,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > data ui parts (single part with id and merge update)",
     "input": {
@@ -4140,7 +4331,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed static tools",
     "input": {
@@ -4347,7 +4538,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed static tools > should preserve separate call and result provider metadata for static tools",
     "input": {
@@ -4459,7 +4650,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed dynamic tools",
     "input": {
@@ -4679,7 +4870,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed dynamic tools > should preserve separate call and result provider metadata for dynamic tools",
     "input": {
@@ -4791,7 +4982,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > provider-executed dynamic tools > should preserve tool metadata on dynamic tool parts",
     "input": {
@@ -4887,7 +5078,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > should call onToolCall for client-executed tools",
     "input": {
@@ -4943,7 +5134,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > dynamic tools",
     "input": {
@@ -5156,7 +5347,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > provider metadata",
     "input": {
@@ -5355,7 +5546,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > provider metadata during input-streaming",
     "input": {
@@ -5497,7 +5688,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool input error",
     "input": {
@@ -5607,7 +5798,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool input error with dynamic flag mismatch",
     "input": {
@@ -5718,7 +5909,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > preliminary tool results",
     "input": {
@@ -5863,7 +6054,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool title support > static tool with title",
     "input": {
@@ -5989,7 +6180,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool title support > dynamic tool with title",
     "input": {
@@ -6130,7 +6321,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool title support > tool with title in error state",
     "input": {
@@ -6233,7 +6424,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval requests (static tool)",
     "input": {
@@ -6308,7 +6499,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval requests (dynamic tool)",
     "input": {
@@ -6386,7 +6577,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval request with signature",
     "input": {
@@ -6411,6 +6602,7 @@
           "approvalId": "id-1",
           "toolCallId": "call-1",
           "type": "tool-approval-request",
+          "reason": "requires operator review",
           "signature": "test-sig"
         },
         {
@@ -6455,6 +6647,7 @@
             },
             "approval": {
               "id": "id-1",
+              "requestReason": "requires operator review",
               "signature": "test-sig"
             }
           }
@@ -6463,7 +6656,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval response with signature",
     "input": {
@@ -6488,11 +6681,13 @@
           "approvalId": "id-1",
           "toolCallId": "call-1",
           "type": "tool-approval-request",
+          "reason": "requires operator review",
           "signature": "test-sig"
         },
         {
           "approvalId": "id-1",
           "approved": true,
+          "reason": "approved by operator",
           "type": "tool-approval-response"
         },
         {
@@ -6537,6 +6732,7 @@
             },
             "approval": {
               "id": "id-1",
+              "requestReason": "requires operator review",
               "signature": "test-sig"
             }
           }
@@ -6558,8 +6754,10 @@
             },
             "approval": {
               "id": "id-1",
+              "requestReason": "requires operator review",
+              "signature": "test-sig",
               "approved": true,
-              "signature": "test-sig"
+              "reason": "approved by operator"
             }
           }
         ]
@@ -6567,7 +6765,174 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
+    "source": "upstream",
+    "name": "processUIMessageStream > preserves approval descriptors through request and response states",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": null,
+      "chunks": [
+        {
+          "input": {
+            "userId": "user-123"
+          },
+          "toolCallId": "call-1",
+          "toolName": "deleteAccount",
+          "type": "tool-input-available"
+        },
+        {
+          "approvalDescriptor": {
+            "action": "deleteAccount",
+            "permissions": [
+              "account:delete"
+            ],
+            "risk": "high"
+          },
+          "approvalId": "approval-1",
+          "toolCallId": "call-1",
+          "type": "tool-approval-request"
+        },
+        {
+          "approvalId": "approval-1",
+          "approved": true,
+          "type": "tool-approval-response"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-deleteAccount",
+            "toolCallId": "call-1",
+            "state": "input-available",
+            "input": {
+              "userId": "user-123"
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-deleteAccount",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "userId": "user-123"
+            },
+            "approval": {
+              "id": "approval-1",
+              "descriptor": {
+                "action": "deleteAccount",
+                "permissions": [
+                  "account:delete"
+                ],
+                "risk": "high"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "msg-123",
+        "role": "assistant",
+        "parts": [
+          {
+            "type": "tool-deleteAccount",
+            "toolCallId": "call-1",
+            "state": "approval-responded",
+            "input": {
+              "userId": "user-123"
+            },
+            "approval": {
+              "id": "approval-1",
+              "descriptor": {
+                "action": "deleteAccount",
+                "permissions": [
+                  "account:delete"
+                ],
+                "risk": "high"
+              },
+              "approved": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.89",
+    "source": "upstream",
+    "name": "processUIMessageStream > preserves an approval descriptor restored from a persisted message",
+    "input": {
+      "messageId": "msg-123",
+      "lastMessage": {
+        "role": "assistant",
+        "id": "msg-123",
+        "parts": [
+          {
+            "type": "tool-deleteAccount",
+            "toolCallId": "call-1",
+            "state": "approval-requested",
+            "input": {
+              "userId": "user-123"
+            },
+            "approval": {
+              "id": "approval-1",
+              "descriptor": {
+                "action": "deleteAccount",
+                "permissions": [
+                  "account:delete"
+                ],
+                "risk": "high"
+              }
+            }
+          }
+        ]
+      },
+      "chunks": [
+        {
+          "approvalId": "approval-1",
+          "approved": true,
+          "type": "tool-approval-response"
+        }
+      ]
+    },
+    "writes": [
+      {
+        "role": "assistant",
+        "id": "msg-123",
+        "parts": [
+          {
+            "type": "tool-deleteAccount",
+            "toolCallId": "call-1",
+            "state": "approval-responded",
+            "input": {
+              "userId": "user-123"
+            },
+            "approval": {
+              "id": "approval-1",
+              "descriptor": {
+                "action": "deleteAccount",
+                "permissions": [
+                  "account:delete"
+                ],
+                "risk": "high"
+              },
+              "approved": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool approval request without signature",
     "input": {
@@ -6642,7 +7007,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > automatic tool approval denial (static tool)",
     "input": {
@@ -6742,9 +7107,9 @@
             },
             "approval": {
               "id": "id-1",
+              "isAutomatic": true,
               "approved": false,
-              "reason": "Policy denied execution",
-              "isAutomatic": true
+              "reason": "Policy denied execution"
             }
           }
         ]
@@ -6765,9 +7130,9 @@
             },
             "approval": {
               "id": "id-1",
+              "isAutomatic": true,
               "approved": false,
-              "reason": "Policy denied execution",
-              "isAutomatic": true
+              "reason": "Policy denied execution"
             }
           }
         ]
@@ -6775,7 +7140,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > automatic tool approval with execution (dynamic tool)",
     "input": {
@@ -6880,9 +7245,9 @@
             },
             "approval": {
               "id": "id-1",
+              "isAutomatic": true,
               "approved": true,
-              "reason": "trusted internal tool",
-              "isAutomatic": true
+              "reason": "trusted internal tool"
             }
           }
         ]
@@ -6905,9 +7270,9 @@
             "output": "result1",
             "approval": {
               "id": "id-1",
+              "isAutomatic": true,
               "approved": true,
-              "reason": "trusted internal tool",
-              "isAutomatic": true
+              "reason": "trusted internal tool"
             }
           }
         ]
@@ -6915,7 +7280,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > initial tool execution after approval (static tool)",
     "input": {
@@ -7090,7 +7455,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > initial tool execution after approval (dynamic tool)",
     "input": {
@@ -7271,7 +7636,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > initial tool execution with preliminary results after approval (static tool)",
     "input": {
@@ -7504,7 +7869,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool execution denial (static tool)",
     "input": {
@@ -7674,7 +8039,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > tool execution denial (dynamic tool)",
     "input": {
@@ -7849,7 +8214,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "upstream",
     "name": "processUIMessageStream > custom",
     "input": {
@@ -7898,7 +8263,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "phoenix",
     "name": "Phoenix custom chunks > durable error part and standard error",
     "input": {
@@ -7942,7 +8307,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "phoenix",
     "name": "Phoenix custom chunks > transient session and persistence events",
     "input": {
@@ -7976,7 +8341,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "phoenix",
     "name": "Phoenix protocol passthrough > abort and done do not change the message",
     "input": {
@@ -8005,7 +8370,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "phoenix",
     "name": "Phoenix protocol coverage > source document",
     "input": {
@@ -8038,7 +8403,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "phoenix",
     "name": "Phoenix stream > interleaved preliminary subagent output",
     "input": {
@@ -8267,7 +8632,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "phoenix",
     "name": "Phoenix stream > forced skill step before model output",
     "input": {
@@ -8440,7 +8805,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "phoenix",
     "name": "Phoenix stream > typed assistant metadata",
     "input": {
@@ -8488,7 +8853,7 @@
     ]
   },
   {
-    "upstreamTag": "ai@7.0.77",
+    "upstreamTag": "ai@7.0.89",
     "source": "phoenix",
     "name": "Phoenix stream > client tool continuation",
     "input": {

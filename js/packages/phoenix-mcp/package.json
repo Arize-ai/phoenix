@@ -36,13 +36,13 @@
     "@modelcontextprotocol/sdk": "^1.30.0",
     "glob": "^13.0.6",
     "minimist": "^1.2.8",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/glob": "^9.0.0",
     "@types/minimist": "^1.2.5",
-    "@types/node": "^26.2.0",
-    "tsx": "^4.23.12",
+    "@types/node": "^26.4.0",
+    "tsx": "^4.23.13",
     "vitest": "^4.1.11"
   }
 }
