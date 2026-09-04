@@ -128,11 +128,11 @@ class TestUploadIntegration:
         llm_spans = [span for span in spans if span["span_kind"] == "LLM"]
         tool_spans = [span for span in spans if span["span_kind"] == "TOOL"]
 
-        assert root["name"] == "invoke_agent agent (continuation)"
+        assert root["name"] == "agent (continuation)"
         assert [span["name"] for span in step_spans] == ["iteration 1", "iteration 2"]
         assert [span["name"] for span in tool_spans] == [
-            "execute_tool tool_a",
-            "execute_tool tool_b",
+            "tool_a",
+            "tool_b",
         ]
         assert (root["start_time"], root["end_time"]) == (
             "2025-01-15T10:00:00+00:00",
@@ -188,7 +188,7 @@ class TestUploadIntegration:
 
         spans = _uploaded_spans([parent], "handoff-run")
         system_step = next(span for span in spans if span["name"] == "system event 1")
-        child_root = next(span for span in spans if span["name"] == "invoke_agent summarizer")
+        child_root = next(span for span in spans if span["name"] == "summarizer")
         span_ids = {span["context"]["span_id"] for span in spans}
 
         assert child_root["parent_id"] == system_step["context"]["span_id"]
@@ -243,7 +243,7 @@ class TestUploadIntegration:
         }
 
         spans = _convert_atif_trajectories_to_spans([parent])
-        fresh_tool = next(span for span in spans if span["name"] == "execute_tool delegate")
-        child_root = next(span for span in spans if span["name"] == "invoke_agent worker")
+        fresh_tool = next(span for span in spans if span["name"] == "delegate")
+        child_root = next(span for span in spans if span["name"] == "worker")
 
         assert child_root.get("parent_id") == fresh_tool["context"]["span_id"]

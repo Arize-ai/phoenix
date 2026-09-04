@@ -67,10 +67,9 @@ def upload_atif_trajectories_as_spans(
 
     **Trace structure**
 
-    Each trajectory produces one trace. Span names follow the OpenTelemetry
-    GenAI conventions where one exists: ``invoke_agent <agent>`` for the
-    root, ``chat <model>`` for LLM calls, and ``execute_tool <tool>`` for
-    tool calls. Each fresh agent step (one iteration of the agent loop)
+    Each trajectory produces one trace. Spans are named by their target:
+    the agent name for the root, the model name for LLM calls, and the tool
+    name for tool calls. Each fresh agent step (one iteration of the agent loop)
     becomes a CHAIN span named ``iteration N``; context management and
     operational system steps become ``compaction N`` and ``system event N``.
     The producer's ``step_id`` is kept in ``metadata.atif.step_id`` and the
@@ -79,23 +78,23 @@ def upload_atif_trajectories_as_spans(
 
     Single-turn trajectories place each step under the root::
 
-        AGENT invoke_agent assistant (input=user request, output=final reply)
+        AGENT assistant (input=user request, output=final reply)
           CHAIN iteration 1 (input=request, output=reply and observations)
-            LLM chat gpt-4
-            TOOL execute_tool search
+            LLM gpt-4
+            TOOL search
           CHAIN iteration 2
-            LLM chat gpt-4
+            LLM gpt-4
 
     Multi-turn trajectories add one AGENT span per turn. A turn starts at
     each user message that follows agent activity::
 
-        AGENT invoke_agent assistant
+        AGENT assistant
           AGENT turn 1 (input=user message 1, output=reply 1)
             CHAIN iteration 1
-              LLM chat gpt-4
+              LLM gpt-4
           AGENT turn 2 (input=user message 2, output=reply 2)
             CHAIN iteration 2
-              LLM chat gpt-4
+              LLM gpt-4
 
     **Subagents**
 
@@ -107,20 +106,20 @@ def upload_atif_trajectories_as_spans(
     link to resolve. ATIF v1.7 embedded ``subagent_trajectories`` are
     flattened automatically and resolved by ``trajectory_id``::
 
-        AGENT invoke_agent orchestrator
+        AGENT orchestrator
           CHAIN iteration 1
-            LLM chat gpt-4
-            TOOL execute_tool delegate_task
-              AGENT invoke_agent researcher
+            LLM gpt-4
+            TOOL delegate_task
+              AGENT researcher
                 CHAIN iteration 1
-                  LLM chat gpt-4
+                  LLM gpt-4
 
     **Continuations**
 
     Harbor splits a session across files with ``continued_trajectory_ref``
     when the context window is exhausted, giving the continuation a
     ``session_id`` ending in ``-cont-{N}``. Continuations join the original
-    trace; their roots are named ``invoke_agent <agent> (continuation N)``
+    trace; their roots are named ``<agent> (continuation N)``
     and carry ``metadata.is_continuation = True``.
 
     **Copied context**

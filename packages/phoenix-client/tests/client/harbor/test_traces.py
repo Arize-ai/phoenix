@@ -264,7 +264,7 @@ def test_multi_step_uses_only_attempted_steps_in_result_order(tmp_path: Path) ->
     assert [span["parent_id"] for span in agent_roots(result)] == [
         span["context"]["span_id"] for span in steps
     ]
-    assert [span["name"] for span in agent_roots(result)] == ["invoke_agent terminus-2"] * 2
+    assert [span["name"] for span in agent_roots(result)] == ["terminus-2"] * 2
     assert all(
         span["attributes"]["metadata"]["harbor.step_name"] == "solve"
         for span in result.spans
@@ -378,8 +378,8 @@ def test_continuation_chain_is_discovered(tmp_path: Path) -> None:
         root["attributes"]["metadata"].get("is_continuation") for root in agent_roots(result)
     ] == [None, True]
     assert [span["name"] for span in agent_roots(result)] == [
-        "invoke_agent terminus-2",
-        "invoke_agent terminus-2 (continuation 1)",
+        "terminus-2",
+        "terminus-2 (continuation 1)",
     ]
 
 
@@ -512,12 +512,8 @@ def test_pre_v17_session_keyed_ref_links_child_without_cycles(tmp_path: Path) ->
     assert result.source_paths == ("agent/trajectory.json", "agent/child.json")
     span_ids = {span["context"]["span_id"] for span in result.spans}
     assert all(span.get("parent_id") in span_ids for span in result.spans[1:])
-    parent_root = next(
-        span for span in agent_roots(result) if span["name"] == "invoke_agent terminus-2"
-    )
-    child_root = next(
-        span for span in agent_roots(result) if span["name"] == "invoke_agent delegate"
-    )
+    parent_root = next(span for span in agent_roots(result) if span["name"] == "terminus-2")
+    child_root = next(span for span in agent_roots(result) if span["name"] == "delegate")
     tool = next(span for span in result.spans if span["span_kind"] == "TOOL")
     assert parent_root["parent_id"] == result.spans[0]["context"]["span_id"]
     assert child_root["parent_id"] == tool["context"]["span_id"]
@@ -581,9 +577,7 @@ def test_system_handoff_without_tool_stays_at_its_causal_step(tmp_path: Path) ->
 
     assert result is not None
     system_step = next(span for span in result.spans if span["name"] == "system event 1")
-    child_root = next(
-        span for span in agent_roots(result) if span["name"] == "invoke_agent summarizer"
-    )
+    child_root = next(span for span in agent_roots(result) if span["name"] == "summarizer")
     assert child_root["parent_id"] == system_step["context"]["span_id"]
 
 

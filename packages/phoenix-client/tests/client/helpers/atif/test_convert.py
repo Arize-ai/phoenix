@@ -207,8 +207,8 @@ class TestConvertThenReparent:
 
         roots = [span for span in spans if span["parent_id"] == PARENT_SPAN_ID]
         assert {span["name"] for span in roots} == {
-            "invoke_agent finance-assistant",
-            "invoke_agent research-analyst",
+            "finance-assistant",
+            "research-analyst",
         }
         assert {span["context"]["trace_id"] for span in spans} == {PARENT_TRACE_ID}
 
@@ -221,12 +221,12 @@ class TestConvertThenReparent:
     ) -> None:
         if embedded:
             spans = group([v17_embedded_subagents])
-            child, tool = "invoke_agent researcher", "execute_tool delegate_research"
+            child, tool = "researcher", "delegate_research"
         else:
             spans = group([subagent_fixture["parent"], subagent_fixture["child"]])
-            child, tool = "invoke_agent summarizer", "execute_tool delegate_summary"
+            child, tool = "summarizer", "delegate_summary"
 
-        assert named(spans, "invoke_agent orchestrator")["parent_id"] == PARENT_SPAN_ID
+        assert named(spans, "orchestrator")["parent_id"] == PARENT_SPAN_ID
         assert named(spans, child)["parent_id"] == named(spans, tool)["context"]["span_id"]
         assert named(spans, child)["context"]["trace_id"] == PARENT_TRACE_ID
 
@@ -263,16 +263,16 @@ class TestSimpleTrajectory:
 
         assert (root["span_kind"], root["name"], root["status_code"]) == (
             "AGENT",
-            "invoke_agent finance-assistant",
+            "finance-assistant",
             "OK",
         )
         assert "parent_id" not in root
         assert len({s["context"]["trace_id"] for s in spans}) == 1
         assert [c["name"] for c in chains] == ["iteration 1", "iteration 2"]
         assert all(c["parent_id"] == root["context"]["span_id"] for c in chains)
-        assert [llm["name"] for llm in llms] == ["chat gpt-4", "chat gpt-4"]
+        assert [llm["name"] for llm in llms] == ["gpt-4", "gpt-4"]
         assert [llm["parent_id"] for llm in llms] == [c["context"]["span_id"] for c in chains]
-        assert [tool["name"] for tool in tools] == ["execute_tool financial_search"]
+        assert [tool["name"] for tool in tools] == ["financial_search"]
         assert tools[0]["parent_id"] == chains[0]["context"]["span_id"]
         assert "GOOGL" in attrs(tools[0])["output.value"]
 
@@ -316,9 +316,9 @@ class TestMultiToolTrajectory:
         spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
         assert _span_kind_counts(spans) == {"AGENT": 1, "CHAIN": 3, "LLM": 3, "TOOL": 4}
         assert {tool["name"] for tool in of_kind(spans, "TOOL")} == {
-            "execute_tool financial_search",
-            "execute_tool news_search",
-            "execute_tool analyst_estimates",
+            "financial_search",
+            "news_search",
+            "analyst_estimates",
         }
         assert_parents_resolve(spans)
 
@@ -364,7 +364,7 @@ class TestOptionalFields:
 
     def test_missing_model_name_yields_bare_chat_span(self) -> None:
         llm = of_kind(_convert_atif_trajectory_to_spans(trajectory(user_then_agent())), "LLM")[0]
-        assert llm["name"] == "chat"
+        assert llm["name"] == "LLM"
         assert "llm.model_name" not in attrs(llm)
 
     def test_single_unmatched_result_pairs_with_the_only_tool_call(self) -> None:
@@ -528,13 +528,13 @@ class TestParallelToolsMixedResults:
         spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
         tools = of_kind(spans, "TOOL")
         assert {tool["name"] for tool in tools} == {
-            "execute_tool get_weather",
-            "execute_tool get_stock",
-            "execute_tool get_news",
+            "get_weather",
+            "get_stock",
+            "get_news",
         }
-        assert "42°F" in attrs(named(spans, "execute_tool get_weather"))["output.value"]
-        assert "rate limit" in attrs(named(spans, "execute_tool get_stock"))["output.value"].lower()
-        assert "output.value" not in attrs(named(spans, "execute_tool get_news"))
+        assert "42°F" in attrs(named(spans, "get_weather"))["output.value"]
+        assert "rate limit" in attrs(named(spans, "get_stock"))["output.value"].lower()
+        assert "output.value" not in attrs(named(spans, "get_news"))
 
 
 class TestSubagentLinking:
@@ -545,16 +545,13 @@ class TestSubagentLinking:
     ) -> None:
         parent, child = subagent_fixture["parent"], subagent_fixture["child"]
         spans = _convert_atif_trajectories_to_spans([parent, child])
-        child_root = named(spans, "invoke_agent summarizer")
+        child_root = named(spans, "summarizer")
         parent_trace_id = _sha256_trace_id("sess-parent-001:trace")
 
         assert child_root["parent_id"] == _sha256_span_id(
             "sess-parent-001:step:2:tool:call_summarize"
         )
-        assert (
-            child_root["parent_id"]
-            == named(spans, "execute_tool delegate_summary")["context"]["span_id"]
-        )
+        assert child_root["parent_id"] == named(spans, "delegate_summary")["context"]["span_id"]
         assert {span["context"]["trace_id"] for span in spans} == {parent_trace_id}
 
     def test_independent_trajectories_get_own_traces_without_parents(self) -> None:
@@ -608,17 +605,14 @@ class TestATIFV17Conversion:
         self, v17_embedded_subagents: Dict[str, Any]
     ) -> None:
         spans = _convert_atif_trajectories_to_spans([v17_embedded_subagents])
-        child_root = named(spans, "invoke_agent researcher")
+        child_root = named(spans, "researcher")
         trace_id = _sha256_trace_id("run-v17-001:trace")
 
         assert child_root["context"]["trace_id"] == trace_id
         assert child_root["parent_id"] == _sha256_span_id(
             f"{trace_id}:parent-doc:step:2:tool:call_delegate"
         )
-        assert (
-            child_root["parent_id"]
-            == (named(spans, "execute_tool delegate_research")["context"]["span_id"])
-        )
+        assert child_root["parent_id"] == (named(spans, "delegate_research")["context"]["span_id"])
         assert attrs(child_root)["session.id"] == "run-v17-001"
         assert metadata(child_root)["trajectory_id"] == "child-doc"
 
@@ -635,7 +629,7 @@ class TestATIFV17Conversion:
 
         span_ids = [span["context"]["span_id"] for span in spans]
         assert len(set(span_ids)) == len(span_ids)
-        child_roots = [s for s in spans if s["name"] == "invoke_agent researcher"]
+        child_roots = [s for s in spans if s["name"] == "researcher"]
         assert len(child_roots) == 2
         assert len({s["context"]["trace_id"] for s in child_roots}) == 2
 
@@ -761,10 +755,8 @@ class TestATIFV17Conversion:
 
         assert {span["context"]["trace_id"] for span in spans} == {trace_id}
         assert {attrs(span)["session.id"] for span in spans} == {"run-grandchild"}
-        assert named(spans, "invoke_agent child")["parent_id"] == tools[0]["context"]["span_id"]
-        assert (
-            named(spans, "invoke_agent grandchild")["parent_id"] == (tools[1]["context"]["span_id"])
-        )
+        assert named(spans, "child")["parent_id"] == tools[0]["context"]["span_id"]
+        assert named(spans, "grandchild")["parent_id"] == (tools[1]["context"]["span_id"])
         assert tools[1]["context"]["span_id"] == _sha256_span_id(
             f"{trace_id}:child-doc:step:2:tool:call_gc"
         )
@@ -814,7 +806,7 @@ class TestMultiTurnBehavior:
         steps = of_kind(spans, "CHAIN")
         llms = of_kind(spans, "LLM")
 
-        assert (root["name"], root["span_kind"]) == ("invoke_agent assistant", "AGENT")
+        assert (root["name"], root["span_kind"]) == ("assistant", "AGENT")
         assert "parent_id" not in root
         assert [t["name"] for t in turns] == ["turn 1", "turn 2"]
         assert all(t.get("parent_id") == root["context"]["span_id"] for t in turns)
@@ -930,7 +922,7 @@ class TestHarborGoldenFiles:
 
     def test_openhands_root_and_tool_definitions(self) -> None:
         spans = _convert_atif_trajectory_to_spans(_load_fixture("harbor_openhands.json"))
-        assert (spans[0]["name"], spans[0]["span_kind"]) == ("invoke_agent openhands", "AGENT")
+        assert (spans[0]["name"], spans[0]["span_kind"]) == ("openhands", "AGENT")
         assert "parent_id" not in spans[0]
         assert any(key.startswith("llm.tools.") for key in attrs(of_kind(spans, "LLM")[0]))
 
@@ -943,7 +935,7 @@ class TestHarborGoldenFiles:
         ]
         spans = _convert_atif_trajectories_to_spans([parent, *children])
         parent_trace_id = _sha256_trace_id(f"{parent['session_id']}:trace")
-        child_roots = [named(spans, f"invoke_agent {child['agent']['name']}") for child in children]
+        child_roots = [named(spans, f"{child['agent']['name']}") for child in children]
 
         assert {span["context"]["trace_id"] for span in spans} == {parent_trace_id}
         assert all("parent_id" in root for root in child_roots)
@@ -1003,9 +995,9 @@ class TestHarborGoldenFiles:
             "final_metrics": {"total_prompt_tokens": 0, "total_completion_tokens": 0},
         }
         spans = _convert_atif_trajectory_to_spans(document)
-        assert (spans[0]["name"], spans[0]["span_kind"]) == ("invoke_agent claude-code", "AGENT")
+        assert (spans[0]["name"], spans[0]["span_kind"]) == ("claude-code", "AGENT")
         llm = of_kind(spans, "LLM")[0]
-        assert llm["name"] == "chat <synthetic>"
+        assert llm["name"] == "<synthetic>"
         assert "llm.token_count.total" not in attrs(llm)
         assert attrs(llm)["output.value"] == "Not logged in"
 
@@ -1065,12 +1057,12 @@ class TestOperationNamingAndTiming:
         [
             (
                 {"_phoenix_is_continuation": True, "_phoenix_continuation_index": 2},
-                "invoke_agent worker (continuation 2)",
+                "worker (continuation 2)",
                 {"is_continuation": True, "continuation_index": 2},
             ),
             (
                 {"session_id": "run-cont-1"},
-                "invoke_agent worker (continuation)",
+                "worker (continuation)",
                 {"is_continuation": True},
             ),
         ],
@@ -1267,7 +1259,7 @@ class TestTurnGrouping:
             agent_name="codex",
         )
         spans = _convert_atif_trajectory_to_spans(document)
-        assert [s["name"] for s in of_kind(spans, "AGENT")] == ["invoke_agent codex"]
+        assert [s["name"] for s in of_kind(spans, "AGENT")] == ["codex"]
         assert [s["name"] for s in of_kind(spans, "CHAIN")] == ["iteration 1"]
         assert attrs(spans[0])["input.value"] == "do the task"
 
@@ -1337,8 +1329,8 @@ class TestEqualTimeEvents:
         ] * 4
         assert all(t["start_time"] == t["end_time"] for t in tools)
         assert [t["name"] for t in tools] == [
-            "execute_tool bash",
-            "execute_tool bash",
-            "execute_tool done",
+            "bash",
+            "bash",
+            "done",
         ]
         assert [metadata(t)["atif.tool_call_index"] for t in tools] == [0, 1, 2]

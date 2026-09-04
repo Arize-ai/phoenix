@@ -3,9 +3,9 @@
 
 Each trajectory becomes one trace: a root AGENT span, an AGENT span per user
 turn when there are several turns, a CHAIN span per fresh operational step,
-and LLM and TOOL spans beneath each step. Span names follow the OpenTelemetry
-GenAI conventions where a convention exists (``invoke_agent``, ``chat``,
-``execute_tool``); iterations and turns keep ATIF vocabulary.
+and LLM and TOOL spans beneath each step. Spans are named by their target
+(the agent, model, or tool) because the span kind already names the
+operation; iterations and turns use ATIF vocabulary.
 
 ATIF fields with no OpenInference equivalent (``notes``, ``reasoning_effort``,
 token ID arrays, and logprobs) are not mapped.
@@ -963,7 +963,7 @@ def _root_name_and_metadata(doc: _Document) -> tuple[str, Dict[str, Any]]:
     if trajectory.get("final_metrics"):
         metadata["final_metrics"] = trajectory["final_metrics"]
 
-    name = f"invoke_agent {agent.get('name') or 'agent'}"
+    name = str(agent.get("name") or "agent")
     session_id = trajectory.get("session_id")
     is_continuation = bool(trajectory.get(_IS_CONTINUATION_KEY)) or (
         isinstance(session_id, str) and session_id != _base_session_id(session_id)
@@ -1082,7 +1082,7 @@ def _llm_span(doc: _Document, step_index: int, parent_id: str) -> v1.Span:
     _update_metadata(attrs, {"atif.step_id": step_id, **timing_metadata})
     model_name = attrs.get("llm.model_name")
     return doc.span(
-        name=f"chat {model_name}" if model_name else "chat",
+        name=str(model_name) if model_name else "LLM",
         span_id=_llm_span_id(doc.ids.span_seed, step_id),
         kind="LLM",
         parent_id=parent_id,
@@ -1114,7 +1114,7 @@ def _tool_span(
     _update_metadata(attrs, metadata)
     event_time = doc.timings[step_index][1]
     return doc.span(
-        name=f"execute_tool {attrs['tool.name']}",
+        name=str(attrs["tool.name"]),
         span_id=_tool_span_id(doc.ids.span_seed, step_id, call_id),
         kind="TOOL",
         parent_id=parent_id,
@@ -1150,13 +1150,13 @@ def _convert_atif_trajectory_to_spans(
     Single-turn trajectories place each step under the root; multi-turn
     trajectories add one AGENT span per turn::
 
-        AGENT invoke_agent <name>
+        AGENT <agent name>
           AGENT turn 1                 (multi-turn only)
             CHAIN iteration 1
-              LLM chat <model>
-              TOOL execute_tool <tool>
+              LLM <model name>
+              TOOL <tool name>
             CHAIN iteration 2
-              LLM chat <model>
+              LLM <model name>
 
     Copied-context steps contribute to reconstructed prompts only. IDs are
     deterministic, so converting the same trajectory twice yields the same

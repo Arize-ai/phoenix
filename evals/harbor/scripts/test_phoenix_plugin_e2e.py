@@ -46,11 +46,11 @@ HARBOR_ATIF_COMPACTION_SOURCE_PATHS = {
     "agent/trajectory.summarization-1-summary.json",
 }
 HARBOR_ATIF_COMPACTION_AGENTS = {
-    "invoke_agent terminus-2",
-    "invoke_agent terminus-2 (continuation 1)",
-    "invoke_agent terminus-2-summarization-answers",
-    "invoke_agent terminus-2-summarization-questions",
-    "invoke_agent terminus-2-summarization-summary",
+    "terminus-2",
+    "terminus-2 (continuation 1)",
+    "terminus-2-summarization-answers",
+    "terminus-2-summarization-questions",
+    "terminus-2-summarization-summary",
 }
 
 
@@ -343,8 +343,11 @@ def _print_trace_tree(spans: Sequence[Mapping[str, Any]]) -> None:
     children: dict[str | None, list[Mapping[str, Any]]] = {}
     for span in spans:
         children.setdefault(span.get("parent_id"), []).append(span)
+    kind_order = {"AGENT": 0, "CHAIN": 1, "LLM": 2, "TOOL": 3}
     for siblings in children.values():
-        siblings.sort(key=lambda span: (_parse_time(span["start_time"]), span["name"]))
+        siblings.sort(
+            key=lambda span: (_parse_time(span["start_time"]), kind_order.get(span["span_kind"], 9))
+        )
 
     def walk(parent_id: str | None, depth: int) -> None:
         for span in children.get(parent_id, []):
@@ -376,18 +379,20 @@ def _assert_trace_shape(spans: Sequence[Mapping[str, Any]], trace_id: str) -> Ma
         kind = span["span_kind"]
         name = str(span["name"])
         if kind == "LLM":
-            _check(name.startswith("chat"), f"LLM span is not named for its operation: {name!r}")
+            _check(name == span["attributes"].get("llm.model_name", "LLM"), repr(span))
         else:
             _check(
                 not any(str(key).startswith("llm.") for key in span["attributes"]),
                 f"{kind} span {name!r} carries llm.* attributes",
             )
         if kind == "TOOL":
-            _check(name.startswith("execute_tool "), f"unexpected TOOL name {name!r}")
+            _check(name == span["attributes"].get("tool.name"), repr(span))
             _check(span["start_time"] == span["end_time"], "ATIF invented tool durations")
         if kind == "AGENT":
             _check(
-                name.startswith("invoke_agent ") or name.startswith("turn "),
+                name == _span_metadata(span).get("agent_name")
+                or name.startswith(f"{_span_metadata(span).get('agent_name')} (continuation")
+                or name.startswith("turn "),
                 f"unexpected AGENT name {name!r}",
             )
         if kind in {"LLM", "TOOL"}:
@@ -535,7 +540,7 @@ def _run_atif_compaction_case(
         repr(agent_spans),
     )
     continuation = next(
-        span for span in agent_spans if span["name"] == "invoke_agent terminus-2 (continuation 1)"
+        span for span in agent_spans if span["name"] == "terminus-2 (continuation 1)"
     )
     _check(
         _span_metadata(continuation).get("is_continuation") is True
@@ -653,7 +658,7 @@ def _run_atif_multi_step_case(
     )
     for index, step_span in enumerate(step_spans, start=1):
         step_name = step_names[index - 1]
-        step_attributes = cast(Mapping[str, Any], step_span["attributes"])
+        step_attributes: Mapping[str, Any] = step_span.get("attributes") or {}
         _check("input.value" in step_attributes, f"{step_span['name']} has no instruction")
         _check(
             json.loads(str(step_attributes.get("output.value") or "{}")).get("reward")

@@ -265,21 +265,20 @@ span. LLM, TOOL, and referenced subagent work hangs beneath that iteration; a ma
 `source_call_id` narrows a subagent parent to its TOOL call. Copied context is prompt history and
 does not create duplicate execution spans.
 
-Span names use one grammar, `<operation> <target>`. Harbor-owned spans keep a `harbor.` prefix,
-GenAI operations follow the OpenTelemetry GenAI semantic conventions, and ATIF vocabulary covers
-the rest:
+A span is named by its target; the span kind already names the operation. Harbor-owned spans
+keep a `harbor.` prefix, and ATIF vocabulary covers the steps within a trajectory:
 
 | Span | Kind | Name |
 | --- | --- | --- |
 | Trial | CHAIN | `harbor.trial <task id>` |
 | Step (multi-step only) | CHAIN | `harbor.step <index> <step name>` |
-| Trajectory root | AGENT | `invoke_agent <agent name>`; a continuation adds ` (continuation N)` |
+| Trajectory root | AGENT | `<agent name>`; a continuation adds ` (continuation N)` |
 | Turn (multi-turn only) | AGENT | `turn N` |
 | Agent loop iteration | CHAIN | `iteration N` |
 | Context management | CHAIN | `compaction N` |
 | Operational system step (a handoff, for example) | CHAIN | `system event N` |
-| LLM call | LLM | `chat <model>` |
-| Tool call | TOOL | `execute_tool <tool name>` |
+| LLM call | LLM | `<model name>`, or `LLM` when the trajectory names no model |
+| Tool call | TOOL | `<tool name>` |
 
 Ordinals count fresh operational steps with the same label, regardless of interleaving; the
 producer's `step_id` stays in metadata as `atif.step_id`. A user message never consumes an ordinal.

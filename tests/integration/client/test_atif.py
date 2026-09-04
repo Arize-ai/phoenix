@@ -109,15 +109,15 @@ class TestAtifTrajectoryUpload:
         assert not unresolvable, f"spans persisted with unresolvable parents: {unresolvable}"
 
         roots = {s["name"] for s in fetched if s.get("parent_id") == parent_span_id}
-        assert roots == {"invoke_agent terminus-2"}
+        assert roots == {"terminus-2"}
 
         handoff_step_id = next(
             s["context"]["span_id"] for s in fetched if s["name"] == "system event 1"
         )
         subagent_root_names = {
-            "invoke_agent terminus-2-summarization-questions",
-            "invoke_agent terminus-2-summarization-answers",
-            "invoke_agent terminus-2-summarization-summary",
+            "terminus-2-summarization-questions",
+            "terminus-2-summarization-answers",
+            "terminus-2-summarization-summary",
         }
         assert {
             s["name"]: s.get("parent_id") for s in fetched if s["name"] in subagent_root_names
