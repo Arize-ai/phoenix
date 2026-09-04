@@ -1177,7 +1177,6 @@ async def test_trace_hydration_binds_the_trace_context(
         evaluation_target="TRACE",
     )
     fingerprint = await _config_fingerprint(db, evaluator_id, project_evaluator_id)
-    # Hydration never reaches the coordinator, so the executor's bound target is immaterial.
     executor = _executor(db)
 
     hydrated = await executor.hydrate(
