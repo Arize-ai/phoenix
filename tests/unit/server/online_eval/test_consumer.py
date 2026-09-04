@@ -1517,7 +1517,7 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
-        session_vocabularies: Mapping[int, Mapping[str, Any]],
+        target_vocabularies: Mapping[int, Mapping[str, Any]],
     ) -> Any:
         if unit.target_rowid == bad_span.id:
             await session.execute(text("SELECT 1 / 0"))
@@ -1526,7 +1526,7 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
             session,
             unit,
             project_id=project_id,
-            session_vocabularies=session_vocabularies,
+            target_vocabularies=target_vocabularies,
         )
 
     monkeypatch.setattr(OnlineEvalExecutor, "_hydrate_target_context", _fail_one_target)
