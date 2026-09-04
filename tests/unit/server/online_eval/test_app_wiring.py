@@ -46,13 +46,14 @@ def _create_app(db: DbSessionFactory, *, read_only: bool = False):  # type: igno
 
 async def test_online_eval_daemons_run_by_default(db: DbSessionFactory) -> None:
     """Read-only mode is the only thing that keeps the daemons from starting, so an
-    app built with no online-eval environment at all still gets all five, both
-    sweepers included.
+    app built with no online-eval environment at all still gets all six: a consumer
+    per target, both sweepers, and the producer.
     """
     app = _create_app(db)
     assert isinstance(app.state.online_eval_producer, OnlineEvalProducer)
     assert isinstance(app.state.online_eval_consumer, OnlineEvalConsumer)
     assert isinstance(app.state.online_eval_session_consumer, OnlineEvalConsumer)
+    assert isinstance(app.state.online_eval_trace_consumer, OnlineEvalConsumer)
     assert isinstance(app.state.online_eval_session_sweeper, EvalSweeper)
     assert isinstance(app.state.online_eval_trace_sweeper, EvalSweeper)
 
@@ -62,6 +63,7 @@ async def test_online_eval_daemons_absent_in_read_only_mode(db: DbSessionFactory
     assert app.state.online_eval_producer is None
     assert app.state.online_eval_consumer is None
     assert app.state.online_eval_session_consumer is None
+    assert app.state.online_eval_trace_consumer is None
     assert app.state.online_eval_session_sweeper is None
     assert app.state.online_eval_trace_sweeper is None
 
@@ -118,21 +120,32 @@ async def test_app_runs_seeded_criteria_end_to_end(
         producer = app.state.online_eval_producer
         consumer = app.state.online_eval_consumer
         session_consumer = app.state.online_eval_session_consumer
+        trace_consumer = app.state.online_eval_trace_consumer
         session_sweeper = app.state.online_eval_session_sweeper
         trace_sweeper = app.state.online_eval_trace_sweeper
         assert isinstance(producer, OnlineEvalProducer)
         assert isinstance(consumer, OnlineEvalConsumer)
         assert isinstance(session_consumer, OnlineEvalConsumer)
-        assert session_consumer is not consumer
+        assert isinstance(trace_consumer, OnlineEvalConsumer)
+        assert len({id(consumer), id(session_consumer), id(trace_consumer)}) == 3
         assert session_consumer._evaluation_target == "SESSION"
-        assert consumer._claim_batch_size == session_consumer._claim_batch_size == 3
+        assert trace_consumer._evaluation_target == "TRACE"
+        assert (
+            consumer._claim_batch_size
+            == session_consumer._claim_batch_size
+            == trace_consumer._claim_batch_size
+            == 3
+        )
         assert consumer._evaluator_semaphore is session_consumer._evaluator_semaphore
+        assert consumer._evaluator_semaphore is trace_consumer._evaluator_semaphore
         assert consumer._evaluator_semaphore._value == 4
         assert consumer._db_semaphore is session_consumer._db_semaphore
+        assert consumer._db_semaphore is trace_consumer._db_semaphore
         assert consumer._db_semaphore is not None
         assert consumer._db_semaphore._value == 5
         assert consumer._executor._db_semaphore is consumer._db_semaphore
         assert session_consumer._executor._db_semaphore is consumer._db_semaphore
+        assert trace_consumer._executor._db_semaphore is consumer._db_semaphore
         assert isinstance(session_sweeper, EvalSweeper)
         assert isinstance(trace_sweeper, EvalSweeper)
         assert trace_sweeper._lease_name != session_sweeper._lease_name

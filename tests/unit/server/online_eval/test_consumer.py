@@ -48,6 +48,7 @@ from phoenix.server.dml_event import (
     DmlEvent,
     ProjectSessionAnnotationInsertEvent,
     SpanAnnotationInsertEvent,
+    TraceAnnotationInsertEvent,
 )
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.online_eval import consumer as consumer_module
@@ -628,6 +629,42 @@ async def _materialize_session_unit(
         return unit.id, fingerprint
 
 
+async def _materialize_trace_unit(
+    db: DbSessionFactory,
+    trace_rowid: int,
+    evaluator_id: int,
+    project_evaluator_id: int,
+) -> tuple[int, str]:
+    async with db() as session:
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        polymorphic = with_polymorphic(
+            models.Evaluator,
+            [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+        )
+        evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
+        assert evaluator is not None
+        trace = await session.get(models.Trace, trace_rowid)
+        assert trace is not None
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        assert resolved is not None
+        fingerprint = config_fingerprint(resolved)
+        evaluated_through = trace.last_span_ingested_at
+        if evaluated_through is None:
+            evaluated_through = datetime.now(timezone.utc)
+            trace.last_span_ingested_at = evaluated_through
+        unit = models.EvalTraceWorkUnit(
+            trace_rowid=trace_rowid,
+            evaluator_id=evaluator_id,
+            project_evaluator_id=project_evaluator_id,
+            config_fingerprint=fingerprint,
+            evaluated_through=evaluated_through,
+        )
+        session.add(unit)
+        await session.flush()
+        return unit.id, fingerprint
+
+
 def _executor(
     db: DbSessionFactory,
     *,
@@ -655,6 +692,18 @@ async def _get_session_unit(db: DbSessionFactory, unit_id: int) -> models.EvalSe
         unit = await session.get(models.EvalSessionWorkUnit, unit_id)
         assert unit is not None
         return unit
+
+
+async def _get_trace_unit(db: DbSessionFactory, unit_id: int) -> models.EvalTraceWorkUnit:
+    async with db() as session:
+        unit = await session.get(models.EvalTraceWorkUnit, unit_id)
+        assert unit is not None
+        return unit
+
+
+async def _trace_annotations(db: DbSessionFactory) -> list[models.TraceAnnotation]:
+    async with db() as session:
+        return list(await session.scalars(select(models.TraceAnnotation)))
 
 
 async def _annotations(db: DbSessionFactory) -> list[models.SpanAnnotation]:
@@ -3380,3 +3429,54 @@ async def test_session_stand_down_is_visible_on_the_expired_gauge(
 
     expired_gauge.labels.assert_called_once_with(evaluation_target="SESSION")
     expired_gauge.labels.return_value.set.assert_called_once_with(1)
+
+
+async def test_trace_consumer_writes_a_trace_annotation(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "question"}, "output": {"value": "answer"}},
+        )
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="TRACE",
+    )
+    unit_id, fingerprint = await _materialize_trace_unit(
+        db,
+        trace.id,
+        evaluator_id,
+        project_evaluator_id,
+    )
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+    events: SimpleQueue[DmlEvent] = SimpleQueue()
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        event_queue=events,
+        evaluation_target="TRACE",
+    )
+    await consumer._cycle()
+
+    assert (await _get_trace_unit(db, unit_id)).status == "DONE"
+    assert client.requests[0]["messages"][0]["content"] == (
+        "Input: question\n\nOutput: answer\n\nGood?"
+    )
+    (annotation,) = await _trace_annotations(db)
+    assert annotation.trace_rowid == trace.id
+    assert annotation.label == "good"
+    assert annotation.score == 1.0
+    assert annotation.annotator_kind == "LLM"
+    assert annotation.source == "API"
+    assert annotation.identifier == annotation_identifier(fingerprint)
+    # A session evaluation publishes its turn policy here; a trace has none.
+    assert annotation.metadata_ == {}
+    assert events.get_nowait() == TraceAnnotationInsertEvent((annotation.id,))
+    assert events.empty()
