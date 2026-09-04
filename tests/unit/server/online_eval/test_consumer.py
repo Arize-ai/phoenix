@@ -1155,7 +1155,10 @@ async def test_load_trace_bound_variables_reads_filter_language_values(
     assert resolved[wire_key_trace.id]["input"] == "question"
 
 
-async def test_trace_hydration_binds_the_trace_context(db: DbSessionFactory) -> None:
+async def test_trace_hydration_binds_the_trace_context(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_playground_client(monkeypatch, _StubLLMClient())
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
