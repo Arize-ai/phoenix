@@ -247,10 +247,8 @@ def _create_trace_work_units_table() -> None:
 
 
 def upgrade() -> None:
-    # project_sessions and traces both carry raw-expression DESC indexes, so add_column and
-    # drop_column are used bare here: batch mode would rebuild the table by reflection and
-    # silently recreate those indexes as ascending. SQLite supports both statements natively
-    # on these columns.
+    # Bare add/drop_column: batch mode reflects these tables' raw-expression DESC indexes back
+    # as ascending.
     op.add_column(
         "project_sessions",
         sa.Column(
