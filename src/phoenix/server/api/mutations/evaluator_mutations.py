@@ -563,12 +563,12 @@ class CreateProjectLLMEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
-            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
-            "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
+            f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store "
+            f"the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or "
+            "session is evaluated only once, and later activity does not schedule another "
+            "evaluation."
         ),
     )
 
@@ -591,13 +591,12 @@ class UpdateProjectLLMEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=UNSET,
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
-            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
-            "are stored but not scheduled. Omit to preserve the current setting, or use null "
-            f"to store the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} "
-            "seconds. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
+            f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current "
+            "setting, or use null to store the current default of "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or session is evaluated "
+            "only once, and later activity does not schedule another evaluation."
         ),
     )
 
@@ -621,12 +620,12 @@ class AddProjectCodeEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
-            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
-            "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
+            f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store "
+            f"the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or "
+            "session is evaluated only once, and later activity does not schedule another "
+            "evaluation."
         ),
     )
 
@@ -655,12 +654,12 @@ class CreateProjectCodeEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
-            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
-            "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
+            f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store "
+            f"the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or "
+            "session is evaluated only once, and later activity does not schedule another "
+            "evaluation."
         ),
     )
 
@@ -690,13 +689,12 @@ class UpdateProjectCodeEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=UNSET,
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
-            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
-            "are stored but not scheduled. Omit to preserve the current setting, or use null "
-            f"to store the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} "
-            "seconds. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
+            f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current "
+            "setting, or use null to store the current default of "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or session is evaluated "
+            "only once, and later activity does not schedule another evaluation."
         ),
     )
 

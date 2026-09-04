@@ -1396,6 +1396,52 @@ async def test_materializes_due_trace_with_activity_snapshot(
     assert session_work_count == 0
 
 
+async def test_trace_evaluator_with_an_uncompilable_filter_does_not_stop_the_tick(
+    db: DbSessionFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A TRACE filter written in the span language is skipped, not raised for the tick."""
+    project_id, _, _ = await _add_trace_liveness(db, age_seconds=600)
+    _, uncompilable_project_evaluator_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="TRACE",
+        filter_condition="span_kind == 'LLM'",
+    )
+    _, compilable_project_evaluator_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="TRACE",
+        filter_condition="latency_ms >= 0",
+    )
+
+    sweeper = EvalSweeper(
+        db,
+        evaluation_target="TRACE",
+        max_outstanding=TRACE_SWEEP_MAX_OUTSTANDING,
+    )
+    with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
+        await sweeper._tick()
+
+    async with db() as session:
+        statuses = {
+            row.project_evaluator_id: row.status
+            for row in (
+                await session.execute(
+                    select(
+                        models.EvalTraceWorkUnit.project_evaluator_id,
+                        models.EvalTraceWorkUnit.status,
+                    )
+                )
+            ).all()
+        }
+    assert statuses == {compilable_project_evaluator_id: "PENDING"}
+    assert (
+        f"Skipping project_evaluator {uncompilable_project_evaluator_id}: "
+        "filter condition does not compile for TRACE evaluation: invalid name `span_kind`"
+    ) in caplog.text
+
+
 async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,

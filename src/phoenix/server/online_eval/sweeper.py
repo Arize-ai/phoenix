@@ -147,6 +147,9 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
         # branches derived from the rows that survived locking, and the
         # stale-fingerprint revival, which re-offers a unit straight from the
         # work-unit table without re-checking the gate.
+        # The re-filter can still drop a row for the other reason it exists — the
+        # trace was deleted between the page read and the lock — and advancing past
+        # that row is safe because there is nothing left to evaluate.
         is_evaluable=lambda: true(),
         project_evaluator_is_schedulable=partial(
             project_evaluator_is_schedulable,
@@ -641,6 +644,8 @@ class EvalSweeper(DaemonTask):
                     f"no resolvable version for evaluator {evaluator.id}"
                 )
                 continue
+            if project_evaluator.filter_condition and not self._filter_compiles(project_evaluator):
+                continue
             project_evaluator_rows.append(
                 _SweepProjectEvaluator(
                     project_evaluator_id=project_evaluator.id,
@@ -656,6 +661,29 @@ class EvalSweeper(DaemonTask):
                 )
             )
         return project_evaluator_rows
+
+    def _filter_compiles(self, project_evaluator: models.ProjectEvaluator) -> bool:
+        """Whether this evaluator's stored filter compiles in this target's filter language.
+
+        An evaluator stored before its target's language was enforced can carry a condition
+        the sweep cannot compile. One relation covers the whole tick, so a condition that
+        raises while it is built stops every evaluator of this target rather than its own:
+        compile each one here, against the same call the relation makes, and drop the
+        ones that fail.
+        """
+        try:
+            self._target.filtered_entity_rowids_subquery(
+                project_evaluator.filter_condition,
+                [project_evaluator.project_id],
+            )
+        except Exception as error:
+            logger.warning(
+                f"Skipping project_evaluator {project_evaluator.id}: "
+                f"filter condition does not compile for {self._evaluation_target} "
+                f"evaluation: {error}"
+            )
+            return False
+        return True
 
     async def _sweep(
         self,

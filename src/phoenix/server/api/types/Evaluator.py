@@ -1430,12 +1430,12 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled. Values must be at "
-            f"least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New project evaluators store the "
-            f"default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds when no value is "
-            "provided. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation. Only SESSION scheduling honors this value: a SPAN evaluator "
-            "cannot set one, and TRACE evaluators are not scheduled."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled. Values "
+            f"must be at least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New project "
+            f"evaluators store the default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds when "
+            "no value is provided. A trace or session is evaluated only once, and later "
+            "activity does not schedule another evaluation. The delay applies to TRACE and "
+            "SESSION targets and is rejected for SPAN."
         )
     )
     async def evaluation_delay_seconds(self, info: Info[Context, None]) -> int:
