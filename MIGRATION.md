@@ -1,5 +1,34 @@
 # Migrations
 
+## v19.x to v20.0.0
+
+The upgrade from v19.x to v20.0.0 needs no manual steps, but it introduces persisted agent sessions, which carry a
+few operational consequences.
+
+### Agent session persistence
+
+Conversations with the Phoenix agent are now persisted server-side. Sessions survive page reloads and can be browsed,
+restored, and continued later — from the browser or from the `phoenix-cli pxi` terminal client, interchangeably. The terminal
+client gains session management commands (`/new`, `/temporary`, `/sessions`, `/model`, and `/compact` for summarizing
+older context into a checkpoint on long-running sessions).
+
+### What changes for operators
+
+- **New database tables.** The startup migration creates `agent_sessions`, `agent_session_messages`, and
+  `agent_session_snapshots` (with their indexes) to hold conversations, their messages, and per-session bash state.
+- **Conversations are subject to retention.** Persisted agent sessions do not accumulate forever. By default Phoenix
+  deletes a user's chats after 30 idle days and keeps at most 30 chats per user, evicting the rest on an hourly sweep;
+  temporary chats are removed 24 hours after their last activity. Administrators can change the persisted-chat limits
+  under **Settings → Assistant** (set a limit to 0 to disable it); the 24-hour temporary window is fixed. See
+  [Data Retention](https://arize.com/docs/phoenix/settings/data-retention#agent-session-retention).
+- **`phoenix-cli pxi` requires a matching server.** The `phoenix-cli pxi` terminal client, and the `/v1/agent_sessions`
+  routes it depends on, require a Phoenix server on 20.0.0 or newer. `phoenix-cli pxi` 20+ checks the server version at
+  startup and exits with an upgrade message against an older server, so upgrade the server before or alongside the CLI.
+- **A legacy chat route is deprecated.** `POST /agents/server/sessions/{session_id}/chat` still works but is marked
+  deprecated in the OpenAPI spec; new integrations should use the `/v1/agent_sessions` routes instead.
+- **The OTel `session.id` format changed.** Recorded assistant sessions now use a new `session.id` shape, so saved
+  filters or dashboards built on the old shape in the `assistant_agent` project need to be rebuilt.
+
 ## v18.x to v19.0.0
 
 ### Built-in OAuth2 authorization server
@@ -52,9 +81,8 @@ Operators who do not want the MCP surface exposed can disable it with:
 By default the `/mcp` endpoint now presents FastMCP's **code-mode** tool surface: instead of the `/v1`-derived tool
 list, clients see discovery meta-tools (`search`, `get_schema`, `tags`, `list_tools`) and an `execute` tool that runs
 model-written Python in a `pydantic-monty` sandbox where `call_tool(name, params)` is the only function in scope. The
-`execute` tool can only invoke tools the caller is already authorized for, and each block is bounded by the FastMCP
-sandbox defaults (30s wall clock, 100 MB memory, at most 50 `call_tool` invocations). To restore the previous
-group-gated progressive-disclosure tool list instead, set:
+`execute` tool can only invoke tools the caller is already authorized for, and runs it in sandbox worker subprocesses
+that Phoenix starts on first use. To restore the previous group-gated progressive-disclosure tool list instead, set:
 
 - `PHOENIX_ENABLE_MCP_CODE_MODE` (default `true`). When set to `false`, `/mcp` presents the group-gated tool surface. Has no
   effect unless `PHOENIX_ENABLE_MCP_SERVER` is also set.
@@ -248,7 +276,7 @@ from phoenix.client import Client
 client = Client(base_url="http://localhost:6006")
 ```
 
-The constructor parameter `endpoint` has been renamed to `base_url`. If omitted, it falls back to environment variables or `http://localhost:6006`. Attempting to import `phoenix.session.client` will raise an `ImportError` with migration guidance.
+The constructor parameter `endpoint` has been renamed to `base_url`. If omitted, it falls back to environment variables or `http://localhost:6006`. The `phoenix.session.client` module no longer exists, so importing it raises a `ModuleNotFoundError`.
 
 ### Client Method Changes
 
@@ -285,9 +313,7 @@ The concept formerly called "evaluations" is now called "annotations" throughout
 ```python
 from phoenix.trace import SpanEvaluations
 
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
-)
+px.Client().log_evaluations(SpanEvaluations(eval_name="Hallucination", dataframe=results_df))
 ```
 
 **After:**
@@ -364,9 +390,7 @@ The old `GET /v1/evaluations` only returned span annotations. Its replacement is
 from phoenix.trace import SpanEvaluations
 import phoenix as px
 
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
-)
+px.Client().log_evaluations(SpanEvaluations(eval_name="Hallucination", dataframe=results_df))
 ```
 
 **After (span annotations):**
@@ -668,7 +692,6 @@ from phoenix.experimental.evals import OpenAIModel
 from phoenix.experimental.evals import llm_classify
 
 model = OpenAIModel()
-
 ```
 
 #### New
@@ -688,7 +711,7 @@ from phoenix.evals import llm_classify
 
 ```python
 from phoenix.experimental.evals import OpenAIModel
-from phoenix.experimental.evals import processing # no longer supported in phoenix.evals
+from phoenix.experimental.evals import processing  # no longer supported in phoenix.evals
 
 model = OpenAIModel()
 model.max_context_size  # no longer supported in phoenix.evals

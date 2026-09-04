@@ -1,5 +1,117 @@
 # @arizeai/phoenix-mcp
 
+## 4.3.7
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
+## 4.3.6
+
+### Patch Changes
+
+- Updated dependencies [1cdff14]
+  - @arizeai/phoenix-client@7.7.1
+
+## 4.3.5
+
+### Patch Changes
+
+- Updated dependencies [37916d7]
+- Updated dependencies [c48e50e]
+- Updated dependencies [773c5e5]
+- Updated dependencies [b27561d]
+  - @arizeai/phoenix-client@7.7.0
+
+## 4.3.4
+
+### Patch Changes
+
+- Updated dependencies [d328c3e]
+  - @arizeai/phoenix-client@7.6.0
+
+## 4.3.3
+
+### Patch Changes
+
+- Updated dependencies [0ed987a]
+  - @arizeai/phoenix-client@7.5.0
+
+## 4.3.2
+
+### Patch Changes
+
+- Updated dependencies [90729f3]
+  - @arizeai/phoenix-client@7.4.0
+
+## 4.3.1
+
+### Patch Changes
+
+- Updated dependencies [c892873]
+  - @arizeai/phoenix-client@7.3.1
+
+## 4.3.0
+
+### Minor Changes
+
+- e90ba00: Resolve the MCP server's base URL from `PHOENIX_ENDPOINT`, inferring from the trace-export variables `PHOENIX_COLLECTOR_ENDPOINT` and `OTEL_EXPORTER_OTLP_ENDPOINT` when only those are set, then the legacy `PHOENIX_HOST` — matching the API clients and the `px` CLI. Previously the MCP server read only `PHOENIX_HOST`.
+
+### Patch Changes
+
+- Updated dependencies [d04f0fc]
+  - @arizeai/phoenix-config@0.5.0
+  - @arizeai/phoenix-client@7.3.0
+
+## 4.2.8
+
+### Patch Changes
+
+- Updated dependencies [59aa7cb]
+  - @arizeai/phoenix-client@7.2.0
+
+## 4.2.7
+
+### Patch Changes
+
+- e35712a: Re-release to recover from a failed publish (versions were already on npm)
+- Updated dependencies [e35712a]
+  - @arizeai/phoenix-client@7.1.1
+
+## 4.2.6
+
+### Patch Changes
+
+- Updated dependencies [df7057a]
+  - @arizeai/phoenix-client@7.1.0
+
+## 4.2.5
+
+### Patch Changes
+
+- Updated dependencies [a6c3f88]
+  - @arizeai/phoenix-client@7.0.1
+
+## 4.2.4
+
+### Patch Changes
+
+- Updated dependencies [4867e34]
+  - @arizeai/phoenix-client@7.0.0
+
+## 4.2.3
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.2
+
+## 4.2.2
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.1
+
 ## 4.2.1
 
 ### Patch Changes

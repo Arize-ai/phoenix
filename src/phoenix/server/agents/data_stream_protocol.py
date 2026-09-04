@@ -56,6 +56,11 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputErrorChunk,
 )
 
+from phoenix.server.agents.exceptions import (
+    ProviderConfigError,
+    ProviderCredentialsError,
+)
+
 _DEFAULT_MESSAGE_ID = "subagent-message"
 _UNKNOWN_TOOL_NAME = "unknown"
 
@@ -105,12 +110,13 @@ async def accumulate_ui_message_chunks_to_ui_messages(
                 message.metadata = _merge_metadata(message.metadata, chunk.message_metadata)
                 changed = True
         elif isinstance(chunk, StartStepChunk):
-            message.parts.append(StepStartUIPart())
+            message.parts.append(StepStartUIPart(type="step-start"))
             changed = True
         elif isinstance(chunk, TextStartChunk):
             text_part_indices_by_id[chunk.id] = len(message.parts)
             message.parts.append(
                 TextUIPart(
+                    type="text",
                     text="",
                     state="streaming",
                     provider_metadata=chunk.provider_metadata,
@@ -141,6 +147,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
             reasoning_part_indices_by_id[chunk.id] = len(message.parts)
             message.parts.append(
                 ReasoningUIPart(
+                    type="reasoning",
                     text="",
                     state="streaming",
                     provider_metadata=chunk.provider_metadata,
@@ -339,6 +346,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
         elif isinstance(chunk, SourceUrlChunk):
             message.parts.append(
                 SourceUrlUIPart(
+                    type="source-url",
                     source_id=chunk.source_id,
                     url=chunk.url,
                     title=chunk.title,
@@ -349,6 +357,7 @@ async def accumulate_ui_message_chunks_to_ui_messages(
         elif isinstance(chunk, SourceDocumentChunk):
             message.parts.append(
                 SourceDocumentUIPart(
+                    type="source-document",
                     source_id=chunk.source_id,
                     media_type=chunk.media_type,
                     title=chunk.title,
@@ -358,7 +367,9 @@ async def accumulate_ui_message_chunks_to_ui_messages(
             )
             changed = True
         elif isinstance(chunk, FileChunk):
-            message.parts.append(FileUIPart(url=chunk.url, media_type=chunk.media_type))
+            message.parts.append(
+                FileUIPart(type="file", url=chunk.url, media_type=chunk.media_type)
+            )
             changed = True
         elif isinstance(chunk, DataChunk):
             message.parts.append(DataUIPart(type=chunk.type, id=chunk.id, data=chunk.data))
@@ -385,7 +396,7 @@ def _ensure_text_part(
     if index is None:
         index = len(message.parts)
         indices_by_id[part_id] = index
-        message.parts.append(TextUIPart(text="", state="streaming"))
+        message.parts.append(TextUIPart(type="text", text="", state="streaming"))
     return index
 
 
@@ -398,7 +409,7 @@ def _ensure_reasoning_part(
     if index is None:
         index = len(message.parts)
         indices_by_id[part_id] = index
-        message.parts.append(ReasoningUIPart(text="", state="streaming"))
+        message.parts.append(ReasoningUIPart(type="reasoning", text="", state="streaming"))
     return index
 
 
@@ -440,6 +451,8 @@ def _build_tool_input_streaming_part(
 ) -> UIMessagePart:
     if dynamic:
         return DynamicToolInputStreamingPart(
+            type="dynamic-tool",
+            state="input-streaming",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -447,6 +460,7 @@ def _build_tool_input_streaming_part(
             call_provider_metadata=provider_metadata,
         )
     return ToolInputStreamingPart(
+        state="input-streaming",
         type=_get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -466,6 +480,8 @@ def _build_tool_input_available_part(
 ) -> UIMessagePart:
     if dynamic:
         return DynamicToolInputAvailablePart(
+            type="dynamic-tool",
+            state="input-available",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -473,6 +489,7 @@ def _build_tool_input_available_part(
             call_provider_metadata=provider_metadata,
         )
     return ToolInputAvailablePart(
+        state="input-available",
         type=_get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -495,6 +512,8 @@ def _build_tool_output_available_part(
 ) -> UIMessagePart:
     if dynamic:
         return DynamicToolOutputAvailablePart(
+            type="dynamic-tool",
+            state="output-available",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -504,6 +523,7 @@ def _build_tool_output_available_part(
             preliminary=preliminary,
         )
     return ToolOutputAvailablePart(
+        state="output-available",
         type=existing_type or _get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -528,6 +548,8 @@ def _build_tool_output_error_part(
 ) -> UIMessagePart:
     if dynamic:
         return DynamicToolOutputErrorPart(
+            type="dynamic-tool",
+            state="output-error",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -536,6 +558,7 @@ def _build_tool_output_error_part(
             call_provider_metadata=provider_metadata,
         )
     return ToolOutputErrorPart(
+        state="output-error",
         type=existing_type or _get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -560,6 +583,8 @@ def _build_tool_approval_requested_part(
     approval = ToolApprovalRequested(id=approval_id)
     if dynamic:
         return DynamicToolApprovalRequestedPart(
+            type="dynamic-tool",
+            state="approval-requested",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -568,6 +593,7 @@ def _build_tool_approval_requested_part(
             approval=approval,
         )
     return ToolApprovalRequestedPart(
+        state="approval-requested",
         type=existing_type or _get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -589,6 +615,8 @@ def _build_tool_output_denied_part(
 ) -> UIMessagePart:
     if dynamic:
         return DynamicToolOutputDeniedPart(
+            type="dynamic-tool",
+            state="output-denied",
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             input=input_value,
@@ -596,6 +624,7 @@ def _build_tool_output_denied_part(
             call_provider_metadata=provider_metadata,
         )
     return ToolOutputDeniedPart(
+        state="output-denied",
         type=existing_type or _get_tool_type(tool_name),
         tool_call_id=tool_call_id,
         input=input_value,
@@ -657,3 +686,73 @@ def _merge_provider_metadata(
     if new is None:
         return existing
     return {**existing, **new}
+
+
+# HTTP status codes a model provider returns when it rejects the API key.
+_AUTH_ERROR_STATUS_CODES = frozenset({401, 403})
+
+# Substrings that mark a provider error as an API-key / authentication failure.
+# Matched case-insensitively against the exception text as a fallback for
+# providers whose SDKs don't surface a structured HTTP status code.
+_API_KEY_ERROR_PATTERNS = (
+    "api key",
+    "api_key",
+    "apikey",
+    "x-api-key",
+    "invalid_api_key",
+    "unauthorized",
+    "authentication",
+    "authenticate",
+    "credential",
+    "permission denied",
+    "permission_denied",
+)
+
+
+def is_api_key_error(exc: BaseException) -> bool:
+    """Return ``True`` when ``exc`` looks like a model-provider API-key failure.
+
+    Covers three cases: the agent's own credential exceptions
+    (:class:`~phoenix.server.agents.exceptions.ProviderCredentialsError` and
+    :class:`~phoenix.server.agents.exceptions.ProviderConfigError`), provider
+    HTTP errors carrying a ``401``/``403`` status code (e.g. pydantic-ai's
+    ``ModelHTTPError``), and, as a fallback, exceptions whose text mentions an
+    API key or authentication problem.
+    """
+    if isinstance(exc, (ProviderCredentialsError, ProviderConfigError)):
+        return True
+    status_code = getattr(exc, "status_code", None)
+    if isinstance(status_code, int) and status_code in _AUTH_ERROR_STATUS_CODES:
+        return True
+    message = str(exc).lower()
+    return any(pattern in message for pattern in _API_KEY_ERROR_PATTERNS)
+
+
+def format_stream_error_text(exc: BaseException) -> str:
+    """Build a clear, user-facing message for a failed agent stream.
+
+    API-key / provider-authentication failures get actionable remediation
+    guidance pointing the user at their model settings; any other error falls
+    back to the underlying exception text so it is still surfaced to the user
+    instead of being silently dropped.
+    """
+    detail = str(exc).strip() or type(exc).__name__
+    if is_api_key_error(exc):
+        return (
+            "The model provider rejected the request because the API key is "
+            "missing, invalid, or misconfigured. Add a valid API key for the "
+            "selected model in Settings, then try again.\n\n"
+            f"Provider error: {detail}"
+        )
+    return detail
+
+
+def build_stream_error_chunk(exc: BaseException) -> ErrorChunk:
+    """Wrap ``exc`` in a Vercel AI :class:`ErrorChunk` for the response stream.
+
+    Emitting this chunk mid-stream ensures the client surfaces the failure in
+    the chat error banner instead of the connection closing silently, which is
+    what leaves the agent appearing to hang when, for example, an API key is
+    rejected by the provider.
+    """
+    return ErrorChunk(error_text=format_stream_error_text(exc))

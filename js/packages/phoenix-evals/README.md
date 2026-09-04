@@ -31,6 +31,8 @@ This package provides a TypeScript evaluation library. It is vendor agnostic and
 npm install @arizeai/phoenix-evals
 ```
 
+This package is built on [AI SDK](https://ai-sdk.dev/) v7, which is ESM-only. Node.js 22.12 or newer is required (the CommonJS build relies on `require()` of ESM). Use AI SDK v7-compatible model provider packages (e.g. `@ai-sdk/openai` v4+).
+
 ## Usage
 
 ### Creating a Classifier
@@ -103,6 +105,7 @@ All pre-built evaluators are available from the `@arizeai/phoenix-evals/llm` mod
 | Tool Invocation        | `createToolInvocationEvaluator`       | Evaluates whether the correct tool was invoked with the right arguments           |
 | Tool Selection         | `createToolSelectionEvaluator`        | Checks whether the right tool was selected for the task                           |
 | Tool Response Handling | `createToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response                               |
+| PII Detection          | `createPiiDetectionEvaluator`         | Screens a conversation record for personally identifiable information             |
 
 ```typescript
 import {

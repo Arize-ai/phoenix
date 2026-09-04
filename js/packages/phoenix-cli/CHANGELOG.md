@@ -1,5 +1,171 @@
 # @arizeai/phoenix-cli
 
+## 1.17.0
+
+### Minor Changes
+
+- 58b7017: Add Z.ai (GLM models) as a built-in OpenAI-compatible model provider (`ZAI`).
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
+## 1.16.5
+
+### Patch Changes
+
+- 3a836f7: recommend claude-fable-5-1 for PXI sessions
+
+## 1.16.4
+
+### Patch Changes
+
+- Updated dependencies [1cdff14]
+  - @arizeai/phoenix-client@7.7.1
+
+## 1.16.3
+
+### Patch Changes
+
+- Updated dependencies [37916d7]
+- Updated dependencies [c48e50e]
+- Updated dependencies [773c5e5]
+- Updated dependencies [b27561d]
+  - @arizeai/phoenix-client@7.7.0
+
+## 1.16.2
+
+### Patch Changes
+
+- Updated dependencies [d328c3e]
+  - @arizeai/phoenix-client@7.6.0
+
+## 1.16.1
+
+### Patch Changes
+
+- 2435eba: recommend gemini-3.7-flash for PXI sessions, drop the superseded gemini-3.5-flash from the recommended list, and add the missing claude-opus-5 entry
+
+## 1.16.0
+
+### Minor Changes
+
+- 0ed987a: Re-enable the PXI agent-session server version guard. PXI now fails fast at startup with a clear upgrade message when the connected Phoenix server predates the agent-session chat contract (server < 20.0.0), instead of 404ing on the first send. phoenix-client adds capability requirements for the remaining agent-session routes (list, get, patch, compact, tool outputs), exports all agent-session requirements from the package root, and routes `getServerVersion` through the client's configured fetch.
+
+### Patch Changes
+
+- Updated dependencies [0ed987a]
+  - @arizeai/phoenix-client@7.5.0
+
+## 1.15.2
+
+### Patch Changes
+
+- Updated dependencies [90729f3]
+  - @arizeai/phoenix-client@7.4.0
+
+## 1.15.1
+
+### Patch Changes
+
+- Updated dependencies [c892873]
+  - @arizeai/phoenix-client@7.3.1
+
+## 1.15.0
+
+### Minor Changes
+
+- e90ba00: `px` now resolves its endpoint from `PHOENIX_ENDPOINT` (canonical for API access), inferring from the trace-export variables `PHOENIX_COLLECTOR_ENDPOINT` and `OTEL_EXPORTER_OTLP_ENDPOINT` when only those are set, then the legacy `PHOENIX_HOST` — matching the SDKs and API clients. Previously the CLI read only `PHOENIX_HOST` and silently fell back to `http://localhost:6006`.
+
+  An endpoint merely inferred from a trace-export variable still ranks below an active profile, so exporting one of those variables for application tracing cannot redirect authenticated commands.
+
+  `px setup` writes both `PHOENIX_ENDPOINT` and `PHOENIX_COLLECTOR_ENDPOINT` into `.env.phoenix` — the OTel SDKs read the collector variable — and every other `px` command run in that directory now honors the file. CLI messages name `PHOENIX_ENDPOINT`.
+
+### Patch Changes
+
+- de2ee8d: Tell the `px setup` instrumentation agent that `PHOENIX_COLLECTOR_ENDPOINT` is a base URL and that exporters taking a full OTLP URL (such as `@mastra/arize`'s `ArizeExporter`) must be given `<endpoint>/v1/traces`, and name that mistake in the "traces not verified" note. Pointing such an exporter at the base URL drops every span without erroring.
+- Updated dependencies [d04f0fc]
+  - @arizeai/phoenix-config@0.5.0
+  - @arizeai/phoenix-client@7.3.0
+
+## 1.14.1
+
+### Patch Changes
+
+- Updated dependencies [59aa7cb]
+  - @arizeai/phoenix-client@7.2.0
+
+## 1.14.0
+
+### Minor Changes
+
+- df9db47: Suggest upgrading `px` when an unknown command is run and a newer version is published.
+
+## 1.13.1
+
+### Patch Changes
+
+- 1d9dd4e: Fix `px auth status` when a profile contains stale OAuth credentials but the Phoenix server now allows anonymous access
+
+## 1.13.0
+
+### Minor Changes
+
+- f816b5b: Default the `pxi` terminal client to Anthropic `claude-opus-5` instead of `claude-opus-4-8`. Override with `--model` as before.
+
+## 1.12.0
+
+### Minor Changes
+
+- 3f5ef25: Add a case-insensitive `--name-contains` filter to `px project list`.
+
+## 1.11.1
+
+### Patch Changes
+
+- e35712a: Re-release to recover from a failed publish (versions were already on npm)
+- Updated dependencies [e35712a]
+  - @arizeai/phoenix-client@7.1.1
+
+## 1.11.0
+
+### Minor Changes
+
+- df7057a: Add `--span-id` filter to `px span list`, allowing spans to be fetched by OpenTelemetry span ID (requires Phoenix server >= 19.6.0). Add `--until` to bound `px span list` and `px trace list` by an exclusive end timestamp, pairing with `--since` for time ranges.
+
+### Patch Changes
+
+- Updated dependencies [df7057a]
+  - @arizeai/phoenix-client@7.1.0
+
+## 1.10.5
+
+### Patch Changes
+
+- Updated dependencies [a6c3f88]
+  - @arizeai/phoenix-client@7.0.1
+
+## 1.10.4
+
+### Patch Changes
+
+- 4867e34: Update the `ai` dependency to v7 to match `@arizeai/phoenix-client`'s `ai@^7.0.0` peer requirement, so installing the CLI no longer produces an unresolvable peer conflict. The CLI only uses the AI SDK's UI-message transport APIs, which are unchanged in v7.
+- Updated dependencies [4867e34]
+  - @arizeai/phoenix-client@7.0.0
+
+## 1.10.3
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.2
+
+## 1.10.2
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.1
+
 ## 1.10.1
 
 ### Patch Changes

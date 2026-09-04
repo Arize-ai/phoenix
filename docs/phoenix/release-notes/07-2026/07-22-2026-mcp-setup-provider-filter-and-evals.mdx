@@ -1,0 +1,136 @@
+---
+title: "07.22.2026: MCP Client Setup, Provider Filtering, and User Friction Evals"
+description: "One-command MCP client setup and a Settings guide, a playground model picker scoped to provisioned providers, a new User Friction evaluator in both SDKs, and AI SDK v7 tracing."
+---
+
+# One-Command MCP Client Setup
+
+July 18, 2026
+
+**Available in arize-phoenix 19.1.0+ (server) and @arizeai/phoenix-cli**
+
+Following the [Remote MCP server](/docs/phoenix/integrations/remote-mcp), connecting a coding
+agent to Phoenix is now a single command. `px setup mcp` writes the Phoenix MCP server into your
+agent's configuration, inferring the endpoint from your active profile and defaulting to OAuth
+login — no manual JSON editing.
+
+```bash
+# Interactive: pick an agent and scope
+px setup mcp
+
+# Register the Phoenix MCP server with a specific agent
+px setup mcp --agent claude
+px setup mcp --agent cursor --global --endpoint https://phoenix.example.com
+
+# Headless, with an API-key header fallback for non-interactive environments
+px setup mcp --agent codex --no-input --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
+```
+
+- **Supported agents** — `claude` (Claude Code), `codex`, `cursor`, `gemini`, `opencode`, and
+  `vscode`.
+- **Global or repo-scoped** — `--global` writes user-wide config; `--local` writes repo-scoped
+  config in the current git repository.
+- **Endpoint resolution** — the target endpoint follows the standard `px` chain (flag →
+  `PHOENIX_HOST` → profile → default), and `--profile` selects which profile to infer it from.
+
+A new **MCP tab under Settings** mirrors this in the UI: it shows the deployment's MCP server URL
+and whether the server and code mode are enabled, surfaces the `px setup mcp` quick-start, and
+provides copy-paste connection instructions for each client. As of arize-phoenix 19.2.0, the
+client list also includes **Antigravity** and **OpenCode** alongside Claude Code, Claude Desktop,
+Codex, Cursor, and VS Code.
+
+![The Settings MCP tab showing the server URL, enablement status, the px setup mcp quick-start command, and per-client connection instructions](https://storage.googleapis.com/arize-phoenix-assets/pull-requests/14619-mcp-settings-tab.png)
+
+<CardGroup cols={2}>
+  <Card title="Remote MCP Server" icon="plug" href="/docs/phoenix/integrations/remote-mcp">
+    Connect Claude Code, Cursor, and other MCP clients to your Phoenix instance
+  </Card>
+</CardGroup>
+
+# Playground Model Picker Scoped to Provisioned Providers
+
+July 20, 2026
+
+**Available in arize-phoenix 19.3.0+**
+
+The playground model picker now shows only providers that are ready to use — dependencies
+installed and credentials satisfied, whether stored on the server or in the browser-local
+credential store — so you no longer scroll past providers you can't invoke. Custom providers you
+have added appear automatically. If no provider has been provisioned yet, the picker falls back to
+the flagship providers (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, and Google) so it is never
+empty.
+
+Two Playground defaults also changed in this window: new sessions now default to OpenAI's
+`gpt-5.6-sol`, and OpenAI models default to the **Responses API** (assumed whenever a prompt does
+not specify otherwise).
+
+# User Friction Evaluator
+
+July 21, 2026
+
+**Available in arize-phoenix-evals 3.2.0+ (Python) and @arizeai/phoenix-evals 1.2.0+ (TypeScript)**
+
+A new built-in classification evaluator detects when a user expresses friction with an assistant's
+preceding behavior — corrections, retries after an unsuccessful response, frustration, and
+challenges to unrequested or unexplained actions. It returns a `friction` / `no_friction` label,
+making it easy to flag conversational turns worth reviewing and to measure whether product changes
+reduce expressed friction.
+
+```python
+from phoenix.evals.metrics.user_friction import UserFrictionEvaluator
+from phoenix.evals import LLM
+
+llm = LLM(provider="openai", model="gpt-4o-mini")
+user_friction_eval = UserFrictionEvaluator(llm=llm)
+
+scores = user_friction_eval.evaluate(
+    {
+        "conversation": (
+            "User: Show orders from this week.\n"
+            "Assistant: Here are last month's orders."
+        ),
+        "user_message": "No, I asked for this week.",
+    }
+)
+print(scores)
+# [Score(name='user_friction', score=1.0, label='friction', ...)]
+```
+
+```typescript
+import { createUserFrictionEvaluator } from "@arizeai/phoenix-evals/llm";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = createUserFrictionEvaluator({ model: openai("gpt-4o-mini") });
+
+const result = await evaluator.evaluate({
+  conversation: "User: Show recent orders.\nAssistant: Here are last month's orders.",
+  userMessage: "No, I asked for this week.",
+});
+console.log(result.label); // "friction"
+```
+
+The conversation history and the latest user message are supplied separately (`conversation` and
+`user_message` / `userMessage`) so the judge classifies the target turn without confusing it with
+earlier ones.
+
+<CardGroup cols={2}>
+  <Card title="User Friction" icon="face-frown" href="/docs/phoenix/evaluation/pre-built-metrics/user-friction">
+    Detect expressed user friction in conversational assistants
+  </Card>
+</CardGroup>
+
+# AI SDK v7 Tracing
+
+July 22, 2026
+
+**Breaking change in @arizeai/phoenix-otel 2.0.0+**
+
+`@arizeai/phoenix-otel` now traces **Vercel AI SDK v7** applications, upgrading its
+OpenInference Vercel integration to v3. Register the OpenInference span processor as before and AI
+SDK v7 telemetry is translated into OpenInference spans automatically.
+
+- **Breaking:** the upgraded integration is ESM-only and targets AI SDK v7. Applications still on
+  AI SDK v6 or older should stay on `@arizeai/phoenix-otel` 1.x.
+- If the processor cannot be loaded (for example, a bundler strips the dynamic import), spans still
+  reach Phoenix through a plain OpenTelemetry processor, but AI SDK telemetry is not converted to
+  OpenInference.

@@ -1,0 +1,1209 @@
+import asyncio
+import concurrent.futures
+import threading
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from datetime import timedelta
+from decimal import Decimal
+from types import SimpleNamespace
+from typing import Any, cast
+from uuid import UUID
+
+import pytest
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlglot import exp, parse_one
+
+from phoenix.server.mcp.sql.allowlist import load_allowlist
+from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
+from phoenix.server.mcp.sql.execute import (
+    MAX_RESPONSE_BYTES,
+    MAX_SQL_BYTES,
+    ExecuteParams,
+    _consume_stream,
+    _estimated_rows,
+    _postgres_execution_error_message,
+    _rewrite_attribution,
+    _serialized_envelope_bytes,
+    _sqlite_read_uri,
+    _success_envelope,
+    execute_analytics_sql,
+    resolve_sqlite_db_path,
+    verify_postgres_plan,
+)
+from phoenix.server.mcp.sql.normalize import (
+    LOSSY_CONVERSION_NOTES,
+    normalize_row_values,
+)
+from phoenix.server.mcp.sql.rewrite import RewriteContext, rewrite
+from phoenix.server.types import DbSessionFactory
+
+
+async def test_select_count_projects_sqlite(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT count(*) AS c FROM projects"),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.columns == ["c"]
+    assert result.envelope.rows[0][0] == 1
+
+
+async def test_validate_only_marks_its_empty_success(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """Validation accepts a statement without returning its data."""
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT count(*) AS c FROM projects", validate_only=True),
+        sqlite_db_path=db_path,
+    )
+
+    assert result.envelope.columns == []
+    assert result.envelope.rows == []
+    assert result.envelope.notes == ["validate_only: statement accepted; no data rows executed"]
+
+
+def test_response_cap_includes_executed_sql_metadata() -> None:
+    """A rewritten statement must not make the envelope exceed its byte cap."""
+    ctx = RewriteContext(
+        allowlist=load_allowlist("sqlite"),
+        dialect="sqlite",
+        row_limit=1,
+        caller_sql="SELECT 1",
+        executed_sql="SELECT " + "x" * MAX_RESPONSE_BYTES,
+    )
+    envelope = _success_envelope(
+        columns=["v"],
+        rows=[[1]],
+        row_count=1,
+        partial=False,
+        ctx=ctx,
+        backend_validated=True,
+        estimated_rows=None,
+    )
+
+    assert envelope.applied.executed is None
+    assert "executed SQL omitted to keep response within byte limit" in envelope.notes
+    assert _serialized_envelope_bytes(envelope) <= MAX_RESPONSE_BYTES
+
+
+async def test_select_count_projects_postgresql(db: DbSessionFactory) -> None:
+    if db.dialect.value != "postgresql":
+        pytest.skip("postgresql only")
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT count(*) AS c FROM projects"),
+    )
+    assert "c" in result.envelope.columns
+
+
+async def test_denied_table(analytics_sqlite_db: tuple[DbSessionFactory, str]) -> None:
+    db, db_path = analytics_sqlite_db
+    with pytest.raises(AnalyticsSqlError) as exc:
+        await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="SELECT id FROM users"),
+            sqlite_db_path=db_path,
+        )
+    assert exc.value.code is ErrorCode.RELATION_NOT_ALLOWED
+
+
+async def test_path_is_resolved_from_db_factory_when_caller_omits_it(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Execution must use its session factory instead of process configuration.
+
+    The analytics read opens its own connection, so it needs a filesystem path.
+    The MCP tool has only a `DbSessionFactory`, and notebook sessions and CLI
+    overrides can intentionally point that factory at a different database than
+    the environment. A configuration lookup would silently read the wrong file.
+    """
+    db, _ = analytics_sqlite_db
+    monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", "sqlite:///:memory:")
+
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT count(*) AS c FROM projects"),
+    )
+    assert result.envelope.rows[0][0] == 1
+
+
+async def test_sqlite_path_discovery_is_cached_per_factory() -> None:
+    """Repeated analytics queries must not reopen a session for stable metadata."""
+    from phoenix.server.mcp.sql import execute as execute_module
+
+    calls = 0
+
+    class Session:
+        async def execute(self, _: object) -> list[tuple[int, str, str]]:
+            nonlocal calls
+            calls += 1
+            return [(0, "main", "/tmp/phoenix.db")]
+
+    class Db:
+        @asynccontextmanager
+        async def read(self) -> AsyncIterator[Session]:
+            yield Session()
+
+    db = cast(DbSessionFactory, Db())
+    execute_module._SQLITE_DB_PATH_CACHE.clear()
+    try:
+        assert await resolve_sqlite_db_path(db) == "/tmp/phoenix.db"
+        assert await resolve_sqlite_db_path(db) == "/tmp/phoenix.db"
+        assert calls == 1
+    finally:
+        execute_module._SQLITE_DB_PATH_CACHE.clear()
+
+
+async def test_missing_sqlite_path_is_refused_and_says_so_accurately(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The refusal must name the real cause, since it is the only clue a caller gets."""
+    from phoenix.server.mcp.sql import execute as execute_module
+
+    db, _ = analytics_sqlite_db
+
+    async def resolve_no_path(_: DbSessionFactory) -> None:
+        return None
+
+    monkeypatch.setattr(execute_module, "resolve_sqlite_db_path", resolve_no_path)
+
+    with pytest.raises(AnalyticsSqlError) as exc:
+        await execute_analytics_sql(db, ExecuteParams(sql="SELECT count(*) FROM projects"))
+    assert exc.value.code is ErrorCode.BACKEND_UNAVAILABLE
+    assert "in-memory" in exc.value.message
+
+
+def test_sqlite_read_uri_escapes_filename_delimiters() -> None:
+    assert _sqlite_read_uri("/tmp/a?b#c.db") == "file:/tmp/a%3Fb%23c.db?mode=ro"
+
+
+async def test_sqlite_path_discovery_returns_an_analytics_error_when_it_cannot_connect() -> None:
+    from phoenix.server.mcp.sql import execute as execute_module
+
+    class FailingDb:
+        @asynccontextmanager
+        async def read(self) -> AsyncIterator[None]:
+            raise SQLAlchemyError("unavailable")
+            yield
+
+    with pytest.raises(AnalyticsSqlError) as exc:
+        await resolve_sqlite_db_path(cast(DbSessionFactory, FailingDb()))
+    assert exc.value.code is ErrorCode.BACKEND_UNAVAILABLE
+
+    class RawDriverFailingDb:
+        @asynccontextmanager
+        async def read(self) -> AsyncIterator[None]:
+            raise execute_module.sqlean.dbapi2.OperationalError(  # type: ignore[attr-defined]
+                "unavailable"
+            )
+            yield
+
+    with pytest.raises(AnalyticsSqlError) as exc:
+        await resolve_sqlite_db_path(cast(DbSessionFactory, RawDriverFailingDb()))
+    assert exc.value.code is ErrorCode.BACKEND_UNAVAILABLE
+
+
+def test_postgres_streaming_sqlalchemy_errors_keep_actionable_detail() -> None:
+    """The post-plan execution path follows the same safe-detail policy as EXPLAIN."""
+    message = _postgres_execution_error_message(
+        SQLAlchemyError('column "span_kindd" does not exist\nHINT: Perhaps you meant "span_kind".')
+    )
+
+    assert 'column "span_kindd" does not exist' in message
+    assert 'HINT: Perhaps you meant "span_kind"' in message
+
+
+def test_postgres_streaming_raw_driver_errors_remain_generic() -> None:
+    """Raw iteration exceptions lack the wrapper that marks their text safe."""
+    message = _postgres_execution_error_message(RuntimeError("internal driver detail"))
+
+    assert message == (
+        "The statement was accepted but the database could not run it. "
+        "The server log records the underlying error."
+    )
+
+
+async def test_a_stream_past_its_deadline_times_out() -> None:
+    class Row:
+        _fields = ("id",)
+
+        def __iter__(self) -> object:
+            return iter([1])
+
+    async def rows() -> AsyncIterator[Row]:
+        yield Row()
+        yield Row()
+
+    with pytest.raises(AnalyticsSqlError) as exc:
+        await _consume_stream(rows(), row_limit=10, deadline=0)
+
+    assert exc.value.code is ErrorCode.TIMEOUT
+
+
+@pytest.mark.postgres_only
+async def test_a_mistyped_column_is_reported_not_leaked(db: DbSessionFactory) -> None:
+    """The most common caller mistake must not surface as a driver traceback.
+
+    Reaching the engine, where EXPLAIN resolves names, produces
+    ``(sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class
+    'asyncpg.exceptions.UndefinedColumnError'>: ...`` -- naming the driver stack
+    and inviting the caller to debug the server instead of the query.
+
+    Admission refuses it first, since the column policy is an allowlist, so the
+    statement never reaches PostgreSQL and its "did you mean" never arrives.
+    The suggestion is made here instead, from the manifest -- which knows the
+    exposed columns, so it will not propose one the caller cannot read.
+    """
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(db, ExecuteParams(sql="SELECT span_kindd FROM spans"))
+    message = caught.value.message
+    assert caught.value.code is ErrorCode.COLUMN_NOT_ALLOWED
+    assert "span_kindd" in message
+    assert "span_kind" in message, "the suggestion is the useful part"
+    # Not the withheld-column wording: that would be false, and would tell the
+    # caller to stop rather than to fix the spelling.
+    assert "exists but is not part of" not in message
+    for leaked in ("sqlalchemy", "asyncpg", "Traceback", "ProgrammingError"):
+        assert leaked not in message
+
+
+@pytest.mark.postgres_only
+async def test_postgres_intervals_are_normalized_before_result_validation(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    result = await execute_analytics_sql(
+        analytics_postgres_db,
+        ExecuteParams(
+            sql=(
+                "SELECT end_time - start_time AS duration, latency_ms "
+                "FROM spans WHERE span_id = 'span-1'"
+            )
+        ),
+    )
+
+    # An interval is normalized to an ISO-8601 string, so the assertion is on
+    # the elapsed time the fixture implies rather than on the shape of the
+    # rendering: a normalizer that dropped the fractional second would still
+    # produce a well-formed `P`-prefixed string.
+    duration, latency_ms = result.envelope.rows[0]
+    assert duration == "PT1.5S"
+    assert latency_ms == pytest.approx(1500.0, rel=1e-4)
+
+
+@pytest.mark.postgres_only
+async def test_quoted_cte_alias_does_not_hide_unquoted_virtual_column(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    result = await execute_analytics_sql(
+        analytics_postgres_db,
+        ExecuteParams(
+            sql='WITH "X" AS (SELECT 1 AS dummy) SELECT X.latency_ms FROM spans AS x',
+            row_limit=1,
+        ),
+    )
+    assert result.envelope.backend_validated is True
+
+
+@pytest.mark.postgres_only
+@pytest.mark.parametrize(
+    "sql",
+    [
+        pytest.param(
+            """SELECT count(*) AS n FROM spans WHERE status_message <> '{"a":1}'""",
+            id="json-literal",
+        ),
+        pytest.param(
+            "SELECT count(*) AS n FROM spans WHERE name LIKE '% :30%'", id="colon-in-like"
+        ),
+        pytest.param(
+            "SELECT count(*) AS n FROM spans "
+            "WHERE (attributes #>> '{session,id}')::varchar IS NULL",
+            id="cast-operator",
+        ),
+        pytest.param(
+            # Offset-bearing, because a naive time of day is refused: the zone is
+            # ambiguous. The colons this case exists for are unaffected.
+            "SELECT count(*) AS n FROM spans WHERE start_time > '2020-01-01 10:30:00+00:00'",
+            id="timestamp-literal",
+        ),
+    ],
+)
+async def test_colons_in_literals_are_not_read_as_bind_parameters(
+    db: DbSessionFactory, sql: str
+) -> None:
+    """The statement is complete, so every colon in it belongs to the SQL.
+
+    `text()` reads `:name` as a bind parameter, so `'{"a":1}'` came back as
+    "a value is required for bind parameter '1'" -- a JSON literal in a
+    predicate being exactly what an attributes-oriented surface invites. All
+    four of these worked on SQLite, which bypasses the compiler, so it was also
+    a silent backend divergence.
+    """
+    # Every case is an aggregate, so a row comes back regardless of what the
+    # table holds -- the assertion is about the literal surviving compilation,
+    # not about fixture contents.
+    result = await execute_analytics_sql(db, ExecuteParams(sql=sql, row_limit=1))
+    assert result.envelope.rows, "the statement returned nothing to check"
+
+
+@pytest.mark.postgres_only
+async def test_a_pyformat_literal_is_refused_rather_than_crashing(db: DbSessionFactory) -> None:
+    """`%(name)s` cannot be escaped, so it is refused instead of escaping the envelope.
+
+    SQLAlchemy's asyncpg dialect rewrites its own `%(name)s` markers to `$N` by
+    regex over the final SQL, so a literal of that shape raises KeyError inside
+    the compiler -- which is not an AnalyticsSqlError, so it bypassed the error
+    envelope entirely and reached the caller as an internal failure.
+
+    Executing it would mean `exec_driver_sql`, which SQLAlchemy forbids with the
+    server-side cursor that bounds memory here. A refusal that names the
+    workaround is the better trade.
+    """
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(
+            db, ExecuteParams(sql="SELECT count(*) AS n FROM spans WHERE name LIKE '%(x)s'")
+        )
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "concatenation" in caught.value.message
+
+
+@pytest.mark.postgres_only
+async def test_the_schema_is_resolved_not_assumed(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both tools must name the schema Phoenix's ORM actually reads.
+
+    `load_allowlist("sqlite")` returns "public", so a tool that does not override
+    it publishes indexes belonging to whatever sits in `public` while the
+    executor reads somewhere else — names and JSON path literals from a
+    different instance's tables, and "repeat this spelling" advice wrong for
+    every entry.
+
+    `get_env_database_schema() or "public"` is not an override either: it is the
+    hardcoded fallback #14172 removed from the usage statistics. With the
+    variable unset and the tables reached through `search_path`, "public" names
+    a schema that does not hold them.
+
+    Resolution follows that PR: the environment variable when set, otherwise
+    the schema an unqualified `projects` reference resolves from. Deliberately
+    not `current_schema()`, which reports where a CREATE would land rather than
+    where the table is.
+    """
+    import phoenix.server.mcp.sql.catalog as catalog
+
+    monkeypatch.setattr(catalog, "get_env_database_schema", lambda: "configured_elsewhere")
+    assert await catalog.resolve_pg_schema(db) == "configured_elsewhere"
+
+    monkeypatch.setattr(catalog, "get_env_database_schema", lambda: "Phoenix")
+    assert await catalog.resolve_pg_schema(db) == "phoenix"
+
+    # Unset, it must ask the connection rather than assume.
+    monkeypatch.setattr(catalog, "get_env_database_schema", lambda: None)
+    resolved = await catalog.resolve_pg_schema(db)
+    async with db.read() as session:
+        actual = await session.scalar(
+            text(
+                "SELECT pn.nspname FROM pg_class AS pc "
+                "JOIN pg_namespace AS pn ON pn.oid = pc.relnamespace "
+                "WHERE pc.oid = to_regclass('projects')"
+            )
+        )
+    assert resolved == actual
+
+
+async def test_a_failed_schema_probe_does_not_cache_the_public_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phoenix.server.mcp.sql.catalog as catalog
+
+    class FailingDb:
+        dialect = type("Dialect", (), {"value": "postgresql"})()
+
+        @asynccontextmanager
+        async def read(self) -> AsyncIterator[None]:
+            raise SQLAlchemyError("temporarily unavailable")
+            yield
+
+    monkeypatch.setattr(catalog, "get_env_database_schema", lambda: None)
+    assert await catalog.resolve_pg_schema(cast(DbSessionFactory, FailingDb())) == "public"
+
+
+async def test_schema_resolution_does_not_cross_database_contexts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phoenix.server.mcp.sql.catalog as catalog
+
+    class Session:
+        def __init__(self, schema: str) -> None:
+            self._schema = schema
+
+        async def scalar(self, _: object) -> str:
+            return self._schema
+
+    class Db:
+        dialect = SimpleNamespace(value="postgresql")
+
+        def __init__(self, schema: str) -> None:
+            self._schema = schema
+
+        @asynccontextmanager
+        async def read(self) -> AsyncIterator[Session]:
+            yield Session(self._schema)
+
+    monkeypatch.setattr(catalog, "get_env_database_schema", lambda: None)
+    assert (
+        await catalog.resolve_pg_schema(cast(DbSessionFactory, Db("first_schema")))
+        == "first_schema"
+    )
+    assert (
+        await catalog.resolve_pg_schema(cast(DbSessionFactory, Db("second_schema")))
+        == "second_schema"
+    )
+
+
+async def test_a_failed_index_reflection_does_not_disable_future_index_rewrites(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phoenix.server.mcp.sql.catalog as catalog
+
+    class Db:
+        dialect = SimpleNamespace(value="sqlite")
+
+    calls = 0
+
+    async def reflect_indexes(
+        db: DbSessionFactory, *, tables: frozenset[str], pg_schema: str = "public"
+    ) -> dict[str, list[catalog.ReflectedIndex]] | None:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return None
+        return {
+            "spans": [
+                catalog.ReflectedIndex(
+                    table="spans",
+                    name="spans_attributes_key",
+                    body="(json_extract(attributes, '$.key'))",
+                    kind="expression",
+                    unique=False,
+                )
+            ]
+        }
+
+    catalog._ACCESSOR_CACHE.clear()
+    monkeypatch.setattr(catalog, "reflect_indexes", reflect_indexes)
+    try:
+        assert (
+            await catalog.cached_indexed_json_accessors(
+                cast(DbSessionFactory, Db()), tables=frozenset({"spans"})
+            )
+            == {}
+        )
+        assert (
+            await catalog.cached_indexed_json_accessors(
+                cast(DbSessionFactory, Db()), tables=frozenset({"spans"})
+            )
+            != {}
+        )
+        assert calls == 2
+    finally:
+        catalog._ACCESSOR_CACHE.clear()
+
+
+async def test_indexed_accessors_are_cached_per_factory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Different SQLite factories must not share catalog metadata."""
+    import phoenix.server.mcp.sql.catalog as catalog
+
+    class Db:
+        dialect = SimpleNamespace(value="sqlite")
+
+    calls: dict[DbSessionFactory, int] = {}
+
+    async def reflect_indexes(
+        db: DbSessionFactory, *, tables: frozenset[str], pg_schema: str = "public"
+    ) -> dict[str, list[catalog.ReflectedIndex]]:
+        calls[db] = calls.get(db, 0) + 1
+        return {
+            "spans": [
+                catalog.ReflectedIndex(
+                    table="spans",
+                    name=f"spans_attributes_key_{calls[db]}",
+                    body="(json_extract(attributes, '$.key'))",
+                    kind="expression",
+                    unique=False,
+                )
+            ]
+        }
+
+    first = cast(DbSessionFactory, Db())
+    second = cast(DbSessionFactory, Db())
+    catalog._ACCESSOR_CACHE.clear()
+    monkeypatch.setattr(catalog, "reflect_indexes", reflect_indexes)
+    try:
+        first_accessors = await catalog.cached_indexed_json_accessors(
+            first, tables=frozenset({"spans"})
+        )
+        assert (
+            await catalog.cached_indexed_json_accessors(first, tables=frozenset({"spans"}))
+            == first_accessors
+        )
+        assert (
+            await catalog.cached_indexed_json_accessors(second, tables=frozenset({"spans"}))
+            == first_accessors
+        )
+        assert calls == {first: 1, second: 1}
+    finally:
+        catalog._ACCESSOR_CACHE.clear()
+
+
+async def test_a_pyformat_literal_runs_on_sqlite(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """The other half of a declared asymmetry, so it reads as a decision.
+
+    A literal shaped like `%(name)s` is ordinary text. SQLite hands the
+    statement to the driver directly, so nothing reinterprets it and the query
+    runs. PostgreSQL refuses it, because SQLAlchemy's asyncpg paramstyle
+    rewrites its own markers of that shape by regex over the final SQL — see
+    the companion test above.
+
+    Asserted rather than left implicit: capability may differ between the
+    backends, but an asymmetry nobody wrote down is indistinguishable from a
+    gap, and the surface's goal is that no statement admitted on both answers
+    differently — not that both admit the same statements.
+    """
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql="SELECT count(*) AS n FROM spans WHERE name LIKE '%(x)s'"),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.rows == [[0]]
+
+
+class TestEstimatedRowsIsReadBelowTheLimit:
+    """`Plan Rows` on the top node is the estimate after truncation.
+
+    A LIMIT is always present, injected when the caller wrote none, so the top
+    node is a Limit and its estimate is `min(planner estimate, limit)`. Read
+    there, every query the planner expects to fill the page reports
+    `row_limit + 1` -- the caller's own argument handed back, varying with the
+    parameter rather than with the data. Measured against a live deployment
+    whose true answer was 15 rows, limits of 10, 50 and 500 produced estimates
+    of 11, 51 and 501, and only a limit of 5000 revealed the planner's actual
+    figure of 879.
+    """
+
+    def test_descends_past_the_limit_node(self) -> None:
+        plan = [
+            {
+                "Plan": {
+                    "Node Type": "Limit",
+                    "Plan Rows": 501,
+                    "Plans": [{"Node Type": "Aggregate", "Plan Rows": 879}],
+                }
+            }
+        ]
+        assert _estimated_rows(plan) == 879
+
+    def test_uses_the_top_node_when_no_limit_is_present(self) -> None:
+        plan = [{"Plan": {"Node Type": "Seq Scan", "Plan Rows": 42}}]
+        assert _estimated_rows(plan) == 42
+
+    def test_a_childless_limit_falls_back_to_its_own_estimate(self) -> None:
+        plan = [{"Plan": {"Node Type": "Limit", "Plan Rows": 7}}]
+        assert _estimated_rows(plan) == 7
+
+    def test_a_missing_estimate_is_absent_rather_than_guessed(self) -> None:
+        assert _estimated_rows([{"Plan": {"Node Type": "Seq Scan"}}]) is None
+
+
+class TestRewriteAttribution:
+    """A column a rewrite introduced is not a column the caller can act on.
+
+    Attribution matches what a substitution actually wrote, qualifier included.
+    Keying on the bare column name blamed a rewrite for the caller's own typo:
+    `id`, `start_time` and `end_time` are ordinary names a caller writes too.
+    """
+
+    @staticmethod
+    def _ctx_after(sql: str) -> RewriteContext:
+        """A context populated the way production populates it -- by running the
+        passes -- rather than by hand, so the test cannot drift from the code."""
+        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect="sqlite", row_limit=500)
+        rewrite(cast(exp.Expression, parse_one(sql, read="sqlite")), ctx)
+        return ctx
+
+    def test_names_the_rewrite_the_column_and_the_workaround(self) -> None:
+        ctx = self._ctx_after("SELECT AVG(s.latency_ms) FROM spans s")
+
+        error = _rewrite_attribution(Exception("no such column: s.start_time"), ctx)
+
+        assert error is not None
+        assert error.identifiers == ("latency_ms",)
+        assert "start_time" in error.message
+        assert "`s`" in error.message
+        assert "another name" in error.message
+        assert "defect in the rewrite" in error.message
+
+    def test_an_unqualified_substitution_is_attributed(self) -> None:
+        ctx = self._ctx_after("SELECT latency_ms FROM spans")
+
+        error = _rewrite_attribution(Exception("no such column: spans.start_time"), ctx)
+
+        assert error is not None
+        assert error.identifiers == ("latency_ms",)
+
+    def test_a_quoted_qualifier_is_still_attributed(self) -> None:
+        ctx = RewriteContext(
+            allowlist=load_allowlist("sqlite"), dialect="postgresql", row_limit=500
+        )
+        rewrite(
+            cast(
+                exp.Expression,
+                parse_one('SELECT "S".latency_ms FROM spans AS "S"', read="postgres"),
+            ),
+            ctx,
+        )
+        error = _rewrite_attribution(Exception("no such column: S.start_time"), ctx)
+        assert error is not None
+        assert error.identifiers == ("latency_ms",)
+
+    def test_a_callers_own_typo_is_not_blamed_on_the_rewrite(self) -> None:
+        """`id` is what the node-id pass writes and also an ordinary column name.
+        Matching on the name alone answered a caller's mistyped `q.id` with
+        "this is a defect in the rewrite", which is the failure this whole
+        mechanism exists to prevent."""
+        ctx = self._ctx_after("SELECT graphql_node_id FROM projects")
+        assert ctx.substituted_columns, "the node-id pass should have recorded what it wrote"
+
+        assert _rewrite_attribution(Exception("no such column: q.id"), ctx) is None
+
+    def test_a_different_qualifier_is_not_attributed(self) -> None:
+        ctx = self._ctx_after("SELECT AVG(s.latency_ms) FROM spans s")
+
+        assert _rewrite_attribution(Exception("no such column: zz.start_time"), ctx) is None
+
+    def test_a_column_no_rewrite_introduced_is_not_attributed(self) -> None:
+        ctx = self._ctx_after("SELECT AVG(s.latency_ms) FROM spans s")
+
+        assert _rewrite_attribution(Exception("no such column: nonexistent"), ctx) is None
+
+    def test_a_rewrite_that_did_not_run_records_nothing(self) -> None:
+        ctx = self._ctx_after("SELECT id FROM spans")
+
+        assert ctx.substituted_columns == {}
+        assert _rewrite_attribution(Exception("no such column: s.start_time"), ctx) is None
+
+    async def test_the_shape_that_provoked_this_now_runs(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """Closed by the shared resolver. Pinned so the attribution above is not
+        quietly re-covering a regression."""
+        db, db_path = analytics_sqlite_db
+        result = await execute_analytics_sql(
+            db,
+            ExecuteParams(
+                sql="WITH q AS (SELECT latency_ms FROM spans) SELECT AVG(t.latency_ms) FROM q t"
+            ),
+            sqlite_db_path=db_path,
+        )
+
+        assert result.envelope.rows is not None
+
+
+def test_plan_gate_folds_unquoted_schema_names() -> None:
+    """EXPLAIN Schema is nspname; an unquoted CREATE SCHEMA stores it folded."""
+    plan = [{"Plan": {"Node Type": "Seq Scan", "Relation Name": "spans", "Schema": "phoenix"}}]
+    verify_postgres_plan(plan, allowlist=load_allowlist("postgresql"), schema="Phoenix")
+
+
+class TestDeclaredRelationsShadowingPhoenixTables:
+    """A caller CTE named after a Phoenix table is a query, not an incident.
+
+    SQLite authorizer events distinguish a physical table read from a
+    statement-local relation. Both a projected column and an aggregate-only
+    read must preserve that distinction.
+    """
+
+    async def test_a_cte_named_after_a_denied_table_runs(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        result = await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="WITH users AS (SELECT 1 AS n) SELECT n FROM users"),
+            sqlite_db_path=db_path,
+        )
+
+        assert result.envelope.rows == [[1]]
+
+    async def test_an_aggregate_over_a_shadowing_cte_runs(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """`count(*)` has no column name, so SQLite reports a table-level read."""
+        db, db_path = analytics_sqlite_db
+        result = await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="WITH users AS (SELECT 1 AS n) SELECT count(*) FROM users"),
+            sqlite_db_path=db_path,
+        )
+
+        assert result.envelope.rows == [[1]]
+
+    async def test_a_subquery_alias_cannot_hide_the_base_table(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """Admission must still inspect the forbidden table inside the subquery."""
+        db, db_path = analytics_sqlite_db
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(
+                db,
+                ExecuteParams(sql="SELECT count(*) FROM (SELECT id FROM users) AS users"),
+                sqlite_db_path=db_path,
+            )
+
+        assert exc.value.code is ErrorCode.RELATION_NOT_ALLOWED
+
+    async def test_the_base_table_is_unreachable_through_the_shadow(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """The accept is gated on an unqualified read, and the qualified spelling
+        that would reach the base table never gets that far: schema-qualified
+        tables are refused at admission on this backend. So while a CTE shadows
+        a name, the table behind it cannot be named at all -- a stronger
+        guarantee than the gate alone provides."""
+        db, db_path = analytics_sqlite_db
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(
+                db,
+                ExecuteParams(sql="WITH users AS (SELECT 1 AS n) SELECT id FROM main.users"),
+                sqlite_db_path=db_path,
+            )
+
+        assert exc.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+        assert "Schema-qualified" in exc.value.message
+
+    async def test_an_unshadowed_denied_table_is_still_denied(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(
+                db, ExecuteParams(sql="SELECT id FROM users"), sqlite_db_path=db_path
+            )
+
+        assert exc.value.code is ErrorCode.RELATION_NOT_ALLOWED
+
+
+class TestEnvelopeReportsTheExecutedStatement:
+    """`rewrites` names the passes that fired, which is a different claim.
+
+    The generator re-cases, re-spaces, drops comments and respells literals with
+    no pass recorded, so a caller reading `rewrites` can be told nothing changed
+    about a statement that did. See B5.
+    """
+
+    async def test_the_executed_sql_is_reported_when_it_differs(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        result = await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="select count(*) as c from projects"),
+            sqlite_db_path=db_path,
+        )
+
+        executed = result.envelope.applied.executed
+        assert executed is not None
+        assert executed != "select count(*) as c from projects"
+        assert "LIMIT" in executed.upper()
+
+    async def test_it_is_omitted_when_the_text_is_unchanged(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """Omitted rather than echoed, so a small answer stays small."""
+        db, db_path = analytics_sqlite_db
+        sql = "SELECT count(*) AS c FROM projects LIMIT 500"
+        result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+
+        if result.envelope.applied.executed is not None:
+            assert result.envelope.applied.executed != sql
+
+
+class TestLossyNormalisationIsReported:
+    """Every conversion in the result path narrows, and each looks ordinary.
+
+    An exact decimal and the float nearest it are both just numbers in JSON, and
+    replaced bytes are just a string, so the envelope is the only place the
+    narrowing can be seen. See C4.
+    """
+
+    def test_an_exactly_representable_decimal_is_not_flagged(self) -> None:
+        """A note on every decimal trains the reader to skip the field."""
+        applied: set[str] = set()
+
+        assert normalize_row_values([Decimal("1.5")], applied) == [1.5]
+        assert applied == set()
+
+    def test_a_decimal_that_loses_precision_is_flagged(self) -> None:
+        applied: set[str] = set()
+
+        normalize_row_values([Decimal("9007199254740993")], applied)
+
+        assert "decimal_to_float" in applied
+        assert "binary floating-point" in LOSSY_CONVERSION_NOTES["decimal_to_float"]
+
+    def test_a_nested_decimal_that_loses_precision_is_flagged(self) -> None:
+        applied: set[str] = set()
+
+        assert normalize_row_values([{"costs": [Decimal("9007199254740993")]}], applied) == [
+            {"costs": [9007199254740992.0]}
+        ]
+        assert "decimal_to_float" in applied
+
+    def test_postgres_driver_value_types_are_json_safe(self) -> None:
+        applied: set[str] = set()
+
+        assert normalize_row_values(
+            [
+                timedelta(seconds=1.5),
+                UUID("00000000-0000-0000-0000-000000000001"),
+            ],
+            applied,
+        ) == ["PT1.5S", "00000000-0000-0000-0000-000000000001"]
+        assert applied == set()
+
+    def test_a_non_finite_float_is_flagged(self) -> None:
+        applied: set[str] = set()
+
+        assert normalize_row_values([float("inf")], applied) == [None]
+        assert "non_finite_to_null" in applied
+
+    def test_undecodable_bytes_are_flagged(self) -> None:
+        applied: set[str] = set()
+
+        normalize_row_values([b"\xff\xfe"], applied)
+
+        assert "undecodable_bytes" in applied
+
+    def test_valid_utf8_bytes_are_not_flagged(self) -> None:
+        applied: set[str] = set()
+
+        assert normalize_row_values([b"hello"], applied) == ["hello"]
+
+    def test_a_composite_tuple_becomes_a_json_array(self) -> None:
+        applied: set[str] = set()
+        assert normalize_row_values([("llm", {"a": 1})], applied) == [["llm", {"a": 1}]]
+        assert applied == set()
+
+    def test_a_time_of_day_becomes_an_iso_string(self) -> None:
+        from datetime import time
+
+        applied: set[str] = set()
+        assert normalize_row_values([time(12, 0)], applied) == ["12:00:00"]
+        assert applied == set()
+
+    async def test_the_note_reaches_the_envelope(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        result = await execute_analytics_sql(
+            db,
+            ExecuteParams(sql="SELECT 9e999 AS x FROM projects"),
+            sqlite_db_path=db_path,
+        )
+
+        assert result.envelope.rows == [[None]]
+        assert any("non-finite" in note for note in result.envelope.notes)
+
+
+class TestSqliteResolutionErrorsAreActionable:
+    """Both backends' own words reach the caller, SQLite's included.
+
+    An unqualified column two joined tables both offer passes admission -- it is
+    not hidden and both tables offer it -- and then fails at the engine. The
+    message names only the caller's own identifier, so withholding it makes an
+    ordinary mistake un-actionable on one backend and precise on the other.
+    """
+
+    async def test_an_ambiguous_column_names_itself(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        db, db_path = analytics_sqlite_db
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(
+                db,
+                ExecuteParams(
+                    sql="SELECT start_time FROM spans JOIN traces ON spans.trace_rowid = traces.id"
+                ),
+                sqlite_db_path=db_path,
+            )
+
+        assert exc.value.code is ErrorCode.EXECUTION_ERROR
+        assert "start_time" in exc.value.message
+        assert "ambiguous" in exc.value.message.lower()
+
+    async def test_it_no_longer_recommends_validate_only(
+        self, analytics_sqlite_db: tuple[DbSessionFactory, str]
+    ) -> None:
+        """`validate_only` runs the same EXPLAIN here and returns the same
+        message, so naming it sent the caller round a loop."""
+        db, db_path = analytics_sqlite_db
+        with pytest.raises(AnalyticsSqlError) as exc:
+            await execute_analytics_sql(
+                db,
+                ExecuteParams(
+                    sql="SELECT start_time FROM spans JOIN traces ON spans.trace_rowid = traces.id"
+                ),
+                sqlite_db_path=db_path,
+            )
+
+        assert "validate_only" not in exc.value.message
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    ["timeout", "interrupted"],
+)
+async def test_an_identifier_named_like_a_deadline_is_not_reported_as_a_timeout(
+    analytics_sqlite_db: tuple[DbSessionFactory, str], identifier: str
+) -> None:
+    """SQLite reports the deadline as exactly "interrupted".
+
+    Matching that as a substring made any error mentioning the word a timeout,
+    so a caller whose own column is named `timeout` was told to retry a
+    statement they needed to fix instead.
+    """
+    db, db_path = analytics_sqlite_db
+    sql = f"SELECT {identifier} FROM (SELECT 1 AS {identifier}) a, (SELECT 2 AS {identifier}) b"
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    assert caught.value.code is not ErrorCode.TIMEOUT
+
+
+async def test_admission_does_not_run_on_the_event_loop(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Parsing, admission and rewriting are CPU-bound and must run off the loop.
+
+    No execution guard -- row limit, byte caps, deadline -- applies before the
+    backend is reached, so on the event loop a single call freezes every other
+    request, ingestion included.
+
+    Thread identity is the assertion rather than elapsed time: the input cap
+    holds this work below scheduler noise, so no stall it permits is reliably
+    larger than ordinary jitter. Both offloads are probed -- parse and admit
+    share one, rewrite and render the other -- since either left on the loop
+    reintroduces the stall.
+    """
+    from phoenix.server.mcp.sql import execute as execute_module
+
+    db, db_path = analytics_sqlite_db
+    loop_thread = threading.current_thread()
+    threads: dict[str, threading.Thread] = {}
+
+    def probe(name: str, func: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            threads[name] = threading.current_thread()
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    for name in ("parse_sql", "rewrite"):
+        monkeypatch.setattr(execute_module, name, probe(name, getattr(execute_module, name)))
+
+    await execute_analytics_sql(
+        db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path
+    )
+
+    # A rename in the pipeline would otherwise leave the thread assertion with
+    # nothing to check.
+    assert set(threads) == {"parse_sql", "rewrite"}
+    assert loop_thread not in threads.values(), f"ran on the event loop thread: {threads}"
+
+
+async def test_a_cancelled_call_keeps_its_permit_until_the_parse_thread_exits(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Capacity follows the work, not the caller waiting on it.
+
+    Parsing and rewriting are uninterruptible, so the thread runs to completion
+    after the caller disconnects. Returning the permit on cancellation admits
+    the next statement beside work that is still running, and repeated
+    cancellations put more of it in flight than the width allows.
+    """
+    from phoenix.server.mcp.sql import execute as execute_module
+    from phoenix.server.mcp.sql.parse import parse_sql
+
+    db, db_path = analytics_sqlite_db
+    entered = threading.Event()
+    finish = threading.Event()
+    original = parse_sql
+
+    def blocking(*args: Any, **kwargs: Any) -> Any:
+        entered.set()
+        finish.wait(10)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(execute_module, "parse_sql", blocking)
+    # Installed before first use so the test holds the factory's admission controller.
+    controller = execute_module.StatementAdmissionController("sqlite")
+    db.analytics_sql_admission = controller
+
+    call = asyncio.create_task(
+        execute_analytics_sql(db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path)
+    )
+    await asyncio.to_thread(entered.wait, 10)
+    call.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await call
+
+    # SQLite runs one statement at a time, so a second acquire completing here
+    # would mean the permit came back while the thread still held it.
+    second = asyncio.create_task(controller.acquire())
+    try:
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(asyncio.shield(second), 0.25)
+        finish.set()
+        await asyncio.wait_for(second, 10)
+    finally:
+        # Released in a finally so a regression fails this test alone. Leaking
+        # SQLite's width-one permit would stall every later execute test and
+        # bury the failure that caused it.
+        finish.set()
+        if second.done() and not second.cancelled():
+            controller.release()
+        else:
+            second.cancel()
+
+
+async def test_a_call_cancelled_before_its_thread_starts_returns_its_permit_at_once(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Work that never began holds nothing.
+
+    A permit tracks work in flight. A call cancelled while its job is still
+    queued releases no thread and produces no result, so holding its permit
+    until the queue drains would refuse live callers on behalf of work that is
+    never going to run.
+    """
+    from phoenix.server.mcp.sql import execute as execute_module
+    from phoenix.server.mcp.sql.parse import parse_sql
+
+    db, db_path = analytics_sqlite_db
+    parsed: list[str] = []
+    occupied = threading.Event()
+    release_pool = threading.Event()
+    submitted: list[concurrent.futures.Future[Any]] = []
+    accepted = threading.Event()
+
+    def watched(*args: Any, **kwargs: Any) -> Any:
+        parsed.append("ran")
+        return parse_sql(*args, **kwargs)
+
+    monkeypatch.setattr(execute_module, "parse_sql", watched)
+    controller = execute_module.StatementAdmissionController("sqlite")
+    db.analytics_sql_admission = controller
+
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+    class Recording:
+        """Reports the moment the pool accepts a job, so the test can wait for it."""
+
+        def submit(self, fn: Any, *args: Any, **kwargs: Any) -> concurrent.futures.Future[Any]:
+            future = pool.submit(fn, *args, **kwargs)
+            submitted.append(future)
+            accepted.set()
+            return future
+
+    monkeypatch.setattr(execute_module, "_sql_executor", Recording)
+    try:
+
+        def hold_the_only_thread() -> None:
+            occupied.set()
+            release_pool.wait(10)
+
+        pool.submit(hold_the_only_thread)
+        await asyncio.to_thread(occupied.wait, 10)
+
+        call = asyncio.create_task(
+            execute_analytics_sql(
+                db, ExecuteParams(sql="SELECT id FROM spans"), sqlite_db_path=db_path
+            )
+        )
+        # Waiting on the submission rather than on a delay. Cancelling before it
+        # would return the permit for a call that never reached the pool, which
+        # this guard would then report as a pass.
+        await asyncio.to_thread(accepted.wait, 10)
+        assert not submitted[0].running(), "the job started; this exercises the wrong branch"
+
+        call.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await call
+
+        assert submitted[0].cancelled(), "the queued job was not cancelled"
+        # Free while the pool is still occupied, which it could not be if
+        # release waited on the queue rather than on started work.
+        await asyncio.wait_for(controller.acquire(), 1)
+        controller.release()
+    finally:
+        release_pool.set()
+        pool.shutdown(wait=True)
+
+    assert parsed == [], "a cancelled call ran its parse after the queue drained"
+
+
+@pytest.mark.parametrize(
+    "size,refused",
+    [(MAX_SQL_BYTES, False), (MAX_SQL_BYTES + 1, True)],
+    ids=["at the cap", "one byte over"],
+)
+async def test_the_input_cap_is_measured_in_bytes(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+    size: int,
+    refused: bool,
+) -> None:
+    """The cap admits its own boundary and refuses the byte past it."""
+    db, db_path = analytics_sqlite_db
+    # Padding rides in a comment so only the length varies with `size`.
+    head = "SELECT id FROM spans -- "
+    sql = head + "a" * (size - len(head))
+    assert len(sql.encode("utf-8")) == size
+
+    if not refused:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+        return
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    assert "input limit" in caught.value.message
+
+
+async def test_a_multibyte_statement_is_measured_in_bytes_not_characters(
+    analytics_sqlite_db: tuple[DbSessionFactory, str],
+) -> None:
+    """A character is up to four bytes, and the cap bounds the work, which scales with bytes."""
+    db, db_path = analytics_sqlite_db
+    head = "SELECT id FROM spans -- "
+    # Three bytes per character, so this is under the cap by character count
+    # and over it by byte count.
+    padding = "\u4e2d" * (((MAX_SQL_BYTES - len(head)) // 3) + 1)
+    sql = head + padding
+    assert len(sql) < MAX_SQL_BYTES < len(sql.encode("utf-8"))
+
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    assert "input limit" in caught.value.message

@@ -1,4 +1,5 @@
 import base64
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -17,6 +18,12 @@ from typing_extensions import assert_never
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
@@ -87,13 +94,14 @@ async def _add_span_cost_detail(
     token_type: str,
     is_prompt: bool,
     tokens: Optional[float],
+    cost: Optional[float] = None,
 ) -> models.SpanCostDetail:
     span_cost_detail = models.SpanCostDetail(
         span_cost_id=span_cost.id,
         token_type=token_type,
         is_prompt=is_prompt,
         tokens=tokens,
-        cost=None,
+        cost=cost,
         cost_per_token=None,
     )
     session.add(span_cost_detail)
@@ -470,6 +478,192 @@ class TestTopModels:
         assert not empty_cost_response.errors
         assert (empty_cost_data := empty_cost_response.data) is not None
         assert len(empty_cost_data["node"]["topModelsByCost"]) == 0
+
+    @pytest.mark.parametrize(
+        "bad_project_id",
+        [
+            pytest.param(
+                str(GlobalID(type_name="Span", node_id="1")),
+                id="wrong_type_numeric_payload",
+            ),
+            pytest.param(
+                str(GlobalID(type_name="SandboxProvider", node_id="not-a-number")),
+                id="wrong_type_non_numeric_payload",
+            ),
+        ],
+    )
+    async def test_token_details_reject_a_project_id_of_another_type(
+        self,
+        bad_project_id: str,
+        _cost_data: _CostTestData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """A non-Project ID is a bad request, whether or not its payload parses as an int."""
+        project_gid = str(GlobalID(type_name="Project", node_id=str(_cost_data.project.id)))
+        query = """
+            query ($projectId: ID!, $scopeProjectId: ID!, $timeRange: TimeRange!) {
+                node(id: $projectId) {
+                    ... on Project {
+                        topModelsByCost(timeRange: $timeRange) {
+                            costDetailSummaryEntries(
+                                projectId: $scopeProjectId
+                                timeRange: $timeRange
+                            ) {
+                                tokenType
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "projectId": project_gid,
+                "scopeProjectId": bad_project_id,
+                "timeRange": {
+                    "start": _cost_data.base_time.isoformat(),
+                    "end": (_cost_data.base_time + timedelta(minutes=15)).isoformat(),
+                },
+            },
+        )
+        assert response.errors
+        assert any("Invalid Project ID" in error.message for error in response.errors)
+
+    async def test_token_details_are_aggregated_by_model_project_and_time_range(
+        self,
+        _cost_data: _CostTestData,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        project = _cost_data.project
+        base_time = _cost_data.base_time
+        gpt4 = _cost_data.generative_models["gpt4"]
+        gpt4_span_costs = _cost_data.span_costs[:3]
+
+        async with db() as session:
+            for span_cost, input_tokens, cache_read_tokens, output_tokens, cost in (
+                (gpt4_span_costs[0], 700, 100, 200, 1.5),
+                (gpt4_span_costs[1], 800, 160, 240, 1.8),
+                (gpt4_span_costs[2], 900, 220, 280, 2.1),
+            ):
+                await _add_span_cost_detail(
+                    session,
+                    span_cost,
+                    token_type="input",
+                    is_prompt=True,
+                    tokens=input_tokens,
+                    cost=cost * 0.55,
+                )
+                await _add_span_cost_detail(
+                    session,
+                    span_cost,
+                    token_type="cache_read",
+                    is_prompt=True,
+                    tokens=cache_read_tokens,
+                    cost=cost * 0.20,
+                )
+                await _add_span_cost_detail(
+                    session,
+                    span_cost,
+                    token_type="output",
+                    is_prompt=False,
+                    tokens=output_tokens,
+                    cost=cost * 0.25,
+                )
+
+            other_project = await _add_project(session, name="other-cost-detail-project")
+            other_trace = await _add_trace(
+                session,
+                other_project,
+                start_time=base_time,
+                end_time=base_time + timedelta(minutes=1),
+            )
+            other_span = await _add_span(
+                session,
+                trace=other_trace,
+                start_time=other_trace.start_time,
+                end_time=other_trace.end_time,
+            )
+            other_span_cost = await _add_span_cost(
+                session,
+                span=other_span,
+                trace=other_trace,
+                model=gpt4,
+                total_cost=100,
+                total_tokens=100_000,
+                prompt_cost=100,
+                prompt_tokens=100_000,
+                completion_cost=0,
+                completion_tokens=0,
+            )
+            await _add_span_cost_detail(
+                session,
+                other_span_cost,
+                token_type="cache_read",
+                is_prompt=True,
+                tokens=100_000,
+                cost=100,
+            )
+            await session.commit()
+
+        query = """
+            query ($projectId: ID!, $timeRange: TimeRange!) {
+                node(id: $projectId) {
+                    ... on Project {
+                        topModelsByTokenCount(timeRange: $timeRange) {
+                            name
+                            costDetailSummaryEntries(
+                                projectId: $projectId
+                                timeRange: $timeRange
+                            ) {
+                                tokenType
+                                isPrompt
+                                value { tokens cost }
+                            }
+                        }
+                        topModelsByCost(timeRange: $timeRange) {
+                            name
+                            costDetailSummaryEntries(
+                                projectId: $projectId
+                                timeRange: $timeRange
+                            ) {
+                                tokenType
+                                isPrompt
+                                value { tokens cost }
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        project_id = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "projectId": project_id,
+                "timeRange": {
+                    "start": base_time.isoformat(),
+                    "end": (base_time + timedelta(minutes=15)).isoformat(),
+                },
+            },
+        )
+        assert response.data is not None
+        assert not response.errors
+
+        for field_name in ("topModelsByTokenCount", "topModelsByCost"):
+            model = next(
+                model for model in response.data["node"][field_name] if model["name"] == "gpt-4"
+            )
+            details = {
+                (entry["isPrompt"], entry["tokenType"]): entry["value"]
+                for entry in model["costDetailSummaryEntries"]
+            }
+            assert details == {
+                (True, "cache_read"): {"tokens": 260, "cost": pytest.approx(0.66)},
+                (True, "input"): {"tokens": 1500, "cost": pytest.approx(1.815)},
+                (False, "output"): {"tokens": 440, "cost": pytest.approx(0.825)},
+            }
 
 
 class TestTraceTokenCountTimeSeries:
@@ -1840,6 +2034,33 @@ class _Data:
     projects: list[models.Project] = field(default_factory=list)
 
 
+def _representative_root_spans(
+    spans: list[models.Span],
+    orphan_span_as_root_span: bool,
+) -> list[models.Span]:
+    spans_by_trace: dict[int, list[models.Span]] = {}
+    for span in spans:
+        spans_by_trace.setdefault(span.trace_rowid, []).append(span)
+
+    representatives = []
+    for trace_spans in spans_by_trace.values():
+        span_ids = {span.span_id for span in trace_spans}
+        candidates = [
+            span
+            for span in trace_spans
+            if span.parent_id is None
+            or (orphan_span_as_root_span and span.parent_id not in span_ids)
+        ]
+        if candidates:
+            representatives.append(min(candidates, key=lambda span: (span.start_time, -span.id)))
+    return representatives
+
+
+# The `_data` fixture's sessions 1 and 3 are the two whose root-span input/output carry this
+# fragment; the sort tests use it to exercise sorting and cursor paging under a filter.
+_IO_CONDITION_ARG = "\"'\\\"\\\\'f' in any_input or '\\\"\\\\'f' in any_output\""
+
+
 class TestProject:
     @staticmethod
     async def _node(
@@ -1930,6 +2151,55 @@ class TestProject:
         assert (
             await self._node("sessionAnnotationNameCounts{name count}", project, httpx_client) == []
         )
+
+    async def test_annotation_configs_filter_by_name_and_project(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session, name="annotation-config-filter-test")
+            other_project = await _add_project(
+                session, name="annotation-config-filter-other-project"
+            )
+            configs = [
+                models.AnnotationConfig(
+                    name=name,
+                    config=CategoricalAnnotationConfig(
+                        type=AnnotationType.CATEGORICAL.value,
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[CategoricalAnnotationValue(label="Good", score=1.0)],
+                    ),
+                )
+                for name in ("correctness", "relevance", "other-project-only")
+            ]
+            session.add_all(configs)
+            await session.flush()
+            session.add_all(
+                [
+                    models.ProjectAnnotationConfig(
+                        project_id=project.id,
+                        annotation_config_id=configs[0].id,
+                    ),
+                    models.ProjectAnnotationConfig(
+                        project_id=project.id,
+                        annotation_config_id=configs[1].id,
+                    ),
+                    models.ProjectAnnotationConfig(
+                        project_id=other_project.id,
+                        annotation_config_id=configs[2].id,
+                    ),
+                ]
+            )
+
+        annotation_configs = await self._node(
+            'annotationConfigs(names: ["relevance", "other-project-only"]) '
+            "{edges{node{... on AnnotationConfigBase{name}}}}",
+            project,
+            httpx_client,
+        )
+
+        assert annotation_configs == {"edges": [{"node": {"name": "relevance"}}]}
 
     @pytest.fixture
     async def _data(
@@ -2074,6 +2344,28 @@ class TestProject:
             projects=projects,
         )
 
+    async def test_unsorted_sessions_pagination_advances(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        unpaged = await self._node("sessions(first:50){edges{node{id}}}", project, httpx_client)
+        expected = [edge["node"]["id"] for edge in unpaged["edges"]]
+
+        seen: list[str] = []
+        cursor = ""
+        while True:
+            field = f'sessions(first:2,after:"{cursor}"){{edges{{node{{id}}cursor}}}}'
+            result = await self._node(field, project, httpx_client)
+            edges = result["edges"]
+            if not edges:
+                break
+            seen.extend(edge["node"]["id"] for edge in edges)
+            cursor = edges[-1]["cursor"]
+            assert len(seen) <= len(expected), "pagination did not advance"
+        assert seen == expected
+
     async def test_sessions_sort_token_count_total(
         self,
         _data: _Data,
@@ -2089,7 +2381,13 @@ class TestProject:
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
-            field = "sessions(sort:{col:" + column + ",dir:" + direction + "}){edges{node{id}}}"
+            field = (
+                "sessions(first:50,sort:{col:"
+                + column
+                + ",dir:"
+                + direction
+                + "}){edges{node{id}}}"
+            )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
 
@@ -2116,23 +2414,7 @@ class TestProject:
                 res = await self._node(field, project, httpx_client)
                 assert [e["node"]["id"] for e in res["edges"]] == expected
 
-    async def test_filter_by_session_id(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project = _data.projects[0]
-        session = _data.project_sessions[0]
-        field = f'sessions(sessionId:"{session.session_id}")' + "{edges{node{id}}}"
-        res = await self._node(field, project, httpx_client)
-        assert [e["node"]["id"] for e in res["edges"]] == [_gid(session)]
-
-        # Searching for a non-existent session ID should return an empty list
-        field = f'sessions(sessionId:"{token_hex(16)}")' + "{edges{node{id}}}"
-        res = await self._node(field, project, httpx_client)
-        assert [e["node"]["id"] for e in res["edges"]] == []
-
-    async def test_sessions_sort_token_count_total_plus_substring_filter(
+    async def test_sessions_sort_token_count_total_plus_session_filter_condition(
         self,
         _data: _Data,
         httpx_client: httpx.AsyncClient,
@@ -2146,11 +2428,13 @@ class TestProject:
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
             field = (
-                "sessions(sort:{col:"
+                "sessions(first:50,sort:{col:"
                 + column
                 + ",dir:"
                 + direction
-                + '},filterIoSubstring:"\\"\'f"){edges{node{id}}}'
+                + "},sessionFilterCondition:"
+                + _IO_CONDITION_ARG
+                + "){edges{node{id}}}"
             )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
@@ -2169,7 +2453,9 @@ class TestProject:
                     + column
                     + ",dir:"
                     + direction
-                    + '},filterIoSubstring:"\\"\'f",first:'
+                    + "},sessionFilterCondition:"
+                    + _IO_CONDITION_ARG
+                    + ",first:"
                     + str(first)
                     + ',after:"'
                     + base64.b64encode(after).decode()
@@ -2193,7 +2479,13 @@ class TestProject:
         ]
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
-            field = "sessions(sort:{col:" + column + ",dir:" + direction + "}){edges{node{id}}}"
+            field = (
+                "sessions(first:50,sort:{col:"
+                + column
+                + ",dir:"
+                + direction
+                + "}){edges{node{id}}}"
+            )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
 
@@ -2220,7 +2512,7 @@ class TestProject:
                 res = await self._node(field, project, httpx_client)
                 assert [e["node"]["id"] for e in res["edges"]] == expected
 
-    async def test_sessions_sort_num_traces_plus_substring_filter(
+    async def test_sessions_sort_num_traces_plus_session_filter_condition(
         self,
         _data: _Data,
         httpx_client: httpx.AsyncClient,
@@ -2234,11 +2526,13 @@ class TestProject:
 
         for direction, expected in {"desc": result, "asc": result[::-1]}.items():
             field = (
-                "sessions(sort:{col:"
+                "sessions(first:50,sort:{col:"
                 + column
                 + ",dir:"
                 + direction
-                + '},filterIoSubstring:"\\"\'f"){edges{node{id}}}'
+                + "},sessionFilterCondition:"
+                + _IO_CONDITION_ARG
+                + "){edges{node{id}}}"
             )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
@@ -2257,7 +2551,9 @@ class TestProject:
                     + column
                     + ",dir:"
                     + direction
-                    + '},filterIoSubstring:"\\"\'f",first:'
+                    + "},sessionFilterCondition:"
+                    + _IO_CONDITION_ARG
+                    + ",first:"
                     + str(first)
                     + ',after:"'
                     + base64.b64encode(after).decode()
@@ -2307,12 +2603,12 @@ class TestProject:
         ]
 
         # Test descending order
-        field = f"sessions(sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc
 
         # Test ascending order
-        field = f"sessions(sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc[::-1]
 
@@ -2328,10 +2624,7 @@ class TestProject:
         db: DbSessionFactory,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        """Test sorting project sessions by total cost.
-
-        Note: Sessions without cost data are filtered out (inner join behavior).
-        """
+        """Test sorting project sessions by total cost."""
         async with db() as session:
             project = await _add_project(session, name="cost-sort-test")
             model = await _add_generative_model(session, name="gpt-4", provider="openai")
@@ -2363,21 +2656,22 @@ class TestProject:
                     )
 
         column = "costTotal"
-        # Expected order desc: 200, 100, 75, 50 (session without cost is filtered out)
+        # Expected order desc: 200, 100, 75, 50, 0
         result_desc = [
             _gid(sessions[2]),  # 200.0
             _gid(sessions[0]),  # 100.0
             _gid(sessions[3]),  # 75.0
             _gid(sessions[1]),  # 50.0
+            _gid(sessions[4]),  # 0.0 (no cost data)
         ]
 
         # Test descending order
-        field = f"sessions(sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
+        field = f"sessions(first:50,sort:{{col:{column},dir:desc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc
 
-        # Test ascending order: 50, 75, 100, 200
-        field = f"sessions(sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
+        # Test ascending order: 0, 50, 75, 100, 200
+        field = f"sessions(first:50,sort:{{col:{column},dir:asc}}){{edges{{node{{id}}}}}}"
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == result_desc[::-1]
 
@@ -2421,9 +2715,7 @@ class TestProject:
                 session.add(annotation)
 
         # Test descending order: 0.9, 0.8, 0.7, 0.5, 0.3, NULL (desc by ID: 8,5,2)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:score},dir:desc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:score},dir:desc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[0]),  # 0.9
@@ -2437,9 +2729,7 @@ class TestProject:
         ]
 
         # Test ascending order: 0.3, 0.5, 0.7, 0.8, 0.9, NULL (asc by ID: 2,5,8)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:score},dir:asc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:score},dir:asc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[5]),  # 0.3
@@ -2520,9 +2810,7 @@ class TestProject:
                 session.add(annotation)
 
         # Test descending order: zebra, delta, charlie, beta, alpha, NULL (desc by ID: 8,5,2)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:label},dir:desc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:label},dir:desc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[0]),  # "zebra"
@@ -2536,9 +2824,7 @@ class TestProject:
         ]
 
         # Test ascending order: alpha, beta, charlie, delta, zebra, NULL (asc by ID: 2,5,8)
-        field = (
-            'sessions(sort:{annoResultKey:{name:"Quality",attr:label},dir:asc}){edges{node{id}}}'
-        )
+        field = 'sessions(first:50,sort:{annoResultKey:{name:"Quality",attr:label},dir:asc}){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert [e["node"]["id"] for e in res["edges"]] == [
             _gid(sessions[2]),  # "alpha"
@@ -2585,29 +2871,6 @@ class TestProject:
             _gid(sessions[1]),  # NULL (ID 2)
         ]
         assert res["pageInfo"]["hasNextPage"] is False
-
-    async def test_sessions_substring_search_looks_at_both_input_and_output(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project = _data.projects[0]
-        field = 'sessions(filterIoSubstring:"\\"\'f"){edges{node{id}}}'
-        res = await self._node(field, project, httpx_client)
-        assert {e["node"]["id"] for e in res["edges"]} == {
-            _gid(_data.project_sessions[1]),
-            _gid(_data.project_sessions[3]),
-        }
-
-    async def test_sessions_substring_search_looks_at_only_root_spans(
-        self,
-        _data: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        project = _data.projects[0]
-        field = 'sessions(filterIoSubstring:"\\"\'j"){edges{node{id}}}'
-        res = await self._node(field, project, httpx_client)
-        assert {e["node"]["id"] for e in res["edges"]} == set()
 
     @pytest.fixture
     async def _case_insensitive_data(
@@ -2656,41 +2919,36 @@ class TestProject:
             projects=projects,
         )
 
-    async def test_sessions_case_insensitive_filtering(
+    async def test_session_dsl_containment_ignores_case(
         self,
         _case_insensitive_data: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        """Test GraphQL integration for case-insensitive filtering."""
+        """The DSL reaches every session the retired text search did: casing, non-ASCII, and
+        SQL wildcard characters carried literally."""
         project = _case_insensitive_data.projects[0]
+        sessions = _case_insensitive_data.project_sessions
 
-        test_cases = [
-            ("\\'\"hello", [0, 1, 4], "Basic case-insensitive matching"),
-            ("WÖRLD'\"", [0, 1], "Unicode case-insensitivity"),
-            ("%", [2], "Special percentage sign"),
-            ("_", [3], "Special underscore"),
-            ("'; DROP TABLE users;--", [], "No matches"),
-        ]
-
-        for filter_substring, expected_session_indices, description in test_cases:
-            # Escape the filter substring for GraphQL
-            escaped_filter = filter_substring.replace("\\", "\\\\").replace('"', '\\"')
-            field = f'sessions(filterIoSubstring:"{escaped_filter}"){{edges{{node{{id}}}}}}'
-
-            res = await self._node(field, project, httpx_client)
-
-            # Get the expected session IDs
-            expected_session_ids = {
-                _gid(_case_insensitive_data.project_sessions[i]) for i in expected_session_indices
-            }
-
-            actual_session_ids = {e["node"]["id"] for e in res["edges"]}
-
-            assert actual_session_ids == expected_session_ids, (
-                f"{description} failed: "
-                f"Expected sessions {expected_session_indices} for filter '{filter_substring}', "
-                f"but got {actual_session_ids}"
+        async def _matched(condition: str) -> set[str]:
+            result = await self._node(
+                f"sessions(first:50,sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+                project,
+                httpx_client,
             )
+            return {e["node"]["id"] for e in result["edges"]}
+
+        # Sessions 0 and 4 spell it "Hello" on the input side; either casing finds both.
+        hello_sessions = {_gid(sessions[0]), _gid(sessions[4])}
+        assert await _matched("'Hello' in any_input") == hello_sessions
+        assert await _matched("'hello' in any_input") == hello_sessions
+        # Session 1 spells it "HELLO" on the output side.
+        assert await _matched("'hello' in any_output") == {_gid(sessions[1])}
+        # Non-ASCII case folding, in both directions.
+        assert await _matched("'wörld' in any_input") == {_gid(sessions[0])}
+        assert await _matched("'WÖRLD' in any_output") == {_gid(sessions[1])}
+        # LIKE wildcards are literal text, not patterns.
+        assert await _matched("'%' in any_input") == {_gid(sessions[2])}
+        assert await _matched("'_' in any_output") == {_gid(sessions[3])}
 
     @pytest.mark.parametrize("orphan_span_as_root_span", [False, True])
     async def test_root_spans_only_with_orphan_spans(
@@ -2708,18 +2966,14 @@ class TestProject:
         """
         project = _orphan_spans.projects[0]
 
-        # Filter spans containing "2" in their input value
-        filtered_spans = [s for s in _orphan_spans.spans if "2" in s.attributes["input"]["value"]]
-
-        # Determine root spans based on configuration
-        if orphan_span_as_root_span:
-            existing_span_ids = {s.span_id for s in _orphan_spans.spans}
-            root_spans = [s for s in filtered_spans if s.parent_id not in existing_span_ids]
-        else:
-            root_spans = [s for s in filtered_spans if s.parent_id is None]
+        root_spans = _representative_root_spans(
+            _orphan_spans.spans,
+            orphan_span_as_root_span,
+        )
+        filtered_spans = [span for span in root_spans if "2" in span.attributes["input"]["value"]]
 
         # Sort spans by start time and ID
-        sorted_spans = sorted(root_spans, key=lambda t: (t.start_time, t.id), reverse=True)
+        sorted_spans = sorted(filtered_spans, key=lambda t: (t.start_time, t.id), reverse=True)
 
         # Convert to global IDs for comparison
         gids = list(map(_gid, sorted_spans))
@@ -2747,6 +3001,195 @@ class TestProject:
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
+
+    async def test_parent_is_none_matches_orphan_aware_root_spans_only(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """The DSL predicate selects every orphan-aware root candidate, while
+        ``rootSpansOnly`` selects one representative candidate per trace.
+        """
+        project = _orphan_spans.projects[0]
+
+        # Orphan-aware roots computed directly from the fixture: a NULL parent, or a
+        # parent_id that references no span in the table.
+        existing_span_ids = {s.span_id for s in _orphan_spans.spans}
+        expected = {
+            _gid(s)
+            for s in _orphan_spans.spans
+            if s.parent_id is None or s.parent_id not in existing_span_ids
+        }
+        # The fixture must exercise both kinds of root, or the test proves nothing.
+        assert any(s.parent_id is None for s in _orphan_spans.spans)
+        assert any(
+            s.parent_id is not None and s.parent_id not in existing_span_ids
+            for s in _orphan_spans.spans
+        )
+
+        dsl_res = await self._node(
+            'spans(filterCondition:"parent_span is None",first:100){edges{node{id}}}',
+            project,
+            httpx_client,
+        )
+        flag_res = await self._node(
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
+            project,
+            httpx_client,
+        )
+        dsl_ids = {e["node"]["id"] for e in dsl_res["edges"]}
+        flag_ids = {e["node"]["id"] for e in flag_res["edges"]}
+        assert dsl_ids == expected
+        assert flag_ids == {
+            _gid(span) for span in _representative_root_spans(_orphan_spans.spans, True)
+        }
+        assert flag_ids <= dsl_ids
+
+    @pytest.mark.parametrize(
+        "condition,orphan_span_as_root_span",
+        [
+            pytest.param("parent_span is None", True, id="orphan-aware-both"),
+            pytest.param("parent_id is None", True, id="strict-condition-orphan-aware-flag"),
+            pytest.param("parent_id is None", False, id="strict-both"),
+            pytest.param("parent_span is None", False, id="orphan-aware-condition-strict-flag"),
+            # Disjunction where every branch is strict-scoped: the flag skip now
+            # fires off an `or`, so the rows must still match the flag alone.
+            pytest.param(
+                "(parent_id is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                True,
+                id="disjunction-all-strict-orphan-flag",
+            ),
+            pytest.param(
+                "(parent_id is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                False,
+                id="disjunction-all-strict-strict-flag",
+            ),
+            # Negated root predicate: `not (parent_id is not None)` is strict-scoped,
+            # so the skip fires off a `not` and must not change the result.
+            pytest.param(
+                "not (parent_id is not None) and '1' in input.value",
+                True,
+                id="negated-predicate-strict-orphan-flag",
+            ),
+            pytest.param(
+                "not (parent_id is not None) and '1' in input.value",
+                False,
+                id="negated-predicate-strict-strict-flag",
+            ),
+            # A form the analyzer does *not* recognize (De Morgan over a compound):
+            # it under-claims, so the flag's scoping is applied as well. Pinned
+            # because an under-claim must stay harmless -- redundant SQL, same rows.
+            pytest.param(
+                "not (parent_id is not None or '9' in input.value)",
+                True,
+                id="unrecognized-form-flag-still-applied",
+            ),
+            # Disjunction whose branches mix strict and orphan-aware: scoped to
+            # orphan-aware (the wider), so it may skip the orphan-aware flag but
+            # not the strict one.
+            pytest.param(
+                "(parent_span is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                True,
+                id="disjunction-mixed-orphan-flag",
+            ),
+            pytest.param(
+                "(parent_span is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                False,
+                id="disjunction-mixed-strict-flag",
+            ),
+        ],
+    )
+    async def test_root_predicate_and_flag_together_match_the_flag_alone(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+        condition: str,
+        orphan_span_as_root_span: bool,
+    ) -> None:
+        """Combining `rootSpansOnly` with a root predicate intersects both scopes.
+
+        `rootSpansOnly` chooses a single representative per trace; an explicit
+        predicate can then remove that representative without promoting another
+        candidate from the same trace.
+        """
+        project = _orphan_spans.projects[0]
+        orphan_arg = str(orphan_span_as_root_span).lower()
+
+        async def span_ids(field: str) -> set[str]:
+            result = await self._node(field, project, httpx_client)
+            return {e["node"]["id"] for e in result["edges"]}
+
+        both = await span_ids(
+            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
+            f'filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
+        )
+        flag_only = await span_ids(
+            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
+            "first:100){edges{node{id}}}"
+        )
+        condition_only = await span_ids(
+            f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
+        )
+        assert both == flag_only & condition_only
+
+    async def test_analyze_span_filter_condition_tracks_actual_query_scope(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """``analyzeSpanFilterCondition`` tells a client whether a filtered view is
+        root-scoped, which is what decides between cumulative and per-span metric
+        columns. Its answer has to match what the query actually returns, so this
+        checks the verdict against the rows for both a scoped and an unscoped
+        condition.
+        """
+        project = _orphan_spans.projects[0]
+        user_condition = "'2' in input.value"
+        root_scoped = f"parent_span is None and {user_condition}"
+
+        async def analyze(condition: str) -> bool:
+            result = await self._node(
+                f'analyzeSpanFilterCondition(condition:"{condition}"){{selectsRootSpansOnly}}',
+                project,
+                httpx_client,
+            )
+            return bool(result["selectsRootSpansOnly"])
+
+        async def span_ids(condition: str) -> set[str]:
+            result = await self._node(
+                f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}',
+                project,
+                httpx_client,
+            )
+            return {e["node"]["id"] for e in result["edges"]}
+
+        assert await analyze(user_condition) is False
+        assert await analyze(root_scoped) is True
+
+        scoped_ids = await span_ids(root_scoped)
+        unscoped_ids = await span_ids(user_condition)
+        # The verdict is only meaningful if the predicate actually narrowed the
+        # result; a silently dropped predicate would make these equal.
+        assert scoped_ids < unscoped_ids
+        # The boolean arguments additionally choose one representative per trace,
+        # so applying the filter to that view is the intersection of both scopes.
+        flag_only_res = await self._node(
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
+            project,
+            httpx_client,
+        )
+        flag_res = await self._node(
+            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,"
+            f'filterCondition:"{user_condition}",first:100){{edges{{node{{id}}}}}}',
+            project,
+            httpx_client,
+        )
+        flag_only_ids = {e["node"]["id"] for e in flag_only_res["edges"]}
+        assert {e["node"]["id"] for e in flag_res["edges"]} == scoped_ids & flag_only_ids
 
     @pytest.fixture
     async def _time_series_data(
@@ -3650,17 +4093,23 @@ class TestProject:
             raise AssertionError("Test failed for trace count time series") from e
 
     @pytest.mark.parametrize(
-        "expectation,condition",
+        "expectation,condition,error_message",
         [
-            (True, "span_kind == 'LLM'"),
-            (False, "span_kind == 'LLM' and "),
-            (False, "span_kind == 'LLM' and ''"),
+            (True, "span_kind == 'LLM'", None),
+            (False, "span_kind == 'LLM' and ", None),
+            (False, "span_kind == 'LLM' and ''", None),
+            (
+                False,
+                "annotations['rate_limit_type'].label is True",
+                "cannot compare string and boolean",
+            ),
         ],
     )
     async def test_validate_span_filter_condition(
         self,
         condition: str,
         expectation: bool,
+        error_message: Optional[str],
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
     ) -> None:
@@ -3675,6 +4124,7 @@ class TestProject:
                     condition: $condition
                   ) {
                     isValid
+                    errorMessage
                   }
                 }
               }
@@ -3687,7 +4137,643 @@ class TestProject:
         )
         assert not response.errors
         assert (data := response.data) is not None
-        assert data["node"]["validateSpanFilterCondition"]["isValid"] == expectation
+        result = data["node"]["validateSpanFilterCondition"]
+        assert result["isValid"] == expectation
+        if error_message is not None:
+            assert error_message in result["errorMessage"]
+
+    async def test_invalid_span_filter_returns_actionable_execution_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+
+        query = """
+            query($id: ID!, $condition: String!) {
+              node(id: $id) {
+                ... on Project {
+                  spans(first: 1, filterCondition: $condition) {
+                    edges { node { id } }
+                  }
+                }
+              }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "condition": "annotations['rate_limit_type'].label is True",
+            },
+        )
+
+        assert response.errors
+        assert "cannot compare string and boolean" in response.errors[0].message
+
+    @pytest.mark.parametrize(
+        "expectation,condition",
+        [
+            (True, "num_traces >= 5"),
+            (False, "num_traces >= "),
+            (False, "nonexistent_field == 1"),
+        ],
+    )
+    async def test_validate_session_filter_condition(
+        self,
+        condition: str,
+        expectation: bool,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+        query = """
+            query($id: ID!, $condition: String!) {
+              node(id: $id) {
+                ... on Project {
+                  validateSessionFilterCondition(condition: $condition) {
+                    isValid
+                    errorMessage
+                  }
+                }
+              }
+            }
+        """
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(
+            query=query,
+            variables={"id": project_gid, "condition": condition},
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        result = data["node"]["validateSessionFilterCondition"]
+        assert result["isValid"] == expectation
+        if not expectation:
+            assert result["errorMessage"]
+
+    async def test_session_filter_vocabulary(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        from phoenix.trace.dsl.session_filter import SESSION_BINDINGS
+
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            project_session = await _add_project_session(session, project, start_time=base_time)
+            trace = await _add_trace(
+                session,
+                project,
+                project_session,
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            root_span = await _add_span(
+                session,
+                trace,
+                attributes={
+                    "custom": {"leaf": "alpha"},
+                    "duplicate": {"leaf": "first"},
+                    "input": {"value": "hello"},
+                    "metadata": {"tenant": "acme"},
+                    "user": {"id": "user-1"},
+                },
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            child_tool_span = await _add_span(
+                session,
+                parent_span=root_span,
+                span_kind="TOOL",
+                attributes={"child_only": "not cataloged"},
+                start_time=base_time + timedelta(seconds=1),
+                end_time=base_time + timedelta(seconds=2),
+            )
+            child_tool_span.name = "search"
+            later_trace = await _add_trace(
+                session,
+                project,
+                project_session,
+                start_time=base_time + timedelta(minutes=1),
+                end_time=base_time + timedelta(minutes=1, seconds=10),
+            )
+            llm_span = await _add_span(
+                session,
+                later_trace,
+                attributes={"later_only": "not cataloged"},
+                start_time=base_time + timedelta(minutes=1),
+                end_time=base_time + timedelta(minutes=1, seconds=10),
+            )
+            llm_span.name = "llm_not_cataloged"
+            second_project_session = await _add_project_session(
+                session, project, start_time=base_time + timedelta(minutes=2)
+            )
+            second_trace = await _add_trace(
+                session,
+                project,
+                second_project_session,
+                start_time=base_time + timedelta(minutes=2),
+                end_time=base_time + timedelta(minutes=2, seconds=10),
+            )
+            second_tool_span = await _add_span(
+                session,
+                second_trace,
+                span_kind="TOOL",
+                attributes={
+                    "duplicate": {"leaf": "second"},
+                    "flat": "cataloged",
+                    # Whole-literal storage of the key the first session stores
+                    # nested — the same OTel wire key, so one vocabulary term.
+                    "custom.leaf": "whole-literal",
+                },
+                start_time=base_time + timedelta(minutes=2),
+                end_time=base_time + timedelta(minutes=2, seconds=10),
+            )
+            second_tool_span.name = "lookup"
+            other_project = await _add_project(session)
+            other_project_session = await _add_project_session(session, other_project)
+            other_trace = await _add_trace(session, other_project, other_project_session)
+            other_tool_span = await _add_span(
+                session,
+                other_trace,
+                span_kind="TOOL",
+                attributes={"other_project": "not cataloged"},
+            )
+            other_tool_span.name = "other_tool"
+            session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name="quality",
+                    label="good",
+                    score=1.0,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                )
+            )
+            await session.flush()
+        query = """
+            query($id: ID!) {
+              node(id: $id) {
+                ... on Project {
+                  sessionFilterVocabulary {
+                    name
+                    type
+                    description
+                    category
+                    iterableName
+                  }
+                }
+              }
+            }
+        """
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(query=query, variables={"id": project_gid})
+        assert not response.errors
+        assert (data := response.data) is not None
+        terms = data["node"]["sessionFilterVocabulary"]
+        # Element-field names repeat across iterables and collide with top-level ones, so the
+        # top-level view keys only on unscoped terms; scoped terms are keyed by (iterable, name).
+        top_level_terms = [t for t in terms if t["iterableName"] is None]
+        term_names = {t["name"] for t in top_level_terms}
+        terms_by_name = {term["name"]: term for term in top_level_terms}
+        # Drift-proof: static session + aggregate terms are exactly the compiler's binding keys.
+        static_names = {
+            t["name"] for t in top_level_terms if t["name"] in SESSION_BINDINGS.binding_names
+        }
+        assert static_names == set(SESSION_BINDINGS.binding_names)
+        assert {"any_input", "any_output"}.issubset(static_names)
+        # The `in`-only IO terms are typed apart from plain strings so the UI doesn't
+        # offer them as equality comparands.
+        assert terms_by_name["any_input"]["type"] == "containment"
+        assert terms_by_name["any_output"]["type"] == "containment"
+        # Every served term carries a non-empty gloss.
+        assert all(t["description"] for t in terms)
+        # The turn model is an unenforced ingestion convention, so the served gloss leads
+        # with the mechanic and labels the metaphor as the approximation it is.
+        num_traces_term = next(t for t in terms if t["name"] == "num_traces")
+        assert num_traces_term["description"].startswith("Number of traces in the session")
+        assert "approximate conversation-turn count" in num_traces_term["description"]
+        assert "does not enforce" in num_traces_term["description"]
+        assert "earliest root span" in terms_by_name["attributes[...]"]["description"]
+        assert 'attributes["user.id"]' in terms_by_name["user.id"]["description"]
+        assert 'attributes["metadata.key"]' in terms_by_name['metadata["key"]']["description"]
+        # Observed attributes are served in the canonical wire-key spelling,
+        # regardless of how ingestion decomposed each key into nested JSON.
+        observed_attribute_terms = {
+            'attributes["custom.leaf"]',
+            'attributes["duplicate.leaf"]',
+            'attributes["flat"]',
+            'attributes["input.value"]',
+            'attributes["metadata.tenant"]',
+            'attributes["user.id"]',
+        }
+        for term_name in observed_attribute_terms:
+            assert terms_by_name[term_name]["type"] == "string"
+            assert terms_by_name[term_name]["category"] == "attribute"
+            assert "earliest root span" in terms_by_name[term_name]["description"]
+        # One term per wire key: observed twice nested, and observed nested in
+        # one session but whole-literal in another, both collapse.
+        served_names = [term["name"] for term in terms]
+        assert served_names.count('attributes["duplicate.leaf"]') == 1
+        assert served_names.count('attributes["custom.leaf"]') == 1
+        # The nested storage-path spelling stays an accepted compiler synonym
+        # but is not served as its own term.
+        assert 'attributes["custom"]["leaf"]' not in terms_by_name
+        absent_attribute_terms = {
+            'attributes["child_only"]',
+            'attributes["later_only"]',
+            'attributes["other_project"]',
+        }
+        assert absent_attribute_terms.isdisjoint(terms_by_name)
+        # Per-project session-annotation names are folded in as fully-typed terms.
+        assert 'session_annotations["quality"].score' in term_names
+        assert 'session_annotations["quality"].label' in term_names
+        # Span counts are session totals only — no per-tool-name terms are served.
+        assert not any(name.startswith("tool_span_count[") for name in term_names)
+        # The comprehension surface is served from the compiler's own catalog, so the iterables
+        # and their element fields cannot drift from what actually compiles.
+        iterable_terms = {t["name"]: t for t in terms if t["category"] == "iterable"}
+        assert iterable_terms.keys() == set(SESSION_BINDINGS.iterables)
+        assert all(
+            t["type"] == "iterable" and t["iterableName"] is None for t in iterable_terms.values()
+        )
+        element_fields: dict[str, dict[str, str]] = {}
+        for term in terms:
+            if term["iterableName"] is not None:
+                assert term["category"] == "element"
+                element_fields.setdefault(term["iterableName"], {})[term["name"]] = term["type"]
+        for iterable_name, grammar in SESSION_BINDINGS.iterables.items():
+            element_bindings = grammar.element_bindings
+            assert element_fields[iterable_name] == {
+                **{n: "string" for n in element_bindings.string_names},
+                **{n: "number" for n in element_bindings.float_names},
+                **{n: "datetime" for n in element_bindings.datetime_names},
+                **{n: "boolean" for n in element_bindings.boolean_names},
+            }
+        # A scoped name may repeat across iterables and shadow a top-level one; each is its
+        # own term, distinguished only by iterableName.
+        assert element_fields["spans"]["latency_ms"] == "number"
+        assert element_fields["traces"]["latency_ms"] == "number"
+        assert element_fields["traces"]["start_time"] == "datetime"
+        assert "start_time" in term_names
+        assert element_fields["span_cost_details"]["is_prompt"] == "boolean"
+
+    async def test_session_count_shares_dsl_path_with_sessions_and_record_count(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        condition = "num_traces >= 2"
+        # Only session index 2 has two traces; the rest have one.
+        expected_session_gid = _gid(_data.project_sessions[2])
+
+        sessions_result = await self._node(
+            f'sessions(first:50,sessionFilterCondition:"{condition}"){{edges{{node{{id}}}}}}',
+            project,
+            httpx_client,
+        )
+        assert [e["node"]["id"] for e in sessions_result["edges"]] == [expected_session_gid]
+
+        session_count = await self._node(
+            f'sessionCount(sessionFilterCondition:"{condition}")', project, httpx_client
+        )
+        assert session_count == len(sessions_result["edges"]) == 1
+
+        # A non-primary fan-out call site (record_counts) filtered by the same DSL condition:
+        # session index 2 owns two spans, versus seven spans project-wide.
+        assert await self._node("recordCount", project, httpx_client) == 7
+        assert (
+            await self._node(
+                f'recordCount(sessionFilterCondition:"{condition}")', project, httpx_client
+            )
+            == 2
+        )
+
+    async def test_aside_statistics_follow_the_active_session_filter(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Every statistic the sessions aside renders is scoped to the filtered table's rows."""
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        async with db() as session:
+            project = await _add_project(session, name="aside-filtered-statistics")
+            expected_gids = []
+            # (traces, duration, label): two traces puts a session past the filter below.
+            for trace_count, duration, label in (
+                (2, timedelta(seconds=10), "good"),
+                (2, timedelta(seconds=20), "bad"),
+                (1, timedelta(seconds=100), "good"),
+            ):
+                project_session = await _add_project_session(
+                    session, project, start_time=base_time, end_time=base_time + duration
+                )
+                for _ in range(trace_count):
+                    await _add_trace(session, project, project_session, start_time=base_time)
+                session.add(
+                    models.ProjectSessionAnnotation(
+                        project_session_id=project_session.id,
+                        name="quality",
+                        label=label,
+                        score=1.0,
+                        explanation=None,
+                        metadata_={},
+                        annotator_kind="HUMAN",
+                        source="APP",
+                    )
+                )
+                if trace_count >= 2:
+                    expected_gids.append(_gid(project_session))
+            await session.flush()
+
+        query = """
+          query ($id: ID!, $condition: String!) {
+            node(id: $id) {
+              ... on Project {
+                sessions(first: 50, sessionFilterCondition: $condition) { edges { node { id } } }
+                sessionCount(sessionFilterCondition: $condition)
+                averageSessionDurationMs(sessionFilterCondition: $condition)
+                averageTracesPerSession(sessionFilterCondition: $condition)
+                sessionDurationMsQuantile(
+                  probability: 0.5, sessionFilterCondition: $condition
+                )
+                sessionAnnotationSummary(
+                  annotationName: "quality", sessionFilterCondition: $condition
+                ) { count labelFractions { label fraction } }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "condition": "num_traces >= 2",
+            },
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        aside = data["node"]
+        assert sorted(e["node"]["id"] for e in aside["sessions"]["edges"]) == sorted(expected_gids)
+        assert aside["sessionCount"] == 2
+        assert aside["averageSessionDurationMs"] == pytest.approx(15_000)
+        assert aside["averageTracesPerSession"] == pytest.approx(2.0)
+        assert 10_000 <= aside["sessionDurationMsQuantile"] <= 20_000
+        summary = aside["sessionAnnotationSummary"]
+        assert summary["count"] == 2
+        assert {lf["label"]: lf["fraction"] for lf in summary["labelFractions"]} == {
+            "good": pytest.approx(0.5),
+            "bad": pytest.approx(0.5),
+        }
+
+    async def test_sessions_lookup_by_exact_session_id_via_dsl(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """`session_id == '...'` is how the DSL expresses a single-session lookup."""
+        project = _data.projects[0]
+        session = _data.project_sessions[0]
+
+        async def _list_ids(condition: str) -> list[str]:
+            result = await self._node(
+                f"sessions(first:50,sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+                project,
+                httpx_client,
+            )
+            return [e["node"]["id"] for e in result["edges"]]
+
+        assert await _list_ids(f"session_id == {session.session_id!r}") == [_gid(session)]
+        assert await _list_ids(f"session_id == {token_hex(16)!r}") == []
+
+    async def test_sessions_filtered_by_annotation_return_each_session_once(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """A session carrying several annotations under one name is one row on a filtered page.
+
+        Session annotations are unique on `(name, project_session_id, identifier)`, so the join a
+        filter on `session_annotations[...]` makes can match a session more than once.
+        """
+        async with db() as session:
+            project = await _add_project(session, name="annotation-fan-out-page")
+            project_session = await _add_project_session(session, project)
+            trace = await _add_trace(session, project, project_session)
+            await _add_span(session, trace)
+            for identifier in ("first", "second"):
+                session.add(
+                    models.ProjectSessionAnnotation(
+                        project_session_id=project_session.id,
+                        name="Quality",
+                        label="good",
+                        score=0.9,
+                        metadata_={},
+                        annotator_kind="HUMAN",
+                        source="APP",
+                        identifier=identifier,
+                    )
+                )
+
+        condition = 'session_annotations["Quality"].score > 0.5'
+        page = await self._node(
+            f"sessions(first:50,sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+            project,
+            httpx_client,
+        )
+        assert [e["node"]["id"] for e in page["edges"]] == [_gid(project_session)]
+
+    @pytest.mark.parametrize("sort_column", ("tokenCountTotal", "costTotal"))
+    async def test_sessions_sorted_page_and_count_agree_over_comprehension_condition(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+        sort_column: str,
+    ) -> None:
+        """The page and the count select the same sessions, though they compile differently."""
+        async with db() as session:
+            project = await _add_project(session, name="comprehension-page-count-agreement")
+            expected = []
+            for span_count in (1, 3, 4):
+                project_session = await _add_project_session(session, project)
+                trace = await _add_trace(session, project, project_session)
+                for _ in range(span_count):
+                    await _add_span(session, trace, span_kind="CHAIN")
+                if span_count > 2:
+                    expected.append(_gid(project_session))
+
+        condition = "len([s for s in spans]) > 2"
+        page = await self._node(
+            f"sessions(first:50,sort:{{col:{sort_column},dir:desc}},"
+            f"sessionFilterCondition:{json.dumps(condition)}){{edges{{node{{id}}}}}}",
+            project,
+            httpx_client,
+        )
+        count = await self._node(
+            f"sessionCount(sessionFilterCondition:{json.dumps(condition)})", project, httpx_client
+        )
+        assert sorted(e["node"]["id"] for e in page["edges"]) == sorted(expected)
+        assert count == len(expected)
+
+    @staticmethod
+    async def _validate_session_filter(
+        project: models.Project,
+        condition: str,
+        gql_client: AsyncGraphQLClient,
+    ) -> dict[str, Any]:
+        query = """
+            query($id: ID!, $condition: String!) {
+              node(id: $id) {
+                ... on Project {
+                  validateSessionFilterCondition(condition: $condition) {
+                    isValid
+                    errorMessage
+                    warnings
+                  }
+                }
+              }
+            }
+        """
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(
+            query=query,
+            variables={"id": project_gid, "condition": condition},
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        result: dict[str, Any] = data["node"]["validateSessionFilterCondition"]
+        return result
+
+    async def test_validate_session_filter_condition_warns_on_unknown_dynamic_names(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """Typo'd names in string-literal subscripts compile but warn against observed names."""
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            project_session = await _add_project_session(session, project, start_time=base_time)
+            trace = await _add_trace(
+                session,
+                project,
+                project_session,
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            tool_span = await _add_span(
+                session,
+                trace,
+                span_kind="TOOL",
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=1),
+            )
+            tool_span.name = "search"
+            session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name="quality",
+                    label="good",
+                    score=1.0,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                )
+            )
+            await session.flush()
+
+        # Typo'd annotation name: valid (compiles) but warns, naming the unknown + the observed set.
+        result = await self._validate_session_filter(
+            project, "session_annotations['typoo'].score > 0.5", gql_client
+        )
+        assert result["isValid"] is True
+        assert result["errorMessage"] is None
+        assert any(
+            w.startswith("unknown annotation name 'typoo'") and "quality" in w
+            for w in result["warnings"]
+        )
+
+        # An observed annotation name produces no warnings.
+        result = await self._validate_session_filter(
+            project,
+            "session_annotations['quality'].score > 0.5 and tool_span_count > 0",
+            gql_client,
+        )
+        assert result["isValid"] is True
+        assert result["warnings"] == []
+
+    async def test_session_filter_vocabulary_bounds_attribute_scan_to_recent_sessions(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Byte truncation preserves the newest session's root-span attribute names."""
+        from phoenix.server.api.types import Project as project_module
+
+        monkeypatch.setattr(project_module, "_VOCABULARY_ATTRIBUTE_SCAN_LIMIT", 2)
+        monkeypatch.setattr(project_module, "_VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT", 64)
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            older_session = await _add_project_session(session, project, start_time=base_time)
+            older_trace = await _add_trace(
+                session,
+                project,
+                older_session,
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            await _add_span(
+                session,
+                older_trace,
+                attributes={"old_only": "x" * 128},
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            newer_session = await _add_project_session(
+                session, project, start_time=base_time + timedelta(minutes=5)
+            )
+            newer_trace = await _add_trace(
+                session,
+                project,
+                newer_session,
+                start_time=base_time + timedelta(minutes=5),
+                end_time=base_time + timedelta(minutes=5, seconds=10),
+            )
+            await _add_span(
+                session,
+                newer_trace,
+                attributes={"new_only": "y" * 128},
+                start_time=base_time + timedelta(minutes=5),
+                end_time=base_time + timedelta(minutes=5, seconds=10),
+            )
+            await session.flush()
+        query = """
+            query($id: ID!) {
+              node(id: $id) {
+                ... on Project {
+                  sessionFilterVocabulary { name }
+                }
+              }
+            }
+        """
+        project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+        response = await gql_client.execute(query=query, variables={"id": project_gid})
+        assert not response.errors
+        assert (data := response.data) is not None
+        term_names = {t["name"] for t in data["node"]["sessionFilterVocabulary"]}
+        assert 'attributes["new_only"]' in term_names
+        assert 'attributes["old_only"]' not in term_names
 
 
 @pytest.mark.parametrize(
@@ -4514,7 +5600,7 @@ async def test_cost_summary_returns_expected_results(
         model = await _add_generative_model(session, "test-model")
         await _add_span_cost(session, llm_span_costing_100_dollars, trace1, model, total_cost=100.0)
 
-        session2 = await _add_project_session(session, project)
+        session2 = await _add_project_session(session, project, session_id="cost-session-2")
         trace2 = await _add_trace(session, project, session2)
         chain_span_costing_50_dollars = await _add_span(
             session, trace2, span_kind="CHAIN", attributes={"input": {"value": "chain query"}}
@@ -4561,7 +5647,11 @@ async def test_cost_summary_returns_expected_results(
     assert response_llm_span_filter.data["node"]["costSummary"]["total"]["cost"] == 100.0
 
     response_chain_session_filter = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "sessionFilterCondition": "chain query"}
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "sessionFilterCondition": "session_id == 'cost-session-2'",
+        },
     )
     assert not response_chain_session_filter.errors
     assert response_chain_session_filter.data is not None
@@ -4574,7 +5664,9 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
 ) -> None:
     async with db() as session:
         project = await _add_project(session, name="latency-filter-test")
-        llm_span_session = await _add_project_session(session, project)
+        llm_span_session = await _add_project_session(
+            session, project, session_id="latency-llm-session"
+        )
         llm_span_latencies_ms = [100, 200, 300]
         for latency_ms in llm_span_latencies_ms:
             start_time = datetime.now(timezone.utc)
@@ -4594,7 +5686,9 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
                 attributes={"input": {"value": "llm span input"}},
             )
 
-        chain_span_session = await _add_project_session(session, project)
+        chain_span_session = await _add_project_session(
+            session, project, session_id="latency-chain-session"
+        )
         chain_span_latencies_ms = [400, 500, 600]
         for latency_ms in chain_span_latencies_ms:
             start_time = datetime.now(timezone.utc)
@@ -4646,7 +5740,10 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
 
     response_llm_session_filter = await gql_client.execute(
         query=query,
-        variables={"projectId": project_gid, "sessionFilterCondition": "llm span input"},
+        variables={
+            "projectId": project_gid,
+            "sessionFilterCondition": "session_id == 'latency-llm-session'",
+        },
     )
     assert not response_llm_session_filter.errors
     assert response_llm_session_filter.data is not None
@@ -4654,7 +5751,10 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
 
     response_chain_session_filter = await gql_client.execute(
         query=query,
-        variables={"projectId": project_gid, "sessionFilterCondition": "chain span input"},
+        variables={
+            "projectId": project_gid,
+            "sessionFilterCondition": "session_id == 'latency-chain-session'",
+        },
     )
     assert not response_chain_session_filter.errors
     assert response_chain_session_filter.data is not None
@@ -4667,7 +5767,7 @@ async def test_span_annotation_summary_with_session_filter_returns_expected_resu
 ) -> None:
     async with db() as session:
         project = await _add_project(session, name="annotation-session-test")
-        session1 = await _add_project_session(session, project)
+        session1 = await _add_project_session(session, project, session_id="priority-session")
         trace1 = await _add_trace(session, project, session1)
         span1 = await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
         annotation = models.SpanAnnotation(
@@ -4714,7 +5814,11 @@ async def test_span_annotation_summary_with_session_filter_returns_expected_resu
 
     project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
     response = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "sessionFilterCondition": "priority"}
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "sessionFilterCondition": "session_id == 'priority-session'",
+        },
     )
 
     assert not response.errors
@@ -4734,7 +5838,7 @@ async def test_trace_annotation_summary_with_session_filter_returns_expected_res
 ) -> None:
     async with db() as session:
         project = await _add_project(session, name="annotation-session-test")
-        session1 = await _add_project_session(session, project)
+        session1 = await _add_project_session(session, project, session_id="priority-session")
         trace1 = await _add_trace(session, project, session1)
         await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
         annotation = models.TraceAnnotation(
@@ -4784,7 +5888,7 @@ async def test_trace_annotation_summary_with_session_filter_returns_expected_res
         query=query,
         variables={
             "projectId": project_gid,
-            "sessionFilterCondition": "priority",
+            "sessionFilterCondition": "session_id == 'priority-session'",
         },
     )
 
@@ -4805,7 +5909,7 @@ async def test_record_count_returns_expected_count(
 ) -> None:
     async with db() as session:
         project = await _add_project(session, name="annotation-session-test")
-        session1 = await _add_project_session(session, project)
+        session1 = await _add_project_session(session, project, session_id="priority-session")
         trace1 = await _add_trace(session, project, session1)
         await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
         annotation = models.TraceAnnotation(
@@ -4864,7 +5968,7 @@ async def test_record_count_returns_expected_count(
         query=query,
         variables={
             "projectId": project_gid,
-            "sessionFilterCondition": "priority",
+            "sessionFilterCondition": "session_id == 'priority-session'",
         },
     )
 
@@ -5040,7 +6144,7 @@ async def test_trace_count_returns_expected_count(
 ) -> None:
     async with db() as session:
         project = await _add_project(session, name="annotation-session-test")
-        session1 = await _add_project_session(session, project)
+        session1 = await _add_project_session(session, project, session_id="priority-session")
         trace1 = await _add_trace(session, project, session1)
         await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
         annotation = models.TraceAnnotation(
@@ -5100,7 +6204,7 @@ async def test_trace_count_returns_expected_count(
         query=query,
         variables={
             "projectId": project_gid,
-            "sessionFilterCondition": "priority",
+            "sessionFilterCondition": "session_id == 'priority-session'",
         },
     )
 
@@ -5133,10 +6237,13 @@ async def test_session_count_returns_expected_count(
         await _add_project_session(session, project, session_id="target-session", start_time=late)
 
     query = """
-      query ($projectId: ID!, $timeRange: TimeRange, $sessionId: String) {
+      query ($projectId: ID!, $timeRange: TimeRange, $sessionFilterCondition: String) {
         project: node(id: $projectId) {
           ... on Project {
-            sessionCount(timeRange: $timeRange, sessionId: $sessionId)
+            sessionCount(
+              timeRange: $timeRange
+              sessionFilterCondition: $sessionFilterCondition
+            )
           }
         }
       }
@@ -5172,12 +6279,12 @@ async def test_session_count_returns_expected_count(
     assert response.data is not None
     assert response.data["project"]["sessionCount"] == 1
 
-    # Exact session-ID match exercises the direct-query fallback branch.
+    # An expression filter leaves the dataloader path for a direct count query.
     response = await gql_client.execute(
         query=query,
         variables={
             "projectId": project_gid,
-            "sessionId": "target-session",
+            "sessionFilterCondition": "session_id == 'target-session'",
         },
     )
 
@@ -5367,6 +6474,624 @@ class TestAnnotationScoreTimeSeries:
         }
 
 
+class TestAnnotationMetricsTimeSeries:
+    @pytest.fixture
+    async def _annotation_metrics_data(self, db: DbSessionFactory) -> models.Project:
+        hour_one = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        hour_two = datetime.fromisoformat("2024-01-01T02:20:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            session_one = await _add_project_session(session, project, start_time=hour_one)
+            session_two = await _add_project_session(session, project, start_time=hour_two)
+            trace_one = await _add_trace(session, project, session_one, start_time=hour_one)
+            trace_two = await _add_trace(session, project, session_two, start_time=hour_two)
+            span_one = await _add_span(session, trace_one, start_time=hour_one)
+            span_two = await _add_span(session, trace_two, start_time=hour_two)
+
+            annotation_values = [
+                ("mixed", "pass", 0.2, None),
+                ("mixed", "fail", 0.4, None),
+                ("mixed", None, 0.6, None),
+                ("mixed", None, None, "explanation only"),
+                ("empty", None, None, "explanation only"),
+                ("label-only", "yes", None, None),
+                ("score-only", None, 0.5, None),
+            ]
+            for model, parent_id_field, parent_id in (
+                (models.SpanAnnotation, "span_rowid", span_one.id),
+                (models.TraceAnnotation, "trace_rowid", trace_one.id),
+                (
+                    models.ProjectSessionAnnotation,
+                    "project_session_id",
+                    session_one.id,
+                ),
+            ):
+                session.add_all(
+                    [
+                        model(
+                            **{parent_id_field: parent_id},
+                            name=name,
+                            label=label,
+                            score=score,
+                            explanation=explanation,
+                            metadata_={},
+                            annotator_kind="HUMAN",
+                            identifier=str(index),
+                            source="APP",
+                            user_id=None,
+                        )
+                        for index, (name, label, score, explanation) in enumerate(annotation_values)
+                    ]
+                )
+            for model, parent_id_field, parent_id in (
+                (models.SpanAnnotation, "span_rowid", span_two.id),
+                (models.TraceAnnotation, "trace_rowid", trace_two.id),
+                (
+                    models.ProjectSessionAnnotation,
+                    "project_session_id",
+                    session_two.id,
+                ),
+            ):
+                session.add(
+                    model(
+                        **{parent_id_field: parent_id},
+                        name="mixed",
+                        label="pass",
+                        score=0.8,
+                        explanation=None,
+                        metadata_={},
+                        annotator_kind="HUMAN",
+                        identifier="hour-two",
+                        source="APP",
+                        user_id=None,
+                    )
+                )
+        return project
+
+    async def test_annotation_metrics_time_series_at_all_levels(
+        self,
+        _annotation_metrics_data: models.Project,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        span: spanAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        trace: traceAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        session: sessionAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                    }
+                }
+            }
+
+            fragment metrics on AnnotationMetricsTimeSeries {
+                names
+                data {
+                    timestamp
+                    annotationSummaries {
+                        name
+                        count
+                        scoreCount
+                        labelCount
+                        meanScore
+                        labelFractions { label fraction }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(_annotation_metrics_data.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T04:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        for level in ("span", "trace", "session"):
+            metrics = response.data["node"][level]
+            assert metrics["names"] == ["label-only", "mixed", "score-only"]
+            assert [point["timestamp"] for point in metrics["data"]] == [
+                "2024-01-01T01:00:00+00:00",
+                "2024-01-01T02:00:00+00:00",
+                "2024-01-01T03:00:00+00:00",
+            ]
+            hour_one_summaries = {
+                summary["name"]: summary for summary in metrics["data"][0]["annotationSummaries"]
+            }
+            assert hour_one_summaries["label-only"] == {
+                "name": "label-only",
+                "count": 1,
+                "scoreCount": 0,
+                "labelCount": 1,
+                "meanScore": None,
+                "labelFractions": [{"label": "yes", "fraction": 1.0}],
+            }
+            assert hour_one_summaries["score-only"] == {
+                "name": "score-only",
+                "count": 1,
+                "scoreCount": 1,
+                "labelCount": 0,
+                "meanScore": pytest.approx(0.5),
+                "labelFractions": [],
+            }
+            mixed_summary = hour_one_summaries["mixed"]
+            assert mixed_summary["count"] == 3
+            assert mixed_summary["scoreCount"] == 3
+            assert mixed_summary["labelCount"] == 2
+            assert mixed_summary["meanScore"] == pytest.approx(0.4)
+            assert mixed_summary["labelFractions"] == [
+                {"label": "fail", "fraction": pytest.approx(1 / 2)},
+                {"label": "pass", "fraction": pytest.approx(1 / 2)},
+            ]
+            assert metrics["data"][2]["annotationSummaries"] == []
+
+    async def test_annotation_metrics_time_series_filters_by_name_at_all_levels(
+        self,
+        _annotation_metrics_data: models.Project,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        query = """
+            query(
+                $id: ID!
+                $annotationName: String!
+                $timeRange: TimeRange!
+                $timeBinConfig: TimeBinConfig
+            ) {
+                node(id: $id) {
+                    ... on Project {
+                        span: spanAnnotationMetricsTimeSeries(
+                            annotationName: $annotationName
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        trace: traceAnnotationMetricsTimeSeries(
+                            annotationName: $annotationName
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        session: sessionAnnotationMetricsTimeSeries(
+                            annotationName: $annotationName
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                    }
+                }
+            }
+
+            fragment metrics on AnnotationMetricsTimeSeries {
+                names
+                data {
+                    timestamp
+                    annotationSummaries {
+                        name
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(_annotation_metrics_data.id))),
+                "annotationName": "mixed",
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T04:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        for level in ("span", "trace", "session"):
+            metrics = response.data["node"][level]
+            assert metrics["names"] == ["mixed"]
+            assert [point["timestamp"] for point in metrics["data"]] == [
+                "2024-01-01T01:00:00+00:00",
+                "2024-01-01T02:00:00+00:00",
+                "2024-01-01T03:00:00+00:00",
+            ]
+            assert [
+                [summary["name"] for summary in point["annotationSummaries"]]
+                for point in metrics["data"]
+            ] == [["mixed"], ["mixed"], []]
+
+    async def test_annotation_metric_names_are_chartable_and_time_range_scoped(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        annotations = (
+            ("before", "2024-01-01T00:59:00+00:00", 0.1, None, None),
+            ("z-start", "2024-01-01T01:00:00+00:00", 0.2, None, None),
+            (
+                "explanation-only",
+                "2024-01-01T01:15:00+00:00",
+                None,
+                None,
+                "not chartable",
+            ),
+            ("a-within", "2024-01-01T01:30:00+00:00", None, "pass", None),
+            ("at-end", "2024-01-01T02:00:00+00:00", 0.9, None, None),
+        )
+        async with db() as session:
+            project = await _add_project(session)
+            for name, timestamp_string, score, label, explanation in annotations:
+                timestamp = datetime.fromisoformat(timestamp_string)
+                project_session = await _add_project_session(session, project, start_time=timestamp)
+                trace = await _add_trace(
+                    session,
+                    project,
+                    project_session,
+                    start_time=timestamp,
+                )
+                span = await _add_span(session, trace, start_time=timestamp)
+                common_annotation_fields: dict[str, Any] = {
+                    "label": label,
+                    "score": score,
+                    "explanation": explanation,
+                    "metadata_": {},
+                    "annotator_kind": "HUMAN",
+                    "source": "APP",
+                    "user_id": None,
+                }
+                session.add_all(
+                    [
+                        models.SpanAnnotation(
+                            span_rowid=span.id,
+                            name=f"span-{name}",
+                            identifier=f"span-{name}",
+                            **common_annotation_fields,
+                        ),
+                        models.TraceAnnotation(
+                            trace_rowid=trace.id,
+                            name=f"trace-{name}",
+                            identifier=f"trace-{name}",
+                            **common_annotation_fields,
+                        ),
+                        models.ProjectSessionAnnotation(
+                            project_session_id=project_session.id,
+                            name=f"session-{name}",
+                            identifier=f"session-{name}",
+                            **common_annotation_fields,
+                        ),
+                    ]
+                )
+
+            other_project = await _add_project(
+                session,
+                name="other-annotation-metrics-project",
+            )
+            other_timestamp = datetime.fromisoformat("2024-01-01T01:45:00+00:00")
+            other_project_session = await _add_project_session(
+                session,
+                other_project,
+                start_time=other_timestamp,
+            )
+            other_trace = await _add_trace(
+                session,
+                other_project,
+                other_project_session,
+                start_time=other_timestamp,
+            )
+            other_span = await _add_span(session, other_trace, start_time=other_timestamp)
+            other_annotation_fields: dict[str, Any] = {
+                "label": None,
+                "score": 1.0,
+                "explanation": None,
+                "metadata_": {},
+                "annotator_kind": "HUMAN",
+                "source": "APP",
+                "user_id": None,
+            }
+            session.add_all(
+                [
+                    models.SpanAnnotation(
+                        span_rowid=other_span.id,
+                        name="other-project-span",
+                        identifier="other-project-span",
+                        **other_annotation_fields,
+                    ),
+                    models.TraceAnnotation(
+                        trace_rowid=other_trace.id,
+                        name="other-project-trace",
+                        identifier="other-project-trace",
+                        **other_annotation_fields,
+                    ),
+                    models.ProjectSessionAnnotation(
+                        project_session_id=other_project_session.id,
+                        name="other-project-session",
+                        identifier="other-project-session",
+                        **other_annotation_fields,
+                    ),
+                ]
+            )
+
+        query = """
+            query($id: ID!, $timeRange: TimeRange!) {
+                node(id: $id) {
+                    ... on Project {
+                        spanAnnotationMetricNames(timeRange: $timeRange)
+                        traceAnnotationMetricNames(timeRange: $timeRange)
+                        sessionAnnotationMetricNames(timeRange: $timeRange)
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T02:00:00+00:00",
+                },
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["node"] == {
+            "spanAnnotationMetricNames": ["span-a-within", "span-z-start"],
+            "traceAnnotationMetricNames": ["trace-a-within", "trace-z-start"],
+            "sessionAnnotationMetricNames": ["session-a-within", "session-z-start"],
+        }
+
+    async def test_label_fractions_weight_entities_instead_of_annotation_rows(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        timestamp = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            project_sessions = [
+                await _add_project_session(session, project, start_time=timestamp) for _ in range(3)
+            ]
+            traces = [
+                await _add_trace(
+                    session,
+                    project,
+                    project_session,
+                    start_time=timestamp,
+                )
+                for project_session in project_sessions
+            ]
+            spans = [await _add_span(session, trace, start_time=timestamp) for trace in traces]
+
+            for model, parent_id_field, parent_ids in (
+                (models.SpanAnnotation, "span_rowid", [span.id for span in spans]),
+                (models.TraceAnnotation, "trace_rowid", [trace.id for trace in traces]),
+                (
+                    models.ProjectSessionAnnotation,
+                    "project_session_id",
+                    [project_session.id for project_session in project_sessions],
+                ),
+            ):
+                for index, (parent_id, label, score) in enumerate(
+                    zip(
+                        parent_ids,
+                        ("pass", "fail", None),
+                        (0.2, 0.4, 0.6),
+                    )
+                ):
+                    session.add(
+                        model(
+                            **{parent_id_field: parent_id},
+                            name="coverage",
+                            label=label,
+                            score=score,
+                            explanation=None,
+                            metadata_={},
+                            annotator_kind="HUMAN",
+                            identifier=f"entity-{index}",
+                            source="APP",
+                            user_id=None,
+                        )
+                    )
+                session.add_all(
+                    [
+                        model(
+                            **{parent_id_field: parent_ids[0]},
+                            name="coverage",
+                            label="pass",
+                            score=None,
+                            explanation=None,
+                            metadata_={},
+                            annotator_kind="HUMAN",
+                            identifier=f"repeat-{index}",
+                            source="APP",
+                            user_id=None,
+                        )
+                        for index in range(9)
+                    ]
+                )
+
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        span: spanAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        trace: traceAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                        session: sessionAnnotationMetricsTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) { ...metrics }
+                    }
+                }
+            }
+
+            fragment metrics on AnnotationMetricsTimeSeries {
+                data {
+                    annotationSummaries {
+                        name
+                        count
+                        scoreCount
+                        labelCount
+                        meanScore
+                        labelFractions { label fraction }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T02:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+
+        assert not response.errors
+        assert response.data is not None
+        for level in ("span", "trace", "session"):
+            summary = response.data["node"][level]["data"][0]["annotationSummaries"][0]
+            assert summary == {
+                "name": "coverage",
+                "count": 12,
+                "scoreCount": 3,
+                "labelCount": 11,
+                "meanScore": pytest.approx(0.4),
+                "labelFractions": [
+                    {"label": "fail", "fraction": pytest.approx(1 / 3)},
+                    {"label": "pass", "fraction": pytest.approx(1 / 3)},
+                ],
+            }
+
+    async def test_each_time_bin_returns_its_observed_labels(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        hour_one = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        hour_two = datetime.fromisoformat("2024-01-01T02:15:00+00:00")
+        hour_three = datetime.fromisoformat("2024-01-01T03:15:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            project_session_one = await _add_project_session(session, project, start_time=hour_one)
+            project_session_two = await _add_project_session(session, project, start_time=hour_two)
+            project_session_three = await _add_project_session(
+                session, project, start_time=hour_three
+            )
+            trace_one = await _add_trace(session, project, project_session_one, start_time=hour_one)
+            trace_two = await _add_trace(session, project, project_session_two, start_time=hour_two)
+            trace_three = await _add_trace(
+                session, project, project_session_three, start_time=hour_three
+            )
+            labels_by_trace = (
+                (trace_one, ["pass", "pass", "pass", "fail"]),
+                (trace_two, ["pass", "review"]),
+            )
+            for trace, labels in labels_by_trace:
+                session.add_all(
+                    [
+                        models.TraceAnnotation(
+                            trace_rowid=trace.id,
+                            name="quality",
+                            label=label,
+                            score=None,
+                            explanation=None,
+                            metadata_={},
+                            annotator_kind="CODE",
+                            identifier=str(index),
+                            source="APP",
+                            user_id=None,
+                        )
+                        for index, label in enumerate(labels)
+                    ]
+                )
+            session.add(
+                models.TraceAnnotation(
+                    trace_rowid=trace_three.id,
+                    name="quality",
+                    label=None,
+                    score=0.9,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="CODE",
+                    identifier="score-only-tail",
+                    source="APP",
+                    user_id=None,
+                )
+            )
+
+        query = """
+          query ($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+            node(id: $id) {
+              ... on Project {
+                traceAnnotationMetricsTimeSeries(
+                  timeRange: $timeRange
+                  timeBinConfig: $timeBinConfig
+                ) {
+                  data {
+                    annotationSummaries {
+                      name
+                      count
+                      scoreCount
+                      labelCount
+                      labelFractions { label fraction }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "id": str(GlobalID("Project", str(project.id))),
+                "timeRange": {
+                    "start": "2024-01-01T01:00:00+00:00",
+                    "end": "2024-01-01T04:00:00+00:00",
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+
+        assert not response.errors
+        assert response.data is not None
+        data = response.data["node"]["traceAnnotationMetricsTimeSeries"]["data"]
+        first_summary = data[0]["annotationSummaries"][0]
+        second_summary = data[1]["annotationSummaries"][0]
+        third_summary = data[2]["annotationSummaries"][0]
+        assert first_summary["count"] == first_summary["labelCount"] == 4
+        assert second_summary["count"] == second_summary["labelCount"] == 2
+        assert [item["label"] for item in first_summary["labelFractions"]] == ["fail", "pass"]
+        assert [item["label"] for item in second_summary["labelFractions"]] == [
+            "pass",
+            "review",
+        ]
+        assert sum(item["fraction"] for item in first_summary["labelFractions"]) == pytest.approx(1)
+        assert sum(item["fraction"] for item in second_summary["labelFractions"]) == pytest.approx(
+            1
+        )
+        assert third_summary["scoreCount"] == 1
+        assert third_summary["labelFractions"] == []
+
+
 async def test_trace_resolves_by_otel_id_and_global_node_id(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
@@ -5468,40 +7193,19 @@ async def test_session_stats(
         await _add_span(session, trace2, attributes={"input": {"value": "beta task"}})
 
     query = """
-      query (
-        $projectId: ID!
-        $timeRange: TimeRange
-        $filterIoSubstring: String
-        $sessionId: String
-      ) {
+      query ($projectId: ID!, $timeRange: TimeRange) {
         node(id: $projectId) {
           ... on Project {
-            sessionCount(
-              timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            )
-            averageSessionDurationMs(
-              timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            )
-            averageTracesPerSession(
-              timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            )
+            sessionCount(timeRange: $timeRange)
+            averageSessionDurationMs(timeRange: $timeRange)
+            averageTracesPerSession(timeRange: $timeRange)
             sessionDurationMsP50: sessionDurationMsQuantile(
               probability: 0.5
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
             )
             sessionDurationMsP99: sessionDurationMsQuantile(
               probability: 0.99
               timeRange: $timeRange
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
             )
           }
         }
@@ -5517,17 +7221,6 @@ async def test_session_stats(
     assert response.data["node"]["averageTracesPerSession"] == 1.5
     assert response.data["node"]["sessionDurationMsP50"] == pytest.approx(15000.0)
     assert response.data["node"]["sessionDurationMsP99"] == pytest.approx(19900.0)
-
-    response = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "filterIoSubstring": "alpha"}
-    )
-    assert not response.errors
-    assert response.data is not None
-    assert response.data["node"]["sessionCount"] == 1
-    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
-    assert response.data["node"]["averageTracesPerSession"] == 2.0
-    assert response.data["node"]["sessionDurationMsP50"] == pytest.approx(10000.0)
-    assert response.data["node"]["sessionDurationMsP99"] == pytest.approx(10000.0)
 
     response = await gql_client.execute(
         query=query,
@@ -5564,60 +7257,6 @@ async def test_session_stats(
     assert response.data["node"]["averageTracesPerSession"] is None
     assert response.data["node"]["sessionDurationMsP50"] is None
     assert response.data["node"]["sessionDurationMsP99"] is None
-
-    # The UI passes the search text as both the substring filter and an exact
-    # session-ID lookup; the exact match wins even though the ID appears
-    # nowhere in the input/output, mirroring the sessions table
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "filterIoSubstring": "session-1-exact-id",
-            "sessionId": "session-1-exact-id",
-        },
-    )
-    assert not response.errors
-    assert response.data is not None
-    assert response.data["node"]["sessionCount"] == 1
-    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
-    assert response.data["node"]["averageTracesPerSession"] == 2.0
-    assert response.data["node"]["sessionDurationMsP50"] == pytest.approx(10000.0)
-    assert response.data["node"]["sessionDurationMsP99"] == pytest.approx(10000.0)
-
-    # The exact session-ID match also ignores the time range, like the
-    # sessions table
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "timeRange": {
-                "start": (base_time + timedelta(days=1)).isoformat(),
-                "end": (base_time + timedelta(days=2)).isoformat(),
-            },
-            "filterIoSubstring": "session-1-exact-id",
-            "sessionId": "session-1-exact-id",
-        },
-    )
-    assert not response.errors
-    assert response.data is not None
-    assert response.data["node"]["sessionCount"] == 1
-    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
-
-    # When the search text matches no session ID exactly, the substring
-    # filter still applies
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "filterIoSubstring": "alpha",
-            "sessionId": "alpha",
-        },
-    )
-    assert not response.errors
-    assert response.data is not None
-    assert response.data["node"]["sessionCount"] == 1
-    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
-    assert response.data["node"]["averageTracesPerSession"] == 2.0
 
 
 async def test_session_annotation_summary_returns_expected_results(
@@ -5660,14 +7299,10 @@ async def test_session_annotation_summary_returns_expected_results(
         )
 
     query = """
-      query ($projectId: ID!, $filterIoSubstring: String, $sessionId: String) {
+      query ($projectId: ID!) {
         node(id: $projectId) {
           ... on Project {
-            sessionAnnotationSummary(
-              annotationName: "test-annotation"
-              filterIoSubstring: $filterIoSubstring
-              sessionId: $sessionId
-            ) {
+            sessionAnnotationSummary(annotationName: "test-annotation") {
               name
               count
               scoreCount
@@ -5698,36 +7333,6 @@ async def test_session_annotation_summary_returns_expected_results(
         {"label": "important", "fraction": 0.5},
         {"label": "normal", "fraction": 0.5},
     ]
-
-    response = await gql_client.execute(
-        query=query, variables={"projectId": project_gid, "filterIoSubstring": "priority"}
-    )
-    assert not response.errors
-    assert response.data is not None
-    summary = response.data["node"]["sessionAnnotationSummary"]
-    assert summary is not None
-    assert summary["count"] == 1
-    assert summary["meanScore"] == 1.0
-    assert summary["labelFractions"] == [{"label": "important", "fraction": 1.0}]
-
-    # The UI passes the search text as both the substring filter and an exact
-    # session-ID lookup; the exact match wins even though the ID appears
-    # nowhere in the input/output, mirroring the sessions table
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "filterIoSubstring": "annotated-session-exact-id",
-            "sessionId": "annotated-session-exact-id",
-        },
-    )
-    assert not response.errors
-    assert response.data is not None
-    summary = response.data["node"]["sessionAnnotationSummary"]
-    assert summary is not None
-    assert summary["count"] == 1
-    assert summary["meanScore"] == 1.0
-    assert summary["labelFractions"] == [{"label": "important", "fraction": 1.0}]
 
 
 async def test_session_annotation_summary_time_range_uses_interval_overlap(
@@ -5813,10 +7418,14 @@ class TestProjectSessionsTimeRange:
     a session is included iff [start_time, end_time] intersects [start, end)."""
 
     _QUERY = """
-        query ($projectId: ID!, $timeRange: TimeRange, $filterIoSubstring: String) {
+        query ($projectId: ID!, $timeRange: TimeRange, $sessionFilterCondition: String) {
           node(id: $projectId) {
             ... on Project {
-              sessions(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring) {
+              sessions(
+                first: 50
+                timeRange: $timeRange
+                sessionFilterCondition: $sessionFilterCondition
+              ) {
                 edges { node { id } }
               }
             }
@@ -5884,14 +7493,14 @@ class TestProjectSessionsTimeRange:
         gql_client: AsyncGraphQLClient,
         data: _TimeRangeSessionsData,
         time_range: Optional[dict[str, str]],
-        filter_io_substring: Optional[str] = None,
+        session_filter_condition: Optional[str] = None,
     ) -> set[str]:
         response = await gql_client.execute(
             query=self._QUERY,
             variables={
                 "projectId": str(GlobalID(Project.__name__, str(data.project.id))),
                 "timeRange": time_range,
-                "filterIoSubstring": filter_io_substring,
+                "sessionFilterCondition": session_filter_condition,
             },
         )
         assert not response.errors
@@ -5952,7 +7561,7 @@ class TestProjectSessionsTimeRange:
             "spans_window",
         )
 
-    async def test_substring_filter_matches_traces_outside_the_window(
+    async def test_content_filter_matches_traces_outside_the_window(
         self,
         _sessions_data: _TimeRangeSessionsData,
         gql_client: AsyncGraphQLClient,
@@ -5967,11 +7576,11 @@ class TestProjectSessionsTimeRange:
             gql_client,
             _sessions_data,
             time_range,
-            filter_io_substring="input for long_running",
+            session_filter_condition="'input for long_running' in any_input",
         )
         assert actual == self._expected_ids(_sessions_data, "long_running")
 
-    async def test_substring_filter_does_not_widen_the_window(
+    async def test_content_filter_does_not_widen_the_window(
         self,
         _sessions_data: _TimeRangeSessionsData,
         gql_client: AsyncGraphQLClient,
@@ -5985,6 +7594,34 @@ class TestProjectSessionsTimeRange:
             gql_client,
             _sessions_data,
             time_range,
-            filter_io_substring="input for before_window",
+            session_filter_condition="'input for before_window' in any_input",
         )
         assert actual == set()
+
+    async def test_dsl_start_time_compares_points_where_time_range_tests_overlap(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """`timeRange` selects by overlap; a DSL `start_time` cutoff compares a point.
+
+        `long_running` began before the window and is still active inside it, so overlap
+        includes it and a cutoff on its own start does not. Composing the two ANDs, which is
+        how the same session can be both in the window and out of the filter.
+        """
+        time_range = {
+            "start": self._WINDOW_START.isoformat(),
+            "end": self._WINDOW_END.isoformat(),
+        }
+        by_overlap = await self._get_session_ids(gql_client, _sessions_data, time_range)
+        assert _gid(_sessions_data.sessions_by_name["long_running"]) in by_overlap
+
+        cutoff = self._WINDOW_START.isoformat()
+        assert cutoff.endswith("+00:00")
+        with_cutoff = await self._get_session_ids(
+            gql_client,
+            _sessions_data,
+            time_range,
+            session_filter_condition=f"start_time >= '{cutoff}'",
+        )
+        assert with_cutoff == self._expected_ids(_sessions_data, "inside_window")

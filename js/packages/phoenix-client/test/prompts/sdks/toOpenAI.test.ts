@@ -277,6 +277,7 @@ describe("toOpenAI type compatibility", () => {
     ["moonshot", "moonshot"],
     ["perplexity", "perplexity"],
     ["together", "together"],
+    ["zai", "zai"],
   ])(
     "forwards OpenAI-family invocation parameters from legacy %s discriminator",
     (type, contentKey) => {

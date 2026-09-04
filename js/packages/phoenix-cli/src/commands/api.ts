@@ -2,7 +2,11 @@ import { Command } from "commander";
 
 import { createOAuthFetch, hasOAuthCredentials } from "../authFetch";
 import type { PhoenixConfig } from "../config";
-import { getConfigErrorMessage, resolveConfig } from "../config";
+import {
+  getConfigErrorMessage,
+  resolveConfig,
+  validateConfig,
+} from "../config";
 import { renderCurlCommand } from "../curl";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
@@ -102,13 +106,10 @@ async function apiGraphqlHandler(
       cliOptions: { endpoint: options.endpoint, apiKey: options.apiKey },
     });
 
-    if (!config.endpoint) {
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
       writeError({
-        message: getConfigErrorMessage({
-          errors: [
-            "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
-          ],
-        }),
+        message: getConfigErrorMessage({ errors: validation.errors }),
       });
       process.exit(ExitCode.INVALID_ARGUMENT);
     }
@@ -209,7 +210,10 @@ function createApiGraphqlCommand(): Command {
         "  Auth tokens are masked by default. Use --show-token with --curl to reveal them."
     )
     .argument("<query>", "GraphQL query string")
-    .option("--endpoint <url>", "Phoenix API endpoint (or set PHOENIX_HOST)")
+    .option(
+      "--endpoint <url>",
+      "Phoenix API endpoint (or set PHOENIX_ENDPOINT)"
+    )
     .option("--api-key <key>", "Phoenix API key (or set PHOENIX_API_KEY)")
     .option(
       "--curl",

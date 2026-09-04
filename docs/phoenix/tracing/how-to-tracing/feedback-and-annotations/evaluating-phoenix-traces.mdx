@@ -3,6 +3,9 @@ title: "Running Evals on Traces"
 description: How to use an LLM judge to label and score your application
 ---
 
+import ConnectToPhoenixPython from "../../../../snippets/connect-to-phoenix-python.mdx";
+
+
 This guide will walk you through the process of evaluating traces captured in Phoenix, and exporting the results to the Phoenix UI.
 
 This process is similar to the [evaluation quickstart guide](/docs/phoenix/get-started/get-started-evaluations), but instead of creating your own dataset or using an existing external one, you'll export a trace dataset from Phoenix and log the evaluation results to Phoenix.
@@ -30,15 +33,7 @@ os.environ["OPENAI_API_KEY"] = openai_api_key
 
 ### Connect to Phoenix
 
-Note: if you're self-hosting Phoenix, swap your collector endpoint variable in the snippet below, and remove the Phoenix Client Headers variable.
-
-```python
-import os
-
-PHOENIX_API_KEY = "ADD YOUR API KEY"
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-```
+<ConnectToPhoenixPython />
 
 Now that we have Phoenix configured, we can register that instance with OpenTelemetry, which will allow us to collect traces from our application here.
 
@@ -212,7 +207,7 @@ Client().spans.log_span_annotations_dataframe(dataframe=annotation_df)
 
 From here you can continue collecting and evaluating traces, or move on to one of these other guides:
 
-* If you're interested in more complex evaluation and evaluators, start with [how to use LLM as a Judge evaluators](/docs/phoenix/evaluation/running-pre-tested-evals)
+* If you're interested in more complex evaluation and evaluators, start with [how to use LLM as a Judge evaluators](/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge)
 
 * If you're ready to start testing your application in a more rigorous manner, check out [how to run structured experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments)
 

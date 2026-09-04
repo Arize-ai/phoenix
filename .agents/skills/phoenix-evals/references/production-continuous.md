@@ -39,13 +39,15 @@ Build a continuous monitoring loop:
 from phoenix.client import Client
 from datetime import datetime, timedelta
 
+from phoenix.client.types.spans import SpanQuery
+
 client = Client()
 
 # 1. Sample recent spans (includes full attributes for evaluation)
 spans_df = client.spans.get_spans_dataframe(
     project_identifier="my-app",
     start_time=datetime.now() - timedelta(hours=1),
-    root_spans_only=True,
+    query=SpanQuery().where("parent_id is None"),  # top-level spans only
     limit=100,
 )
 

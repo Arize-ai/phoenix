@@ -1,31 +1,93 @@
 packages:
+  - app
   - packages/*
   - examples/apps/*
   - benchmarks/*
 
-managePackageManagerVersions: true
-
-minimumReleaseAge: 4320
+minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
-  - "@arizeai/openinference-core"
-  # typescript@7.0.2 and its @typescript/typescript-* platform binaries were
-  # published same-day as the TS 7 migration; remove once 3 days have passed.
-  - typescript
-  - "@typescript/*"
+  - "@arizeai/*"
+  # Adopt the native Vite/Oxc React Compiler releases immediately.
+  - "@vitejs/plugin-react@6.1.0"
+  # These packages and their platform bindings were published together on
+  # August 18, 2026.
+  - "oxlint@1.79.0"
+  - "@oxlint/binding-android-arm-eabi@1.79.0"
+  - "@oxlint/binding-android-arm64@1.79.0"
+  - "@oxlint/binding-darwin-arm64@1.79.0"
+  - "@oxlint/binding-darwin-x64@1.79.0"
+  - "@oxlint/binding-freebsd-x64@1.79.0"
+  - "@oxlint/binding-linux-arm-gnueabihf@1.79.0"
+  - "@oxlint/binding-linux-arm-musleabihf@1.79.0"
+  - "@oxlint/binding-linux-arm64-gnu@1.79.0"
+  - "@oxlint/binding-linux-arm64-musl@1.79.0"
+  - "@oxlint/binding-linux-ppc64-gnu@1.79.0"
+  - "@oxlint/binding-linux-riscv64-gnu@1.79.0"
+  - "@oxlint/binding-linux-riscv64-musl@1.79.0"
+  - "@oxlint/binding-linux-s390x-gnu@1.79.0"
+  - "@oxlint/binding-linux-x64-gnu@1.79.0"
+  - "@oxlint/binding-linux-x64-musl@1.79.0"
+  - "@oxlint/binding-openharmony-arm64@1.79.0"
+  - "@oxlint/binding-win32-arm64-msvc@1.79.0"
+  - "@oxlint/binding-win32-ia32-msvc@1.79.0"
+  - "@oxlint/binding-win32-x64-msvc@1.79.0"
+  - "oxc-transform-react@0.145.0"
+  - "@oxc-transform-react/binding-android-arm-eabi@0.145.0"
+  - "@oxc-transform-react/binding-android-arm64@0.145.0"
+  - "@oxc-transform-react/binding-darwin-arm64@0.145.0"
+  - "@oxc-transform-react/binding-darwin-x64@0.145.0"
+  - "@oxc-transform-react/binding-freebsd-x64@0.145.0"
+  - "@oxc-transform-react/binding-linux-arm-gnueabihf@0.145.0"
+  - "@oxc-transform-react/binding-linux-arm-musleabihf@0.145.0"
+  - "@oxc-transform-react/binding-linux-arm64-gnu@0.145.0"
+  - "@oxc-transform-react/binding-linux-arm64-musl@0.145.0"
+  - "@oxc-transform-react/binding-linux-ppc64-gnu@0.145.0"
+  - "@oxc-transform-react/binding-linux-riscv64-gnu@0.145.0"
+  - "@oxc-transform-react/binding-linux-riscv64-musl@0.145.0"
+  - "@oxc-transform-react/binding-linux-s390x-gnu@0.145.0"
+  - "@oxc-transform-react/binding-linux-x64-gnu@0.145.0"
+  - "@oxc-transform-react/binding-linux-x64-musl@0.145.0"
+  - "@oxc-transform-react/binding-openharmony-arm64@0.145.0"
+  - "@oxc-transform-react/binding-win32-arm64-msvc@0.145.0"
+  - "@oxc-transform-react/binding-win32-ia32-msvc@0.145.0"
+  - "@oxc-transform-react/binding-win32-x64-msvc@0.145.0"
+  # Vitest 5.0.0 and the @vitest/* packages it version-locks were all
+  # published together on September 3, 2026.
+  - "vitest@5.0.0"
+  - "@vitest/browser@5.0.0"
+  - "@vitest/browser-playwright@5.0.0"
+  - "@vitest/coverage-v8@5.0.0"
+  - "@vitest/mocker@5.0.0"
+  - "@vitest/pretty-format@5.0.0"
+  - "@vitest/spy@5.0.0"
+  - "@vitest/ui@5.0.0"
+  - "@vitest/utils@5.0.0"
+minimumReleaseAgeExcludePrune: true
+
+# @browser-ai/core imports @ai-sdk/provider at runtime without declaring it,
+# so it only resolves when some other package happens to hoist it — declare
+# the dependency it forgot so dependency-graph shifts can't break it.
+packageExtensions:
+  "@browser-ai/core":
+    dependencies:
+      "@ai-sdk/provider": "*"
 
 allowBuilds:
+  "@mongodb-js/zstd": false
   # Only has a "use pnpm" preinstall guard; no build output needed.
   autoevals: false
   esbuild: true
   msw: false
+  node-liblzma: false
   protobufjs: true
   # napi-postinstall binding fixup for jest 30's resolver.
   unrs-resolver: true
 
 overrides:
   # Pre-existing exact pin: forces peer-dep alignment across @mastra/* packages
-  # that each declare narrow hono ranges.
-  "hono": "4.12.18"
+  # that each declare narrow hono ranges. Pinned to latest to pick up the fix
+  # for CVE-2026-54290 (hono <4.12.25).
+  "hono": "4.12.31"
   # Still load-bearing: @langchain/core and @braintrust/core pin uuid 9.x/10.x.
   "uuid@<11.1.1": ">=11.1.1"
   # Still load-bearing: some transitive still pulls in vulnerable ip-address.

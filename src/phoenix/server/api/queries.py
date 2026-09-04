@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 from collections import defaultdict
 from datetime import datetime
@@ -9,6 +10,7 @@ from typing import cast as type_cast
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
 from sqlalchemy.orm import joinedload, load_only, with_polymorphic
+from sqlalchemy.sql.expression import tuple_
 from starlette.authentication import UnauthenticatedUser
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -18,10 +20,6 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
-    get_env_phoenix_agents_assistant_project_name,
-    get_env_phoenix_agents_collector_endpoint,
-    get_env_phoenix_agents_force_tracing,
-    get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
@@ -34,6 +32,9 @@ from phoenix.db.helpers import (
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.db.types.prompts import PromptMessageRole
+from phoenix.server.agents.config import AgentsEnvConfig
+from phoenix.server.agents.github import GITHUB_PAT_SECRET_KEY, decrypt_workspace_secret
+from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -56,7 +57,6 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
-from phoenix.server.api.input_types.AvailableAgentSkillsInput import AvailableAgentSkillsInput
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
@@ -69,6 +69,7 @@ from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AgentsConfig import AgentsConfig
+from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.AgentSkill import AgentSkill
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
@@ -93,6 +94,7 @@ from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
     parse_experiment_repeated_run_group_node_id,
 )
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from phoenix.server.api.types.ExperimentTag import ExperimentTag
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
 from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
@@ -106,6 +108,8 @@ from phoenix.server.api.types.OAuth2Grant import OAuth2Grant
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
     CursorString,
     connection_from_cursors_and_nodes,
     connection_from_list,
@@ -149,6 +153,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -223,10 +228,9 @@ class ExperimentRunMetricComparisons:
 class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
-        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
-        allowed = info.context.allowed_provider_names
-        if allowed is not None:
-            available_providers = [p for p in available_providers if p.name in allowed]
+        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
+            info.context.allowed_provider_names
+        )
         return [
             GenerativeProvider(
                 name=provider_key.value,
@@ -1068,6 +1072,8 @@ class Query:
             return ExperimentRun(id=node_id)
         elif type_name == ExperimentJob.__name__:
             return ExperimentJob(id=node_id)
+        elif type_name == ExperimentTag.__name__:
+            return ExperimentTag(id=node_id)
         elif type_name == User.__name__:
             if int((user := info.context.user).identity) != node_id and not user.is_admin:
                 raise Unauthorized(MSG_ADMIN_ONLY)
@@ -1076,6 +1082,8 @@ class Query:
             return ProjectSession(id=node_id)
         elif type_name == OAuth2Grant.__name__:
             return OAuth2Grant(id=node_id)
+        elif type_name == AgentSession.__name__:
+            return AgentSession(id=node_id)
         elif type_name == Prompt.__name__:
             return Prompt(id=node_id)
         elif type_name == PromptVersion.__name__:
@@ -1632,40 +1640,101 @@ class Query:
             insufficient_storage=info.context.db.should_not_insert_or_update,
         )
 
-    @strawberry.field
-    def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
-        agent_assistant_enabled = info.context.settings.agent_assistant_enabled
-        trace_recording = info.context.settings.agent_trace_recording
-        force_tracing = get_env_phoenix_agents_force_tracing()
-        return AgentsConfig(
-            collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
-            assistant_project_name=get_env_phoenix_agents_assistant_project_name(),
-            force_tracing=force_tracing,
-            web_access_enabled=get_env_phoenix_agents_web_access_enabled(),
-            assistant_enabled=agent_assistant_enabled.enabled,
-            allow_local_traces=force_tracing or trace_recording.allow_local_traces,
-            allow_remote_export=force_tracing or trace_recording.allow_remote_export,
+    @strawberry.field(
+        description=(
+            "Persisted assistant chat sessions, most recently active first. By default, "
+            "users see their own sessions. Admins can pass viewerOnly: false to see all "
+            "sessions. When authentication is disabled, all sessions are returned."
+        ),
+    )  # type: ignore
+    async def agent_sessions(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 20,
+        after: Optional[CursorString] = UNSET,
+        viewer_only: bool = True,
+    ) -> Connection[AgentSession]:
+        page_size = first or 20
+        stmt = select(models.AgentSession).where(models.AgentSession.is_ephemeral.is_(False))
+        owner_filter = get_agent_session_owner_filter(info.context, viewer_only=viewer_only)
+        if owner_filter is not None:
+            stmt = stmt.where(owner_filter)
+        after_cursor = Cursor.from_string(after) if isinstance(after, CursorString) else None
+        if after_cursor is not None and after_cursor.sort_column is not None:
+            stmt = stmt.where(
+                tuple_(models.AgentSession.updated_at, models.AgentSession.id)
+                < (after_cursor.sort_column.value, after_cursor.rowid)
+            )
+        stmt = stmt.order_by(
+            models.AgentSession.updated_at.desc(),
+            models.AgentSession.id.desc(),
+        ).limit(page_size + 1)
+        async with info.context.db.read() as session:
+            agent_sessions = list((await session.scalars(stmt)).all())
+        has_next_page = len(agent_sessions) > page_size
+        if has_next_page:
+            agent_sessions = agent_sessions[:page_size]
+        cursors_and_nodes = [
+            (
+                Cursor(
+                    rowid=agent_session.id,
+                    sort_column=CursorSortColumn(
+                        type=CursorSortColumnDataType.DATETIME,
+                        value=agent_session.updated_at,
+                    ),
+                ),
+                to_gql_agent_session(agent_session),
+            )
+            for agent_session in agent_sessions
+        ]
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes,
+            has_previous_page=after_cursor is not None,
+            has_next_page=has_next_page,
         )
 
-    @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore
+    @strawberry.field
+    async def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
+        agent_assistant_enabled = info.context.settings.agent_assistant_enabled
+        trace_recording = info.context.settings.agent_trace_recording
+        env = AgentsEnvConfig.from_env()
+        session_retention = info.context.settings.agent_session_retention
+        github_enabled = env.allows_github(info.context.settings.agent_github)
+        github_workspace_token_configured = False
+        # Computed under the env ceiling (not the admin toggle) so the value is
+        # already correct when an admin flips the runtime setting on without a
+        # reload. Existence only — the token value is never exposed — and a
+        # stored secret counts only when it is actually usable
+        # (`decrypt_workspace_secret` mirrors `resolve_github_token`).
+        if env.github_enabled:
+            github_workspace_token_configured = bool(os.getenv(GITHUB_PAT_SECRET_KEY))
+            if not github_workspace_token_configured:
+                secret = await info.context.data_loaders.secrets.load(GITHUB_PAT_SECRET_KEY)
+                github_workspace_token_configured = (
+                    secret is not None
+                    and decrypt_workspace_secret(secret.value, info.context.decrypt) is not None
+                )
+        return AgentsConfig(
+            collector_endpoint=env.collector_endpoint,
+            assistant_project_name=env.assistant_project_name,
+            force_tracing=env.force_tracing,
+            web_access_enabled=env.web_access_enabled,
+            assistant_enabled=agent_assistant_enabled.enabled,
+            github_server_enabled=env.github_enabled,
+            github_enabled=github_enabled,
+            github_workspace_token_configured=github_workspace_token_configured,
+            allow_local_traces=env.allows_local_traces(trace_recording),
+            allow_remote_export=env.allows_remote_export(trace_recording),
+            session_retention_max_idle_days=session_retention.max_idle_days or None,
+            session_retention_max_count_per_user=session_retention.max_count_per_user or None,
+        )
+
+    @strawberry.field
     def available_agent_skills(
         self,
         info: Info[Context, None],
-        input: Optional[AvailableAgentSkillsInput] = UNSET,
     ) -> list[AgentSkill]:
-        from phoenix.server.agents.skills import get_skills
-
-        resolved_input = input if input is not UNSET and input is not None else None
-        skills = get_skills(
-            has_playground_context=bool(resolved_input and resolved_input.has_playground_context),
-            has_dataset_context=bool(resolved_input and resolved_input.has_dataset_context),
-            has_llm_evaluator_context=bool(
-                resolved_input and resolved_input.has_llm_evaluator_context
-            ),
-            has_code_evaluator_context=bool(
-                resolved_input and resolved_input.has_code_evaluator_context
-            ),
-        )
+        skills = load_skills(PXI_SKILLS_ROOTS)
         return [
             AgentSkill(
                 name=skill.name,
@@ -1894,6 +1963,7 @@ class Query:
         async with info.context.db.read() as session:
             return await get_sandbox_backend_info(
                 secrets=SecretsContext(session=session, decrypt=info.context.decrypt),
+                runtime=info.context.sandbox_runtime,
             )
 
     @strawberry.field

@@ -32,10 +32,10 @@
     "oxlint": "~1.73.0",
     "tsx": "^4.23.0",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@11.11.0"
+  "packageManager": "pnpm@12.0.0"
 }

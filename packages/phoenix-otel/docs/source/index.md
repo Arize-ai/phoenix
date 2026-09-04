@@ -41,9 +41,7 @@ from phoenix.otel import register
 
 # Configure project name, headers, and batch processing
 tracer_provider = register(
-    project_name="my-llm-app",
-    headers={"Authorization": "Bearer TOKEN"},
-    batch=True
+    project_name="my-llm-app", headers={"Authorization": "Bearer TOKEN"}, batch=True
 )
 ```
 
@@ -57,15 +55,15 @@ from phoenix.otel import register
 # Recommended: Enable automatic instrumentation
 tracer_provider = register(
     project_name="my-llm-app",
-    auto_instrument=True  # Automatically instruments AI/ML libraries
+    auto_instrument=True,  # Automatically instruments AI/ML libraries
 )
 
 # Now your OpenAI, LangChain, etc. calls are automatically traced!
 import openai
+
 client = openai.OpenAI()
 response = client.chat.completions.create(  # This will be automatically traced
-    model="gpt-4",
-    messages=[{"role": "user", "content": "Hello!"}]
+    model="gpt-4", messages=[{"role": "user", "content": "Hello!"}]
 )
 ```
 
@@ -84,7 +82,7 @@ See the [OpenInference repository](https://github.com/Arize-ai/openinference) fo
 ```python
 tracer_provider = register(
     auto_instrument=True,
-    batch=True  # Recommended for production - exports spans in background
+    batch=True,  # Recommended for production - exports spans in background
 )
 ```
 
@@ -97,6 +95,7 @@ If the `PHOENIX_API_KEY` environment variable is set, `register()` will automati
 # export PHOENIX_API_KEY=your-api-key
 
 from phoenix.otel import register
+
 tracer_provider = register()  # Automatically uses API key for auth
 ```
 
@@ -114,6 +113,7 @@ export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.com:6006
 
 ```python
 from phoenix.otel import register
+
 tracer_provider = register()
 ```
 
@@ -177,10 +177,7 @@ tracer_provider = TracerProvider()
 tracer_provider.add_span_processor(BatchSpanProcessor())
 
 # This keeps the default processor and adds another one
-tracer_provider.add_span_processor(
-    BatchSpanProcessor(), 
-    replace_default_processor=False
-)
+tracer_provider.add_span_processor(BatchSpanProcessor(), replace_default_processor=False)
 ```
 
 ### Batch Processing
@@ -211,9 +208,7 @@ tracer_provider.add_span_processor(batch_processor)
 from opentelemetry import trace as trace_api
 from phoenix.otel import Resource, PROJECT_NAME, TracerProvider
 
-tracer_provider = TracerProvider(
-    resource=Resource({PROJECT_NAME: "my-project"})
-)
+tracer_provider = TracerProvider(resource=Resource({PROJECT_NAME: "my-project"}))
 trace_api.set_tracer_provider(tracer_provider)
 ```
 
@@ -230,14 +225,12 @@ from phoenix.otel import register, TracerProvider
 tracer_provider = register(
     project_name="my-app",
     id_generator=AwsXRayIdGenerator(),  # AWS X-Ray compatible IDs
-    sampler=TraceIdRatioBased(0.1),     # Sample 10% of traces
+    sampler=TraceIdRatioBased(0.1),  # Sample 10% of traces
 )
 
 # Or configure TracerProvider directly
 tracer_provider = TracerProvider(
-    project_name="my-app",
-    id_generator=AwsXRayIdGenerator(),
-    sampler=TraceIdRatioBased(0.5)
+    project_name="my-app", id_generator=AwsXRayIdGenerator(), sampler=TraceIdRatioBased(0.5)
 )
 ```
 
@@ -257,9 +250,9 @@ The package recognizes these Phoenix-specific environment variables for automati
 # Local Phoenix server (default)
 export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 
-# Phoenix Cloud instance
+# Remote Phoenix instance with API key
 export PHOENIX_API_KEY="your-api-key"
-export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com/s/your-space"
+export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
 export PHOENIX_PROJECT_NAME="production-app"
 
 # Custom Phoenix instance with authentication
@@ -283,9 +276,11 @@ from phoenix.otel import register
 tracer_provider = register(project_name="my-project")
 tracer = tracer_provider.get_tracer(__name__)
 
+
 @tracer.chain
 def process_data(input_text: str) -> str:
     return f"Processed: {input_text}"
+
 
 result = process_data("hello world")  # This call will be traced
 ```
@@ -314,6 +309,7 @@ def process_document(document: str) -> str:
     processed = document.upper()
     return processed
 
+
 # Call the decorated function
 result = process_document("hello world")
 ```
@@ -322,10 +318,7 @@ result = process_document("hello world")
 
 ```python
 def process_document_manual(document: str) -> str:
-    with tracer.start_as_current_span(
-        "process_document",
-        openinference_span_kind="chain"
-    ) as span:
+    with tracer.start_as_current_span("process_document", openinference_span_kind="chain") as span:
         span.set_input(document)
         processed = document.upper()
         span.set_output(processed)
@@ -350,10 +343,7 @@ def ai_agent(query: str) -> str:
 
 ```python
 def ai_agent_manual(query: str) -> str:
-    with tracer.start_as_current_span(
-        "ai_agent",
-        openinference_span_kind="agent"
-    ) as span:
+    with tracer.start_as_current_span("ai_agent", openinference_span_kind="agent") as span:
         span.set_input(query)
         response = f"Agent response to: {query}"
         span.set_output(response)
@@ -372,6 +362,7 @@ def get_weather(city: str) -> str:
     # Simulate weather API call
     return f"Weather in {city}: Sunny, 75°F"
 
+
 @tracer.tool
 def search_database(query: str) -> list:
     # Simulate database search
@@ -382,10 +373,7 @@ def search_database(query: str) -> list:
 
 ```python
 def get_weather_manual(city: str) -> str:
-    with tracer.start_as_current_span(
-        "get_weather",
-        openinference_span_kind="tool"
-    ) as span:
+    with tracer.start_as_current_span("get_weather", openinference_span_kind="tool") as span:
         span.set_input(city)
         weather = f"Weather in {city}: Sunny, 75°F"
         span.set_output(weather)
@@ -406,18 +394,22 @@ from opentelemetry.util.types import AttributeValue
 
 openai_client = OpenAI()
 
+
 def process_input(
     messages: List[ChatCompletionMessageParam],
     model: str,
     temperature: Optional[float] = None,
-    **kwargs
+    **kwargs,
 ) -> Dict[str, AttributeValue]:
     """Process input parameters for LLM span attributes."""
     return {
-        "llm.input_messages": [{"role": msg["role"], "content": msg["content"]} for msg in messages],
+        "llm.input_messages": [
+            {"role": msg["role"], "content": msg["content"]} for msg in messages
+        ],
         "llm.model_name": model,
         "llm.temperature": temperature,
     }
+
 
 def process_output(response: ChatCompletion) -> Dict[str, AttributeValue]:
     """Process LLM response for span attributes."""
@@ -427,6 +419,7 @@ def process_output(response: ChatCompletion) -> Dict[str, AttributeValue]:
         "llm.token_count.prompt": response.usage.prompt_tokens if response.usage else 0,
         "llm.token_count.completion": response.usage.completion_tokens if response.usage else 0,
     }
+
 
 @tracer.llm(
     process_input=process_input,
@@ -444,11 +437,10 @@ def invoke_llm(
     )
     return response
 
+
 # Use the decorated function
 response = invoke_llm(
-    messages=[{"role": "user", "content": "Hello, world!"}],
-    model="gpt-4",
-    temperature=0.7
+    messages=[{"role": "user", "content": "Hello, world!"}], model="gpt-4", temperature=0.7
 )
 ```
 
@@ -457,35 +449,41 @@ response = invoke_llm(
 ```python
 from opentelemetry.trace import Status, StatusCode
 
+
 def invoke_llm_manual(messages, model, temperature=None):
-    with tracer.start_as_current_span(
-        "llm_call",
-        openinference_span_kind="llm"
-    ) as span:
+    with tracer.start_as_current_span("llm_call", openinference_span_kind="llm") as span:
         # Set input attributes
-        span.set_attributes({
-            "llm.input_messages": [{"role": msg["role"], "content": msg["content"]} for msg in messages],
-            "llm.model_name": model,
-            "llm.temperature": temperature,
-        })
-        
+        span.set_attributes(
+            {
+                "llm.input_messages": [
+                    {"role": msg["role"], "content": msg["content"]} for msg in messages
+                ],
+                "llm.model_name": model,
+                "llm.temperature": temperature,
+            }
+        )
+
         try:
             response = openai_client.chat.completions.create(
                 messages=messages,
                 model=model,
                 temperature=temperature,
             )
-            
+
             # Set output attributes
             message = response.choices[0].message
-            span.set_attributes({
-                "llm.output_messages": [{"role": message.role, "content": message.content}],
-                "llm.token_count.prompt": response.usage.prompt_tokens if response.usage else 0,
-                "llm.token_count.completion": response.usage.completion_tokens if response.usage else 0,
-            })
+            span.set_attributes(
+                {
+                    "llm.output_messages": [{"role": message.role, "content": message.content}],
+                    "llm.token_count.prompt": response.usage.prompt_tokens if response.usage else 0,
+                    "llm.token_count.completion": response.usage.completion_tokens
+                    if response.usage
+                    else 0,
+                }
+            )
             span.set_status(Status(StatusCode.OK))
             return response
-            
+
         except Exception as error:
             span.record_exception(error)
             span.set_status(Status(StatusCode.ERROR))
@@ -501,6 +499,7 @@ Use `@tracer.retriever` and `@tracer.embedding` for retrieval and embedding oper
 def search_documents(query: str, limit: int = 10) -> List[str]:
     # Simulate document retrieval
     return [f"Document {i} matching '{query}'" for i in range(limit)]
+
 
 @tracer.embedding
 def generate_embedding(text: str) -> List[float]:

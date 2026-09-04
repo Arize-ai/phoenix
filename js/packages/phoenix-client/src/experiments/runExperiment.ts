@@ -54,7 +54,11 @@ import {
   logTaskSummary,
   PROGRESS_PREFIX,
 } from "./logging";
-import { cleanupOwnedTracerProvider } from "./tracing";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+  MISSING_BASE_URL_MESSAGE,
+} from "./tracing";
 
 /**
  * Validate that a repetition is valid
@@ -135,6 +139,199 @@ export type RunExperimentParams = ClientFn & {
   diagLogLevel?: DiagLogLevel;
 };
 
+type PreparedExperiment = {
+  experiment: ExperimentInfo;
+  projectName: string;
+  taskTracer: Tracer;
+  taskProvider?: NodeTracerProvider;
+  taskGlobalRegistration: GlobalTracerProviderRegistration | null;
+};
+
+function prepareDryRunExperiment({
+  dataset,
+  datasetSelector,
+  projectName,
+  experimentMetadata,
+  repetitions,
+  nExamples,
+}: {
+  dataset: Dataset;
+  datasetSelector: DatasetSelector;
+  projectName: string;
+  experimentMetadata: Record<string, unknown>;
+  repetitions: number;
+  nExamples: number;
+}): PreparedExperiment {
+  const now = new Date().toISOString();
+  return {
+    experiment: {
+      id: localId(),
+      datasetId: dataset.id,
+      datasetVersionId: dataset.versionId,
+      datasetSplits: datasetSelector.splits ?? [],
+      projectName,
+      metadata: experimentMetadata,
+      repetitions,
+      createdAt: now,
+      updatedAt: now,
+      exampleCount: nExamples,
+      successfulRunCount: 0,
+      failedRunCount: 0,
+      missingRunCount: nExamples * repetitions,
+    },
+    projectName,
+    taskTracer: createNoOpProvider().getTracer("no-op"),
+    taskGlobalRegistration: null,
+  };
+}
+
+async function prepareRecordedExperiment({
+  client,
+  dataset,
+  datasetSelector,
+  projectName: defaultProjectName,
+  experimentName,
+  experimentDescription,
+  experimentMetadata,
+  repetitions,
+  useBatchSpanProcessor,
+  diagLogLevel,
+  setGlobalTracerProvider,
+}: {
+  client: PhoenixClient;
+  dataset: Dataset;
+  datasetSelector: DatasetSelector;
+  projectName: string;
+  experimentName: string | undefined;
+  experimentDescription: string | undefined;
+  experimentMetadata: Record<string, unknown>;
+  repetitions: number;
+  useBatchSpanProcessor: boolean;
+  diagLogLevel: DiagLogLevel | undefined;
+  setGlobalTracerProvider: boolean;
+}): Promise<PreparedExperiment> {
+  const response = await client
+    .POST("/v1/datasets/{dataset_id}/experiments", {
+      params: { path: { dataset_id: dataset.id } },
+      body: {
+        name: experimentName,
+        description: experimentDescription,
+        metadata: experimentMetadata,
+        project_name: defaultProjectName,
+        repetitions,
+        ...(datasetSelector.splits ? { splits: datasetSelector.splits } : {}),
+        ...(dataset.versionId ? { version_id: dataset.versionId } : {}),
+      },
+    })
+    .then((result) => result.data?.data);
+  invariant(response, `Failed to create experiment`);
+  const projectName = response.project_name ?? defaultProjectName;
+  const experiment: ExperimentInfo = {
+    id: response.id,
+    datasetId: response.dataset_id,
+    datasetVersionId: response.dataset_version_id,
+    datasetSplits: datasetSelector.splits ?? [],
+    projectName,
+    repetitions: response.repetitions,
+    metadata: response.metadata || {},
+    createdAt: response.created_at,
+    updatedAt: response.updated_at,
+    exampleCount: response.example_count,
+    successfulRunCount: response.successful_run_count,
+    failedRunCount: response.failed_run_count,
+    missingRunCount: response.missing_run_count,
+  };
+  invariant(client.config.baseUrl, MISSING_BASE_URL_MESSAGE);
+  const taskProvider = register({
+    projectName,
+    url: getTraceExportUrl(client.config),
+    headers: client.config.headers
+      ? toObjectHeaders(client.config.headers)
+      : undefined,
+    batch: useBatchSpanProcessor,
+    diagLogLevel,
+    global: false,
+  });
+  return {
+    experiment,
+    projectName,
+    taskProvider,
+    taskGlobalRegistration: setGlobalTracerProvider
+      ? attachGlobalTracerProvider(taskProvider)
+      : null,
+    taskTracer: taskProvider.getTracer(projectName),
+  };
+}
+
+function buildExperimentLinks({
+  client,
+  datasetId,
+  experimentId,
+  isDryRun,
+}: {
+  client: PhoenixClient;
+  datasetId: string;
+  experimentId: string;
+  isDryRun: boolean;
+}): Array<{ label: string; url: string }> {
+  const baseUrl = client.config.baseUrl;
+  if (isDryRun || !baseUrl) return [];
+  return [
+    { label: "Dataset", url: getDatasetUrl({ baseUrl, datasetId }) },
+    {
+      label: "Experiments",
+      url: getDatasetExperimentsUrl({ baseUrl, datasetId }),
+    },
+    {
+      label: "Experiment",
+      url: getExperimentUrl({ baseUrl, datasetId, experimentId }),
+    },
+  ];
+}
+
+function logEvaluatorStart({
+  evaluators,
+  logger,
+}: {
+  evaluators: ExperimentEvaluatorLike[] | undefined;
+  logger: Logger;
+}): void {
+  if (!evaluators || evaluators.length === 0) return;
+  const names = getExperimentEvaluators(evaluators)
+    .map((evaluator) => evaluator.name)
+    .join(", ");
+  logger.info(`${PROGRESS_PREFIX.start}Evaluations (${names})`);
+}
+
+async function refreshRecordedExperiment({
+  isDryRun,
+  client,
+  experiment,
+  ranExperiment,
+}: {
+  isDryRun: boolean;
+  client: PhoenixClient;
+  experiment: ExperimentInfo;
+  ranExperiment: RanExperiment;
+}): Promise<void> {
+  if (isDryRun) return;
+  const updated = await getExperimentInfo({
+    client,
+    experimentId: experiment.id,
+  });
+  Object.assign(ranExperiment, updated);
+}
+
+function logEvaluationSummary({
+  logger,
+  evaluationRuns,
+}: {
+  logger: Logger;
+  evaluationRuns: ExperimentEvaluationRun[] | undefined;
+}): void {
+  if (evaluationRuns?.length) logEvalSummary(logger, evaluationRuns);
+}
+
 /**
  * Runs an experiment using a given set of dataset of examples.
  *
@@ -204,93 +401,32 @@ export async function runExperiment({
       ? Math.min(dryRun, dataset.examples.length)
       : dataset.examples.length;
 
-  let projectName = `${dataset.name}-exp-${new Date().toISOString()}`;
-  // initialize the tracer into scope
-  let taskTracer: Tracer;
-  let experiment: ExperimentInfo;
-  if (isDryRun) {
-    const now = new Date().toISOString();
-    const totalExamples = nExamples;
-    experiment = {
-      id: localId(),
-      datasetId: dataset.id,
-      datasetVersionId: dataset.versionId,
-      // @todo: the dataset should return splits in response body
-      datasetSplits: datasetSelector?.splits ?? [],
-      projectName,
-      metadata: experimentMetadata,
-      repetitions,
-      createdAt: now,
-      updatedAt: now,
-      exampleCount: totalExamples,
-      successfulRunCount: 0,
-      failedRunCount: 0,
-      missingRunCount: totalExamples * repetitions,
-    };
-    taskTracer = createNoOpProvider().getTracer("no-op");
-  } else {
-    const experimentResponse = await client
-      .POST("/v1/datasets/{dataset_id}/experiments", {
-        params: {
-          path: {
-            dataset_id: dataset.id,
-          },
-        },
-        body: {
-          name: experimentName,
-          description: experimentDescription,
-          metadata: experimentMetadata,
-          project_name: projectName,
-          repetitions,
-          // @todo: the dataset should return splits in response body
-          ...(datasetSelector?.splits
-            ? { splits: datasetSelector.splits }
-            : {}),
-          ...(dataset?.versionId ? { version_id: dataset.versionId } : {}),
-        },
+  const defaultProjectName = `${dataset.name}-exp-${new Date().toISOString()}`;
+  const prepared = isDryRun
+    ? prepareDryRunExperiment({
+        dataset,
+        datasetSelector,
+        projectName: defaultProjectName,
+        experimentMetadata,
+        repetitions,
+        nExamples,
       })
-      .then((res) => res.data?.data);
-    invariant(experimentResponse, `Failed to create experiment`);
-    projectName = experimentResponse.project_name ?? projectName;
-    experiment = {
-      id: experimentResponse.id,
-      datasetId: experimentResponse.dataset_id,
-      datasetVersionId: experimentResponse.dataset_version_id,
-      // @todo: the dataset should return splits in response body
-      datasetSplits: datasetSelector?.splits ?? [],
-      projectName,
-      repetitions: experimentResponse.repetitions,
-      metadata: experimentResponse.metadata || {},
-      createdAt: experimentResponse.created_at,
-      updatedAt: experimentResponse.updated_at,
-      exampleCount: experimentResponse.example_count,
-      successfulRunCount: experimentResponse.successful_run_count,
-      failedRunCount: experimentResponse.failed_run_count,
-      missingRunCount: experimentResponse.missing_run_count,
-    };
-    // Initialize the tracer, now that we have a project name
-    const baseUrl = client.config.baseUrl;
-    invariant(
-      baseUrl,
-      "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
-    );
-
-    taskProvider = register({
-      projectName,
-      url: baseUrl,
-      headers: client.config.headers
-        ? toObjectHeaders(client.config.headers)
-        : undefined,
-      batch: useBatchSpanProcessor,
-      diagLogLevel,
-      global: false,
-    });
-    taskGlobalRegistration = setGlobalTracerProvider
-      ? attachGlobalTracerProvider(taskProvider)
-      : null;
-
-    taskTracer = taskProvider.getTracer(projectName);
-  }
+    : await prepareRecordedExperiment({
+        client,
+        dataset,
+        datasetSelector,
+        projectName: defaultProjectName,
+        experimentName,
+        experimentDescription,
+        experimentMetadata,
+        repetitions,
+        useBatchSpanProcessor,
+        diagLogLevel,
+        setGlobalTracerProvider,
+      });
+  const { experiment, taskTracer } = prepared;
+  taskProvider = prepared.taskProvider;
+  taskGlobalRegistration = prepared.taskGlobalRegistration;
   try {
     if (!record) {
       logger.info(
@@ -298,31 +434,12 @@ export async function runExperiment({
       );
     }
 
-    const links: Array<{ label: string; url: string }> = [];
-    if (!isDryRun && client.config.baseUrl) {
-      links.push({
-        label: "Dataset",
-        url: getDatasetUrl({
-          baseUrl: client.config.baseUrl,
-          datasetId: dataset.id,
-        }),
-      });
-      links.push({
-        label: "Experiments",
-        url: getDatasetExperimentsUrl({
-          baseUrl: client.config.baseUrl,
-          datasetId: dataset.id,
-        }),
-      });
-      links.push({
-        label: "Experiment",
-        url: getExperimentUrl({
-          baseUrl: client.config.baseUrl,
-          datasetId: dataset.id,
-          experimentId: experiment.id,
-        }),
-      });
-    }
+    const links = buildExperimentLinks({
+      client,
+      datasetId: dataset.id,
+      experimentId: experiment.id,
+      isDryRun,
+    });
 
     const evCount = evaluators?.length ?? 0;
     logger.info(
@@ -366,12 +483,7 @@ export async function runExperiment({
     taskProvider = undefined;
     taskGlobalRegistration = null;
 
-    if (evaluators && evaluators.length > 0) {
-      const evNames = getExperimentEvaluators(evaluators)
-        .map((evaluator) => evaluator.name)
-        .join(", ");
-      logger.info(`${PROGRESS_PREFIX.start}Evaluations (${evNames})`);
-    }
+    logEvaluatorStart({ evaluators, logger });
 
     const { evaluationRuns } = await evaluateExperiment({
       experiment: ranExperiment,
@@ -386,15 +498,12 @@ export async function runExperiment({
     });
     ranExperiment.evaluationRuns = evaluationRuns;
 
-    // Refresh experiment info from server to get updated counts (non-dry-run only)
-    if (!isDryRun) {
-      const updatedExperiment = await getExperimentInfo({
-        client,
-        experimentId: experiment.id,
-      });
-      // Update the experiment info with the latest from the server
-      Object.assign(ranExperiment, updatedExperiment);
-    }
+    await refreshRecordedExperiment({
+      isDryRun,
+      client,
+      experiment,
+      ranExperiment,
+    });
 
     logTaskSummary(logger, {
       nExamples,
@@ -403,12 +512,10 @@ export async function runExperiment({
       nErrors: taskErrors,
     });
 
-    if (
-      ranExperiment.evaluationRuns &&
-      ranExperiment.evaluationRuns.length > 0
-    ) {
-      logEvalSummary(logger, ranExperiment.evaluationRuns);
-    }
+    logEvaluationSummary({
+      logger,
+      evaluationRuns: ranExperiment.evaluationRuns,
+    });
 
     logLinks(logger, links);
 
@@ -621,10 +728,7 @@ export async function evaluateExperiment({
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
   const baseUrl = client.config.baseUrl;
-  invariant(
-    baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
-  );
+  invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
   let provider: NodeTracerProvider;
   let globalRegistration: GlobalTracerProviderRegistration | null = null;
   const ownsProvider = !paramsTracerProvider;
@@ -635,7 +739,7 @@ export async function evaluateExperiment({
   } else if (!isDryRun) {
     provider = register({
       projectName: "evaluators",
-      url: baseUrl,
+      url: getTraceExportUrl(client.config),
       headers: client.config.headers
         ? toObjectHeaders(client.config.headers)
         : undefined,

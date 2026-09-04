@@ -55,7 +55,7 @@ When reference-based, triage what the `reference` actually is before trusting it
 
 Discover the environment first: read the capability fingerprint of the sandbox the evaluator will
 run in — which model credentials its environment variables name, whether it has internet access,
-and which packages are installed. Choose by environment capability and task need, not artifact
+which packages are installed, and any restricted-language runtime notes. Choose by environment capability and task need, not artifact
 kind. The ladder, floor to heaviest:
 
 - **deterministic primitives** — exact-match, contains, regex-match, json-distance,

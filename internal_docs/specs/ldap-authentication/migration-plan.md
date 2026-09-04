@@ -61,6 +61,7 @@ ALTER TABLE users ADD CONSTRAINT users_ldap_check CHECK (
 def is_ldap_user(oauth2_client_id: str) -> bool:
     return oauth2_client_id == LDAP_CLIENT_ID_MARKER
 
+
 # After (dedicated)
 user = await session.scalar(
     select(models.User)
@@ -78,49 +79,53 @@ user = await session.scalar(
 
 Revision ID: ldap_dedicated_schema
 """
+
 from alembic import op
 from sqlalchemy.sql import text
 
 LDAP_MARKER = "\ue000LDAP(stopgap)"
 
+
 def upgrade():
     conn = op.get_bind()
-    
+
     # Step 1: Update CHECK constraint to allow 'LDAP'
-    op.drop_constraint('users_auth_method_check', 'users', type_='check')
+    op.drop_constraint("users_auth_method_check", "users", type_="check")
     op.create_check_constraint(
-        'users_auth_method_check',
-        'users',
-        "auth_method IN ('LOCAL', 'OAUTH2', 'LDAP')"
+        "users_auth_method_check", "users", "auth_method IN ('LOCAL', 'OAUTH2', 'LDAP')"
     )
-    
+
     # Step 2: Migrate LDAP users
-    result = conn.execute(text("""
+    result = conn.execute(
+        text("""
         UPDATE users
         SET auth_method = 'LDAP'
         WHERE oauth2_client_id = :marker
-    """), {"marker": LDAP_MARKER})
-    
+    """),
+        {"marker": LDAP_MARKER},
+    )
+
     print(f"✓ Migrated {result.rowcount} LDAP users to auth_method='LDAP'")
+
 
 def downgrade():
     conn = op.get_bind()
-    
+
     # Revert auth_method
-    conn.execute(text("""
+    conn.execute(
+        text("""
         UPDATE users
         SET auth_method = 'OAUTH2'
         WHERE auth_method = 'LDAP'
-    """))
-    
-    # Restore original constraint
-    op.drop_constraint('users_auth_method_check', 'users', type_='check')
-    op.create_check_constraint(
-        'users_auth_method_check',
-        'users',
-        "auth_method IN ('LOCAL', 'OAUTH2')"
+    """)
     )
-    
+
+    # Restore original constraint
+    op.drop_constraint("users_auth_method_check", "users", type_="check")
+    op.create_check_constraint(
+        "users_auth_method_check", "users", "auth_method IN ('LOCAL', 'OAUTH2')"
+    )
+
     print("✓ Reverted LDAP users to stopgap format")
 ```
 

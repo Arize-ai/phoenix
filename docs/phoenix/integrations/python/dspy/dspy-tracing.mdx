@@ -3,6 +3,8 @@ title: "DSPy Tracing"
 description: Instrument and observe your DSPy application via the DSPyInstrumentor
 ---
 
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
 [DSPy](https://github.com/stanfordnlp/dspy) is a framework for automatically prompting and fine-tuning language models. It provides composable and declarative APIs that allow developers to describe the architecture of their LLM application in the form of a "module" (inspired by PyTorch's `nn.Module`). It them compiles these modules using "teleprompters" that optimize the module for a particular task. The term "teleprompter" is meant to evoke "prompting at a distance," and could involve selecting few-shot examples, generating prompts, or fine-tuning language models.
 
 Phoenix makes your DSPy applications observable by visualizing the underlying structure of each call to your compiled DSPy module.
@@ -20,17 +22,7 @@ DSPy uses LiteLLM under the hood to make some calls. By adding the OpenInference
 
 ## Setup
 
-Connect to your Phoenix instance using the register function.
-
-```python
-from phoenix.otel import register
-
-# configure the Phoenix tracer
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-  auto_instrument=True # Auto-instrument your app based on installed OI dependencies
-)
-```
+<RegisterTracerPython projectName="my-llm-app" />
 
 ## Run DSPy
 

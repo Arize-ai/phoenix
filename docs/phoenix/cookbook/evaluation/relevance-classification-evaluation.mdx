@@ -49,21 +49,24 @@ df_sample = df_sample.rename(columns={
 ## Run Relevance Classification
 
 ```python
-from phoenix.evals import LLM, async_evaluate_dataframe
-from phoenix.evals.metrics import DocumentRelevanceEvaluator
+from phoenix.evals import LLM, async_evaluate_dataframe, bind_evaluator
+from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
 llm = LLM(provider="openai", model="gpt-4")
-relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
+relevance_evaluator = RetrievalRelevanceEvaluator(llm=llm)
+# Score each document on its own by mapping the evaluator's `context` field to
+# the dataframe's `reference` column (one document per row).
+relevance_evaluator = bind_evaluator(evaluator=relevance_evaluator, input_mapping={"context": "reference"})
 
 evals_df = await async_evaluate_dataframe(dataframe=df_sample, evaluators=[relevance_evaluator], concurrency=10)
-relevance_classifications = evals_df["document_relevance_score"].str["label"].tolist()
-choices = relevance_evaluator.CHOICES
+relevance_classifications = evals_df["retrieval_relevance_score"].str["label"].tolist()
+choices = relevance_evaluator.labels
 ```
 
 ## Evaluate Results
 
 ```python
-true_labels = df_sample["relevant"].map({True: "relevant", False: "unrelated"}).tolist()
+true_labels = df_sample["relevant"].map({True: "relevant", False: "irrelevant"}).tolist()
 
 print(classification_report(true_labels, relevance_classifications, labels=choices))
 confusion_matrix = ConfusionMatrix(
@@ -88,11 +91,11 @@ relevance_classifications_df = await async_evaluate_dataframe(
     evaluators=[relevance_evaluator],
     concurrency=10,
 )
-relevance_classifications_df["label"] = relevance_classifications_df["document_relevance_score"].str[
+relevance_classifications_df["label"] = relevance_classifications_df["retrieval_relevance_score"].str[
     "label"
 ]
 relevance_classifications_df["explanation"] = relevance_classifications_df[
-    "document_relevance_score"
+    "retrieval_relevance_score"
 ].str["explanation"]
 ```
 

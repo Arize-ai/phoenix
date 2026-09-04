@@ -23,7 +23,7 @@ module.exports = {
 - `testMatch` keeps eval suites separate from regular tests.
 - `reporters` keeps Jest's default reporter and adds the Phoenix
   summary block at the end of the run.
-- `setupFiles: ["dotenv/config"]` loads `PHOENIX_HOST`, `PHOENIX_API_KEY`,
+- `setupFiles: ["dotenv/config"]` loads `PHOENIX_ENDPOINT`, `PHOENIX_API_KEY`,
   and other env vars from `.env`.
 - `testTimeout` is bumped because LLM calls can be slow.
 

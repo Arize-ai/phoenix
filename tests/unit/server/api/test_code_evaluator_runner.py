@@ -18,12 +18,14 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.server.api.evaluators import (
-    _PHOENIX_RESULT_BEGIN,
-    _PHOENIX_RESULT_END,
-    CodeEvaluatorRunner,
-)
+from phoenix.server.api.evaluators import CodeEvaluatorRunner
 from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
+from phoenix.server.monty_runtime import MontyBusy, MontyRuntime
+from phoenix.server.sandbox.monty_backend import MontySandboxBackend
+from phoenix.server.sandbox.result_protocol import (
+    PHOENIX_RESULT_BEGIN,
+    PHOENIX_RESULT_END,
+)
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import BaseNoSessionBackend, ExecutionResult
 
@@ -60,7 +62,7 @@ class _StatelessTestBackend(BaseNoSessionBackend):
 
 
 def _fenced(payload: str) -> str:
-    return f"{_PHOENIX_RESULT_BEGIN}\n{payload}\n{_PHOENIX_RESULT_END}\n"
+    return f"{PHOENIX_RESULT_BEGIN}\n{payload}\n{PHOENIX_RESULT_END}\n"
 
 
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
@@ -170,17 +172,12 @@ class TestHarnessGeneration:
         assert "await _run();" in harness
 
     def test_typescript_harness_wraps_result_in_sentinels(self) -> None:
-        from phoenix.server.api.evaluators import (
-            _TYPESCRIPT_RESULT_BEGIN,
-            _TYPESCRIPT_RESULT_END,
-        )
-
         runner, _ = _make_runner(language="TYPESCRIPT")
         harness = runner._build_typescript_harness({"k": "v"})
-        assert _TYPESCRIPT_RESULT_BEGIN in harness
-        assert _TYPESCRIPT_RESULT_END in harness
-        begin_idx = harness.index(_TYPESCRIPT_RESULT_BEGIN)
-        end_idx = harness.index(_TYPESCRIPT_RESULT_END)
+        assert PHOENIX_RESULT_BEGIN in harness
+        assert PHOENIX_RESULT_END in harness
+        begin_idx = harness.index(PHOENIX_RESULT_BEGIN)
+        end_idx = harness.index(PHOENIX_RESULT_END)
         between = harness[begin_idx:end_idx]
         assert "JSON.stringify(_result)" in between
 
@@ -270,6 +267,50 @@ class TestInputSchemaInference:
 
 
 class TestEvaluateSuccessPath:
+    async def test_monty_preserves_non_finite_inputs_and_result_shape(
+        self,
+    ) -> None:
+        runtime = MontyRuntime()
+        try:
+            runner = CodeEvaluatorRunner(
+                name="monty-native-inputs",
+                description=None,
+                source_code=(
+                    "def evaluate(output):\n"
+                    "    preserved = (\n"
+                    "        output['nan'] != output['nan']\n"
+                    "        and output['positive_infinity'] > 1e300\n"
+                    "        and output['negative_infinity'] < -1e300\n"
+                    "    )\n"
+                    "    return {'label': 'pass' if preserved else 'fail', 'score': 1.0}"
+                ),
+                stored_output_configs=[_categorical_config()],
+                sandbox_backend=MontySandboxBackend(runtime),
+                language="PYTHON",
+                sandbox_session_manager=SandboxSessionManager(),
+                session_key="evaluator:monty-native-inputs",
+                timeout=1,
+            )
+
+            results = await runner.evaluate(
+                context={
+                    "output": {
+                        "nan": float("nan"),
+                        "positive_infinity": float("inf"),
+                        "negative_infinity": float("-inf"),
+                    }
+                },
+                input_mapping=_EMPTY_MAPPING,
+                name="monty",
+                output_configs=[_categorical_config()],
+            )
+        finally:
+            await runtime.aclose()
+
+        assert results[0]["label"] == "pass"
+        assert results[0]["score"] == 1.0
+        assert results[0]["error"] is None
+
     async def test_returns_label_from_stdout(self) -> None:
         runner, _ = _make_runner(backend_stdout='"pass"')
         results = await runner.evaluate(
@@ -445,6 +486,17 @@ class TestEvaluateErrorPaths:
         assert results[0]["error"] is not None
         assert "Sandbox execution failed" in results[0]["error"]
 
+    async def test_monty_infrastructure_error_propagates(self) -> None:
+        runner, _ = _make_runner(backend_raises=MontyBusy("sandbox capacity is busy"))
+
+        with pytest.raises(MontyBusy, match="capacity is busy"):
+            await runner.evaluate(
+                context={},
+                input_mapping=_EMPTY_MAPPING,
+                name="test",
+                output_configs=[_categorical_config()],
+            )
+
     async def test_backend_error_field_returns_error_result(self) -> None:
         runner, _ = _make_runner(backend_error="SyntaxError: invalid syntax")
         results = await runner.evaluate(
@@ -518,13 +570,8 @@ class TestBackendConfiguration:
     async def test_typescript_polluted_stdout_extracts_sentinel_wrapped_result(
         self,
     ) -> None:
-        from phoenix.server.api.evaluators import (
-            _TYPESCRIPT_RESULT_BEGIN,
-            _TYPESCRIPT_RESULT_END,
-        )
-
         polluted = (
-            f"{_TYPESCRIPT_RESULT_BEGIN}\n0.5\n{_TYPESCRIPT_RESULT_END}\n"
+            f"{PHOENIX_RESULT_BEGIN}\n0.5\n{PHOENIX_RESULT_END}\n"
             "npm notice\n"
             "npm notice New minor version of npm available! 11.8.0 -> 11.14.1\n"
             "npm notice\n"
@@ -561,8 +608,8 @@ class TestBackendConfiguration:
         code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
         assert "_inputs = " in code_arg
         assert "print(_json.dumps(_result))" in code_arg
-        assert _PHOENIX_RESULT_BEGIN in code_arg
-        assert _PHOENIX_RESULT_END in code_arg
+        assert PHOENIX_RESULT_BEGIN in code_arg
+        assert PHOENIX_RESULT_END in code_arg
 
 
 class TestMultiOutputEvaluate:
@@ -1081,7 +1128,9 @@ INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 class TestSandboxSpanContract:
     async def test_happy_path_dict_result_lands_as_json_with_debug_in_metadata(self) -> None:
         result_dict = {"label": "good", "explanation": 'She said "hi"'}
-        stdout = f"debug line\n{_PHOENIX_RESULT_BEGIN}\n{json.dumps(result_dict)}\n{_PHOENIX_RESULT_END}\n"
+        stdout = (
+            f"debug line\n{PHOENIX_RESULT_BEGIN}\n{json.dumps(result_dict)}\n{PHOENIX_RESULT_END}\n"
+        )
         runner, _ = _make_runner(backend_stdout=stdout, fence_stdout=False)
         tracer, exporter = _make_tracer()
 

@@ -1,0 +1,73 @@
+import { css } from "@emotion/react";
+import {
+  ToggleButtonGroup as AriaToggleButtonGroup,
+  type ToggleButtonGroupProps as AriaToggleButtonGroupProps,
+} from "react-aria-components";
+
+import { SizeProvider } from "@phoenix/components/core/contexts/SizeContext";
+import type {
+  SizingProps,
+  StylableProps,
+} from "@phoenix/components/core/types";
+import { classNames } from "@phoenix/utils/classNames";
+
+const baseToggleButtonGroupCSS = css(`
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: fit-content;
+  & > button {
+    border-radius: 0;
+  }
+
+  & > .toggle-button:not(:first-of-type):not([data-selected="true"]) {
+    border-left: none;
+  }
+    
+  & > .toggle-button[data-selected="true"]:not(:first-of-type) {
+    margin-left: -1px;
+  }
+
+  & > .toggle-button:first-of-type {
+    border-radius: var(--global-rounding-small) 0 0 var(--global-rounding-small);
+  }
+
+  & > .toggle-button:last-of-type {
+    border-radius: 0 var(--global-rounding-small) var(--global-rounding-small) 0;
+  }
+
+  &:has(.toggle-button[data-focus-visible]) {
+    border-radius: var(--global-rounding-small);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+`);
+
+export type ToggleButtonGroupProps = AriaToggleButtonGroupProps;
+
+/**
+ * Groups buttons that can be toggled independently or arranged in a
+ * non-segmented layout, such as a wrapping choice grid. For a compact,
+ * mutually exclusive choice that always has a selection, use
+ * `SegmentedControl` instead.
+ */
+export const ToggleButtonGroup = ({
+  size = "M",
+  css: cssProp,
+  className,
+  selectionMode = "single",
+  ...props
+}: ToggleButtonGroupProps & SizingProps & StylableProps) => {
+  return (
+    <SizeProvider size={size}>
+      <AriaToggleButtonGroup
+        data-size={size}
+        className={classNames("toggle-button-group", className)}
+        css={css(baseToggleButtonGroupCSS, cssProp)}
+        selectionMode={selectionMode}
+        {...props}
+      />
+    </SizeProvider>
+  );
+};

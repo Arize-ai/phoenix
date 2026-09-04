@@ -14,6 +14,9 @@ const mockSessionData: components["schemas"]["SessionData"] = {
   project_id: "project-1",
   start_time: "2025-01-01T00:00:00.000Z",
   end_time: "2025-01-01T01:00:00.000Z",
+  token_count_prompt: 120,
+  token_count_completion: 30,
+  token_count_total: 150,
   traces: [
     {
       id: "trace-global-id",
@@ -66,6 +69,9 @@ describe("getSession", () => {
       projectId: "project-1",
       startTime: "2025-01-01T00:00:00.000Z",
       endTime: "2025-01-01T01:00:00.000Z",
+      tokenCountPrompt: 120,
+      tokenCountCompletion: 30,
+      tokenCountTotal: 150,
       traces: [
         {
           id: "trace-global-id",

@@ -1,0 +1,114 @@
+import { css } from "@emotion/react";
+import type { CSSProperties, ReactNode, Ref } from "react";
+import type { TextProps as AriaTextProps } from "react-aria-components";
+import { Text as AriaText } from "react-aria-components";
+
+import type {
+  DOMProps,
+  StyleProps,
+  TextColorValue,
+  TextSize,
+} from "@phoenix/components/core/types";
+import { classNames } from "@phoenix/utils/classNames";
+
+import { useStyleProps } from "../utils";
+import { textBaseCSS } from "./styles";
+import { getTextColor } from "./textUtils";
+import type { TextElementType, Weight } from "./types";
+
+export interface TextProps
+  extends Omit<AriaTextProps, "slot">, DOMProps, StyleProps {
+  /**
+   * A slot name for the component, or `null` to opt out of a parent's slotted
+   * TextContext (e.g. inside a RadioGroup, which only offers "description"
+   * and "errorMessage" and rejects an unslotted Text at render). React Aria
+   * honors `null` at runtime; its Text prop types just predate the contract.
+   */
+  slot?: string | null;
+  /**
+   * Sets text size
+   * @default 'S'
+   */
+  size?: TextSize;
+  /**
+   * The text node element type
+   * @default 'span'
+   */
+  elementType?: TextElementType;
+  /**
+   * Sets the font weight
+   * @default 'normal'
+   */
+  weight?: Weight;
+  /**
+   * Text content.
+   */
+  children: ReactNode;
+  /**
+   * The color of the text
+   * @default 'text-900'
+   */
+  color?: TextColorValue;
+  /**
+   * The font style
+   * @default 'normal'
+   */
+  fontStyle?: CSSProperties["fontStyle"];
+  /**
+   * The font family
+   * @default 'default'
+   */
+  fontFamily?: "default" | "mono";
+  /**
+   * The disabled state of the text
+   */
+  isDisabled?: boolean;
+}
+
+const textCSS = (color: TextColorValue) =>
+  css(
+    css`
+      color: ${getTextColor(color)};
+    `,
+    textBaseCSS
+  );
+
+/**
+ * Text is used to create various sizes of typographic hierarchies.
+ */
+function Text({ ref, slot, ...props }: TextProps & { ref?: Ref<HTMLElement> }) {
+  const { isDisabled = false } = props;
+  const {
+    children,
+    color = isDisabled ? "text-300" : "text-900",
+    size = "S",
+    weight = "normal",
+    fontStyle = "normal",
+    fontFamily = "default",
+    ...rest
+  } = props;
+  const { styleProps, otherProps } = useStyleProps(rest);
+  const { className, ...restProps } = otherProps;
+
+  return (
+    <AriaText
+      className={classNames("text", `font-${fontFamily}`, className)}
+      // Cast only: React Aria's Text handles slot={null} at runtime but its
+      // prop types inherit slot?: string from HTMLAttributes.
+      slot={slot as string | undefined}
+      {...restProps}
+      {...styleProps}
+      css={css`
+        ${textCSS(color)};
+        font-style: ${fontStyle};
+      `}
+      data-size={size}
+      data-weight={weight}
+      ref={ref}
+    >
+      {children}
+    </AriaText>
+  );
+}
+
+export { Text };

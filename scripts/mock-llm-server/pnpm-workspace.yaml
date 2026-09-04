@@ -7,3 +7,11 @@ allowBuilds:
   protobufjs: false
 
 minimumReleaseAge: 4320
+
+# Vitest 5.0.0 and the @vitest/* packages it version-locks were published
+# together on September 3, 2026. Drop these once that date clears the
+# minimumReleaseAge window above.
+minimumReleaseAgeExclude:
+  - "vitest@5.0.0"
+  - "@vitest/mocker@5.0.0"
+  - "@vitest/spy@5.0.0"

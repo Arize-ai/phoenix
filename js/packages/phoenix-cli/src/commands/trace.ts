@@ -195,6 +195,14 @@ interface TraceListOptions
    */
   since?: string;
   /**
+   * `--until <timestamp>`: Only fetch traces whose spans started before this
+   * ISO 8601 timestamp (exclusive). Combine with `since` to select a time
+   * range.
+   *
+   * @example "2026-07-14T00:00:00Z"
+   */
+  until?: string;
+  /**
    * `--max-concurrent <number>`: Maximum concurrent requests when fetching
    * annotations/notes or writing trace files to a directory. Defaults to 10.
    *
@@ -317,6 +325,7 @@ async function getLastNTraces(
   options: {
     lastNMinutes?: number;
     since?: string;
+    until?: string;
   } = {}
 ): Promise<Trace[]> {
   let startTime: string | undefined;
@@ -331,6 +340,7 @@ async function getLastNTraces(
 
   const spans = await fetchProjectSpans(client, projectIdentifier, {
     startTime,
+    endTime: options.until,
     limit,
   });
 
@@ -409,6 +419,71 @@ async function writeTracesToDirectory(
   }
 }
 
+async function fetchRequestedTraceMetadata({
+  client,
+  projectId,
+  requestedTraceId,
+  resolvedTraceId,
+  spans,
+  options,
+}: {
+  client: PhoenixClient;
+  projectId: string;
+  requestedTraceId: string;
+  resolvedTraceId: string | undefined;
+  spans: SpanWithAnnotations[];
+  options: TraceGetOptions;
+}): Promise<{
+  traceAnnotations?: TraceAnnotation[];
+  traceNotes?: TraceAnnotation[];
+}> {
+  const traceIds = [resolvedTraceId ?? requestedTraceId];
+  const spanIds = spans
+    .map((span) => span.context?.span_id)
+    .filter((spanId): spanId is string => Boolean(spanId));
+  let traceAnnotations: TraceAnnotation[] | undefined;
+  let traceNotes: TraceAnnotation[] | undefined;
+  if (options.includeAnnotations) {
+    writeProgress({
+      message: "Fetching trace and span annotations...",
+      noProgress: !options.progress,
+    });
+    traceAnnotations = await fetchTraceAnnotations({
+      client,
+      projectIdentifier: projectId,
+      traceIds,
+      excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    const spanAnnotations = await fetchSpanAnnotations({
+      client,
+      projectIdentifier: projectId,
+      spanIds,
+      excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    attachSpanAnnotationsToSpans(spans, spanAnnotations);
+  }
+  if (options.includeNotes) {
+    writeProgress({
+      message: "Fetching trace and span notes...",
+      noProgress: !options.progress,
+    });
+    traceNotes = await fetchTraceAnnotations({
+      client,
+      projectIdentifier: projectId,
+      traceIds,
+      includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    const spanNotes = await fetchSpanAnnotations({
+      client,
+      projectIdentifier: projectId,
+      spanIds,
+      includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    attachSpanNotesToSpans(spans, spanNotes);
+  }
+  return { traceAnnotations, traceNotes };
+}
+
 /**
  * Handler for `trace get`
  */
@@ -479,56 +554,14 @@ async function traceGetHandler(
 
     const traceSpans: SpanWithAnnotations[] = spans;
     const resolvedTraceId = getResolvedTraceId(spans);
-    let traceAnnotations: TraceAnnotation[] | undefined;
-    let traceNotes: TraceAnnotation[] | undefined;
-    if (options.includeAnnotations) {
-      writeProgress({
-        message: "Fetching trace and span annotations...",
-        noProgress: !options.progress,
-      });
-
-      traceAnnotations = await fetchTraceAnnotations({
-        client,
-        projectIdentifier: projectId,
-        traceIds: resolvedTraceId ? [resolvedTraceId] : [traceId],
-        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-
-      const spanIds = traceSpans
-        .map((span) => span.context?.span_id)
-        .filter((spanId): spanId is string => Boolean(spanId));
-      const spanAnnotations = await fetchSpanAnnotations({
-        client,
-        projectIdentifier: projectId,
-        spanIds,
-        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-      attachSpanAnnotationsToSpans(traceSpans, spanAnnotations);
-    }
-    if (options.includeNotes) {
-      writeProgress({
-        message: "Fetching trace and span notes...",
-        noProgress: !options.progress,
-      });
-
-      traceNotes = await fetchTraceAnnotations({
-        client,
-        projectIdentifier: projectId,
-        traceIds: resolvedTraceId ? [resolvedTraceId] : [traceId],
-        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-
-      const spanIds = traceSpans
-        .map((span) => span.context?.span_id)
-        .filter((spanId): spanId is string => Boolean(spanId));
-      const spanNotes = await fetchSpanAnnotations({
-        client,
-        projectIdentifier: projectId,
-        spanIds,
-        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-      attachSpanNotesToSpans(traceSpans, spanNotes);
-    }
+    const { traceAnnotations, traceNotes } = await fetchRequestedTraceMetadata({
+      client,
+      projectId,
+      requestedTraceId: traceId,
+      resolvedTraceId,
+      spans: traceSpans,
+      options,
+    });
 
     // Build trace
     const trace = buildTrace({ spans: traceSpans });
@@ -625,6 +658,7 @@ async function traceListHandler(
     const traces = await getLastNTraces(client, projectId, limit, {
       lastNMinutes: options.lastNMinutes,
       since: options.since,
+      until: options.until,
     });
 
     if (traces.length === 0) {
@@ -786,6 +820,10 @@ export function createTraceListCommand(): Command {
       parseInt
     )
     .option("--since <timestamp>", "Fetch traces since this ISO timestamp")
+    .option(
+      "--until <timestamp>",
+      "Fetch traces whose spans started before this ISO timestamp (exclusive)"
+    )
     .option(
       "--max-concurrent <number>",
       "Maximum concurrent fetches for bulk operations",

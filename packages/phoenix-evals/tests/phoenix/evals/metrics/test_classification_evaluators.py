@@ -5,10 +5,7 @@ Tests for the built-in ClassificationEvaluator subclasses.
 Covers:
 - Default behavior (no change from before)
 - kwargs forwarding (e.g. temperature)
-- HallucinationEvaluator deprecation warning preserved
 """
-
-import warnings
 
 import pytest
 
@@ -18,7 +15,9 @@ from phoenix.evals.metrics.correctness import CorrectnessEvaluator
 from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
 from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
 from phoenix.evals.metrics.hallucination import HallucinationEvaluator
+from phoenix.evals.metrics.pii_detection import PiiDetectionEvaluator
 from phoenix.evals.metrics.refusal import RefusalEvaluator
+from phoenix.evals.metrics.retrieval_relevance import RetrievalRelevanceEvaluator
 from phoenix.evals.metrics.tool_invocation import ToolInvocationEvaluator
 from phoenix.evals.metrics.tool_response_handling import ToolResponseHandlingEvaluator
 from phoenix.evals.metrics.tool_selection import ToolSelectionEvaluator
@@ -61,6 +60,11 @@ ALL_EVALUATORS = [
         id="FaithfulnessEvaluator",
     ),
     pytest.param(
+        RetrievalRelevanceEvaluator,
+        {"input": "Q", "context": "C"},
+        id="RetrievalRelevanceEvaluator",
+    ),
+    pytest.param(
         ConcisenessEvaluator,
         {"input": "Q", "output": "A"},
         id="ConcisenessEvaluator",
@@ -96,12 +100,14 @@ ALL_EVALUATORS = [
         id="UserFrictionEvaluator",
     ),
     pytest.param(
+        PiiDetectionEvaluator,
+        {"conversation": "User: Reset my account. My email is jane.doe@acme.com"},
+        id="PiiDetectionEvaluator",
+    ),
+    pytest.param(
         HallucinationEvaluator,
-        {"input": "Q", "output": "A", "context": "C"},
+        {"input": "User: Q\nAssistant: A", "output": "A"},
         id="HallucinationEvaluator",
-        marks=pytest.mark.filterwarnings(
-            "ignore:HallucinationEvaluator is deprecated and will be removed in a future version.*:DeprecationWarning"
-        ),
     ),
 ]
 
@@ -158,24 +164,3 @@ class TestKwargsForwarding:
         llm = MockLLM()
         ev = EvaluatorClass(llm=llm, temperature=0.5)
         assert ev.invocation_parameters.get("temperature") == 0.5
-
-
-# ---------------------------------------------------------------------------
-# Tests: HallucinationEvaluator deprecation warning preserved
-# ---------------------------------------------------------------------------
-
-
-class TestHallucinationDeprecation:
-    def test_deprecation_warning_on_default_init(self):
-        llm = MockLLM()
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            HallucinationEvaluator(llm=llm)
-        assert any(issubclass(warning.category, DeprecationWarning) for warning in w)
-
-    def test_deprecation_warning_with_kwargs(self):
-        llm = MockLLM()
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            HallucinationEvaluator(llm=llm, temperature=0.0)
-        assert any(issubclass(warning.category, DeprecationWarning) for warning in w)

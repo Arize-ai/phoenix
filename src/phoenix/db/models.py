@@ -6,7 +6,7 @@ import orjson
 import sqlalchemy as sa
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import (
     JSON,
     NUMERIC,
@@ -35,7 +35,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.sqlite.base import SQLiteCompiler
+from sqlalchemy.dialects.sqlite.base import SQLiteCompiler, SQLiteDialect
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -64,6 +64,10 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.annotation_configs import (
     OutputConfig as OutputConfigModel,
+)
+from phoenix.db.types.data_stream_protocol import (
+    PhoenixUIMessage,
+    PhoenixUIMessageAdapter,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
@@ -173,7 +177,9 @@ def render_values_w_union(
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
-SandboxBackendType: TypeAlias = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL"]
+SandboxBackendType: TypeAlias = Literal[
+    "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY"
+]
 LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
@@ -188,6 +194,8 @@ ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
     "agent.assistant.trace_recording",
     "agent.assistant.enabled",
+    "agent.assistant.session_retention",
+    "agent.assistant.github",
 ]
 
 
@@ -200,6 +208,11 @@ class JSONB(JSON):
 def _(*args: Any, **kwargs: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     return "JSONB"
+
+
+# Without this, reflection maps "JSONB" to NUMERIC, and Alembic batch_alter_table
+# rebuilds SQLite tables from reflection -- silently redeclaring JSON columns.
+SQLiteDialect.ischema_names["JSONB"] = JSONB
 
 
 JSON_ = (
@@ -242,6 +255,38 @@ class JsonList(TypeDecorator[list[Any]]):
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[list[Any]]:
         return orjson.loads(orjson.dumps(value)) if isinstance(value, list) and value else value
+
+
+class _PhoenixUIMessage(TypeDecorator[PhoenixUIMessage]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PhoenixUIMessage], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        # exclude_unset preserves the wire shape: explicit nulls survive,
+        # absent keys stay absent.
+        dumped = value.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        # Refuse messages that don't round-trip; storing one would break every
+        # subsequent transcript read.
+        error = (
+            f"UI message {value.id!r} does not round-trip through its JSON "
+            "representation and cannot be persisted"
+        )
+        try:
+            revalidated = PhoenixUIMessageAdapter.validate_python(dumped)
+        except ValidationError as exc:
+            raise ValueError(error) from exc
+        if revalidated != value:
+            raise ValueError(error)
+        return dumped
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PhoenixUIMessage]:
+        return PhoenixUIMessageAdapter.validate_python(value) if value is not None else None
 
 
 class UtcTimeStamp(TypeDecorator[datetime]):
@@ -986,7 +1031,6 @@ class Span(HasId):
             "span_id",
             sqlite_on_conflict="IGNORE",
         ),
-        Index("ix_latency", text("(end_time - start_time)")),
         Index(
             "ix_cumulative_llm_token_count_total",
             text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"),
@@ -1085,6 +1129,83 @@ def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
     )
 
 
+class SafeJsonFloat(expression.FunctionElement[float]):
+    """A JSON value as a number, or NULL when it is not one.
+
+    `CAST(jsonb AS FLOAT)` succeeds only while every row holds a number: a
+    single string value aborts the whole statement with `cannot cast jsonb
+    string to type double precision`. JSON columns are schemaless, so whether a
+    filter works becomes a property of the data rather than of the expression.
+
+    Shared by the span and experiment filter DSLs -- both compare against
+    schemaless JSON, and a partial conversion is a per-row failure in either.
+    """
+
+    type = Float()
+    inherit_cache = True
+
+
+class SafeJsonBoolean(expression.FunctionElement[bool]):
+    """A JSON value as a boolean, or NULL when it is not one.
+
+    As `SafeJsonFloat`, and additionally normalizing the three encodings a JSON
+    boolean arrives in: a real boolean, the strings `"true"`/`"false"`, and
+    `1`/`0`.
+    """
+
+    type = Boolean()
+    inherit_cache = True
+
+
+@compiles(SafeJsonFloat)
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    value = compiler.process(list(element.clauses)[0], **kw)
+    scalar = f"json_extract({value}, '$')"
+    return (
+        f"CASE WHEN json_type({value}) IN ('integer', 'real') THEN CAST({value} AS FLOAT) "
+        f"WHEN json_type({value}) = 'text' THEN CASE WHEN json_valid({scalar}) "
+        f"AND json_type({scalar}) IN ('integer', 'real') THEN CAST({scalar} AS FLOAT) END END"
+    )
+
+
+@compiles(SafeJsonFloat, "postgresql")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    value = compiler.process(list(element.clauses)[0], **kw)
+    # `strict` matters: in lax mode a jsonpath auto-unwraps arrays, so
+    # `$.double()` applied to `[1, 2]` returns 1 and the row matches a
+    # comparison against a number it does not hold. SQLite yields NULL for the
+    # same value, so lax mode is also a cross-dialect divergence.
+    converted = f"jsonb_path_query_first({value}, 'strict $.double()', '{{}}'::jsonb, true)"
+    return f"CAST({converted} AS NUMERIC)"
+
+
+@compiles(SafeJsonBoolean)
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    value = compiler.process(list(element.clauses)[0], **kw)
+    scalar = f"lower(json_extract({value}, '$'))"
+    # SQLite's JSON functions return booleans as integers (JSON_QUOTE of an
+    # extracted true is '1', whose json_type is 'integer'), so real JSON
+    # booleans arrive here as 1/0 rather than 'true'/'false'.
+    return (
+        f"CASE json_type({value}) WHEN 'true' THEN 1 WHEN 'false' THEN 0 "
+        f"WHEN 'integer' THEN CASE json_extract({value}, '$') WHEN 1 THEN 1 WHEN 0 THEN 0 END "
+        f"WHEN 'text' THEN CASE {scalar} WHEN 'true' THEN 1 WHEN 'false' THEN 0 END END"
+    )
+
+
+@compiles(SafeJsonBoolean, "postgresql")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    value = compiler.process(list(element.clauses)[0], **kw)
+    # The jsonpath `.boolean()` method requires PostgreSQL 17; this CASE works
+    # on every supported version.
+    scalar = f"({value} #>> '{{}}')"
+    return (
+        f"CASE jsonb_typeof({value}) WHEN 'boolean' THEN CAST({scalar} AS BOOLEAN) "
+        f"WHEN 'string' THEN CASE lower{scalar} WHEN 'true' THEN true WHEN 'false' THEN false END "
+        f"WHEN 'number' THEN CASE {scalar} WHEN '1' THEN true WHEN '0' THEN false END END"
+    )
+
+
 class TextContains(expression.FunctionElement[str]):
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     inherit_cache = True
@@ -1140,10 +1261,11 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 @compiles(CaseInsensitiveContains, "sqlite")
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
-    # Use sqlean's `text_lower` to handle non-ASCII characters
+    # sqlean's `text_casefold`, not `text_lower`: case folding is the operation
+    # Unicode defines for caseless matching.
     string, substring = list(element.clauses)
     result = compiler.process(
-        func.text_contains(func.text_lower(string), func.text_lower(substring)), **kw
+        func.text_contains(func.text_casefold(string), func.text_casefold(substring)), **kw
     )
     return result
 
@@ -1406,6 +1528,7 @@ class DatasetLabel(HasId):
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     user: Mapped[Optional["User"]] = relationship("User")
 
@@ -1839,6 +1962,7 @@ class ExperimentPromptTask(ExperimentJob):
     custom_provider_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     # Prompt definition (complex nested → JSON)
@@ -1862,6 +1986,7 @@ class ExperimentPromptTask(ExperimentJob):
     prompt_version_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("prompt_versions.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     # Playground-specific settings (evolving, stored as JSON)
@@ -2510,7 +2635,7 @@ class TokenPrice(HasId):
     token_type: Mapped[str]
     is_prompt: Mapped[bool]
     base_rate: Mapped[float]
-    customization: Mapped[TokenPriceCustomization] = mapped_column(_TokenCustomization)
+    customization: Mapped[Optional[TokenPriceCustomization]] = mapped_column(_TokenCustomization)
 
     model: Mapped["GenerativeModel"] = relationship(
         "GenerativeModel",
@@ -3150,6 +3275,7 @@ class DatasetEvaluators(HasId):
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="RESTRICT"),
@@ -3180,6 +3306,7 @@ class Secret(Base):
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -3216,6 +3343,7 @@ class GenerativeModelCustomProvider(HasId):
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
 
@@ -3233,3 +3361,170 @@ def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProv
     """
     if not is_encrypted(target.config):
         raise ValueError("Config is not encrypted")
+
+
+_UUID_GLOB = "-".join("[0-9a-fA-F]" * length for length in (8, 4, 4, 4, 12))  # SQLite GLOB pattern
+_UUID_REGEX = "^{}$".format(
+    "-".join(f"[0-9a-fA-F]{{{length}}}" for length in (8, 4, 4, 4, 12))
+)  # PostgreSQL POSIX pattern
+
+
+class matches_uuid_format(ColumnElement[bool]):  # noqa: N801  -- a SQL construct
+    """A ``CHECK``-able predicate: does a column hold a UUID in 8-4-4-4-12 hex form?
+
+    SQLite has ``GLOB`` but no regex operator; PostgreSQL has ``~`` but no
+    ``GLOB``. Neither spelling is portable, so the predicate renders per
+    dialect and callers get one expression that works on both.
+    """
+
+    inherit_cache = True
+    type = Boolean()
+
+    def __init__(self, column_name: str) -> None:
+        self.column_name = column_name
+
+
+@compiles(matches_uuid_format, "sqlite")
+def _compile_matches_uuid_format_sqlite(
+    element: matches_uuid_format,
+    compiler: SQLCompiler,
+    **kw: Any,
+) -> str:
+    return f"{compiler.preparer.quote(element.column_name)} GLOB '{_UUID_GLOB}'"
+
+
+@compiles(matches_uuid_format, "postgresql")
+def _compile_matches_uuid_format_postgresql(
+    element: matches_uuid_format,
+    compiler: SQLCompiler,
+    **kw: Any,
+) -> str:
+    return f"{compiler.preparer.quote(element.column_name)} ~ '{_UUID_REGEX}'"
+
+
+class AgentSession(HasId):
+    __tablename__ = "agent_sessions"
+    project_name: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,  # sessions may be created while auth is disabled
+    )
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider, nullable=False)
+    model_name: Mapped[str] = mapped_column(String, nullable=False)
+    custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        # SET NULL turns a deleted custom provider's sessions into builtin
+        # selections of the model_provider and model_name columns.
+        ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    is_ephemeral: Mapped[bool] = mapped_column(default=False)
+    heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    user: Mapped[Optional["User"]] = relationship("User")
+    custom_provider: Mapped[Optional["GenerativeModelCustomProvider"]] = relationship(
+        "GenerativeModelCustomProvider"
+    )
+    snapshot: Mapped[Optional["AgentSessionSnapshot"]] = relationship(
+        "AgentSessionSnapshot",
+        back_populates="agent_session",
+        uselist=False,
+    )
+    messages: Mapped[list["AgentSessionMessage"]] = relationship(
+        "AgentSessionMessage",
+        order_by="AgentSessionMessage.id",
+        cascade="all, delete-orphan",
+        back_populates="agent_session",
+    )
+    __table_args__ = (
+        Index(
+            "ix_agent_sessions_user_id_updated_at",
+            "user_id",
+            updated_at.desc(),
+        ),
+        Index(
+            "ix_agent_sessions_ephemeral_updated_at",
+            "updated_at",
+            postgresql_where=text("is_ephemeral IS TRUE"),
+            sqlite_where=text("is_ephemeral IS TRUE"),
+        ),
+        Index(
+            "ix_agent_sessions_updated_at_id",
+            "updated_at",
+            "id",
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class AgentSessionMessage(HasId):
+    __tablename__ = "agent_session_messages"
+    agent_session_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    message: Mapped[PhoenixUIMessage] = mapped_column(_PhoenixUIMessage, nullable=False)
+    message_id: Mapped[str] = mapped_column(
+        String,
+        sa.Computed(message["id"].as_string(), persisted=True),
+        nullable=False,
+        unique=True,
+    )
+    is_compaction_message: Mapped[bool] = mapped_column(
+        Boolean,
+        sa.Computed(
+            func.coalesce(
+                message[["metadata", "phoenix", "isCompactionMessage"]].as_boolean(),
+                sa.false(),
+            ),
+            persisted=True,
+        ),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    agent_session: Mapped[AgentSession] = relationship(
+        "AgentSession",
+        back_populates="messages",
+    )
+    __table_args__ = (
+        CheckConstraint(matches_uuid_format("message_id"), name="valid_message_id"),
+        Index(
+            "ix_agent_session_messages_agent_session_id_id",
+            "agent_session_id",
+            "id",
+        ),
+        Index(
+            "ix_agent_session_messages_compaction",
+            "agent_session_id",
+            sa.desc("id"),
+            postgresql_where=text("is_compaction_message"),
+            sqlite_where=text("is_compaction_message"),
+        ),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class AgentSessionSnapshot(HasId):
+    __tablename__ = "agent_session_snapshots"
+    agent_session_id: Mapped[int] = mapped_column(
+        ForeignKey("agent_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    bashkit_snapshot: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    agent_session: Mapped[AgentSession] = relationship(
+        "AgentSession",
+        back_populates="snapshot",
+    )
+    __table_args__ = (dict(sqlite_autoincrement=True),)
