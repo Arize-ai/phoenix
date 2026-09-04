@@ -46,14 +46,15 @@ def _create_app(db: DbSessionFactory, *, read_only: bool = False):  # type: igno
 
 async def test_online_eval_daemons_run_by_default(db: DbSessionFactory) -> None:
     """Read-only mode is the only thing that keeps the daemons from starting, so an
-    app built with no online-eval environment at all still gets all four, session
-    halves included.
+    app built with no online-eval environment at all still gets all five, both
+    sweepers included.
     """
     app = _create_app(db)
     assert isinstance(app.state.online_eval_producer, OnlineEvalProducer)
     assert isinstance(app.state.online_eval_consumer, OnlineEvalConsumer)
     assert isinstance(app.state.online_eval_session_consumer, OnlineEvalConsumer)
     assert isinstance(app.state.online_eval_session_sweeper, EvalSweeper)
+    assert isinstance(app.state.online_eval_trace_sweeper, EvalSweeper)
 
 
 async def test_online_eval_daemons_absent_in_read_only_mode(db: DbSessionFactory) -> None:
@@ -62,6 +63,7 @@ async def test_online_eval_daemons_absent_in_read_only_mode(db: DbSessionFactory
     assert app.state.online_eval_consumer is None
     assert app.state.online_eval_session_consumer is None
     assert app.state.online_eval_session_sweeper is None
+    assert app.state.online_eval_trace_sweeper is None
 
 
 @pytest.mark.parametrize(
@@ -117,6 +119,7 @@ async def test_app_runs_seeded_criteria_end_to_end(
         consumer = app.state.online_eval_consumer
         session_consumer = app.state.online_eval_session_consumer
         session_sweeper = app.state.online_eval_session_sweeper
+        trace_sweeper = app.state.online_eval_trace_sweeper
         assert isinstance(producer, OnlineEvalProducer)
         assert isinstance(consumer, OnlineEvalConsumer)
         assert isinstance(session_consumer, OnlineEvalConsumer)
@@ -131,6 +134,9 @@ async def test_app_runs_seeded_criteria_end_to_end(
         assert consumer._executor._db_semaphore is consumer._db_semaphore
         assert session_consumer._executor._db_semaphore is consumer._db_semaphore
         assert isinstance(session_sweeper, EvalSweeper)
+        assert isinstance(trace_sweeper, EvalSweeper)
+        assert trace_sweeper._evaluation_target == "TRACE"
+        assert trace_sweeper._lease_name != session_sweeper._lease_name
 
         async with db() as session:
             project = await _add_project(session)
