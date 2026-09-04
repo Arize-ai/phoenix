@@ -1929,6 +1929,7 @@ class OpenAIChatCompletionsClient(OpenAICompatibleClient):
 
 
 OPENAI_REASONING_MODELS = [
+    "gpt-6-astra",
     "gpt-5.6-sol",
     "gpt-5.6-terra",
     "gpt-5.6-luna",
