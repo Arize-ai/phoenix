@@ -36,7 +36,7 @@ from phoenix.trace.dsl.filter import SPAN_BINDINGS
 from phoenix.trace.dsl.session_filter import _AGGREGATE_SPECS as _SESSION_AGGREGATE_SPECS
 from phoenix.trace.dsl.session_filter import SESSION_BINDINGS
 from phoenix.trace.dsl.trace_filter import _AGGREGATE_SPECS as _TRACE_AGGREGATE_SPECS
-from phoenix.trace.dsl.trace_filter import TRACE_BINDINGS
+from phoenix.trace.dsl.trace_filter import TRACE_BINDINGS, root_span_io_value
 
 _ROOT_SPAN_IO_NAMES: tuple[RootSpanIOKind, ...] = ("first_input", "last_output")
 _USER_ID = "user_id"
@@ -192,8 +192,8 @@ async def load_trace_bound_variables(
     root_io_rows = await session.execute(
         select(
             root_spans.c[TRACE_ROWID],
-            models.Span.attributes[models.INPUT_VALUE].as_string(),
-            models.Span.attributes[models.OUTPUT_VALUE].as_string(),
+            root_span_io_value(models.Span.attributes, "input"),
+            root_span_io_value(models.Span.attributes, "output"),
         ).join_from(
             root_spans,
             models.Span,
