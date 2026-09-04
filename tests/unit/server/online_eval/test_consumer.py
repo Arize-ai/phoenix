@@ -1120,9 +1120,16 @@ async def test_load_trace_bound_variables_reads_filter_language_values(
         )
         await _add_span(session, trace, parent_span=root_span, span_kind="TOOL")
         empty_trace = await _add_trace(session, project, start_time=start_time)
+        # An attribute trie that collided on ingest keeps the literal wire key. The
+        # trace filter matches that spelling, so the loader has to read it too.
+        wire_key_trace = await _add_trace(session, project, start_time=start_time)
+        await _add_span(session, wire_key_trace, attributes={"input.value": "question"})
 
     async with db() as session:
-        resolved = await load_trace_bound_variables(session, [trace.id, empty_trace.id])
+        resolved = await load_trace_bound_variables(
+            session,
+            [trace.id, empty_trace.id, wire_key_trace.id],
+        )
 
     populated = resolved[trace.id]
     assert set(populated) == set(TRACE_BOUND_VARIABLE_NAMES) | {
@@ -1147,6 +1154,7 @@ async def test_load_trace_bound_variables_reads_filter_language_values(
     # A trace with nothing to aggregate reads zero, as it does in a filter.
     assert resolved[empty_trace.id]["num_spans"] == 0
     assert resolved[empty_trace.id]["input"] is None
+    assert resolved[wire_key_trace.id]["input"] == "question"
 
 
 async def test_trace_hydration_binds_the_trace_context(db: DbSessionFactory) -> None:
