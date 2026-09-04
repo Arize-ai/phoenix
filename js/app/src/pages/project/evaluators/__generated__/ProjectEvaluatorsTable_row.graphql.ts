@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c73fb43e2deadaafeab068c4be9c999>>
+ * @generated SignedSource<<310fd94407b2cc3b222c5642e0324943>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,7 @@ export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
-export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TRACE_TARGET_UNSUPPORTED";
+export type ProjectEvaluatorSchedulabilityReason = "DISABLED";
 export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";

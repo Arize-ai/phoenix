@@ -62,7 +62,7 @@ from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.session_policy import (
     ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
-    session_project_evaluator_is_schedulable,
+    project_evaluator_is_schedulable,
 )
 from phoenix.server.online_eval.tracing import (
     marked_evaluator_tracer,
@@ -512,9 +512,10 @@ class OnlineEvalExecutor:
                 select(
                     models.ProjectEvaluator,
                     polymorphic,
-                    session_project_evaluator_is_schedulable(models.ProjectEvaluator).label(
-                        "session_schedulable"
-                    ),
+                    project_evaluator_is_schedulable(
+                        models.ProjectEvaluator,
+                        evaluation_target="SESSION",
+                    ).label("session_schedulable"),
                 )
                 .outerjoin(
                     polymorphic,
