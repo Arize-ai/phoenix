@@ -922,6 +922,19 @@ class _RootSpanAttributeValue:
         return self._cast(lambda value: value.as_boolean())
 
 
+def root_span_io_value(attributes: typing.Any, name: str) -> typing.Any:
+    """The root span's ``input`` or ``output`` string, read the way the filter reads it.
+
+    The accessor coalesces the split attribute path with the literal wire key, so a
+    span whose attribute trie collided on ingest still answers. Callers outside the
+    filter binding this value for an evaluator go through here rather than spelling
+    one of the two paths, so the value an evaluator receives is the value the filter
+    matched on.
+    """
+    path = _ROOT_SPAN_INPUT_VALUE if name == "input" else _ROOT_SPAN_OUTPUT_VALUE
+    return _RootSpanAttributeValue(attributes, path).as_string()
+
+
 class _RootSpanAttributes:
     def __init__(self, column: typing.Any) -> None:
         self._column = column
@@ -967,8 +980,7 @@ def _join_root_span(
     stmt = stmt.outerjoin(root_span, root_span.id == representative_root_spans.c[SPAN_ROWID])
     bindings_map: dict[str, typing.Any] = {}
     for name in referenced_io_names:
-        path = _ROOT_SPAN_INPUT_VALUE if name == "input" else _ROOT_SPAN_OUTPUT_VALUE
-        bindings_map[name] = _RootSpanAttributeValue(root_span.attributes, path).as_string()
+        bindings_map[name] = root_span_io_value(root_span.attributes, name)
     if references_attributes:
         bindings_map[_ROOT_SPAN_ATTRIBUTES] = _RootSpanAttributes(root_span.attributes)
     return stmt, bindings_map

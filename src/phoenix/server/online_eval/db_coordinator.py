@@ -282,12 +282,14 @@ class DbEvalWorkCoordinator:
             # Lock order within online eval: project evaluator (E) -> session (S) ->
             # trace (T) -> work unit (W) -> write. Publication takes E -> S -> W for
             # SPAN and SESSION and E -> T -> W for TRACE; materialization takes E -> S
-            # or E -> T before inserting W; retention takes S -> T -> W. No path may
-            # invert an edge, so TRACE publication never locks that trace's session:
-            # `delete_traces` locks the sessions losing content before deleting the
-            # traces, and taking S after T here would deadlock against it. Span ingest
-            # writes traces and sessions but locks no evaluator or work unit, so it
-            # shares no edge with this order.
+            # or E -> T before inserting W. TRACE publication never locks that trace's
+            # session: `delete_traces` locks the sessions losing content before
+            # deleting the traces, and taking S after T here would deadlock against
+            # it. Retention's own rungs are S -> W(session) -> T, so it reaches a work
+            # unit before a trace; that is not a cycle against this order, because no
+            # path holds a trace row and then waits on a session work unit. Span
+            # ingest writes traces and sessions but locks no evaluator or work unit,
+            # so it shares no edge with this order.
             project_evaluator_enabled = await session.scalar(
                 select(models.ProjectEvaluator.enabled)
                 .where(models.ProjectEvaluator.id == identity.project_evaluator_id)

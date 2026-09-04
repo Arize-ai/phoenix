@@ -14,7 +14,11 @@ from phoenix.server.types import DbSessionFactory
 ProjectEvaluatorId: TypeAlias = int
 Key: TypeAlias = ProjectEvaluatorId
 
-_WorkUnitModel: TypeAlias = Union[type[models.EvalWorkUnit], type[models.EvalSessionWorkUnit]]
+_WorkUnitModel: TypeAlias = Union[
+    type[models.EvalWorkUnit],
+    type[models.EvalSessionWorkUnit],
+    type[models.EvalTraceWorkUnit],
+]
 
 _QUEUED = "QUEUED"
 _EVALUATED = "EVALUATED"
@@ -25,7 +29,7 @@ _FAILED = "FAILED"
 class ProjectEvaluatorRunCounts:
     """How much evaluation work a project evaluator has produced, and when.
 
-    Counts cover both evaluation grains and reach back only as far as the online-eval
+    Counts cover every evaluation grain and reach back only as far as the online-eval
     retention window, after which completed work is reaped.
     """
 
@@ -116,7 +120,11 @@ def _outcome_stmt(project_evaluator_ids: list[Key]) -> sa.Select[Any]:
             .group_by(model.project_evaluator_id, outcome)
         )
 
-    grains = sa.union_all(grain(models.EvalWorkUnit), grain(models.EvalSessionWorkUnit)).subquery()
+    grains = sa.union_all(
+        grain(models.EvalWorkUnit),
+        grain(models.EvalSessionWorkUnit),
+        grain(models.EvalTraceWorkUnit),
+    ).subquery()
     return (
         sa.select(
             grains.c.project_evaluator_id,
@@ -150,7 +158,11 @@ def _last_error_stmt(project_evaluator_ids: list[Key]) -> sa.Select[Any]:
             _failed(model),
         )
 
-    grains = sa.union_all(grain(models.EvalWorkUnit), grain(models.EvalSessionWorkUnit)).subquery()
+    grains = sa.union_all(
+        grain(models.EvalWorkUnit),
+        grain(models.EvalSessionWorkUnit),
+        grain(models.EvalTraceWorkUnit),
+    ).subquery()
     ranked = sa.select(
         grains.c.project_evaluator_id,
         grains.c.error,

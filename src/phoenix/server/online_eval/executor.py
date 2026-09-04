@@ -31,6 +31,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, with_polymorphic
 from strawberry.relay import GlobalID
+from typing_extensions import TypeAlias
 
 from phoenix.config import (
     get_env_online_eval_max_llm_message_bytes,
@@ -461,6 +462,12 @@ def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
     return {_EVALUATOR_TRACE_ID_METADATA_KEY: trace_id} if trace_id else {}
 
 
+# Keyed by target as well as row id: a row id is unique only within its own
+# entity table, so a claim batch carrying two targets would otherwise let one
+# grain's vocabulary answer for the other's row.
+_TargetVocabularies: TypeAlias = Mapping[tuple[models.EvaluationTarget, int], Mapping[str, Any]]
+
+
 class _TargetContextLoader(Protocol):
     async def __call__(
         self,
@@ -468,7 +475,7 @@ class _TargetContextLoader(Protocol):
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
-        target_vocabularies: Mapping[int, Mapping[str, Any]],
+        target_vocabularies: _TargetVocabularies,
     ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure: ...
 
 
@@ -477,7 +484,7 @@ async def _load_span_context(
     unit: ClaimedWorkUnit,
     *,
     project_id: int,
-    target_vocabularies: Mapping[int, Mapping[str, Any]],
+    target_vocabularies: _TargetVocabularies,
 ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
     span = await session.get(
         models.Span,
@@ -504,7 +511,7 @@ async def _load_session_context(
     unit: ClaimedWorkUnit,
     *,
     project_id: int,
-    target_vocabularies: Mapping[int, Mapping[str, Any]],
+    target_vocabularies: _TargetVocabularies,
 ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
     project_session = await session.get(models.ProjectSession, unit.target_rowid)
     if project_session is None:
@@ -517,7 +524,7 @@ async def _load_session_context(
         session,
         project_session_rowid=project_session.id,
         project_id=project_id,
-        vocabulary=target_vocabularies[unit.target_rowid],
+        vocabulary=target_vocabularies[unit.evaluation_target, unit.target_rowid],
     )
     if not has_eligible_root_turns(loaded.applied_policy):
         return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
@@ -529,7 +536,7 @@ async def _load_trace_context(
     unit: ClaimedWorkUnit,
     *,
     project_id: int,
-    target_vocabularies: Mapping[int, Mapping[str, Any]],
+    target_vocabularies: _TargetVocabularies,
 ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
     trace = await session.get(models.Trace, unit.target_rowid)
     if trace is None:
@@ -539,7 +546,7 @@ async def _load_trace_context(
     context = await load_trace_eval_context(
         session,
         trace_rowid=trace.id,
-        vocabulary=target_vocabularies[unit.target_rowid],
+        vocabulary=target_vocabularies[unit.evaluation_target, unit.target_rowid],
     )
     if context is None:
         return HydrationFailure(HydrationFailureReason.ROOT_SPAN_MISSING)
@@ -604,8 +611,10 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         target_column="trace_rowid",
         annotation_table=models.TraceAnnotation,
         unique_by=("name", "trace_rowid", "identifier"),
-        # A trace can still gain spans after it is scored, so a later evaluation
-        # of it replaces the annotation rather than being dropped as a duplicate.
+        # Symmetric with SESSION rather than SPAN, and unexercised either way: a
+        # second evaluation at the same fingerprint is never materialized, and a
+        # different fingerprint writes a different identifier, so there is no
+        # conflicting annotation left to replace.
         on_conflict=OnConflict.DO_UPDATE,
         insert_event=TraceAnnotationInsertEvent,
     ),
@@ -764,7 +773,7 @@ class OnlineEvalExecutor:
                 continue
             outcomes.append(None)
 
-        target_vocabularies: dict[int, dict[str, Any]] = {}
+        target_vocabularies: dict[tuple[models.EvaluationTarget, int], dict[str, Any]] = {}
         indices_by_target: dict[models.EvaluationTarget, list[int]] = defaultdict(list)
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
@@ -777,10 +786,14 @@ class OnlineEvalExecutor:
                 # One savepointed batch read per target: a failure here is
                 # infrastructure, not a property of any one row's data.
                 async with session.begin_nested():
-                    target_vocabularies |= await load_vocabularies(
+                    vocabularies = await load_vocabularies(
                         session,
                         {units[index].target_rowid for index in indices},
                     )
+                target_vocabularies |= {
+                    (evaluation_target, target_rowid): vocabulary
+                    for target_rowid, vocabulary in vocabularies.items()
+                }
             except Exception as error:
                 for index in indices:
                     outcomes[index] = SharedHydrationFailure(error)
@@ -911,7 +924,7 @@ class OnlineEvalExecutor:
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
-        target_vocabularies: Mapping[int, Mapping[str, Any]],
+        target_vocabularies: _TargetVocabularies,
     ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
         """The bindable context, plus the applied session policy for a SESSION unit."""
         target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
