@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import random
-from asyncio import sleep
 from datetime import datetime, timedelta, timezone
 
 import sqlalchemy as sa
@@ -31,10 +30,11 @@ class ExperimentSweeper(DaemonTask):
     async def _run(self) -> None:
         while self._running:
             try:
-                await self._delete_ephemeral_experiments()
+                async with self._ticking():
+                    await self._delete_ephemeral_experiments()
             except Exception:
                 logger.exception("Failed to clean up ephemeral experiments")
-            await sleep(_SLEEP_SECONDS + random.uniform(-_JITTER_SECONDS, _JITTER_SECONDS))
+            await self._sleep(_SLEEP_SECONDS + random.uniform(-_JITTER_SECONDS, _JITTER_SECONDS))
 
     async def _delete_ephemeral_experiments(self) -> None:
         cutoff = datetime.now(timezone.utc) - timedelta(

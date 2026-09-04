@@ -357,7 +357,7 @@ async def app(
 
 @pytest.fixture
 async def asgi_app(app: FastAPI) -> AsyncIterator[ASGIApp]:
-    async with LifespanManager(app) as manager:
+    async with LifespanManager(app, startup_timeout=120, shutdown_timeout=120) as manager:
         yield manager.app
 
 

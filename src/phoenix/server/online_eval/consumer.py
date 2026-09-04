@@ -150,15 +150,17 @@ class OnlineEvalConsumer(DaemonTask):
     async def _run(self) -> None:
         while self._running:
             try:
-                await self._cycle()
+                async with self._ticking():
+                    await self._cycle()
             except Exception:
                 logger.exception("Online-eval consumer cycle failed")
             if self._publish_metrics:
                 try:
-                    await self._publish_queue_metrics()
+                    async with self._ticking():
+                        await self._publish_queue_metrics()
                 except Exception:
                     logger.exception("Online-eval queue metrics publish failed")
-            await asyncio.sleep(self._tick_interval_seconds)
+            await self._sleep(self._tick_interval_seconds)
 
     async def _publish_queue_metrics(self) -> None:
         await self._run_db(self._publish_queue_metrics_with_slot)
@@ -340,6 +342,7 @@ class OnlineEvalConsumer(DaemonTask):
                         work_unit_id=unit.work_unit_id,
                         claimed_by=self._consumer_id,
                         error=error,
+                        status=hydrated.terminal_status,
                     ),
                 )
                 if not expired:

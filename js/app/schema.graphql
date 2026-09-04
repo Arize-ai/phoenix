@@ -3425,17 +3425,30 @@ type ProjectEvaluatorMutationPayload {
   query: Query!
 }
 
+"""
+The state of a project evaluator's scheduled work: whether evaluation runs are completing. It says nothing about what those runs scored.
+"""
 enum ProjectEvaluatorRunStatus {
+  """No evaluation has completed or is waiting within the retention window."""
   NEVER_RUN
+
+  """Evaluations are waiting to run and none has completed yet."""
   QUEUED
-  HEALTHY
-  FAILING
+
+  """Evaluation runs are completing and writing annotations."""
+  RUNNING
+
+  """The most recent evaluation run failed and will not be retried."""
+  ERROR
 }
 
 """
-How a project evaluator is doing, derived from the evaluations it has produced within the online evaluation retention window.
+The state of a project evaluator's scheduled work, derived from the evaluations it has produced within the online evaluation retention window. It describes whether runs are completing, not what they scored.
 """
 type ProjectEvaluatorRunSummary {
+  """
+  ERROR when the newest completed run was given up on, RUNNING when it produced an annotation, QUEUED when work is waiting but none has completed, NEVER_RUN otherwise.
+  """
   status: ProjectEvaluatorRunStatus!
 
   """
@@ -3451,6 +3464,11 @@ type ProjectEvaluatorRunSummary {
 
   """Evaluations that were given up on."""
   failedCount: Int!
+
+  """
+  Evaluations shed from the backlog before they ran, to keep up under load. They are not failures and do not affect the status.
+  """
+  droppedCount: Int!
 
   """The most recent evaluation error, or null if none was recorded."""
   lastError: String

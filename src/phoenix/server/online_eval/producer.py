@@ -12,7 +12,6 @@ that became visible after their window was scanned.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass
@@ -20,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Optional
 
-from sqlalchemy import Select, and_, delete, exists, func, or_, select, update
+from sqlalchemy import Select, delete, exists, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
@@ -35,11 +34,10 @@ from phoenix.config import (
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
+from phoenix.db.eval_work import LIVE_EVAL_WORK_STATUSES, TERMINAL_EVAL_WORK_STATUSES
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
-    MAX_ATTEMPTS,
-    STALE_FINGERPRINT_ERROR,
     annotation_identifier,
     config_fingerprint,
     sample_key,
@@ -111,8 +109,7 @@ class _ActiveProjectEvaluator:
                         models.EvalWorkUnit.span_rowid == models.Span.id,
                         models.EvalWorkUnit.evaluator_id == self.evaluator_id,
                         models.EvalWorkUnit.config_fingerprint == self.fingerprint,
-                        models.EvalWorkUnit.status == "EXPIRED",
-                        models.EvalWorkUnit.error == STALE_FINGERPRINT_ERROR,
+                        models.EvalWorkUnit.status == "SUPERSEDED",
                     )
                 ),
             ),
@@ -159,10 +156,11 @@ class OnlineEvalProducer(DaemonTask):
         try:
             while self._running:
                 try:
-                    await self._tick()
+                    async with self._ticking():
+                        await self._tick()
                 except Exception:
                     logger.exception("Online-eval producer tick failed")
-                await asyncio.sleep(self._tick_interval_seconds)
+                await self._sleep(self._tick_interval_seconds)
         finally:
             await self._release_lease()
 
@@ -365,7 +363,7 @@ class OnlineEvalProducer(DaemonTask):
                         models.EvalWorkUnit.created_at < pending_cutoff,
                     )
                     .values(
-                        status="EXPIRED",
+                        status="DROPPED",
                         error=func.coalesce(
                             models.EvalWorkUnit.error,
                             _PENDING_TTL_EXCEEDED_ERROR,
@@ -374,15 +372,7 @@ class OnlineEvalProducer(DaemonTask):
                 )
             await session.execute(
                 delete(models.EvalWorkUnit).where(
-                    models.EvalWorkUnit.status.in_(("DONE", "EXPIRED")),
-                    models.EvalWorkUnit.updated_at < retention_cutoff,
-                    models.EvalWorkUnit.span_rowid < reap_floor,
-                )
-            )
-            await session.execute(
-                delete(models.EvalWorkUnit).where(
-                    models.EvalWorkUnit.status == "ERROR",
-                    models.EvalWorkUnit.attempts >= MAX_ATTEMPTS,
+                    models.EvalWorkUnit.status.in_(TERMINAL_EVAL_WORK_STATUSES),
                     models.EvalWorkUnit.updated_at < retention_cutoff,
                     models.EvalWorkUnit.span_rowid < reap_floor,
                 )
@@ -394,21 +384,13 @@ class OnlineEvalProducer(DaemonTask):
         # claimed but unfinished, and retryable ERROR rows return to the claim
         # pool after cooldown. Under a provider outage the entire pending
         # population migrates into retryable ERROR; a PENDING-only count would
-        # see an empty queue and keep materializing into the outage. Exhausted
-        # ERROR rows are terminal (awaiting the reaper) and excluded.
+        # see an empty queue and keep materializing into the outage. FAILED rows
+        # are terminal (awaiting the reaper) and excluded.
         async with self._db() as session:
             outstanding = (
                 select(1)
                 .select_from(models.EvalWorkUnit)
-                .where(
-                    or_(
-                        models.EvalWorkUnit.status.in_(("PENDING", "RUNNING")),
-                        and_(
-                            models.EvalWorkUnit.status == "ERROR",
-                            models.EvalWorkUnit.attempts < MAX_ATTEMPTS,
-                        ),
-                    )
-                )
+                .where(models.EvalWorkUnit.status.in_(LIVE_EVAL_WORK_STATUSES))
                 .limit(self._max_outstanding)
                 .subquery()
             )
@@ -662,8 +644,7 @@ class OnlineEvalProducer(DaemonTask):
                     models.EvalWorkUnit.span_rowid.in_(batch_span_ids),
                     models.EvalWorkUnit.evaluator_id == project_evaluator.evaluator_id,
                     models.EvalWorkUnit.config_fingerprint == project_evaluator.fingerprint,
-                    models.EvalWorkUnit.status == "EXPIRED",
-                    models.EvalWorkUnit.error == STALE_FINGERPRINT_ERROR,
+                    models.EvalWorkUnit.status == "SUPERSEDED",
                     ~exists(
                         select(1).where(
                             models.SpanAnnotation.span_rowid == models.EvalWorkUnit.span_rowid,

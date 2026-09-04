@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from asyncio import Task, create_task, sleep
 from collections import defaultdict
-from collections.abc import Callable, Iterator
-from contextlib import AbstractAsyncContextManager
+from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Generic, Optional, Protocol, TypeVar, final
@@ -18,6 +19,8 @@ from phoenix.auth import CanReadToken, ClaimSet, Token, TokenAttributes
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import UserRoleName
+
+logger = logging.getLogger(__name__)
 
 
 class CanSetLastUpdatedAt(Protocol):
@@ -84,32 +87,79 @@ class _HasBatch(Generic[_ItemT_contra], ABC):
         self._batch.put(item)
 
 
+DAEMON_STOP_GRACE_SECONDS = 3.0
+DAEMON_CANCEL_TIMEOUT_SECONDS = 10.0
+
+
 class DaemonTask(ABC):
+    """A background loop: ``while self._running: tick; await self._sleep(...)``. Ticks that
+    touch the database run under ``async with self._ticking()``; ``stop()`` waits for those
+    to finish before cancelling."""
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._running = False
         self._tasks: list[Task[None]] = []
+        self._stop_requested: Optional[asyncio.Event] = None
+        self._ticks_in_flight = 0
+        self._idle: Optional[asyncio.Event] = None
 
     async def start(self) -> None:
         self._running = True
+        self._stop_requested = asyncio.Event()
+        self._idle = asyncio.Event()
+        self._idle.set()
         if not self._tasks:
             self._tasks.append(create_task(self._run()))
 
+    @asynccontextmanager
+    async def _ticking(self) -> AsyncIterator[None]:
+        self._ticks_in_flight += 1
+        if self._idle is not None:
+            self._idle.clear()
+        try:
+            yield
+        finally:
+            self._ticks_in_flight -= 1
+            if self._ticks_in_flight == 0 and self._idle is not None:
+                self._idle.set()
+
+    async def _sleep(self, seconds: float) -> None:
+        """Wait between ticks, returning early once ``stop()`` has been requested; a loop
+        that sleeps before its tick re-checks ``self._running`` afterwards."""
+        if self._stop_requested is None or self._stop_requested.is_set():
+            return
+        try:
+            await asyncio.wait_for(self._stop_requested.wait(), timeout=seconds)
+        except asyncio.TimeoutError:
+            pass
+
     async def stop(self) -> None:
         self._running = False
-        # Cancel all tasks in reverse order (most recently spawned first)
+        if self._stop_requested is not None:
+            self._stop_requested.set()
+        if self._idle is not None and not self._idle.is_set():
+            try:
+                await asyncio.wait_for(self._idle.wait(), timeout=DAEMON_STOP_GRACE_SECONDS)
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"{type(self).__name__}: a tick did not finish within "
+                    f"{DAEMON_STOP_GRACE_SECONDS:g}s; cancelling it"
+                )
         for task in reversed(self._tasks):
             if not task.done():
                 task.cancel()
-        # Wait for all tasks concurrently with a single timeout
         if self._tasks:
             try:
                 await asyncio.wait_for(
                     asyncio.gather(*self._tasks, return_exceptions=True),
-                    timeout=10.0,
+                    timeout=DAEMON_CANCEL_TIMEOUT_SECONDS,
                 )
             except asyncio.TimeoutError:
-                pass  # Some tasks didn't respond to cancel in time
+                logger.warning(
+                    f"{type(self).__name__}: {len(self._tasks)} task(s) did not stop within "
+                    f"{DAEMON_CANCEL_TIMEOUT_SECONDS:g}s of cancellation"
+                )
         self._tasks.clear()
 
     async def __aenter__(self) -> None:
@@ -133,14 +183,11 @@ class BatchedCaller(DaemonTask, _HasBatch[_AnyT], Generic[_AnyT], ABC):
 
     async def _run(self) -> None:
         while self._running:
-            self._tasks.append(create_task(sleep(self._seconds)))
-            await self._tasks[-1]
-            self._tasks.pop()
+            await sleep(self._seconds)
             if self._batch.empty:
                 continue
-            self._tasks.append(create_task(self()))
-            await self._tasks[-1]
-            self._tasks.pop()
+            async with self._ticking():
+                await self()
             self._batch.clear()
 
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass
@@ -16,7 +15,6 @@ from sqlalchemy import (
     Insert,
     Integer,
     String,
-    and_,
     any_,
     bindparam,
     cast,
@@ -42,6 +40,7 @@ from typing_extensions import assert_never
 from phoenix.config import get_env_enable_prometheus, get_env_online_eval_max_session_outstanding
 from phoenix.db import models
 from phoenix.db.eval_work import (
+    LIVE_EVAL_WORK_STATUSES,
     SESSION_DECLINED_STATUSES,
     live_eval_session_work_index_predicate,
 )
@@ -49,8 +48,6 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
-    MAX_ATTEMPTS,
-    STALE_FINGERPRINT_ERROR,
     config_fingerprint,
     sample_key,
 )
@@ -170,14 +167,7 @@ def _live_work_exists(project_evaluator_relation: Subquery) -> ColumnElement[boo
             live_work.project_session_rowid == models.ProjectSession.id,
             live_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             live_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
-            or_(
-                live_work.status.in_(("PENDING", "RUNNING")),
-                live_work.status.in_(SESSION_DECLINED_STATUSES),
-                and_(
-                    live_work.status == "ERROR",
-                    live_work.attempts < MAX_ATTEMPTS,
-                ),
-            ),
+            live_work.status.in_((*LIVE_EVAL_WORK_STATUSES, *SESSION_DECLINED_STATUSES)),
         )
         .correlate(models.ProjectSession, project_evaluator_relation)
         .exists()
@@ -199,20 +189,8 @@ def _eligible_pairs_statement(
             terminal_work.project_session_rowid == models.ProjectSession.id,
             terminal_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             terminal_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
-            or_(
-                terminal_work.status == "DONE",
-                terminal_work.status.in_(SESSION_DECLINED_STATUSES),
-                and_(
-                    terminal_work.status == "EXPIRED",
-                    or_(
-                        terminal_work.error.is_(None),
-                        terminal_work.error != STALE_FINGERPRINT_ERROR,
-                    ),
-                ),
-                and_(
-                    terminal_work.status == "ERROR",
-                    terminal_work.attempts >= MAX_ATTEMPTS,
-                ),
+            terminal_work.status.in_(
+                ("DONE", "FAILED", "EXPIRED", "CONTENT_LOST", *SESSION_DECLINED_STATUSES)
             ),
         )
         .correlate(models.ProjectSession, project_evaluator_relation)
@@ -369,10 +347,11 @@ class SessionEvalSweeper(DaemonTask):
         try:
             while self._running:
                 try:
-                    await self._tick()
+                    async with self._ticking():
+                        await self._tick()
                 except Exception:
                     logger.exception("Session evaluation sweep failed")
-                await asyncio.sleep(self._tick_interval_seconds)
+                await self._sleep(self._tick_interval_seconds)
         finally:
             await self._release_lease()
 
@@ -740,15 +719,7 @@ class SessionEvalSweeper(DaemonTask):
         outstanding = (
             select(1)
             .select_from(models.EvalSessionWorkUnit)
-            .where(
-                or_(
-                    models.EvalSessionWorkUnit.status.in_(("PENDING", "RUNNING")),
-                    and_(
-                        models.EvalSessionWorkUnit.status == "ERROR",
-                        models.EvalSessionWorkUnit.attempts < MAX_ATTEMPTS,
-                    ),
-                )
-            )
+            .where(models.EvalSessionWorkUnit.status.in_(LIVE_EVAL_WORK_STATUSES))
             .limit(self._max_outstanding)
             .subquery()
         )

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from asyncio import sleep
 from collections import deque
 from datetime import datetime
 from typing import Any, Mapping, NamedTuple, Optional
@@ -43,10 +42,11 @@ class SpanCostCalculator(DaemonTask):
         while self._running:
             num_items_to_insert = min(self._max_items_per_transaction, len(self._queue))
             try:
-                await self._insert_costs(num_items_to_insert)
+                async with self._ticking():
+                    await self._insert_costs(num_items_to_insert)
             except Exception as e:
                 logger.exception(f"Failed to insert costs: {e}")
-            await sleep(self._SLEEP_INTERVAL)
+            await self._sleep(self._SLEEP_INTERVAL)
 
     async def _insert_costs(self, num_items_to_insert: int) -> None:
         if not num_items_to_insert or not self._queue:

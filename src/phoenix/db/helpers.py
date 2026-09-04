@@ -34,7 +34,7 @@ from phoenix.config import (
     get_env_database_schema,
 )
 from phoenix.db import models
-from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
+from phoenix.db.eval_work import LIVE_EVAL_WORK_STATUSES, SESSION_CONTENT_INCOMPLETE_ERROR
 
 SupportedSQLDialectName = Literal["postgresql", "sqlite"]
 
@@ -739,10 +739,10 @@ async def mark_session_content_incomplete(
         sa.update(models.EvalSessionWorkUnit)
         .where(
             models.EvalSessionWorkUnit.project_session_rowid.in_(session_rowids),
-            models.EvalSessionWorkUnit.status.in_(("PENDING", "RUNNING", "ERROR")),
+            models.EvalSessionWorkUnit.status.in_(LIVE_EVAL_WORK_STATUSES),
         )
         .values(
-            status="EXPIRED",
+            status="CONTENT_LOST",
             claimed_at=None,
             claimed_by=None,
             cooldown_until=None,
