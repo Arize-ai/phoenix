@@ -164,10 +164,6 @@ class OnlineEvalProducer(DaemonTask):
                     logger.exception("Online-eval producer tick failed")
                 await asyncio.sleep(self._tick_interval_seconds)
         finally:
-            # Shielded so the second cancellation the daemon's stop timeout issues does
-            # not abandon the release's open session and leave the lease held until its
-            # TTL lapses, and awaited on that cancellation so the release finishes here
-            # rather than as an orphan nothing is waiting on.
             release = asyncio.ensure_future(self._release_lease())
             try:
                 await asyncio.shield(release)
