@@ -1,5 +1,6 @@
 import base64
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -7,6 +8,7 @@ import pytest
 from phoenix.db.types.model_provider import (
     AnthropicCustomProviderConfig,
     AzureOpenAICustomProviderConfig,
+    ModelProvider,
     OpenAICustomProviderConfig,
 )
 from phoenix.server.agents.exceptions import (
@@ -39,9 +41,8 @@ class TestBuildModel:
             model_name="gpt-4o-mini",
         )
 
-        async with db() as session:
-            with pytest.raises(ProviderNotFoundError) as exc_info:
-                await build_model(params, session=session, decrypt=lambda value: value)
+        with pytest.raises(ProviderNotFoundError) as exc_info:
+            await build_model(params, db=db, decrypt=lambda value: value)
 
         assert exc_info.value.status_code == 404
         assert str(exc_info.value) == "Custom provider not found."
@@ -59,12 +60,28 @@ class TestBuildModel:
             model_name="gpt-4o-mini",
         )
 
-        async with db() as session:
-            with pytest.raises(ProviderCredentialsError) as exc_info:
-                await build_model(params, session=session, decrypt=lambda value: value)
+        with pytest.raises(ProviderCredentialsError) as exc_info:
+            await build_model(params, db=db, decrypt=lambda value: value)
 
         assert exc_info.value.status_code == 400
         assert "OPENAI_API_KEY" in str(exc_info.value)
+
+    async def test_builtin_minimax_uses_configured_endpoint(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+        monkeypatch.setenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1")
+        params = BuiltInProviderModelSelection(
+            provider_type="builtin",
+            provider=ModelProvider.MINIMAX,
+            model_name="MiniMax-M3",
+        )
+
+        model = await build_model(params, db=db, decrypt=lambda value: value)
+
+        assert str(cast(Any, model)._provider.client.base_url) == "https://api.minimaxi.com/v1/"
 
 
 class TestCustomProviderModels:
@@ -110,6 +127,11 @@ class TestCustomProviderModels:
             def __init__(self, **kwargs: Any) -> None:
                 self.kwargs = kwargs
                 self.base_url = kwargs.get("base_url", "https://example.test/v1")
+                # pydantic-ai reads the resource attribute matching the model class
+                # while constructing the model, so a stand-in client must expose the
+                # attribute for every ``openai_api_type`` under test.
+                self.chat = SimpleNamespace(completions=object())
+                self.responses = object()
 
         monkeypatch.setattr(openai, "AsyncOpenAI", DummyAsyncOpenAI)
 
@@ -194,9 +216,8 @@ class TestSecretResolutionErrorTranslation:
         def _decrypt_fails(_: bytes) -> bytes:
             raise ValueError("decrypt failed")
 
-        async with db() as session:
-            with pytest.raises(ProviderConfigError) as exc_info:
-                await build_model(params, session=session, decrypt=_decrypt_fails)
+        with pytest.raises(ProviderConfigError) as exc_info:
+            await build_model(params, db=db, decrypt=_decrypt_fails)
 
         assert exc_info.value.status_code == 400
         assert "OPENAI_API_KEY" in str(exc_info.value)

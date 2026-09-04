@@ -190,6 +190,7 @@ async def test_span_fields(
           timestamp
         }
         metadata
+        userId
         numDocuments
         numChildSpans
         descendants(maxDepth: 3) {
@@ -294,6 +295,7 @@ async def test_span_fields(
             assert json.loads(span["metadata"]) == db_span.metadata_
         else:
             assert not span["metadata"]
+        assert span["userId"] == db_span.user_id
         assert span["numDocuments"] == db_span.num_documents
         if num_child_spans := db_num_child_spans.get(span_rowid):
             assert span["numChildSpans"] == num_child_spans
@@ -400,6 +402,8 @@ async def _span_data(
                         ).value
                 if random() < 0.5:
                     attributes["metadata"] = fake.pydict(allowed_types=(str, int, float, bool))
+                if random() < 0.5:
+                    attributes["user"] = {"id": token_hex(8)}
                 if random() < 0.5:
                     attributes["retrieval"] = {"documents": []}
                     for _ in range(randint(1, 10)):
@@ -890,6 +894,76 @@ async def spans_with_annotations(
 
         # Add all annotations to the session
         session.add_all(hallucination_annotations + relevance_annotations)
+
+
+@pytest.fixture
+async def _span_with_invalid_mime_type(db: DbSessionFactory) -> int:
+    """A span whose stored input/output mime types are invalid ("plain/text")."""
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name=token_hex(8)).returning(models.Project.id)
+        )
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id=token_hex(16),
+                project_rowid=project_rowid,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        span_rowid = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id=token_hex(8),
+                parent_id=None,
+                name="span-with-bad-mime-type",
+                span_kind="CHAIN",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
+                attributes={
+                    "input": {"value": "the-input-value", "mime_type": "plain/text"},
+                    "output": {"value": "the-output-value", "mime_type": "plain/text"},
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+    assert span_rowid is not None
+    return span_rowid
+
+
+async def test_span_with_invalid_mime_type_does_not_crash(
+    gql_client: AsyncGraphQLClient,
+    _span_with_invalid_mime_type: int,
+) -> None:
+    """Regression for #14762: an invalid stored mime type must not crash the resolver."""
+    query = """
+      query ($spanId: ID!) {
+        span: node(id: $spanId) {
+          ... on Span {
+            input { mimeType value }
+            output { mimeType value }
+          }
+        }
+      }
+    """
+    span_id = str(GlobalID(Span.__name__, str(_span_with_invalid_mime_type)))
+    response = await gql_client.execute(query=query, variables={"spanId": span_id})
+    assert not response.errors
+    assert (data := response.data) is not None
+    span = data["span"]
+    assert span["input"]["mimeType"] == "text"
+    assert span["input"]["value"] == "the-input-value"
+    assert span["output"]["mimeType"] == "text"
+    assert span["output"]["value"] == "the-output-value"
 
 
 async def test_as_example_revision_with_annotations(

@@ -24,12 +24,12 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
 from phoenix.client.helpers.sdk.anthropic.messages import (
     to_chat_messages_and_kwargs as to_messages_anthropic,
 )
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
-    GoogleModelKwargs,
-    create_prompt_version_from_google,
+from phoenix.client.helpers.sdk.google_genai.generate_content import (
+    GoogleGenAIModelKwargs,
+    create_prompt_version_from_google_genai,
 )
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
-    to_chat_messages_and_kwargs as to_messages_google,
+from phoenix.client.helpers.sdk.google_genai.generate_content import (
+    to_chat_messages_and_kwargs as to_messages_google_genai,
 )
 from phoenix.client.helpers.sdk.openai.chat import (
     OpenAIChatCompletionModelKwargs,
@@ -43,7 +43,7 @@ from phoenix.client.utils.template_formatters import TemplateFormatter
 if TYPE_CHECKING:
     from anthropic.types import MessageParam
     from anthropic.types.message_create_params import MessageCreateParamsBase
-    from google.generativeai import protos
+    from google.genai import types as genai_types
     from openai.types.chat import ChatCompletionMessageParam
     from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 
@@ -73,8 +73,10 @@ class PromptVersion:
             "FIREWORKS",
             "GROQ",
             "MOONSHOT",
+            "MINIMAX",
             "PERPLEXITY",
             "TOGETHER",
+            "ZAI",
         ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
@@ -109,8 +111,10 @@ class PromptVersion:
             "FIREWORKS",
             "GROQ",
             "MOONSHOT",
+            "MINIMAX",
             "PERPLEXITY",
             "TOGETHER",
+            "ZAI",
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
@@ -129,6 +133,7 @@ class PromptVersion:
             v1.PromptMoonshotInvocationParameters,
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
+            v1.PromptZAIInvocationParameters,
         ]
         if model_provider == "OPENAI":
             self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
@@ -192,6 +197,11 @@ class PromptVersion:
                 type="moonshot",
                 moonshot=v1.PromptMoonshotInvocationParametersContent(),
             )
+        elif model_provider == "MINIMAX":
+            self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=v1.PromptOpenAIInvocationParametersContent(),
+            )
         elif model_provider == "PERPLEXITY":
             self._invocation_parameters = v1.PromptPerplexityInvocationParameters(
                 type="perplexity",
@@ -201,6 +211,11 @@ class PromptVersion:
             self._invocation_parameters = v1.PromptTogetherInvocationParameters(
                 type="together",
                 together=v1.PromptTogetherInvocationParametersContent(),
+            )
+        elif model_provider == "ZAI":
+            self._invocation_parameters = v1.PromptZAIInvocationParameters(
+                type="zai",
+                zai=v1.PromptZAIInvocationParametersContent(),
             )
         else:
             assert_never(model_provider)
@@ -214,6 +229,7 @@ class PromptVersion:
             "format",
             "from_openai",
             "from_anthropic",
+            "from_google_genai",
         ]
 
     @property
@@ -261,9 +277,9 @@ class PromptVersion:
                     formatter=formatter,
                 )
             )
-        if sdk == "google_generativeai":
-            return GoogleGenerativeaiPrompt(
-                *to_messages_google(
+        if sdk == "google_genai":
+            return GoogleGenAIPrompt(
+                *to_messages_google_genai(
                     obj,
                     variables=variables,
                     formatter=formatter,
@@ -395,18 +411,38 @@ class PromptVersion:
         )
 
     @classmethod
-    def from_google_generativeai(
+    def from_google_genai(
         cls,
-        obj: Any,
+        model: str,
+        contents: Sequence[genai_types.Content],
         /,
         *,
+        config: Optional[
+            Union[genai_types.GenerateContentConfig, genai_types.GenerateContentConfigDict]
+        ] = None,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
         model_provider: Literal["GOOGLE"] = "GOOGLE",
     ) -> Self:
+        """
+        Creates a prompt version from Google GenAI ``generate_content`` parameters.
+
+        Args:
+            model: The Google model name.
+            contents: The content sequence passed to ``generate_content``.
+            config: Optional Google GenAI generation configuration.
+            template_format: The format of the template to use. Defaults to ``"MUSTACHE"``.
+            description: An optional prompt description.
+            model_provider: The model provider. Defaults to ``"GOOGLE"``.
+
+        Returns:
+            PromptVersion: The prompt version.
+        """
         return cls._loads(
-            create_prompt_version_from_google(
-                obj,
+            create_prompt_version_from_google_genai(
+                model,
+                contents,
+                config=config,
                 description=description,
                 template_format=template_format,
                 model_provider=model_provider,
@@ -464,14 +500,24 @@ class AnthropicPrompt(_FormattedPrompt):
 
 
 @dataclass(frozen=True)
-class GoogleGenerativeaiPrompt(_FormattedPrompt):
-    messages: Sequence[protos.Content]
-    kwargs: GoogleModelKwargs
+class GoogleGenAIPrompt(_FormattedPrompt):
+    """
+    Represents a formatted prompt for the Google GenAI SDK (google-genai).
+
+    Attributes:
+        messages (Sequence[genai_types.Content]): A sequence of content messages
+            to pass as ``contents`` to ``client.models.generate_content``.
+        kwargs (GoogleGenAIModelKwargs): Keyword arguments (``model`` and ``config``)
+            for ``client.models.generate_content``.
+    """
+
+    messages: Sequence[genai_types.Content]
+    kwargs: GoogleGenAIModelKwargs
 
 
 SDK: TypeAlias = Literal[
     "anthropic",  # https://pypi.org/project/anthropic/
-    "google_generativeai",  # https://pypi.org/project/google-generativeai/
+    "google_genai",  # https://pypi.org/project/google-genai/
     "openai",  # https://pypi.org/project/openai/
     "boto3",  # https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
 ]
@@ -491,8 +537,10 @@ def _to_sdk(
         "FIREWORKS",
         "GROQ",
         "MOONSHOT",
+        "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
+        "ZAI",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -502,7 +550,7 @@ def _to_sdk(
     if model_provider == "ANTHROPIC":
         return "anthropic"
     if model_provider == "GOOGLE":
-        return "google_generativeai"
+        return "google_genai"
     if model_provider == "DEEPSEEK":
         return "openai"
     if model_provider == "XAI":
@@ -519,8 +567,12 @@ def _to_sdk(
         return "openai"
     if model_provider == "MOONSHOT":
         return "openai"
+    if model_provider == "MINIMAX":
+        return "openai"
     if model_provider == "PERPLEXITY":
         return "openai"
     if model_provider == "TOGETHER":
+        return "openai"
+    if model_provider == "ZAI":
         return "openai"
     assert_never(model_provider)

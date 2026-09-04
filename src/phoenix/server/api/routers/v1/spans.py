@@ -24,6 +24,7 @@ from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.routers.v1.validators import validate_enum_filter
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import (
@@ -151,11 +152,31 @@ class SpanQuery(V1RoutesBaseModel):
 
 class QuerySpansRequestBody(V1RoutesBaseModel):
     queries: list[SpanQuery]
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    start_time: Optional[IsoDatetime] = None
+    end_time: Optional[IsoDatetime] = None
     limit: int = DEFAULT_SPAN_LIMIT
-    root_spans_only: Optional[bool] = None
-    orphan_span_as_root_span: bool = True
+    root_spans_only: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Restrict the results to root spans. "
+            "This parameter has been deprecated, express root-span scoping in the query's "
+            "filter condition instead: `parent_span is None` matches root spans including "
+            "orphans (spans whose parent is absent), and `parent_id is None` matches only "
+            "spans with no parent id. Putting it in the filter keeps the whole query in one "
+            "expression that can be composed with other clauses."
+        ),
+        deprecated=True,
+    )
+    orphan_span_as_root_span: bool = Field(
+        default=True,
+        description=(
+            "Whether an orphan span (one whose parent is absent) counts as a root span. "
+            "This parameter has been deprecated along with `root_spans_only`; choose the "
+            "behavior with the filter condition instead — `parent_span is None` treats "
+            "orphans as roots, `parent_id is None` does not."
+        ),
+        deprecated=True,
+    )
     project_name: Optional[str] = Field(
         default=None,
         description=(
@@ -164,7 +185,7 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
         ),
         deprecated=True,
     )
-    stop_time: Optional[datetime] = Field(
+    stop_time: Optional[IsoDatetime] = Field(
         default=None,
         description=(
             "An upper bound on the time to query for. "
@@ -500,7 +521,7 @@ class SpanContext(V1RoutesBaseModel):
 
 class SpanEvent(V1RoutesBaseModel):
     name: str = Field(description="Name of the event")
-    timestamp: datetime = Field(description="When the event occurred (must be timezone-aware)")
+    timestamp: IsoDatetime = Field(description="When the event occurred (must be timezone-aware)")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Event attributes")
 
     model_config = ConfigDict(
@@ -535,8 +556,8 @@ class Span(V1RoutesBaseModel):
     parent_id: Optional[str] = Field(
         default=None, description="OpenTelemetry span ID of the parent span"
     )
-    start_time: datetime = Field(description="Start time of the span (must be timezone-aware)")
-    end_time: datetime = Field(description="End time of the span (must be timezone-aware)")
+    start_time: IsoDatetime = Field(description="Start time of the span (must be timezone-aware)")
+    end_time: IsoDatetime = Field(description="End time of the span (must be timezone-aware)")
     status_code: str = Field(description="Status code of the span")
     status_message: str = Field(default="", description="Status message")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Span attributes")
@@ -740,6 +761,10 @@ async def span_search_otlpv1(
         default=None,
         description="Filter by one or more trace IDs",
     ),
+    span_id: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by one or more span IDs",
+    ),
     parent_id: Optional[str] = Query(
         default=None,
         description='Filter by parent span ID. Use "null" to get root spans only.',
@@ -781,6 +806,8 @@ async def span_search_otlpv1(
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
     if trace_id:
         stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
+    if span_id:
+        stmt = stmt.where(models.Span.span_id.in_(span_id))
     if parent_id is not None:
         if parent_id == "null":
             stmt = stmt.where(models.Span.parent_id.is_(None))
@@ -917,6 +944,10 @@ async def span_search(
         default=None,
         description="Filter by one or more trace IDs",
     ),
+    span_id: Optional[list[str]] = Query(
+        default=None,
+        description="Filter by one or more span IDs",
+    ),
     parent_id: Optional[str] = Query(
         default=None,
         description='Filter by parent span ID. Use "null" to get root spans only.',
@@ -963,6 +994,8 @@ async def span_search(
         stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
     if trace_id:
         stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
+    if span_id:
+        stmt = stmt.where(models.Span.span_id.in_(span_id))
     if parent_id is not None:
         if parent_id == "null":
             stmt = stmt.where(models.Span.parent_id.is_(None))

@@ -1,0 +1,515 @@
+"""In-process MCP server generated from Phoenix's REST API.
+
+This builds a `FastMCP` server whose tools mirror every ``/v1`` REST endpoint and
+returns an ASGI app that ``create_app`` mounts at :data:`MCP_MOUNT_PATH`. Tool
+calls are dispatched back into the Phoenix FastAPI app in-process via an ASGI
+transport (no network hop), so they pass through the same middleware stack that
+guards the REST API. Because the tool surface is derived from the OpenAPI schema,
+it stays in sync with the REST API automatically.
+
+The internal dispatch does not replay the caller's bearer token. The MCP request
+was already authenticated at the mount (``BearerAuthGuard``), so the dispatch
+carries that authenticated principal directly in the internal request's ASGI
+scope (see :class:`_InternalIdentityDispatch`), where ``BearerTokenAuthBackend``
+recognizes it. This keeps the caller's token spendable only where it was
+presented — a prerequisite for enforcing RFC 8707 audience at ``/v1``, since no
+legitimate ``/v1`` traffic carries an ``/mcp``-audience token.
+
+Advertising one tool per ``/v1`` operation degrades tool selection and wastes
+context at this API's size. Code mode is the answer: it replaces the
+per-endpoint surface with a few discovery tools plus a sandboxed ``execute``, so
+the catalog a model reads stays small however many endpoints exist. It is the
+default for both consumers. With code mode off, every ``/v1`` operation is
+advertised as its own tool.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, Optional
+
+import httpx2
+from fastapi import HTTPException
+from fastmcp import Context, FastMCP
+from fastmcp.experimental.transforms.code_mode import (
+    CodeMode,
+    GetSchemas,
+    GetTags,
+    GetToolCatalog,
+    ListTools,
+    Search,
+)
+from fastmcp.server.dependencies import get_http_request
+from fastmcp.server.providers.openapi import MCPType, RouteMap
+from fastmcp.tools.base import Tool
+from mcp_types import ToolAnnotations
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
+
+from phoenix.config import get_env_mcp_code_mode
+from phoenix.server.bearer_auth import (
+    INTERNAL_PRINCIPAL_SCOPE_KEY,
+    PhoenixUser,
+    authenticated_claims,
+    get_bound_principal,
+    token_audience_permits,
+)
+from phoenix.server.mcp.skills import (
+    SKILL_TOOLS_TAG,
+    get_skill_instructions,
+    load_skills,
+    register_skill_tools,
+)
+from phoenix.server.mcp_code_mode import MontyPoolSandboxProvider
+from phoenix.server.oauth2_authorization_server import public_origin
+from phoenix.server.utils import prepend_root_path
+from phoenix.version import __version__ as phoenix_version
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
+    from fastmcp.server.http import StarletteWithLifespan
+    from starlette.types import ASGIApp, Receive, Scope, Send
+
+    from phoenix.server.monty_runtime import MontyConsumer, MontyRuntime
+    from phoenix.server.types import DbSessionFactory
+
+#: Path the MCP ASGI app is mounted at on the Phoenix FastAPI app.
+MCP_MOUNT_PATH = "/mcp"
+
+# Tools dispatch back into the Phoenix app via an ASGI transport, so this host is
+# never resolved over the network; it only supplies a syntactically valid base URL.
+_INTERNAL_BASE_URL = "http://phoenix-mcp.internal"
+
+# A tool caller here is a non-deterministic model that can be steered by the data it
+# reads, so the safety of a call cannot live in the model's judgement. It has to be
+# legible to the *client*, which can then auto-approve harmless reads and require
+# confirmation before state changes. Tool annotations carry exactly that signal, so we
+# derive them from REST semantics: GET only reads; POST adds a new entity; PUT/PATCH
+# modify an existing one; DELETE removes one. Every /v1 operation acts on Phoenix's own
+# datastore, so none of them reach an "open world" of arbitrary external systems.
+_ANNOTATIONS_BY_METHOD: dict[str, ToolAnnotations] = {
+    "GET": ToolAnnotations(
+        read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
+    ),
+    "POST": ToolAnnotations(
+        read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False
+    ),
+    "PUT": ToolAnnotations(
+        read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False
+    ),
+    "PATCH": ToolAnnotations(
+        read_only_hint=False, destructive_hint=True, idempotent_hint=False, open_world_hint=False
+    ),
+    "DELETE": ToolAnnotations(
+        read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False
+    ),
+}
+
+# An unrecognized verb is treated as the worst case — possibly mutating — so a client
+# confirms rather than silently auto-approving something we could not classify.
+_DEFAULT_ANNOTATIONS = ToolAnnotations(
+    read_only_hint=False, destructive_hint=True, open_world_hint=False
+)
+
+# Tools that read or describe rather than mutate, so a client may auto-approve
+# them: code-mode discovery, and the analytics SQL tools.
+_META_ANNOTATIONS = ToolAnnotations(
+    read_only_hint=True, destructive_hint=False, open_world_hint=False
+)
+
+
+_DOCSTRING_SECTION = re.compile(
+    r"\n\s*(?:Args|Arguments|Parameters|Returns|Raises|Yields|Example[s]?|Note[s]?)\s*:",
+)
+
+
+def _agent_facing_description(route: Any, component: Any) -> Optional[str]:
+    """A concise, agent-facing description for a generated tool.
+
+    FastMCP builds the tool description from the OpenAPI ``description`` (the endpoint
+    docstring) in preference to the ``summary``. Docstrings here are written for human
+    API consumers: they carry ``Args:``/``Returns:`` sections and source indentation
+    that are noise on a tool surface an agent pays for by the token. Prefer the route's
+    curated one-line ``summary``; when absent, fall back to the first paragraph of the
+    docstring with structured sections and indentation stripped.
+    """
+    summary = (getattr(route, "summary", "") or "").strip()
+    if summary:
+        return summary
+    description = getattr(component, "description", None)
+    if not description:
+        return None
+    lead = _DOCSTRING_SECTION.split(description, maxsplit=1)[0]
+    paragraph = lead.strip().split("\n\n", 1)[0]
+    collapsed = " ".join(line.strip() for line in paragraph.splitlines() if line.strip())
+    return collapsed or None
+
+
+def _strip_schema_titles(node: Any) -> None:
+    """Recursively remove auto-generated ``title`` keys from a JSON schema.
+
+    Pydantic stamps a ``title`` on every field (``"Sync"`` for ``sync``) that only
+    repeats the property name. They outnumber the descriptions an agent actually
+    needs by more than an order of magnitude, so across a catalog they dominate the
+    schema it must read. Types, enums, descriptions, and required markers are
+    preserved.
+    """
+    if isinstance(node, dict):
+        node.pop("title", None)
+        for value in node.values():
+            _strip_schema_titles(value)
+    elif isinstance(node, list):
+        for item in node:
+            _strip_schema_titles(item)
+
+
+def _annotate_from_rest_method(route: Any, component: Any) -> None:
+    """Shape each generated tool for an agent audience.
+
+    ``from_openapi`` calls this for every component it generates. All of the shaping is
+    confined to the MCP surface; the human REST docs are untouched.
+
+    1. Stamp read/destructive hints from the HTTP verb, so a destructive ``DELETE``
+       does not look identical to a harmless ``GET`` to the client.
+    2. Replace the docstring-derived description with a concise, agent-facing one drawn
+       from the route summary (see :func:`_agent_facing_description`).
+    3. Strip auto-generated Pydantic ``title`` noise from the input and output schemas.
+    """
+    if not hasattr(component, "annotations"):
+        return
+    method = str(getattr(route, "method", "")).upper()
+    component.annotations = _ANNOTATIONS_BY_METHOD.get(method, _DEFAULT_ANNOTATIONS)
+
+    if (description := _agent_facing_description(route, component)) is not None:
+        component.description = description
+
+    if isinstance(getattr(component, "parameters", None), dict):
+        _strip_schema_titles(component.parameters)
+    if isinstance(getattr(component, "output_schema", None), dict):
+        _strip_schema_titles(component.output_schema)
+
+
+def _current_mcp_principal() -> Optional[PhoenixUser]:
+    """The authenticated user of the MCP request currently being served, if any.
+
+    ``scope["user"]`` is populated by the outer ``AuthenticationMiddleware`` and
+    verified by ``BearerAuthGuard`` before any tool runs; ``get_http_request``
+    resolves that request from ambient context at dispatch time. A request
+    carrying a ``PhoenixUser`` yields that user, so a live authenticated request
+    always takes precedence over any binding.
+
+    In-process callers have no request at all — ``get_http_request`` raises — and
+    state their principal through ``bind_principal``, which is consulted only on
+    that path.
+
+    Every other case returns None. Authentication being disabled lands here,
+    because no middleware runs to populate the scope. So does a background task:
+    ``get_http_request`` does not raise there, it returns a synthetic request
+    built from snapshotted headers, and that request carries no principal.
+    """
+    try:
+        request = get_http_request()
+    except RuntimeError:
+        return get_bound_principal()
+    user = request.scope.get("user")
+    return user if isinstance(user, PhoenixUser) else None
+
+
+class _InternalIdentityDispatch:
+    """ASGI wrapper for the in-process MCP→/v1 hop: identity, not token replay.
+
+    Tool calls dispatch into ``/v1`` as new requests, which must authenticate.
+    Replaying the caller's bearer token would satisfy that, but dishonestly: the
+    token's audience is ``/mcp``, and ``/v1`` would be accepting it as if the
+    user's own client had presented it there — which forecloses ever enforcing
+    audience at ``/v1``. Instead, the already-authenticated principal is placed
+    directly in the internal request's ASGI scope, where
+    ``BearerTokenAuthBackend`` accepts it. The scope is the right carrier because
+    it is unforgeable from outside: external requests choose their headers, never
+    their scope keys. The internal request itself carries no Authorization header
+    (``get_http_headers`` strips it, and nothing re-adds it).
+
+    Each MCP HTTP request re-authenticates at the mount, so the principal a tool
+    call runs under is exactly as fresh as the borrowed token would have been.
+    """
+
+    def __init__(self, app: "ASGIApp") -> None:
+        self._app = app
+
+    async def __call__(self, scope: "Scope", receive: "Receive", send: "Send") -> None:
+        if scope["type"] == "http" and (principal := _current_mcp_principal()) is not None:
+            scope = {**scope, INTERNAL_PRINCIPAL_SCOPE_KEY: principal}
+        await self._app(scope, receive, send)
+
+
+def _read_only(
+    factory: "Callable[[GetToolCatalog], Tool]",
+) -> "Callable[[GetToolCatalog], Tool]":
+    """Stamp read-only annotations on a code-mode discovery tool.
+
+    The built-in discovery factories return unannotated tools; unannotated reads
+    look identical to mutations, so a client cannot safely auto-approve them (the
+    same legibility principle as ``_annotate_from_rest_method``).
+    """
+
+    def build(get_catalog: "GetToolCatalog") -> Tool:
+        tool = factory(get_catalog)
+        tool.annotations = _META_ANNOTATIONS
+        return tool
+
+    return build
+
+
+class _CodeModeWithDirectSkillTools(CodeMode):
+    """Code mode that leaves the skill tools on ``tools/list`` but hides them from inside code mode.
+
+    Upstream has no affordance for this; see
+    https://github.com/PrefectHQ/fastmcp/issues/4925.
+    """
+
+    async def transform_tools(self, tools: "Sequence[Tool]") -> "Sequence[Tool]":
+        """The ``tools/list`` response."""
+        direct = [tool for tool in tools if SKILL_TOOLS_TAG in tool.tags]
+        return [*await super().transform_tools(tools), *direct]
+
+    async def get_tool_catalog(
+        self, ctx: Context, *, run_middleware: bool = True
+    ) -> "Sequence[Tool]":
+        """The catalog ``search``/``list_tools``/``execute`` see."""
+        catalog = await super().get_tool_catalog(ctx, run_middleware=run_middleware)
+        return [tool for tool in catalog if SKILL_TOOLS_TAG not in tool.tags]
+
+
+def _build_code_mode(
+    runtime: "MontyRuntime", consumer: "MontyConsumer"
+) -> tuple[CodeMode, MontyPoolSandboxProvider]:
+    """Code-mode tool surface: discovery meta-tools plus a sandboxed ``execute``.
+
+    Clients see ``search``/``get_schema``/``tags``/``list_tools`` for discovery and
+    an ``execute`` tool that runs LLM-written Python in a pydantic-monty sandbox
+    where ``call_tool(name, params)`` is the only function in scope. ``tags``
+    browses the REST router tags, so a model can narrow the catalog by domain
+    before reading schemas. ``execute`` is deliberately left unannotated:
+    it can invoke mutating tools, and an unannotated tool is treated as
+    possibly-destructive by clients, which is the correct default.
+
+    Guest code runs in sandbox worker subprocesses rather than in this process,
+    because a guest program can fault the native interpreter in ways no
+    ``try``/``except`` can catch — an in-process sandbox turns that into the death
+    of the whole server. The provider adapts the application-owned shared Monty
+    runtime to FastMCP's sandbox interface.
+
+    Returns:
+        The transform to install and its FastMCP sandbox adapter.
+    """
+    sandbox_provider = MontyPoolSandboxProvider(runtime=runtime, consumer=consumer)
+    return (
+        _CodeModeWithDirectSkillTools(
+            discovery_tools=[
+                _read_only(Search()),
+                _read_only(GetSchemas()),
+                _read_only(GetTags()),
+                _read_only(ListTools()),
+            ],
+            sandbox_provider=sandbox_provider,
+        ),
+        sandbox_provider,
+    )
+
+
+#: Well-known path (RFC 9728 path-inserted form) serving the protected-resource
+#: metadata for the MCP endpoint. Served by ``auth_md.py``; referenced here so the
+#: 401 challenge and the metadata route cannot point at different documents.
+MCP_PROTECTED_RESOURCE_METADATA_PATH = f"/.well-known/oauth-protected-resource{MCP_MOUNT_PATH}"
+
+
+class MountPathNormalizer:
+    """Pure-ASGI middleware that rewrites the bare mount path to the mount root.
+
+    Starlette's ``Mount("/mcp")`` matches ``/mcp/...`` but not ``/mcp`` itself, and
+    what falls through is swallowed by the SPA catch-all mounted at ``/`` (index.html
+    for GET, 405 for POST) — yet ``<origin>/mcp`` is exactly the URL an MCP client is
+    configured with. Rewriting the path (rather than redirecting) keeps single-request
+    semantics for clients that do not follow redirects.
+
+    The comparison must account for the deployment root path: when the reverse
+    proxy forwards the prefix (``PHOENIX_HOST_ROOT_PATH=/phoenix``), the scope
+    path for the bare mount is ``/phoenix/mcp``, not ``/mcp``.
+    """
+
+    def __init__(self, app: "ASGIApp") -> None:
+        self._app = app
+
+    async def __call__(self, scope: "Scope", receive: "Receive", send: "Send") -> None:
+        if scope["type"] == "http" and scope.get("path") == prepend_root_path(
+            scope, MCP_MOUNT_PATH
+        ):
+            path = f"{scope['path']}/"
+            scope = {**scope, "path": path, "raw_path": path.encode()}
+        await self._app(scope, receive, send)
+
+
+class BearerAuthGuard:
+    """ASGI wrapper that makes the mounted MCP app challenge unauthenticated callers.
+
+    MCP clients bootstrap their entire OAuth flow from one signal: an HTTP 401 whose
+    ``WWW-Authenticate`` header names the protected-resource metadata URL (RFC 9728).
+    Phoenix enforces auth on ``/v1`` through a router dependency, which a mounted ASGI
+    app never passes through — without this guard an unauthenticated ``initialize``
+    succeeds and the failure surfaces only later, as opaque tool errors, so a client
+    never learns it should run the OAuth flow.
+
+    Only enforcement lives here: ``scope["user"]`` is already populated by the outer
+    ``AuthenticationMiddleware`` (Starlette middleware wraps mounted apps), so the
+    guard must only be installed when that middleware is — it delegates the actual
+    check to the same ``is_authenticated`` used by the ``/v1`` routers.
+    """
+
+    def __init__(self, app: "ASGIApp") -> None:
+        self._app = app
+
+    async def __call__(self, scope: "Scope", receive: "Receive", send: "Send") -> None:
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+        # Re-root the request at the outer app: by the time a mounted app runs,
+        # root_path/path reflect the mount, which would corrupt base_url-derived URLs.
+        request = Request({**scope, "root_path": "", "path": "/"})
+        try:
+            claims = await authenticated_claims(request, websocket=False)
+            # This mount is the /mcp protected resource. Accept tokens scoped to it
+            # or to the deployment origin (and unscoped tokens: API keys, sessions);
+            # reject a token minted for some other resource. The general
+            # ``is_authenticated`` dependency does the mirror check at /v1, so an
+            # /mcp-audience token is confined here and cannot be replayed there.
+            if claims is not None:
+                origin = public_origin(request)
+                allowed = (origin, f"{origin}{MCP_MOUNT_PATH}")
+                if not token_audience_permits(claims, allowed):
+                    raise HTTPException(
+                        status_code=401, detail="Token is not valid for the MCP resource"
+                    )
+        except HTTPException as exc:
+            origin = public_origin(request)
+            challenge = (
+                f'Bearer realm="Arize Phoenix", '
+                f'resource_metadata="{origin}{MCP_PROTECTED_RESOURCE_METADATA_PATH}"'
+            )
+            response = PlainTextResponse(
+                str(exc.detail),
+                status_code=exc.status_code,
+                headers={"WWW-Authenticate": challenge},
+            )
+            await response(scope, receive, send)
+            return
+        await self._app(scope, receive, send)
+
+
+def build_phoenix_mcp_server(
+    app: "FastAPI",
+    *,
+    monty_runtime: Optional["MontyRuntime"] = None,
+    code_mode: bool,
+    monty_consumer: "MontyConsumer" = "mcp",
+    read_only: bool = False,
+    db: "DbSessionFactory",
+    skills_roots: Sequence[Path] = (),
+) -> tuple[FastMCP, Optional[MontyPoolSandboxProvider]]:
+    """Derive an MCP server from ``app``'s REST API.
+
+    The arguments below shape one consumer's tool surface, so each consumer
+    builds its own server. The derivation is shared, so a new ``/v1`` endpoint
+    reaches every consumer.
+
+    Args:
+        app: Phoenix application whose REST API becomes the MCP tool surface.
+        monty_runtime: Shared runtime required only when code mode is enabled.
+        code_mode: Present the surface as a sandboxed ``execute`` plus discovery
+            tools instead of one tool per endpoint.
+        monty_consumer: Admission class the sandbox spends against under code
+            mode. Ignored when code mode is off.
+        read_only: Derive tools from GET routes only.
+        db: Session factory for the analytics SQL tools.
+        skills_roots: Directories whose skill folders this consumer receives.
+            Empty by default: no skill tools, and no skill instructions
+            advertised.
+
+    Returns:
+        The server, and — when code mode is enabled — the sandbox adapter backed
+        by the application-owned Monty runtime. ``None`` when code mode is off.
+    """
+    if code_mode and monty_runtime is None:
+        raise ValueError("Monty runtime is required when MCP code mode is enabled")
+
+    # Tool dispatch authenticates by principal passing, not token replay — see
+    # ``_InternalIdentityDispatch``.
+    client = httpx2.AsyncClient(
+        transport=httpx2.ASGITransport(app=_InternalIdentityDispatch(app)),
+        base_url=_INTERNAL_BASE_URL,
+    )
+    openapi_spec = app.openapi()
+    skills = load_skills(tuple(skills_roots))
+    mcp: FastMCP = FastMCP.from_openapi(
+        openapi_spec=openapi_spec,
+        client=client,
+        name="Arize Phoenix",
+        # Without this the server advertises the FastMCP library version, which
+        # tells a client nothing about the Phoenix it is talking to.
+        version=phoenix_version,
+        instructions=get_skill_instructions(skills) if skills else None,
+        route_maps=[
+            # Expose every REST endpoint under /v1 as a tool; exclude everything
+            # else (GraphQL is mounted separately; health/version routes are not
+            # useful to MCP clients).
+            RouteMap(
+                pattern=r"^/v1/",
+                methods=["GET"] if read_only else "*",
+                mcp_type=MCPType.TOOL,
+            ),
+            RouteMap(mcp_type=MCPType.EXCLUDE),
+        ],
+        # Make each tool's read/write nature legible to the client (see
+        # ``_annotate_from_rest_method``); unannotated tools hide that a mutation is
+        # a mutation.
+        mcp_component_fn=_annotate_from_rest_method,
+    )
+    sandbox_provider: Optional[MontyPoolSandboxProvider] = None
+    if code_mode:
+        # Replaces the tool surface wholesale: clients see the discovery tools and
+        # ``execute``, never the per-endpoint tools.
+        assert monty_runtime is not None
+        transform, sandbox_provider = _build_code_mode(monty_runtime, monty_consumer)
+        mcp.add_transform(transform)
+    # Registered for every consumer, and after the code-mode transform: the
+    # catalog resolves lazily, so these reach `call_tool` there and `tools/list`
+    # otherwise.
+    from phoenix.server.mcp.sql.tools import register_analytics_sql_tools
+
+    register_analytics_sql_tools(mcp, db=db)
+    if skills:
+        register_skill_tools(mcp, skills)
+    return mcp, sandbox_provider
+
+
+def create_phoenix_mcp_app(
+    app: "FastAPI",
+    *,
+    monty_runtime: Optional["MontyRuntime"] = None,
+    db: "DbSessionFactory",
+) -> tuple["StarletteWithLifespan", Optional[MontyPoolSandboxProvider]]:
+    """Build the MCP server mounted at :data:`MCP_MOUNT_PATH` and return its ASGI app.
+
+    The returned app's lifespan (its streamable-HTTP session manager) must be
+    entered by the caller; mounting alone will not start it.
+    """
+    mcp, sandbox_provider = build_phoenix_mcp_server(
+        app,
+        monty_runtime=monty_runtime,
+        code_mode=get_env_mcp_code_mode(),
+        db=db,
+    )
+    # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
+    # resolves to MCP_MOUNT_PATH itself rather than MCP_MOUNT_PATH + "/mcp".
+    return mcp.http_app(path="/"), sandbox_provider

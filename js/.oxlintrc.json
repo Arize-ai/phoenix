@@ -1,16 +1,16 @@
 {
-  "$schema": "../app/node_modules/oxlint/configuration_schema.json",
+  "$schema": "./app/node_modules/oxlint/configuration_schema.json",
 
   "extends": ["../.oxlintrc.json"],
+
+  "options": {
+    "typeAware": true
+  },
 
   "plugins": ["typescript", "node"],
 
   "env": {
     "node": true
-  },
-
-  "rules": {
-    "eqeqeq": ["error", "smart"]
   },
 
   "overrides": [
@@ -22,5 +22,8 @@
     }
   ],
 
+  // The app (js/app) is linted via its own config; the root `lint` script
+  // delegates to it because oxlint only allows `options.typeAware` in the
+  // cwd-root config, so a bare `oxlint` from js/ would refuse to run.
   "ignorePatterns": ["**/dist/**", "**/build/**", "**/*.{js,jsx,cjs,mjs}"]
 }

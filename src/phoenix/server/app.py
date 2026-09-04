@@ -37,7 +37,7 @@ from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
 from pydantic import SecretStr
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.authentication import UnauthenticatedUser
@@ -54,6 +54,7 @@ from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
 from strawberry.extensions import MaxAliasesLimiter, QueryDepthLimiter, SchemaExtension
 from strawberry.fastapi import GraphQLRouter
+from strawberry.subscriptions import MULTIPART_SUBSCRIPTION_PROTOCOL
 from typing_extensions import TypeAlias, override
 
 from phoenix.config import (
@@ -63,16 +64,22 @@ from phoenix.config import (
     OAuth2ClientConfig,
     get_env_allow_external_resources,
     get_env_allowed_providers,
+    get_env_allowed_sandbox_providers,
     get_env_csrf_trusted_origins,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
     get_env_disable_agent_assistant,
+    get_env_enable_mcp_server,
+    get_env_enable_oauth2_authorization_server,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
     get_env_grpc_port,
     get_env_host,
+    get_env_host_root_path,
     get_env_max_spans_queue_size,
+    get_env_mcp_code_mode,
+    get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
     server_instrumentation_is_enabled,
@@ -88,14 +95,30 @@ from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.server.api.routers import (
+    AgentSessionConflict,
+    agent_session_conflict_handler,
     create_agents_router,
     create_auth_router,
+    create_legacy_agents_router,
     create_v1_router,
+    oauth2_as_router,
+    oauth2_as_well_known_router,
     oauth2_router,
+)
+from phoenix.server.api.routers.auth_md import (
+    mcp_protected_resource_metadata,
+    protected_resource_metadata,
+)
+from phoenix.server.api.routers.auth_md import router as auth_md_router
+from phoenix.server.api.routers.oauth2_authorization_server import (
+    authorization_server_enabled,
+    authorization_server_metadata,
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
+from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
+from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
@@ -108,13 +131,30 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS
+from phoenix.server.mcp_server import (
+    MCP_MOUNT_PATH,
+    BearerAuthGuard,
+    MountPathNormalizer,
+    build_phoenix_mcp_server,
+    create_phoenix_mcp_app,
+)
+from phoenix.server.middleware.anonymous_cors import (
+    AnonymousCorsMiddleware,
+    AnonymousPaths,
+    anonymous_paths,
+)
 from phoenix.server.middleware.gzip import GZipMiddleware
+from phoenix.server.middleware.js_sandbox_worker_csp import JSSandboxWorkerCSPMiddleware
+from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
+from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
+from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.settings.registry import SETTINGS_REGISTRY
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
@@ -159,6 +199,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+_RESERVED_OAUTH2_IDP_NAMES = frozenset({"authorize", "token", "revoke", "register", "consent"})
 
 """
 Threshold (in minutes) to determine if database is booted up for the first time.
@@ -170,6 +211,7 @@ NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
 _Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
+_WelcomeMessage: TypeAlias = Callable[[SystemSettings], str]
 
 
 def import_object_from_file(file_path: str, object_name: str) -> Any:
@@ -207,6 +249,8 @@ class AppConfig(NamedTuple):
     auth_error_messages: dict[AuthErrorCode, str]
     """ Mapping of auth error codes to user-friendly messages """
     oauth2_idps: Sequence[OAuth2Idp]
+    password_reset_email_enabled: bool = False
+    """ Whether password reset emails can be sent """
     basic_auth_disabled: bool = False
     ldap_enabled: bool = False
     """ Whether LDAP authentication is configured """
@@ -227,6 +271,12 @@ class AppConfig(NamedTuple):
     """ Whether to allow external resources like Google Fonts in the web interface """
     agent_assistant_disabled: bool = False
     """ Whether the agent assistant feature is disabled at the deployment level"""
+    agent_bash_disabled: bool = False
+    """ Whether the server-side bash tool (subagents) is disabled at the deployment level"""
+    mcp_server_enabled: bool = False
+    """ Whether the in-process MCP server is mounted at /mcp """
+    mcp_code_mode_enabled: bool = False
+    """ Whether the MCP server presents the code-mode tool surface """
     dev_vite_port: int = 5173
     """ Port the Vite dev server runs on. Only used in development mode. """
 
@@ -268,6 +318,12 @@ class Static(StaticFiles):
         except HTTPException as e:
             if e.status_code != 404:
                 raise e
+            # Never mask a missing well-known document with index.html: RFC 8615
+            # consumers (OAuth/OIDC discovery, MCP clients) probe several
+            # /.well-known/ URLs and rely on a 404 to move to the next candidate;
+            # a 200 with HTML reads as a malformed discovery document instead.
+            if path == ".well-known" or path.startswith(".well-known/"):
+                raise e
             # Fallback to the index.html
             request = Request(scope)
             response = templates.TemplateResponse(
@@ -281,6 +337,7 @@ class Static(StaticFiles):
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
+                    "password_reset_email_enabled": self._app_config.password_reset_email_enabled,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "ldap_enabled": self._app_config.ldap_enabled,
                     "ldap_manual_user_creation_enabled": self._app_config.ldap_manual_user_creation_enabled,  # noqa: E501
@@ -292,6 +349,9 @@ class Static(StaticFiles):
                     "has_db_threshold": self._app_config.has_db_threshold,
                     "allow_external_resources": self._app_config.allow_external_resources,
                     "agent_assistant_disabled": self._app_config.agent_assistant_disabled,
+                    "agent_bash_disabled": self._app_config.agent_bash_disabled,
+                    "mcp_server_enabled": self._app_config.mcp_server_enabled,
+                    "mcp_code_mode_enabled": self._app_config.mcp_code_mode_enabled,
                     "auth_error_messages": self._app_config.auth_error_messages,
                 },
             )
@@ -301,15 +361,29 @@ class Static(StaticFiles):
 
 
 class RequestOriginHostnameValidator(BaseHTTPMiddleware):
-    def __init__(self, *args: Any, trusted_hostnames: list[str], **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        trusted_hostnames: list[str],
+        anonymous_paths: AnonymousPaths,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._trusted_hostnames = trusted_hostnames
+        self._anonymous_paths = anonymous_paths
 
     async def dispatch(
         self,
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
+        # The anonymous OAuth/MCP surfaces are deliberately open to arbitrary
+        # browser origins (see AnonymousCorsMiddleware): they honor no cookies,
+        # so an origin check protects nothing there and would 401 exactly the
+        # requests whose preflights the CORS layer approved. Cookie-honoring
+        # endpoints (/oauth2/authorize, the consent decision) are not in the set.
+        if self._anonymous_paths.matches(request.scope):
+            return await call_next(request)
         headers = request.headers
         for key in "origin", "referer":
             if not (url := headers.get(key)):
@@ -389,17 +463,13 @@ async def version() -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix_version}")
 
 
-def _db(
-    engine: AsyncEngine,
-) -> Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]:
+def _db(engine: AsyncEngine) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
-    async def factory(lock: Optional[asyncio.Lock] = None) -> AsyncIterator[AsyncSession]:
-        async with contextlib.AsyncExitStack() as stack:
-            if lock:
-                await stack.enter_async_context(lock)
-            yield await stack.enter_async_context(Session.begin())
+    async def factory() -> AsyncIterator[AsyncSession]:
+        async with Session.begin() as session:
+            yield session
 
     return factory
 
@@ -567,6 +637,7 @@ def _lifespan(
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
     trace_data_sweeper: Optional[TraceDataSweeper],
+    agent_session_sweeper: AgentSessionSweeper,
     experiment_sweeper: ExperimentSweeper,
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
@@ -574,6 +645,7 @@ def _lifespan(
     db_disk_usage_monitor: DbDiskUsageMonitor,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -584,16 +656,15 @@ def _lifespan(
     initial_annotation_precursors: Iterable[AnnotationPrecursor] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
-    welcome_message: str | None = None,
-    docs_mcp_server: Optional[MCPServerStreamableHTTP] = None,
+    welcome_message: Optional[_WelcomeMessage] = None,
+    docs_mcp_server: Optional[MCPToolset[Any]] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
+    async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
         resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
-        db.lock = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
         await system_settings.bootstrap()
         async with AsyncExitStack() as stack:
             (
@@ -621,11 +692,13 @@ def _lifespan(
                 await enqueue_annotations(precursor)
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
+            await stack.enter_async_context(agent_session_sweeper)
             await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(system_settings)
             await stack.enter_async_context(db_disk_usage_monitor)
+            await stack.enter_async_context(sandbox_runtime.monty)
             # ``sandbox_session_manager`` must enter before ``experiment_runner``
             # so ``AsyncExitStack`` tears them down in reverse and the runner
             # (which consumes the manager) stops first. If the runner outlived
@@ -645,6 +718,22 @@ def _lifespan(
                         "Failed to initialize docs MCP server; continuing without docs capability.",
                         exc_info=True,
                     )
+            # Probe the shared runtime once when any consumer can use it.
+            # Failure is non-fatal because Monty is an optional server feature.
+            mounted_mcp_code_mode = getattr(app.state, "mcp_code_mode_sandbox", None) is not None
+            agent_mcp_code_mode = getattr(app.state, "pxi_mcp_sandbox", None) is not None
+            monty_allowed_by_config = "MONTY" in get_env_allowed_sandbox_providers()
+            if mounted_mcp_code_mode or agent_mcp_code_mode or monty_allowed_by_config:
+                try:
+                    await sandbox_runtime.monty.probe_runtime()
+                except Exception:
+                    logger.warning(
+                        "Monty runtime startup probe failed; continuing startup.",
+                        exc_info=True,
+                    )
+            # Start the mounted MCP server's session manager (set in create_app).
+            if (mcp_http_app := getattr(app.state, "mcp_http_app", None)) is not None:
+                await stack.enter_async_context(mcp_http_app.lifespan(app))
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -656,7 +745,12 @@ def _lifespan(
                 await stack.enter_async_context(token_store)
             _warn_if_missing_aioboto3()
             if welcome_message:
-                print(welcome_message, flush=True)
+                # The banner is cosmetic and renders after migrations have run and
+                # ports are bound, so a defect in it must not abort a started server.
+                try:
+                    print(welcome_message(system_settings), flush=True)
+                except Exception:
+                    logger.exception("Failed to render the startup banner")
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
@@ -697,6 +791,7 @@ def create_graphql_router(
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
@@ -734,6 +829,7 @@ def create_graphql_router(
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
             encrypt=encrypt,
             decrypt=decrypt,
             cache_for_dataloaders=cache_for_dataloaders,
@@ -754,7 +850,7 @@ def create_graphql_router(
         include_in_schema=False,
         prefix="/graphql",
         dependencies=(Depends(is_authenticated),) if authentication_enabled else (),
-        subscription_protocols=[],
+        subscription_protocols=[MULTIPART_SUBSCRIPTION_PROTOCOL],
     )
     return router
 
@@ -779,7 +875,17 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     response instead of a JSON response. For the original source code, see
     https://github.com/tiangolo/fastapi/blob/d3cdd3bbd14109f3b268df7ca496e24bb64593aa/fastapi/exception_handlers.py#L11
     """
-    headers = getattr(exc, "headers", None)
+    headers = dict(getattr(exc, "headers", None) or {})
+    if exc.status_code == 401 and getattr(request.app.state, "authentication_enabled", False):
+        # public_origin, not request.base_url: behind a proxy that does not
+        # rewrite forwarded headers the latter names the internal host. The
+        # challenge must name the same document the discovery routes serve,
+        # honoring PHOENIX_ROOT_URL and the configured root path.
+        prm_url = f"{public_origin(request)}/.well-known/oauth-protected-resource"
+        headers.setdefault(
+            "WWW-Authenticate",
+            f'Bearer realm="Arize Phoenix", resource_metadata="{prm_url}"',
+        )
     if not is_body_allowed_for_status_code(exc.status_code):
         return Response(status_code=exc.status_code, headers=headers)
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
@@ -806,13 +912,10 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
             method_name.endswith("trace.v1.TraceService/Export")
             and self._db.should_not_insert_or_update
         ):
-            details = (
-                "Database operations are disabled due to insufficient storage. "
-                "Please delete old data or increase storage."
+            await context.abort(
+                grpc.StatusCode.RESOURCE_EXHAUSTED,
+                insufficient_storage_message(),
             )
-            if support_email := get_env_support_email():
-                details += f" Need help? Contact us at {support_email}"
-            await context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, details)
         return await method(request_or_iterator, context)
 
 
@@ -842,9 +945,10 @@ def create_app(
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
-    welcome_message: str | None = None,
+    welcome_message: Optional[_WelcomeMessage] = None,
 ) -> FastAPI:
     verify_server_environment_variables()
+    _validate_oauth2_idp_names(oauth2_client_configs or [])
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
     startup_callbacks_list: list[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
@@ -865,6 +969,14 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
+    # Resolved before the middleware stack: the anonymous-surface path set feeds
+    # both the CSRF origin validator below and AnonymousCorsMiddleware at the end
+    # of this function, and it depends on whether the MCP endpoint is mounted
+    # (the mount itself happens after the routers).
+    mcp_mount_path: Optional[str] = None
+    if get_env_enable_mcp_server():
+        mcp_mount_path = MCP_MOUNT_PATH
+    anonymous_surfaces = anonymous_paths(mcp_mount_path)
     middlewares: list[Middleware] = [
         Middleware(HeadersMiddleware),
         Middleware(RedactorMiddleware),
@@ -876,6 +988,7 @@ def create_app(
             Middleware(
                 RequestOriginHostnameValidator,
                 trusted_hostnames=trusted_hostnames,
+                anonymous_paths=anonymous_surfaces,
             )
         )
     elif email_sender or oauth2_client_configs:
@@ -904,9 +1017,10 @@ def create_app(
         db=db,
         dml_event_handler=dml_event_handler,
     )
+    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
-    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     span_cost_calculator = SpanCostCalculator(db, generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
@@ -942,12 +1056,14 @@ def create_app(
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
     redactor = Redactor(secret=secret or SecretStr(""))
+    sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
     sandbox_session_manager = SandboxSessionManager()
     experiment_runner = ExperimentRunner(
         db,
         decrypt=encryption_service.decrypt,
         tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
     )
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
@@ -965,6 +1081,7 @@ def create_app(
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
         sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
     )
@@ -990,6 +1107,7 @@ def create_app(
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
+            agent_session_sweeper=agent_session_sweeper,
             experiment_sweeper=experiment_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
@@ -997,6 +1115,7 @@ def create_app(
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1010,6 +1129,7 @@ def create_app(
         middleware=middlewares,
         exception_handlers={
             HTTPException: plain_text_http_exception_handler,
+            AgentSessionConflict: agent_session_conflict_handler,
         },
         debug=debug,
         swagger_ui_parameters={
@@ -1018,16 +1138,55 @@ def create_app(
     )
     app.include_router(create_v1_router(authentication_enabled))
     if not get_env_disable_agent_assistant():
+        app.include_router(create_legacy_agents_router(authentication_enabled))
         app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
+    app.include_router(auth_md_router)
     if authentication_enabled:
+        app.include_router(oauth2_as_well_known_router)
         # Only register LDAP endpoint if LDAP is configured
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
+        app.include_router(oauth2_as_router)
         app.include_router(oauth2_router)
+    # RFC 8414 §3 / RFC 9728 §3.1 path-inserted well-known aliases. Under a root
+    # path the issuer carries a path component, and spec-following discovery puts
+    # the well-known segment between host and path — a URL at the *host root*,
+    # outside the root path. Starlette matches such routes as-is (root_path is
+    # only stripped when present), so registering them here makes discovery work
+    # for any reverse proxy that forwards /.well-known/* to Phoenix unmodified.
+    if host_root_path := get_env_host_root_path():
+        app.add_api_route(
+            f"/.well-known/oauth-protected-resource{host_root_path}",
+            protected_resource_metadata,
+            methods=["GET", "HEAD"],
+            include_in_schema=False,
+        )
+        # The MCP PRM handler 404s by itself when the mount is disabled. The /mcp
+        # literal mirrors the path-appended route in auth_md.py, whose handler
+        # verifies it against the mcp_mount_path state so drift cannot be silent.
+        app.add_api_route(
+            f"/.well-known/oauth-protected-resource{host_root_path}/mcp",
+            mcp_protected_resource_metadata,
+            methods=["GET", "HEAD"],
+            include_in_schema=False,
+        )
+        if authentication_enabled:
+            for well_known in ("oauth-authorization-server", "openid-configuration"):
+                app.add_api_route(
+                    f"/.well-known/{well_known}{host_root_path}",
+                    authorization_server_metadata,
+                    methods=["GET", "HEAD"],
+                    include_in_schema=False,
+                    dependencies=[Depends(authorization_server_enabled)],
+                )
 
-    def _v1_only_openapi() -> dict[str, Any]:
-        """Generate the OpenAPI schema served to Swagger UI, restricted to routes under ``/v1``."""
+    def _openapi() -> dict[str, Any]:
+        """Generate the OpenAPI schema served to Swagger UI.
+
+        In production, only routes under ``/v1`` are included. In dev mode,
+        agent routes (``/agents``) are also exposed so they appear in Swagger UI.
+        """
         if app.openapi_schema:
             return app.openapi_schema
         schema = get_openapi(
@@ -1038,13 +1197,61 @@ def create_app(
             routes=app.routes,
             separate_input_output_schemas=False,
         )
+        prefixes = ("/v1", "/agents") if dev else ("/v1",)
         schema["paths"] = {
-            path: ops for path, ops in schema["paths"].items() if path.startswith("/v1")
+            path: ops for path, ops in schema["paths"].items() if path.startswith(prefixes)
         }
         app.openapi_schema = schema
         return schema
 
-    app.openapi = _v1_only_openapi  # type: ignore[method-assign]
+    app.openapi = _openapi  # type: ignore[method-assign]
+    mcp_http_app = None
+    mcp_code_mode_sandbox = None
+    if mcp_mount_path is not None:
+        # Build after ``app.openapi`` is customized so the generated tools mirror
+        # the same /v1 schema, and mount before the static UI ("/") catch-all so
+        # requests to the MCP endpoint are not swallowed by it. The app's
+        # lifespan (its session manager) is entered in ``_lifespan`` above.
+        mcp_http_app, mcp_code_mode_sandbox = create_phoenix_mcp_app(
+            app,
+            monty_runtime=sandbox_runtime.monty,
+            db=db,
+        )
+        # The guard reads scope["user"], so it is installed exactly when the
+        # AuthenticationMiddleware that populates it is (token_store above).
+        app.mount(
+            mcp_mount_path,
+            BearerAuthGuard(mcp_http_app) if token_store is not None else mcp_http_app,
+        )
+        # Starlette mounts do not match the bare mount path, which is the URL MCP
+        # clients are configured with; rewrite it to the mount root before routing.
+        app.add_middleware(MountPathNormalizer)
+    app.state.mcp_http_app = mcp_http_app
+    # FastMCP adapter backed by ``sandbox_runtime.monty``. None unless code mode
+    # is enabled.
+    app.state.mcp_code_mode_sandbox = mcp_code_mode_sandbox
+    # Consumed by the OAuth2 authorization server (resource-indicator validation)
+    # and the protected-resource metadata routes; None when the mount is disabled.
+    app.state.mcp_mount_path = mcp_mount_path
+    # The agent's own instance, independent of the mount and its configuration.
+    # Read-only: mutations belong to the agent's editing tools, which route
+    # approval through the user. Its sandbox takes the ``agent`` admission class,
+    # capped one below the worker pool size: consumers compete for workers and a
+    # loser waits at checkout, but no consumer can hold them all.
+    pxi_mcp_server = None
+    pxi_mcp_sandbox = None
+    if not get_env_disable_agent_assistant():
+        pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
+            app,
+            monty_runtime=sandbox_runtime.monty,
+            code_mode=True,
+            monty_consumer="agent",
+            read_only=True,
+            db=db,
+            skills_roots=PXI_SKILLS_ROOTS,
+        )
+    app.state.pxi_mcp_server = pxi_mcp_server
+    app.state.pxi_mcp_sandbox = pxi_mcp_sandbox
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"
@@ -1074,6 +1281,7 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
+                    password_reset_email_enabled=email_sender is not None,
                     basic_auth_disabled=basic_auth_disabled,
                     ldap_enabled=ldap_config is not None,
                     # Disable manual user creation when LDAP disabled or no email attr
@@ -1091,6 +1299,11 @@ def create_app(
                     ),
                     allow_external_resources=get_env_allow_external_resources(),
                     agent_assistant_disabled=get_env_disable_agent_assistant(),
+                    agent_bash_disabled=get_env_phoenix_agents_disable_bash(),
+                    # The mount decision above is the source of truth for whether
+                    # /mcp exists; code mode only matters when the mount is live.
+                    mcp_server_enabled=mcp_mount_path is not None,
+                    mcp_code_mode_enabled=mcp_mount_path is not None and get_env_mcp_code_mode(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
                     dev_vite_port=dev_vite_port,
                 ),
@@ -1098,6 +1311,9 @@ def create_app(
             name="static",
         )
     app.state.authentication_enabled = authentication_enabled
+    app.state.oauth2_authorization_server_enabled = (
+        authentication_enabled and get_env_enable_oauth2_authorization_server()
+    )
     app.state.read_only = read_only
     app.state.password_reset_token_expiry = password_reset_token_expiry
     app.state.access_token_expiry = access_token_expiry
@@ -1118,19 +1334,25 @@ def create_app(
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
+    app.state.sandbox_runtime = sandbox_runtime
     app.state.graphql_schema = graphql_schema
+    # Snapshot the provider allow-list once at app creation so the REST and
+    # GraphQL surfaces answer from the same (startup-validated) value.
+    allowed_provider_names = get_env_allowed_providers()
+    app.state.allowed_provider_names = allowed_provider_names
     app.state.build_graphql_context = _get_build_graphql_context_function(
         db=db,
         system_settings=system_settings,
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
         sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
         cache_for_dataloaders=cache_for_dataloaders,
         last_updated_at=last_updated_at,
         event_queue=dml_event_handler,
-        allowed_provider_names=get_env_allowed_providers(),
+        allowed_provider_names=allowed_provider_names,
         read_only=read_only,
         authentication_enabled=authentication_enabled,
         secret=secret,
@@ -1153,7 +1375,43 @@ def create_app(
             allow_methods=["*"],
             allow_headers=["*"],
         )
+    # Added after (= outside) the credentialed allowlist middleware so it wins
+    # on its paths: browser-based OAuth public clients fetch these anonymous
+    # endpoints from origins that cannot be known in advance. The cookie-honoring
+    # OAuth endpoints (/oauth2/authorize is navigated to; the consent decision
+    # endpoint enforces a strict Origin check) are deliberately not listed.
+    #
+    # The MCP endpoint joins the set when mounted: browser-based MCP clients call
+    # it directly with a bearer token, which is not an ambient credential (a
+    # hostile page cannot make the browser attach it), and they must be able to
+    # read the session id and the 401 challenge that bootstraps their OAuth flow.
+    # The path set is shared with the CSRF origin validator, which bypasses
+    # exactly these surfaces.
+    app.add_middleware(
+        AnonymousCorsMiddleware,
+        paths=anonymous_surfaces,
+        expose_headers="Mcp-Session-Id, WWW-Authenticate" if mcp_mount_path is not None else "",
+    )
+    # Sandboxes execute_browser_action scripts at the platform level: a worker adopts the
+    # CSP of its script response, so the worker asset gets connect-src 'none'
+    # (see the middleware's docstring).
+    app.add_middleware(JSSandboxWorkerCSPMiddleware)
     return app
+
+
+def _validate_oauth2_idp_names(oauth2_client_configs: Sequence[OAuth2ClientConfig]) -> None:
+    collisions = sorted(
+        config.idp_name
+        for config in oauth2_client_configs
+        if config.idp_name.lower() in _RESERVED_OAUTH2_IDP_NAMES
+    )
+    if collisions:
+        names = ", ".join(collisions)
+        reserved = ", ".join(sorted(_RESERVED_OAUTH2_IDP_NAMES))
+        raise ValueError(
+            f"OAuth2 identity provider names cannot use reserved authorization server paths: "
+            f"{names}. Reserved names: {reserved}."
+        )
 
 
 def _add_get_secret_method(*, app: FastAPI, secret: Optional[SecretStr]) -> FastAPI:
@@ -1195,6 +1453,7 @@ def _get_build_graphql_context_function(
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders],
@@ -1222,6 +1481,7 @@ def _get_build_graphql_context_function(
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
             encrypt=encrypt,
             decrypt=decrypt,
             cache_for_dataloaders=cache_for_dataloaders,

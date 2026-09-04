@@ -9,19 +9,19 @@
     "eval": "tsx src/eval/evals.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.68",
+    "@ai-sdk/openai": "^3.0.99",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
-    "@mastra/arize": "^1.2.1",
-    "@mastra/core": "^1.41.0",
-    "@mastra/observability": "^1.14.1",
+    "@mastra/arize": "^1.3.9",
+    "@mastra/core": "^1.61.0",
+    "@mastra/observability": "^1.17.1",
     "dotenv": "^17.4.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
-    "mastra": "^1.12.2",
-    "tsx": "^4.22.4",
-    "typescript": "^6.0.3"
+    "@types/node": "^26.2.0",
+    "mastra": "^1.26.0",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
   }
 }

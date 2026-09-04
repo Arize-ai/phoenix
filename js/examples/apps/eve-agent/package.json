@@ -1,0 +1,26 @@
+{
+  "name": "eve-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal Vercel Eve agent traced with @arizeai/phoenix-otel",
+  "type": "module",
+  "scripts": {
+    "dev": "eve dev",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^4.0.46",
+    "@arizeai/openinference-vercel": "^3.1.5",
+    "@arizeai/phoenix-otel": "workspace:*",
+    "ai": "^7.0.77",
+    "eve": "^0.25.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -11,6 +11,9 @@ export function getTestClient(): OpenAI {
   return new OpenAI({
     baseURL: BASE_URL,
     apiKey: "test-key",
+    // Surface 429s immediately: the SDK's default retries honor the mock
+    // server's retry-after header, which outlasts the test timeout.
+    maxRetries: 0,
   });
 }
 

@@ -1,5 +1,51 @@
 # @arizeai/phoenix-evals
 
+## 2.4.0
+
+### Minor Changes
+
+- 0e3b2c2: Add a built-in PII detection evaluator (`createPiiDetectionEvaluator`) that screens a conversation record for personally identifiable information, including system instructions, tool calls and results, and retrieved content the end user may never have seen.
+
+## 2.3.0
+
+### Minor Changes
+
+- 7efa7b2: Add a built-in retrieval relevance evaluator (createRetrievalRelevanceEvaluator) that checks whether the external information retrieved during a step is relevant to the request it was serving. Unlike document relevance, it is source-agnostic and scores the retrieved information holistically, whether it came from a vector search, a tool or MCP call, a web search, or content embedded in an LLM turn.
+
+## 2.2.0
+
+### Minor Changes
+
+- 1aa1a84: Redesign `createHallucinationEvaluator` as a conversation-grounding evaluator.
+
+  This changes the evaluator input to `input` and `output`, where `input` is the conversation available to the assistant and `output` is the response being judged. A separate `context` field is no longer accepted.
+
+  Labels change from `factual`/`hallucinated` to `grounded`/`hallucinated`. Scores are minimized, with `hallucinated` equal to `1` and `grounded` equal to `0`. Existing stored evaluations, dashboards, thresholds, and label filters may require migration and should not be compared directly with results from the previous evaluator.
+
+## 2.1.0
+
+### Minor Changes
+
+- 899dece: Add a built-in toxicity evaluator (createToxicityEvaluator) for classifying text as toxic or non-toxic.
+
+## 2.0.0
+
+### Major Changes
+
+- 5a8f3f7: Upgrade `@arizeai/phoenix-evals` to AI SDK v7. Evaluator telemetry uses the AI SDK v7 telemetry API with a per-call `OpenTelemetry` integration from `@ai-sdk/otel`, while preserving all globally registered integrations (logging, metrics, and tracing to other backends); a Phoenix tracing integration is appended unless a global integration already traces with the same tracer. Evaluator spans now follow the OpenTelemetry `gen_ai.*` conventions emitted by `@ai-sdk/otel` instead of the AI SDK v6 `ai.*` span format. The `telemetry.tracer` and `telemetry.isEnabled` options keep working as before, and system messages in prompt templates continue to be supported. Requires Node.js >=22.12 and AI SDK v7-compatible model providers (e.g. `@ai-sdk/openai` v4).
+
+## 1.2.0
+
+### Minor Changes
+
+- f94067b: Add px setup script for agent onboarding
+
+## 1.1.0
+
+### Minor Changes
+
+- 1f7d5f0: Add built-in code (non-LLM) evaluators for classification metrics: `createPrecisionEvaluator`, `createRecallEvaluator`, `createF1Evaluator`, `createFBetaEvaluator`, and the bundling helper `createPrecisionRecallFScoreEvaluators`, plus the underlying `computePrecisionRecallFScore` function. These support binary (via `positiveLabel`) and multi-class (`macro`/`micro`/`weighted` averaging) classification, mirroring the Python `PrecisionRecallFScore` evaluator.
+
 ## 1.0.3
 
 ### Patch Changes

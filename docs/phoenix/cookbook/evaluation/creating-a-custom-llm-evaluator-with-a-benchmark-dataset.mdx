@@ -7,7 +7,7 @@ description: Learn how to build a custom LLM-as-a-Judge evaluator by creating a 
 colab.research.google.com
 </Card>
 
-A good evaluator measures what you actually care about — and the only way to know it does is to test it against examples you've judged yourself. Phoenix ships several [pre-built evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals) that have been validated against benchmark datasets, but these may not capture the nuances of your application.
+A good evaluator measures what you actually care about — and the only way to know it does is to test it against examples you've judged yourself. Phoenix ships several [pre-built evaluators](https://arize.com/docs/phoenix/evaluation/pre-built-metrics) that have been validated against benchmark datasets, but these may not capture the nuances of your application.
 
 So how do you achieve that same rigor when your use case falls outside the scope of standard evaluators? You build the evaluator the same way the pre-built ones were built. This tutorial walks through the three steps:
 
@@ -53,8 +53,8 @@ if not os.environ.get("PHOENIX_API_KEY"):
     os.environ["PHOENIX_API_KEY"] = getpass("Enter your Phoenix API key: ")
 if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = getpass("Enter your OpenAI API key: ")
-# For Phoenix Cloud, also point at your space's collector endpoint, e.g.:
-# os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com/s/your-space"
+# If Phoenix is running elsewhere, point at its collector endpoint, e.g.:
+# os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://your-phoenix.example.com"
 
 tracer_provider = register(
     project_name="receipt-classification",

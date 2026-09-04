@@ -1,16 +1,18 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "6.10.1",
+  "version": "7.8.0",
   "description": "A client for the Phoenix API",
   "keywords": [
     "arize",
     "datasets",
     "evaluation",
     "experiments",
+    "jest",
     "llm",
     "phoenix",
     "prompts",
-    "tracing"
+    "tracing",
+    "vitest"
   ],
   "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client",
   "bugs": {
@@ -51,6 +53,14 @@
       "import": "./dist/esm/sessions/index.js",
       "require": "./dist/src/sessions/index.js"
     },
+    "./projects": {
+      "import": "./dist/esm/projects/index.js",
+      "require": "./dist/src/projects/index.js"
+    },
+    "./users": {
+      "import": "./dist/esm/users/index.js",
+      "require": "./dist/src/users/index.js"
+    },
     "./traces": {
       "import": "./dist/esm/traces/index.js",
       "require": "./dist/src/traces/index.js"
@@ -62,6 +72,26 @@
     "./datasets": {
       "import": "./dist/esm/datasets/index.js",
       "require": "./dist/src/datasets/index.js"
+    },
+    "./vitest": {
+      "types": "./dist/src/vitest/index.d.ts",
+      "import": "./dist/esm/vitest/index.js",
+      "require": "./dist/src/vitest/index.js"
+    },
+    "./vitest/reporter": {
+      "types": "./dist/src/vitest/reporter.d.ts",
+      "import": "./dist/esm/vitest/reporter.js",
+      "require": "./dist/src/vitest/reporter.js"
+    },
+    "./jest": {
+      "types": "./dist/src/jest/index.d.ts",
+      "import": "./dist/esm/jest/index.js",
+      "require": "./dist/src/jest/index.js"
+    },
+    "./jest/reporter": {
+      "types": "./dist/src/jest/reporter.d.ts",
+      "import": "./dist/esm/jest/reporter.js",
+      "require": "./dist/src/jest/reporter.js"
     },
     "./utils/*": {
       "import": "./dist/esm/utils/*.js",
@@ -82,11 +112,10 @@
     "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-client",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p examples/tsconfig.examples.json"
   },
   "dependencies": {
-    "@arizeai/openinference-semantic-conventions": "^2.5.0",
-    "@arizeai/openinference-vercel": "^2.7.7",
+    "@arizeai/openinference-semantic-conventions": "^2.7.0",
     "@arizeai/phoenix-config": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "async": "^3.2.6",
@@ -95,23 +124,29 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^3.0.68",
-    "@anthropic-ai/sdk": "^0.102.0",
+    "@ai-sdk/openai": "^4.0.46",
+    "@ai-sdk/otel": "^1.0.77",
+    "@anthropic-ai/sdk": "^0.111.0",
     "@arizeai/phoenix-evals": "workspace:*",
+    "@arizeai/phoenix-testing": "workspace:*",
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/sdk-trace-node": "^2.7.1",
+    "@opentelemetry/sdk-trace-node": "^2.10.0",
     "@types/async": "^3.2.25",
-    "@types/node": "^25.9.2",
-    "ai": "^6.0.198",
-    "openai": "^6.42.0",
+    "@types/node": "^26.2.0",
+    "ai": "^7.0.77",
+    "dotenv": "^17.4.2",
+    "jest": "^30.4.2",
+    "openai": "^6.49.0",
     "openapi-typescript": "^7.13.0",
-    "tsx": "^4.22.4",
-    "vitest": "^4.1.8"
+    "tsx": "^4.23.12",
+    "vitest": "^5.0.0"
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
-    "ai": "^6.0.90",
-    "openai": "^6.10.0"
+    "ai": "^7.0.0",
+    "jest": ">=27",
+    "openai": "^6.10.0 || ^7.0.0",
+    "vitest": ">=1"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/sdk": {
@@ -120,7 +155,13 @@
     "ai": {
       "optional": true
     },
+    "jest": {
+      "optional": true
+    },
     "openai": {
+      "optional": true
+    },
+    "vitest": {
       "optional": true
     }
   },

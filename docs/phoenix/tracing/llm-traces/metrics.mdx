@@ -1,26 +1,35 @@
 ---
 title: Metrics Dashboard
-description: Each project comes with a pre-defined metrics dashboard
+description: Each Phoenix project comes with a pre-defined metrics dashboard
 ---
 
-<Frame>
-<video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/project_metrics_overview.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
+To access the dashboard in a space, navigate to "Dashboards" in the sidebar, then choose your project from the dropdown at the top of the page.
+
+{/* TODO: replace the placeholder URL below with the uploaded image URL (upload to the arize-phoenix-assets GCS bucket under assets/images/) */}
+<Frame caption="The pre-defined metrics dashboard for a Phoenix project">
+  ![Phoenix metrics dashboard showing traces over time and trace latency percentiles](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ui/phoenix_dashboard.jpg)
 </Frame>
 
-Traces that are sent to a project are automatically indexed for metrics. This lets you quickly identify areas of poor performance. The project metrics dashboard includes:
+Traces that are sent to a project are automatically indexed for metrics. This lets you quickly identify areas of poor performance. Each dashboard by default includes:
 
-- Trace latency and errors
-- Latency Quantiles
-- Annotation Scores Timeseries
-- Cost over Time by token type
-- Top Models by Cost
-- Token Usage by token type
-- Top Models by Tokens
-- LLM Invocation and Errors
-- Tool calls and Errors
+- **Traces** over time
+- **Trace Latency** percentiles
+- **Cost** estimated in USD
+- **Top models by cost**
+- **Top models by tokens**
+- **Token usage** by prompt and completion
+- **Prompt token details** by input, cache, and audio parts
+- **Completion token details** including output, reasoning, and audio parts
+- **LLM span counts** over time
+- **LLM spans with errors** over time
+- **Tool span counts** over time
+- **Tool spans with errors** over time
+- **Average Span annotation scores**
+- **Average trace annotation scores**
+- **Average session annotation scores**
 
 <Info>
-  For custom alerting and dashboards on top of your trace data, including metrics tailored for non-developer stakeholders, see [Arize AX's Dashboard features](https://arize.com/docs/ax/observe/dashboards).
+  If you need custom alerting and dashboards on top of your trace data, including metrics tailored for non-developer stakeholders, [Arize AX's Dashboards supports these additional features](https://arize.com/docs/ax/observe/dashboards).
 </Info>
 
 ## Next Steps

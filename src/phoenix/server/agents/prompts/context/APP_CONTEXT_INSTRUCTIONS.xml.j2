@@ -1,7 +1,0 @@
-<phoenix_app_context>
-  <description>The user's current browser clock and UI permission settings.</description>
-  <current_browser_datetime>{{ app.current_date_time | sanitize(enclosing_tag="phoenix_app_context", max_chars=128) }}</current_browser_datetime>
-  <time_zone>{{ app.time_zone | sanitize(enclosing_tag="phoenix_app_context", max_chars=128) }}</time_zone>
-  <edit_permission>{{ edit_permission }}</edit_permission>
-  <instruction>If edit_permission is manual, approval-gated edit and mutation tools show the user an inline approval before applying changes. If edit_permission is bypass, those tools apply automatically after you call them.</instruction>
-</phoenix_app_context>

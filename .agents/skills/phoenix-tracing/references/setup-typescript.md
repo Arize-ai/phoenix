@@ -40,8 +40,84 @@ register({
 ```bash
 export PHOENIX_API_KEY="your-api-key"
 export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
-export PHOENIX_PROJECT_NAME="my-app"
+export PHOENIX_PROJECT="my-app"  # PHOENIX_PROJECT_NAME is a supported alias
 ```
+
+`PHOENIX_PROJECT` is the canonical project-name variable and takes precedence;
+`PHOENIX_PROJECT_NAME` is a supported alias. If both are set to different
+values, `PHOENIX_PROJECT` wins and a one-time warning naming both is logged.
+
+### Credential File Discovery (`.env.phoenix`)
+
+When a setting is not passed to `register()` or set in the process environment,
+`@arizeai/phoenix-otel` looks for a `.env.phoenix` file in the current working
+directory — walking up toward the filesystem root and stopping at the first
+match — and reads `PHOENIX_`-prefixed keys from it (dotenv format):
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_API_KEY=your-api-key
+```
+
+Explicit arguments and environment variables always win — the file never
+overrides anything already set. Set `PHOENIX_DISCOVER_CONFIG=false` to disable
+discovery.
+
+## Custom Span Processors
+
+`register()` accepts `spanProcessors?: SpanProcessor[]`, which **replaces** the
+default Phoenix exporter setup rather than adding to it. For these setups you do
+not need to install the underlying OTel/OpenInference packages:
+
+- The package root re-exports `OTLPTraceExporter` and `ensureCollectorEndpoint`.
+- The **ESM-only** subpath `@arizeai/phoenix-otel/vercel` re-exports
+  `@arizeai/openinference-vercel` — `OpenInferenceSimpleSpanProcessor`,
+  `OpenInferenceBatchSpanProcessor`, `isOpenInferenceSpan`, and types.
+
+```typescript
+import {
+  ensureCollectorEndpoint,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
+import {
+  isOpenInferenceSpan,
+  OpenInferenceSimpleSpanProcessor,
+} from "@arizeai/phoenix-otel/vercel";
+
+register({
+  projectName: "my-agent",
+  spanProcessors: [
+    new OpenInferenceSimpleSpanProcessor({
+      exporter: new OTLPTraceExporter({
+        url: ensureCollectorEndpoint("http://localhost:6006"),
+      }),
+      // Export only AI spans, re-rooting any left orphaned by the filter
+      spanFilter: isOpenInferenceSpan,
+      reparentOrphanedSpans: true,
+    }),
+  ],
+});
+```
+
+`ensureCollectorEndpoint()` normalizes a Phoenix base URL into the OTLP traces
+endpoint, so pass the same URL you would give `register({ url })`.
+
+**The `/vercel` subpath has no CommonJS build** — `@arizeai/openinference-vercel`
+is ESM-only, which is why these re-exports are not on the package root. From CJS,
+use `LazyOpenInferenceSpanProcessor` (exported from the root), which loads the
+processors via dynamic `import()` and buffers spans recorded before the load
+resolves:
+
+```typescript
+new LazyOpenInferenceSpanProcessor({ exporter, batch });  // batch: boolean
+```
+
+If the module cannot be loaded at all (e.g. a bundler stripped dynamic imports),
+it falls back to the plain OTel batch/simple processors and emits a diagnostic
+warning: spans still reach Phoenix, but AI SDK telemetry is not translated to
+OpenInference. This is the processor `register()` uses by default.
 
 ## ESM vs CommonJS
 

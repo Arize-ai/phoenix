@@ -1,16 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createHttp } from "@arizeai/phoenix-testing";
+import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { components } from "../../src/__generated__/api/v1";
 import { getSession } from "../../src/sessions/getSession";
+import { createTestClient } from "../testUtils";
 
-const mockGet = vi.fn();
-
-vi.mock("openapi-fetch", () => ({
-  default: () => ({
-    GET: mockGet,
-    use: () => {},
-  }),
-}));
+const http = createHttp();
 
 const mockSessionData: components["schemas"]["SessionData"] = {
   id: "session-global-id",
@@ -18,6 +14,9 @@ const mockSessionData: components["schemas"]["SessionData"] = {
   project_id: "project-1",
   start_time: "2025-01-01T00:00:00.000Z",
   end_time: "2025-01-01T01:00:00.000Z",
+  token_count_prompt: 120,
+  token_count_completion: 30,
+  token_count_total: 150,
   traces: [
     {
       id: "trace-global-id",
@@ -28,29 +27,41 @@ const mockSessionData: components["schemas"]["SessionData"] = {
   ],
 };
 
+let server: Server;
+
+beforeAll(async () => {
+  server = await createMockServer();
+  server.listen({ onUnhandledRequest: "error" });
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
+
 describe("getSession", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockGet.mockReset();
-  });
-
   it("should get a session by identifier", async () => {
-    mockGet.mockResolvedValueOnce({
-      data: {
-        data: mockSessionData,
-      },
+    let sessionRequestCount = 0;
+    let receivedSessionIdentifier: string | undefined;
+
+    server.use(
+      http.get("/v1/sessions/{session_identifier}", ({ params, response }) => {
+        sessionRequestCount += 1;
+        receivedSessionIdentifier = params.session_identifier;
+        return response(200).json({ data: mockSessionData });
+      })
+    );
+
+    const session = await getSession({
+      client: createTestClient(),
+      sessionId: "my-session",
     });
 
-    const session = await getSession({ sessionId: "my-session" });
-
-    expect(mockGet).toHaveBeenCalledOnce();
-    expect(mockGet).toHaveBeenCalledWith("/v1/sessions/{session_identifier}", {
-      params: {
-        path: {
-          session_identifier: "my-session",
-        },
-      },
-    });
+    expect(sessionRequestCount).toBe(1);
+    expect(receivedSessionIdentifier).toBe("my-session");
 
     expect(session).toEqual({
       id: "session-global-id",
@@ -58,6 +69,9 @@ describe("getSession", () => {
       projectId: "project-1",
       startTime: "2025-01-01T00:00:00.000Z",
       endTime: "2025-01-01T01:00:00.000Z",
+      tokenCountPrompt: 120,
+      tokenCountCompletion: 30,
+      tokenCountTotal: 150,
       traces: [
         {
           id: "trace-global-id",
@@ -70,12 +84,19 @@ describe("getSession", () => {
   });
 
   it("should throw error if API returns no data", async () => {
-    mockGet.mockResolvedValueOnce({
-      data: undefined,
-    });
-
-    await expect(getSession({ sessionId: "missing" })).rejects.toThrow(
-      "Failed to get session"
+    server.use(
+      http.get("/v1/sessions/{session_identifier}", ({ response }) =>
+        response.untyped(
+          new Response("{}", {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      )
     );
+
+    await expect(
+      getSession({ client: createTestClient(), sessionId: "missing" })
+    ).rejects.toThrow("Failed to get session");
   });
 });

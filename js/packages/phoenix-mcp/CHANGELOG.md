@@ -1,5 +1,191 @@
 # @arizeai/phoenix-mcp
 
+## 4.3.7
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
+## 4.3.6
+
+### Patch Changes
+
+- Updated dependencies [1cdff14]
+  - @arizeai/phoenix-client@7.7.1
+
+## 4.3.5
+
+### Patch Changes
+
+- Updated dependencies [37916d7]
+- Updated dependencies [c48e50e]
+- Updated dependencies [773c5e5]
+- Updated dependencies [b27561d]
+  - @arizeai/phoenix-client@7.7.0
+
+## 4.3.4
+
+### Patch Changes
+
+- Updated dependencies [d328c3e]
+  - @arizeai/phoenix-client@7.6.0
+
+## 4.3.3
+
+### Patch Changes
+
+- Updated dependencies [0ed987a]
+  - @arizeai/phoenix-client@7.5.0
+
+## 4.3.2
+
+### Patch Changes
+
+- Updated dependencies [90729f3]
+  - @arizeai/phoenix-client@7.4.0
+
+## 4.3.1
+
+### Patch Changes
+
+- Updated dependencies [c892873]
+  - @arizeai/phoenix-client@7.3.1
+
+## 4.3.0
+
+### Minor Changes
+
+- e90ba00: Resolve the MCP server's base URL from `PHOENIX_ENDPOINT`, inferring from the trace-export variables `PHOENIX_COLLECTOR_ENDPOINT` and `OTEL_EXPORTER_OTLP_ENDPOINT` when only those are set, then the legacy `PHOENIX_HOST` — matching the API clients and the `px` CLI. Previously the MCP server read only `PHOENIX_HOST`.
+
+### Patch Changes
+
+- Updated dependencies [d04f0fc]
+  - @arizeai/phoenix-config@0.5.0
+  - @arizeai/phoenix-client@7.3.0
+
+## 4.2.8
+
+### Patch Changes
+
+- Updated dependencies [59aa7cb]
+  - @arizeai/phoenix-client@7.2.0
+
+## 4.2.7
+
+### Patch Changes
+
+- e35712a: Re-release to recover from a failed publish (versions were already on npm)
+- Updated dependencies [e35712a]
+  - @arizeai/phoenix-client@7.1.1
+
+## 4.2.6
+
+### Patch Changes
+
+- Updated dependencies [df7057a]
+  - @arizeai/phoenix-client@7.1.0
+
+## 4.2.5
+
+### Patch Changes
+
+- Updated dependencies [a6c3f88]
+  - @arizeai/phoenix-client@7.0.1
+
+## 4.2.4
+
+### Patch Changes
+
+- Updated dependencies [4867e34]
+  - @arizeai/phoenix-client@7.0.0
+
+## 4.2.3
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.2
+
+## 4.2.2
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.14.1
+
+## 4.2.1
+
+### Patch Changes
+
+- Updated dependencies [d6b1cbb]
+  - @arizeai/phoenix-client@6.14.0
+
+## 4.2.0
+
+### Minor Changes
+
+- f94067b: Add px setup script for agent onboarding
+
+### Patch Changes
+
+- Updated dependencies [f94067b]
+  - @arizeai/phoenix-client@6.13.0
+  - @arizeai/phoenix-config@0.4.0
+
+## 4.1.1
+
+### Patch Changes
+
+- c0ab6a9: Add `.env.phoenix` file discovery as a fallback source for Phoenix configuration. When a setting is not present in the process environment, `@arizeai/phoenix-config` walks up from the current working directory to the nearest `.env.phoenix` file and reads `PHOENIX_`-prefixed keys from it (dotenv format). Process environment values take precedence, and related settings (credentials, OTel endpoint/port) are resolved as a group from a single source. Files not owned by the current user are ignored, with one-time warnings for skipped files, for files accessible to other users, and for endpoints paired with credentials from a different source. Set `PHOENIX_DISCOVER_CONFIG=false` to disable discovery; call `clearEnvFileCache()` to refresh cached results. Browser builds use a Node-free implementation selected through a conditional package export. `@arizeai/phoenix-cli` ranks discovered values below configured profiles; `@arizeai/phoenix-mcp` and `@arizeai/phoenix-otel` read `.env.phoenix` values through the shared resolution.
+- Updated dependencies [c0ab6a9]
+  - @arizeai/phoenix-config@0.3.0
+  - @arizeai/phoenix-client@6.12.2
+
+## 4.1.0
+
+### Minor Changes
+
+- 1e7d9fc: Unify the project-name environment variable across the TypeScript packages: every surface now reads both `PHOENIX_PROJECT` (canonical) and `PHOENIX_PROJECT_NAME` (supported alias), with `PHOENIX_PROJECT` taking precedence and explicit args/flags still winning over both. When both are set to conflicting values, the canonical value is used and a one-time warning naming both values is emitted. `@arizeai/phoenix-config` is the single home for this resolution: it exposes the shared `getProjectFromEnvironment()` resolver and includes the resolved project in `getEnvironmentConfig()`. `@arizeai/phoenix-cli`, `@arizeai/phoenix-mcp`, and `@arizeai/phoenix-otel` all consume it — `@arizeai/phoenix-otel` now depends on `@arizeai/phoenix-config` and its `register()` falls back to these variables (via the shared resolver) when no `projectName` is passed, rather than duplicating the logic.
+
+### Patch Changes
+
+- Updated dependencies [1e7d9fc]
+  - @arizeai/phoenix-config@0.2.0
+  - @arizeai/phoenix-client@6.12.1
+
+## 4.0.19
+
+### Patch Changes
+
+- Updated dependencies [7947440]
+  - @arizeai/phoenix-client@6.12.0
+
+## 4.0.18
+
+### Patch Changes
+
+- Updated dependencies [7afa183]
+  - @arizeai/phoenix-client@6.11.2
+
+## 4.0.17
+
+### Patch Changes
+
+- Updated dependencies [a027ada]
+  - @arizeai/phoenix-client@6.11.1
+
+## 4.0.16
+
+### Patch Changes
+
+- Updated dependencies [7efabf6]
+  - @arizeai/phoenix-client@6.11.0
+
+## 4.0.15
+
+### Patch Changes
+
+- 4ce1b7d: Send an explicit `User-Agent: phoenix-mcp` header on Phoenix REST requests. Node's global `fetch` (undici) defaults to `User-Agent: undici`, which some Phoenix Cloud edges 302-redirect to an HTML landing page, causing tool calls to fail with `Unexpected token < in JSON`. Caller-supplied headers still take precedence (#13742).
+
 ## 4.0.14
 
 ### Patch Changes

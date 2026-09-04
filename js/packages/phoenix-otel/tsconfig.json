@@ -8,5 +8,8 @@
   },
   "files": [],
   "include": ["src/**/*.ts"],
+  // The ESM-only ./vercel subpath re-exports @arizeai/openinference-vercel,
+  // which ships no CommonJS build; only tsconfig.esm.json compiles it.
+  "exclude": ["src/vercel.ts"],
   "references": []
 }

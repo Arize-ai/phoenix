@@ -1,4 +1,6 @@
-import type { ModelMessage, ToolChoice, ToolSet } from "ai";
+import type { ModelMessage, ToolChoice, ToolSet } from "ai" with {
+  "resolution-mode": "import",
+};
 import invariant from "tiny-invariant";
 
 import {
@@ -40,7 +42,8 @@ The tool choice strategy. Default: 'auto'.
   toolChoice?: ToolChoice<ToolSet>;
 };
 
-export type ToAIParams<V extends Variables> = toSDKParamsBase<V>;
+export type ToAIParams<PromptVariables extends Variables> =
+  toSDKParamsBase<PromptVariables>;
 
 /**
  * Converts a Phoenix prompt to Vercel AI sdk params.
@@ -48,10 +51,10 @@ export type ToAIParams<V extends Variables> = toSDKParamsBase<V>;
  * - note: To use response format, you must pass `prompt.response_format.json_schema.schema` to generateObject or streamObject
  *   via `jsonSchema()`, through the `schema` argument.
  */
-export const toAI = <V extends Variables>({
+export const toAI = <PromptVariables extends Variables>({
   prompt,
   variables,
-}: ToAIParams<V>): PartialAIParams | null => {
+}: ToAIParams<PromptVariables>): PartialAIParams | null => {
   // eslint-disable-next-line no-console
   console.warn(
     "Prompt invocation parameters not currently supported in AI SDK, falling back to default invocation parameters"

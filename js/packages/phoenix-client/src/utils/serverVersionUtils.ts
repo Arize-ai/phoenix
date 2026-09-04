@@ -20,6 +20,7 @@
 
 import type { PhoenixClient } from "../client";
 import type { CapabilityRequirement } from "../types/serverRequirements";
+import { assertUnreachable } from "./assertUnreachable";
 import { formatVersion, satisfiesMinVersion } from "./semverUtils";
 
 // ---------------------------------------------------------------------------
@@ -37,6 +38,8 @@ export function capabilityLabel(req: CapabilityRequirement): string {
       return `The ${req.method} ${req.path} route`;
     case "parameter":
       return `The '${req.parameterName}' ${req.parameterLocation} parameter on ${req.route}`;
+    default:
+      return assertUnreachable(req);
   }
 }
 

@@ -83,7 +83,7 @@ feature actually does. Commit messages are often terse — the code tells the re
 - **Server REST endpoints**: `src/phoenix/server/api/routers/v1/`
 - **Python client SDK**: `packages/phoenix-client/src/phoenix/client/`
 - **TypeScript client SDK**: `js/packages/phoenix-client/src/`
-- **UI features**: `app/src/pages/`
+- **UI features**: `js/app/src/pages/`
 - **Evaluators**: `packages/phoenix-evals/src/phoenix/evals/`
 - **CLI**: `packages/phoenix-client/src/phoenix/client/cli/`
 - **Models/providers**: playground and model configuration code
@@ -117,7 +117,34 @@ Multiple commits often implement a single feature across server + client + UI. A
 commit, a Python client wrapper, and a TypeScript client wrapper should become one release note
 entry that mentions all relevant package versions — not three separate entries.
 
-## Step 3: Draft Individual MDX Files
+## Step 3: Draft MDX Files
+
+### Default to a single consolidated file
+
+**Prefer one release note over many.** Phoenix ships frequently, and a separate page per day
+produces a noisy, hard-to-scan release feed. Before creating files, look at the whole batch of
+undocumented releases together and ask: can these become **one** multi-topic file (Format B)?
+
+Consolidate into a single file when the batch:
+
+- Spans a short window (roughly a week or a handful of consecutive patch/minor versions), **or**
+- Shares a theme (e.g. several time range, metrics, or PXI improvements), **or**
+- Individually would produce thin pages (one or two features each).
+
+Each feature inside the consolidated file keeps its own `# Heading`, date line, and
+`**Available in arize-phoenix X.Y.Z+**` version line, so per-feature version provenance is
+preserved even though they share one page. The frontmatter `title` and file are dated by the
+**latest** release in the bundle, and the file `description` summarizes the whole bundle.
+
+Only split into multiple files when a feature is genuinely large enough to deserve a standalone
+page (a major launch, a breaking change, or a feature with substantial code examples and its own
+media). When in doubt, consolidate — it is easier to read one well-organized page than five thin
+ones.
+
+If you are **revising** an existing batch that was already split into several thin files,
+consolidate them: create one combined file dated by the latest release, delete the superseded
+files (`git rm`), and collapse their entries down to a single `<ReleaseUpdate>` block and a single
+year-overview `<Card>` and a single `docs.json` page path.
 
 ### File location
 
@@ -228,12 +255,12 @@ Match the version line to which packages are involved:
 
 | Situation | Format |
 |-----------|--------|
-| Single major feature on a date | Format A |
-| Multiple features on a date range | Format B |
+| Multiple features across a short window or shared theme | **Format B — one consolidated file (default)** |
+| A single, genuinely major feature or breaking change worth its own page | Format A |
 | Feature spans server + client | One entry, mention all package versions |
 | Breaking change | Prefix title with "Breaking Change:" |
 | TS-only or Python-only feature | Show only the relevant language |
-| Video/screenshot available | Use `<video>` or `<Frame>` in the individual file |
+| Video/screenshot available | Use `<video>` or `<Frame>` in the relevant section of the file |
 
 ## Step 4: Update the Aggregate File
 
@@ -265,7 +292,10 @@ Rules:
 - `href` is the link to the individual MDX file
 - Link path has no `.mdx` extension
 - Keep each block to 5-10 lines
-- If one MDX file covers multiple features, create separate `<ReleaseUpdate>` blocks per feature date
+- For a consolidated multi-topic file, prefer a **single** `<ReleaseUpdate>` block labeled with the
+  latest date, whose bullets summarize the bundled features — one block per file, not one per
+  feature. Only split into multiple blocks when the bundled features fall on clearly distinct dates
+  that each merit their own line in the feed.
 
 ### Reverse-chronological insertion (do not skip this)
 
@@ -407,6 +437,46 @@ grep -nP 'ReleaseUpdate label="[\d.]+' docs/phoenix/release-notes.mdx \
   | awk 'NR>1 && $2>prev { print "OUT OF ORDER at release-notes.mdx:" $1 " — " $2 " appears above " prev; bad=1 } { prev=$2 } END { if (!bad) print "OK: reverse-chronological order intact" }'
 ```
 
+## Step 9: Slack-Friendly Overview
+
+After the docs are written, produce a short overview of the release that can be **copy-pasted
+directly into Slack**. Print it in the final response inside a single fenced code block so the
+user can grab the whole thing in one click. This is a summary for a team channel, not a
+replacement for the release notes — link back to the published notes for detail.
+
+### Slack formatting rules (mrkdwn, not Markdown)
+
+Slack does **not** render standard Markdown. Use its `mrkdwn` syntax or the message will look wrong:
+
+- **Bold** is single asterisks: `*bold*` — not `**bold**`
+- _Italic_ is underscores: `_italic_`
+- **No `#` headings** — Slack ignores them. Use a bold line instead.
+- Links are `<https://url|label>` — not `[label](url)`
+- Bullets use a literal `•` character (not `-` or `*`, which don't render as bullets)
+- Inline code uses single backticks; code blocks use triple backticks with **no language tag**
+- Keep it tight — a few bullets. Slack readers skim; link out for the rest.
+
+### Template
+
+```
+*🚀 Phoenix release — <MONTH DD, YYYY>*
+
+<One-sentence framing of the highlight(s).>
+
+• *<Feature One>* (`<package X.Y.Z+>`) — one-line user-facing description.
+• *<Feature Two>* (`<package X.Y.Z+>`) — one-line user-facing description.
+
+📝 Release notes: <https://docs.arize.com/phoenix/release-notes/MM-YYYY/MM-DD-YYYY-slug|Full notes>
+```
+
+Rules:
+- Carry the same **version lines** and **minimum-version requirements** through from the docs —
+  if a feature requires a minimum server version, surface it here too (e.g. `requires server 17.12.0+`).
+- Include a link to the published release note page (extensionless path under
+  `https://docs.arize.com/phoenix/...`).
+- No PR numbers, commit hashes, or internal module paths — same exclusions as the notes.
+- One code block only, so the whole message copy-pastes in a single selection.
+
 ## Decision Quick Reference
 
 | Question | Answer |
@@ -432,6 +502,7 @@ Before opening a PR or considering the work done, walk through every item below.
 - [ ] **Step 6**: Updated `docs.json` navigation with all new page paths
 - [ ] **Step 7**: (Only if requested) Updated GitHub release descriptions, preserving existing body
 - [ ] **Step 8**: Ran verification — all links resolve, order is correct, no dangling references
+- [ ] **Step 9**: Printed a Slack-friendly overview in one fenced code block, using `mrkdwn` (not Markdown), carrying version/minimum-version requirements and a link to the published notes
 
 ### Technical writing review
 

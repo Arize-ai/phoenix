@@ -1,0 +1,165 @@
+import { useMemo, useState } from "react";
+import { graphql, useFragment, useMutation } from "react-relay";
+
+import {
+  Alert,
+  Flex,
+  Link,
+  SectionHeading,
+  Text,
+  View,
+} from "@phoenix/components";
+import { ProjectTraceRetentionPolicySelect } from "@phoenix/components/retention/ProjectTraceRetentionPolicySelect";
+import {
+  useNotifySuccess,
+  useViewerCanManageRetentionPolicy,
+} from "@phoenix/contexts";
+import {
+  createPolicyDeletionSummaryText,
+  createPolicyScheduleSummaryText,
+} from "@phoenix/utils/retentionPolicyUtils";
+
+import type { ProjectRetentionPolicyCard_policy$key } from "./__generated__/ProjectRetentionPolicyCard_policy.graphql";
+import type { ProjectRetentionPolicyCard_query$key } from "./__generated__/ProjectRetentionPolicyCard_query.graphql";
+import type { ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation } from "./__generated__/ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation.graphql";
+
+/**
+ * The data retention section of the project settings card. Renders the trace
+ * retention policy selector along with a human-readable summary of what the
+ * policy deletes and on what schedule.
+ */
+export const ProjectRetentionPolicySection = ({
+  project,
+  query,
+}: {
+  project: ProjectRetentionPolicyCard_policy$key;
+  query: ProjectRetentionPolicyCard_query$key;
+}) => {
+  const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
+  const [error, setError] = useState<string | null>(null);
+  const notifySuccess = useNotifySuccess();
+
+  const queryKey = useFragment(
+    graphql`
+      fragment ProjectRetentionPolicyCard_query on Query {
+        ...ProjectTraceRetentionPolicySelectFragment
+      }
+    `,
+    query
+  );
+  const data = useFragment<ProjectRetentionPolicyCard_policy$key>(
+    graphql`
+      fragment ProjectRetentionPolicyCard_policy on Project {
+        id
+        name
+        traceRetentionPolicy {
+          id
+          name
+          cronExpression
+          rule {
+            ... on TraceRetentionRuleMaxDays {
+              maxDays
+            }
+            ... on TraceRetentionRuleMaxCount {
+              maxCount
+            }
+            ... on TraceRetentionRuleMaxDaysOrCount {
+              maxDays
+              maxCount
+            }
+          }
+        }
+      }
+    `,
+    project
+  );
+
+  const [commit, isCommitting] =
+    useMutation<ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation>(
+      graphql`
+        mutation ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation(
+          $projectId: ID!
+          $policyId: ID!
+        ) {
+          patchProjectTraceRetentionPolicy(
+            input: { id: $policyId, addProjects: [$projectId] }
+          ) {
+            query {
+              node(id: $projectId) {
+                ... on Project {
+                  ...ProjectRetentionPolicyCard_policy
+                }
+              }
+            }
+          }
+        }
+      `
+    );
+
+  const scheduleText = useMemo(() => {
+    return createPolicyScheduleSummaryText({
+      schedule: data.traceRetentionPolicy?.cronExpression || "",
+    });
+  }, [data.traceRetentionPolicy?.cronExpression]);
+
+  const handleRetentionPolicyChange = (policyId: string) => {
+    commit({
+      variables: {
+        projectId: data.id,
+        policyId: policyId,
+      },
+      onCompleted: () => {
+        notifySuccess({
+          title: "Project retention policy updated",
+          message:
+            "The new policy will take effect at the configured schedule.",
+        });
+      },
+      onError: () => {
+        setError("Please try again.");
+      },
+    });
+  };
+
+  return (
+    <>
+      <SectionHeading>Data Retention</SectionHeading>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <View paddingX="size-200" paddingY="size-100">
+        <Flex direction="row" gap="size-400" alignItems="center">
+          <section>
+            <ProjectTraceRetentionPolicySelect
+              defaultValue={data.traceRetentionPolicy?.id}
+              onChange={handleRetentionPolicyChange}
+              query={queryKey}
+              isDisabled={isCommitting || !canManageRetentionPolicy}
+            />
+          </section>
+          <section>
+            <Flex direction="column" gap="size-100">
+              <Text>
+                {createPolicyDeletionSummaryText({
+                  numberOfDays: data.traceRetentionPolicy?.rule?.maxDays,
+                  numberOfTraces: data.traceRetentionPolicy?.rule?.maxCount,
+                })}
+              </Text>
+              <Text>
+                <b>Schedule:</b> {scheduleText}
+              </Text>
+            </Flex>
+          </section>
+        </Flex>
+      </View>
+      <View
+        paddingX="size-200"
+        paddingY="size-100"
+        borderTopWidth="thin"
+        borderColor="default"
+      >
+        <Flex direction="row" justifyContent="end">
+          <Link to="/settings/data">Configure Retention Policies</Link>
+        </Flex>
+      </View>
+    </>
+  );
+};

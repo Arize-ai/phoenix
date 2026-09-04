@@ -23,61 +23,77 @@ export type {
   ResponseFormatJSONSchema,
 };
 
-export type ToOpenAIParams<V extends Variables> = toSDKParamsBase<V>;
+export type ToOpenAIParams<PromptVariables extends Variables> =
+  toSDKParamsBase<PromptVariables>;
+
+type PhoenixPrompt = ToOpenAIParams<Variables>["prompt"];
+
+function getInvocationParameters(
+  prompt: PhoenixPrompt
+): Partial<ChatCompletionCreateParams> {
+  const parameters = prompt.invocation_parameters;
+  switch (parameters.type) {
+    case "openai":
+      return parameters.openai;
+    case "azure_openai":
+      return parameters.azure_openai;
+    case "deepseek":
+      return parameters.deepseek;
+    case "xai":
+      return parameters.xai;
+    case "ollama":
+      return parameters.ollama;
+    case "cerebras":
+      return parameters.cerebras;
+    case "fireworks":
+      return parameters.fireworks;
+    case "groq":
+      return parameters.groq;
+    case "moonshot":
+      return parameters.moonshot;
+    case "perplexity":
+      return parameters.perplexity;
+    case "together":
+      return parameters.together;
+    case "zai":
+      return parameters.zai;
+    default:
+      // eslint-disable-next-line no-console
+      console.warn(
+        "Prompt is not an OpenAI-family prompt, falling back to default OpenAI invocation parameters"
+      );
+      return {};
+  }
+}
+
+function getOpenAITools(
+  prompt: PhoenixPrompt
+): ChatCompletionCreateParams["tools"] {
+  const toolsList = prompt.tools?.tools ?? [];
+  if (toolsList.length === 0) return undefined;
+
+  return toolsList.map((tool) => {
+    if (isPromptToolRaw(tool)) return tool.raw;
+    const definition = safelyConvertToolDefinitionToProvider({
+      toolDefinition: tool,
+      targetProvider: "OPENAI",
+    });
+    invariant(definition, "Tool definition is not valid");
+    return definition;
+  }) as unknown as ChatCompletionCreateParams["tools"];
+}
 
 /**
  * Convert a Phoenix prompt to OpenAI client sdk's chat completion parameters
  *
  * @returns The converted chat completion parameters
  */
-export const toOpenAI = <V extends Variables = Variables>({
+export const toOpenAI = <PromptVariables extends Variables = Variables>({
   prompt,
   variables,
-}: ToOpenAIParams<V>): ChatCompletionCreateParams | null => {
+}: ToOpenAIParams<PromptVariables>): ChatCompletionCreateParams | null => {
   try {
-    let invocationParameters: Partial<ChatCompletionCreateParams>;
-    switch (prompt.invocation_parameters.type) {
-      case "openai":
-        invocationParameters = prompt.invocation_parameters.openai;
-        break;
-      case "azure_openai":
-        invocationParameters = prompt.invocation_parameters.azure_openai;
-        break;
-      case "deepseek":
-        invocationParameters = prompt.invocation_parameters.deepseek;
-        break;
-      case "xai":
-        invocationParameters = prompt.invocation_parameters.xai;
-        break;
-      case "ollama":
-        invocationParameters = prompt.invocation_parameters.ollama;
-        break;
-      case "cerebras":
-        invocationParameters = prompt.invocation_parameters.cerebras;
-        break;
-      case "fireworks":
-        invocationParameters = prompt.invocation_parameters.fireworks;
-        break;
-      case "groq":
-        invocationParameters = prompt.invocation_parameters.groq;
-        break;
-      case "moonshot":
-        invocationParameters = prompt.invocation_parameters.moonshot;
-        break;
-      case "perplexity":
-        invocationParameters = prompt.invocation_parameters.perplexity;
-        break;
-      case "together":
-        invocationParameters = prompt.invocation_parameters.together;
-        break;
-      default:
-        // eslint-disable-next-line no-console
-        console.warn(
-          "Prompt is not an OpenAI-family prompt, falling back to default OpenAI invocation parameters"
-        );
-        invocationParameters = {};
-        break;
-    }
+    const invocationParameters = getInvocationParameters(prompt);
     // parts of the prompt that can be directly converted to OpenAI params
     const baseCompletionParams = {
       model: prompt.model_name,
@@ -108,24 +124,8 @@ export const toOpenAI = <V extends Variables = Variables>({
       return openAIMessage;
     });
 
-    const toolsList = prompt.tools?.tools ?? [];
-    // Cast: raw tools are `Record<string, unknown>` straight from the prompt
-    // store. We trust the upstream caller to have stored a shape OpenAI's
-    // SDK accepts; no validation here.
-    const tools =
-      toolsList.length === 0
-        ? undefined
-        : (toolsList.map((tool) => {
-            if (isPromptToolRaw(tool)) {
-              return tool.raw;
-            }
-            const openAIToolDefinition = safelyConvertToolDefinitionToProvider({
-              toolDefinition: tool,
-              targetProvider: "OPENAI",
-            });
-            invariant(openAIToolDefinition, "Tool definition is not valid");
-            return openAIToolDefinition;
-          }) as unknown as ChatCompletionCreateParams["tools"]);
+    // Raw tools are trusted to already match the OpenAI SDK shape.
+    const tools = getOpenAITools(prompt);
 
     const tool_choice: OpenaiToolChoice | undefined = tools
       ? (safelyConvertToolChoiceToProvider({

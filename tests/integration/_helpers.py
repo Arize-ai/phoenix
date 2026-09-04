@@ -50,6 +50,7 @@ import jwt
 import pytest
 import smtpdfix
 from fastapi import FastAPI
+from fastapi.routing import APIRoute, _IncludedRouter
 from httpx import Headers, HTTPStatusError
 from jwt import DecodeError
 from openinference.semconv.resource import ResourceAttributes
@@ -68,6 +69,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.routing import BaseRoute
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never, override
 
@@ -89,6 +91,7 @@ from phoenix.db.engines import get_async_db_url
 from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.routers.v1 import create_v1_router
 from phoenix.server.thread_server import ThreadServer
 
 _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
@@ -101,6 +104,8 @@ _ProjectName: TypeAlias = str
 _SpanName: TypeAlias = str
 _Headers: TypeAlias = dict[str, Any]
 _Name: TypeAlias = str
+_HttpMethod: TypeAlias = str
+_RoutePath: TypeAlias = str
 
 _Secret: TypeAlias = str
 _Email: TypeAlias = str
@@ -843,10 +848,14 @@ def _gql(
     query: str,
     variables: Optional[Mapping[str, Any]] = None,
     operation_name: Optional[str] = None,
+    raise_on_errors: bool = True,
 ) -> tuple[dict[str, Any], Headers]:
     json_ = dict(query=query, variables=dict(variables or {}), operationName=operation_name)
     resp = _httpx_client(app, auth).post("graphql", json=json_)
-    return _json(resp), resp.headers
+    if raise_on_errors:
+        return _json(resp), resp.headers
+    resp.raise_for_status()
+    return cast(dict[str, Any], resp.json()), resp.headers
 
 
 def _get_gql_spans(
@@ -2180,6 +2189,10 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/datasets/fake-id-{}/jsonl"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_ft"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
+    # Dataset labels
+    (200, "GET", "v1/dataset_labels"),
+    (422, "GET", "v1/dataset_labels/fake-id-{}"),
+    (404, "GET", "v1/datasets/fake-id-{}/labels"),
     # Experiments
     (422, "GET", "v1/experiments/fake-id-{}"),
     (422, "GET", "v1/datasets/fake-id-{}/experiments"),
@@ -2188,6 +2201,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/experiments/fake-id-{}/incomplete-evaluations"),
     (422, "GET", "v1/experiments/fake-id-{}/json"),
     (422, "GET", "v1/experiments/fake-id-{}/csv"),
+    (422, "GET", "v1/experiments/fake-id-{}/tags"),
     # Prompts
     (200, "GET", "v1/prompts"),
     (200, "GET", "v1/prompts/fake-id-{}/versions"),
@@ -2198,6 +2212,8 @@ _COMMON_RESOURCE_ENDPOINTS = (
     # Annotation configs
     (200, "GET", "v1/annotation_configs"),
     (404, "GET", "v1/annotation_configs/fake-id-{}"),
+    # Project annotation config assignments (project-scoped)
+    (404, "GET", "v1/projects/fake-id-{}/annotation_configs"),
     # Spans (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/spans"),
     (404, "GET", "v1/projects/fake-id-{}/spans/otlpv1"),
@@ -2212,34 +2228,48 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/sessions/fake-id-{}"),
     # Traces (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/traces"),
+    # Model providers
+    (200, "GET", "v1/model_providers"),
+    (200, "GET", "v1/custom_model_providers"),
     # Viewer (authenticated user profile)
     (200, "GET", "v1/user"),
+    # API keys (the authenticated user's own personal keys)
+    (200, "GET", "v1/user/api_keys"),
 )
 
 # Admin-only endpoints (user management, project CRUD)
 # Non-admins always receive 403, admins get expected_admin_status
 _ADMIN_ONLY_ENDPOINTS = (
     (200, "GET", "v1/users"),
+    (200, "GET", "v1/users/api_keys"),
     (422, "POST", "v1/users"),
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
+    (422, "PATCH", "v1/projects/fake-id-{}/retention"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
     (422, "PUT", "v1/secrets"),
+    (200, "GET", "v1/system/api_keys"),
+    (422, "POST", "v1/system/api_keys"),
+    (422, "DELETE", "v1/system/api_keys/fake-id-{}"),
 )
 
-# Write operations blocked for viewers (POST/PUT/DELETE)
+# Write operations blocked for viewers (POST/PUT/PATCH/DELETE)
 # Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
 _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     # POST routes
     (422, "POST", "v1/annotation_configs"),
+    (422, "POST", "v1/dataset_labels"),
     (400, "POST", "v1/datasets/upload"),
     (422, "POST", "v1/datasets/fake-id-{}/experiments"),
+    (422, "POST", "v1/datasets/fake-id-{}/splits"),
     (422, "POST", "v1/document_annotations"),
     (422, "POST", "v1/experiment_evaluations"),
     (422, "POST", "v1/experiments/fake-id-{}/runs"),
+    (422, "POST", "v1/experiments/fake-id-{}/tags"),
     (422, "POST", "v1/projects"),
     (422, "POST", "v1/projects/fake-id-{}/spans"),
     (422, "POST", "v1/prompts"),
+    (422, "POST", "v1/prompts/fake-id-{}/versions"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
     (422, "POST", "v1/session_annotations"),
     (422, "POST", "v1/session_notes"),
@@ -2249,14 +2279,28 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/trace_annotations"),
     (422, "POST", "v1/trace_notes"),
     (415, "POST", "v1/traces"),
+    (422, "POST", "v1/traces/transfer"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
+    (404, "PUT", "v1/projects/{0}/annotation_configs/{0}"),
+    (422, "PUT", "v1/projects/fake-id-{}/annotation_configs"),
+    (422, "PUT", "v1/datasets/fake-id-{}/labels"),
+    (422, "PUT", "v1/datasets/fake-id-{}/labels/test-label"),
     # PATCH routes
     (422, "PATCH", "v1/experiments/fake-id-{}"),
+    (422, "PATCH", "v1/dataset_labels/fake-id-{}"),
+    (422, "PATCH", "v1/prompts/fake-id-{}"),
+    (422, "PATCH", "v1/datasets/fake-id-{}/splits/test-split"),
     # DELETE routes
+    (422, "DELETE", "v1/projects/fake-id-{}/traces"),
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
+    (404, "DELETE", "v1/projects/{0}/annotation_configs/{0}"),
+    (422, "DELETE", "v1/dataset_labels/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}/labels/test-label"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}/splits/test-split"),
     (422, "DELETE", "v1/experiments/fake-id-{}"),
+    (422, "DELETE", "v1/experiments/fake-id-{}/tags/test-tag"),
     (404, "DELETE", "v1/sessions/fake-id-{}"),
     (404, "DELETE", "v1/spans/fake-id-{}"),
     (404, "DELETE", "v1/prompts/fake-id-{}"),
@@ -2270,26 +2314,77 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
 )
 
 
+# Self-service credential writes are intentionally available to viewers.
+_VIEWER_ALLOWED_CREDENTIAL_OPERATIONS = (
+    (422, "POST", "v1/user/api_keys"),
+    (422, "DELETE", "v1/user/api_keys/fake-id-{}"),
+)
+
+
+# POST endpoints that write nothing and are intentionally available to every
+# authenticated role, viewers included
+_VIEWER_ALLOWED_WRITE_OPERATIONS = ((422, "POST", "v1/chat/completions"),)
+
+
+# Credential issuance requires a human session (or, where supported, the admin secret).
+# A user API key cannot issue another credential, even when its owner has the required role.
+_SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS = frozenset(
+    {
+        ("POST", "v1/user/api_keys"),
+        ("POST", "v1/system/api_keys"),
+    }
+)
+
+
+# Endpoints that refuse to act when authentication is disabled, returning 403.
+#
+# These issue credentials. Without authentication Phoenix has no notion of identity, so
+# minting an API key would hand a durable bearer token to an anonymous caller. They still
+# appear in the registries above, so that the role matrix covers them when authentication
+# IS enabled, but a no-auth app must reject them regardless of the status code recorded
+# there.
+_AUTH_REQUIRED_ENDPOINTS = frozenset(
+    {
+        ("GET", "v1/user/api_keys"),
+        ("GET", "v1/users/api_keys"),
+        ("POST", "v1/user/api_keys"),
+        ("DELETE", "v1/user/api_keys/fake-id-{}"),
+        ("GET", "v1/system/api_keys"),
+        ("POST", "v1/system/api_keys"),
+        ("DELETE", "v1/system/api_keys/fake-id-{}"),
+    }
+)
+
+
+def _join_paths(prefix: _RoutePath, path: _RoutePath) -> _RoutePath:
+    if not prefix:
+        return path
+    return f"{prefix.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _get_api_route_methods_and_paths(
+    routes: Iterable[BaseRoute], prefix: _RoutePath = ""
+) -> Iterator[tuple[_HttpMethod, _RoutePath]]:
+    for route in routes:
+        if isinstance(route, APIRoute):
+            for method in route.methods or ():
+                yield method, _join_paths(prefix, route.path)
+        elif isinstance(route, _IncludedRouter):
+            include_prefix = route.include_context.prefix
+            yield from _get_api_route_methods_and_paths(
+                route.original_router.routes, _join_paths(prefix, include_prefix)
+            )
+
+
 def _ensure_endpoint_coverage_is_exhaustive() -> None:
     """Verify that test constants cover all actual v1 API routes.
 
     This runs at module import time as a prerequisite check. If endpoint
     coverage is incomplete, all tests that import this module will fail fast.
     """
-    import re
-
-    from fastapi.routing import APIRoute
-
-    from phoenix.server.api.routers.v1 import create_v1_router
-
     # Get all actual routes from the v1 router
     router = create_v1_router(authentication_enabled=False)
-    actual_routes = {
-        (method, route.path)
-        for route in router.routes
-        if isinstance(route, APIRoute)
-        for method in route.methods
-    }
+    actual_routes = set(_get_api_route_methods_and_paths(router.routes))
 
     # Get all routes from test constants
     test_routes = {
@@ -2298,6 +2393,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             _COMMON_RESOURCE_ENDPOINTS,
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
+            _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+            _VIEWER_ALLOWED_WRITE_OPERATIONS,
         )
     }
 
@@ -2308,6 +2405,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
         path = re.sub(r"fake-id-\{\}", "{id}", path)
         path = re.sub(r"\{[^}]*\}", "{id}", path)
         path = re.sub(r"/tags/test-tag$", "/tags/{id}", path)
+        path = re.sub(r"/labels/test-label$", "/labels/{id}", path)
+        path = re.sub(r"/splits/test-split$", "/splits/{id}", path)
         return path
 
     # Map normalized paths back to original paths for error reporting
@@ -2332,7 +2431,9 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
                 f"Add these to _helpers.py:\n"
                 f"  - GET routes → _COMMON_RESOURCE_ENDPOINTS\n"
                 f"  - Admin-only routes (users, project CRUD) → _ADMIN_ONLY_ENDPOINTS\n"
-                f"  - Write operations (POST/PUT/DELETE) → _VIEWER_BLOCKED_WRITE_OPERATIONS\n\n"
+                f"  - Viewer-blocked writes → _VIEWER_BLOCKED_WRITE_OPERATIONS\n"
+                f"  - Viewer credential self-service → _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS\n"
+                f"  - Viewer-allowed writes (e.g. LLM proxy) → _VIEWER_ALLOWED_WRITE_OPERATIONS\n\n"
                 f"Format: (expected_status_code, method, endpoint_path)\n"
                 f'Example: (404, "GET", "v1/projects/fake-id-{{}}") or (422, "POST", "v1/datasets/upload")'
             )
@@ -2343,7 +2444,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             error_parts.append(
                 f"Routes in test constants but NOT in server (removed?):\n{routes_str}\n\n"
                 f"Remove these from _COMMON_RESOURCE_ENDPOINTS, _ADMIN_ONLY_ENDPOINTS,\n"
-                f"or _VIEWER_BLOCKED_WRITE_OPERATIONS in _helpers.py"
+                f"_VIEWER_BLOCKED_WRITE_OPERATIONS, _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,\n"
+                f"or _VIEWER_ALLOWED_WRITE_OPERATIONS in _helpers.py"
             )
         raise AssertionError("Endpoint coverage is incomplete!\n\n" + "\n\n".join(error_parts))
 

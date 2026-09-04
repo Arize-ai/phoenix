@@ -3,7 +3,8 @@
  *
  * Precedence:
  * 1. Explicit `projectIdentifier` from the tool call
- * 2. Configured default from `PHOENIX_PROJECT` env var or `--project` CLI flag
+ * 2. Configured default from `PHOENIX_PROJECT`/`PHOENIX_PROJECT_NAME` env var or
+ *    `--project` CLI flag
  */
 export function resolveProjectIdentifier({
   projectIdentifier,

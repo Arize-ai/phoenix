@@ -1,5 +1,6 @@
 import strawberry
 
+from phoenix.server.api.mutations.agent_session_mutations import AgentSessionMutationMixin
 from phoenix.server.api.mutations.annotation_config_mutations import AnnotationConfigMutationMixin
 from phoenix.server.api.mutations.api_key_mutations import ApiKeyMutationMixin
 from phoenix.server.api.mutations.chat_mutations import (
@@ -17,6 +18,10 @@ from phoenix.server.api.mutations.generative_model_custom_provider_mutations imp
     GenerativeModelCustomProviderMutationMixin,
 )
 from phoenix.server.api.mutations.model_mutations import ModelMutationMixin
+from phoenix.server.api.mutations.oauth2_grant_mutations import OAuth2GrantMutationMixin
+from phoenix.server.api.mutations.project_annotations_mutations import (
+    ProjectAnnotationMutationMixin,
+)
 from phoenix.server.api.mutations.project_mutations import ProjectMutationMixin
 from phoenix.server.api.mutations.project_session_annotations_mutations import (
     ProjectSessionAnnotationMutationMixin,
@@ -38,6 +43,7 @@ from phoenix.server.api.mutations.user_mutations import UserMutationMixin
 
 @strawberry.type
 class Mutation(
+    AgentSessionMutationMixin,
     AnnotationConfigMutationMixin,
     ApiKeyMutationMixin,
     ChatCompletionMutationMixin,
@@ -49,6 +55,8 @@ class Mutation(
     ExperimentMutationMixin,
     GenerativeModelCustomProviderMutationMixin,
     ModelMutationMixin,
+    OAuth2GrantMutationMixin,
+    ProjectAnnotationMutationMixin,
     ProjectMutationMixin,
     ProjectTraceRetentionPolicyMutationMixin,
     PromptMutationMixin,

@@ -22,15 +22,13 @@ import {
   getAnnotationMutationHelpText,
   getResponseErrorMessage,
   normalizeAnnotationInput,
-} from "./annotationMutationUtils";
+} from "./annotationMutations";
 import {
-  formatAnnotationMutationOutput,
-  type OutputFormat as AnnotationMutationOutputFormat,
-} from "./formatAnnotationMutation";
-import {
-  formatNoteMutationOutput,
-  type OutputFormat as NoteMutationOutputFormat,
-} from "./formatNoteMutation";
+  fetchSpanAnnotations,
+  type SpanAnnotation,
+} from "./fetchSpanAnnotations";
+import { formatAnnotationMutationOutput } from "./formatAnnotationMutation";
+import { formatNoteMutationOutput } from "./formatNoteMutation";
 import {
   formatSpansOutput,
   type OutputFormat as SpanOutputFormat,
@@ -39,50 +37,102 @@ import {
   buildNoteMutationResult,
   NOTE_ANNOTATION_NAME,
   normalizeNoteText,
-} from "./noteMutationUtils";
-import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
+} from "./noteMutations";
+import type {
+  AddNoteOptions,
+  AnnotationInclusionOptions,
+  AnnotateOptions,
+  DeleteOptions,
+  ProjectScopedOptions,
+} from "./options";
 
 type Span = componentsV1["schemas"]["Span"];
 
-interface SpanListOptions {
-  endpoint?: string;
-  project?: string;
-  apiKey?: string;
-  format?: SpanOutputFormat;
-  progress?: boolean;
+/**
+ * Options for `px span list`. Every filter is optional and they combine with
+ * AND; with none of them set the command returns the newest `limit` spans in
+ * the project.
+ */
+interface SpanListOptions
+  extends ProjectScopedOptions<SpanOutputFormat>, AnnotationInclusionOptions {
+  /**
+   * `-n, --limit <number>`: Maximum number of spans to fetch, newest first.
+   * Defaults to 100.
+   *
+   * @example 500
+   */
   limit?: number;
+  /**
+   * `--last-n-minutes <number>`: Only fetch spans from the last N minutes.
+   * A relative alternative to `since`.
+   *
+   * @example 60
+   */
   lastNMinutes?: number;
+  /**
+   * `--since <timestamp>`: Only fetch spans started at or after this ISO 8601
+   * timestamp.
+   *
+   * @example "2026-07-13T00:00:00Z"
+   */
   since?: string;
+  /**
+   * `--until <timestamp>`: Only fetch spans started before this ISO 8601
+   * timestamp (exclusive). Combine with `since` to select a time range.
+   *
+   * @example "2026-07-14T00:00:00Z"
+   */
+  until?: string;
+  /**
+   * `--span-kind <kinds...>`: Filter by OpenInference span kind — `LLM`,
+   * `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`,
+   * `GUARDRAIL`, `EVALUATOR`, or `UNKNOWN`.
+   *
+   * @example ["LLM", "TOOL"]
+   */
   spanKind?: string[];
+  /**
+   * `--status-code <codes...>`: Filter by span status — `OK`, `ERROR`, or
+   * `UNSET`. Filtering to `ERROR` is the usual starting point for triage.
+   *
+   * @example ["ERROR"]
+   */
   statusCode?: string[];
+  /**
+   * `--name <names...>`: Filter by span name.
+   *
+   * @example ["ChatCompletion"]
+   */
   name?: string[];
+  /**
+   * `--trace-id <ids...>`: Filter to spans belonging to these OpenTelemetry
+   * trace IDs.
+   *
+   * @example ["8f2a...c31"]
+   */
   traceId?: string[];
+  /**
+   * `--span-id <ids...>`: Filter to spans with these OpenTelemetry span IDs.
+   * Requires a Phoenix server >= 19.6.0.
+   *
+   * @example ["4bf92f3577b34da6"]
+   */
+  spanId?: string[];
+  /**
+   * `--parent-id <id>`: Filter by parent span ID. The literal string `"null"`
+   * selects root spans only.
+   *
+   * @example "null"
+   */
   parentId?: string;
+  /**
+   * `--attribute <filters...>`: Filter by attribute key-value pairs, split on
+   * the first `:` only so values may themselves contain colons. Repeat to AND
+   * multiple filters. Requires a Phoenix server >= 14.9.0.
+   *
+   * @example ["llm.model_name:gpt-4", "session.id:sess:abc:123"]
+   */
   attribute?: string[];
-  includeAnnotations?: boolean;
-  includeNotes?: boolean;
-}
-
-interface SpanAnnotateOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: AnnotationMutationOutputFormat;
-  progress?: boolean;
-  name?: string;
-  label?: string;
-  score?: string;
-  explanation?: string;
-  annotatorKind?: string;
-  identifier?: string;
-}
-
-interface SpanAddNoteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  format?: NoteMutationOutputFormat;
-  progress?: boolean;
-  text?: string;
-  identifier?: string;
 }
 
 /**
@@ -95,6 +145,7 @@ async function fetchSpansForProject(
     startTime?: string;
     endTime?: string;
     traceIds?: string[];
+    spanIds?: string[];
     parentId?: string;
     names?: string[];
     spanKinds?: string[];
@@ -121,6 +172,7 @@ async function fetchSpansForProject(
             start_time: options.startTime,
             end_time: options.endTime,
             trace_id: options.traceIds,
+            span_id: options.spanIds,
             parent_id: options.parentId,
             name: options.names,
             span_kind: options.spanKinds,
@@ -144,6 +196,74 @@ async function fetchSpansForProject(
   } while (cursor);
 
   return allSpans.slice(0, options.limit);
+}
+
+function getSpanIds(spans: SpanWithAnnotations[]): string[] {
+  return spans
+    .map((span) => span.context?.span_id)
+    .filter((spanId): spanId is string => Boolean(spanId));
+}
+
+async function attachRequestedSpanMetadata({
+  client,
+  projectId,
+  spans,
+  options,
+}: {
+  client: PhoenixClient;
+  projectId: string;
+  spans: SpanWithAnnotations[];
+  options: SpanListOptions;
+}): Promise<void> {
+  const spanIds = getSpanIds(spans);
+  if (options.includeAnnotations) {
+    writeProgress({
+      message: "Fetching span annotations...",
+      noProgress: !options.progress,
+    });
+    const annotations = await fetchSpanAnnotations({
+      client,
+      projectIdentifier: projectId,
+      spanIds,
+      excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    const bySpanId = new Map<string, SpanAnnotation[]>();
+    for (const annotation of annotations) {
+      const values = bySpanId.get(annotation.span_id) ?? [];
+      values.push(annotation);
+      bySpanId.set(annotation.span_id, values);
+    }
+    for (const span of spans) {
+      const annotationsForSpan = span.context?.span_id
+        ? bySpanId.get(span.context.span_id)
+        : undefined;
+      if (annotationsForSpan) span.annotations = annotationsForSpan;
+    }
+  }
+  if (options.includeNotes) {
+    writeProgress({
+      message: "Fetching span notes...",
+      noProgress: !options.progress,
+    });
+    const notes = await fetchSpanAnnotations({
+      client,
+      projectIdentifier: projectId,
+      spanIds,
+      includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    const bySpanId = new Map<string, SpanNote[]>();
+    for (const note of notes) {
+      const values = bySpanId.get(note.span_id) ?? [];
+      values.push(buildSpanNote(note));
+      bySpanId.set(note.span_id, values);
+    }
+    for (const span of spans) {
+      const notesForSpan = span.context?.span_id
+        ? bySpanId.get(span.context.span_id)
+        : undefined;
+      if (notesForSpan) span.notes = notesForSpan;
+    }
+  }
 }
 
 /**
@@ -219,8 +339,10 @@ async function spanListHandler(
       projectId,
       {
         startTime,
+        endTime: options.until,
         limit,
         traceIds: options.traceId,
+        spanIds: options.spanId,
         parentId: options.parentId,
         names: options.name,
         spanKinds: options.spanKind,
@@ -242,77 +364,7 @@ async function spanListHandler(
       noProgress: !options.progress,
     });
 
-    // Fetch annotations if requested
-    if (options.includeAnnotations) {
-      writeProgress({
-        message: "Fetching span annotations...",
-        noProgress: !options.progress,
-      });
-
-      const spanIds = spans
-        .map((span) => span.context?.span_id)
-        .filter((spanId): spanId is string => Boolean(spanId));
-
-      const annotations = await fetchSpanAnnotations({
-        client,
-        projectIdentifier: projectId,
-        spanIds,
-        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-
-      const annotationsBySpanId = new Map<string, SpanAnnotation[]>();
-      for (const annotation of annotations) {
-        const spanId = annotation.span_id;
-        if (!annotationsBySpanId.has(spanId)) {
-          annotationsBySpanId.set(spanId, []);
-        }
-        annotationsBySpanId.get(spanId)!.push(annotation);
-      }
-
-      for (const span of spans) {
-        const spanId = span.context?.span_id;
-        if (!spanId) continue;
-        const spanAnnotations = annotationsBySpanId.get(spanId);
-        if (spanAnnotations) {
-          span.annotations = spanAnnotations;
-        }
-      }
-    }
-    if (options.includeNotes) {
-      writeProgress({
-        message: "Fetching span notes...",
-        noProgress: !options.progress,
-      });
-
-      const spanIds = spans
-        .map((span) => span.context?.span_id)
-        .filter((spanId): spanId is string => Boolean(spanId));
-
-      const notes = await fetchSpanAnnotations({
-        client,
-        projectIdentifier: projectId,
-        spanIds,
-        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-
-      const notesBySpanId = new Map<string, SpanNote[]>();
-      for (const note of notes) {
-        const spanId = note.span_id;
-        if (!notesBySpanId.has(spanId)) {
-          notesBySpanId.set(spanId, []);
-        }
-        notesBySpanId.get(spanId)!.push(buildSpanNote(note));
-      }
-
-      for (const span of spans) {
-        const spanId = span.context?.span_id;
-        if (!spanId) continue;
-        const spanNotes = notesBySpanId.get(spanId);
-        if (spanNotes) {
-          span.notes = spanNotes;
-        }
-      }
-    }
+    await attachRequestedSpanMetadata({ client, projectId, spans, options });
 
     // Output spans
     if (file) {
@@ -375,6 +427,10 @@ export function createSpanListCommand(): Command {
     )
     .option("--since <timestamp>", "Fetch spans since this ISO timestamp")
     .option(
+      "--until <timestamp>",
+      "Fetch spans started before this ISO timestamp (exclusive)"
+    )
+    .option(
       "--span-kind <kinds...>",
       "Filter by span kind (LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN)"
     )
@@ -384,6 +440,10 @@ export function createSpanListCommand(): Command {
     )
     .option("--name <names...>", "Filter by span name(s)")
     .option("--trace-id <ids...>", "Filter by trace ID(s)")
+    .option(
+      "--span-id <ids...>",
+      "Filter by OpenTelemetry span ID(s). Requires Phoenix server >= 19.6.0."
+    )
     .option(
       "--parent-id <id>",
       'Filter by parent span ID (use "null" for root spans only)'
@@ -402,7 +462,7 @@ export function createSpanListCommand(): Command {
  */
 async function spanAnnotateHandler(
   spanId: string,
-  options: SpanAnnotateOptions
+  options: AnnotateOptions
 ): Promise<void> {
   try {
     const config = resolveConfig({
@@ -514,7 +574,7 @@ export function createSpanAnnotateCommand(): Command {
 
 async function spanAddNoteHandler(
   spanId: string,
-  options: SpanAddNoteOptions
+  options: AddNoteOptions
 ): Promise<void> {
   try {
     const config = resolveConfig({
@@ -595,19 +655,12 @@ export function createSpanAddNoteCommand(): Command {
     .action(spanAddNoteHandler);
 }
 
-interface SpanDeleteOptions {
-  endpoint?: string;
-  apiKey?: string;
-  yes?: boolean;
-  progress?: boolean;
-}
-
 /**
  * Handler for `span delete`
  */
 async function spanDeleteHandler(
   spanIdentifier: string,
-  options: SpanDeleteOptions
+  options: DeleteOptions
 ): Promise<void> {
   try {
     assertDeletesEnabled();

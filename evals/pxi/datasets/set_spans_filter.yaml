@@ -1,5 +1,12 @@
 dataset_name: set_spans_filter
-description: PXI server-side eval suite for deferred set_spans_filter tool calls.
+description: >-
+  PXI server-side eval suite for spans-filter authoring through the
+  spansFilter.set UI operation. Positive examples prime the
+  search_browser_actions discovery step (a catalog excerpt produced by the
+  real signature renderer) so each example scores the step that matters: the
+  agent resumes mid-loop holding the catalog and must compose the right
+  ui.spansFilter.set(...) script with a correct DSL condition. Fresh-turn
+  negatives stay unprimed.
 evaluators:
   - correct_tools_called
   - tool_call_args_match
@@ -11,13 +18,78 @@ examples:
       messages:
         - role: user
           content: Show me only LLM spans.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: &catalog |
+            // Complete catalog: all 3 UI operations, best query matches first.
+            // Further search_browser_actions calls return these same operations re-ranked — reuse
+            // this catalog instead of searching again. Only per-operation availability
+            // ("available on the current page") changes, after navigation.
+
+            // UIResult<T = unknown> = { ok: true; output: T } | { ok: false; code?: ErrorCode; error: string }
+            // ErrorCode = "UNKNOWN_OPERATION" | "NOT_AVAILABLE" | "INVALID_INPUT" | "CAPABILITY_DISABLED"
+            //   | "NO_SESSION" | "HANDLER_ERROR" | "NOT_FOUND" | "STALE_REVISION" | "NO_RUN_OUTPUT"
+            // Branch on `code` (stable), not on the `error` prose (for humans).
+
+            /**
+             * Set the spans table filter. The filter is applied declaratively as a complete state: the freeform `condition` (Phoenix span filter DSL) describes the entire view, and the table is updated to exactly that state. There is no notion of leaving part of the filter unchanged — always send the whole condition. Pass an empty string to clear it.
+
+            ROOT SPANS ARE PART OF THE CONDITION: restrict to root spans -- spans with no parent -- with the predicate `parent_id is None`; omit it to search every span. This is usually the top-level span of each trace, but nothing enforces one root per trace: a fragmented or partially ingested trace can have several, so do not treat the row count as a trace count. Do NOT restrict to root spans when narrowing to a `span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL) — those kinds are almost always nested under a CHAIN/AGENT root, so combining them with a root predicate yields zero results even when matching spans exist. The same applies to anything that targets nested spans (specific tool names, status_code == 'ERROR' on inner calls, annotations attached to leaf spans). Trace annotations apply to every span in the annotated trace: combine a trace-annotation condition with `parent_id is None` to show only root spans from matching traces, or omit the root predicate to inspect every span belonging to those traces. The spans table starts at `parent_id is None`, so dropping that predicate is how you widen the view to every span.
+
+            DSL FIELDS:
+              - Root spans: `parent_id is None` matches spans with no parent pointer, and is the table's default. `parent_span is None` is the wider form that also matches orphans -- spans whose parent was never ingested -- and is what to use when the user asks about orphans.
+              - String: `span_kind`, `name` (the span name, NOT span_name), `status_code`, `status_message`, `span_id`, `trace_id`, `parent_id`. Compare with `==`, `!=`, or membership via `in`.
+              - Numeric: `latency_ms`, `cumulative_token_count.{prompt,completion,total}`, `llm.token_count.{prompt,completion,total}`. Compare with `<`, `<=`, `>`, `>=`.
+              - Datetime: `start_time`, `end_time`.
+              - Attribute access: `attributes['key.path']`, `input.value`, `output.value`, `metadata['key']`.
+              - Annotations: `annotations['Name'].label`, `annotations['Name'].score`.
+              - Substring search: `'needle' in input.value` (any string field, ignores case).
+              - Combine clauses with `and`, `or`, `not`.
+
+            VALUE CONVENTIONS:
+              - `span_kind` values are UPPERCASE string literals: 'LLM', 'TOOL', 'CHAIN', 'AGENT', 'RETRIEVER', 'EMBEDDING', 'RERANKER', 'EVALUATOR', 'GUARDRAIL', 'UNKNOWN'. Lowercase ('llm') will not match.
+              - `status_code` values are UPPERCASE: 'OK', 'ERROR', 'UNSET'.
+              - Always wrap string literals in single or double quotes.
+
+            EXAMPLES BY INTENT:
+              - 'Show me LLM spans' → `span_kind == 'LLM'`
+              - 'Tool calls' → `span_kind == 'TOOL'`
+              - 'Errored spans' → `status_code == 'ERROR'`
+              - 'Slow LLM calls' → `span_kind == 'LLM' and latency_ms >= 5000`
+              - 'Top-level traces only' → `parent_id is None`
+              - 'Slow traces' → `parent_id is None and latency_ms >= 5000`
+              - 'Include orphaned spans as roots' → `parent_span is None`
+              - 'Hallucinations' → `annotations['Hallucination'].label == 'hallucinated'`
+              - 'Spans mentioning agent in input' → `'agent' in input.value`
+              - 'Show everything' → `''`
+              - 'Reset to default view' → `parent_id is None`.
+             * kind: write; available on the current page.
+             */
+            ui.spansFilter.set(input: { condition: string }): Promise<UIResult>;
+
+            /**
+             * Set the Phoenix app time range selector. Use preset `timeRangeKey` values for standard relative windows (15m, 1h, 12h, 1d, 7d, 30d). Use `custom` with `startTime` and optional `endTime` for specific calendar windows. Call the `get_current_datetime` tool first to read the current date/time in the user's browser timezone; base relative calendar phrases on that value — never on prior knowledge or on the currently selected time range.
+             * kind: write; available on the current page.
+             */
+            ui.timeRange.set(input: { timeRangeKey: "15m" | "1h" | "12h" | "1d" | "7d" | "30d" | "custom"; startTime?: string; endTime?: string }): Promise<UIResult>;
+
+            /**
+             * Ask the user to navigate to another Phoenix page. Stages an approval card that names the destination and your reason; on accept the app navigates and the promise resolves after the route change commits, so the destination page's operations can register. `path` must match a route from get_route_info — a path outside the route catalog is rejected. Use this when an operation you need is not available on the current page. This operation is never auto-approved; if the user declines, do not retry — offer a markdown link to the destination instead.
+             * kind: approval; available on the current page. Stages a change the user must accept; the returned promise resolves with the decision.
+             */
+            ui.navigation.goTo(input: { path: string; reason: string }): Promise<UIResult>;
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: span_kind == 'LLM'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -28,13 +100,21 @@ examples:
       messages:
         - role: user
           content: Filter the table to tool spans.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: span_kind == 'TOOL'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -45,13 +125,21 @@ examples:
       messages:
         - role: user
           content: Show spans that errored.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: status_code == 'ERROR'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -66,11 +154,20 @@ examples:
       messages:
         - role: user
           content: Show slow spans taking at least five seconds.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["latency_ms", "5000"]
             not_contains: ["latency_ms < ", "latency_ms <= "]
@@ -86,14 +183,22 @@ examples:
       messages:
         - role: user
           content: Show slow LLM calls taking at least five seconds.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["span_kind == 'LLM'", "latency_ms >= 5000"]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -104,11 +209,20 @@ examples:
       messages:
         - role: user
           content: Filter to trace id 8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: trace_id == '8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5'
     metadata:
       annotation:
@@ -120,13 +234,21 @@ examples:
       messages:
         - role: user
           content: Show spans named retrieve_documents.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: name == 'retrieve_documents'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -141,15 +263,23 @@ examples:
       messages:
         - role: user
           content: Show spans where the input mentions refund policy.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["refund policy", "in input.value"]
             not_contains: [".contains("]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -160,13 +290,21 @@ examples:
       messages:
         - role: user
           content: Show spans marked hallucinated by the Hallucination annotation.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: annotations['Hallucination'].label == 'hallucinated'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -177,13 +315,21 @@ examples:
       messages:
         - role: user
           content: Clear the span filter and return to the default root spans view.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
-          condition: ""
-          rootSpansOnly: true
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
+          condition: parent_id is None
     metadata:
       annotation:
         agreement: high
@@ -194,11 +340,20 @@ examples:
       messages:
         - role: user
           content: Filter to the chain spans.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: span_kind == 'CHAIN'
     metadata:
       annotation:
@@ -206,22 +361,30 @@ examples:
         n_opinions: 3
   - id: agent-root-spans
     # Genuinely ambiguous: "top-level agent traces" can resolve to either
-    # filtering by AGENT span_kind (with root-only) or just showing root
-    # spans (with no filter). Accept either via variants.
+    # filtering by AGENT span_kind alongside the root predicate, or just the
+    # root predicate on its own. Accept either via variants.
     splits: [regression]
     input:
       messages:
         - role: user
           content: Show me top-level agent traces only.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
-          - condition: span_kind == 'AGENT'
-            rootSpansOnly: true
-          - condition: ""
-            rootSpansOnly: true
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
+          - condition:
+              contains_all: ["span_kind == 'AGENT'", "parent_id is None"]
+          - condition: parent_id is None
     metadata:
       annotation:
         agreement: medium
@@ -232,13 +395,21 @@ examples:
       messages:
         - role: user
           content: just embeddings pls
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: span_kind == 'EMBEDDING'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -249,13 +420,21 @@ examples:
       messages:
         - role: user
           content: Show only successful spans.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: status_code == 'OK'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -266,13 +445,21 @@ examples:
       messages:
         - role: user
           content: show me spans that have no status set
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: status_code == 'UNSET'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -283,15 +470,23 @@ examples:
       messages:
         - role: user
           content: find LLM calls that used more than 10k prompt tokens
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["span_kind == 'LLM'", "llm.token_count.prompt", "10000"]
             not_contains: ["llm.token_count.prompt < ", "llm.token_count.prompt <= "]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -302,15 +497,24 @@ examples:
       messages:
         - role: user
           content: Show traces that burned over 50k tokens in total.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
-            contains_all: ["cumulative_token_count.total", "50000"]
+            contains_all:
+              ["cumulative_token_count.total", "50000", "parent_id is None"]
             not_contains: ["cumulative_token_count.total < ", "cumulative_token_count.total <= "]
-          rootSpansOnly: true
     metadata:
       annotation:
         agreement: high
@@ -323,11 +527,20 @@ examples:
       messages:
         - role: user
           content: Filter to spans that started at or after 2025-01-15T00:00:00Z.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: start_time >= '2025-01-15T00:00:00Z'
     metadata:
       annotation:
@@ -342,11 +555,20 @@ examples:
       messages:
         - role: user
           content: Filter the spans table to span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: span_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
     metadata:
       annotation:
@@ -358,13 +580,21 @@ examples:
       messages:
         - role: user
           content: Show me direct children of span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: parent_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -375,15 +605,23 @@ examples:
       messages:
         - role: user
           content: Show spans where the Helpfulness annotation scored above 0.8.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["annotations['Helpfulness'].score", "0.8"]
             not_contains: ["annotations['Helpfulness'].score < ", "annotations['Helpfulness'].score <= "]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -394,14 +632,22 @@ examples:
       messages:
         - role: user
           content: Show spans whose response mentions error code 502.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["502", "output.value"]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: medium
@@ -412,11 +658,20 @@ examples:
       messages:
         - role: user
           content: Filter to spans tagged with environment 'prod' in metadata.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: metadata['environment'] == 'prod'
     metadata:
       annotation:
@@ -428,11 +683,20 @@ examples:
       messages:
         - role: user
           content: Show me agent spans.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: span_kind == 'AGENT'
     metadata:
       annotation:
@@ -444,13 +708,21 @@ examples:
       messages:
         - role: user
           content: Filter to retriever spans only.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: span_kind == 'RETRIEVER'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -461,11 +733,20 @@ examples:
       messages:
         - role: user
           content: Show me everything that's not an LLM call.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: span_kind != 'LLM'
     metadata:
       annotation:
@@ -479,11 +760,20 @@ examples:
       messages:
         - role: user
           content: Filter to spans under 100ms latency.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["latency_ms", "100"]
             not_contains: ["latency_ms > ", "latency_ms >= "]
@@ -500,15 +790,23 @@ examples:
       messages:
         - role: user
           content: Show me LLM or tool calls.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["LLM", "TOOL"]
             not_contains: ["!=", "not_in", "not in"]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -519,15 +817,23 @@ examples:
       messages:
         - role: user
           content: Find LLM calls that produced more than 2000 completion tokens.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["span_kind == 'LLM'", "llm.token_count.completion", "2000"]
             not_contains: ["llm.token_count.completion < ", "llm.token_count.completion <= "]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -538,11 +844,20 @@ examples:
       messages:
         - role: user
           content: Show spans that ended before 2025-01-15T12:00:00Z.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: end_time < '2025-01-15T12:00:00Z'
     metadata:
       annotation:
@@ -554,14 +869,22 @@ examples:
       messages:
         - role: user
           content: Filter to spans whose status message mentions 'timeout'.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["timeout", "status_message"]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
@@ -572,11 +895,20 @@ examples:
       messages:
         - role: user
           content: Show spans where attribute 'user.id' equals 'alice'.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: attributes['user.id'] == 'alice'
     metadata:
       annotation:
@@ -588,33 +920,50 @@ examples:
       messages:
         - role: user
           content: Show errored LLM calls slower than 3 seconds.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["span_kind == 'LLM'", "status_code == 'ERROR'", "latency_ms", "3000"]
             not_contains: ["latency_ms < ", "latency_ms <= "]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
         n_opinions: 3
   - id: ambiguous-fast-spans
     # Genuinely ambiguous threshold ("fast" without a number). We require
-    # set_spans_filter is called but do not pin a specific threshold; any
+    # spansFilter.set is invoked but do not pin a specific threshold; any
     # downward-bounded latency clause counts.
     splits: [regression]
     input:
       messages:
         - role: user
           content: show me fast spans
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["latency_ms"]
             not_contains: ["latency_ms > ", "latency_ms >= "]
@@ -628,15 +977,23 @@ examples:
       messages:
         - role: user
           content: show me tool or retriever spans only
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["TOOL", "RETRIEVER"]
             not_contains: ["!=", "not_in", "not in"]
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: medium
@@ -649,17 +1006,27 @@ examples:
       messages:
         - role: user
           content: show me everything except tool calls
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition: span_kind != 'TOOL'
-          rootSpansOnly: false
     metadata:
       annotation:
         agreement: high
         n_opinions: 3
+  # ----- fresh-turn negatives: no primed catalog; the agent may search or
+  # answer directly, but must not stage a spans filter -----
   - id: negative-greeting
     splits: [regression]
     input:
@@ -667,8 +1034,8 @@ examples:
         - role: user
           content: hey, what's up?
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -681,8 +1048,8 @@ examples:
         - role: user
           content: what can you do?
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -695,26 +1062,35 @@ examples:
         - role: user
           content: thanks!
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
         agreement: high
         n_opinions: 3
   - id: negative-time-range-intent
-    # Wrong-tool case: "last hour" is a time-range intent, not a span filter.
-    # We do NOT require any specific tool be called (the eval harness may
-    # not run set_time_range), only that set_spans_filter is NOT called.
+    # Wrong-operation case: "last hour" is a time-range intent, not a span
+    # filter. The primed catalog carries both operations, so the agent is
+    # expected to stage timeRange.set and must not touch the spans filter.
     splits: [regression]
     input:
       messages:
         - role: user
           content: Show me only the last hour.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: []
-        forbidden: [set_spans_filter]
+      ui_operations:
+        required: [timeRange.set]
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -727,8 +1103,8 @@ examples:
         - role: user
           content: Clone the current prompt please.
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -741,8 +1117,8 @@ examples:
         - role: user
           content: How do I create a new dataset?
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -755,8 +1131,8 @@ examples:
         - role: user
           content: Summarize what we see in the spans table right now.
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -769,8 +1145,8 @@ examples:
         - role: user
           content: Is there a problem with my project?
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -783,8 +1159,8 @@ examples:
         - role: user
           content: Explain what span kinds mean.
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -797,8 +1173,8 @@ examples:
         - role: user
           content: I think my agent is too slow, what should I do?
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -811,8 +1187,8 @@ examples:
         - role: user
           content: what's the average latency?
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -825,8 +1201,8 @@ examples:
         - role: user
           content: delete this trace
     expected:
-      tools:
-        forbidden: [set_spans_filter]
+      ui_operations:
+        forbidden: [spansFilter.set]
     metadata:
       negative: true
       annotation:
@@ -834,8 +1210,9 @@ examples:
         n_opinions: 3
   # ----- contextual dev examples (primed page state / tool history) -----
   - id: contextual-latest-root-traces
-    # Primes a prior bash tool call + return so the agent enters mid-loop
-    # already knowing the latest traces in the project are from 2026-04-03.
+    # Primes discovery plus a prior bash tool call + return so the agent
+    # enters mid-loop already holding the catalog and knowing the latest
+    # traces in the project are from 2026-04-03.
     splits: [dev]
     input:
       contexts:
@@ -847,10 +1224,18 @@ examples:
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: "span_kind == 'LLM'"
-          rootSpansOnly: false
       messages:
         - role: user
           content: Show me only the latest traces in this project.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
         - role: assistant
           tool_calls:
             - id: t1
@@ -873,10 +1258,11 @@ examples:
             ]}}}}
     expected:
       tools:
-        required: [set_spans_filter]
         forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["start_time", "2026-04-03"]
       budgets:
@@ -901,10 +1287,18 @@ examples:
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: ""
-          rootSpansOnly: false
       messages:
         - role: user
           content: Show me only the slow LLM calls in this project.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
         - role: assistant
           tool_calls:
             - id: t1
@@ -930,10 +1324,11 @@ examples:
             }}}
     expected:
       tools:
-        required: [set_spans_filter]
         forbidden: [ask_user, query_docs_filesystem_phoenix, search_phoenix]
-      tool_call_args:
-        set_spans_filter:
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
           condition:
             contains_all: ["latency_ms", "span_kind == 'LLM'"]
             contains_any: ["1840", "3210", "8420"]
@@ -954,18 +1349,27 @@ examples:
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: "status_code == 'ERROR'"
-          rootSpansOnly: false
       messages:
         - role: user
           content: Keep the error filter, but only show root spans.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: filter the spans table }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
       tools:
-        required: [set_spans_filter]
         forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
-      tool_call_args:
-        set_spans_filter:
-          condition: status_code == 'ERROR'
-          rootSpansOnly: true
+      ui_operations:
+        required: [spansFilter.set]
+      ui_operation_args:
+        spansFilter.set:
+          condition:
+            contains_all: ["status_code == 'ERROR'", "parent_id is None"]
       budgets:
         max_tool_calls: 1
     metadata: {}

@@ -806,7 +806,7 @@ class Datasets:
         Create a new dataset by uploading examples to the Phoenix server.
 
         Args:
-            dataset_name: Name of the dataset.
+            name: Name of the dataset.
             examples: Either a single dictionary with required 'input' and 'output' keys
                 and an optional 'metadata' key, or an iterable of such dictionaries.
                 When provided, inputs/outputs/metadata are extracted automatically.
@@ -867,9 +867,13 @@ class Datasets:
                 stacklevel=2,
             )
 
+        inputs = list(inputs)
+        outputs = list(outputs)
+        metadata = list(metadata)
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = bool(inputs) or bool(outputs) or bool(metadata)
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
@@ -1025,9 +1029,13 @@ class Datasets:
         # At this point resolved_name is guaranteed to be not None
         assert resolved_name is not None
 
+        inputs = list(inputs)
+        outputs = list(outputs)
+        metadata = list(metadata)
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = bool(inputs) or bool(outputs) or bool(metadata)
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
@@ -1724,7 +1732,7 @@ class AsyncDatasets:
         Create a new dataset by uploading examples to the Phoenix server.
 
         Args:
-            dataset_name: Name of the dataset.
+            name: Name of the dataset.
             examples: Either a single dictionary with required 'input' and 'output' keys
                 and an optional 'metadata' key, or an iterable of such dictionaries.
                 to add. When provided, inputs/outputs/metadata are extracted automatically.
@@ -1758,9 +1766,13 @@ class AsyncDatasets:
                 stacklevel=2,
             )
 
+        inputs = list(inputs)
+        outputs = list(outputs)
+        metadata = list(metadata)
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = bool(inputs) or bool(outputs) or bool(metadata)
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
@@ -1911,9 +1923,13 @@ class AsyncDatasets:
         # At this point resolved_name is guaranteed to be not None
         assert resolved_name is not None
 
+        inputs = list(inputs)
+        outputs = list(outputs)
+        metadata = list(metadata)
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = bool(inputs) or bool(outputs) or bool(metadata)
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(

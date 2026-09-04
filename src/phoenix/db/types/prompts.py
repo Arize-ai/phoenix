@@ -259,6 +259,10 @@ class PromptTogetherInvocationParametersContent(PromptOpenAIInvocationParameters
     pass
 
 
+class PromptZAIInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
 class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
@@ -307,6 +311,11 @@ class PromptPerplexityInvocationParameters(DBBaseModel):
 class PromptTogetherInvocationParameters(DBBaseModel):
     type: Literal["together"]
     together: PromptTogetherInvocationParametersContent
+
+
+class PromptZAIInvocationParameters(DBBaseModel):
+    type: Literal["zai"]
+    zai: PromptZAIInvocationParametersContent
 
 
 class PromptAnthropicThinkingConfigDisabled(DBBaseModel):
@@ -417,6 +426,7 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptMoonshotInvocationParameters,
         PromptPerplexityInvocationParameters,
         PromptTogetherInvocationParameters,
+        PromptZAIInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -470,6 +480,10 @@ def openai_family_content_from_invocation_parameters(
         return PromptOpenAIInvocationParametersContent.model_validate(
             invocation_parameters.together.model_dump(mode="python")
         )
+    if isinstance(invocation_parameters, PromptZAIInvocationParameters):
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.zai.model_dump(mode="python")
+        )
     return None
 
 
@@ -509,6 +523,7 @@ def is_prompt_invocation_parameters(
             PromptMoonshotInvocationParameters,
             PromptPerplexityInvocationParameters,
             PromptTogetherInvocationParameters,
+            PromptZAIInvocationParameters,
         ),
     )
 

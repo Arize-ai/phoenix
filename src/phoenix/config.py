@@ -32,7 +32,6 @@ from starlette.datastructures import URL
 from typing_extensions import TypeAlias, get_args
 
 from phoenix.utilities.logging import log_a_list
-from phoenix.utilities.re import parse_env_headers
 
 if TYPE_CHECKING:
     from phoenix.db.models import SandboxBackendType
@@ -55,12 +54,6 @@ ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
-ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
-"""
-The headers to include in Phoenix client requests.
-Note: This overrides OTEL_EXPORTER_OTLP_HEADERS in the case where
-phoenix.trace instrumentors are used.
-"""
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 """
 The endpoint traces and evals are sent to. This must be set if the Phoenix
@@ -80,16 +73,53 @@ ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME = "PHOENIX_AGENTS_ASSISTANT_PROJECT_NA
 """
 Project name used for assistant agent traces.
 """
+ENV_PHOENIX_AGENTS_FORCE_TRACING = "PHOENIX_AGENTS_FORCE_TRACING"
+"""
+Forces local tracing and remote export for all PXI agent requests.
+"""
 ENV_PHOENIX_AGENTS_DISABLE_WEB_ACCESS = "PHOENIX_AGENTS_DISABLE_WEB_ACCESS"
 """
 Disables PXI native web search and web fetch capabilities even when external
 resources are otherwise allowed.
+"""
+ENV_PHOENIX_AGENTS_DISABLE_BASH = "PHOENIX_AGENTS_DISABLE_BASH"
+"""
+Disables the server-side bash tool by preventing subagents from being attached to
+the assistant. When true, the option to enable subagents is also hidden from the UI settings.
+"""
+ENV_PHOENIX_AGENTS_DISABLE_GITHUB = "PHOENIX_AGENTS_DISABLE_GITHUB"
+"""
+Disables the PXI GitHub tools (backed by GitHub's MCP server) even when external
+resources are otherwise allowed. When true, the capability never registers and
+the GitHub settings UI is hidden.
+"""
+ENV_PHOENIX_AGENTS_GITHUB_MCP_URL = "PHOENIX_AGENTS_GITHUB_MCP_URL"
+"""
+Base URL of the GitHub MCP server the PXI GitHub tools connect to. Defaults to
+GitHub's hosted endpoint; point it at a self-hosted github-mcp-server instance
+for GitHub Enterprise Server or air-gapped deployments.
 """
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
 Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
 meaning the assistant is enabled by default. Set to True on the Phoenix server to turn
 it off for the whole deployment.
+"""
+ENV_PHOENIX_ENABLE_MCP_SERVER = "PHOENIX_ENABLE_MCP_SERVER"
+"""
+Whether to mount the in-process MCP server (generated from the /v1 REST API) at
+/mcp. Defaults to True. When enabled, the MCP server reuses Phoenix's existing
+bearer-token authentication.
+"""
+ENV_PHOENIX_ENABLE_MCP_CODE_MODE = "PHOENIX_ENABLE_MCP_CODE_MODE"
+"""
+Whether the mounted MCP server presents its tools through FastMCP's code-mode
+surface. Defaults to True. Under code mode, clients see discovery meta-tools
+(search, get_schema, tags, list_tools) plus an `execute` tool that runs
+LLM-written Python in a sandbox where `call_tool(name, params)` is the only
+available function. Set to False to present the group-gated progressive-
+disclosure tool list instead. Has no effect unless PHOENIX_ENABLE_MCP_SERVER is
+also set.
 """
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
@@ -250,6 +280,11 @@ Note: CONCURRENTLY does not speed up the migration — it is roughly 2-3x slower
 instance still blocks on startup until the build completes. For very large tables, consider
 pre-creating indexes manually before upgrading instead. See MIGRATION.md for details.
 
+Warning: concurrent index builds are non-transactional. If the process crashes or PostgreSQL
+aborts the build, an INVALID index may remain and future IF NOT EXISTS migrations may skip it
+by name. Operators may need to drop the invalid index manually and rerun or recreate it
+concurrently.
+
 Defaults to False. Ignored for SQLite.
 """
 ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES = (
@@ -354,7 +389,7 @@ ENV_PHOENIX_ALLOWED_PROVIDERS = "PHOENIX_ALLOWED_PROVIDERS"
 Comma-separated list of provider names to show in the UI.
 Provider names should match GenerativeProviderKey enum names:
 OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA,
-AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER.
+AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI.
 Case-insensitive. When unset, all providers are shown.
 Set to NONE to hide all providers.
 Example: PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
@@ -390,7 +425,6 @@ explicitly set. Note that changing this value will have no effect if the default
 record already exists in the database. In such cases, the default admin password must
 be updated manually in the application.
 """
-ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 ENV_PHOENIX_COOKIES_PATH = "PHOENIX_COOKIES_PATH"
 ENV_PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES = "PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES"
@@ -400,6 +434,47 @@ The duration, in minutes, before access tokens expire.
 ENV_PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES = "PHOENIX_REFRESH_TOKEN_EXPIRY_MINUTES"
 """
 The duration, in minutes, before refresh tokens expire.
+"""
+ENV_PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER = "PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER"
+"""
+Whether Phoenix serves its built-in OAuth2 authorization server (interactive OAuth
+login for the CLI and other public clients). Defaults to true. When false, the
+/oauth2/* endpoints and the RFC 8414 discovery document respond 404, and the
+protected-resource metadata stops advertising an authorization server. Previously
+minted OAuth2 access tokens remain valid until they expire, but grants can no
+longer be refreshed. API keys and browser login are unaffected. Has no effect
+unless authentication is enabled.
+"""
+ENV_PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS = "PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS"
+"""
+The duration, in days, before an OAuth2 grant expires. Refresh-token rotation never
+extends a token's life past its grant's expiry. Defaults to 90 days.
+"""
+ENV_PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK = "PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK"
+"""
+Controls Origin-header enforcement on OAuth2 consent decisions. Defaults to strict.
+"""
+ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION = "PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION"
+"""
+Controls public-client redirect URI mechanisms for dynamic client registration.
+One of: disabled, local_only, enabled. Defaults to enabled: MCP clients in the
+wild (e.g. Cursor) register HTTPS redirect URIs alongside loopback and
+private-use-scheme ones as part of standard RFC 7591 registration, and
+rejecting HTTPS breaks those clients out of the box. Registration grants no
+authority by itself — a token is minted only after a logged-in user approves
+the consent page, the authorization code is delivered only to the exact
+registered redirect URI, and PKCE binds the exchange to the flow's initiator.
+Operators can restrict which hosts may receive HTTPS deliveries with
+PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS, or set local_only / disabled.
+"""
+ENV_PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS = "PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS"
+"""
+A comma-separated list of HTTPS redirect hosts allowed for dynamic OAuth2 client registration.
+When unset, all HTTPS redirect hosts are accepted while dynamic client registration is enabled.
+"""
+ENV_PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR = "PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR"
+"""
+Maximum dynamic OAuth2 client registrations accepted per IP address each hour. Defaults to 10.
 """
 ENV_PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = "PHOENIX_PASSWORD_RESET_TOKEN_EXPIRY_MINUTES"
 """
@@ -781,7 +856,7 @@ The default retention policy for traces in days.
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
 """
 A comma-separated list of sandbox providers to allow.
-Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL. Case-insensitive.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY. Case-insensitive.
 When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
 Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
 """
@@ -1333,10 +1408,6 @@ def get_env_phoenix_use_secure_cookies() -> bool:
     return _bool_val(ENV_PHOENIX_USE_SECURE_COOKIES, False)
 
 
-def get_env_phoenix_api_key() -> Optional[str]:
-    return getenv(ENV_PHOENIX_API_KEY)
-
-
 def get_env_phoenix_agents_collector_endpoint() -> Optional[str]:
     return getenv(ENV_PHOENIX_AGENTS_COLLECTOR_ENDPOINT)
 
@@ -1349,12 +1420,35 @@ def get_env_phoenix_agents_assistant_project_name() -> str:
     return getenv(ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME, "assistant_agent")
 
 
+def get_env_phoenix_agents_force_tracing() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_FORCE_TRACING, False)
+
+
 def get_env_phoenix_agents_disable_web_access() -> bool:
     return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_WEB_ACCESS, False)
 
 
 def get_env_phoenix_agents_web_access_enabled() -> bool:
     return get_env_allow_external_resources() and not get_env_phoenix_agents_disable_web_access()
+
+
+def get_env_phoenix_agents_disable_bash() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_BASH, False)
+
+
+def get_env_phoenix_agents_disable_github() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_GITHUB, False)
+
+
+def get_env_phoenix_agents_github_enabled() -> bool:
+    return get_env_allow_external_resources() and not get_env_phoenix_agents_disable_github()
+
+
+DEFAULT_GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/"
+
+
+def get_env_phoenix_agents_github_mcp_url() -> str:
+    return getenv(ENV_PHOENIX_AGENTS_GITHUB_MCP_URL) or DEFAULT_GITHUB_MCP_URL
 
 
 class AuthSettings(NamedTuple):
@@ -1440,6 +1534,82 @@ def get_env_refresh_token_expiry() -> timedelta:
     )
     assert minutes > 0
     return timedelta(minutes=minutes)
+
+
+def get_env_enable_oauth2_authorization_server() -> bool:
+    """
+    Gets whether the built-in OAuth2 authorization server is served.
+    """
+    return _bool_val(ENV_PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER, True)
+
+
+DEFAULT_OAUTH2_GRANT_EXPIRY_DAYS = 90
+
+
+def get_env_oauth2_grant_expiry() -> timedelta:
+    """
+    Gets the OAuth2 grant expiry ceiling applied to newly minted grants.
+    """
+    days = _float_val(
+        ENV_PHOENIX_OAUTH2_GRANT_EXPIRY_DAYS,
+        DEFAULT_OAUTH2_GRANT_EXPIRY_DAYS,
+    )
+    assert days > 0
+    return timedelta(days=days)
+
+
+def get_env_oauth2_consent_origin_check() -> Literal["strict", "off"]:
+    """
+    Gets the OAuth2 consent Origin-header enforcement mode.
+    """
+    value = getenv(ENV_PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK, "strict").lower()
+    if value not in ("strict", "off"):
+        raise ValueError(
+            f"The environment variable `{ENV_PHOENIX_OAUTH2_CONSENT_ORIGIN_CHECK}` must be "
+            "one of: strict, off."
+        )
+    return cast(Literal["strict", "off"], value)
+
+
+def get_env_oauth2_dynamic_client_registration() -> Literal["disabled", "local_only", "enabled"]:
+    """
+    Gets which public-client redirect URI mechanisms are enabled.
+    """
+    value = getenv(ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION, "enabled").lower()
+    if value not in ("disabled", "local_only", "enabled"):
+        raise ValueError(
+            f"The environment variable `{ENV_PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION}` must be "
+            "one of: disabled, local_only, enabled."
+        )
+    return cast(Literal["disabled", "local_only", "enabled"], value)
+
+
+def get_env_oauth2_allowed_redirect_hosts() -> frozenset[str]:
+    """
+    Gets the HTTPS redirect host allowlist for dynamic OAuth2 client registration.
+    """
+    value = getenv(ENV_PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS)
+    if not value:
+        return frozenset()
+    hosts = frozenset(host.strip().lower() for host in value.split(",") if host.strip())
+    if not hosts:
+        return frozenset()
+    for host in hosts:
+        if urlparse(f"https://{host}").hostname != host:
+            raise ValueError(
+                f"The environment variable `{ENV_PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS}` "
+                f"contains an invalid host: {host}"
+            )
+    return hosts
+
+
+def get_env_oauth2_dcr_rate_limit_per_hour() -> int:
+    """
+    Gets the per-IP hourly dynamic OAuth2 client registration limit.
+    """
+    limit = _int_val(ENV_PHOENIX_OAUTH2_DCR_RATE_LIMIT_PER_HOUR, 10)
+    assert limit > 0
+    return limit
 
 
 def get_env_csrf_trusted_origins() -> list[str]:
@@ -1531,12 +1701,26 @@ def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
 
 
+CLIENT_ASSERTION_JWT_AUTH_METHOD = "client_assertion_jwt"
+"""Client authenticates with a JWT it did not sign (RFC 7523 §2.2).
+
+Not an OIDC Core §9 method, and no registered method fits: §9's `client_secret_jwt` and
+`private_key_jwt` both name the key the client signs with, whereas here the assertion is
+minted by the platform (e.g. a Kubernetes projected service account token) and Phoenix
+only relays it. The name matches authlib's constant for the same wire format.
+
+Named for the wire format rather than for a platform, because that is what stays fixed:
+where the assertion comes from is carried by client_assertion_file, so another source
+does not need another auth method.
+"""
+
 _ALLOWED_TOKEN_ENDPOINT_AUTH_METHODS = (
     "client_secret_basic",
     "client_secret_post",
     "none",
+    CLIENT_ASSERTION_JWT_AUTH_METHOD,
 )
-"""Allowed OAuth2 token endpoint authentication methods (OIDC Core §9)."""
+"""Allowed OAuth2 token endpoint authentication methods (OIDC Core §9 unless noted)."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1571,6 +1755,13 @@ class OAuth2ClientConfig:
     role_attribute_path: Optional[str]
     role_mapping: dict[str, AssignableUserRoleName]
     role_attribute_strict: bool
+    role_resync: bool = True
+    """When False, an existing user's role is never overwritten from IDP claims on login.
+
+    New users are still created with their IDP-mapped role, so role mapping stays active for
+    provisioning while existing users keep their current Phoenix role. Defaults to True
+    (the IDP re-syncs roles on every login).
+    """
 
     # Email extraction
     email_attribute_path: Optional[str] = None
@@ -1581,6 +1772,60 @@ class OAuth2ClientConfig:
     For Azure AD/Entra ID without email attribute:
         PHOENIX_OAUTH2_AZURE_AD_EMAIL_ATTRIBUTE_PATH=preferred_username
     """
+
+    # Workload identity (RFC 7523 §2.2)
+    client_assertion_file: Optional[str] = None
+    """Resolved path to the file holding the JWT sent as `client_assertion`.
+
+    Required when token_endpoint_auth_method is CLIENT_ASSERTION_JWT_AUTH_METHOD, unset
+    otherwise, and re-read on every token request because the platform rotates the token
+    well before it expires.
+
+    Neither defaulted nor discovered. Platforms that mint the assertion own where they put
+    it and have moved it between releases, so the path cannot be hardcoded; but the variable
+    exporting it is process-global, so consulting one implicitly would bind it to every
+    provider at once. The operator supplies one or the other per provider, this field or
+    client_assertion_file_env_var.
+    """
+
+    client_assertion_file_env_var: Optional[str] = None
+    """Environment variable client_assertion_file was resolved from, when named indirectly.
+
+    Retained for its security consequence, not for diagnostics: this setting can name any
+    variable in the process, so a value that arrived through it must never be repeated where
+    an operator can read it, or rights over the non-secret provider config become a read of
+    any secret-bearing variable. Consumers pair the two fields in AssertionFile, which
+    enforces that. A path set directly needs no such treatment.
+    """
+
+    def __post_init__(self) -> None:
+        if (
+            self.token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD
+            and not self.client_assertion_file
+        ):
+            raise ValueError(
+                f"client_assertion_file is required when token_endpoint_auth_method is "
+                f"'{CLIENT_ASSERTION_JWT_AUTH_METHOD}' (IDP: {self.idp_name}). Set "
+                f"PHOENIX_OAUTH2_{self.idp_name.upper()}_CLIENT_ASSERTION_FILE to the path, "
+                f"or _CLIENT_ASSERTION_FILE_ENV_VAR to the name of the variable holding it. On "
+                f"AKS the Azure Workload Identity webhook exports the path as "
+                f"AZURE_FEDERATED_TOKEN_FILE and owns its value, so name the variable rather "
+                f"than the path"
+            )
+        if self.client_assertion_file and not os.path.isabs(self.client_assertion_file):
+            # Enforced here so the rule holds however the path arrived. A relative path would
+            # resolve against the working directory, which nothing about this deployment
+            # pins — and requiring it is only possible now, since tightening the contract
+            # after a release would break anyone who had relied on the looser one.
+            source = (
+                f"named by {self.client_assertion_file_env_var}"
+                if self.client_assertion_file_env_var
+                else repr(self.client_assertion_file)
+            )
+            raise ValueError(
+                f"client_assertion_file must be an absolute path (IDP: {self.idp_name}), "
+                f"got {source}"
+            )
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -1640,6 +1885,7 @@ class OAuth2ClientConfig:
         client_secret: Optional[str] = None
 
         # Determine if CLIENT_SECRET is required based on TOKEN_ENDPOINT_AUTH_METHOD:
+        # - "client_assertion_jwt": no secret; a platform-minted JWT is sent as client assertion
         # - "none": CLIENT_SECRET is optional (public clients, RFC 8252 §8.1)
         # - "client_secret_basic" or "client_secret_post": CLIENT_SECRET is required
         # - Not set: Default to requiring CLIENT_SECRET (assumes confidential client with
@@ -1649,7 +1895,49 @@ class OAuth2ClientConfig:
         # used with both public clients (no secret) and confidential clients (with secret) to
         # protect the authorization code from interception.
 
-        if token_endpoint_auth_method == "none":
+        client_assertion_file: Optional[str] = None
+        assertion_file_env_var: Optional[str] = None
+
+        if token_endpoint_auth_method == CLIENT_ASSERTION_JWT_AUTH_METHOD:
+            # The assertion replaces the client secret entirely. Nothing here inspects the
+            # JWT, so the source is whatever writes the file and the IDP is whichever one
+            # accepts the assertion; IDP names are operator-chosen and cannot gate this.
+            client_secret = None
+            client_assertion_file = _get_optional("CLIENT_ASSERTION_FILE")
+            if assertion_file_env_var := _get_optional("CLIENT_ASSERTION_FILE_ENV_VAR"):
+                if client_assertion_file:
+                    raise ValueError(
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE and "
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE_ENV_VAR are mutually exclusive; "
+                        f"set the path directly or name the variable holding it, not both"
+                    )
+                if not (client_assertion_file := os.getenv(assertion_file_env_var, "").strip()):
+                    raise ValueError(
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE_ENV_VAR names "
+                        f"{assertion_file_env_var}, but that variable is unset or empty. "
+                        f"On AKS it is exported by the Azure Workload Identity webhook, "
+                        f"which requires the "
+                        f"pod label azure.workload.identity/use=true"
+                    )
+                if not os.path.isabs(client_assertion_file):
+                    # The value is never echoed: this setting can name any variable in the
+                    # process, so a caller with rights to the non-secret provider config could
+                    # otherwise route a secret-bearing one into the logs. Requiring an absolute
+                    # path also rejects the values most likely to be secrets, such as URLs.
+                    raise ValueError(
+                        f"{idp_prefix}_CLIENT_ASSERTION_FILE_ENV_VAR names "
+                        f"{assertion_file_env_var}, but its value is not an absolute path. "
+                        f"Name the variable that holds the assertion path, not the "
+                        f"assertion or an unrelated setting"
+                    )
+                # Log the source, not the value: which variable a provider resolved through is
+                # the part an operator cannot otherwise recover.
+                logger.info(
+                    "OAuth2 IDP %s: client assertion path resolved from %s",
+                    idp_name,
+                    assertion_file_env_var,
+                )
+        elif token_endpoint_auth_method == "none":
             # Public client - no client authentication required
             client_secret = _get_optional("CLIENT_SECRET")
         else:
@@ -1741,6 +2029,10 @@ class OAuth2ClientConfig:
         # Get role_attribute_strict setting (defaults to False)
         role_attribute_strict = _bool_val(f"{idp_prefix}_ROLE_ATTRIBUTE_STRICT", False)
 
+        # When False, preserve existing users' roles on login instead of re-syncing from the IDP.
+        # New users are still provisioned with their mapped role; only overwrites are suppressed.
+        role_resync = _bool_val(f"{idp_prefix}_ROLE_RESYNC", True)
+
         # Validate role configuration consistency
         if not role_attribute_path:
             # If ROLE_ATTRIBUTE_PATH is not configured, other role settings should not be set
@@ -1755,6 +2047,13 @@ class OAuth2ClientConfig:
                     f"Invalid configuration for {idp_name}: ROLE_ATTRIBUTE_STRICT is set to "
                     f"true but ROLE_ATTRIBUTE_PATH is not configured. ROLE_ATTRIBUTE_STRICT "
                     f"only applies when role extraction is enabled via ROLE_ATTRIBUTE_PATH."
+                )
+            if not role_resync:
+                raise ValueError(
+                    f"Invalid configuration for {idp_name}: ROLE_RESYNC is set to "
+                    f"false but ROLE_ATTRIBUTE_PATH is not configured. ROLE_RESYNC "
+                    f"only applies when role extraction is enabled via ROLE_ATTRIBUTE_PATH "
+                    f"(without it there is no role sync to disable)."
                 )
 
         # Email extraction configuration
@@ -1777,7 +2076,10 @@ class OAuth2ClientConfig:
             role_attribute_path=role_attribute_path,
             role_mapping=role_mapping,
             role_attribute_strict=role_attribute_strict,
+            role_resync=role_resync,
             email_attribute_path=email_attribute_path,
+            client_assertion_file=client_assertion_file,
+            client_assertion_file_env_var=assertion_file_env_var,
         )
 
 
@@ -2394,6 +2696,8 @@ _OAUTH2_CONFIG_SUFFIXES = (
     "AUTO_LOGIN",  # Automatically redirect to this provider (default: false)
     "USE_PKCE",  # Enable PKCE for authorization code protection (RFC 7636, default: false)
     "TOKEN_ENDPOINT_AUTH_METHOD",  # How to authenticate at token endpoint (OIDC Core §9)
+    "CLIENT_ASSERTION_FILE",  # Path to the JWT sent as client_assertion (RFC 7523 §2.2)
+    "CLIENT_ASSERTION_FILE_ENV_VAR",  # Name of the variable holding that path
     # Additional OAuth2 scopes beyond "openid email profile" (RFC 6749 §3.3: space-delimited)
     "SCOPES",
     "EMAIL_ATTRIBUTE_PATH",  # JMESPath expression to extract email from ID token
@@ -2402,6 +2706,7 @@ _OAUTH2_CONFIG_SUFFIXES = (
     "ROLE_ATTRIBUTE_PATH",  # JMESPath expression to extract role from ID token
     "ROLE_MAPPING",  # Comma-separated list of IDP role to Phoenix role mappings
     "ROLE_ATTRIBUTE_STRICT",  # Whether to deny access if role cannot be extracted/mapped
+    "ROLE_RESYNC",  # Whether to re-sync existing users' roles from the IDP on every login
 )
 
 
@@ -2430,7 +2735,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
         - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider.
           Required by default for confidential clients. Only optional when TOKEN_ENDPOINT_AUTH_METHOD is
-          explicitly set to "none" (for public clients without client authentication).
+          explicitly set to "none" (public clients) or "client_assertion_jwt" (client assertion).
 
         - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS
           except for localhost). This URL typically ends with /.well-known/openid-configuration and is
@@ -2463,6 +2768,24 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
             • none: No client authentication (for public clients).
               CLIENT_SECRET is not required. Use this for public clients that cannot
               securely store a client secret, typically in combination with PKCE.
+            • client_assertion_jwt: Authenticate with a platform-minted JWT sent as a client
+              assertion (RFC 7523 §2.2). CLIENT_SECRET is not required. The assertion is read
+              from CLIENT_ASSERTION_FILE on every token request, so rotation is picked up
+              without a restart. Requires a federated credential on the IDP that trusts the
+              workload's identity.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ASSERTION_FILE: Path to the file holding the JWT used
+          when TOKEN_ENDPOINT_AUTH_METHOD is "client_assertion_jwt". Ignored for other methods.
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ASSERTION_FILE_ENV_VAR: Name of an environment variable
+          holding that path, for platforms that mint the assertion and own where they put it.
+          On AKS set this to AZURE_FEDERATED_TOKEN_FILE, which the Azure Workload Identity
+          webhook exports alongside the token it projects; naming the variable rather than the
+          path keeps the deployment working when the webhook moves it.
+
+          Exactly one of the two is required for "client_assertion_jwt". They are named per IDP
+          on purpose: the variable is process-global, so resolving one implicitly would send the
+          same assertion to every configured provider.
 
           Most providers work with the default behavior. Set this explicitly only if your provider requires
           a specific method or if you're configuring a public client.
@@ -2561,7 +2884,9 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
           ⚠️ Role Update Behavior:
             • When ROLE_ATTRIBUTE_PATH IS configured: User roles are synchronized from the IDP on EVERY login.
-              This ensures Phoenix roles stay in sync with your IDP's role assignments.
+              This ensures Phoenix roles stay in sync with your IDP's role assignments. This re-sync of
+              existing users can be turned off with ROLE_RESYNC=false (new users are still provisioned
+              from the IDP); see ROLE_RESYNC below.
             • When ROLE_ATTRIBUTE_PATH is NOT configured: User roles are preserved as-is (backward compatibility).
               New users get VIEWER role (least privilege), existing users keep their current roles.
 
@@ -2611,6 +2936,23 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
           Example:
             PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT=true
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_ROLE_RESYNC: Controls whether existing users' roles are re-synchronized
+          from the IDP on every login. Defaults to true. Only applies when ROLE_ATTRIBUTE_PATH is
+          configured; setting it to false without ROLE_ATTRIBUTE_PATH is rejected at startup.
+
+          When true (default):
+            • An existing user's role is overwritten from IDP claims on every login (IDP is source of truth).
+
+          When false:
+            • An existing user's role is never overwritten from IDP claims; the user keeps their
+              current Phoenix role on re-login. New users are still provisioned with their IDP-mapped role.
+            • ⚠️ Security: with re-sync off, Phoenix owns existing users' roles. Revoking a role at the IDP
+              (including the non-strict VIEWER fail-safe for a missing/unmapped claim) will NOT auto-demote
+              an existing user — deprovision or downgrade them manually in the Phoenix UI.
+
+          Example:
+            PHOENIX_OAUTH2_OKTA_ROLE_RESYNC=false
 
     Multiple Identity Providers:
         You can configure multiple IDPs simultaneously. Users will see all configured providers
@@ -3114,15 +3456,6 @@ def get_env_max_spans_queue_size() -> int:
     return max_size
 
 
-def get_env_client_headers() -> dict[str, str]:
-    headers = parse_env_headers(getenv(ENV_PHOENIX_CLIENT_HEADERS))
-    if (api_key := get_env_phoenix_api_key()) and "authorization" not in [
-        k.lower() for k in headers
-    ]:
-        headers["Authorization"] = f"Bearer {api_key}"
-    return headers
-
-
 def get_env_root_url() -> URL:
     """
     Get the URL used to access Phoenix from a web browser
@@ -3311,6 +3644,14 @@ def get_env_disable_agent_assistant() -> bool:
     return _bool_val(ENV_PHOENIX_DISABLE_AGENT_ASSISTANT, False)
 
 
+def get_env_enable_mcp_server() -> bool:
+    return _bool_val(ENV_PHOENIX_ENABLE_MCP_SERVER, True)
+
+
+def get_env_mcp_code_mode() -> bool:
+    return _bool_val(ENV_PHOENIX_ENABLE_MCP_CODE_MODE, True)
+
+
 def get_env_mask_internal_server_errors() -> bool:
     return _bool_val(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, True)
 
@@ -3438,6 +3779,9 @@ PLAYGROUND_PROJECT_NAME = "playground"
 
 EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS = 24
 """The time to live for ephemeral experiments in hours."""
+
+EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS = 24
+"""How many hours ephemeral assistant sessions live after their latest chat turn."""
 
 SYSTEM_USER_ID: Optional[int] = None
 """

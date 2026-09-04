@@ -1,0 +1,232 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+import { ToolExecutionSummary } from "@phoenix/components/agent/ToolExecutionSummary";
+import { ThemeProvider } from "@phoenix/contexts";
+import { GlobalStyles } from "@phoenix/GlobalStyles";
+
+<Meta title="Agent/ToolExecutionSummary" />
+
+export const Tokens = () => (
+  <ThemeProvider themeMode="dark" disableBodyTheme>
+    <GlobalStyles />
+  </ThemeProvider>
+);
+
+export const Example = ({ code, children }) => (
+  <div
+    className="theme theme--dark"
+    style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "24px",
+      padding: "10px 16px",
+      margin: "10px 0",
+      borderRadius: "6px",
+      background: "var(--tool-call-background-color)",
+      border: "1px solid var(--tool-call-border-color)",
+    }}
+  >
+    <code style={{ fontSize: "12px", color: "var(--global-text-color-700)" }}>
+      {code}
+    </code>
+    {children}
+  </div>
+);
+
+export const cellStyle = {
+  padding: "7px 12px",
+  verticalAlign: "middle",
+  textAlign: "left",
+};
+
+export const STATE_ROWS = [
+  { state: "input-streaming", label: "Preparing", single: "running" },
+  { state: "input-available", label: "Running", single: "running" },
+  { state: "approval-requested", label: "Awaiting approval", single: "text" },
+  {
+    state: "approval-responded",
+    label: "Approval received",
+    single: "running",
+  },
+  { state: "output-available", label: "Completed", single: "completed" },
+  { state: "output-error", label: "Error", single: "failed" },
+  { state: "output-denied", label: "Denied", single: "text" },
+];
+
+export const Cell = ({ kind, label }) => {
+  if (kind === "completed") return <ToolExecutionSummary completed />;
+  if (kind === "failed") return <ToolExecutionSummary failed />;
+  if (kind === "running") return <ToolExecutionSummary running />;
+  return (
+    <span
+      style={{ color: "var(--tool-call-secondary-color)", fontSize: "12px" }}
+    >
+      “{label}” (text)
+    </span>
+  );
+};
+
+export const Mapping = () => (
+  <div
+    className="theme theme--dark"
+    style={{
+      background: "var(--tool-call-background-color)",
+      border: "1px solid var(--tool-call-border-color)",
+      borderRadius: "6px",
+      padding: "2px 14px",
+      margin: "12px 0",
+    }}
+  >
+    <table
+      style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}
+    >
+      <thead>
+        <tr style={{ color: "var(--global-text-color-700)" }}>
+          <th style={cellStyle}>Tool state</th>
+          <th style={cellStyle}>Label</th>
+          <th style={cellStyle}>Renders as</th>
+        </tr>
+      </thead>
+      <tbody>
+        {STATE_ROWS.map((row) => (
+          <tr
+            key={row.state}
+            style={{ borderTop: "1px solid var(--tool-call-border-color)" }}
+          >
+            <td style={cellStyle}>
+              <code style={{ fontSize: "12px" }}>{row.state}</code>
+            </td>
+            <td style={{ ...cellStyle, color: "var(--global-text-color-700)" }}>
+              {row.label}
+            </td>
+            <td style={cellStyle}>
+              <Cell kind={row.single} label={row.label} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+<Tokens />
+
+# ToolExecutionSummary
+
+A compact, diff-stat-style status indicator (think `+29 -23`) shown on the
+right-hand side of a tool call. It renders a row of `[icon][count]` segments for
+three outcomes:
+
+- **completed** — a checkmark in the secondary color, count beside it
+- **failed** — a red X; the count stays in the **default text color** so the
+  number reads clearly while the X draws the eye
+- **running** — a spinner, count beside it
+
+## Calling it: counts vs. flags
+
+Each segment takes a value that is one of:
+
+- a **number** (`> 0`) → render the icon **and** the count — for an aggregate
+  summary that reports how many calls fell into each outcome
+- **`true`** → render the icon **alone** — used by a single tool call, which has
+  a state but no meaningful count
+- **`undefined`, `false`, or `0`** → the segment is omitted
+
+Today every caller is a single tool call (`renderToolPartStatus` in
+`ToolPart`), so the flag form is the one in active use; the number form remains
+part of the component's API for any future aggregate summary.
+
+If no segment applies, the component renders nothing.
+
+## A single tool call (flag → icon only)
+
+One call has one state and no count, so pass the flag. A lone completed call is
+just a check — no `1` beside it.
+
+<Example code="<ToolExecutionSummary completed />">
+  <ToolExecutionSummary completed />
+</Example>
+
+<Example code="<ToolExecutionSummary failed />">
+  <ToolExecutionSummary failed />
+</Example>
+
+<Example code="<ToolExecutionSummary running />">
+  <ToolExecutionSummary running />
+</Example>
+
+## Aggregate counts (numbers → icon + count)
+
+The number form passes counts. Zero-valued outcomes drop out, so the row only
+shows what actually happened.
+
+<Example code="completed={4}">
+  <ToolExecutionSummary completed={4} />
+</Example>
+
+<Example code="completed={4} failed={1}">
+  <ToolExecutionSummary completed={4} failed={1} />
+</Example>
+
+<Example code="completed={2} running={3}">
+  <ToolExecutionSummary completed={2} running={3} />
+</Example>
+
+<Example code="completed={5} failed={1} running={2}">
+  <ToolExecutionSummary completed={5} failed={1} running={2} />
+</Example>
+
+Segments always render in a fixed order — **completed, failed, running** —
+regardless of prop order, so the summary reads consistently as it streams.
+
+## How tool states map to segments
+
+A tool call has **seven** lifecycle states, but this component models only
+**three** outcomes. The collapse from seven to three is done by the caller,
+`renderToolPartStatus` in `ToolPart`:
+
+<Mapping />
+
+This is lossy on purpose, but the seams are worth understanding before leaning
+on it further.
+
+### Three "in flight" states collapse to one spinner
+
+`input-streaming` (the model is still writing the tool's arguments),
+`input-available` (arguments complete, the tool is executing), and
+`approval-responded` (you approved, execution is resuming) all render as the
+same spinner. For an at-a-glance status that's fine, but a real distinction is
+gone: a spinner no longer tells you whether the **agent is still deciding** or
+the **tool is doing work**.
+
+### Two states fall back to text
+
+`approval-requested` and `output-denied` have no icon in the three-outcome
+model, so `renderToolPartStatus` keeps their **text** label ("Awaiting
+approval", "Denied") instead. That preserves two distinctions the icons can't
+express: _waiting on the user_ — its most action-relevant state — and
+_declined_, a deliberate rejection styled `warning` rather than the `danger` of
+a real error. Conflating either with a spinner or a red ✗ would mislead someone
+reviewing a transcript after the fact.
+
+### The mapping is hand-maintained as a switch
+
+There is no single `state → outcome` map. `renderToolPartStatus` is a `switch`,
+so a new state added to the SDK's state union would fall through and render
+**nothing** — a silent failure. A shared, explicit `state → outcome` map would
+make the collapse total and catch new states at the type level.
+
+### The labels are largely redundant now
+
+`formatToolState` produces seven distinct strings, and several tools add their
+own per-state label formatters on top. The icon system uses a label for only the
+two text-fallback states; for the other five the rich label is computed and then
+discarded.
+
+> **In short:** the three-outcome model is the right shape for a glanceable
+> summary. It leans on a text fallback for _waiting on the user_ and _declined_
+> rather than giving them their own glyph, and the seven→three collapse lives in
+> an open-ended `switch`. Tightening it means either giving those two states a
+> dedicated affordance (e.g. a pause glyph and a no-entry glyph) or a single
+> shared `state → outcome` map — ideally both.

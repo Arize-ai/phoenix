@@ -1,0 +1,83 @@
+---
+title: "06.16.2026: Time Range, Metrics, and Sharing Upgrades"
+description: "A calendar time range picker with pan/zoom and live streaming controls, shareable trace URLs, trace and session annotation metrics, token detail charts, and opt-in PXI subagents."
+---
+
+This release brings a wave of time range improvements, richer project metrics, and finer control
+over PXI — rolled out across arize-phoenix 17.5.0 through 17.7.0.
+
+# Calendar Time Range Picker
+
+**Available in arize-phoenix 17.5.0+**
+
+The time range selector now includes a calendar view for choosing an exact window by clicking dates
+instead of typing them.
+
+- **Two-month range calendar** — open the picker to see two months side by side and click a start and end day to define your range
+- **Editable start and end fields** — date fields sit under each month so you can fine-tune the bounds, including the time of day, before applying
+- **Apply or cancel** — the range only commits when you apply it, so you can explore dates without disturbing the current view
+
+<video controls autoPlay={false} loop={false} width="100%">
+  <source src="https://storage.googleapis.com/arize-assets/phoenix/assets/videos/pan_zoom_calendar.mp4" type="video/mp4" />
+</video>
+
+# Pan, Zoom, and Live Streaming Controls
+
+**Available in arize-phoenix 17.6.0+**
+
+A compact control strip now sits beside the time range selector on the project and dashboards pages,
+replacing the standalone streaming switch.
+
+- **Pan and zoom** — step the window backward and forward or widen and narrow it without reopening the selector; large zoomed-out windows snap to readable units (for example `85d` instead of `2048h`)
+- **Live streaming toggle** — a play/pause control on the project page turns live data streaming on and off, with a gentle pulse while streaming is active
+- **Shared chrome** — the strip matches the height and styling of the time range selector so the two read as one control
+
+# Shareable Trace Time Range URLs
+
+**Available in arize-phoenix 17.7.0+**
+
+Trace and session views now encode the time range in the URL, so a link you copy reproduces what you
+were looking at for the recipient.
+
+- **Time range in the link** — the active range travels with the URL, whether it's a named preset or an explicit start and end window
+- **Presets stay relative** — sharing a preset link (such as the last hour) resolves to the recipient's current window, while a custom range shares the exact bounds you selected
+- **Cleaner navigation** — selection state stays in the URL across tab changes, so refreshing or sharing a trace view keeps the same context
+
+# Trace and Session Annotation Scores Over Time
+
+**Available in arize-phoenix 17.6.0+**
+
+The project metrics page now charts average annotation scores at the trace and session level,
+alongside the existing span annotation scores.
+
+- **Trace annotation scores** — a panel plots average trace annotation scores over the selected time range
+- **Session annotation scores** — a matching panel tracks session-level annotation scores
+- **Consistent visualization** — span, trace, and session annotation panels share the same chart, so scores across all three levels read the same way
+
+# Token Detail Metrics Charts
+
+**Available in arize-phoenix 17.7.0+**
+
+The project metrics page adds two charts that break token usage down into its component parts over
+time, complementing the existing token usage panel.
+
+- **Prompt token details** — see prompt tokens split across input, cache, and audio parts
+- **Completion token details** — see completion tokens split across output, reasoning, and audio parts
+- **Time-aligned** — both charts follow the page's selected time range, so you can correlate token detail trends with cost and volume
+
+# PXI Subagents Are Now Opt-In
+
+**Available in arize-phoenix 17.5.0+ (PXI beta)**
+
+PXI subagents — the parallel helpers that run read-only data lookups alongside the main
+investigation — are now controlled by a toggle in assistant settings and default to off.
+
+- **Subagents toggle** — find it directly below the Web Search toggle in your personal assistant settings
+- **Off by default** — PXI runs without subagents until you enable the toggle, so you opt in to the additional token usage they can incur
+- **Same behavior once enabled** — turning subagents on restores the parallel data-retrieval flow introduced in the June 10 PXI update
+
+<CardGroup cols={2}>
+  <Card title="PXI Agent" icon="robot" href="/docs/phoenix/pxi">
+    Learn how to enable and use PXI in your Phoenix deployment.
+  </Card>
+</CardGroup>
