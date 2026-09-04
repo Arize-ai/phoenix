@@ -1,6 +1,9 @@
 import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
-import { LIST_PROJECT_TRACES } from "../constants/serverRequirements";
+import {
+  GET_TRACES_FILTERS,
+  LIST_PROJECT_TRACES,
+} from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
@@ -28,6 +31,112 @@ export interface GetTracesParams extends ClientFn {
   includeSpans?: boolean;
   /** Filter traces by session identifier(s) (session_id strings or GlobalIDs) */
   sessionId?: string | string[] | null;
+  /**
+   * Filter by trace error status. `true` returns only traces containing at
+   * least one errored span, `false` only traces with no errored spans.
+   * Omit to leave traces unfiltered by error status.
+   *
+   * @requires Phoenix server >= 20.8.0
+   */
+  error?: boolean | null;
+  /**
+   * Inclusive lower bound on trace latency in milliseconds.
+   *
+   * @requires Phoenix server >= 20.8.0
+   */
+  minLatencyMs?: number | null;
+  /**
+   * Inclusive upper bound on trace latency in milliseconds.
+   *
+   * @requires Phoenix server >= 20.8.0
+   */
+  maxLatencyMs?: number | null;
+}
+
+/**
+ * Reject latency bounds the server would reject (negatives) or that can never
+ * match a trace (an inverted range), so callers get a clear error instead of a
+ * 422 or a silently empty page.
+ */
+function validateLatencyBounds({
+  minLatencyMs,
+  maxLatencyMs,
+}: Pick<GetTracesParams, "minLatencyMs" | "maxLatencyMs">): void {
+  if (minLatencyMs != null && minLatencyMs < 0) {
+    throw new Error(`minLatencyMs must be non-negative, got ${minLatencyMs}`);
+  }
+  if (maxLatencyMs != null && maxLatencyMs < 0) {
+    throw new Error(`maxLatencyMs must be non-negative, got ${maxLatencyMs}`);
+  }
+  if (
+    minLatencyMs != null &&
+    maxLatencyMs != null &&
+    minLatencyMs > maxLatencyMs
+  ) {
+    throw new Error(
+      `minLatencyMs (${minLatencyMs}) must not exceed maxLatencyMs (${maxLatencyMs})`
+    );
+  }
+}
+
+type ListProjectTracesQuery = NonNullable<
+  operations["listProjectTraces"]["parameters"]["query"]
+>;
+
+/**
+ * Translate the camelCase parameters into the endpoint's snake_case query,
+ * omitting anything the caller left unset so the server applies its defaults.
+ */
+function buildQuery({
+  cursor,
+  limit = 100,
+  startTime,
+  endTime,
+  sort,
+  order,
+  includeSpans,
+  sessionId,
+  error,
+  minLatencyMs,
+  maxLatencyMs,
+}: Omit<GetTracesParams, "client" | "project">): ListProjectTracesQuery {
+  const query: ListProjectTracesQuery = { limit };
+  if (cursor) {
+    query.cursor = cursor;
+  }
+  if (startTime) {
+    query.start_time =
+      startTime instanceof Date ? startTime.toISOString() : startTime;
+  }
+  if (endTime) {
+    query.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
+  }
+  if (sort) {
+    query.sort = sort;
+  }
+  if (order) {
+    query.order = order;
+  }
+  if (includeSpans) {
+    query.include_spans = true;
+  }
+  if (sessionId) {
+    query.session_identifier = Array.isArray(sessionId)
+      ? sessionId
+      : [sessionId];
+  }
+  // `error: false` is a meaningful filter (traces with no errored spans), so
+  // send the parameter whenever it was set rather than only when truthy.
+  if (error != null) {
+    query.error = error;
+  }
+  if (minLatencyMs != null) {
+    query.min_latency_ms = minLatencyMs;
+  }
+  if (maxLatencyMs != null) {
+    query.max_latency_ms = maxLatencyMs;
+  }
+  return query;
 }
 
 export type GetTracesResponse =
@@ -81,60 +190,30 @@ export type GetTracesResult = {
  *   });
  *   cursor = result.nextCursor || undefined;
  * } while (cursor);
+ *
+ * // Only slow traces that errored
+ * const slowFailures = await getTraces({
+ *   client,
+ *   project: { projectName: "my-project" },
+ *   error: true,
+ *   minLatencyMs: 1000,
+ * });
  * ```
  */
 export async function getTraces({
   client: _client,
   project,
-  cursor,
-  limit = 100,
-  startTime,
-  endTime,
-  sort,
-  order,
-  includeSpans,
-  sessionId,
+  ...params
 }: GetTracesParams): Promise<GetTracesResult> {
+  const { error: errorFilter, minLatencyMs, maxLatencyMs } = params;
   const client = _client ?? createClient();
+  validateLatencyBounds({ minLatencyMs, maxLatencyMs });
   await ensureServerCapability({ client, requirement: LIST_PROJECT_TRACES });
+  if (errorFilter != null || minLatencyMs != null || maxLatencyMs != null) {
+    await ensureServerCapability({ client, requirement: GET_TRACES_FILTERS });
+  }
   const projectIdentifier = resolveProjectIdentifier(project);
-
-  const params: NonNullable<
-    operations["listProjectTraces"]["parameters"]["query"]
-  > = {
-    limit,
-  };
-
-  if (cursor) {
-    params.cursor = cursor;
-  }
-
-  if (startTime) {
-    params.start_time =
-      startTime instanceof Date ? startTime.toISOString() : startTime;
-  }
-
-  if (endTime) {
-    params.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
-  }
-
-  if (sort) {
-    params.sort = sort;
-  }
-
-  if (order) {
-    params.order = order;
-  }
-
-  if (includeSpans) {
-    params.include_spans = true;
-  }
-
-  if (sessionId) {
-    params.session_identifier = Array.isArray(sessionId)
-      ? sessionId
-      : [sessionId];
-  }
+  const query = buildQuery(params);
 
   const { data, error } = await client.GET(
     "/v1/projects/{project_identifier}/traces",
@@ -143,7 +222,7 @@ export async function getTraces({
         path: {
           project_identifier: projectIdentifier,
         },
-        query: params,
+        query,
       },
     }
   );
