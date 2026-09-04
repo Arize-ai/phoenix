@@ -390,17 +390,7 @@ def trace_eval_context(
     events: Sequence[Mapping[str, Any]],
     annotations: Sequence[models.TraceAnnotation],
 ) -> dict[str, Any]:
-    """Trace context. ``input`` and ``output`` bind the displayed root span's values
-    under the names the trace filter language already spells for them, so one concept
-    keeps one spelling across a filter, a preview, and an evaluation. ``vocabulary``
-    must carry every name in ``TRACE_BOUND_VARIABLE_NAMES`` plus the trace's
-    ``start_time``/``end_time`` record fields and those root values, as
-    ``load_trace_bound_variables`` returns it.
-
-    The root span's own ``metadata`` attribute is not spread flat the way the span
-    grain spreads it: attribute namespaces are open-ended, and a key spelled like a
-    trace scalar would shadow it. It stays reachable under ``attributes``.
-    """
+    """Trace context; ``vocabulary`` must be as ``load_trace_bound_variables`` returns it."""
     return {
         "input": vocabulary["input"],
         "output": vocabulary["output"],
@@ -421,14 +411,8 @@ async def load_trace_eval_context(
     trace_rowid: int,
     vocabulary: Mapping[str, Any],
 ) -> Optional[dict[str, Any]]:
-    """The trace's evaluation context, exactly as an online evaluation reads it.
-
-    ``None`` when the trace has no displayed root span: the root is what carries the
-    ``input`` and ``output`` an evaluator scores, so a trace without one has nothing
-    to score. The executor and the GraphQL preview field both call this, so what an
-    author previews is the document the runtime binds against. ``vocabulary`` is
-    supplied by the caller because the executor reads it for a whole batch of traces
-    at once.
+    """The trace's evaluation context, ``None`` without a displayed root span; the
+    executor and the GraphQL preview field both read it.
     """
     root_spans = representative_root_span_by_trace(keys=[trace_rowid]).subquery()
     root_span = (
@@ -462,9 +446,7 @@ def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
     return {_EVALUATOR_TRACE_ID_METADATA_KEY: trace_id} if trace_id else {}
 
 
-# Keyed by target as well as row id: a row id is unique only within its own
-# entity table, so a claim batch carrying two targets would otherwise let one
-# grain's vocabulary answer for the other's row.
+# Keyed by target as well as row id: a row id is unique only within its own entity table.
 _TargetVocabularies: TypeAlias = Mapping[tuple[models.EvaluationTarget, int], Mapping[str, Any]]
 
 
@@ -557,11 +539,7 @@ async def _load_trace_context(
 class _EvaluationTargetSpec:
     """What one evaluation target contributes to hydration and publication."""
 
-    # The `blocks` side of the scheduling conditions, bound to this target; None
-    # where the target has no scheduling requirement to answer.
     project_evaluator_is_schedulable: Optional[Callable[[models.ProjectEvaluator], bool]]
-    # Reads the grain's filter vocabulary for a whole batch of target rows at once.
-    # None where the target's context needs no vocabulary beyond its own row.
     load_vocabularies: Optional[
         Callable[[AsyncSession, Collection[int]], Awaitable[dict[int, dict[str, Any]]]]
     ]
@@ -611,10 +589,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         target_column="trace_rowid",
         annotation_table=models.TraceAnnotation,
         unique_by=("name", "trace_rowid", "identifier"),
-        # Symmetric with SESSION rather than SPAN, and unexercised either way: a
-        # second evaluation at the same fingerprint is never materialized, and a
-        # different fingerprint writes a different identifier, so there is no
-        # conflicting annotation left to replace.
         on_conflict=OnConflict.DO_UPDATE,
         insert_event=TraceAnnotationInsertEvent,
     ),
@@ -783,8 +757,6 @@ class OnlineEvalExecutor:
             load_vocabularies = _EVALUATION_TARGET_SPECS[evaluation_target].load_vocabularies
             assert load_vocabularies is not None
             try:
-                # One savepointed batch read per target: a failure here is
-                # infrastructure, not a property of any one row's data.
                 async with session.begin_nested():
                     vocabularies = await load_vocabularies(
                         session,

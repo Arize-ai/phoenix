@@ -1926,8 +1926,6 @@ async def test_project_evaluator_run_summary_counts_trace_work(
                     status="DONE",
                     updated_at=now - timedelta(minutes=1),
                 ),
-                # Hydration refused the trace and expired the unit, which the funnel
-                # owes the author as a failure.
                 models.EvalTraceWorkUnit(
                     trace_rowid=traces[1].id,
                     evaluator_id=evaluator.id,

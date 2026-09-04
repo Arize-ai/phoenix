@@ -923,13 +923,9 @@ class _RootSpanAttributeValue:
 
 
 def root_span_io_value(attributes: typing.Any, name: str) -> typing.Any:
-    """The root span's ``input`` or ``output`` string, read the way the filter reads it.
-
-    The accessor coalesces the split attribute path with the literal wire key, so a
-    span whose attribute trie collided on ingest still answers. Callers outside the
-    filter binding this value for an evaluator go through here rather than spelling
-    one of the two paths, so the value an evaluator receives is the value the filter
-    matched on.
+    """The root span's ``input`` or ``output`` string, coalescing the split attribute path
+    with the literal wire key so a collided attribute trie still answers. Bind through here
+    rather than spelling either path.
     """
     path = _ROOT_SPAN_INPUT_VALUE if name == "input" else _ROOT_SPAN_OUTPUT_VALUE
     return _RootSpanAttributeValue(attributes, path).as_string()
