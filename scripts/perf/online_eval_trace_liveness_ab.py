@@ -112,9 +112,6 @@ class Result(NamedTuple):
         return self.traces_per_batch
 
 
-# --- workload --------------------------------------------------------------------------------
-
-
 class SpanFactory:
     """Generates batches of spans with ids no earlier batch has used.
 
@@ -189,9 +186,6 @@ def build_batch(
         measured = factory.children(trace_ids, cell.spans_per_trace)
     rng.shuffle(measured)
     return setup, measured
-
-
-# --- measurement -----------------------------------------------------------------------------
 
 
 class StampTimer:
@@ -279,8 +273,6 @@ async def measure_cell(
         arm_ms: dict[bool, float] = {}
         stamp_stmt_ms = 0.0
         stamped_rows = 0
-        # Flip which arm goes first every other repetition, so the table growth each arm sees
-        # over the run cancels to first order.
         for stamp in (run % 2 == 0, run % 2 != 0):
             setup, measured = build_batch(factory, cell, batch_size, rng)
             if setup:
@@ -303,9 +295,6 @@ async def measure_cell(
         traces_per_batch=batch_size // cell.spans_per_trace,
         samples=samples,
     )
-
-
-# --- reporting -------------------------------------------------------------------------------
 
 
 def render(results: list[Result], dialect: str, batch_size: int, runs: int) -> str:
@@ -354,9 +343,6 @@ def _attributed_pct(result: Result) -> float:
     return 100 * statistics.median(s.stamp_stmt_ms for s in result.samples) / without
 
 
-# --- driver ----------------------------------------------------------------------------------
-
-
 @contextlib.asynccontextmanager
 async def build_engine(
     dialect: str, postgres_url: Optional[str], drop_existing: bool
@@ -370,8 +356,6 @@ async def build_engine(
             raise SystemExit("--postgres-url is required for --dialect postgresql")
         engine = aio_postgresql_engine(make_url(postgres_url), migrate=False)
         existing = await _table_names(engine)
-        # Seeding drops every table it is about to recreate, so a mistyped URL would destroy
-        # whatever lives at the target. Refuse unless it is empty or the caller opted in.
         if existing and not drop_existing:
             await engine.dispose()
             raise SystemExit(
@@ -416,7 +400,6 @@ async def run(args: argparse.Namespace) -> str:
             event_queue=SimpleQueue[DmlEvent](),
             span_cost_calculator=SpanCostCalculator(db, GenerativeModelStore(db)),
         )
-        # One factory for the whole run keeps span ids unique across every cell.
         factory = SpanFactory()
         timer = StampTimer(engine)
         results = [
