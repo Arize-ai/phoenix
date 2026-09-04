@@ -38,203 +38,230 @@ const UNSET_VALUE = "__unset__";
  * Form field for a single invocation parameter driven by the static frontend
  * {@link ParamSpec} table.
  */
-const InvocationParameterFormField = ({
-  spec,
-  value,
-  onChange,
-  errors,
-  control,
-}: {
+type InvocationParameterFieldProps = {
   spec: ParamSpec;
   value: unknown;
   onChange: (value: unknown) => void;
   errors: FieldErrors<Record<string, unknown>>;
   control: Control<Record<string, unknown>>;
-}) => {
-  const errorMessage = errors[spec.name]?.message;
-  const requiredRuleMessage = spec.required
-    ? `${spec.label || spec.name} is required`
-    : undefined;
-  const numericMin =
-    spec.type === "int" || spec.type === "float" ? spec.min : undefined;
-  const numericMax =
-    spec.type === "int" || spec.type === "float" ? spec.max : undefined;
-  const minRuleMessage =
-    numericMin != null
-      ? `${spec.label || spec.name} must be at least ${numericMin}`
-      : undefined;
-  const maxRuleMessage =
-    numericMax != null
-      ? `${spec.label || spec.name} must be at most ${numericMax}`
-      : undefined;
+};
 
-  switch (spec.type) {
+const InvocationParameterFormField = (props: InvocationParameterFieldProps) => {
+  switch (props.spec.type) {
     case "float":
-      // A float with both `min` and `max` renders as a slider; otherwise as a
-      // number input.
-      if (numericMin != null && numericMax != null) {
-        const isNumber = typeof value === "number";
-        const defaultValue = isNumber ? value : undefined;
-        return (
-          <Slider
-            label={spec.label}
-            defaultValue={defaultValue}
-            step={0.1}
-            minValue={numericMin}
-            maxValue={numericMax}
-            onChange={(next) => {
-              if (Array.isArray(next) && next.length > 0) {
-                return onChange(next[0]);
-              }
-              onChange(next);
-            }}
-          >
-            <SliderNumberField defaultValue={defaultValue} />
-          </Slider>
-        );
-      }
-    // fallthrough — unbounded float renders as a NumberField, same as int.
-    // eslint-disable-next-line no-fallthrough
+      return props.spec.min != null && props.spec.max != null ? (
+        <InvocationParameterSlider {...props} />
+      ) : (
+        <InvocationParameterNumberField {...props} />
+      );
     case "int":
-      return (
-        <Controller
-          control={control}
-          name={spec.name}
-          rules={{
-            required: requiredRuleMessage,
-            min: minRuleMessage,
-            max: maxRuleMessage,
-          }}
-          render={({ field: { onBlur } }) => (
-            <NumberField
-              isRequired={spec.required}
-              value={Number(value)}
-              onBlur={onBlur}
-              onChange={(next) => onChange(next)}
-              minValue={numericMin}
-              maxValue={numericMax}
-            >
-              <Label>{spec.label}</Label>
-              <Input />
-              {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-            </NumberField>
-          )}
-        />
-      );
+      return <InvocationParameterNumberField {...props} />;
     case "string_list":
-      if (!Array.isArray(value) && value !== undefined) return null;
-      return (
-        <Controller
-          control={control}
-          name={spec.name}
-          rules={{ required: requiredRuleMessage }}
-          render={({ field: { onBlur } }) => (
-            <TextField
-              isRequired={spec.required}
-              defaultValue={value?.join(", ") ?? ""}
-              onBlur={onBlur}
-              onChange={(next) => {
-                if (next === "") {
-                  onChange(undefined);
-                  return;
-                }
-                onChange(next.split(/, */g));
-              }}
-            >
-              <Label>{spec.label}</Label>
-              <Input />
-              {errorMessage ? (
-                <FieldError>{errorMessage}</FieldError>
-              ) : (
-                <Text slot="description">
-                  A comma separated list of strings
-                </Text>
-              )}
-            </TextField>
-          )}
-        />
-      );
+      return <InvocationParameterStringListField {...props} />;
     case "string":
-      return (
-        <Controller
-          control={control}
-          name={spec.name}
-          rules={{ required: requiredRuleMessage }}
-          render={({ field: { onBlur } }) => (
-            <TextField
-              isRequired={spec.required}
-              defaultValue={value?.toString() || ""}
-              type="text"
-              onBlur={onBlur}
-              onChange={(next) => {
-                if (next === "") {
-                  onChange(undefined);
-                  return;
-                }
-                onChange(next);
-              }}
-            >
-              <Label>{spec.label}</Label>
-              <Input />
-              {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-            </TextField>
-          )}
-        />
-      );
-    case "enum": {
-      const currentValue = typeof value === "string" ? value : null;
-      const selectedKey =
-        currentValue && spec.values.includes(currentValue)
-          ? currentValue
-          : spec.required && spec.values.length > 0
-            ? spec.values[0]
-            : UNSET_VALUE;
-      return (
-        <Select
-          selectedKey={selectedKey}
-          onSelectionChange={(key) => {
-            if (key === UNSET_VALUE) {
-              onChange(undefined);
-              return;
-            }
-            onChange(String(key));
-          }}
-          aria-label={spec.label}
-        >
-          <Label>{spec.label}</Label>
-          <Button data-testid={`invocation-param-${spec.name}`}>
-            <SelectValue />
-            <SelectChevronUpDownIcon />
-          </Button>
-          <Popover>
-            <ListBox>
-              {spec.required ? null : (
-                <SelectItem id={UNSET_VALUE} textValue="unset">
-                  <Text color="text-500" fontStyle="italic">
-                    unset
-                  </Text>
-                </SelectItem>
-              )}
-              {spec.values.map((v) => (
-                <SelectItem key={v} id={v}>
-                  {spec.labels?.[v] ?? v}
-                </SelectItem>
-              ))}
-            </ListBox>
-          </Popover>
-        </Select>
-      );
-    }
+      return <InvocationParameterStringField {...props} />;
+    case "enum":
+      return <InvocationParameterEnumField {...props} />;
     case "bool":
       return (
-        <Switch onChange={onChange} defaultSelected={Boolean(value)}>
-          {spec.label}
+        <Switch
+          onChange={props.onChange}
+          defaultSelected={Boolean(props.value)}
+        >
+          {props.spec.label}
         </Switch>
       );
     default:
       return null;
   }
 };
+
+function getRequiredMessage(spec: ParamSpec): string | undefined {
+  return spec.required ? `${spec.label || spec.name} is required` : undefined;
+}
+
+function InvocationParameterSlider({
+  spec,
+  value,
+  onChange,
+}: InvocationParameterFieldProps) {
+  if (spec.type !== "float" || spec.min == null || spec.max == null)
+    return null;
+  const defaultValue = typeof value === "number" ? value : undefined;
+  return (
+    <Slider
+      label={spec.label}
+      defaultValue={defaultValue}
+      step={0.1}
+      minValue={spec.min}
+      maxValue={spec.max}
+      onChange={(next) =>
+        onChange(Array.isArray(next) && next.length > 0 ? next[0] : next)
+      }
+    >
+      <SliderNumberField defaultValue={defaultValue} />
+    </Slider>
+  );
+}
+
+function InvocationParameterNumberField({
+  spec,
+  value,
+  onChange,
+  errors,
+  control,
+}: InvocationParameterFieldProps) {
+  if (spec.type !== "int" && spec.type !== "float") return null;
+  const errorMessage = errors[spec.name]?.message;
+  return (
+    <Controller
+      control={control}
+      name={spec.name}
+      rules={{
+        required: getRequiredMessage(spec),
+        min:
+          spec.min == null
+            ? undefined
+            : `${spec.label || spec.name} must be at least ${spec.min}`,
+        max:
+          spec.max == null
+            ? undefined
+            : `${spec.label || spec.name} must be at most ${spec.max}`,
+      }}
+      render={({ field: { onBlur } }) => (
+        <NumberField
+          isRequired={spec.required}
+          value={Number(value)}
+          onBlur={onBlur}
+          onChange={onChange}
+          minValue={spec.min}
+          maxValue={spec.max}
+        >
+          <Label>{spec.label}</Label>
+          <Input />
+          {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
+        </NumberField>
+      )}
+    />
+  );
+}
+
+function InvocationParameterStringListField({
+  spec,
+  value,
+  onChange,
+  errors,
+  control,
+}: InvocationParameterFieldProps) {
+  if (
+    spec.type !== "string_list" ||
+    (!Array.isArray(value) && value !== undefined)
+  ) {
+    return null;
+  }
+  const errorMessage = errors[spec.name]?.message;
+  return (
+    <Controller
+      control={control}
+      name={spec.name}
+      rules={{ required: getRequiredMessage(spec) }}
+      render={({ field: { onBlur } }) => (
+        <TextField
+          isRequired={spec.required}
+          defaultValue={value?.join(", ") ?? ""}
+          onBlur={onBlur}
+          onChange={(next) =>
+            onChange(next === "" ? undefined : next.split(/, */g))
+          }
+        >
+          <Label>{spec.label}</Label>
+          <Input />
+          {errorMessage ? (
+            <FieldError>{errorMessage}</FieldError>
+          ) : (
+            <Text slot="description">A comma separated list of strings</Text>
+          )}
+        </TextField>
+      )}
+    />
+  );
+}
+
+function InvocationParameterStringField({
+  spec,
+  value,
+  onChange,
+  errors,
+  control,
+}: InvocationParameterFieldProps) {
+  if (spec.type !== "string") return null;
+  const errorMessage = errors[spec.name]?.message;
+  return (
+    <Controller
+      control={control}
+      name={spec.name}
+      rules={{ required: getRequiredMessage(spec) }}
+      render={({ field: { onBlur } }) => (
+        <TextField
+          isRequired={spec.required}
+          defaultValue={value?.toString() || ""}
+          type="text"
+          onBlur={onBlur}
+          onChange={(next) => onChange(next === "" ? undefined : next)}
+        >
+          <Label>{spec.label}</Label>
+          <Input />
+          {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
+        </TextField>
+      )}
+    />
+  );
+}
+
+function InvocationParameterEnumField({
+  spec,
+  value,
+  onChange,
+}: InvocationParameterFieldProps) {
+  if (spec.type !== "enum") return null;
+  const selectedKey =
+    typeof value === "string" && spec.values.includes(value)
+      ? value
+      : spec.required && spec.values.length > 0
+        ? spec.values[0]
+        : UNSET_VALUE;
+  return (
+    <Select
+      selectedKey={selectedKey}
+      onSelectionChange={(key) =>
+        onChange(key === UNSET_VALUE ? undefined : String(key))
+      }
+      aria-label={spec.label}
+    >
+      <Label>{spec.label}</Label>
+      <Button data-testid={`invocation-param-${spec.name}`}>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox>
+          {spec.required ? null : (
+            <SelectItem id={UNSET_VALUE} textValue="unset">
+              <Text color="text-500" fontStyle="italic">
+                unset
+              </Text>
+            </SelectItem>
+          )}
+          {spec.values.map((enumValue) => (
+            <SelectItem key={enumValue} id={enumValue}>
+              {spec.labels?.[enumValue] ?? enumValue}
+            </SelectItem>
+          ))}
+        </ListBox>
+      </Popover>
+    </Select>
+  );
+}
 
 type InvocationParametersFormProps = {
   instanceId: number;

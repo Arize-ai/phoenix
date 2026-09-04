@@ -88,6 +88,18 @@ ENV_PHOENIX_AGENTS_DISABLE_BASH = "PHOENIX_AGENTS_DISABLE_BASH"
 Disables the server-side bash tool by preventing subagents from being attached to
 the assistant. When true, the option to enable subagents is also hidden from the UI settings.
 """
+ENV_PHOENIX_AGENTS_DISABLE_GITHUB = "PHOENIX_AGENTS_DISABLE_GITHUB"
+"""
+Disables the PXI GitHub tools (backed by GitHub's MCP server) even when external
+resources are otherwise allowed. When true, the capability never registers and
+the GitHub settings UI is hidden.
+"""
+ENV_PHOENIX_AGENTS_GITHUB_MCP_URL = "PHOENIX_AGENTS_GITHUB_MCP_URL"
+"""
+Base URL of the GitHub MCP server the PXI GitHub tools connect to. Defaults to
+GitHub's hosted endpoint; point it at a self-hosted github-mcp-server instance
+for GitHub Enterprise Server or air-gapped deployments.
+"""
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
 Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
@@ -467,7 +479,7 @@ ENV_PHOENIX_ALLOWED_PROVIDERS = "PHOENIX_ALLOWED_PROVIDERS"
 Comma-separated list of provider names to show in the UI.
 Provider names should match GenerativeProviderKey enum names:
 OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA,
-AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER.
+AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI.
 Case-insensitive. When unset, all providers are shown.
 Set to NONE to hide all providers.
 Example: PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
@@ -1512,6 +1524,21 @@ def get_env_phoenix_agents_web_access_enabled() -> bool:
 
 def get_env_phoenix_agents_disable_bash() -> bool:
     return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_BASH, False)
+
+
+def get_env_phoenix_agents_disable_github() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_GITHUB, False)
+
+
+def get_env_phoenix_agents_github_enabled() -> bool:
+    return get_env_allow_external_resources() and not get_env_phoenix_agents_disable_github()
+
+
+DEFAULT_GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/"
+
+
+def get_env_phoenix_agents_github_mcp_url() -> str:
+    return getenv(ENV_PHOENIX_AGENTS_GITHUB_MCP_URL) or DEFAULT_GITHUB_MCP_URL
 
 
 class AuthSettings(NamedTuple):

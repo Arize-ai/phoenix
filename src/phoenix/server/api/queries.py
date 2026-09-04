@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 from collections import defaultdict
 from datetime import datetime
@@ -36,6 +37,7 @@ from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.db.types.prompts import PromptMessageRole
 from phoenix.server.agents.config import AgentsEnvConfig
+from phoenix.server.agents.github import GITHUB_PAT_SECRET_KEY, decrypt_workspace_secret
 from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -1748,17 +1750,35 @@ class Query:
         )
 
     @strawberry.field
-    def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
+    async def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
         agent_assistant_enabled = info.context.settings.agent_assistant_enabled
         trace_recording = info.context.settings.agent_trace_recording
         env = AgentsEnvConfig.from_env()
         session_retention = info.context.settings.agent_session_retention
+        github_enabled = env.allows_github(info.context.settings.agent_github)
+        github_workspace_token_configured = False
+        # Computed under the env ceiling (not the admin toggle) so the value is
+        # already correct when an admin flips the runtime setting on without a
+        # reload. Existence only — the token value is never exposed — and a
+        # stored secret counts only when it is actually usable
+        # (`decrypt_workspace_secret` mirrors `resolve_github_token`).
+        if env.github_enabled:
+            github_workspace_token_configured = bool(os.getenv(GITHUB_PAT_SECRET_KEY))
+            if not github_workspace_token_configured:
+                secret = await info.context.data_loaders.secrets.load(GITHUB_PAT_SECRET_KEY)
+                github_workspace_token_configured = (
+                    secret is not None
+                    and decrypt_workspace_secret(secret.value, info.context.decrypt) is not None
+                )
         return AgentsConfig(
             collector_endpoint=env.collector_endpoint,
             assistant_project_name=env.assistant_project_name,
             force_tracing=env.force_tracing,
             web_access_enabled=env.web_access_enabled,
             assistant_enabled=agent_assistant_enabled.enabled,
+            github_server_enabled=env.github_enabled,
+            github_enabled=github_enabled,
+            github_workspace_token_configured=github_workspace_token_configured,
             allow_local_traces=env.allows_local_traces(trace_recording),
             allow_remote_export=env.allows_remote_export(trace_recording),
             session_retention_max_idle_days=session_retention.max_idle_days or None,

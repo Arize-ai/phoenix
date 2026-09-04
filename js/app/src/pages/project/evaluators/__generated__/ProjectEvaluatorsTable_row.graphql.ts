@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c73fb43e2deadaafeab068c4be9c999>>
+ * @generated SignedSource<<c558f6670ddd81eea6e25f02d11ece1e>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,7 @@ export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
 export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TRACE_TARGET_UNSUPPORTED";

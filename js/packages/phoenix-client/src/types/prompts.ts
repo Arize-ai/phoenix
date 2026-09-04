@@ -16,7 +16,9 @@ export type PromptModelProvider =
   | "FIREWORKS"
   | "GROQ"
   | "MOONSHOT"
-  | "PERPLEXITY";
+  | "MINIMAX"
+  | "PERPLEXITY"
+  | "ZAI";
 
 /**
  * Supported prompt provider SDKs

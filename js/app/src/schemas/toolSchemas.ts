@@ -201,6 +201,10 @@ export const anthropicToolDefinitionSchema = z.strictObject({
   name: z.string(),
   description: z.string().optional(),
   input_schema: requiredToolParametersJsonSchema,
+  strict: z
+    .boolean()
+    .optional()
+    .describe("Whether the tool input must exactly match the input schema"),
 });
 
 /**
@@ -223,6 +227,10 @@ const awsToolSpecSchema = z.strictObject({
   inputSchema: z.strictObject({
     json: parametersSchemaWithDefaultObjectType,
   }),
+  strict: z
+    .boolean()
+    .optional()
+    .describe("Whether the tool input must exactly match the input schema"),
 });
 
 /**

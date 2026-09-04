@@ -388,6 +388,7 @@ function JobErrorsSection({
   );
 }
 
+// oxlint-disable-next-line complexity -- Dialog orchestration coordinates independent experiment sections and loading states.
 function ExperimentDetailsDialogContent({
   experimentId,
 }: {

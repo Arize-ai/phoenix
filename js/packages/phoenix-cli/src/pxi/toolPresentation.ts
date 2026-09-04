@@ -370,8 +370,76 @@ function getLoadSkillReferencePresentation({
   return presentation;
 }
 
+/** `owner/repo#123` (or the parts that are present) for GitHub issue tools. */
+function getGithubIssueReference(record: Record<string, unknown>): string {
+  const owner = getStringField({ record, field: "owner" });
+  const repo = getStringField({ record, field: "repo" });
+  const repoLabel = [owner, repo].filter(Boolean).join("/");
+  const issueNumber = record.issue_number;
+  const issueLabel = typeof issueNumber === "number" ? `#${issueNumber}` : "";
+  return `${repoLabel}${issueLabel}`;
+}
+
+/**
+ * GitHub issue write (create/update). The full title and a body excerpt are
+ * shown so the approval prompt presents exactly what would be posted.
+ */
+function getGithubIssueWritePresentation({
+  input,
+}: ToolPresenterOptions): Partial<ToolPresentation> {
+  const record = asRecord(input);
+  if (!record) {
+    return { icon: "◈" };
+  }
+  const reference = getGithubIssueReference(record);
+  const title = getStringField({ record, field: "title" });
+  const body = getStringField({ record, field: "body" });
+  return {
+    icon: "◈",
+    previewText: toSingleLine({
+      text: [reference, title].filter(Boolean).join(" "),
+    }),
+    detailLines: body
+      ? getClampedLines({ text: body, maxLines: COMMAND_DETAIL_MAX_LINES })
+      : [],
+  };
+}
+
+function getGithubIssueReadPresentation({
+  input,
+}: ToolPresenterOptions): Partial<ToolPresentation> {
+  const record = asRecord(input);
+  return {
+    icon: "◈",
+    previewText: record
+      ? toSingleLine({ text: getGithubIssueReference(record) })
+      : "",
+  };
+}
+
+/** GitHub issue search: the query, prefixed with any owner/repo scope. */
+function getGithubIssueSearchPresentation({
+  input,
+}: ToolPresenterOptions): Partial<ToolPresentation> {
+  const record = asRecord(input);
+  if (!record) {
+    return { icon: "◈" };
+  }
+  const query = getStringField({ record, field: "query" });
+  return {
+    icon: "◈",
+    previewText: toSingleLine({
+      text: [getGithubIssueReference(record), query].filter(Boolean).join(" "),
+    }),
+  };
+}
+
 const TOOL_PRESENTERS: Record<string, ToolPresenter> = {
   bash: getBashPresentation,
+  issue_write: getGithubIssueWritePresentation,
+  issue_read: getGithubIssueReadPresentation,
+  list_issues: getGithubIssueReadPresentation,
+  search_issues: getGithubIssueSearchPresentation,
   web_search: getWebSearchPresentation,
   web_fetch: getWebFetchPresentation,
   call_subagent: getCallSubagentPresentation,

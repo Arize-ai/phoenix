@@ -761,7 +761,11 @@ export interface paths {
         get: operations["listProjectTraces"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete traces from a project
+         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.
+         */
+        delete: operations["deleteProjectTraces"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1568,7 +1572,7 @@ export interface paths {
         put?: never;
         /**
          * OpenAI-compatible chat completions
-         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
+         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
          *
          *     **Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.
          */
@@ -2425,6 +2429,11 @@ export interface components {
              */
             lastMessageId?: string | null;
             /**
+             * Credentials
+             * @description Client-held credentials for optional integrations (e.g. the user's own GitHub personal access token under the key ``GITHUB_PERSONAL_ACCESS_TOKEN``), used only for the duration of the turn and never persisted. Unknown keys are rejected.
+             */
+            credentials?: components["schemas"]["ChatRequestCredential"][];
+            /**
              * Recordlocaltraces
              * @default false
              */
@@ -2440,6 +2449,28 @@ export interface components {
              * @default false
              */
             instrumentUserId?: boolean;
+        };
+        /**
+         * ChatRequestCredential
+         * @description One client-held credential riding the request for the duration of a turn.
+         *
+         *     The value is ephemeral: it is injected server-side as transport auth for
+         *     the matching integration and is never persisted, traced, or echoed. It is
+         *     top-level on the request body — never part of the message — so it cannot
+         *     reach the session transcript.
+         */
+        ChatRequestCredential: {
+            /**
+             * Key
+             * @description The credential's secret-key name.
+             * @constant
+             */
+            key: "GITHUB_PERSONAL_ACCESS_TOKEN";
+            /**
+             * Value
+             * Format: password
+             */
+            value: string;
         };
         /** CodeEvaluatorUIContext */
         CodeEvaluatorUIContext: {
@@ -2561,7 +2592,7 @@ export interface components {
         CreateChatCompletionRequestBody: {
             /**
              * Model
-             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
+             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
              */
             model: string;
             /** Messages */
@@ -4057,7 +4088,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "PERPLEXITY" | "TOGETHER";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -5236,7 +5267,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -5255,7 +5286,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -5297,6 +5328,43 @@ export interface components {
         };
         /** PromptXAIInvocationParametersContent */
         PromptXAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /** Stop */
+            stop?: string[];
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PromptZAIInvocationParameters */
+        PromptZAIInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "zai";
+            zai: components["schemas"]["PromptZAIInvocationParametersContent"];
+        };
+        /** PromptZAIInvocationParametersContent */
+        PromptZAIInvocationParametersContent: {
             /** Temperature */
             temperature?: number;
             /** Max Tokens */
@@ -9987,12 +10055,18 @@ export interface operations {
                 order?: "asc" | "desc";
                 /** @description Maximum number of traces to return */
                 limit?: number;
-                /** @description Pagination cursor (Trace GlobalID) */
+                /** @description Pagination cursor returned by a previous request */
                 cursor?: string | null;
                 /** @description If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible. */
                 include_spans?: boolean;
                 /** @description List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned. */
                 session_identifier?: string[] | null;
+                /** @description Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI. */
+                error?: boolean | null;
+                /** @description Inclusive lower bound on trace latency in milliseconds. */
+                min_latency_ms?: number | null;
+                /** @description Inclusive upper bound on trace latency in milliseconds. */
+                max_latency_ms?: number | null;
             };
             header?: never;
             path: {
@@ -10011,6 +10085,59 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GetTracesResponseBody"];
                 };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteProjectTraces: {
+        parameters: {
+            query: {
+                /** @description Required inclusive lower bound on trace start time (ISO 8601). */
+                start_time: string;
+                /** @description Required exclusive upper bound on trace start time (ISO 8601). */
+                end_time: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned after the matching traces are deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Forbidden */
             403: {

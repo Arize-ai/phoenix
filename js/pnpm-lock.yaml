@@ -149,8 +149,8 @@ importers:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^5.0.0
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
   app:
     dependencies:
@@ -415,7 +415,7 @@ importers:
         version: 10.5.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(esbuild@0.28.2)(rollup@4.62.5)(storybook@10.5.10(@types/react@19.2.17)(prettier@2.8.8)(react@19.2.7))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
       '@storybook/addon-vitest':
         specifier: ^10.5.10
-        version: 10.5.10(@vitest/browser-playwright@4.1.10)(@vitest/browser@4.1.10)(@vitest/runner@4.1.11)(react@19.2.7)(storybook@10.5.10(@types/react@19.2.17)(prettier@2.8.8)(react@19.2.7))(vitest@4.1.11)
+        version: 10.5.10(@vitest/browser-playwright@5.0.0)(@vitest/browser@5.0.0)(@vitest/runner@4.1.11)(react@19.2.7)(storybook@10.5.10(@types/react@19.2.17)(prettier@2.8.8)(react@19.2.7))(vitest@5.0.0)
       '@storybook/react':
         specifier: ^10.5.10
         version: 10.5.10(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(storybook@10.5.10(@types/react@19.2.17)(prettier@2.8.8)(react@19.2.7))(typescript@7.0.2)
@@ -457,13 +457,13 @@ importers:
         version: 20.1.1
       '@vitejs/plugin-react':
         specifier: ^6.1.0
-        version: 6.1.0(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(oxc-transform-react@0.145.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        version: 6.1.0(@rolldown/plugin-babel@0.2.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(oxc-transform-react@0.145.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
       '@vitest/browser-playwright':
-        specifier: 4.1.10
-        version: 4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(playwright@1.62.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)
+        specifier: 5.0.0
+        version: 5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(playwright@1.62.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@5.0.0)
       '@vitest/coverage-v8':
-        specifier: 4.1.10
-        version: 4.1.10(@vitest/browser@4.1.10)(vitest@4.1.11)
+        specifier: 5.0.0
+        version: 5.0.0(@vitest/browser@5.0.0)(vitest@5.0.0)
       babel-plugin-relay:
         specifier: ^21.0.1
         version: 21.0.1
@@ -528,11 +528,11 @@ importers:
         specifier: ^2.1.0
         version: 2.1.0(babel-plugin-relay@21.0.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^5.0.0
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
       vitest-canvas-mock:
         specifier: ^1.1.5
-        version: 1.1.5(vitest@4.1.11)
+        version: 1.1.5(vitest@5.0.0)
 
   benchmarks/evals-benchmarks:
     dependencies:
@@ -559,8 +559,8 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^5.0.0
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
   examples/apps/ai-sdk-agent:
     dependencies:
@@ -782,13 +782,13 @@ importers:
         version: link:../../../packages/phoenix-evals
       '@mastra/arize':
         specifier: ^1.3.9
-        version: 1.3.9(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(@opentelemetry/api@1.9.1)(zod@4.4.3)
+        version: 1.3.9(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(@opentelemetry/api@1.9.1)(zod@4.4.3)
       '@mastra/core':
         specifier: ^1.61.0
-        version: 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+        version: 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
       '@mastra/observability':
         specifier: ^1.17.1
-        version: 1.17.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)
+        version: 1.17.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(zod@4.4.3)
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -801,7 +801,7 @@ importers:
         version: 26.2.0
       mastra:
         specifier: ^1.26.0
-        version: 1.26.0(@hono/node-server@2.1.1(hono@4.12.31))(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(rxjs@7.8.2)(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3)
+        version: 1.26.0(@hono/node-server@1.19.17(hono@4.12.31))(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(rxjs@7.8.2)(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3)
       tsx:
         specifier: ^4.23.12
         version: 4.23.12
@@ -822,28 +822,28 @@ importers:
         version: link:../../../packages/phoenix-evals
       '@mastra/arize':
         specifier: ^1.3.9
-        version: 1.3.9(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(@opentelemetry/api@1.9.1)(zod@4.4.3)
+        version: 1.3.9(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(@opentelemetry/api@1.9.1)(zod@4.4.3)
       '@mastra/client-js':
         specifier: ^1.42.0
-        version: 1.42.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+        version: 1.42.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
       '@mastra/core':
         specifier: ^1.61.0
-        version: 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+        version: 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
       '@mastra/evals':
         specifier: ^1.9.0
-        version: 1.9.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))
+        version: 1.9.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))
       '@mastra/libsql':
         specifier: ^1.21.1
-        version: 1.21.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))
+        version: 1.21.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))
       '@mastra/loggers':
         specifier: ^1.2.0
-        version: 1.2.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))
+        version: 1.2.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))
       '@mastra/memory':
         specifier: ^1.27.0
-        version: 1.27.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))
+        version: 1.27.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(supports-color@10.2.2)
       '@mastra/observability':
         specifier: ^1.17.1
-        version: 1.17.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)
+        version: 1.17.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(zod@4.4.3)
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -856,7 +856,7 @@ importers:
         version: 26.2.0
       mastra:
         specifier: ^1.26.0
-        version: 1.26.0(@hono/node-server@2.1.1(hono@4.12.31))(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(rxjs@7.8.2)(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3)
+        version: 1.26.0(@hono/node-server@1.19.17(hono@4.12.31))(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(rxjs@7.8.2)(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3)
       tsx:
         specifier: ^4.23.12
         version: 4.23.12
@@ -1011,8 +1011,8 @@ importers:
         specifier: ^4.23.12
         version: 4.23.12
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^5.0.0
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/phoenix-client:
     dependencies:
@@ -1084,8 +1084,8 @@ importers:
         specifier: ^4.23.12
         version: 4.23.12
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^5.0.0
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/phoenix-config:
     devDependencies:
@@ -1093,8 +1093,8 @@ importers:
         specifier: ^26.2.0
         version: 26.2.0
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^5.0.0
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/phoenix-evals:
     dependencies:
@@ -1151,8 +1151,8 @@ importers:
         specifier: ^0.28.20
         version: 0.28.20
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^5.0.0
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/phoenix-mcp:
     dependencies:
@@ -1188,8 +1188,8 @@ importers:
         specifier: ^4.23.12
         version: 4.23.12
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^5.0.0
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/phoenix-otel:
     dependencies:
@@ -1234,8 +1234,8 @@ importers:
         specifier: ^26.2.0
         version: 26.2.0
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^5.0.0
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/phoenix-testing:
     dependencies:
@@ -1259,8 +1259,8 @@ importers:
         specifier: ^7.13.0
         version: 7.13.0
       vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^5.0.0
+        version: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
 packages:
 
@@ -1872,8 +1872,8 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
-  '@blazediff/core@1.9.1':
-    resolution: {integrity: sha512-ehg3jIkYKulZh+8om/O25vkvSsXXwC+skXmyA87FFx6A/45eqOkZsBltMw/TVteb0mloiGT8oGRTcjRAz66zaA==}
+  '@blazediff/core@1.10.0':
+    resolution: {integrity: sha512-AOQff0zgR7cGsZL+4E7hVkmujoPUpm0J9xzWGWZj5wCjd3gmxESXAPfKyuzs93VdpQNFhHlBhfOjrcZ+XTERtQ==}
 
   '@braintree/sanitize-url@7.1.2':
     resolution: {integrity: sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA==}
@@ -2371,6 +2371,12 @@ packages:
     resolution: {integrity: sha512-wtF6h+DY6M3YaDBPAmvuuA6jV8Sif9MjtOI5euKFWRgCDl5PeDpPsHR9u2l6St5ceY8AZgoNDww5+HvEsXFsGg==}
     engines: {node: '>=6'}
     hasBin: true
+
+  '@hono/node-server@1.19.17':
+    resolution: {integrity: sha512-dSneS5qhiauZWGDCeK4o695Xd9nUNjviSZCMQrj10eetr8Uln1ucn6bbphOM6UynAMMtNIzZNSpL9vnASJwrPQ==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      hono: 4.12.31
 
   '@hono/node-server@2.1.1':
     resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
@@ -5092,22 +5098,22 @@ packages:
       oxc-transform-react:
         optional: true
 
-  '@vitest/browser-playwright@4.1.10':
-    resolution: {integrity: sha512-nMoXGEiRpT7m3W7NsbvrM2aKNwiNHZf+zEpUCvMteGjZFvfT96Q9fh7QyB98dvDWXiKvrLxA7bJ1mCOOv+JQPw==}
+  '@vitest/browser-playwright@5.0.0':
+    resolution: {integrity: sha512-N+gED9y4/8pypaHjz/x0ah3CjoBr+N0hWWT+Gq4VXtMzyB+rUIdHni0ulzpD1j4H77iWy5Jg8PRMlVn6kjxo6g==}
     peerDependencies:
       playwright: '*'
-      vitest: 4.1.10
+      vitest: 5.0.0
 
-  '@vitest/browser@4.1.10':
-    resolution: {integrity: sha512-UDwuWGwXj646CBx/bQHOaJSX7np0I8JL/UKQYa1e4QrVHH8VdWtx8eaOuf8sy0ShwDgR6NjJAsp5eF6vjF6qng==}
+  '@vitest/browser@5.0.0':
+    resolution: {integrity: sha512-JC9FG5xIRxPHXJPcdCaluIJcEoeM0IwGQ3xneuJk09LXKHRNs40BqWDWymQikbb20yOpYvzpKzmYgPRuSzKmvg==}
     peerDependencies:
-      vitest: 4.1.10
+      vitest: 5.0.0
 
-  '@vitest/coverage-v8@4.1.10':
-    resolution: {integrity: sha512-IM49HmthevbgAO4anp1hwtoT9wYe59w0LR00gr+eagHE+ZJ5lK4sLPeO0ubgoJcwLk6dehU3R24N+FbEEKDc8g==}
+  '@vitest/coverage-v8@5.0.0':
+    resolution: {integrity: sha512-toMg6PZGCIa/lQNCDoASrfb1ly4hsUKXFtFYC9kD4t78o5Y6LyNJU7AENt8eHPr3quYdxaxK7hj2mnbFfUk9NA==}
     peerDependencies:
-      '@vitest/browser': 4.1.10
-      vitest: 4.1.10
+      '@vitest/browser': 5.0.0
+      vitest: 5.0.0
     peerDependenciesMeta:
       '@vitest/browser':
         optional: true
@@ -5115,22 +5121,16 @@ packages:
   '@vitest/expect@3.2.4':
     resolution: {integrity: sha512-Io0yyORnB6sikFlt8QW5K7slY4OjqNX9jmJQ02QDda8lyM6B5oNgVWoSoKPac8/kgnCUzuHQKrSLtu/uOqqrig==}
 
-  '@vitest/expect@4.1.11':
-    resolution: {integrity: sha512-VX2x5vNJXET47KAFzwERI+KRMtTTCSWTfSMKsW7JsUsXV4psq++e3DvZpuTDOpHcxytiDs6p2nhVb2tVDiiUYw==}
+  '@vitest/istanbul-lib-coverage@1.0.1':
+    resolution: {integrity: sha512-k3DJZ8LhMBK9NS4SclF1ASD3OgXEWDorbIcPTRDK0/Zae6fRvu+fJRxtFdLfHsa9Y24beCdPnoNZ4LviTNstfA==}
+    engines: {node: '>=22'}
 
-  '@vitest/mocker@4.1.10':
-    resolution: {integrity: sha512-v0xaezt+DKEmKfaxg133ldzADrwLGd7Ze1MfQQTYfvs8OqZIwbxyxaYURivwV7sWy5fqn3rH5uOrSp07bp44Ow==}
-    peerDependencies:
-      msw: ^2.4.9
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
-    peerDependenciesMeta:
-      msw:
-        optional: true
-      vite:
-        optional: true
+  '@vitest/istanbul-lib-report@1.0.1':
+    resolution: {integrity: sha512-1EOLRfsTMnyAr3+kEAsP4o9dhaDlGPpD7H5iLBBeq//YpNB1VIahkPhB+eRp9N2Dkfw8oySROjE3yf9XDeaIkQ==}
+    engines: {node: '>=22'}
 
-  '@vitest/mocker@4.1.11':
-    resolution: {integrity: sha512-2XJVD55d1o5AZous5CCGKS74g/riOj9odEt2bQpCVZeblHyHdnMeFl4jl0XjU21stf4mbjUkew2eXQZt65g5CQ==}
+  '@vitest/mocker@5.0.0':
+    resolution: {integrity: sha512-66PGTMIiVJP3t4a5yxU9qPtf7MdTBs8jmToMvy+HVflB3Yy13WJZTtPePdvU+wjRV02SKK5doLbSA6o9pwOmiA==}
     peerDependencies:
       msw: ^2.4.9
       vite: ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -5143,35 +5143,34 @@ packages:
   '@vitest/pretty-format@3.2.4':
     resolution: {integrity: sha512-IVNZik8IVRJRTr9fxlitMKeJeXFFFN0JaB9PHPGQ8NKQbGpfjlTx9zO4RefN8gp7eqjNy8nyK3NZmBzOPeIxtA==}
 
-  '@vitest/pretty-format@4.1.10':
-    resolution: {integrity: sha512-W1HsjSH4MXQ9YfmmhLAoIYf1HRfekQCGngeIgcei6MP5QQGWUe0gkopdZQaVCFO+JDJMrAJGwa5pRpNpvy4P8Q==}
-
   '@vitest/pretty-format@4.1.11':
     resolution: {integrity: sha512-yiZzPbGTS9Sr/JpFl8zHrcIkAofNbFV6k21vIgQN/cY/oxZeXhJv5sc/MBJ5jFKWmWs+oJHw0UXLZjmf931+Vw==}
+
+  '@vitest/pretty-format@5.0.0':
+    resolution: {integrity: sha512-PVRNuB3wpReb4SQEs4zTKM4KWFhQ5pw3spE8naoDJNB5T5aWRzGKHwXcLUllr0WeOTXpB6bSr3CJLo5+7XQSSQ==}
 
   '@vitest/runner@4.1.11':
     resolution: {integrity: sha512-LztvUgdwMNJMIkj3hQnnxiC2Xy1zNxq928W/xhjCLaNCzqTZOudjwbQf6v9IntZGPw132i2Lq2rgTRZHD3JHNw==}
 
-  '@vitest/snapshot@4.1.11':
-    resolution: {integrity: sha512-pN7ikn1ON7h8ee4gIAp4AzyK+zBtJPzVbqOgu5LCEh4VaJVbPQcgYQYJIMGQPXVeJJq1fnfazis7a5pFNPahog==}
-
   '@vitest/spy@3.2.4':
     resolution: {integrity: sha512-vAfasCOe6AIK70iP5UD11Ac4siNUNJ9i/9PZ3NKx07sG6sUxeag1LWdNrMWeKKYBLlzuK+Gn65Yd5nyL6ds+nw==}
 
-  '@vitest/spy@4.1.10':
-    resolution: {integrity: sha512-PLf/Ugvoq5wO/b4rwYCR1h2PSIdXz7wnkQFMiUpLdtM7l6pqVFcQIBEHyT1+l+cj7mNwAfZHzqXqDyjvOuwbDw==}
+  '@vitest/spy@5.0.0':
+    resolution: {integrity: sha512-uy+luWBAPw9XfthoHi5AkfHUnuPYEESjl0p/r+meoBnU8bxg5GDQ3Ey8MjcJ6sqahkL4PFyrvfMJJBw7LbU06g==}
 
-  '@vitest/spy@4.1.11':
-    resolution: {integrity: sha512-apNa/prQy2qCeywhnixOHPRCgGNhvg7T4Dapfl1GahLp/R+uhBm5cPyFoNVyqsNd2h1nJxL6BqqdIjiABL60YA==}
+  '@vitest/ui@5.0.0':
+    resolution: {integrity: sha512-h2FIFwggCY2GxUd2UdQoYNVQkOIqEQLPhNREcl3FUiRsdzQep7NWwYbSmhGEA9nFLPDq5pXzRMcBZQU8Py83sg==}
+    peerDependencies:
+      vitest: 5.0.0
 
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
 
-  '@vitest/utils@4.1.10':
-    resolution: {integrity: sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA==}
-
   '@vitest/utils@4.1.11':
     resolution: {integrity: sha512-zTCVGpyFsGWBhllOyKlTw/vnr6D9qxsfSDyfbyZmTyjHw5N/VuvzHpHoQjm2ZJzn4RJgx5w4r7V0er69CmLgPQ==}
+
+  '@vitest/utils@5.0.0':
+    resolution: {integrity: sha512-dO++xL3vDfvhTAVimfkuQUA3k+JClIF1i1vAkPqpcGAthRmeWnXmHB7YPViPvgCwviX8u7Y5W1u2N//AaQr3fw==}
 
   '@webcontainer/env@1.1.1':
     resolution: {integrity: sha512-6aN99yL695Hi9SuIk1oC88l9o0gmxL1nGWWQ/kNy81HigJ0FoaoTXpytCj6ItzgyCEwA9kF1wixsTuv5cjsgng==}
@@ -6592,6 +6591,9 @@ packages:
       picomatch:
         optional: true
 
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
+
   fft.js@4.0.4:
     resolution: {integrity: sha512-f9c00hphOgeQTlDyavwTtu6RiK8AIFjD6+jvXkNkpeQ7rirK3uFWVpalkoS4LAwbdX7mfZ8aoBfFVQX1Re/8aw==}
 
@@ -6620,6 +6622,9 @@ packages:
 
   find-workspaces@0.3.1:
     resolution: {integrity: sha512-UDkGILGJSA1LN5Aa7McxCid4sqW3/e+UYsVwyxki3dDT0F8+ym0rAfnCkEfkL0rO7M+8/mvkim4t/s3IPHmg+w==}
+
+  flatted@3.4.4:
+    resolution: {integrity: sha512-5+ybhBZANEJxaH3X5evAFatUxLfEHSr7n6kYJ+1Qd0mUqr4eu9gIf6GDbWHf8RJijHrjjO8G+la14SlL2SeS1Q==}
 
   foreground-child@3.3.1:
     resolution: {integrity: sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw==}
@@ -7641,6 +7646,9 @@ packages:
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
+  magic-string@1.2.3:
+    resolution: {integrity: sha512-Bpb0W2TbLKOZ7vJnOUnVRGq3WL2p+ISV29M6hYPL1AFCpyKZpdr5ytiXoTSSxRVhg8YW7f65+6gbG8WG6PCa/g==}
+
   magicast@0.5.4:
     resolution: {integrity: sha512-llBEhWm1SacoRwgHUoQJYtwp4PBLF4faQi5TCpIGyGs9n4y5+juI0tDgyKIfpqxckRHaHzouUEph3THklWh03w==}
 
@@ -8430,6 +8438,10 @@ packages:
 
   picomatch@4.0.5:
     resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}
+    engines: {node: '>=12'}
+
+  picomatch@4.0.7:
+    resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
 
   pino-abstract-transport@3.0.0:
@@ -9405,8 +9417,9 @@ packages:
   tiny-invariant@1.3.3:
     resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
 
-  tinybench@2.9.0:
-    resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
+  tinybench@6.1.4:
+    resolution: {integrity: sha512-9APumHG7r4yOk4X4WlkmE71aZcv1gvin1czO3OQ1U9iJcFA5Ja/ygyb0vPOVHTthFozUYs8CLoLUlM8grb2lTQ==}
+    engines: {node: '>=20.0.0'}
 
   tinyexec@1.3.0:
     resolution: {integrity: sha512-QKAl9m8gWWGHV8jZcPeym6j+XULi6tOf1mT83WYJ4Lk2ytW/uwAWkrP0uFsdoYMdueVJ0qs26wZ+23xeB4ibNQ==}
@@ -9846,23 +9859,23 @@ packages:
     peerDependencies:
       vitest: ^3.0.0 || ^4.0.0
 
-  vitest@4.1.11:
-    resolution: {integrity: sha512-fhACrNXUidIbGSBr5FlbuBkO7VWC1ZyLl0DO4CU2DrQoAPxX84Ysxs+HeGQpii5lZWV1Q4gBZTTu49mF+A6Edw==}
-    engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
+  vitest@5.0.0:
+    resolution: {integrity: sha512-gpsMNoRhMjMktVxPtstOH4/PJuPyovVaMDr4oDilXaGH1EcqM2OE96SoHT2VIQ6fTGtTjqmHDrEu2X9RQiXf8Q==}
+    engines: {node: ^22.12.0 || ^24.0.0 || >=26.0.0}
     hasBin: true
     peerDependencies:
       '@edge-runtime/vm': '*'
       '@opentelemetry/api': ^1.9.0
-      '@types/node': ^20.0.0 || ^22.0.0 || >=24.0.0
-      '@vitest/browser-playwright': 4.1.11
-      '@vitest/browser-preview': 4.1.11
-      '@vitest/browser-webdriverio': 4.1.11
-      '@vitest/coverage-istanbul': 4.1.11
-      '@vitest/coverage-v8': 4.1.11
-      '@vitest/ui': 4.1.11
+      '@types/node': ^22.0.0 || >=24.0.0
+      '@vitest/browser-playwright': 5.0.0
+      '@vitest/browser-preview': 5.0.0
+      '@vitest/browser-webdriverio': ^5.0.0-beta.5 || >=5.0.0
+      '@vitest/coverage-istanbul': 5.0.0
+      '@vitest/coverage-v8': 5.0.0
+      '@vitest/ui': 5.0.0
       happy-dom: '*'
       jsdom: '*'
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
+      vite: ^6.4.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -10126,20 +10139,20 @@ packages:
 
 snapshots:
 
-  '@a2a-js/sdk@0.3.14(@grpc/grpc-js@1.14.4)(express@5.2.1)':
+  '@a2a-js/sdk@0.3.14(@grpc/grpc-js@1.14.4)(express@5.2.1(supports-color@10.2.2))':
     dependencies:
       uuid: 14.0.2
     optionalDependencies:
       '@grpc/grpc-js': 1.14.4
-      express: 5.2.1
+      express: 5.2.1(supports-color@10.2.2)
 
-  '@a2a-js/sdk@1.0.1(@grpc/grpc-js@1.14.4)(express@5.2.1)':
+  '@a2a-js/sdk@1.0.1(@grpc/grpc-js@1.14.4)(express@5.2.1(supports-color@10.2.2))':
     dependencies:
       jose: 6.2.10
       uuid: 14.0.2
     optionalDependencies:
       '@grpc/grpc-js': 1.14.4
-      express: 5.2.1
+      express: 5.2.1(supports-color@10.2.2)
 
   '@adobe/css-tools@4.5.0': {}
 
@@ -10829,7 +10842,7 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@blazediff/core@1.9.1': {}
+  '@blazediff/core@1.10.0': {}
 
   '@braintree/sanitize-url@7.1.2': {}
 
@@ -11334,10 +11347,10 @@ snapshots:
 
   '@exodus/bytes@1.15.1': {}
 
-  '@expo/devcert@1.2.1':
+  '@expo/devcert@1.2.1(supports-color@10.2.2)':
     dependencies:
       '@expo/sudo-prompt': 9.3.2
-      debug: 3.2.7
+      debug: 3.2.7(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -11412,13 +11425,17 @@ snapshots:
       yargs: 17.7.3
     optional: true
 
+  '@hono/node-server@1.19.17(hono@4.12.31)':
+    dependencies:
+      hono: 4.12.31
+
   '@hono/node-server@2.1.1(hono@4.12.31)':
     dependencies:
       hono: 4.12.31
 
-  '@hono/node-ws@1.3.1(@hono/node-server@2.1.1(hono@4.12.31))(hono@4.12.31)':
+  '@hono/node-ws@1.3.1(@hono/node-server@1.19.17(hono@4.12.31))(hono@4.12.31)':
     dependencies:
-      '@hono/node-server': 2.1.1(hono@4.12.31)
+      '@hono/node-server': 1.19.17(hono@4.12.31)
       hono: 4.12.31
       ws: 8.21.3
     transitivePeerDependencies:
@@ -11921,12 +11938,12 @@ snapshots:
 
   '@marijn/find-cluster-break@1.0.4': {}
 
-  '@mastra/arize@1.3.9(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(@opentelemetry/api@1.9.1)(zod@4.4.3)':
+  '@mastra/arize@1.3.9(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(@opentelemetry/api@1.9.1)(zod@4.4.3)':
     dependencies:
       '@arizeai/openinference-genai': 0.3.0(@opentelemetry/api@1.9.1)(@opentelemetry/semantic-conventions@1.43.0)
       '@arizeai/openinference-semantic-conventions': 2.7.0
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
-      '@mastra/otel-exporter': 1.3.9(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
+      '@mastra/otel-exporter': 1.3.9(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(zod@4.4.3)
       '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/exporter-trace-otlp-proto': 0.221.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/resources': 2.10.0(@opentelemetry/api@1.9.1)
@@ -11936,11 +11953,11 @@ snapshots:
       - '@opentelemetry/api'
       - zod
 
-  '@mastra/client-js@1.42.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)':
+  '@mastra/client-js@1.42.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)':
     dependencies:
       '@ai-sdk/ui-utils': 1.2.11(zod@4.4.3)
       '@lukeed/uuid': 2.0.1
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
       '@mastra/schema-compat': 1.3.7(zod@4.4.3)
       canonicalize: 1.0.8
       jose: 6.2.10
@@ -11957,10 +11974,10 @@ snapshots:
       - utf-8-validate
       - workflow
 
-  '@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)':
+  '@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)':
     dependencies:
-      '@a2a-js/sdk-v0_3': '@a2a-js/sdk@0.3.14(@grpc/grpc-js@1.14.4)(express@5.2.1)'
-      '@a2a-js/sdk-v1': '@a2a-js/sdk@1.0.1(@grpc/grpc-js@1.14.4)(express@5.2.1)'
+      '@a2a-js/sdk-v0_3': '@a2a-js/sdk@0.3.14(@grpc/grpc-js@1.14.4)(express@5.2.1(supports-color@10.2.2))'
+      '@a2a-js/sdk-v1': '@a2a-js/sdk@1.0.1(@grpc/grpc-js@1.14.4)(express@5.2.1(supports-color@10.2.2))'
       '@ai-sdk/provider-utils-v5': '@ai-sdk/provider-utils@3.0.30(zod@4.4.3)'
       '@ai-sdk/provider-utils-v6': '@ai-sdk/provider-utils@4.0.40(zod@4.4.3)'
       '@ai-sdk/provider-utils-v7': '@ai-sdk/provider-utils@5.0.13(zod@4.4.3)'
@@ -11974,7 +11991,7 @@ snapshots:
       '@sindresorhus/slugify': 2.2.1
       '@standard-schema/spec': 1.1.0
       ajv: 8.20.0
-      chat: 4.38.1(ai@7.0.77(zod@4.4.3))(zod@4.4.3)
+      chat: 4.38.1(ai@7.0.77(zod@4.4.3))(supports-color@10.2.2)(zod@4.4.3)
       croner: 10.0.1
       dotenv: 17.4.2
       execa: 9.6.1
@@ -12003,14 +12020,14 @@ snapshots:
       - utf-8-validate
       - workflow
 
-  '@mastra/deployer@1.61.0(@hono/node-server@2.1.1(hono@4.12.31))(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3)':
+  '@mastra/deployer@1.61.0(@hono/node-server@1.19.17(hono@4.12.31))(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3)':
     dependencies:
       '@babel/core': 8.0.1
       '@babel/preset-typescript': 8.0.1(@babel/core@8.0.1)
       '@babel/traverse': 8.0.4
-      '@hono/node-ws': 1.3.1(@hono/node-server@2.1.1(hono@4.12.31))(hono@4.12.31)
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
-      '@mastra/server': 1.61.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)
+      '@hono/node-ws': 1.3.1(@hono/node-server@1.19.17(hono@4.12.31))(hono@4.12.31)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
+      '@mastra/server': 1.61.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(zod@4.4.3)
       '@optimize-lodash/rollup-plugin': 5.1.0(rollup@4.62.5)
       '@rollup/plugin-commonjs': 29.0.2(rollup@4.62.5)
       '@rollup/plugin-esm-shim': 0.1.8(rollup@4.62.5)
@@ -12041,52 +12058,52 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@mastra/evals@1.9.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))':
+  '@mastra/evals@1.9.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))':
     dependencies:
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
       compromise: 14.16.0
       keyword-extractor: 0.0.28
       sentiment: 5.0.2
       string-similarity: 4.0.4
 
-  '@mastra/libsql@1.21.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))':
+  '@mastra/libsql@1.21.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))':
     dependencies:
       '@libsql/client': 0.17.4
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@mastra/loggers@1.2.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))':
+  '@mastra/loggers@1.2.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))':
     dependencies:
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
       pino: 10.3.1
       pino-pretty: 13.1.3
 
-  '@mastra/memory@1.27.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))':
+  '@mastra/memory@1.27.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(supports-color@10.2.2)':
     dependencies:
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
       '@mastra/schema-compat': 1.3.7(zod@4.4.3)
       async-mutex: 0.5.0
       diff: 8.0.4
       json-schema: 0.4.0
       lru-cache: 11.5.2
-      probe-image-size: 7.4.0
+      probe-image-size: 7.4.0(supports-color@10.2.2)
       tokenx: 1.6.0
       xxhash-wasm: 1.1.0
       zod: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
-  '@mastra/observability@1.17.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)':
+  '@mastra/observability@1.17.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
       zod: 4.4.3
 
-  '@mastra/otel-exporter@1.3.9(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)':
+  '@mastra/otel-exporter@1.3.9(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
-      '@mastra/observability': 1.17.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
+      '@mastra/observability': 1.17.1(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(zod@4.4.3)
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/api-logs': 0.221.0
       '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.1)
@@ -12113,9 +12130,9 @@ snapshots:
       zod: 4.4.3
       zod-from-json-schema: 0.5.6
 
-  '@mastra/server@1.61.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(zod@4.4.3)':
+  '@mastra/server@1.61.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
       hono: 4.12.31
       zod: 4.4.3
 
@@ -12145,8 +12162,8 @@ snapshots:
       cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.1.1
-      express: 5.2.1
-      express-rate-limit: 8.6.2(express@5.2.1)(supports-color@10.2.2)
+      express: 5.2.1(supports-color@10.2.2)
+      express-rate-limit: 8.6.2(express@5.2.1(supports-color@10.2.2))(supports-color@10.2.2)
       hono: 4.12.31
       jose: 6.2.10
       json-schema-typed: 8.0.2
@@ -12970,10 +12987,10 @@ snapshots:
   '@rolldown/binding-win32-x64-msvc@1.2.5':
     optional: true
 
-  '@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))':
+  '@rolldown/plugin-babel@0.2.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))':
     dependencies:
-      '@babel/core': 7.29.7
-      picomatch: 4.0.5
+      '@babel/core': 8.0.1
+      picomatch: 4.0.7
       rolldown: 1.2.5
     optionalDependencies:
       '@babel/runtime': 7.29.7
@@ -13304,16 +13321,16 @@ snapshots:
       - vite
       - webpack
 
-  '@storybook/addon-vitest@10.5.10(@vitest/browser-playwright@4.1.10)(@vitest/browser@4.1.10)(@vitest/runner@4.1.11)(react@19.2.7)(storybook@10.5.10(@types/react@19.2.17)(prettier@2.8.8)(react@19.2.7))(vitest@4.1.11)':
+  '@storybook/addon-vitest@10.5.10(@vitest/browser-playwright@5.0.0)(@vitest/browser@5.0.0)(@vitest/runner@4.1.11)(react@19.2.7)(storybook@10.5.10(@types/react@19.2.17)(prettier@2.8.8)(react@19.2.7))(vitest@5.0.0)':
     dependencies:
       '@storybook/global': 5.0.0
       '@storybook/icons': 2.1.0(react@19.2.7)
       storybook: 10.5.10(@types/react@19.2.17)(prettier@2.8.8)(react@19.2.7)
     optionalDependencies:
-      '@vitest/browser': 4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)
-      '@vitest/browser-playwright': 4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(playwright@1.62.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)
+      '@vitest/browser': 5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@5.0.0)
+      '@vitest/browser-playwright': 5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(playwright@1.62.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@5.0.0)
       '@vitest/runner': 4.1.11
-      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+      vitest: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
     transitivePeerDependencies:
       - react
 
@@ -13890,38 +13907,39 @@ snapshots:
 
   '@vercel/oidc@3.2.0': {}
 
-  '@vitejs/plugin-react@6.1.0(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(oxc-transform-react@0.145.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))':
+  '@vitejs/plugin-react@6.1.0(@rolldown/plugin-babel@0.2.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(oxc-transform-react@0.145.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
       vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)
     optionalDependencies:
-      '@rolldown/plugin-babel': 0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+      '@rolldown/plugin-babel': 0.2.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(rolldown@1.2.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
       babel-plugin-react-compiler: 1.0.0
       oxc-transform-react: 0.145.0
 
-  '@vitest/browser-playwright@4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(playwright@1.62.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)':
+  '@vitest/browser-playwright@5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(playwright@1.62.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@5.0.0)':
     dependencies:
-      '@vitest/browser': 4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)
-      '@vitest/mocker': 4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+      '@vitest/browser': 5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@5.0.0)
+      '@vitest/mocker': 5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
       playwright: 1.62.1
       tinyrainbow: 3.1.1
-      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+      vitest: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
     transitivePeerDependencies:
       - bufferutil
       - msw
       - utf-8-validate
       - vite
 
-  '@vitest/browser@4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)':
+  '@vitest/browser@5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@5.0.0)':
     dependencies:
-      '@blazediff/core': 1.9.1
-      '@vitest/mocker': 4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
-      '@vitest/utils': 4.1.10
-      magic-string: 0.30.21
+      '@blazediff/core': 1.10.0
+      '@vitest/mocker': 5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+      '@vitest/ui': 5.0.0(vitest@5.0.0)
+      '@vitest/utils': 5.0.0
+      magic-string: 1.2.3
       pngjs: 7.0.0
       sirv: 3.0.2
       tinyrainbow: 3.1.1
-      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+      vitest: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
       ws: 8.21.3
     transitivePeerDependencies:
       - bufferutil
@@ -13929,21 +13947,19 @@ snapshots:
       - utf-8-validate
       - vite
 
-  '@vitest/coverage-v8@4.1.10(@vitest/browser@4.1.10)(vitest@4.1.11)':
+  '@vitest/coverage-v8@5.0.0(@vitest/browser@5.0.0)(vitest@5.0.0)':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
-      '@vitest/utils': 4.1.10
+      '@vitest/istanbul-lib-coverage': 1.0.1
+      '@vitest/istanbul-lib-report': 1.0.1
       ast-v8-to-istanbul: 1.0.5
-      istanbul-lib-coverage: 3.2.2
-      istanbul-lib-report: 3.0.1
-      istanbul-reports: 3.2.0
       magicast: 0.5.4
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+      vitest: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
     optionalDependencies:
-      '@vitest/browser': 4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)
+      '@vitest/browser': 5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@5.0.0)
 
   '@vitest/expect@3.2.4':
     dependencies:
@@ -13953,29 +13969,18 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/expect@4.1.11':
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@types/chai': 5.2.3
-      '@vitest/spy': 4.1.11
-      '@vitest/utils': 4.1.11
-      chai: 6.2.2
-      tinyrainbow: 3.1.1
+  '@vitest/istanbul-lib-coverage@1.0.1': {}
 
-  '@vitest/mocker@4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))':
+  '@vitest/istanbul-lib-report@1.0.1':
     dependencies:
-      '@vitest/spy': 4.1.10
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      msw: 2.15.0(@types/node@26.2.0)(typescript@7.0.2)
-      vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)
+      '@vitest/istanbul-lib-coverage': 1.0.1
 
-  '@vitest/mocker@4.1.11(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))':
+  '@vitest/mocker@5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))':
     dependencies:
-      '@vitest/spy': 4.1.11
+      '@jridgewell/trace-mapping': 0.3.31
+      '@vitest/spy': 5.0.0
       estree-walker: 3.0.3
-      magic-string: 0.30.21
+      magic-string: 1.2.3
     optionalDependencies:
       msw: 2.15.0(@types/node@26.2.0)(typescript@7.0.2)
       vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)
@@ -13984,11 +13989,12 @@ snapshots:
     dependencies:
       tinyrainbow: 2.0.0
 
-  '@vitest/pretty-format@4.1.10':
+  '@vitest/pretty-format@4.1.11':
     dependencies:
       tinyrainbow: 3.1.1
+    optional: true
 
-  '@vitest/pretty-format@4.1.11':
+  '@vitest/pretty-format@5.0.0':
     dependencies:
       tinyrainbow: 3.1.1
 
@@ -13996,21 +14002,23 @@ snapshots:
     dependencies:
       '@vitest/utils': 4.1.11
       pathe: 2.0.3
-
-  '@vitest/snapshot@4.1.11':
-    dependencies:
-      '@vitest/pretty-format': 4.1.11
-      '@vitest/utils': 4.1.11
-      magic-string: 0.30.21
-      pathe: 2.0.3
+    optional: true
 
   '@vitest/spy@3.2.4':
     dependencies:
       tinyspy: 4.0.4
 
-  '@vitest/spy@4.1.10': {}
+  '@vitest/spy@5.0.0': {}
 
-  '@vitest/spy@4.1.11': {}
+  '@vitest/ui@5.0.0(vitest@5.0.0)':
+    dependencies:
+      '@vitest/utils': 5.0.0
+      fflate: 0.8.3
+      flatted: 3.4.4
+      pathe: 2.0.3
+      sirv: 3.0.2
+      tinyrainbow: 3.1.1
+      vitest: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
   '@vitest/utils@3.2.4':
     dependencies:
@@ -14018,15 +14026,16 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
-  '@vitest/utils@4.1.10':
-    dependencies:
-      '@vitest/pretty-format': 4.1.10
-      convert-source-map: 2.0.0
-      tinyrainbow: 3.1.1
-
   '@vitest/utils@4.1.11':
     dependencies:
       '@vitest/pretty-format': 4.1.11
+      convert-source-map: 2.0.0
+      tinyrainbow: 3.1.1
+    optional: true
+
+  '@vitest/utils@5.0.0':
+    dependencies:
+      '@vitest/pretty-format': 5.0.0
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
@@ -14344,7 +14353,7 @@ snapshots:
       inherits: 2.0.4
       readable-stream: 3.6.2
 
-  body-parser@2.3.0:
+  body-parser@2.3.0(supports-color@10.2.2):
     dependencies:
       bytes: 3.1.2
       content-type: 2.0.0
@@ -14483,12 +14492,12 @@ snapshots:
 
   character-reference-invalid@2.0.1: {}
 
-  chat@4.38.1(ai@7.0.77(zod@4.4.3))(zod@4.4.3):
+  chat@4.38.1(ai@7.0.77(zod@4.4.3))(supports-color@10.2.2)(zod@4.4.3):
     dependencies:
       '@workflow/serde': 4.1.0-beta.2
       mdast-util-to-string: 4.0.0
-      remark-gfm: 4.0.1
-      remark-parse: 11.0.0
+      remark-gfm: 4.0.1(supports-color@10.2.2)
+      remark-parse: 11.0.0(supports-color@10.2.2)
       remark-stringify: 11.0.0
       remend: 1.3.0
       unified: 11.0.5
@@ -15044,13 +15053,17 @@ snapshots:
     optionalDependencies:
       '@libsql/client': 0.17.4
 
-  debug@2.6.9:
+  debug@2.6.9(supports-color@10.2.2):
     dependencies:
       ms: 2.0.0
+    optionalDependencies:
+      supports-color: 10.2.2
 
-  debug@3.2.7:
+  debug@3.2.7(supports-color@10.2.2):
     dependencies:
       ms: 2.1.3
+    optionalDependencies:
+      supports-color: 10.2.2
 
   debug@4.4.3(supports-color@10.2.2):
     dependencies:
@@ -15372,18 +15385,18 @@ snapshots:
       jest-mock: 30.4.1
       jest-util: 30.4.1
 
-  express-rate-limit@8.6.2(express@5.2.1)(supports-color@10.2.2):
+  express-rate-limit@8.6.2(express@5.2.1(supports-color@10.2.2))(supports-color@10.2.2):
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
-      express: 5.2.1
+      express: 5.2.1(supports-color@10.2.2)
       ip-address: 10.5.0
     transitivePeerDependencies:
       - supports-color
 
-  express@5.2.1:
+  express@5.2.1(supports-color@10.2.2):
     dependencies:
       accepts: 2.0.0
-      body-parser: 2.3.0
+      body-parser: 2.3.0(supports-color@10.2.2)
       content-disposition: 1.1.0
       content-type: 1.0.5
       cookie: 0.7.2
@@ -15393,7 +15406,7 @@ snapshots:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
-      finalhandler: 2.1.1
+      finalhandler: 2.1.1(supports-color@10.2.2)
       fresh: 2.0.0
       http-errors: 2.0.1
       merge-descriptors: 2.0.0
@@ -15404,9 +15417,9 @@ snapshots:
       proxy-addr: 2.0.7
       qs: 6.15.3
       range-parser: 1.3.0
-      router: 2.2.0
-      send: 1.2.1
-      serve-static: 2.2.1
+      router: 2.2.0(supports-color@10.2.2)
+      send: 1.2.1(supports-color@10.2.2)
+      serve-static: 2.2.1(supports-color@10.2.2)
       statuses: 2.0.2
       type-is: 2.1.0
       vary: 1.1.2
@@ -15489,6 +15502,8 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.5
 
+  fflate@0.8.3: {}
+
   fft.js@4.0.4: {}
 
   figures@6.1.0:
@@ -15499,7 +15514,7 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
-  finalhandler@2.1.1:
+  finalhandler@2.1.1(supports-color@10.2.2):
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
       encodeurl: 2.0.0
@@ -15527,6 +15542,8 @@ snapshots:
       fast-glob: 3.3.3
       pkg-types: 1.3.1
       yaml: 2.9.0
+
+  flatted@3.4.4: {}
 
   foreground-child@3.3.1:
     dependencies:
@@ -16762,6 +16779,10 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  magic-string@1.2.3:
+    dependencies:
+      '@jridgewell/sourcemap-codec': 1.5.5
+
   magicast@0.5.4:
     dependencies:
       '@babel/parser': 7.29.8
@@ -16804,15 +16825,15 @@ snapshots:
 
   marked@18.0.10: {}
 
-  mastra@1.26.0(@hono/node-server@2.1.1(hono@4.12.31))(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(rxjs@7.8.2)(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3):
+  mastra@1.26.0(@hono/node-server@1.19.17(hono@4.12.31))(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(rxjs@7.8.2)(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3):
     dependencies:
       '@babel/parser': 8.0.4
       '@babel/types': 8.0.4
       '@clack/prompts': 1.7.0
-      '@expo/devcert': 1.2.1
-      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3)
-      '@mastra/deployer': 1.61.0(@hono/node-server@2.1.1(hono@4.12.31))(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3)
-      '@mastra/loggers': 1.2.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1)(rxjs@7.8.2)(zod@4.4.3))
+      '@expo/devcert': 1.2.1(supports-color@10.2.2)
+      '@mastra/core': 1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3)
+      '@mastra/deployer': 1.61.0(@hono/node-server@1.19.17(hono@4.12.31))(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))(supports-color@10.2.2)(typescript@7.0.2)(zod@4.4.3)
+      '@mastra/loggers': 1.2.0(@mastra/core@1.61.0(@grpc/grpc-js@1.14.4)(ai@7.0.77(zod@4.4.3))(express@5.2.1(supports-color@10.2.2))(rxjs@7.8.2)(supports-color@10.2.2)(zod@4.4.3))
       archiver: 8.0.0
       commander: 14.0.3
       dotenv: 17.4.2
@@ -16849,14 +16870,14 @@ snapshots:
       unist-util-is: 6.0.1
       unist-util-visit-parents: 6.0.2
 
-  mdast-util-from-markdown@2.0.3:
+  mdast-util-from-markdown@2.0.3(supports-color@10.2.2):
     dependencies:
       '@types/mdast': 4.0.4
       '@types/unist': 3.0.3
       decode-named-character-reference: 1.3.0
       devlop: 1.1.0
       mdast-util-to-string: 4.0.0
-      micromark: 4.0.2
+      micromark: 4.0.2(supports-color@10.2.2)
       micromark-util-decode-numeric-character-reference: 2.0.2
       micromark-util-decode-string: 2.0.1
       micromark-util-normalize-identifier: 2.0.1
@@ -16874,51 +16895,51 @@ snapshots:
       mdast-util-find-and-replace: 3.0.2
       micromark-util-character: 2.1.1
 
-  mdast-util-gfm-footnote@2.1.0:
+  mdast-util-gfm-footnote@2.1.0(supports-color@10.2.2):
     dependencies:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.3
+      mdast-util-from-markdown: 2.0.3(supports-color@10.2.2)
       mdast-util-to-markdown: 2.1.2
       micromark-util-normalize-identifier: 2.0.1
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm-strikethrough@2.0.0:
+  mdast-util-gfm-strikethrough@2.0.0(supports-color@10.2.2):
     dependencies:
       '@types/mdast': 4.0.4
-      mdast-util-from-markdown: 2.0.3
+      mdast-util-from-markdown: 2.0.3(supports-color@10.2.2)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm-table@2.0.0:
+  mdast-util-gfm-table@2.0.0(supports-color@10.2.2):
     dependencies:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
       markdown-table: 3.0.4
-      mdast-util-from-markdown: 2.0.3
+      mdast-util-from-markdown: 2.0.3(supports-color@10.2.2)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm-task-list-item@2.0.0:
+  mdast-util-gfm-task-list-item@2.0.0(supports-color@10.2.2):
     dependencies:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.3
+      mdast-util-from-markdown: 2.0.3(supports-color@10.2.2)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm@3.1.0:
+  mdast-util-gfm@3.1.0(supports-color@10.2.2):
     dependencies:
-      mdast-util-from-markdown: 2.0.3
+      mdast-util-from-markdown: 2.0.3(supports-color@10.2.2)
       mdast-util-gfm-autolink-literal: 2.0.1
-      mdast-util-gfm-footnote: 2.1.0
-      mdast-util-gfm-strikethrough: 2.0.0
-      mdast-util-gfm-table: 2.0.0
-      mdast-util-gfm-task-list-item: 2.0.0
+      mdast-util-gfm-footnote: 2.1.0(supports-color@10.2.2)
+      mdast-util-gfm-strikethrough: 2.0.0(supports-color@10.2.2)
+      mdast-util-gfm-table: 2.0.0(supports-color@10.2.2)
+      mdast-util-gfm-task-list-item: 2.0.0(supports-color@10.2.2)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
@@ -16929,7 +16950,7 @@ snapshots:
       '@types/hast': 3.0.5
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.3
+      mdast-util-from-markdown: 2.0.3(supports-color@10.2.2)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
@@ -16942,7 +16963,7 @@ snapshots:
       '@types/unist': 3.0.3
       ccount: 2.0.1
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.3
+      mdast-util-from-markdown: 2.0.3(supports-color@10.2.2)
       mdast-util-to-markdown: 2.1.2
       parse-entities: 4.0.2
       stringify-entities: 4.0.4
@@ -16957,7 +16978,7 @@ snapshots:
       '@types/hast': 3.0.5
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      mdast-util-from-markdown: 2.0.3
+      mdast-util-from-markdown: 2.0.3(supports-color@10.2.2)
       mdast-util-to-markdown: 2.1.2
     transitivePeerDependencies:
       - supports-color
@@ -17203,7 +17224,7 @@ snapshots:
 
   micromark-util-types@2.0.2: {}
 
-  micromark@4.0.2:
+  micromark@4.0.2(supports-color@10.2.2):
     dependencies:
       '@types/debug': 4.1.13
       debug: 4.4.3(supports-color@10.2.2)
@@ -17391,9 +17412,9 @@ snapshots:
       railroad-diagrams: 1.0.0
       randexp: 0.4.6
 
-  needle@2.9.1:
+  needle@2.9.1(supports-color@10.2.2):
     dependencies:
-      debug: 3.2.7
+      debug: 3.2.7(supports-color@10.2.2)
       iconv-lite: 0.4.24
       sax: 1.6.1
     transitivePeerDependencies:
@@ -17884,6 +17905,8 @@ snapshots:
 
   picomatch@4.0.5: {}
 
+  picomatch@4.0.7: {}
+
   pino-abstract-transport@3.0.0:
     dependencies:
       split2: 4.2.0
@@ -18004,11 +18027,11 @@ snapshots:
     dependencies:
       parse-ms: 4.0.0
 
-  probe-image-size@7.4.0:
+  probe-image-size@7.4.0(supports-color@10.2.2):
     dependencies:
       lodash.merge: 4.6.2
-      needle: 2.9.1
-      stream-parser: 0.3.1
+      needle: 2.9.1(supports-color@10.2.2)
+      stream-parser: 0.3.1(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -18367,21 +18390,21 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  remark-gfm@4.0.1:
+  remark-gfm@4.0.1(supports-color@10.2.2):
     dependencies:
       '@types/mdast': 4.0.4
-      mdast-util-gfm: 3.1.0
+      mdast-util-gfm: 3.1.0(supports-color@10.2.2)
       micromark-extension-gfm: 3.0.0
-      remark-parse: 11.0.0
+      remark-parse: 11.0.0(supports-color@10.2.2)
       remark-stringify: 11.0.0
       unified: 11.0.5
     transitivePeerDependencies:
       - supports-color
 
-  remark-parse@11.0.0:
+  remark-parse@11.0.0(supports-color@10.2.2):
     dependencies:
       '@types/mdast': 4.0.4
-      mdast-util-from-markdown: 2.0.3
+      mdast-util-from-markdown: 2.0.3(supports-color@10.2.2)
       micromark-util-types: 2.0.2
       unified: 11.0.5
     transitivePeerDependencies:
@@ -18557,7 +18580,7 @@ snapshots:
       points-on-curve: 0.2.0
       points-on-path: 0.2.1
 
-  router@2.2.0:
+  router@2.2.0(supports-color@10.2.2):
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
       depd: 2.0.0
@@ -18614,7 +18637,7 @@ snapshots:
 
   semver@7.8.5: {}
 
-  send@1.2.1:
+  send@1.2.1(supports-color@10.2.2):
     dependencies:
       debug: 4.4.3(supports-color@10.2.2)
       encodeurl: 2.0.0
@@ -18642,12 +18665,12 @@ snapshots:
       path-to-regexp: 3.3.0
       range-parser: 1.2.0
 
-  serve-static@2.2.1:
+  serve-static@2.2.1(supports-color@10.2.2):
     dependencies:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       parseurl: 1.3.3
-      send: 1.2.1
+      send: 1.2.1(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -18830,9 +18853,9 @@ snapshots:
       - react
       - utf-8-validate
 
-  stream-parser@0.3.1:
+  stream-parser@0.3.1(supports-color@10.2.2):
     dependencies:
-      debug: 2.6.9
+      debug: 2.6.9(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -18848,8 +18871,8 @@ snapshots:
       rehype-harden: 1.1.8
       rehype-raw: 7.0.0
       rehype-sanitize: 6.0.0
-      remark-gfm: 4.0.1
-      remark-parse: 11.0.0
+      remark-gfm: 4.0.1(supports-color@10.2.2)
+      remark-parse: 11.0.0(supports-color@10.2.2)
       remark-rehype: 11.1.2
       remend: 1.3.0
       tailwind-merge: 3.6.0
@@ -19042,7 +19065,7 @@ snapshots:
 
   tiny-invariant@1.3.3: {}
 
-  tinybench@2.9.0: {}
+  tinybench@6.1.4: {}
 
   tinyexec@1.3.0: {}
 
@@ -19416,39 +19439,34 @@ snapshots:
       tsx: 4.23.12
       yaml: 2.9.0
 
-  vitest-canvas-mock@1.1.5(vitest@4.1.11):
+  vitest-canvas-mock@1.1.5(vitest@5.0.0):
     dependencies:
       cssfontparser: 1.2.1
       moo-color: 1.0.3
-      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+      vitest: 5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
 
-  vitest@4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)):
+  vitest@5.0.0(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@5.0.0)(@vitest/coverage-v8@5.0.0)(@vitest/ui@5.0.0)(jsdom@29.1.1)(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)):
     dependencies:
-      '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
-      '@vitest/pretty-format': 4.1.11
-      '@vitest/runner': 4.1.11
-      '@vitest/snapshot': 4.1.11
-      '@vitest/spy': 4.1.11
-      '@vitest/utils': 4.1.11
+      '@types/chai': 5.2.3
+      '@vitest/mocker': 5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))
+      chai: 6.2.2
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
-      magic-string: 0.30.21
+      magic-string: 1.2.3
       obug: 2.1.4
-      pathe: 2.0.3
-      picomatch: 4.0.5
+      picomatch: 4.0.7
       std-env: 4.2.0
-      tinybench: 2.9.0
+      tinybench: 6.1.4
       tinyexec: 1.3.0
       tinyglobby: 0.2.17
-      tinyrainbow: 3.1.1
       vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/node': 26.2.0
-      '@vitest/browser-playwright': 4.1.10(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(playwright@1.62.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)
-      '@vitest/coverage-v8': 4.1.10(@vitest/browser@4.1.10)(vitest@4.1.11)
+      '@vitest/browser-playwright': 5.0.0(msw@2.15.0(@types/node@26.2.0)(typescript@7.0.2))(playwright@1.62.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(tsx@4.23.12)(yaml@2.9.0))(vitest@5.0.0)
+      '@vitest/coverage-v8': 5.0.0(@vitest/browser@5.0.0)(vitest@5.0.0)
+      '@vitest/ui': 5.0.0(vitest@5.0.0)
       jsdom: 29.1.1
     transitivePeerDependencies:
       - msw

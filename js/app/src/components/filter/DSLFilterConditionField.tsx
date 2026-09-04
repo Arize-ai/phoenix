@@ -503,6 +503,22 @@ export function DSLFilterErrorBadge({
  * chrome), the `leadingVisual`/`extraControls` slots, and the imperative
  * `ref` — see `AIQueryDSLFilterField` for the AI-query composition.
  */
+function getDSLFilterDefaults<
+  TValidationResult extends DSLFilterConditionValidationResult,
+>(props: DSLFilterConditionFieldProps<TValidationResult>) {
+  return {
+    snippets: props.snippets ?? defaultSnippets,
+    completionSources: props.completionSources ?? defaultCompletionSources,
+    placeholder: props.placeholder ?? "filter condition",
+    variant: props.variant ?? "dsl",
+    composedExtensions: props.extensions ?? defaultExtensions,
+    isReadOnly: props.isReadOnly ?? false,
+    ariaLabel: props["aria-label"] ?? "filter condition",
+    subjectLabel: props.subjectLabel ?? "filter condition",
+    selectOnOpen: props.selectOnOpen ?? false,
+  };
+}
+
 export function DSLFilterConditionField<
   TValidationResult extends DSLFilterConditionValidationResult,
 >(props: DSLFilterConditionFieldProps<TValidationResult>) {
@@ -510,9 +526,7 @@ export function DSLFilterConditionField<
     value,
     onChange,
     completions,
-    snippets = defaultSnippets,
     loadCompletions,
-    completionSources = defaultCompletionSources,
     getContextualCompletions,
     getErrorRange,
     validateCondition,
@@ -520,21 +534,25 @@ export function DSLFilterConditionField<
     onValidationFailed,
     validationRetryKey,
     onValidationStateChange,
-    placeholder = "filter condition",
-    variant = "dsl",
-    extensions: composedExtensions = defaultExtensions,
-    isReadOnly = false,
     leadingVisual,
     extraControls,
     extraStatus,
     onFocusChange,
     onClear,
     ref,
-    subjectLabel = "filter condition",
-    selectOnOpen = false,
-    "aria-label": ariaLabel = "filter condition",
     className,
   } = props;
+  const {
+    snippets,
+    completionSources,
+    placeholder,
+    variant,
+    composedExtensions,
+    isReadOnly,
+    ariaLabel,
+    subjectLabel,
+    selectOnOpen,
+  } = getDSLFilterDefaults(props);
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const hasSettled = useRef<boolean>(false);
   const previousValidationRetryKey = useRef(validationRetryKey);

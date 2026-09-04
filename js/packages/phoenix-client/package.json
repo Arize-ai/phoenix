@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "7.6.0",
+  "version": "7.8.0",
   "description": "A client for the Phoenix API",
   "keywords": [
     "arize",
@@ -56,6 +56,10 @@
     "./projects": {
       "import": "./dist/esm/projects/index.js",
       "require": "./dist/src/projects/index.js"
+    },
+    "./users": {
+      "import": "./dist/esm/users/index.js",
+      "require": "./dist/src/users/index.js"
     },
     "./traces": {
       "import": "./dist/esm/traces/index.js",
@@ -135,13 +139,13 @@
     "openai": "^6.49.0",
     "openapi-typescript": "^7.13.0",
     "tsx": "^4.23.12",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
     "ai": "^7.0.0",
     "jest": ">=27",
-    "openai": "^6.10.0",
+    "openai": "^6.10.0 || ^7.0.0",
     "vitest": ">=1"
   },
   "peerDependenciesMeta": {

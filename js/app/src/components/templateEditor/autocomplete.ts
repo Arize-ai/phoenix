@@ -169,61 +169,18 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * The template variable the cursor sits inside, and where its content starts.
- *
- * @internal Exported for testing
- */
+/** The template variable the cursor sits inside, and where its content starts. */
 export type OpenTemplateVariable = { from: number; text: string };
 
-/**
- * Finds the unclosed `{{`/`{` the cursor is writing inside.
- *
- * @param beforeCursor - the document text up to the cursor
- * @param templateFormat - the template format the editor is in
- *
- * @internal Exported for testing
- */
+/** Finds the unclosed `{{`/`{` the cursor is writing inside. */
 export function findOpenTemplateVariable(
   beforeCursor: string,
   templateFormat: TemplateFormat
 ): OpenTemplateVariable | null {
-  if (templateFormat === TemplateFormats.Mustache) {
-    // For Mustache, find the last {{ that's not closed
-    const lastOpenIndex = beforeCursor.lastIndexOf("{{");
-    if (lastOpenIndex === -1) {
-      return null;
-    }
-    const afterOpen = beforeCursor.slice(lastOpenIndex + 2);
-    // Check if there's a closing }} after the {{
-    if (afterOpen.includes("}}")) {
-      return null;
-    }
-    // Extract the variable content so far (may include #, ^, / for sections)
-    return {
-      from:
-        lastOpenIndex + 2 + (afterOpen.length - afterOpen.trimStart().length),
-      text: afterOpen.trimStart(),
-    };
-  }
-
-  // For FString, find the last { that's not doubled and not closed
-  for (let i = beforeCursor.length - 1; i >= 0; i--) {
-    if (beforeCursor[i] !== "{") {
-      continue;
-    }
-    // Check if it's a doubled brace (escape)
-    const isEscaped =
-      (i > 0 && beforeCursor[i - 1] === "{") ||
-      (i < beforeCursor.length - 1 && beforeCursor[i + 1] === "{");
-    if (isEscaped) {
-      continue;
-    }
-    const afterOpen = beforeCursor.slice(i + 1);
-    // Check if there's a closing } after the {
-    return afterOpen.includes("}") ? null : { from: i + 1, text: afterOpen };
-  }
-  return null;
+  return findTemplateVariableMatch({
+    beforeCursor,
+    isMustache: templateFormat === TemplateFormats.Mustache,
+  });
 }
 
 /**
@@ -231,8 +188,7 @@ export function findOpenTemplateVariable(
  *
  * @param availablePaths - Array of available paths for autocomplete (e.g., ["input", "input.query", "reference.label"])
  * @param templateFormat - The template format (Mustache or FString)
- * @param evaluationContext - The evaluator's materialized inputs, when the
- *   editor is authoring a project evaluator; the flat path list otherwise
+ * @param evaluationContext - Materialized evaluator inputs for project evaluators
  * @returns A CodeMirror extension for autocomplete
  */
 export function createTemplateAutocomplete(
@@ -267,27 +223,13 @@ export function createTemplateAutocomplete(
   ];
 }
 
-/**
- * Opens the menu whenever the cursor lands in a variable with nothing typed
- * into it yet.
- *
- * An empty `{{}}` is a question the author has already asked, but CodeMirror
- * only queries the source as characters arrive — so clicking into one, or
- * clearing one back out, would otherwise leave it offering nothing until a
- * character is typed.
- */
 function openEmptyVariableMenu(templateFormat: TemplateFormat): Extension {
   return EditorView.updateListener.of((update) => {
-    if (!update.view.hasFocus) {
+    if (!update.view.hasFocus) return;
+    if (!update.selectionSet && !update.docChanged && !update.focusChanged)
       return;
-    }
-    if (!update.selectionSet && !update.docChanged && !update.focusChanged) {
-      return;
-    }
     const cursor = update.state.selection.main;
-    if (!cursor.empty) {
-      return;
-    }
+    if (!cursor.empty) return;
     if (
       !isAtEmptyTemplateVariable({
         beforeCursor: update.state.doc.sliceString(0, cursor.head),
@@ -300,11 +242,7 @@ function openEmptyVariableMenu(templateFormat: TemplateFormat): Extension {
   });
 }
 
-/**
- * Whether the cursor sits in a variable with nothing typed into it.
- *
- * @internal Exported for testing
- */
+/** Whether the cursor sits in a variable with nothing typed into it. */
 export function isAtEmptyTemplateVariable({
   beforeCursor,
   templateFormat,
@@ -327,228 +265,199 @@ function templateVariableCompletions(
   templateFormat: TemplateFormat,
   evaluationContext: MaterializedEvaluatorContext | null
 ): CompletionResult | null {
-  // No autocomplete when templating is disabled
   if (templateFormat === TemplateFormats.NONE) {
     return null;
   }
 
+  const isMustache = templateFormat === TemplateFormats.Mustache;
   const beforeCursor = context.state.doc.sliceString(0, context.pos);
   const match = findOpenTemplateVariable(beforeCursor, templateFormat);
-  if (!match) {
-    return null;
-  }
+  if (!match) return null;
 
   if (evaluationContext !== null) {
     return getEvaluatorTemplateCompletions({
       evaluationContext,
       templateFormat,
       variable: match,
-      sectionStack:
-        templateFormat === TemplateFormats.Mustache
-          ? detectMustacheSectionContext(beforeCursor)
-          : [],
+      sectionStack: isMustache
+        ? detectMustacheSectionContext(beforeCursor)
+        : [],
     });
   }
 
-  if (availablePaths.length === 0) {
-    return null;
-  }
+  if (availablePaths.length === 0) return null;
 
-  // Determine the template syntax based on format
-  const isMustache = templateFormat === TemplateFormats.Mustache;
-
-  // Filter available paths based on what's already typed
   const typedText = match.text.toLowerCase();
-
-  // For Mustache, detect if we're inside a section block
-  let contextualPaths: string[];
-  let inSectionContext = false;
-
-  // Default paths without bracket notation (for Mustache outside sections)
-  const nonBracketPaths = availablePaths.filter((path) => !path.includes("["));
-
-  if (isMustache) {
-    const sectionStack = detectMustacheSectionContext(beforeCursor);
-
-    if (sectionStack.length > 0) {
-      // We're inside a section - show only child paths of the innermost section
-      const innermostSection = sectionStack[sectionStack.length - 1];
-      const sectionPaths = getPathsForSectionContext(
-        availablePaths,
-        innermostSection
-      );
-
-      // If we found section-specific paths, use them; otherwise fall back to regular paths
-      // Filter out bracket notation paths since Mustache doesn't support that syntax
-      const filteredSectionPaths = sectionPaths.filter(
-        (path) => !path.includes("[")
-      );
-      if (filteredSectionPaths.length > 0) {
-        contextualPaths = filteredSectionPaths;
-        inSectionContext = true;
-      } else {
-        // Section variable doesn't match any known paths - fall back to regular paths
-        // This helps when the section variable is invalid or the array is empty
-        contextualPaths = nonBracketPaths;
-      }
-    } else {
-      // Not in a section - show top-level paths (without bracket notation)
-      contextualPaths = nonBracketPaths;
-    }
-  } else {
-    // F-string: show all paths
-    contextualPaths = availablePaths;
-  }
-
-  // Determine the closing bracket pattern based on template format
+  const { paths, isInSection } = getContextualTemplatePaths({
+    availablePaths,
+    beforeCursor,
+    isMustache,
+  });
   const closingBrackets = isMustache ? "}}" : "}";
-  const closingBracketLength = closingBrackets.length;
-
-  const options: Completion[] = contextualPaths
+  const options = paths
     .filter((path) => path.toLowerCase().startsWith(typedText))
-    .map((path) => ({
-      label: path,
-      type: "variable",
-      boost: path.split(".").length === 1 ? 1 : 0, // Boost top-level variables
-      apply: (
-        view: EditorView,
-        completion: Completion,
-        from: number,
-        to: number
-      ) => {
-        // Check if closing brackets already exist after the cursor
-        const docLength = view.state.doc.length;
-        const afterCursor = view.state.doc.sliceString(
-          to,
-          Math.min(to + closingBracketLength, docLength)
-        );
-        const hasClosingBrackets = afterCursor === closingBrackets;
+    .map((path) => createVariableCompletion({ path, closingBrackets }));
 
-        // If closing brackets exist, extend replacement to include them, then add them back
-        // If not, just add the closing brackets
-        const actualTo = hasClosingBrackets ? to + closingBracketLength : to;
-        const insertion = `${path}${closingBrackets}`;
-
-        view.dispatch({
-          changes: { from, to: actualTo, insert: insertion },
-          // Position cursor after the closing brackets
-          selection: { anchor: from + insertion.length },
-        });
-      },
-    }));
-
-  // For Mustache, suggest section syntax for iterable variables (only when not already in a section for that var)
   if (isMustache) {
-    const iterableVars = findIterableVariables(availablePaths, contextualPaths);
+    appendSectionCompletions({
+      options,
+      availablePaths,
+      contextualPaths: paths,
+      typedText,
+      isInSection,
+    });
+  }
+  return options.length === 0
+    ? null
+    : { from: match.from, options, validFor: /^[\w.[\]#^]*$/ };
+}
 
-    // Find variables that match what's been typed (for section suggestions)
-    const matchingVars = Array.from(iterableVars).filter((varName) =>
-      varName.toLowerCase().startsWith(typedText.replace(/^[#^]/, ""))
-    );
+function findTemplateVariableMatch({
+  beforeCursor,
+  isMustache,
+}: {
+  beforeCursor: string;
+  isMustache: boolean;
+}): { from: number; text: string } | null {
+  if (isMustache) {
+    const openIndex = beforeCursor.lastIndexOf("{{");
+    if (openIndex === -1) return null;
+    const afterOpen = beforeCursor.slice(openIndex + 2);
+    if (afterOpen.includes("}}")) return null;
+    const text = afterOpen.trimStart();
+    return { from: openIndex + 2 + afterOpen.length - text.length, text };
+  }
 
-    // Check if user is typing a section (starts with # or ^)
-    const isTypingSection =
-      typedText.startsWith("#") || typedText.startsWith("^");
-    const sectionPrefix = isTypingSection ? typedText[0] : "";
-    const searchText = isTypingSection
-      ? typedText.slice(1).toLowerCase()
-      : typedText.toLowerCase();
+  for (let index = beforeCursor.length - 1; index >= 0; index--) {
+    if (beforeCursor[index] !== "{") continue;
+    const isEscaped =
+      (index > 0 && beforeCursor[index - 1] === "{") ||
+      (index < beforeCursor.length - 1 && beforeCursor[index + 1] === "{");
+    if (isEscaped) continue;
+    const text = beforeCursor.slice(index + 1);
+    return text.includes("}") ? null : { from: index + 1, text };
+  }
+  return null;
+}
 
-    // Only suggest sections for contextual paths (not full paths when in a section)
-    const sectionCandidates = inSectionContext
-      ? Array.from(iterableVars).filter((v) =>
-          contextualPaths.some((p) => p === v || p.startsWith(v + "."))
+function getContextualTemplatePaths({
+  availablePaths,
+  beforeCursor,
+  isMustache,
+}: {
+  availablePaths: string[];
+  beforeCursor: string;
+  isMustache: boolean;
+}): { paths: string[]; isInSection: boolean } {
+  if (!isMustache) return { paths: availablePaths, isInSection: false };
+  const fallbackPaths = availablePaths.filter((path) => !path.includes("["));
+  const sectionStack = detectMustacheSectionContext(beforeCursor);
+  const section = sectionStack[sectionStack.length - 1];
+  if (!section) return { paths: fallbackPaths, isInSection: false };
+  const sectionPaths = getPathsForSectionContext(
+    availablePaths,
+    section
+  ).filter((path) => !path.includes("["));
+  return sectionPaths.length > 0
+    ? { paths: sectionPaths, isInSection: true }
+    : { paths: fallbackPaths, isInSection: false };
+}
+
+function createVariableCompletion({
+  path,
+  closingBrackets,
+}: {
+  path: string;
+  closingBrackets: string;
+}): Completion {
+  return {
+    label: path,
+    type: "variable",
+    boost: path.split(".").length === 1 ? 1 : 0,
+    apply: (view, _completion, from, to) => {
+      const afterCursor = view.state.doc.sliceString(
+        to,
+        Math.min(to + closingBrackets.length, view.state.doc.length)
+      );
+      const actualTo =
+        afterCursor === closingBrackets ? to + closingBrackets.length : to;
+      const insertion = `${path}${closingBrackets}`;
+      view.dispatch({
+        changes: { from, to: actualTo, insert: insertion },
+        selection: { anchor: from + insertion.length },
+      });
+    },
+  };
+}
+
+function appendSectionCompletions({
+  options,
+  availablePaths,
+  contextualPaths,
+  typedText,
+  isInSection,
+}: {
+  options: Completion[];
+  availablePaths: string[];
+  contextualPaths: string[];
+  typedText: string;
+  isInSection: boolean;
+}): void {
+  const iterableVariables = Array.from(
+    findIterableVariables(availablePaths, contextualPaths)
+  );
+  const sectionPrefix = /^[#^]/.test(typedText) ? typedText[0] : "";
+  const searchText = typedText.replace(/^[#^]/, "").toLowerCase();
+  const candidates = isInSection
+    ? iterableVariables.filter((variable) =>
+        contextualPaths.some(
+          (path) => path === variable || path.startsWith(`${variable}.`)
         )
-      : matchingVars;
+      )
+    : iterableVariables;
 
-    for (const varName of sectionCandidates) {
-      if (!varName.toLowerCase().startsWith(searchText)) continue;
-
-      // Section block ({{#var}}...{{/var}})
-      if (!sectionPrefix || sectionPrefix === "#") {
-        options.push({
-          label: `#${varName}`,
-          type: "keyword",
-          detail: "section block",
-          info: `Iterate over ${varName}`,
-          apply: (
-            view: EditorView,
-            completion: Completion,
-            from: number,
-            to: number
-          ) => {
-            // Check if there's already a }} after the cursor (from auto-bracket)
-            const docLength = view.state.doc.length;
-            const afterCursor = view.state.doc.sliceString(
-              to,
-              Math.min(to + 2, docLength)
-            );
-            const hasClosingBrackets = afterCursor === "}}";
-
-            // If closing brackets exist, extend replacement range to include them
-            const actualTo = hasClosingBrackets ? to + 2 : to;
-
-            // Build the insertion - the insertion template adds }} after openTag
-            const openTag = `#${varName}`;
-            const closeTag = `{{/${varName}}}`;
-            const insertion = `${openTag}}}${closeTag}`;
-            const cursorPos = from + openTag.length + 2; // Position after the opening tag's }}
-
-            view.dispatch({
-              changes: { from, to: actualTo, insert: insertion },
-              selection: { anchor: cursorPos },
-            });
-          },
-        });
-      }
-
-      // Inverted section ({{^var}}...{{/var}})
-      if (!sectionPrefix || sectionPrefix === "^") {
-        options.push({
-          label: `^${varName}`,
-          type: "keyword",
-          detail: "inverted section",
-          info: `Show if ${varName} is empty/falsy`,
-          apply: (
-            view: EditorView,
-            completion: Completion,
-            from: number,
-            to: number
-          ) => {
-            // Check if there's already a }} after the cursor (from auto-bracket)
-            const docLength = view.state.doc.length;
-            const afterCursor = view.state.doc.sliceString(
-              to,
-              Math.min(to + 2, docLength)
-            );
-            const hasClosingBrackets = afterCursor === "}}";
-
-            // If closing brackets exist, extend replacement range to include them
-            const actualTo = hasClosingBrackets ? to + 2 : to;
-
-            // Build the insertion - the insertion template adds }} after openTag
-            const openTag = `^${varName}`;
-            const closeTag = `{{/${varName}}}`;
-            const insertion = `${openTag}}}${closeTag}`;
-            const cursorPos = from + openTag.length + 2; // Position after the opening tag's }}
-
-            view.dispatch({
-              changes: { from, to: actualTo, insert: insertion },
-              selection: { anchor: cursorPos },
-            });
-          },
-        });
-      }
+  for (const variable of candidates) {
+    if (!variable.toLowerCase().startsWith(searchText)) continue;
+    if (!sectionPrefix || sectionPrefix === "#") {
+      options.push(createSectionCompletion({ variable, prefix: "#" }));
+    }
+    if (!sectionPrefix || sectionPrefix === "^") {
+      options.push(createSectionCompletion({ variable, prefix: "^" }));
     }
   }
+}
 
-  if (options.length === 0) {
-    return null;
-  }
-
+function createSectionCompletion({
+  variable,
+  prefix,
+}: {
+  variable: string;
+  prefix: "#" | "^";
+}): Completion {
+  const isRegularSection = prefix === "#";
   return {
-    from: match.from,
-    options,
-    validFor: /^[\w.[\]#^]*$/,
+    label: `${prefix}${variable}`,
+    type: "keyword",
+    detail: isRegularSection ? "section block" : "inverted section",
+    info: isRegularSection
+      ? `Iterate over ${variable}`
+      : `Show if ${variable} is empty/falsy`,
+    apply: (view, _completion, from, to) => {
+      const hasClosingBrackets =
+        view.state.doc.sliceString(
+          to,
+          Math.min(to + 2, view.state.doc.length)
+        ) === "}}";
+      const openTag = `${prefix}${variable}`;
+      const insertion = `${openTag}}}{{/${variable}}}`;
+      view.dispatch({
+        changes: {
+          from,
+          to: hasClosingBrackets ? to + 2 : to,
+          insert: insertion,
+        },
+        selection: { anchor: from + openTag.length + 2 },
+      });
+    },
   };
 }
