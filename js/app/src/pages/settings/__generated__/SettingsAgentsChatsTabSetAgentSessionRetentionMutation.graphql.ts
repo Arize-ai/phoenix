@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e80666a63650ab1ad547a819bccb5c39>>
+ * @generated SignedSource<<106ff00de286340fc37ec970947cfc5a>>
  * @lightSyntaxTransform
  */
 
@@ -12,18 +12,18 @@ export type SetAgentSessionRetentionInput = {
   maxCountPerUser?: number | null;
   maxIdleDays?: number | null;
 };
-export type SettingsAgentsWorkspaceCardSetSessionRetentionMutation$variables = {
+export type SettingsAgentsChatsTabSetAgentSessionRetentionMutation$variables = {
   input: SetAgentSessionRetentionInput;
 };
-export type SettingsAgentsWorkspaceCardSetSessionRetentionMutation$data = {
+export type SettingsAgentsChatsTabSetAgentSessionRetentionMutation$data = {
   readonly setAgentSessionRetention: {
     readonly maxCountPerUser: number | null;
     readonly maxIdleDays: number | null;
   };
 };
-export type SettingsAgentsWorkspaceCardSetSessionRetentionMutation = {
-  response: SettingsAgentsWorkspaceCardSetSessionRetentionMutation$data;
-  variables: SettingsAgentsWorkspaceCardSetSessionRetentionMutation$variables;
+export type SettingsAgentsChatsTabSetAgentSessionRetentionMutation = {
+  response: SettingsAgentsChatsTabSetAgentSessionRetentionMutation$data;
+  variables: SettingsAgentsChatsTabSetAgentSessionRetentionMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -72,7 +72,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsAgentsWorkspaceCardSetSessionRetentionMutation",
+    "name": "SettingsAgentsChatsTabSetAgentSessionRetentionMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -81,20 +81,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "SettingsAgentsWorkspaceCardSetSessionRetentionMutation",
+    "name": "SettingsAgentsChatsTabSetAgentSessionRetentionMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "a3349aad1891086fe1e211dbb4a465fc",
+    "cacheID": "0fb6c6116286381d3d40dea577f2853e",
     "id": null,
     "metadata": {},
-    "name": "SettingsAgentsWorkspaceCardSetSessionRetentionMutation",
+    "name": "SettingsAgentsChatsTabSetAgentSessionRetentionMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsAgentsWorkspaceCardSetSessionRetentionMutation(\n  $input: SetAgentSessionRetentionInput!\n) {\n  setAgentSessionRetention(input: $input) {\n    maxIdleDays\n    maxCountPerUser\n  }\n}\n"
+    "text": "mutation SettingsAgentsChatsTabSetAgentSessionRetentionMutation(\n  $input: SetAgentSessionRetentionInput!\n) {\n  setAgentSessionRetention(input: $input) {\n    maxIdleDays\n    maxCountPerUser\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e72a772c327f57ab687d91d9ff63037f";
+(node as any).hash = "0b5e0100fb79968cb20885ea012e8db5";
 
 export default node;

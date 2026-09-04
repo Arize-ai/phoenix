@@ -14,6 +14,9 @@ const firstSession: components["schemas"]["SessionData"] = {
   project_id: "project-1",
   start_time: "2025-01-01T00:00:00.000Z",
   end_time: "2025-01-01T01:00:00.000Z",
+  token_count_prompt: 80,
+  token_count_completion: 20,
+  token_count_total: 100,
   traces: [
     {
       id: "trace-1",
@@ -30,6 +33,9 @@ const secondSession: components["schemas"]["SessionData"] = {
   project_id: "project-1",
   start_time: "2025-01-02T00:00:00.000Z",
   end_time: "2025-01-02T01:00:00.000Z",
+  token_count_prompt: 0,
+  token_count_completion: 0,
+  token_count_total: 0,
   traces: [],
 };
 
@@ -88,6 +94,9 @@ describe("listSessions", () => {
       id: "session-1",
       sessionId: "sess-a",
       projectId: "project-1",
+      tokenCountPrompt: 80,
+      tokenCountCompletion: 20,
+      tokenCountTotal: 100,
     });
     expect(sessions[0]?.traces).toHaveLength(1);
     expect(sessions[0]?.traces[0]).toMatchObject({
@@ -95,6 +104,11 @@ describe("listSessions", () => {
       traceId: "t-1",
     });
     expect(sessions[1]?.traces).toHaveLength(0);
+    expect(sessions[1]).toMatchObject({
+      tokenCountPrompt: 0,
+      tokenCountCompletion: 0,
+      tokenCountTotal: 0,
+    });
   });
 
   it("should paginate through all sessions", async () => {

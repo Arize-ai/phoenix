@@ -95,6 +95,31 @@ AGENT (parent)
       TOOL
 ```
 
+### Which span parents the child
+
+A step in the parent trajectory declares that it spawned a subagent via a
+`subagent_trajectory_ref` in its result. The child's spans always land in the
+parent's trace; the ref decides which span they nest under. There are two cases:
+
+**The subagent was spawned by a tool call** (e.g. a `delegate_task` tool). The
+child nests under that TOOL span, as in the trace above. For this to happen,
+the referencing step must actually own the call: it is an agent step
+(`source: "agent"`), its result names the spawning call in `source_call_id`,
+and one of the step's `tool_calls` has that `tool_call_id`.
+
+**Anything else** — the subagent was started by the system or an orchestration
+layer, there is no `source_call_id`, or the `source_call_id` doesn't match any
+of the step's tool calls. No TOOL span exists for such a spawn, so the child
+nests directly under the parent trajectory's root AGENT span:
+
+```
+AGENT (parent)
+  LLM
+  AGENT (child agent — system-initiated)
+    LLM
+    TOOL
+```
+
 **ATIF v1.7**: embedded `subagent_trajectories` inside a single trajectory file are automatically flattened and linked. References resolve by `trajectory_id` — no separate upload needed.
 
 ## Deterministic Dispatch (v1.7+)

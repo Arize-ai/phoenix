@@ -47,11 +47,10 @@ async def _text(client: Client[Any], tool: str, **arguments: Any) -> str:
     return "".join(getattr(block, "text", "") for block in result.content)
 
 
-class TestHandshake:
+class TestAdvertisedInstructions:
     async def test_lists_every_skill_with_its_trigger_guidance(self) -> None:
         async with Client(_server(*PXI_SKILLS_ROOTS)) as client:
-            assert client.initialize_result is not None
-            instructions = client.initialize_result.instructions or ""
+            instructions = client.instructions or ""
 
         assert "<available_skills>" in instructions
         for skill in load_skills(PXI_SKILLS_ROOTS):
@@ -65,8 +64,7 @@ class TestHandshake:
             FastAPI(), code_mode=False, read_only=True, db=_unused_db()
         )
         async with Client(mcp) as client:
-            assert client.initialize_result is not None
-            assert client.initialize_result.instructions is None
+            assert client.instructions is None
             names = {tool.name for tool in await client.list_tools()}
             assert names.isdisjoint({"load_skill", "load_skill_reference"})
 
@@ -106,8 +104,8 @@ class TestTools:
 
         skills = load_skills(PXI_SKILLS_ROOTS)
         skill_names = [skill.name for skill in skills]
-        load_params = tools["load_skill"].inputSchema["properties"]
-        read_params = tools["load_skill_reference"].inputSchema["properties"]
+        load_params = tools["load_skill"].input_schema["properties"]
+        read_params = tools["load_skill_reference"].input_schema["properties"]
         assert load_params["skill_name"]["enum"] == skill_names
         assert read_params["skill_name"]["enum"] == skill_names
         assert read_params["reference_name"]["enum"] == sorted(
@@ -116,7 +114,7 @@ class TestTools:
         assert "references/datasets.md" in read_params["reference_name"]["enum"]
         for tool in ("load_skill", "load_skill_reference"):
             assert tools[tool].annotations is not None
-            assert tools[tool].annotations.readOnlyHint is True
+            assert tools[tool].annotations.read_only_hint is True
 
     async def test_a_catalog_without_references_leaves_the_reference_name_open(
         self, tmp_path: Path
@@ -125,7 +123,7 @@ class TestTools:
         async with Client(_server(tmp_path)) as client:
             tools = {tool.name: tool for tool in await client.list_tools()}
 
-        read_params = tools["load_skill_reference"].inputSchema["properties"]
+        read_params = tools["load_skill_reference"].input_schema["properties"]
         assert read_params["skill_name"]["enum"] == ["a-skill"]
         assert "enum" not in read_params["reference_name"]
 

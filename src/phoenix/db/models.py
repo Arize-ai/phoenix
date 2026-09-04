@@ -195,6 +195,7 @@ SystemSettingKey: TypeAlias = Literal[
     "agent.assistant.trace_recording",
     "agent.assistant.enabled",
     "agent.assistant.session_retention",
+    "agent.assistant.github",
 ]
 
 

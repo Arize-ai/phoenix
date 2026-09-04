@@ -12,6 +12,7 @@ const cjsEntries = {
   jest: "../dist/src/jest/index.js",
   projects: "../dist/src/projects/index.js",
   secrets: "../dist/src/secrets/index.js",
+  users: "../dist/src/users/index.js",
 } as const;
 const esmEntries = {
   index: "../dist/esm/index.js",
@@ -20,6 +21,7 @@ const esmEntries = {
   jest: "../dist/esm/jest/index.js",
   projects: "../dist/esm/projects/index.js",
   secrets: "../dist/esm/secrets/index.js",
+  users: "../dist/esm/users/index.js",
 } as const;
 // The index entry transitively require()s @arizeai/phoenix-otel's dist via the
 // workspace symlink. Check every guarded entry and that dependency so a

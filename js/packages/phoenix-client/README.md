@@ -151,7 +151,7 @@ effort conversion to your LLM provider SDK of choice.
 The following LLM provider SDKs are supported:
 
 - Vercel AI SDK: `ai` [ai](https://www.npmjs.com/package/ai)
-- OpenAI: `openai` [openai](https://www.npmjs.com/package/openai)
+- OpenAI: `openai` [openai](https://www.npmjs.com/package/openai) (v6 and v7)
 - Anthropic: `anthropic` [@anthropic-ai/sdk](https://www.npmjs.com/package/@anthropic-ai/sdk)
 
 > **Note:** These provider SDKs are optional peer dependencies — installing `@arizeai/phoenix-client` does not pull them in. Install the one you convert to yourself, e.g. `npm install ai`, `npm install openai`, or `npm install @anthropic-ai/sdk`. Calling `toSDK({ sdk: "ai" | "openai" | "anthropic" })` without the matching SDK installed fails at runtime.
@@ -431,7 +431,7 @@ const sessionTraces = await getTraces({
 | `sort`         | `"start_time" \| "latency_ms"` | Sort field                                 |
 | `order`        | `"asc" \| "desc"`              | Sort direction                             |
 | `limit`        | `number`                       | Maximum number of traces to return         |
-| `cursor`       | `string \| null`               | Pagination cursor (Trace GlobalID)         |
+| `cursor`       | `string \| null`               | Pagination cursor                          |
 | `includeSpans` | `boolean`                      | Include full span details for each trace   |
 | `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)     |
 

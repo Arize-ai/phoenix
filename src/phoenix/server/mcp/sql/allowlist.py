@@ -142,8 +142,8 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # After parse, `jsonb_contains(x, y)` and `x ? y` are the same node,
             # so we emit `?`. Do not rewrite this class to `@>` — that would
             # change real `?` queries. `@>` is ArrayContainsAll.
-            # Write-up:
-            # .scratch/pending_issues/sglglot/ISSUE-postgres-jsonb-contains-emits-key-exists.md
+            # Workaround for https://github.com/tobymao/sqlglot/issues/8152,
+            # fixed upstream but unreleased at the pinned version.
             exp.JSONBContains,
             exp.JSONBContainsAnyTopKeys,
             exp.JSONBContainsAllTopKeys,
@@ -181,9 +181,8 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             exp.TimeToStr,
             # date() truncates a timestamp to its day, which is the coarser half
             # of the same bucketing need and the spelling most callers try
-            # first. The authorizer already permitted it; only admission did
-            # not, so a caller was refused a function the engine was willing to
-            # run.
+            # first. The authorizer permits it, so admission must too, or a
+            # caller is refused a function the engine is willing to run.
             exp.Date,
             # json1 construction. `json_object` is bounded by its arguments.
             #
@@ -207,12 +206,12 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # question once a caller has found a key but does not know whether
             # the value is a scalar, an object or an array.
             exp.JSONType,
-            # SQLite's type-of-a-value probe. The authorizer already permitted
-            # it; only admission did not, so a caller was refused a function
-            # the engine was willing to run.
+            # SQLite's type-of-a-value probe, which the authorizer permits, so
+            # admission has to as well or the two policies disagree about a
+            # function the engine is willing to run.
             exp.Typeof,
-            # sqlean stats. The schema used to say this was unavailable; the
-            # authorizer already permitted it. `percentile(x, 50)` is the same
+            # sqlean stats, which the authorizer permits. `median(x)` is the
+            # median as its own function. `percentile(x, 50)` is the same
             # question with an explicit percentile.
             exp.Median,
         }
@@ -316,9 +315,9 @@ SQLITE_AUTHORIZER_FUNCTIONS: frozenset[str] = frozenset(
         "lower",
         # Admitted by the parser policy as portable classes (exp.Upper,
         # exp.Length, exp.CurrentTimestamp, exp.CurrentDate) but absent here,
-        # so each worked on PostgreSQL and was refused on SQLite -- the exact
-        # divergence the two policies exist to prevent. The liveness suite now
-        # executes all four so the gap cannot silently reopen.
+        # a class listed there but absent here works on PostgreSQL and is refused
+        # on SQLite -- the exact divergence the two policies exist to prevent.
+        # The liveness suite executes all four so the gap cannot open silently.
         "upper",
         "length",
         "current_timestamp",
@@ -521,8 +520,9 @@ ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[str]]
         {
             "unixepoch",
             "datetime",
-            # time() is the time-of-day constructor. CAST AS TIME used to become
-            # CAST AS TEXT, which returns the full datetime string.
+            # time() is the time-of-day constructor, and the only spelling that
+            # yields one: CAST AS TIME renders as CAST AS TEXT, which keeps the
+            # full datetime string.
             "time",
             # The older spelling of the same idea, and the one a model is more
             # likely to reach for: julianday has been in SQLite for decades

@@ -31,6 +31,7 @@ import {
   getToolsFromAttributes,
   getResponseFormatFromAttributes,
   getToolChoiceFromAttributes,
+  getToolDefinitionDisplay,
   getToolName,
   getVariablesMapFromInstances,
   inferOpenAIApiTypeFromRawToolDefinitions,
@@ -38,6 +39,7 @@ import {
   isOpenAIResponsesSpan,
   processAttributeToolCalls,
   promptToolFromGraphQL,
+  toCanonicalToolDefinition,
   toolFromEditorJSON,
   toolToPromptToolInput,
   transformSpanAttributesToPlaygroundInstance,
@@ -926,8 +928,10 @@ describe("processAttributeToolCalls", () => {
     FIREWORKS: ["FIREWORKS", testSpanToolCall, expectedTestOpenAIToolCall],
     GROQ: ["GROQ", testSpanToolCall, expectedTestOpenAIToolCall],
     MOONSHOT: ["MOONSHOT", testSpanToolCall, expectedTestOpenAIToolCall],
+    MINIMAX: ["MINIMAX", testSpanToolCall, expectedTestOpenAIToolCall],
     PERPLEXITY: ["PERPLEXITY", testSpanToolCall, expectedTestOpenAIToolCall],
     TOGETHER: ["TOGETHER", testSpanToolCall, expectedTestOpenAIToolCall],
+    ZAI: ["ZAI", testSpanToolCall, expectedTestOpenAIToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",
@@ -1529,8 +1533,10 @@ describe("getToolsFromAttributes", () => {
     FIREWORKS: ["FIREWORKS", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     GROQ: ["GROQ", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     MOONSHOT: ["MOONSHOT", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    MINIMAX: ["MINIMAX", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     PERPLEXITY: ["PERPLEXITY", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     TOGETHER: ["TOGETHER", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    ZAI: ["ZAI", testSpanOpenAITool, testSpanOpenAIToolCanonical],
   };
 
   test.for(Object.values(ProviderToToolTestMap))(
@@ -2214,6 +2220,62 @@ describe("toolFromEditorJSON", () => {
       })
     ).toBeNull();
   });
+
+  it("should convert Anthropic-shaped editor JSON with strict into a function tool", () => {
+    const value = {
+      name: "get_weather",
+      description: "Get weather",
+      input_schema: {
+        type: "object",
+        properties: { location: { type: "string" } },
+        required: ["location"],
+      },
+      strict: true,
+    };
+
+    expect(toolFromEditorJSON({ value, id: 1, editorType: "json" })).toEqual({
+      kind: "function",
+      id: 1,
+      editorType: "json",
+      definition: {
+        name: "get_weather",
+        description: "Get weather",
+        parameters: {
+          type: "object",
+          properties: { location: { type: "string" } },
+          required: ["location"],
+        },
+        strict: true,
+      },
+    });
+  });
+});
+
+describe("tool definition strict round-trip", () => {
+  const buildCanonicalTool = (strict: boolean): CanonicalToolDefinition => ({
+    name: "get_weather",
+    description: "Get weather",
+    parameters: {
+      type: "object",
+      properties: { city: { type: "string" } },
+      required: ["city"],
+    },
+    strict,
+  });
+
+  it.each([
+    ["ANTHROPIC", true],
+    ["ANTHROPIC", false],
+    ["AWS", true],
+    ["AWS", false],
+  ] as const)(
+    "should preserve strict through the %s editor display and back (strict: %s)",
+    (provider, strict) => {
+      const canonicalTool = buildCanonicalTool(strict);
+      const display = getToolDefinitionDisplay(canonicalTool, provider);
+      expect(toCanonicalToolDefinition(display)).toEqual(canonicalTool);
+    }
+  );
 });
 
 describe("getPromptTemplateVariablesFromAttributes", () => {

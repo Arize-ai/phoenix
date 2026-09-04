@@ -21,12 +21,14 @@ export const BUILT_IN_PROVIDERS = [
   "FIREWORKS",
   "GOOGLE",
   "GROQ",
+  "MINIMAX",
   "MOONSHOT",
   "OLLAMA",
   "OPENAI",
   "PERPLEXITY",
   "TOGETHER",
   "XAI",
+  "ZAI",
 ] as const satisfies readonly BuiltInProvider[];
 
 /**

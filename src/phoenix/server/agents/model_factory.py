@@ -139,10 +139,14 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
         return ("GROQ_API_KEY",)
     if provider is ModelProvider.MOONSHOT:
         return ("MOONSHOT_API_KEY",)
+    if provider is ModelProvider.MINIMAX:
+        return ("MINIMAX_API_KEY",)
     if provider is ModelProvider.PERPLEXITY:
         return ("PERPLEXITY_API_KEY",)
     if provider is ModelProvider.TOGETHER:
         return ("TOGETHER_API_KEY",)
+    if provider is ModelProvider.ZAI:
+        return ("ZAI_API_KEY",)
     assert_never(provider)
 
 
@@ -466,8 +470,10 @@ def _get_pydantic_ai_model_from_builtin_provider(
         ModelProvider.FIREWORKS,
         ModelProvider.GROQ,
         ModelProvider.MOONSHOT,
+        ModelProvider.MINIMAX,
         ModelProvider.PERPLEXITY,
         ModelProvider.TOGETHER,
+        ModelProvider.ZAI,
     }:
         provider_settings: dict[
             ModelProvider,
@@ -521,6 +527,13 @@ def _get_pydantic_ai_model_from_builtin_provider(
                 "An API key is required for Moonshot models. "
                 "Set MOONSHOT_API_KEY in the environment or Phoenix secrets.",
             ),
+            ModelProvider.MINIMAX: (
+                "MINIMAX_API_KEY",
+                getenv("MINIMAX_BASE_URL") or "https://api.minimax.io/v1",
+                "https://api.minimax.io/v1",
+                "An API key is required for MiniMax models. "
+                "Set MINIMAX_API_KEY in the environment or Phoenix secrets.",
+            ),
             ModelProvider.PERPLEXITY: (
                 "PERPLEXITY_API_KEY",
                 getenv("PERPLEXITY_BASE_URL") or "https://api.perplexity.ai",
@@ -534,6 +547,13 @@ def _get_pydantic_ai_model_from_builtin_provider(
                 "https://api.together.xyz/v1",
                 "An API key is required for Together AI models. "
                 "Set TOGETHER_API_KEY in the environment or Phoenix secrets.",
+            ),
+            ModelProvider.ZAI: (
+                "ZAI_API_KEY",
+                getenv("ZAI_BASE_URL") or "https://api.z.ai/api/paas/v4",
+                "https://api.z.ai/api/paas/v4",
+                "An API key is required for Z.ai models. "
+                "Set ZAI_API_KEY in the environment or Phoenix secrets.",
             ),
         }
         credential_key, base_url, default_base_url, missing_credential_message = provider_settings[
