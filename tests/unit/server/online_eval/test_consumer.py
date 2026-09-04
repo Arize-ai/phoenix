@@ -1520,7 +1520,7 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
-        target_vocabularies: Mapping[int, Mapping[str, Any]],
+        target_vocabularies: Mapping[tuple[models.EvaluationTarget, int], Mapping[str, Any]],
     ) -> Any:
         if unit.target_rowid == bad_span.id:
             await session.execute(text("SELECT 1 / 0"))
