@@ -288,6 +288,7 @@ CREATE TABLE public.traces (
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     project_session_rowid INTEGER,
+    last_span_ingested_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_traces PRIMARY KEY (id),
     CONSTRAINT uq_traces_trace_id
         UNIQUE (trace_id),
@@ -301,6 +302,8 @@ CREATE TABLE public.traces (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_traces_project_rowid_last_span_ingested_at ON public.traces
+    USING btree (project_rowid, last_span_ingested_at) WHERE (last_span_ingested_at IS NOT NULL);
 CREATE INDEX ix_traces_project_rowid_start_time ON public.traces
     USING btree (project_rowid, start_time DESC);
 CREATE INDEX ix_traces_project_session_rowid ON public.traces
@@ -1362,6 +1365,7 @@ CREATE TABLE public.project_evaluators (
     evaluation_delay_seconds INTEGER NOT NULL DEFAULT 300,
     input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
+    swept_through_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
@@ -1406,7 +1410,6 @@ CREATE TABLE public.eval_session_work_units (
     project_evaluator_id BIGINT NOT NULL,
     config_fingerprint VARCHAR NOT NULL,
     evaluated_through TIMESTAMP WITH TIME ZONE NOT NULL,
-    transcript_covered_through TIMESTAMP WITH TIME ZONE,
     status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
     claimed_at TIMESTAMP WITH TIME ZONE,
     claimed_by VARCHAR,
@@ -1454,6 +1457,64 @@ CREATE INDEX ix_eval_session_work_units_terminal_watermark ON public.eval_sessio
     USING btree (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON public.eval_session_work_units
     USING btree (project_session_rowid, evaluator_id, config_fingerprint) WHERE (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying])::text[])) OR (((status)::text = 'ERROR'::text) AND (attempts < 3)) OR ((status)::text = ANY ((ARRAY['FILTERED_OUT'::character varying, 'SAMPLED_OUT'::character varying])::text[])));
+
+
+-- Table: eval_trace_work_units
+-- ----------------------------
+CREATE TABLE public.eval_trace_work_units (
+    id bigserial NOT NULL,
+    trace_rowid BIGINT NOT NULL,
+    evaluator_id BIGINT NOT NULL,
+    project_evaluator_id BIGINT NOT NULL,
+    config_fingerprint VARCHAR NOT NULL,
+    evaluated_through TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error VARCHAR,
+    cooldown_until TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_trace_work_units PRIMARY KEY (id),
+    CONSTRAINT "ck_eval_trace_work_units_`valid_eval_work_status`"
+        CHECK (((status)::text = ANY ((ARRAY[
+            'PENDING'::character varying,
+            'RUNNING'::character varying,
+            'DONE'::character varying,
+            'ERROR'::character varying,
+            'EXPIRED'::character varying,
+            'FILTERED_OUT'::character varying,
+            'SAMPLED_OUT'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_eval_trace_work_units_evaluator_id_evaluators
+        FOREIGN KEY (evaluator_id)
+        REFERENCES public.evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_trace_work_units_project_evaluator_id_project_e_3bcd
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_trace_work_units_trace_rowid_traces
+        FOREIGN KEY (trace_rowid)
+        REFERENCES public.traces (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_trace_work_units_claimable ON public.eval_trace_work_units
+    USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
+CREATE INDEX ix_eval_trace_work_units_error_attempts ON public.eval_trace_work_units
+    USING btree (attempts) WHERE ((status)::text = 'ERROR'::text);
+CREATE INDEX ix_eval_trace_work_units_evaluator_id ON public.eval_trace_work_units
+    USING btree (evaluator_id);
+CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON public.eval_trace_work_units
+    USING btree (project_evaluator_id);
+CREATE INDEX ix_eval_trace_work_units_terminal ON public.eval_trace_work_units
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
+CREATE INDEX ix_eval_trace_work_units_terminal_watermark ON public.eval_trace_work_units
+    USING btree (trace_rowid, evaluator_id, config_fingerprint);
+CREATE UNIQUE INDEX uq_eval_trace_work_units_live_key ON public.eval_trace_work_units
+    USING btree (trace_rowid, evaluator_id, config_fingerprint) WHERE (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying])::text[])) OR (((status)::text = 'ERROR'::text) AND (attempts < 3)) OR ((status)::text = ANY ((ARRAY['FILTERED_OUT'::character varying, 'SAMPLED_OUT'::character varying])::text[])));
 
 
 -- Table: eval_work_units

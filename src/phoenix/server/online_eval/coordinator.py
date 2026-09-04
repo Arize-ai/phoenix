@@ -115,16 +115,12 @@ class EvalWorkCoordinator(Protocol):
         work_unit_id: int,
         claimed_by: str,
         write: PublicationWrite,
-        coverage_watermark: Optional[datetime] = None,
     ) -> None:
         """Fence a claimed unit for publication and run ``write`` in that transaction.
 
         The fence is stricter than a lifecycle transition's: the unit must still be
         owned and RUNNING, *and* its project evaluator still enabled — a result must not be
-        published under a configuration that has since been turned off. Where the target
-        keeps a coverage watermark, it records how much of the target the published
-        result actually read and is written in the same transaction; a watermark that
-        outlived its annotation would claim coverage no result describes.
+        published under a configuration that has since been turned off.
 
         Raises ``PublicationClaimLostError`` when the fence fails. Does not complete the
         unit — publication and completion are separate steps, so a lost acknowledgement
