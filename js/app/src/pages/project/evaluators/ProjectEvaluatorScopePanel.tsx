@@ -804,8 +804,6 @@ function SessionRunList({
   onCanRunAllChange,
 }: RecordRunListProps) {
   const [limit, setLimit] = useState(SESSION_LIST_PAGE_SIZE);
-  // A transition keeps the current rows visible instead of collapsing the list
-  // to its Suspense fallback while the wider page loads.
   const [isShowingMore, startShowMoreTransition] = useTransition();
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSessionsQuery>(
     graphql`
@@ -954,8 +952,6 @@ function SpanRunList({
   onCanRunAllChange,
 }: RecordRunListProps) {
   const [limit, setLimit] = useState(SPAN_LIST_PAGE_SIZE);
-  // A transition keeps the current rows visible instead of collapsing the list
-  // to its Suspense fallback while the wider page loads.
   const [isShowingMore, startShowMoreTransition] = useTransition();
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSpansQuery>(
     graphql`
