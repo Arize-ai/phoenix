@@ -4,7 +4,9 @@ import { ConnectedMarkdownBlock } from "@phoenix/components/markdown";
 import type { AttributeMessageContent } from "@phoenix/openInference/tracing/types";
 import { formatContentAsString } from "@phoenix/utils/jsonUtils";
 
+import { ReasoningMessageContent } from "./ReasoningMessageContent";
 import { SpanImage } from "./SpanImage";
+import { isReasoningMessageContent } from "./utils";
 
 const messageContentListCSS = css`
   display: flex;
@@ -15,17 +17,22 @@ const messageContentListCSS = css`
 `;
 
 /**
- * Display text content in full width.
+ * Display text and reasoning content in full width. The item must not grow
+ * past the list on account of an unbreakable token in its content (a reasoning
+ * item id, a long URL), so its minimum width is released from its content.
  */
 const messageContentTextListItemCSS = css`
   flex: 1 1 100%;
+  min-width: 0;
 `;
 
 /**
- * Displays multi-modal message content. Typically an image or text.
+ * Displays multi-modal message content. Typically an image or text, or the
+ * reasoning a thinking model produced before its answer.
  * Examples:
  * {"message_content":{"text":"What is in this image?","type":"text"}}
  * {"message_content":{"type":"image","image":{"image":{"url":"https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"}}}}
+ * {"message_content":{"type":"reasoning","id":"rs_123","text":"**Weighing the options**\n\n..."}}
  */
 function MessageContentListItem({
   messageContentAttribute,
@@ -33,6 +40,13 @@ function MessageContentListItem({
   messageContentAttribute: AttributeMessageContent;
 }) {
   const { message_content } = messageContentAttribute;
+  if (isReasoningMessageContent(messageContentAttribute)) {
+    return (
+      <li css={messageContentTextListItemCSS}>
+        <ReasoningMessageContent content={message_content} />
+      </li>
+    );
+  }
   const text = message_content?.text;
   const normalizedText = text
     ? formatContentAsString(text, { unquotePlainString: true })
