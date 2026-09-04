@@ -421,6 +421,13 @@ const sessionTraces = await getTraces({
   project: { projectName: "my-project" },
   sessionId: "my-session-id",
 });
+
+// Filter by error status and latency (requires Phoenix server >= 20.8.0)
+const slowFailures = await getTraces({
+  project: { projectName: "my-project" },
+  error: true,
+  minLatencyMs: 1000,
+});
 ```
 
 | Parameter      | Type                           | Description                                |
@@ -434,6 +441,9 @@ const sessionTraces = await getTraces({
 | `cursor`       | `string \| null`               | Pagination cursor                          |
 | `includeSpans` | `boolean`                      | Include full span details for each trace   |
 | `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)     |
+| `error`        | `boolean \| null`              | Only traces with (`true`) or without (`false`) errored spans |
+| `minLatencyMs` | `number \| null`               | Inclusive lower bound on trace latency (ms) |
+| `maxLatencyMs` | `number \| null`               | Inclusive upper bound on trace latency (ms) |
 
 ### Pagination
 

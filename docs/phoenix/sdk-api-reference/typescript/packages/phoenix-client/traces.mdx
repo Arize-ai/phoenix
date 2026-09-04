@@ -29,7 +29,7 @@ The traces module provides trace retrieval, project transfer, and trace-level an
 
 ## Retrieve Traces
 
-Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session.
+Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session, error status, or latency.
 
 ```ts
 import { getTraces } from "@arizeai/phoenix-client/traces";
@@ -60,6 +60,18 @@ console.log(result.nextCursor);
 - `cursor`
 - `includeSpans`
 - `sessionId`
+- `error`
+- `minLatencyMs`
+- `maxLatencyMs`
+
+```ts
+// Slow traces that contain at least one errored span
+const slowFailures = await getTraces({
+  project: { projectName: "support-bot" },
+  error: true,
+  minLatencyMs: 1000,
+});
+```
 
 ### Notes
 
@@ -67,6 +79,7 @@ console.log(result.nextCursor);
 - Use the returned `nextCursor` to continue pagination
 - Set `includeSpans` when you need a trace-centric fetch that also contains span details
 - `project` accepts `{ project }`, `{ projectId }`, or `{ projectName }`
+- `error`, `minLatencyMs`, and `maxLatencyMs` require Phoenix server >= 20.8.0; `error: false` selects traces with no errored spans
 
 ## Move Traces To Another Project
 
