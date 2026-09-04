@@ -559,14 +559,46 @@ jobs:
           sudo apt-get -yqq install postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get -yqq install postgresql-14
+      # pytest-timeout's thread method dumps every thread's stack after 15
+      # stuck minutes and kills the wedged worker, so a hung test surfaces as
+      # a named failure instead of stalling silently until the 60-minute job
+      # timeout kills the run with no diagnostics.
       - name: Run SQLite tests
         if: matrix.db == 'sqlite'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --durations=20 --timeout 360 -n 16 --dist loadscope
+        run: uvx tox run -e unit_tests -- -ra --durations=20 --reruns 5 -n 16 --dist loadscope --timeout 900 --timeout-method thread
       - name: Run PostgreSQL tests
         if: matrix.db == 'postgresql'
         timeout-minutes: 60
-        run: uvx tox run -e unit_tests -- -ra --durations=20 --timeout 360 --db postgresql -n 16 --dist loadscope --postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl
+        # The watchdog exists because the recurring stall at ~99% produces no
+        # in-process diagnostics: neither faulthandler nor pytest-timeout ever
+        # fires, which points at a worker wedged in native code holding the
+        # GIL (or gone entirely). py-spy reads native stacks from outside the
+        # process, so 45 minutes in it names exactly where every pytest
+        # process is stuck, before the job timeout would discard everything.
+        run: |
+          uv tool install py-spy
+          (
+            sleep 2700
+            echo '::group::watchdog: suite still running after 45m'
+            sudo dmesg 2>/dev/null | grep -iE 'oom|killed process' | tail -20 || true
+            # Full process snapshot: xdist workers are execnet bootstraps whose
+            # cmdline never mentions pytest, so match interpreters by name.
+            ps -eo pid,ppid,rss,etime,stat,wchan:30,args | grep -E '[p]ython|[p]g_ctl|[t]ox' || true
+            for pid in $(pgrep python); do
+              echo "=== py-spy pid $pid ==="
+              sudo "$(command -v py-spy)" dump --pid "$pid" --native ||
+                sudo "$(command -v py-spy)" dump --pid "$pid" --nonblocking || true
+            done
+            echo 'watchdog: SIGABRT so faulthandler prints stacks and the job fails with evidence'
+            sudo pkill -ABRT python || true
+            echo '::endgroup::'
+          ) &
+          watchdog=$!
+          status=0
+          uvx tox run -e unit_tests -- -ra --durations=20 --reruns 5 --db postgresql -n 16 --dist loadscope --timeout 900 --timeout-method thread --postgresql-exec /usr/lib/postgresql/14/bin/pg_ctl || status=$?
+          kill "$watchdog" 2>/dev/null || true
+          exit "$status"
 
   integration-tests:
     name: Integration Tests

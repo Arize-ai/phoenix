@@ -268,6 +268,9 @@ test.describe.serial("Projects", () => {
     await expect(page).toHaveURL(EVALUATORS_URL);
 
     await expect(
+      page.getByRole("region", { name: "Evaluator categories" })
+    ).toBeVisible();
+    await expect(
       page.getByText("Evaluators read span inputs", { exact: false })
     ).toBeVisible();
     await expect(

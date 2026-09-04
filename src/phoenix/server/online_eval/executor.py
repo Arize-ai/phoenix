@@ -46,6 +46,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_metadata,
     get_dataset_example_output,
 )
+from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.dml_event import (
     DmlEvent,
@@ -76,6 +77,9 @@ from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import Tracer
 
 logger = logging.getLogger(__name__)
+
+# How long a cancelled evaluation waits for its best-effort trace write.
+_TRACE_PERSIST_DRAIN_SECONDS = 30.0
 
 _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 _SESSION_POLICY_METADATA_KEY = "phoenix.online_eval.session_policy"
@@ -945,22 +949,27 @@ class OnlineEvalExecutor:
                     await asyncio.shield(persist)
                 except asyncio.CancelledError:
                     if not persist.done():
-                        await asyncio.wait([persist])
+                        # Bounded: trace persistence is best-effort, and an
+                        # unbounded join here has wedged shutdown (and CI test
+                        # teardown) when the persist task could no longer make
+                        # progress against a database that was going away.
+                        done, _ = await asyncio.wait(
+                            [persist], timeout=_TRACE_PERSIST_DRAIN_SECONDS
+                        )
+                        if not done:
+                            persist.cancel()
                     raise
         errored = [result for result in results if result["error"] is not None]
         if errored:
             raise EvalExecutionError(errored[0]["error"]) from errored[0].get("error_exc")
         if hydrated.evaluator_kind != "BUILTIN":
             # Built-ins retain their evaluator-defined result-name contract.
-            multi_output = len(hydrated.output_configs) > 1
-            output_configs_by_name = {
-                (
-                    f"{hydrated.annotation_name}.{config.name}"
-                    if multi_output
-                    else hydrated.annotation_name
-                ): config
-                for config in hydrated.output_configs
-            }
+            output_configs_by_name = dict(
+                zip(
+                    result_annotation_names(hydrated.annotation_name, hydrated.output_configs),
+                    hydrated.output_configs,
+                )
+            )
             returned_name_counts = Counter(result["name"] for result in results)
             invalid_counts = {
                 name: returned_name_counts.get(name, 0)

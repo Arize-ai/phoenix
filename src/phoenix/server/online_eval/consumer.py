@@ -182,7 +182,14 @@ class OnlineEvalConsumer(DaemonTask):
             for task in pending:
                 task.cancel()
             if pending:
-                await asyncio.gather(*pending, return_exceptions=True)
+                # Bounded: a unit that cannot finish cancelling must not wedge
+                # shutdown (and with it, CI test teardown) forever.
+                _, still_pending = await asyncio.wait(pending, timeout=DRAIN_TIMEOUT_SECONDS)
+                if still_pending:
+                    logger.error(
+                        f"{len(still_pending)} online-eval work unit task(s) did not exit "
+                        "within the shutdown drain; abandoning them"
+                    )
         await super().stop()
 
     async def _cycle(self) -> None:

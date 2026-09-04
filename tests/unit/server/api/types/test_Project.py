@@ -22,8 +22,11 @@ from phoenix.db.types.annotation_configs import (
     AnnotationType,
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
     OptimizationDirection,
 )
+from phoenix.db.types.identifier import Identifier as DbIdentifier
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
@@ -7625,3 +7628,380 @@ class TestProjectSessionsTimeRange:
             session_filter_condition=f"start_time >= '{cutoff}'",
         )
         assert with_cutoff == self._expected_ids(_sessions_data, "inside_window")
+
+
+class TestEvaluatorComparison:
+    QUERY = """
+        query (
+            $id: ID!
+            $a: ID!
+            $b: ID!
+            $timeRange: TimeRange!
+            $thresholdA: Float
+            $thresholdB: Float
+        ) {
+            node(id: $id) {
+                ... on Project {
+                    evaluatorComparison(
+                        evaluatorAId: $a
+                        evaluatorBId: $b
+                        timeRange: $timeRange
+                        thresholdA: $thresholdA
+                        thresholdB: $thresholdB
+                    ) {
+                        evaluationTarget
+                        coverage {
+                            evaluatedByBoth
+                            onlyA
+                            onlyB
+                            totalInRange
+                        }
+                        sideA {
+                            annotationName
+                            labels
+                            flaggedLabels
+                            threshold
+                            flaggedCount
+                            flagRate
+                            meanScore
+                        }
+                        sideB {
+                            annotationName
+                            labels
+                            flaggedLabels
+                            threshold
+                            flaggedCount
+                            flagRate
+                            meanScore
+                        }
+                        confusionMatrix
+                        statistics {
+                            agreement
+                            cohensKappa
+                            spearmanRho
+                            disagreementCount
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    @pytest.fixture
+    async def _comparison_data(self, db: DbSessionFactory) -> dict[str, Any]:
+        in_range = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            other_project = await _add_project(session)
+
+            if await session.get(models.Language, "PYTHON") is None:
+                session.add(models.Language(name="PYTHON"))
+                await session.flush()
+
+            categorical_evaluator = models.CodeEvaluator(
+                name=DbIdentifier(root=f"code-{token_hex(4)}"),
+                description=None,
+                metadata_={},
+                language="PYTHON",
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="verdict",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="pass", score=1.0),
+                            CategoricalAnnotationValue(label="fail", score=0.0),
+                        ],
+                    )
+                ],
+            )
+            continuous_evaluator = models.CodeEvaluator(
+                name=DbIdentifier(root=f"code-{token_hex(4)}"),
+                description=None,
+                metadata_={},
+                language="PYTHON",
+                output_configs=[
+                    ContinuousOutputConfig(
+                        type="CONTINUOUS",
+                        name="score",
+                        optimization_direction=OptimizationDirection.MINIMIZE,
+                        lower_bound=0.0,
+                        upper_bound=1.0,
+                    )
+                ],
+            )
+            session.add_all([categorical_evaluator, continuous_evaluator])
+            await session.flush()
+
+            def project_evaluator(
+                name: str,
+                evaluator_id: int,
+                project_id: int,
+                evaluation_target: str = "SPAN",
+            ) -> models.ProjectEvaluator:
+                return models.ProjectEvaluator(
+                    trace_project=models.Project(name=f"evaluator-{token_hex(12)}"),
+                    project_id=project_id,
+                    evaluator_id=evaluator_id,
+                    name=DbIdentifier(root=name),
+                    filter_condition="",
+                    sampling_rate=1.0,
+                    evaluation_target=evaluation_target,
+                )
+
+            correctness = project_evaluator("correctness", categorical_evaluator.id, project.id)
+            toxicity = project_evaluator("toxicity", continuous_evaluator.id, project.id)
+            harm = project_evaluator("harm", continuous_evaluator.id, project.id)
+            session_evaluator = project_evaluator(
+                "session_quality", continuous_evaluator.id, project.id, "SESSION"
+            )
+            session_quality_two = project_evaluator(
+                "session_quality_two", continuous_evaluator.id, project.id, "SESSION"
+            )
+            foreign = project_evaluator("foreign", continuous_evaluator.id, other_project.id)
+            session.add_all(
+                [correctness, toxicity, harm, session_evaluator, session_quality_two, foreign]
+            )
+            await session.flush()
+
+            project_session = await _add_project_session(session, project, start_time=in_range)
+            trace = await _add_trace(session, project, project_session, start_time=in_range)
+            spans = [await _add_span(session, trace, start_time=in_range) for _ in range(7)]
+
+            def span_annotation(
+                span: models.Span,
+                name: str,
+                label: Optional[str],
+                score: Optional[float],
+                identifier: str = "",
+                updated_at: Optional[datetime] = None,
+            ) -> models.SpanAnnotation:
+                return models.SpanAnnotation(
+                    span_rowid=span.id,
+                    name=name,
+                    label=label,
+                    score=score,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="CODE",
+                    identifier=identifier,
+                    source="API",
+                    user_id=None,
+                    updated_at=updated_at or in_range,
+                )
+
+            session.add_all(
+                [
+                    # A stale result under a second identifier: dedupe must prefer
+                    # the more recently updated row below.
+                    span_annotation(
+                        spans[0],
+                        "correctness",
+                        "fail",
+                        0.0,
+                        identifier="stale",
+                        updated_at=in_range - timedelta(minutes=5),
+                    ),
+                    span_annotation(spans[0], "correctness", "pass", 1.0),
+                    span_annotation(spans[0], "toxicity", None, 0.1),
+                    span_annotation(spans[1], "correctness", "fail", 0.0),
+                    span_annotation(spans[1], "toxicity", None, 0.9),
+                    span_annotation(spans[2], "correctness", "fail", 0.0),
+                    span_annotation(spans[2], "toxicity", None, 0.2),
+                    span_annotation(spans[3], "correctness", "pass", 1.0),
+                    span_annotation(spans[3], "toxicity", None, 0.8),
+                    span_annotation(spans[4], "correctness", "pass", 1.0),
+                    span_annotation(spans[5], "toxicity", None, 0.5),
+                    # Correlated with toxicity on the shared spans for Spearman.
+                    span_annotation(spans[0], "harm", None, 0.2),
+                    span_annotation(spans[1], "harm", None, 0.8),
+                    span_annotation(spans[2], "harm", None, 0.3),
+                    span_annotation(spans[3], "harm", None, 0.7),
+                ]
+            )
+
+            def session_annotation(name: str, score: float) -> models.ProjectSessionAnnotation:
+                return models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name=name,
+                    label=None,
+                    score=score,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="CODE",
+                    identifier="",
+                    source="API",
+                    user_id=None,
+                )
+
+            session.add_all(
+                [
+                    session_annotation("session_quality", 0.9),
+                    session_annotation("session_quality_two", 0.2),
+                ]
+            )
+
+        return {
+            "project": project.id,
+            "correctness": correctness.id,
+            "toxicity": toxicity.id,
+            "harm": harm.id,
+            "session_evaluator": session_evaluator.id,
+            "session_quality_two": session_quality_two.id,
+            "foreign": foreign.id,
+        }
+
+    @staticmethod
+    def _variables(
+        ids: dict[str, Any],
+        a: str,
+        b: str,
+        threshold_a: Optional[float] = None,
+        threshold_b: Optional[float] = None,
+    ) -> dict[str, Any]:
+        return {
+            "id": str(GlobalID("Project", str(ids["project"]))),
+            "a": str(GlobalID("ProjectEvaluator", str(ids[a]))),
+            "b": str(GlobalID("ProjectEvaluator", str(ids[b]))),
+            "timeRange": {
+                "start": "2024-01-01T01:00:00+00:00",
+                "end": "2024-01-01T03:00:00+00:00",
+            },
+            "thresholdA": threshold_a,
+            "thresholdB": threshold_b,
+        }
+
+    async def _compare(
+        self,
+        gql_client: AsyncGraphQLClient,
+        ids: dict[str, Any],
+        a: str,
+        b: str,
+        threshold_a: Optional[float] = None,
+        threshold_b: Optional[float] = None,
+    ) -> dict[str, Any]:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=self._variables(ids, a, b, threshold_a, threshold_b),
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        comparison: dict[str, Any] = data["node"]["evaluatorComparison"]
+        return comparison
+
+    async def _compare_expecting_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        ids: dict[str, Any],
+        a: str,
+        b: str,
+    ) -> str:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=self._variables(ids, a, b),
+        )
+        assert response.errors
+        return response.errors[0].message
+
+    async def test_categorical_versus_continuous(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        comparison = await self._compare(gql_client, _comparison_data, "correctness", "toxicity")
+        assert comparison["evaluationTarget"] == "SPAN"
+        assert comparison["coverage"] == {
+            "evaluatedByBoth": 4,
+            "onlyA": 1,
+            "onlyB": 1,
+            "totalInRange": 7,
+        }
+        side_a = comparison["sideA"]
+        assert side_a["annotationName"] == "correctness"
+        assert side_a["labels"] == ["pass", "fail"]
+        assert side_a["flaggedLabels"] == ["fail"]
+        assert side_a["threshold"] is None
+        assert side_a["flaggedCount"] == 2
+        assert side_a["flagRate"] == pytest.approx(0.5)
+        assert side_a["meanScore"] == pytest.approx(0.5)
+        side_b = comparison["sideB"]
+        assert side_b["annotationName"] == "toxicity"
+        assert side_b["labels"] == ["flagged", "not flagged"]
+        assert side_b["threshold"] == pytest.approx(0.5)
+        assert side_b["flaggedCount"] == 2
+        assert side_b["meanScore"] == pytest.approx(0.5)
+        assert comparison["confusionMatrix"] == [[1, 1], [1, 1]]
+        statistics = comparison["statistics"]
+        assert statistics["agreement"] == pytest.approx(0.5)
+        assert statistics["cohensKappa"] == pytest.approx(0.0)
+        assert statistics["spearmanRho"] is None
+        assert statistics["disagreementCount"] == 2
+
+    async def test_continuous_versus_continuous_has_spearman(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        comparison = await self._compare(gql_client, _comparison_data, "toxicity", "harm")
+        assert comparison["coverage"] == {
+            "evaluatedByBoth": 4,
+            "onlyA": 1,
+            "onlyB": 0,
+            "totalInRange": 7,
+        }
+        assert comparison["confusionMatrix"] == [[2, 0], [0, 2]]
+        statistics = comparison["statistics"]
+        assert statistics["agreement"] == pytest.approx(1.0)
+        assert statistics["cohensKappa"] == pytest.approx(1.0)
+        assert statistics["spearmanRho"] == pytest.approx(1.0)
+        assert statistics["disagreementCount"] == 0
+
+    async def test_threshold_override_rebins(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        comparison = await self._compare(
+            gql_client, _comparison_data, "correctness", "toxicity", threshold_b=0.85
+        )
+        assert comparison["sideB"]["threshold"] == pytest.approx(0.85)
+        assert comparison["sideB"]["flaggedCount"] == 1
+        assert comparison["confusionMatrix"] == [[0, 2], [1, 1]]
+        statistics = comparison["statistics"]
+        assert statistics["agreement"] == pytest.approx(0.75)
+        assert statistics["disagreementCount"] == 1
+
+    async def test_session_level_comparison(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        comparison = await self._compare(
+            gql_client, _comparison_data, "session_evaluator", "session_quality_two"
+        )
+        assert comparison["evaluationTarget"] == "SESSION"
+        assert comparison["coverage"] == {
+            "evaluatedByBoth": 1,
+            "onlyA": 0,
+            "onlyB": 0,
+            "totalInRange": 1,
+        }
+        # 0.9 flagged (MINIMIZE), 0.2 not flagged.
+        assert comparison["confusionMatrix"] == [[0, 1], [0, 0]]
+        assert comparison["statistics"]["agreement"] == pytest.approx(0.0)
+
+    async def test_same_evaluator_twice_is_rejected(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        message = await self._compare_expecting_error(
+            gql_client, _comparison_data, "toxicity", "toxicity"
+        )
+        assert "two different evaluators" in message
+
+    async def test_mismatched_levels_are_rejected(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        message = await self._compare_expecting_error(
+            gql_client, _comparison_data, "correctness", "session_evaluator"
+        )
+        assert "same level" in message
+
+    async def test_evaluator_from_another_project_is_not_found(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        message = await self._compare_expecting_error(
+            gql_client, _comparison_data, "correctness", "foreign"
+        )
+        assert "not found" in message
