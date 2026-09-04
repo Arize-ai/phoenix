@@ -229,9 +229,6 @@ describe("the preview binds what a live run binds", () => {
     ({ grain, source }) => {
       const materialized = materializeEvaluatorContext({
         grain,
-        // The cast pairs a grain with its own source, which the compiler
-        // tracks only once the grain is one grain; the record grains share
-        // one shape, so every pairing here is a valid one.
         evaluatorMappingSource: {
           grain,
           source,

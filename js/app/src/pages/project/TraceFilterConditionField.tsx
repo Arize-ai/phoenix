@@ -285,9 +285,8 @@ export const EMPTY_TRACE_FILTER_VOCABULARY: readonly TraceFilterVocabularyTerm[]
   [];
 
 /**
- * The project's trace-filter autocomplete vocabulary. Suspends: the resolver
- * scans annotation names and root-span attributes, so callers render the field
- * with {@link EMPTY_TRACE_FILTER_VOCABULARY} until it arrives.
+ * The project's trace-filter autocomplete vocabulary. Suspends; render the field with
+ * {@link EMPTY_TRACE_FILTER_VOCABULARY} until it arrives.
  */
 export function useTraceFilterVocabulary(
   projectId: string
