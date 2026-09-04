@@ -5,6 +5,7 @@ import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { SpanInfo } from "@phoenix/pages/trace/span";
 import { SpanAsideProvider } from "@phoenix/pages/trace/SpanAsideContext";
 import { SpanInfoCardsProvider } from "@phoenix/pages/trace/SpanInfoCardsContext";
+import { SpanNoteBarProvider } from "@phoenix/pages/trace/SpanNoteBarContext";
 
 import {
   chainJsonIOSpan,
@@ -16,6 +17,7 @@ import {
   llmMultiModalSpan,
   llmPromptTemplateSpan,
   llmRawPromptsSpan,
+  llmReasoningSpan,
   llmToolCallsSpan,
   llmToolDefinitionsSpan,
   rerankerSpan,
@@ -52,14 +54,17 @@ const meta: Meta<typeof SpanInfo> = {
   component: SpanInfo,
   decorators: [
     // the same providers the span details view mounts above these cards: their
-    // open state, the aside the annotations and notes cards open, and a Relay
-    // environment for the annotation components' hooks
+    // open state, the aside the annotations and notes cards open, the note bar
+    // the notes card opens, and a Relay environment for the annotation
+    // components' hooks
     (Story) => (
       <RelayEnvironmentProvider environment={mockRelayEnvironment}>
         <SpanAsideProvider>
-          <SpanInfoCardsProvider>
-            <Story />
-          </SpanInfoCardsProvider>
+          <SpanNoteBarProvider>
+            <SpanInfoCardsProvider>
+              <Story />
+            </SpanInfoCardsProvider>
+          </SpanNoteBarProvider>
         </SpanAsideProvider>
       </RelayEnvironmentProvider>
     ),
@@ -121,6 +126,17 @@ export const LLMRawPrompts: Story = {
  */
 export const LLMMultiModal: Story = {
   args: { span: llmMultiModalSpan },
+};
+
+/**
+ * A reasoning model traced through the OpenAI Responses API. The output opens
+ * with a reasoning block the provider returned encrypted; the replayed
+ * assistant turn in the input carries a reasoning block with a readable
+ * summary. Both are set apart from the answer, and the collapsed previews
+ * quote the answer rather than the thinking.
+ */
+export const LLMReasoning: Story = {
+  args: { span: llmReasoningSpan },
 };
 
 /**
