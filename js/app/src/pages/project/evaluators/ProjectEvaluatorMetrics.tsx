@@ -23,8 +23,7 @@ import { useProjectEvaluatorResultAnnotations } from "./useProjectEvaluatorResul
 
 /**
  * The evaluator's result annotations live at the level its target selects on
- * the evaluated project. TRACE evaluators are stored but never scheduled, so
- * an empty trace-level chart is the honest reading for them.
+ * the evaluated project.
  */
 function getAnnotationLevel(
   evaluationTarget: EvaluationTarget
