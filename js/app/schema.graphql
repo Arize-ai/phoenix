@@ -5021,6 +5021,11 @@ type Trace implements Node {
   rootSpan: Span
 
   """
+  The canonical context that online evaluators bind against when they run on this trace. Null whenever a live evaluation would refuse this trace: it has no root span to evaluate.
+  """
+  evaluationContext: JSON
+
+  """
   The first non-null "user.id" span attribute in the trace, identifying the end user of the traced application.
   """
   userId: String

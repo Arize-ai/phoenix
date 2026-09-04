@@ -1877,6 +1877,98 @@ async def test_project_evaluator_run_summary(
     assert datetime.fromisoformat(run_summary["lastRunAt"]) == now - timedelta(minutes=1)
 
 
+async def test_project_evaluator_run_summary_counts_trace_work(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """A trace evaluator's funnel reads its own work-unit table, not an empty one."""
+    now = datetime.now(timezone.utc)
+    fingerprint = token_hex(8)
+    async with db() as session:
+        project = models.Project(name=f"project-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([project, evaluator])
+        await session.flush()
+        project_evaluator = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            name=Identifier(f"project-evaluator-name-{token_hex(4)}"),
+            evaluation_target="TRACE",
+            filter_condition="",
+            sampling_rate=1.0,
+        )
+        traces = [
+            models.Trace(
+                trace_id=token_hex(8),
+                project_rowid=project.id,
+                start_time=now,
+                end_time=now,
+            )
+            for _ in range(2)
+        ]
+        session.add_all([project_evaluator, *traces])
+        await session.flush()
+        session.add_all(
+            [
+                models.EvalTraceWorkUnit(
+                    trace_rowid=traces[0].id,
+                    evaluator_id=evaluator.id,
+                    project_evaluator_id=project_evaluator.id,
+                    config_fingerprint=fingerprint,
+                    evaluated_through=now,
+                    status="DONE",
+                    updated_at=now - timedelta(minutes=1),
+                ),
+                models.EvalTraceWorkUnit(
+                    trace_rowid=traces[1].id,
+                    evaluator_id=evaluator.id,
+                    project_evaluator_id=project_evaluator.id,
+                    config_fingerprint=fingerprint,
+                    evaluated_through=now,
+                    status="EXPIRED",
+                    error="ROOT_SPAN_MISSING",
+                    updated_at=now - timedelta(minutes=5),
+                ),
+            ]
+        )
+        await session.flush()
+        project_evaluator_id = project_evaluator.id
+
+    response = await gql_client.execute(
+        """query ($id: ID!) {
+            node(id: $id) {
+                ... on ProjectEvaluator {
+                    runSummary {
+                        status
+                        lastRunAt
+                        queuedCount
+                        evaluatedCount
+                        failedCount
+                        lastError
+                    }
+                }
+            }
+        }""",
+        variables={"id": str(GlobalID("ProjectEvaluator", str(project_evaluator_id)))},
+    )
+
+    assert not response.errors and response.data
+    run_summary = response.data["node"]["runSummary"]
+    assert run_summary["status"] == "HEALTHY"
+    assert run_summary["evaluatedCount"] == 1
+    assert run_summary["failedCount"] == 1
+    assert run_summary["queuedCount"] == 0
+    assert run_summary["lastError"] == "ROOT_SPAN_MISSING"
+    assert datetime.fromisoformat(run_summary["lastRunAt"]) == now - timedelta(minutes=1)
+
+
 async def test_project_evaluator_run_summary_reports_failing_when_failure_is_newest(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
