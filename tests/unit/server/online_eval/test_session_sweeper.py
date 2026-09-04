@@ -1212,16 +1212,11 @@ async def test_stop_releases_the_lease_despite_a_second_cancellation(
     await swept.wait()
     assert sweeper._lease_held
 
-    # Stopping the sweeper cancels its task once, then cancels it again when the
-    # stop timeout lapses. The second cancel arrives while the release is in
-    # flight and must not abandon it.
     run.cancel()
     await asyncio.sleep(0)
     run.cancel()
     with pytest.raises(asyncio.CancelledError):
         await run
-    # Nothing here waits on the release: production has no such waiter either, so the
-    # run task itself has to see it through before unwinding.
     assert released.is_set()
 
     async with db() as session:
