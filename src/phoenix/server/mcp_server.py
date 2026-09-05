@@ -57,6 +57,7 @@ from phoenix.server.bearer_auth import (
     token_audience_permits,
 )
 from phoenix.server.mcp.skills import (
+    SHARED_SKILLS_ROOT,
     SKILL_TOOL_NAMES,
     SKILL_TOOLS_TAG,
     get_skill_instructions,
@@ -534,6 +535,7 @@ def create_phoenix_mcp_app(
         monty_runtime=monty_runtime,
         code_mode=get_env_mcp_code_mode(),
         db=db,
+        skills_roots=(SHARED_SKILLS_ROOT,),
     )
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
     # resolves to MCP_MOUNT_PATH itself rather than MCP_MOUNT_PATH + "/mcp".
