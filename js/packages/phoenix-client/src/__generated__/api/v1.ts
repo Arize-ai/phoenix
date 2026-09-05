@@ -430,7 +430,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List dataset splits */
+        get: operations["listDatasetSplits"];
         put?: never;
         /** Create a dataset split */
         post: operations["createDatasetSplit"];
@@ -3979,6 +3980,13 @@ export interface components {
         ListDatasetLabelsForDatasetResponseBody: {
             /** Data */
             data: components["schemas"]["DatasetLabel"][];
+        };
+        /** ListDatasetSplitsResponseBody */
+        ListDatasetSplitsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetSplit"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** ListDatasetVersionsResponseBody */
         ListDatasetVersionsResponseBody: {
@@ -8904,6 +8912,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listDatasetSplits: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination */
+                cursor?: string | null;
+                /** @description The max number of dataset splits to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDatasetSplitsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
