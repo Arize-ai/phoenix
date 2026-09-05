@@ -26,7 +26,7 @@ results across agents, models, attempts, and time.
 
 The plugin:
 
-- infers a Phoenix dataset from the Harbor dataset
+- infers a Phoenix dataset from the Harbor tasks
 - creates one Phoenix experiment for each agent and model in a job
 - records each Harbor trial as an experiment run
 - stores Harbor's aggregate reward and infrastructure status as dense evaluation scores

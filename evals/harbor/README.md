@@ -90,36 +90,7 @@ make harbor-run HARBOR_TASK=evals/harbor/tasks/regression-triage \
   HARBOR_ATTEMPTS=1
 ```
 
-Run the Phoenix plugin end-to-end matrix with:
-
-```bash
-make harbor-plugin-e2e
-```
-
-The command requires Docker. It builds the current client wheel, starts an isolated Phoenix
-server, and exercises dataset snapshots, experiment runs, repetitions, multiple agents, resume,
-and startup failures with Harbor 0.21.0. Successful runs remove their temporary workspace. Failed
-runs print and retain the workspace path for investigation. Set `HARBOR_E2E_KEEP=1` to retain a
-successful run as well.
-
-Run the credentialed ATIF matrix with:
-
-```bash
-OPENAI_API_KEY=... ANTHROPIC_API_KEY=... make harbor-plugin-e2e-atif
-```
-
-This target runs three cases, selectable with `HARBOR_E2E_ATIF_CASES` (comma-separated):
-
-| Case | Agent | What it checks |
-| --- | --- | --- |
-| `terminus` | Terminus-2 on `HARBOR_ATIF_MODEL` | Three Terminal-Bench trials in one experiment: run linkage, measured LLM timing, equal-time ordering, idempotent resume |
-| `compaction` | Terminus-2, forced summarization | The compaction span, continuation trajectory, and three summarizer subagent trajectories |
-| `multi-step` | Claude Code on `HARBOR_ATIF_CLAUDE_MODEL` | The three-step `evals/harbor/plugin_e2e/word-count` task: one trace with a `harbor.step` span per step, step rewards, idempotent resume |
-
-Every case prints the resulting trace tree and checks the shared invariants: one `harbor.trial`
-root, resolvable parents, one session, target-named spans, no `llm.*` attributes outside LLM
-spans, and input and output on every iteration. Set `HARBOR_E2E_ENDPOINT` to reuse a running
-Phoenix server; otherwise the target starts an isolated server.
+The manually invoked plugin integration tests live in `tests/integration/harbor`.
 
 Browse job results in a local web viewer:
 
