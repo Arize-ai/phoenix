@@ -17,10 +17,13 @@ def get_user(info: Info[Context, None]) -> Optional[int]:
         if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
             user_id = int(user.identity)
     except AssertionError:
-        # Request is not available, try to obtain user identify
-        # this will also throw an assertion error if auth is not available
-        # the finally block will continue execution returning None
-        if info.context.user.is_authenticated:
-            user_id = int(info.context.user.identity)
-    finally:
-        return user_id
+        # Request is not available, try to obtain user identity.
+        # This will also throw an assertion error if auth is not available,
+        # in which case user_id remains None.
+        try:
+            if info.context.user.is_authenticated:
+                user_id = int(info.context.user.identity)
+        except (AssertionError, AttributeError, ValueError):
+            pass
+    return user_id
+
