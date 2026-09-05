@@ -4,6 +4,7 @@ from typing import Any, Literal, Optional
 
 from cachetools import LFUCache, TTLCache
 from sqlalchemy import Select, func, select
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
@@ -94,6 +95,22 @@ class TokenCountDataLoader(DataLoader[Key, Result]):
         return results
 
 
+def _has_llm_child() -> Any:
+    """Whether a span has an LLM-kind child, i.e. is not a leaf LLM span.
+
+    ``spans.span_id`` is unique and ``parent_id`` references it, so this matches
+    within a trace without needing to join on ``trace_rowid``.  It reads the
+    ``ix_spans_parent_id`` index.
+    """
+    child = aliased(models.Span, name="child_span")
+    return (
+        select(1)
+        .where(child.parent_id == models.Span.span_id)
+        .where(func.upper(child.span_kind) == "LLM")
+        .exists()
+    )
+
+
 def _get_stmt(
     segment: Segment,
     *params: Param,
@@ -115,7 +132,13 @@ def _get_stmt(
         # propagate token counts up through wrapping agent/tool spans,
         # so summing every span multi-counts the same tokens (e.g. the
         # dashboard reported 3x the detailed-trace total in #12768).
+        #
+        # Restricting to LLM spans handles a wrapper of a *different* kind, but
+        # not a wrapper that is itself LLM-kind, which some frameworks emit and
+        # which propagates counts the same way.  Excluding LLM spans that have
+        # an LLM child is what makes "leaf" true rather than aspirational.
         .where(func.upper(models.Span.span_kind) == "LLM")
+        .where(~_has_llm_child())
         .group_by(pid)
     )
     if start_time:
