@@ -221,6 +221,7 @@
                       "docs/phoenix/evaluation/pre-built-metrics",
                       "docs/phoenix/evaluation/pre-built-metrics/faithfulness",
                       "docs/phoenix/evaluation/pre-built-metrics/hallucination",
+                      "docs/phoenix/evaluation/pre-built-metrics/completeness",
                       "docs/phoenix/evaluation/pre-built-metrics/conciseness",
                       "docs/phoenix/evaluation/pre-built-metrics/correctness",
                       "docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance",

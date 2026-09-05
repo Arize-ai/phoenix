@@ -10,6 +10,7 @@ Covers:
 import pytest
 
 from phoenix.evals.llm.prompts import PromptTemplate
+from phoenix.evals.metrics.completeness import CompletenessEvaluator
 from phoenix.evals.metrics.conciseness import ConcisenessEvaluator
 from phoenix.evals.metrics.correctness import CorrectnessEvaluator
 from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
@@ -58,6 +59,15 @@ ALL_EVALUATORS = [
         FaithfulnessEvaluator,
         {"input": "Q", "output": "A", "context": "C"},
         id="FaithfulnessEvaluator",
+    ),
+    pytest.param(
+        CompletenessEvaluator,
+        {
+            "conversation": (
+                "User: Reset my password and update billing.\nAssistant: Password reset."
+            ),
+        },
+        id="CompletenessEvaluator",
     ),
     pytest.param(
         RetrievalRelevanceEvaluator,

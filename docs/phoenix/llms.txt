@@ -124,6 +124,7 @@
 
 ### Pre-Built Metrics — Individual Pages
 
+- [Completeness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/completeness): Evaluate whether every active user request in a conversation was actually completed
 - [Conciseness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/conciseness): Evaluate whether LLM responses are concise and free of unnecessary content
 - [Correctness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/correctness): Evaluate whether LLM responses are generally correct and complete
 - [Exact Match](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match): Evaluate if output exactly matches expected value
