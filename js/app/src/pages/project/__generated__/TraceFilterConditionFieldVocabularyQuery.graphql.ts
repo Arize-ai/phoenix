@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1513eb0e19238bade5fdd0073a8cc831>>
+ * @generated SignedSource<<34fee6eb935464d0310dede31ae7e267>>
  * @lightSyntaxTransform
  */
 
@@ -12,11 +12,11 @@ export type TimeRange = {
   end?: string | null;
   start?: string | null;
 };
-export type TracesTableTraceFilterVocabularyQuery$variables = {
+export type TraceFilterConditionFieldVocabularyQuery$variables = {
   id: string;
   timeRange: TimeRange;
 };
-export type TracesTableTraceFilterVocabularyQuery$data = {
+export type TraceFilterConditionFieldVocabularyQuery$data = {
   readonly project: {
     readonly traceFilterVocabulary?: ReadonlyArray<{
       readonly category: string;
@@ -27,9 +27,9 @@ export type TracesTableTraceFilterVocabularyQuery$data = {
     }>;
   };
 };
-export type TracesTableTraceFilterVocabularyQuery = {
-  response: TracesTableTraceFilterVocabularyQuery$data;
-  variables: TracesTableTraceFilterVocabularyQuery$variables;
+export type TraceFilterConditionFieldVocabularyQuery = {
+  response: TraceFilterConditionFieldVocabularyQuery$data;
+  variables: TraceFilterConditionFieldVocabularyQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -116,7 +116,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "TracesTableTraceFilterVocabularyQuery",
+    "name": "TraceFilterConditionFieldVocabularyQuery",
     "selections": [
       {
         "alias": "project",
@@ -138,7 +138,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "TracesTableTraceFilterVocabularyQuery",
+    "name": "TraceFilterConditionFieldVocabularyQuery",
     "selections": [
       {
         "alias": "project",
@@ -169,16 +169,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bb9612af7bc3edf8c12a52dd20a3e3ce",
+    "cacheID": "b1e3f47ec1c8ff023e1e6e8bcbcf71cb",
     "id": null,
     "metadata": {},
-    "name": "TracesTableTraceFilterVocabularyQuery",
+    "name": "TraceFilterConditionFieldVocabularyQuery",
     "operationKind": "query",
-    "text": "query TracesTableTraceFilterVocabularyQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      traceFilterVocabulary(timeRange: $timeRange) {\n        name\n        type\n        description\n        category\n        iterableName\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceFilterConditionFieldVocabularyQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      traceFilterVocabulary(timeRange: $timeRange) {\n        name\n        type\n        description\n        category\n        iterableName\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bcf08c7f153e826c96aefd129f4174d8";
+(node as any).hash = "83c927b26c0fe3d7c175189a8df05f5f";
 
 export default node;
