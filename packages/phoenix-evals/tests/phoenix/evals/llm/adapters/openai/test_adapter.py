@@ -54,6 +54,8 @@ def _make_structured_output_response(label: str = "yes") -> MagicMock:
     response = MagicMock()
     response.choices = [MagicMock()]
     response.choices[0].message.content = json.dumps({"label": label})
+    response.choices[0].message.refusal = None
+    response.choices[0].finish_reason = "stop"
     return response
 
 
@@ -62,6 +64,8 @@ def _make_tool_calling_response(label: str = "yes") -> MagicMock:
     response = MagicMock()
     response.choices = [MagicMock()]
     response.choices[0].message.content = None
+    response.choices[0].message.refusal = None
+    response.choices[0].finish_reason = "tool_calls"
     tool_call = MagicMock()
     tool_call.function.arguments = json.dumps({"label": label})
     response.choices[0].message.tool_calls = [tool_call]

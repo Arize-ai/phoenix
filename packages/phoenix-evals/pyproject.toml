@@ -29,6 +29,7 @@ dependencies = [
   "pystache",
   "pydantic>=2.0.0",
   "jsonpath_ng",
+  "jsonschema>=4.0.0",
   "openinference-semantic-conventions>=0.1.19",
   "openinference-instrumentation>=0.1.20",
   "opentelemetry-api",

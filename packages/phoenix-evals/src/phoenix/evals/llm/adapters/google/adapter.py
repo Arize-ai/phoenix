@@ -11,10 +11,22 @@ from ...prompts import (
     validate_message_dict,
 )
 from ...registries import register_adapter, register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ...types import (
+    BaseLLMAdapter,
+    MalformedOutputError,
+    ObjectGenerationMethod,
+    RefusalError,
+    TruncatedResponseError,
+)
 from .factories import GoogleGenAIClientWrapper, create_google_genai_client
 
 logger = logging.getLogger(__name__)
+
+# finish_reason values that mean the model declined/blocked the output rather
+# than a capability mismatch or truncation.
+_REFUSAL_FINISH_REASONS = frozenset(
+    {"SAFETY", "PROHIBITED_CONTENT", "RECITATION", "BLOCKLIST", "SPII", "LANGUAGE"}
+)
 
 
 class GoogleGenAIRateLimitError(Exception):
@@ -31,6 +43,19 @@ def identify_google_genai_client(client: Any) -> bool:
 
 def get_google_genai_rate_limit_errors() -> list[Type[Exception]]:
     return [GoogleGenAIRateLimitError]
+
+
+def _is_google_capability_mismatch(error: BaseException) -> bool:
+    """A genuine capability-mismatch signal: an HTTP 400 (bad request) from the
+    API, e.g. the model rejecting ``response_schema`` or the tool config.
+    Authentication (401), permission/quota (403), and everything else must
+    return directly rather than trigger a fallback attempt.
+    """
+    try:
+        from google.genai.errors import ClientError
+    except ImportError:
+        return False
+    return isinstance(error, ClientError) and getattr(error, "code", None) == 400
 
 
 @register_adapter(
@@ -201,20 +226,14 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            try:
-                return self._generate_with_structured_output(prompt, schema, **kwargs)
-            except Exception as structured_error:
-                logger.debug(
-                    f"Structured output failed for {self.client.model}, falling back to tool "
-                    f"calling: {structured_error}"
-                )
-                try:
-                    return self._generate_with_tool_calling(prompt, schema, **kwargs)
-                except Exception as tool_error:
-                    raise ValueError(
-                        f"Google GenAI model {self.client.model} failed with both structured "
-                        f"output and tool calling. Tool calling error: {tool_error}"
-                    ) from tool_error
+            result, _ = self._try_with_fallback(
+                primary=lambda: self._generate_with_structured_output(prompt, schema, **kwargs),
+                fallback=lambda: self._generate_with_tool_calling(prompt, schema, **kwargs),
+                primary_name="structured output",
+                fallback_name="tool calling",
+                is_capability_mismatch=_is_google_capability_mismatch,
+            )
+            return result
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -239,20 +258,16 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            try:
-                return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
-            except Exception as structured_error:
-                logger.debug(
-                    f"Structured output failed for {self.client.model}, falling back to tool "
-                    f"calling: {structured_error}"
-                )
-                try:
-                    return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
-                except Exception as tool_error:
-                    raise ValueError(
-                        f"Google GenAI model {self.client.model} failed with both structured "
-                        f"output and tool calling. Tool calling error: {tool_error}"
-                    ) from tool_error
+            result, _ = await self._try_with_fallback_async(
+                primary=lambda: self._async_generate_with_structured_output(
+                    prompt, schema, **kwargs
+                ),
+                fallback=lambda: self._async_generate_with_tool_calling(prompt, schema, **kwargs),
+                primary_name="structured output",
+                fallback_name="tool calling",
+                is_capability_mismatch=_is_google_capability_mismatch,
+            )
+            return result
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -277,9 +292,16 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             response = self.client.models.generate_content(
                 model=self.client.model, contents=content, config=config, **kwargs
             )
+            self._check_finish_reason(response)
 
-            if hasattr(response, "text"):
-                return cast(Dict[str, Any], json.loads(response.text))
+            if hasattr(response, "text") and response.text is not None:
+                try:
+                    data = json.loads(response.text)
+                except json.JSONDecodeError as e:
+                    raise MalformedOutputError(
+                        f"{self.model_name} structured output was not valid JSON: {e}"
+                    ) from e
+                return self._validate_against_schema(data, schema)
             else:
                 raise ValueError("Google GenAI returned no content")
         except Exception as e:
@@ -306,9 +328,16 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             response = await self.client.models.generate_content(
                 model=self.client.model, contents=content, config=config, **kwargs
             )
+            self._check_finish_reason(response)
 
-            if hasattr(response, "text"):
-                return cast(Dict[str, Any], json.loads(response.text))
+            if hasattr(response, "text") and response.text is not None:
+                try:
+                    data = json.loads(response.text)
+                except json.JSONDecodeError as e:
+                    raise MalformedOutputError(
+                        f"{self.model_name} structured output was not valid JSON: {e}"
+                    ) from e
+                return self._validate_against_schema(data, schema)
             else:
                 raise ValueError("Google GenAI returned no content")
         except Exception as e:
@@ -339,13 +368,15 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             response = self.client.models.generate_content(
                 model=self.client.model, contents=content, config=config, **kwargs
             )
+            self._check_finish_reason(response)
 
             if hasattr(response, "candidates") and response.candidates:
                 for candidate in response.candidates:
                     if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
                         for part in candidate.content.parts:
                             if hasattr(part, "function_call"):
-                                return cast(Dict[str, Any], dict(part.function_call.args))
+                                data = dict(part.function_call.args)
+                                return self._validate_against_schema(data, schema)
 
             raise ValueError("No function call in response")
         except Exception as e:
@@ -376,13 +407,15 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             response = await self.client.models.generate_content(
                 model=self.client.model, contents=content, config=config, **kwargs
             )
+            self._check_finish_reason(response)
 
             if hasattr(response, "candidates") and response.candidates:
                 for candidate in response.candidates:
                     if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
                         for part in candidate.content.parts:
                             if hasattr(part, "function_call"):
-                                return cast(Dict[str, Any], dict(part.function_call.args))
+                                data = dict(part.function_call.args)
+                                return self._validate_against_schema(data, schema)
 
             raise ValueError("No function call in response")
         except Exception as e:
@@ -527,6 +560,27 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                     f"are not defined in properties. "
                     f"Properties: {list(property_names)}, Required: {list(required_names)}"
                 )
+
+    def _check_finish_reason(self, response: Any) -> None:
+        """Raise a typed error for a blocked/truncated candidate before we try
+        to parse its (possibly absent) content. Never a capability-mismatch
+        signal -- a refusal or truncation from one method says nothing about
+        whether the other method would succeed.
+        """
+        candidates = getattr(response, "candidates", None)
+        if not candidates:
+            return
+        finish_reason = getattr(candidates[0], "finish_reason", None)
+        if finish_reason is None:
+            return
+        if finish_reason == "MAX_TOKENS":
+            raise TruncatedResponseError(
+                f"{self.model_name} response was truncated (hit the token limit) before completion."
+            )
+        if finish_reason in _REFUSAL_FINISH_REASONS:
+            raise RefusalError(
+                f"{self.model_name} declined to generate output (finish_reason={finish_reason})."
+            )
 
     def _handle_api_error(self, error: Exception) -> None:
         try:

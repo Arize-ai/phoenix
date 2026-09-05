@@ -10,7 +10,12 @@ from ...prompts import (
     validate_message_dict,
 )
 from ...registries import register_adapter, register_provider
-from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ...types import (
+    BaseLLMAdapter,
+    ObjectGenerationMethod,
+    RefusalError,
+    TruncatedResponseError,
+)
 from .factories import AnthropicClientWrapper, create_anthropic_client
 
 logger = logging.getLogger(__name__)
@@ -204,8 +209,9 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         for content_block in response.content:
             if hasattr(content_block, "type") and content_block.type == "tool_use":
-                return cast(Dict[str, Any], content_block.input)
+                return self._validate_against_schema(content_block.input, schema)
 
+        self._raise_for_stop_reason(response)
         raise ValueError("No tool use in response")
 
     async def _async_generate_with_tool_calling(
@@ -231,9 +237,24 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         for content_block in response.content:
             if hasattr(content_block, "type") and content_block.type == "tool_use":
-                return cast(Dict[str, Any], content_block.input)
+                return self._validate_against_schema(content_block.input, schema)
 
+        self._raise_for_stop_reason(response)
         raise ValueError("No tool use in response")
+
+    def _raise_for_stop_reason(self, response: Any) -> None:
+        """Raise a typed error for a refused/truncated response before falling
+        back to the generic "no tool use" error. Never a capability-mismatch
+        signal -- Anthropic has no fallback method to route around this.
+        """
+        stop_reason = getattr(response, "stop_reason", None)
+        if stop_reason == "max_tokens":
+            raise TruncatedResponseError(
+                f"{self.model_name} response was truncated (hit the token limit) "
+                "before the tool call completed."
+            )
+        if stop_reason == "refusal":
+            raise RefusalError(f"{self.model_name} declined to generate output.")
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get("description", "Respond in a format matching the provided schema")

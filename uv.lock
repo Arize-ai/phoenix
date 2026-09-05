@@ -945,6 +945,7 @@ version = "3.6.0"
 source = { editable = "packages/phoenix-evals" }
 dependencies = [
     { name = "jsonpath-ng" },
+    { name = "jsonschema" },
     { name = "openinference-instrumentation" },
     { name = "openinference-semantic-conventions" },
     { name = "opentelemetry-api" },
@@ -983,6 +984,7 @@ requires-dist = [
     { name = "boto3", marker = "extra == 'dev'" },
     { name = "boto3", marker = "extra == 'test'" },
     { name = "jsonpath-ng" },
+    { name = "jsonschema", specifier = ">=4.0.0" },
     { name = "litellm", marker = "python_full_version < '3.14' and extra == 'dev'", specifier = ">=1.83.14" },
     { name = "litellm", marker = "python_full_version < '3.14' and extra == 'test'", specifier = ">=1.83.14" },
     { name = "nest-asyncio", marker = "extra == 'test'" },
