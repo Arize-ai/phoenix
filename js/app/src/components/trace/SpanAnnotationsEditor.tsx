@@ -6,7 +6,6 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import type { FocusManagerOptions } from "react-aria";
 import { FocusScope } from "react-aria";
 import {
   graphql,
@@ -369,13 +368,6 @@ function AnnotationList(props: AnnotationListProps) {
     </Autocomplete>
   );
 }
-
-/**
- * Exclude the explanation button from being focused via the focus manager
- */
-const excludeExplanationButton: FocusManagerOptions["accept"] = (node) => {
-  return !node.matches("button.annotation-input-explanation");
-};
 
 function SpanAnnotationsList(props: {
   spanId: string;
@@ -749,10 +741,7 @@ function SpanAnnotationsList(props: {
       )}
       {!!annotationConfigsLength && (
         <FocusScope>
-          <FocusHotkey
-            hotkey={EDIT_ANNOTATION_HOTKEY}
-            accept={excludeExplanationButton}
-          />
+          <FocusHotkey hotkey={EDIT_ANNOTATION_HOTKEY} />
           {annotationConfigs?.map((annotationConfig, idx) => {
             const annotation = annotations.find(
               (annotation) => annotation.name === annotationConfig.config.name
