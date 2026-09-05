@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.4.0...arize-phoenix-client-v3.5.0) (2026-09-05)
+
+
+### Features
+
+* add MiniMax provider integration ([#14310](https://github.com/Arize-ai/phoenix/issues/14310)) ([7e01ce7](https://github.com/Arize-ai/phoenix/commit/7e01ce703b3830447ebdf641ccbb95089778e810))
+
+
+### Documentation
+
+* **phoenix-client:** create_dataset docstring documented dataset_name, param is name ([#15950](https://github.com/Arize-ai/phoenix/issues/15950)) ([397088a](https://github.com/Arize-ai/phoenix/commit/397088a263e0d999c3912cd85adc05166cbf69a2))
+
 ## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.3.0...arize-phoenix-client-v3.4.0) (2026-09-03)
 
 
