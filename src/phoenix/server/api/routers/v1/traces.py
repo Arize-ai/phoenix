@@ -101,6 +101,10 @@ class GetTracesResponseBody(PaginatedResponseBody[TraceData]):
     pass
 
 
+class GetTraceResponseBody(ResponseBody[TraceData]):
+    pass
+
+
 def _to_trace_data(
     trace: models.Trace,
     project_id: int,
@@ -799,6 +803,53 @@ async def transfer_traces(
             destination_project_id=str(GlobalID(ProjectNodeType.__name__, str(project.id))),
         )
     )
+
+
+@router.get(
+    "/traces/{trace_identifier}",
+    operation_id="getTrace",
+    summary="Get a single trace by identifier",
+    description=(
+        "Fetch a single trace by its identifier, without requiring a project. "
+        "The identifier can be either:\n"
+        "1. A Relay node ID (base64-encoded GlobalID)\n"
+        "2. An OpenTelemetry trace_id (hex string)\n\n"
+        "Returns the same trace shape as the project traces list endpoint, including "
+        "cumulative token counts and the owning `project_id`. Span details are not "
+        "included; use `GET /projects/{project_identifier}/spans?trace_id=...` to "
+        "retrieve spans."
+    ),
+    responses=add_errors_to_responses([404]),
+)
+async def get_trace(
+    request: Request,
+    trace_identifier: str = Path(
+        description="The trace identifier: either a relay GlobalID or OpenTelemetry trace_id",
+    ),
+) -> GetTraceResponseBody:
+    async with request.app.state.db.read() as session:
+        # Mirrors the identifier resolution used by DELETE /traces/{trace_identifier}: try the
+        # GlobalID form first, then fall back to treating the value as an OTel trace_id.
+        try:
+            trace_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(trace_identifier),
+                TraceNodeType.__name__,
+            )
+        except Exception:
+            stmt = select(models.Trace).where(models.Trace.trace_id == trace_identifier)
+            error_detail = f"Trace with trace_id '{trace_identifier}' not found"
+        else:
+            stmt = select(models.Trace).where(models.Trace.id == trace_rowid)
+            error_detail = f"Trace with relay ID '{trace_identifier}' not found"
+        trace = await session.scalar(stmt)
+        if trace is None:
+            raise HTTPException(status_code=404, detail=error_detail)
+        token_counts: Optional[tuple[int, int]] = None
+        row = (await session.execute(token_counts_by_trace([trace.id]))).first()
+        if row is not None:
+            token_counts = (row.prompt, row.completion)
+        data = _to_trace_data(trace, trace.project_rowid, token_counts=token_counts)
+    return GetTraceResponseBody(data=data)
 
 
 @router.delete(
