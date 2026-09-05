@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f9c36a88991d09a0c5f0f8caa7f9d09e>>
+ * @generated SignedSource<<89c83deaae2dd159e07756dc90b7251a>>
  * @lightSyntaxTransform
  */
 
@@ -16,6 +16,7 @@ export type ExperimentCompareTable_comparisons$data = {
     readonly edges: ReadonlyArray<{
       readonly comparison: {
         readonly example: {
+          readonly externalId: string | null;
           readonly id: string;
           readonly revision: {
             readonly input: any;
@@ -358,6 +359,13 @@ return {
                   "plural": false,
                   "selections": [
                     (v1/*:: as any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "externalId",
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -872,6 +880,6 @@ return {
 };
 })();
 
-(node as any).hash = "33ea7d0490310d4c56e46aaad74e779c";
+(node as any).hash = "bc7d16b07e75d7362393b5acf3c80db2";
 
 export default node;
