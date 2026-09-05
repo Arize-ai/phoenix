@@ -47,6 +47,7 @@ const llmProjectEvaluatorDetailsFragment = graphql`
     name
     description
     kind
+    llmInputSchema: inputSchema
     outputConfigs {
       __typename
       ... on CategoricalAnnotationConfig {
@@ -109,6 +110,7 @@ const codeProjectEvaluatorDetailsFragment = graphql`
     name
     description
     kind
+    codeInputSchema: inputSchema
     outputConfigs {
       __typename
       ... on CategoricalAnnotationConfig {
@@ -162,10 +164,19 @@ type ProjectEvaluatorDetailsNode = NonNullable<
   projectEvaluatorDetailsQuery["response"]["evaluator"]
 >;
 
+export type EvaluatorInputSummary = {
+  readonly name: string;
+  readonly description?: string;
+};
+
 export type LlmProjectEvaluatorDetails =
-  projectEvaluatorOptions_llmEvaluatorDetails$data;
+  projectEvaluatorOptions_llmEvaluatorDetails$data & {
+    readonly inputs: readonly EvaluatorInputSummary[];
+  };
 export type CodeProjectEvaluatorDetails =
-  projectEvaluatorOptions_codeEvaluatorDetails$data;
+  projectEvaluatorOptions_codeEvaluatorDetails$data & {
+    readonly inputs: readonly EvaluatorInputSummary[];
+  };
 export type ProjectEvaluatorDetails =
   | LlmProjectEvaluatorDetails
   | CodeProjectEvaluatorDetails;
@@ -174,18 +185,45 @@ export function readProjectEvaluatorDetails(
   evaluator: ProjectEvaluatorDetailsNode | null
 ): ProjectEvaluatorDetails | null {
   if (evaluator?.__typename === "LLMEvaluator") {
-    return readInlineData<projectEvaluatorOptions_llmEvaluatorDetails$key>(
-      llmProjectEvaluatorDetailsFragment,
-      evaluator
-    );
+    const details =
+      readInlineData<projectEvaluatorOptions_llmEvaluatorDetails$key>(
+        llmProjectEvaluatorDetailsFragment,
+        evaluator
+      );
+    return {
+      ...details,
+      inputs: getEvaluatorInputSummaries(details.llmInputSchema),
+    };
   }
   if (evaluator?.__typename === "CodeEvaluator") {
-    return readInlineData<projectEvaluatorOptions_codeEvaluatorDetails$key>(
-      codeProjectEvaluatorDetailsFragment,
-      evaluator
-    );
+    const details =
+      readInlineData<projectEvaluatorOptions_codeEvaluatorDetails$key>(
+        codeProjectEvaluatorDetailsFragment,
+        evaluator
+      );
+    return {
+      ...details,
+      inputs: getEvaluatorInputSummaries(details.codeInputSchema),
+    };
   }
   return null;
+}
+
+export function getEvaluatorInputSummaries(
+  inputSchema: unknown
+): EvaluatorInputSummary[] {
+  if (!isStringKeyedObject(inputSchema)) return [];
+  const properties = inputSchema.properties;
+  if (!isStringKeyedObject(properties)) return [];
+  return Object.entries(properties).map(([name, unknownProperty]) => {
+    if (!isStringKeyedObject(unknownProperty)) return { name };
+    const description =
+      typeof unknownProperty.description === "string" &&
+      unknownProperty.description.trim()
+        ? unknownProperty.description
+        : undefined;
+    return { name, description };
+  });
 }
 
 export type BuildCopyLlmCreationModeResult =

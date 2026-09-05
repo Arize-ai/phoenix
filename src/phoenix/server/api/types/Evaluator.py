@@ -25,7 +25,12 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
 from phoenix.server.api.dataloaders.project_evaluator_run_counts import ProjectEvaluatorRunCounts
-from phoenix.server.api.evaluators import BuiltInEvaluator as BuiltInEvaluatorClass
+from phoenix.server.api.evaluators import (
+    BuiltInEvaluator as BuiltInEvaluatorClass,
+)
+from phoenix.server.api.evaluators import (
+    infer_input_schema_from_prompt_template,
+)
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -770,7 +775,14 @@ class LLMEvaluator(Evaluator, Node):
     async def input_schema(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]: ...  # TODO: Implement
+    ) -> JSON:
+        prompt_version = await self._get_prompt_version(info)
+        return JSON(
+            infer_input_schema_from_prompt_template(
+                template=prompt_version.template,
+                template_format=prompt_version.template_format,
+            )
+        )
 
     @strawberry.field
     async def user(
@@ -793,6 +805,15 @@ class LLMEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> Annotated["PromptVersion", strawberry.lazy(".PromptVersion")]:
+        prompt_version = await self._get_prompt_version(info)
+        from .PromptVersion import to_gql_prompt_version
+
+        return to_gql_prompt_version(prompt_version)
+
+    async def _get_prompt_version(
+        self,
+        info: Info[Context, None],
+    ) -> models.PromptVersion:
         if self.db_record:
             prompt_id = self.db_record.prompt_id
             prompt_version_tag_id = self.db_record.prompt_version_tag_id
@@ -807,26 +828,27 @@ class LLMEvaluator(Evaluator, Node):
                 ]
             )
         if prompt_version_tag_id is not None:
-            stmt = (
-                sa.select(models.PromptVersion)
-                .join(models.PromptVersionTag)
-                .where(models.PromptVersionTag.prompt_id == prompt_id)
-                .where(models.PromptVersionTag.id == prompt_version_tag_id)
+            (
+                tag_prompt_id,
+                prompt_version_id,
+            ) = await info.context.data_loaders.prompt_version_tag_fields.load_many(
+                [
+                    (prompt_version_tag_id, models.PromptVersionTag.prompt_id),
+                    (prompt_version_tag_id, models.PromptVersionTag.prompt_version_id),
+                ]
             )
-        else:
-            stmt = (
-                sa.select(models.PromptVersion)
-                .where(models.PromptVersion.prompt_id == prompt_id)
-                .order_by(models.PromptVersion.id.desc())
-                .limit(1)
-            )
-        async with info.context.db.read() as session:
-            prompt_version = await session.scalar(stmt)
-            if prompt_version is None:
+            if tag_prompt_id != prompt_id:
                 raise NotFound(f"Prompt version not found for prompt {prompt_id}")
-        from .PromptVersion import to_gql_prompt_version
-
-        return to_gql_prompt_version(prompt_version)
+        else:
+            prompt_version_id = await info.context.data_loaders.latest_prompt_version_ids.load(
+                prompt_id
+            )
+        if prompt_version_id is None:
+            raise NotFound(f"Prompt version not found for prompt {prompt_id}")
+        prompt_version = await info.context.data_loaders.prompt_versions.load(prompt_version_id)
+        if prompt_version is None or prompt_version.prompt_id != prompt_id:
+            raise NotFound(f"Prompt version not found for prompt {prompt_id}")
+        return prompt_version
 
 
 @strawberry.type

@@ -103,6 +103,10 @@ const projectEvaluatorGalleryPageQuery = graphql`
       scope
       category
       details
+      inputs {
+        name
+        description
+      }
       messages {
         ...promptUtils_promptMessages
       }
@@ -892,6 +896,44 @@ function EvaluatorOutputSummary({
   );
 }
 
+type EvaluatorInputSummaryItem = {
+  readonly name: string;
+  readonly description?: string;
+};
+
+function EvaluatorInputSummary({
+  inputs,
+}: {
+  inputs: readonly EvaluatorInputSummaryItem[];
+}) {
+  if (inputs.length === 0) return null;
+  return (
+    <Flex direction="column" gap="size-75">
+      <Text elementType="h3" size="S" weight="heavy">
+        Inputs
+      </Text>
+      <div css={[detailsSectionWellCSS, listSectionWellCSS]}>
+        <List size="S">
+          {inputs.map((input) => (
+            <ListItem key={input.name}>
+              <Flex direction="column" gap="size-25">
+                <Text size="S" fontFamily="mono" css={inputNameCSS}>
+                  {input.name}
+                </Text>
+                {input.description ? (
+                  <Text size="XS" color="text-700">
+                    {input.description}
+                  </Text>
+                ) : null}
+              </Flex>
+            </ListItem>
+          ))}
+        </List>
+      </div>
+    </Flex>
+  );
+}
+
 function AnnotationValues({
   values,
   optimizationDirection,
@@ -912,33 +954,35 @@ function AnnotationValues({
       <Text elementType="h3" size="S" weight="heavy">
         Annotation values
       </Text>
-      <List size="S">
-        {values.map(({ label, score }) => (
-          <ListItem key={label}>
-            <Flex
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              gap="size-100"
-            >
-              <Text size="S">{label}</Text>
-              <Text size="XS" color="text-500">
-                <AnnotationScoreText
-                  elementType="span"
-                  fontFamily="mono"
-                  size="XS"
-                  positiveOptimization={getPositiveOptimization({
-                    score,
-                    ...optimizationBounds,
-                  })}
-                >
-                  {score ?? "—"}
-                </AnnotationScoreText>
-              </Text>
-            </Flex>
-          </ListItem>
-        ))}
-      </List>
+      <div css={[detailsSectionWellCSS, listSectionWellCSS]}>
+        <List size="S">
+          {values.map(({ label, score }) => (
+            <ListItem key={label}>
+              <Flex
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                gap="size-100"
+              >
+                <Text size="S">{label}</Text>
+                <Text size="XS" color="text-500">
+                  <AnnotationScoreText
+                    elementType="span"
+                    fontFamily="mono"
+                    size="XS"
+                    positiveOptimization={getPositiveOptimization({
+                      score,
+                      ...optimizationBounds,
+                    })}
+                  >
+                    {score ?? "—"}
+                  </AnnotationScoreText>
+                </Text>
+              </Flex>
+            </ListItem>
+          ))}
+        </List>
+      </div>
     </Flex>
   );
 }
@@ -969,6 +1013,7 @@ function LlmCustomEvaluatorDetails({
     <Flex direction="column" gap="size-200" height="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
+      <EvaluatorInputSummary inputs={evaluator.inputs} />
       <EvaluatorPromptPreview messages={messages} />
       <EvaluatorDetailsAction onPress={onDuplicateEvaluator}>
         Duplicate this evaluator
@@ -1002,6 +1047,7 @@ function CodeCustomEvaluatorDetails({
         </div>
       </dl>
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
+      <EvaluatorInputSummary inputs={evaluator.inputs} />
       <Flex direction="column" gap="size-75">
         <Text elementType="h3" size="S" weight="heavy">
           Code
@@ -1044,7 +1090,7 @@ function EvaluatorPromptPreview({
       <Text elementType="h3" size="S" weight="heavy">
         Prompt
       </Text>
-      <div css={promptPreviewWellCSS}>
+      <div css={detailsSectionWellCSS}>
         <ExpandableContent
           height={PROMPT_PREVIEW_COLLAPSED_HEIGHT}
           expandedBehavior="grow"
@@ -1145,6 +1191,12 @@ function EvaluatorTemplateDetails({
           </dd>
         </div>
       </dl>
+      <EvaluatorInputSummary
+        inputs={(template.inputs ?? []).map((input) => ({
+          name: input.name,
+          description: input.description,
+        }))}
+      />
       <AnnotationValues
         values={choices}
         optimizationDirection={template.optimizationDirection}
@@ -1176,12 +1228,20 @@ const stickyUseTemplateFooterCSS = css`
 const PROMPT_PREVIEW_COLLAPSED_HEIGHT = 160;
 const CODE_PREVIEW_COLLAPSED_HEIGHT = 240;
 
-const promptPreviewWellCSS = css`
+const detailsSectionWellCSS = css`
   background-color: var(--global-background-color-100);
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   padding: var(--global-dimension-size-150);
+`;
+
+const listSectionWellCSS = css`
+  padding: var(--global-dimension-size-50);
+`;
+
+const inputNameCSS = css`
+  overflow-wrap: anywhere;
 `;
 
 const promptPreviewMessageCSS = css`
