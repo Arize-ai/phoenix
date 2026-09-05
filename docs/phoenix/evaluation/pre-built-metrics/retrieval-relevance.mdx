@@ -7,6 +7,17 @@ description: "Evaluate whether externally retrieved information is relevant to t
 
 The **Retrieval Relevance** evaluator determines whether the external information retrieved during a step is relevant to the request it was meant to serve. It is **source-agnostic**: the retrieved information may come from a vector-database / semantic search, a tool or function call, an MCP server, a web search, or a database query. It scores the retrieved information as a whole — holistically, per retrieval step — against the request.
 
+<Warning>
+`DocumentRelevanceEvaluator` (Python) and `createDocumentRelevanceEvaluator` (TypeScript) are deprecated in favor of this evaluator, which covers single-document evaluation as well as holistic, source-agnostic retrieval evaluation. To migrate:
+
+| Old (Document Relevance) | New (Retrieval Relevance) |
+|---------------------------|----------------------------|
+| `document_text` / `documentText` input field | `context` input field |
+| `unrelated` label | `irrelevant` label |
+
+The deprecated evaluators will be removed in a future major version.
+</Warning>
+
 ### When to Use
 
 Use the Retrieval Relevance evaluator when you need to:

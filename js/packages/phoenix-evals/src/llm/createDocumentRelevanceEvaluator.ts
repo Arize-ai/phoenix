@@ -18,6 +18,9 @@ export interface DocumentRelevanceEvaluatorArgs<
 
 /**
  * A record to be evaluated by the document relevance evaluator.
+ *
+ * @deprecated Use {@link RetrievalRelevanceEvaluationRecord} instead: rename
+ * `documentText` to `context`. See {@link createDocumentRelevanceEvaluator}.
  */
 export interface DocumentRelevanceEvaluationRecord {
   input: string;
@@ -50,6 +53,12 @@ export interface DocumentRelevanceEvaluationRecord {
  * });
  * console.log(result.label); // "relevant" or "unrelated"
  * ```
+ *
+ * @deprecated Use {@link createRetrievalRelevanceEvaluator} instead, which covers
+ * single-document evaluation as well as holistic, source-agnostic retrieval
+ * evaluation. To migrate: rename the `documentText` input field to `context`, and
+ * update any code that checks for the `unrelated` label to check for `irrelevant`
+ * instead. This function will be removed in a future major version.
  */
 export function createDocumentRelevanceEvaluator<
   RecordType extends Record<string, unknown> =

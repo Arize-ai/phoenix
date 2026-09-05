@@ -1,3 +1,4 @@
+import warnings
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -14,6 +15,15 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
     """
     A specialized evaluator for determining document relevance to a given
     question.
+
+    .. deprecated::
+        ``DocumentRelevanceEvaluator`` is deprecated in favor of
+        :class:`~phoenix.evals.metrics.retrieval_relevance.RetrievalRelevanceEvaluator`,
+        which covers single-document evaluation as well as holistic,
+        source-agnostic retrieval evaluation. To migrate, rename the
+        ``document_text`` input field to ``context`` and update any code that
+        checks for the ``unrelated`` label to check for ``irrelevant``
+        instead. This class will be removed in a future major version.
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
@@ -66,6 +76,15 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         llm: LLM,
         **kwargs: Any,
     ):
+        # TODO(v4): remove this class in favor of RetrievalRelevanceEvaluator.
+        warnings.warn(
+            "DocumentRelevanceEvaluator is deprecated and will be removed in a future "
+            "major version; use RetrievalRelevanceEvaluator instead. Rename the "
+            "'document_text' input field to 'context', and update any code that checks "
+            "for the 'unrelated' label to check for 'irrelevant' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(
             name=self.NAME,
             llm=llm,
