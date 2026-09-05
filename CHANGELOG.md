@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.8.0...arize-phoenix-v20.8.1) (2026-09-05)
+
+
+### Documentation
+
+* fix integration table links in README ([#15949](https://github.com/Arize-ai/phoenix/issues/15949)) ([41cf183](https://github.com/Arize-ai/phoenix/commit/41cf183554e8ebb9507afdb37625243626148e5c))
+
 ## [20.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.7.0...arize-phoenix-v20.8.0) (2026-09-04)
 
 
