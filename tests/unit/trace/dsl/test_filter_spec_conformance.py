@@ -114,10 +114,67 @@ ACCEPTED = [
     # would silently change this condition's meaning -- every new *name* is a
     # breaking change -- so its current meaning is pinned here on purpose.
     "parent == 'x'",
+    # Cost names read the current span's cost row.
+    "total_cost > 0.1",
+    "prompt_cost + completion_cost == total_cost",
+    # Cost only: the token columns beside it on `span_costs` are not members, so
+    # `total_tokens` still reads the attribute of that name.
+    "total_tokens > 100",
+    # The rate has no member of its own; two reductions express it, guarded by `nullif`.
+    "sum(d.cost for d in cost_details) / sum(d.tokens for d in cost_details) > 0.0001",
+    "attributes['span'] == 'x'",
+    "total_cost > 1",
+    # `cost_details` iterates the per-token rows for the current span.
+    "any(d.cost > 1 for d in cost_details)",
+    "all(d.is_prompt for d in cost_details)",
+    "sum(d.tokens for d in cost_details if d.token_type == 'input') > 1000",
+    "len([d for d in cost_details]) > 2",
+    "max(d.cost_per_token for d in cost_details) > 0.001",
+    "any(d.cost > 1 for d in cost_details) and total_cost > 5",
+    # Boolean element fields remain conditions under boolean operators.
+    "all(d.is_prompt for d in cost_details)",
+    "any(not d.is_prompt for d in cost_details)",
+    "any(d.cost > 0 and d.is_prompt for d in cost_details)",
+    # Membership lists are type-checked without numeric coercion.
+    "any(d.cost in [1, 2] for d in cost_details)",
+    "any(span.cost > 1 for span in cost_details)",
+    "any(span.cost > 1 for span in cost_details) and total_cost > 5",
+    # Annotation aliasing preserves scalar and comprehension cost references.
+    "annotations['q'].score > 0.5 and total_cost > 1",
+    "annotations['q'].score > 0.5 and any(d.cost > 1 for d in cost_details)",
 ]
 
 # Every form the spec documents as rejected, with the reason it documents.
 REJECTED = [
+    ("cost_details > 1", "can only be iterated"),
+    ("any(d.nope > 1 for d in cost_details)", "invalid field `d.nope`"),
+    # Element scopes cannot reference an unbound loop variable.
+    ("any(span.cost > 1 for d in cost_details)", "is not reachable"),
+    # Element scopes are closed and strictly typed.
+    ("any(d.cost > 0 for detail in cost_details)", "`d.cost` is not reachable"),
+    # Dotted and subscripted outer-scope references are also rejected.
+    ("any(d.cost > attributes['x'] for d in cost_details)", "is not reachable"),
+    ("any(d.cost > metadata['x'] for d in cost_details)", "is not reachable"),
+    ("any(d.cost > float(attributes['x']) for d in cost_details)", "is not reachable"),
+    ("any(d.token_type in attributes['x'] for d in cost_details)", "is not reachable"),
+    ("any(cumulative_token_count.total > 5 for d in cost_details)", "is not reachable"),
+    ("any(context.span_id == 'abc' for d in cost_details)", "is not reachable"),
+    ("sum(d.cost for d in cost_details if metadata['x'] > 1) > 1", "is not reachable"),
+    ("any(d.cost > total_cost for d in cost_details)", "is a span-level term"),
+    ("any(d.cost > latency_ms for d in cost_details)", "is a span-level term"),
+    ("any(d.cost > 'abc' for d in cost_details)", "cannot compare"),
+    ("sum(d.token_type for d in cost_details) > 0", "reduces numbers"),
+    ("any(d.is_prompt == 'yes' for d in cost_details)", "cannot compare"),
+    ("any(d.cost in ['a', 'b'] for d in cost_details)", "a list is all text or all numbers"),
+    # Element casts use strict semantics.
+    ("any(int(d.cost) > 1 for d in cost_details)", "would not truncate"),
+    ("any(float(d.cost) > 1 for d in cost_details)", "cannot cast a number"),
+    ("any(str(d.token_type) == 'a' for d in cost_details)", "cannot cast text"),
+    # An `if` clause is a condition, so a bare text field is not one.
+    ("sum(d.cost for d in cost_details if d.token_type) > 1", "expected a condition"),
+    # A reduction is a number, not a predicate, so it is no condition on its own.
+    ("sum(d.cost for d in cost_details)", "is not a condition"),
+    ("total_cost > '100'", "cannot compare"),
     # no implicit numeric coercion
     ("latency_ms > '100'", "cannot compare"),
     ("'100' < latency_ms", "cannot compare"),
@@ -198,8 +255,13 @@ REJECTED = [
     ("parent_span == 'LLM'", "can only be compared to None"),
     # an empty eval name can never match an annotation
     ("evals[''] == 'x'", "missing eval name"),
-    # calls other than the three casts
-    ("len(name) > 1", "invalid expression"),
+    # Error examples are valid for their comprehension function.
+    (
+        "len(name) > 1",
+        r"takes a comprehension over cost_details, e\.g\. `len\(\[x for x in cost_details\]\)`",
+    ),  # noqa: E501
+    ("sum(name) > 1", r"e\.g\. `sum\(x\.<field> for x in cost_details\)`"),
+    ("any(name)", r"e\.g\. `any\(x\.<field> == \"\.\.\.\" for x in cost_details\)`"),
     ("name.upper() == 'X'", "invalid expression"),
     ("[x for x in name]", "invalid expression"),
     # annotation members
@@ -217,6 +279,11 @@ SCOPES = [
     ("parent_id is not None", None),
     ("parent_id is None or span_kind == 'LLM'", None),
     ("span_kind == 'LLM'", None),
+    # Cost expressions do not affect root-span scope.
+    ("parent_id is None and total_cost > 1", "strict"),
+    ("parent_span is None and any(d.cost > 1 for d in cost_details)", "orphan_aware"),
+    ("total_cost > 1", None),
+    ("any(d.cost > 1 for d in cost_details)", None),
 ]
 
 

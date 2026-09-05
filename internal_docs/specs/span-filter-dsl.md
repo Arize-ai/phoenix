@@ -127,10 +127,39 @@ of `and`, `or`, and `not`. A condition is one of:
 | Chained comparison | `0.5 < latency_ms < 1000` | yes | yes |
 | Logical combination | `a == 1 and b == 2` | yes | yes |
 | Bare annotation (existence check) | `annotations['quality']` | yes | yes |
+| Quantifier over a collection | `any(d.cost > 1 for d in cost_details)` | yes | yes |
 | Boolean literal | `True`, `False` | **no** | yes |
 
 Anything else in either position is rejected. See
 [Boolean Position](#boolean-position).
+
+**Comprehensions.** `any` and `all` yield a condition; `len`, `sum`, `max`, and
+`min` yield a number and so must be compared. Each must be the sole argument of
+one of those six, range over a declared collection through a single `for` with a
+simple loop variable, and reference that variable only through the collection's
+declared element fields. `len` takes a list comprehension, the rest take a
+generator — inherited from CPython, where `len` needs a sized argument. The
+grain declares one collection, `cost_details`.
+
+The `cost_details` element scope is closed and strictly typed:
+
+- Only the loop variable's declared fields are available. Span names,
+  `attributes[...]`, `metadata[...]`, and compatibility aliases are rejected.
+  Compare span values outside the comprehension, for example
+  `total_cost > 1 and any(d.cost > 0 for d in cost_details)`.
+- Unknown fields and typed mismatches are rejected. For example, `d.cots`
+  reports an unknown field and `d.cost > '100'` reports incompatible types.
+- `int(...)` is unsupported, and casting a value to its existing type is
+  rejected as a no-op.
+- Each `if` clause must be a condition; a bare text field is not valid.
+
+At the top level, unknown names resolve to dynamic attribute paths.
+Therefore `totl_cost > 1` is valid, while the same unknown name inside a
+`cost_details` comprehension is rejected.
+
+Empty-collection results follow CPython: `all(())` is true, `len(())` and
+`sum(())` are `0`. `max(())`/`min(())` raise in Python and are NULL here, which
+fails every comparison — the language cannot raise per row.
 
 A bare boolean literal is the one form that differs between the two columns:
 `name == 'x' and True` is accepted, `True` alone is not. A condition that
@@ -170,18 +199,73 @@ compatibility surface, not an implementation detail.
 supported. A span attribute literally named `parent_span` is still reachable as
 `attributes['parent_span']`.
 
+**Cost** — bare names reading this span's own cost row (`span_costs`, joined on
+demand — see [Cost names](#cost-names)):
+
+- **Number** — `total_cost`, `prompt_cost`, `completion_cost`
+- **Collection** — `cost_details`, iterable only, with element fields
+  `token_type` (string), `is_prompt` (boolean), `cost`, `tokens`,
+  `cost_per_token` (number)
+
 **This list is exhaustive.** Every identifier not named above — including ones
 that look like span columns, such as `events` — resolves to an attribute path,
 not a column. `events == 'x'` compiles to a comparison against
 `attributes['events']` and has nothing to do with the `events` column on the
 table.
 
-Reading the vocabulary out of the code is easy to get wrong here. `_NAMES` is
-the **evaluation namespace** handed to `eval`, and it binds `attributes` and
-`events` because the compiled expression needs them; it is not the set of names
-a user may write. The user-facing vocabulary is
+`_NAMES` is the **evaluation namespace** handed to `eval`, not the set of names
+a user may write. It includes `attributes` and `events` because compiled
+expressions require them. The user-facing vocabulary is
 `_STRING_NAMES ∪ _FLOAT_NAMES ∪ _DATETIME_NAMES ∪ _FLOAT_ATTRIBUTES` plus the
-reserved keyword — exactly the list above.
+reserved keyword and the cost names — exactly the list above. The cost names are
+likewise absent from `_NAMES`: they are bound per-instance against an aliased
+join, which is also why `Projector` does not resolve them.
+
+### Cost names
+
+Bare cost names resolve before dynamic attributes:
+
+| Spelling | Resolves to |
+|---|---|
+| `total_cost` | the current span's cost scalar |
+| `cost_details` | the current span's per-token cost rows |
+| `attributes['total_cost']` | the flat span attribute named `total_cost` |
+| `span.total_cost` | the dynamic attribute path `attributes['span']['total_cost']` |
+| `totl_cost` | the dynamic attribute path `attributes['totl_cost']` |
+
+`span` has no reserved meaning and may be used as a loop variable:
+`any(span.cost > 1 for span in cost_details)`.
+
+Span, trace, and session filters expose the same cost data at their respective grains:
+
+| Capability | Span filter | Trace filter | Session filter |
+|---|---|---|---|
+| Scalar names | `total_cost`, `prompt_cost`, `completion_cost` | Same | Same |
+| Scalar scope | Current span | Sum across the trace | Sum across the session |
+| Missing scalar | `0` | `0` | `0` |
+| Detail collection | `cost_details` | `span_cost_details` | `span_cost_details` |
+| Detail scope | Current span | All spans in the trace | All spans in the session |
+| Nested detail collection | None | `spans.cost_details` | None |
+| Detail fields | `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token` | Same | Same |
+| Collection functions | `any`, `all`, `len`, `sum`, `min`, `max` | Same | Same |
+
+Cost scalars coalesce to `0`; a span without a cost row satisfies
+`total_cost == 0`. Cost-detail fields remain nullable and follow the comparison
+rules in [Unknown types](#unknown-types).
+
+The span vocabulary has no cost-row token-count scalar or aggregate
+cost-per-token scalar. Use these expressions instead:
+
+| Want | Spelling |
+|---|---|
+| Cost per token, this span | `sum(d.cost for d in cost_details) / sum(d.tokens for d in cost_details)` |
+| Cost per token, one token type | `any(d.cost_per_token > 0.0001 for d in cost_details)` |
+| Tokens, this span alone | `attributes['llm']['token_count']['total']` |
+| Tokens, this span and descendants | `cumulative_llm_token_count_total` |
+
+The ratio denominator is wrapped in `nullif`, so missing or zero tokens produce
+NULL instead of a division error or a rate of `0`. The token expressions read
+span attributes; `cumulative_llm_token_count_total` includes descendants.
 
 ### Backward-compatibility aliases
 
@@ -877,7 +961,7 @@ decision should be made knowing it.
   identifiers resolve to attributes, so a first-class field can never again be
   added under the current resolution rule without changing stored meanings
   (see principle 6). If the field vocabulary is expected to grow — and
-  observability schemas do — the strategy (a namespace such as
+  observability schemas do — the strategy (a reserved namespace such as
   `span.<field>`, or freezing the vocabulary outright) has to be picked while
   choosing is still possible.
 
@@ -1420,6 +1504,13 @@ and, where possible, suggest the repair.
 | Unsupported unary operator | `unsupported operator: ~latency_ms` |
 | Unsupported literal | `unsupported literal: b'abc'` |
 | `parent_span` traversal | ``​`parent_span.name` is not supported: ... only `parent_span is None` and `parent_span is not None` are supported`` |
+| Collection in value position | ``​`cost_details` is a collection and can only be iterated, e.g. `any(x.<field> == "..." for x in cost_details)`​`` |
+| Reduction without a comprehension | ``​`len(...)` takes a comprehension over cost_details, e.g. `len([x for x in cost_details])`​`` (the example is per kind) |
+| Unknown iterable | ``invalid iterable `cost_detals`, did you mean "cost_details"?`` |
+| Unknown element field | ``invalid field `d.nope`, expected one of cost, cost_per_token, is_prompt, token_type, or tokens`` |
+| Element field where a top-level name was written | ``​`latency_ms` is a span-level term, not a cost_details element field; …`` |
+| Element operand type | ``cannot compare `x.cost` (a number) with `'abc'` (text)`` |
+| Reduction over a non-number | ``​`sum(...)` reduces numbers, and `x.token_type` is text; …`` |
 | Unknown annotation member | ``invalid eval attribute `.x` in `...`, expected `.score` or …`` |
 | Empty annotation name | ``missing eval name in `evals['']`​`` |
 | Unsupported construct | `invalid expression: <source>` |

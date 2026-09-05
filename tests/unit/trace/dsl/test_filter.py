@@ -243,7 +243,7 @@ async def test_filter_translated(
     "condition",
     [
         pytest.param("name and status_code", id="named-columns"),
-        pytest.param('"" in input.value and span.k', id="issue-5802"),
+        pytest.param('"" in input.value and svc.k', id="issue-5802"),
         pytest.param("revenueio.language_code == 'en-US' and r", id="issue-10306"),
         pytest.param("name == 'n' and r", id="bare-name-operand"),
         pytest.param("name == 'n' and input.value", id="attribute-operand"),

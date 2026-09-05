@@ -21,6 +21,8 @@ from phoenix.db.models import SafeJsonBoolean, SafeJsonFloat
 
 NameMap: TypeAlias = typing.Mapping[str, "sqlalchemy.SQLColumnExpression[typing.Any]"]
 
+FilterValueType: TypeAlias = typing.Literal["boolean", "datetime", "number", "string", "null"]
+
 _VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation")
 
 
@@ -161,6 +163,36 @@ _PARENT_IS_NOT_NULL = "__parent_is_not_null__"
 
 _STRICT_ROOT_KEYWORD = "parent_id"
 
+
+_SPAN_COST_BINDING_PREFIX = "__span_cost_"
+
+
+def _span_cost_binding(member: str) -> str:
+    """Return an eval binding that cannot collide with a user-supplied name."""
+    return f"{_SPAN_COST_BINDING_PREFIX}{member}__"
+
+
+# Cost scalars are bound from `span_costs` at evaluation time and are intentionally absent
+# from `_FLOAT_NAMES`, whose columns are also available to `Projector`. Missing values are 0.
+_SPAN_COST_SCALARS: typing.Mapping[str, "FilterValueType"] = MappingProxyType(
+    {
+        "total_cost": "number",
+        "prompt_cost": "number",
+        "completion_cost": "number",
+    }
+)
+_SPAN_COST_DETAILS = "cost_details"
+# Detail fields remain nullable; a missing element value fails every comparison.
+_COST_DETAIL_FIELDS: typing.Mapping[str, str] = MappingProxyType(
+    {
+        "token_type": "string",
+        "is_prompt": "boolean",
+        "cost": "float",
+        "tokens": "float",
+        "cost_per_token": "float",
+    }
+)
+
 # Comprehension forms: `any`/`all` yield a boolean, the rest yield a number. Each extracted
 # comprehension is replaced by a reserved name carrying the matching prefix, which is how the
 # translator types the result without a per-instance name map.
@@ -230,6 +262,10 @@ class _FilterBindings:
     # Dotted spellings accepted as shorthands for a root-span attribute key, e.g. `user.id`.
     # Under `strict_semantics` every other dotted root is rejected.
     attribute_proxies: frozenset[str] = frozenset()
+    # Noun used when reporting a top-level name referenced from an element scope.
+    term_noun: str = "top-level"
+    # Numeric names bound from related rows when the filter is applied to a statement.
+    deferred_number_names: frozenset[str] = frozenset()
     allow_outer_element_references: bool = False
     allow_datetime_reductions: bool = False
 
@@ -258,6 +294,7 @@ class _FilterBindings:
                 self.aggregate_names,
                 self.exists_names,
                 self.caller_bound_string_names,
+                self.deferred_number_names,
             )
         )
 
@@ -274,6 +311,9 @@ class _IterableGrammar(typing.NamedTuple):
     element_bindings: _FilterBindings
     nested: typing.Mapping[str, str] = MappingProxyType({})
     related: typing.Mapping[str, _FilterBindings] = MappingProxyType({})
+    # `scope` joins and correlates a select that already reads from an alias of `model`.
+    model: typing.Optional[typing.Any] = None
+    scope: typing.Optional[typing.Callable[[typing.Any, typing.Any], typing.Any]] = None
 
 
 class ElementFieldReference(typing.NamedTuple):
@@ -285,6 +325,63 @@ class ElementFieldReference(typing.NamedTuple):
     kind: typing.Literal["string", "float", "datetime", "boolean"]
     uppercase: bool
 
+
+def _cost_detail_bindings() -> _FilterBindings:
+    """Return the closed, strictly typed language for cost-detail elements."""
+
+    def columns(kind: str) -> NameMap:
+        return MappingProxyType(
+            {
+                name: getattr(models.SpanCostDetail, name)
+                for name, field_kind in _COST_DETAIL_FIELDS.items()
+                if field_kind == kind
+            }
+        )
+
+    return _FilterBindings(
+        string_names=columns("string"),
+        float_names=columns("float"),
+        datetime_names=MappingProxyType({}),
+        boolean_names=columns("boolean"),
+        extra_names=MappingProxyType({}),
+        aggregate_names=frozenset(),
+        legacy_replacements=MappingProxyType({}),
+        uppercase_names=frozenset(),
+        # Annotations are unreachable from inside a comprehension, so this surface is
+        # declared to satisfy the dataclass and never consulted.
+        annotation_model=models.SpanAnnotation,
+        annotation_fk="span_rowid",
+        entity_id=models.Span.id,
+        annotation_table_prefix="span_annotation",
+        reject_unbound_names=True,
+        case_insensitive_containment=True,
+        strict_semantics=True,
+    )
+
+
+def _scope_cost_details(stmt: typing.Any, element: typing.Any) -> typing.Any:
+    """Join cost details and correlate them to the filtered span.
+
+    The cost alias cannot collide with a caller's join. Explicit span correlation prevents
+    nested annotation predicates from rendering `spans` as an unconstrained cross join.
+    """
+    span_cost = aliased(models.SpanCost)
+    return (
+        stmt.join(span_cost, onclause=span_cost.id == element.span_cost_id)
+        .where(span_cost.span_rowid == models.Span.id)
+        .correlate(models.Span)
+    )
+
+
+_SPAN_ITERABLES: typing.Mapping[str, "_IterableGrammar"] = MappingProxyType(
+    {
+        _SPAN_COST_DETAILS: _IterableGrammar(
+            element_bindings=_cost_detail_bindings(),
+            model=models.SpanCostDetail,
+            scope=_scope_cost_details,
+        ),
+    }
+)
 
 SPAN_BINDINGS = _FilterBindings(
     string_names=_STRING_NAMES,
@@ -304,10 +401,13 @@ SPAN_BINDINGS = _FilterBindings(
     entity_id=models.Span.id,
     annotation_table_prefix="span_annotation",
     reject_unbound_names=False,
-    quantifiers=frozenset(),
+    quantifiers=frozenset(COMPREHENSION_NAMES),
     exists_names=frozenset(),
     supports_parent_keyword=True,
     case_insensitive_containment=True,
+    deferred_number_names=frozenset(_SPAN_COST_SCALARS),
+    iterables=_SPAN_ITERABLES,
+    term_noun="span-level",
 )
 
 
@@ -485,6 +585,17 @@ def _is_predicate_shaped(
     return False
 
 
+def _comprehension_example(kind: str, bindings: _FilterBindings) -> str:
+    """Return a valid example for the requested comprehension function."""
+    collection = next(iter(bindings.iterables)) if len(bindings.iterables) == 1 else "<collection>"
+    if kind in QUANTIFIER_NAMES:
+        return f'{kind}(x.<field> == "..." for x in {collection})'
+    if kind == "len":
+        # `len` accepts a list comprehension, not a generator expression.
+        return f"{kind}([x for x in {collection}])"
+    return f"{kind}(x.<field> for x in {collection})"
+
+
 def _validate_comprehension_shape(
     comprehension: typing.Union[ast.GeneratorExp, ast.ListComp],
     kind: str,
@@ -576,16 +687,22 @@ def _validate_element_access(
     )
 
 
-def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindings) -> None:
+def _validate_comprehensions(
+    expression: ast.Expression,
+    bindings: _FilterBindings,
+) -> frozenset[int]:
     """Admit comprehensions only in the shapes the compiler can build a subquery from.
 
     A comprehension has to be the sole argument of one of the sanctioned reductions, range over a
     declared iterable through a single non-async `for` with a simple loop variable, and reference
     the loop variable only through its declared fields. Grains that declare no iterables reject
     comprehensions outright, via the node-type whitelist in :func:`_validate_expression`.
+
+    Returns the identities of the nodes accepted as iterators, so a later pass can tell a
+    collection named in `for ... in` position from the same collection named anywhere else.
     """
     if not bindings.iterables:
-        return
+        return frozenset()
     iterable_slots: set[int] = set()
     annotation_accessor_slots = {
         id(node.value) for node in ast.walk(expression.body) if _is_annotation(node, bindings)
@@ -614,7 +731,7 @@ def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindin
             raise SyntaxError(
                 f"`{func.id}(...)` takes a comprehension over "
                 f"{_disjunction(sorted(bindings.iterables))}, "
-                f'e.g. `{func.id}(x.<field> == "..." for x in <collection>)`'
+                f"e.g. `{_comprehension_example(func.id, bindings)}`"
             )
         if isinstance(node, (ast.GeneratorExp, ast.ListComp, ast.SetComp, ast.DictComp)):
             raise SyntaxError(
@@ -638,6 +755,7 @@ def _validate_comprehensions(expression: ast.Expression, bindings: _FilterBindin
                 f"`{node.id}` is a collection and can only be iterated, "
                 f'e.g. `any(x.<field> == "..." for x in {node.id})`'
             )
+    return frozenset(iterable_slots)
 
 
 class _ComprehensionExtractor(ast.NodeTransformer):
@@ -911,6 +1029,8 @@ class _CompiledCondition(typing.NamedTuple):
     """Safe values bound by the translator (e.g. datetime literals) that must be
     present in the eval globals for the compiled expression to evaluate."""
     comprehensions: tuple["ComprehensionSpec", ...] = ()
+    referenced_deferred_numbers: frozenset[str] = frozenset()
+    """Deferred numeric bindings referenced by the condition."""
 
 
 def _compile_condition(
@@ -987,6 +1107,7 @@ def _compile_condition(
         aliased_annotation_attributes,
         translator.literal_bindings,
         comprehensions,
+        frozenset(translator.referenced_deferred_numbers),
     )
 
 
@@ -1021,6 +1142,88 @@ def _join_annotations(
             ),
         )
     return stmt
+
+
+def _join_span_cost(
+    stmt: Select[typing.Any],
+    members: typing.AbstractSet[str],
+) -> tuple[Select[typing.Any], typing.Any, dict[str, typing.Any]]:
+    """Join the filtered span's cost row and bind referenced cost scalars.
+
+    The alias avoids collisions with caller-owned joins. The join is added only when the
+    condition references a cost scalar.
+    """
+    span_cost = aliased(models.SpanCost)
+    stmt = stmt.outerjoin(span_cost, onclause=span_cost.span_rowid == models.Span.id)
+    bindings: dict[str, typing.Any] = {}
+    for member in members:
+        # An absent cost row and a recorded-but-null column are the same answer to the
+        # user's question, so both coalesce.
+        bindings[_span_cost_binding(member)] = sqlalchemy.func.coalesce(
+            getattr(span_cost, member), 0
+        )
+    # The alias is returned so a caller that nests the predicate in a subquery can correlate
+    # it, rather than have the relation re-rendered there as a cross join.
+    return stmt, span_cost, bindings
+
+
+_REDUCTIONS: typing.Mapping[str, typing.Any] = MappingProxyType(
+    {
+        "sum": sqlalchemy.func.sum,
+        "max": sqlalchemy.func.max,
+        "min": sqlalchemy.func.min,
+    }
+)
+
+
+def _comprehension_bindings(
+    specs: typing.Iterable[ComprehensionSpec],
+    bindings: _FilterBindings,
+) -> dict[str, typing.Any]:
+    """Build correlated subqueries for extracted comprehensions."""
+    result: dict[str, typing.Any] = {}
+    for spec in specs:
+        grammar = bindings.iterables[spec.iterable]
+        if grammar.model is None or grammar.scope is None:
+            raise ValueError(f"iterable {spec.iterable!r} declares no lowering")
+        element = aliased(grammar.model)
+        element_globals = _eval_globals(
+            grammar.element_bindings,
+            {},
+            {
+                **spec.literal_bindings,
+                **{name: getattr(element, name) for name in grammar.element_bindings.names},
+            },
+        )
+        # `None` only for `len`, which counts rows and has no element expression; every
+        # other kind reduces or tests one, so the branches below can rely on it.
+        predicate: typing.Any = (
+            None if spec.predicate is None else eval(spec.predicate, element_globals)
+        )
+        if spec.kind in QUANTIFIER_NAMES:
+            stmt = sqlalchemy.select(literal(1))
+        elif spec.kind == "len":
+            stmt = sqlalchemy.select(sqlalchemy.func.count())
+        else:
+            stmt = sqlalchemy.select(_REDUCTIONS[spec.kind](predicate))
+        stmt = grammar.scope(stmt.select_from(element), element)
+        if spec.condition is not None:
+            stmt = stmt.where(eval(spec.condition, element_globals))
+        if spec.kind == "any":
+            result[spec.name] = stmt.where(predicate).exists()
+        elif spec.kind == "all":
+            # A missing field fails every comparison, so an element whose predicate is NULL
+            # has to count as a counterexample: `IS NOT TRUE`, never `NOT`.
+            result[spec.name] = sqlalchemy.not_(stmt.where(predicate.is_not(True)).exists())
+        elif spec.kind in ("len", "sum"):
+            # Python's `len(())` and `sum(())` are both 0, and the reference semantics are
+            # CPython's; an empty subquery would otherwise read as NULL.
+            result[spec.name] = sqlalchemy.func.coalesce(stmt.scalar_subquery(), 0)
+        else:
+            # `max`/`min` over nothing is SQL NULL, which reads as missing and so fails
+            # every comparison -- the same answer Python gives by raising.
+            result[spec.name] = stmt.scalar_subquery()
+    return result
 
 
 def _eval_globals(
@@ -1061,6 +1264,8 @@ class SpanFilter:
     _aliased_annotation_relations: tuple[AliasedAnnotationRelation] = field(init=False, repr=False)
     _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
     _literal_bindings: dict[str, typing.Any] = field(init=False, repr=False)
+    _comprehensions: tuple[ComprehensionSpec, ...] = field(init=False, repr=False)
+    _referenced_deferred_numbers: frozenset[str] = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
         return bool(self.condition)
@@ -1096,52 +1301,28 @@ class SpanFilter:
         object.__setattr__(self, "condition", self.condition.strip())
         if not (source := self.condition):
             return
-        try:
-            root = ast.parse(source, mode="eval")
-        except ValueError as error:
-            # A NUL anywhere in the source, which CPython 3.10 reports as a
-            # `ValueError` rather than a `SyntaxError`. Callers catch only the
-            # latter, so it would escape as a server error. From 3.11 on the
-            # same NUL is already a `SyntaxError`, reworded by the
-            # `_format_syntax_error` boundary in `__post_init__`.
-            raise SyntaxError("condition cannot contain a NUL character") from error
-        _validate_expression(root, source)
-        # Derived from the tree parsed just above rather than from the source
-        # again, so a caller holding a filter is spared a parse of its own.
-        # Taken after validation so that a filter which escapes this
-        # constructor always carries the scope of a condition known to be
-        # valid, and so that invalid input is not analyzed for nothing.
-        object.__setattr__(self, "root_scope", _scope_or_none(root.body))
-        source, aliased_annotation_relations = _apply_eval_aliasing(source)
-        root = ast.parse(source, mode="eval")
-        translator = _FilterTranslator(
-            reserved_keywords=(
-                alias
-                for aliased_annotation in aliased_annotation_relations
-                for alias, _ in aliased_annotation.attributes
-            ),
-            string_keywords=(
-                alias
-                for aliased_annotation in aliased_annotation_relations
-                for alias in (
-                    aliased_annotation._label_attribute_alias,
-                    aliased_annotation._explanation_attribute_alias,
-                )
-            ),
+        compiled_condition = _compile_condition(source, SPAN_BINDINGS, None)
+        # Analyze the validated, pre-aliasing tree so scope reflects the user's expression.
+        object.__setattr__(self, "root_scope", _scope_or_none(compiled_condition.validated.body))
+        object.__setattr__(self, "translated", compiled_condition.translated)
+        object.__setattr__(self, "compiled", compiled_condition.compiled)
+        object.__setattr__(
+            self,
+            "_aliased_annotation_relations",
+            compiled_condition.aliased_annotation_relations,
         )
-        translated = translator.visit(root)
-        ast.fix_missing_locations(translated)
-        compiled = compile(translated, filename="", mode="eval")
-        aliased_annotation_attributes = {
-            alias: attribute
-            for aliased_annotation in aliased_annotation_relations
-            for alias, attribute in aliased_annotation.attributes
-        }
-        object.__setattr__(self, "translated", translated)
-        object.__setattr__(self, "compiled", compiled)
-        object.__setattr__(self, "_aliased_annotation_relations", aliased_annotation_relations)
-        object.__setattr__(self, "_aliased_annotation_attributes", aliased_annotation_attributes)
-        object.__setattr__(self, "_literal_bindings", translator.literal_bindings)
+        object.__setattr__(
+            self,
+            "_aliased_annotation_attributes",
+            compiled_condition.aliased_annotation_attributes,
+        )
+        object.__setattr__(self, "_literal_bindings", compiled_condition.literal_bindings)
+        object.__setattr__(self, "_comprehensions", compiled_condition.comprehensions)
+        object.__setattr__(
+            self,
+            "_referenced_deferred_numbers",
+            compiled_condition.referenced_deferred_numbers,
+        )
 
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
@@ -1167,28 +1348,49 @@ class SpanFilter:
             .correlate(models.Span)
             .exists()
         )
+        stmt = select
+        extra_bindings: dict[str, typing.Any] = {
+            **self._literal_bindings,
+            _PARENT_IS_NULL: ~parent_exists,
+            _PARENT_IS_NOT_NULL: parent_exists,
+        }
+        # The cost relation is joined to the outer statement, so a predicate that reads it
+        # from inside the annotation `EXISTS` has to correlate it as well; see there.
+        correlated: list[typing.Any] = [models.Span]
+        if self._referenced_deferred_numbers:
+            stmt, span_cost, cost_bindings = _join_span_cost(
+                stmt, self._referenced_deferred_numbers
+            )
+            extra_bindings.update(cost_bindings)
+            correlated.append(span_cost)
+        if self._comprehensions:
+            extra_bindings.update(_comprehension_bindings(self._comprehensions, SPAN_BINDINGS))
         predicate = eval(
             self.compiled,
             _eval_globals(
                 SPAN_BINDINGS,
                 self._aliased_annotation_attributes,
-                {
-                    **self._literal_bindings,
-                    _PARENT_IS_NULL: ~parent_exists,
-                    _PARENT_IS_NOT_NULL: parent_exists,
-                },
+                extra_bindings,
             ),
         )
         if not self._aliased_annotation_relations:
-            return select.where(predicate)
-        return select.where(self._annotation_predicate_exists(predicate))
+            return stmt.where(predicate)
+        return stmt.where(self._annotation_predicate_exists(predicate, correlated))
 
-    def _annotation_predicate_exists(self, predicate: ColumnElement[bool]) -> ColumnElement[bool]:
+    def _annotation_predicate_exists(
+        self,
+        predicate: ColumnElement[bool],
+        correlated: typing.Sequence[typing.Any],
+    ) -> ColumnElement[bool]:
         """Evaluate annotation predicates without duplicating spans.
 
         The one-row seed preserves outer-join semantics for missing annotations.
         The correlated ``EXISTS`` prevents annotations with multiple identifiers
         from duplicating spans in the outer query.
+
+        Every relation the predicate reads off the outer statement has to be named in
+        ``correlated``: naming any of them turns auto-correlation off, so one left out
+        would be re-rendered in this subquery's own ``FROM`` as a cross join.
         """
         seed = sqlalchemy.select(literal(True).label("seed")).subquery()
         statement = sqlalchemy.select(literal(True)).select_from(seed)
@@ -1205,7 +1407,7 @@ class SpanFilter:
                     aliased_annotation.name == annotation_relation.name,
                 ),
             )
-        return statement.where(predicate).correlate(models.Span).exists()
+        return statement.where(predicate).correlate(*correlated).exists()
 
     def to_dict(self) -> dict[str, typing.Any]:
         return {"condition": self.condition}
@@ -1551,9 +1753,6 @@ def _is_bool_sequence(node: typing.Any) -> TypeGuard[typing.Union[ast.List, ast.
     )
 
 
-FilterValueType: TypeAlias = typing.Literal["boolean", "datetime", "number", "string", "null"]
-
-
 def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
     if isinstance(node, ast.Constant):
         if node.value is None:
@@ -1620,7 +1819,7 @@ def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
     return None
 
 
-def _require_condition(node: ast.expr) -> None:
+def _require_condition(node: ast.AST) -> None:
     """Require `node` to be a condition rather than a value.
 
     Each operand of `and` / `or` / `not` becomes an argument of SQL `AND` / `OR`
@@ -1663,11 +1862,20 @@ def _get_named_filter_value_type(name: str) -> typing.Optional[FilterValueType]:
         return "number"
     if name in _DATETIME_NAMES:
         return "datetime"
+    # Deferred cost scalars use declared types because they have no `Span` column.
+    if name in _SPAN_COST_SCALARS:
+        return _SPAN_COST_SCALARS[name]
     return None
 
 
-def _validate_operand_types(expression: ast.Expression) -> None:
+def _validate_operand_types(
+    expression: ast.Expression,
+    delegated: typing.AbstractSet[int] = frozenset(),
+) -> None:
+    """Validate span-level operands outside delegated element scopes."""
     for node in ast.walk(expression.body):
+        if id(node) in delegated:
+            continue
         if (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
@@ -2163,6 +2371,7 @@ def _is_float(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Call
             node.id in bindings.float_names
             or node.id in bindings.aggregate_names
             or node.id.startswith(_REDUCTION_RESULT_PREFIX)
+            or node.id.startswith(_SPAN_COST_BINDING_PREFIX)
         )
         or _is_cast(node, "Float")
         or _is_float_constant(node)
@@ -2241,6 +2450,7 @@ class _FilterTranslator(_ProjectionTranslator):
         super().__init__(reserved_keywords, bindings)
         self._string_keywords = frozenset(string_keywords)
         self.literal_bindings: dict[str, typing.Any] = {}
+        self.referenced_deferred_numbers: set[str] = set()
 
     @property
     def _containment_function(self) -> str:
@@ -2259,6 +2469,9 @@ class _FilterTranslator(_ProjectionTranslator):
                 "`parent_span` can only be used as `parent_span is None` "
                 "or `parent_span is not None`"
             )
+        if node.id in self._bindings.deferred_number_names:
+            self.referenced_deferred_numbers.add(node.id)
+            return ast.Name(id=_span_cost_binding(node.id), ctx=ast.Load())
         return super().visit_Name(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
@@ -2759,6 +2972,16 @@ def _symbol(op: ast.AST) -> str:
     return _OPERATOR_SYMBOLS.get(type(op), type(op).__name__)
 
 
+def _element_scope_error(node: ast.expr, scope: "_ElementScope") -> SyntaxError:
+    """Reject references outside a comprehension's element scope."""
+    source = _ellipsize(ast.unparse(node), 80)
+    fields = _disjunction(sorted(scope.grammar.element_bindings.binding_names))
+    return SyntaxError(
+        f"`{source}` is not reachable inside a comprehension over `{scope.iterable}`; "
+        f"a {scope.iterable} element exposes {fields}"
+    )
+
+
 def _raise_invalid_name(source_segment: str, bindings: _FilterBindings) -> typing.NoReturn:
     choice, score = _find_best_match(source_segment, bindings.binding_names)
     suggestion = f', did you mean "{choice}"?' if choice and score > 0.75 else ""
@@ -2817,7 +3040,7 @@ class _SemanticPolicy:
         if isinstance(node, ast.Attribute):
             return self._attribute(node, scopes)
         if isinstance(node, ast.Subscript):
-            return self._subscript(node)
+            return self._subscript(node, scopes)
         if isinstance(node, ast.BoolOp):
             for value in node.values:
                 self._expect(value, scopes, "boolean")
@@ -2880,8 +3103,9 @@ class _SemanticPolicy:
             if name in self._bindings.binding_names:
                 fields = scope.grammar.element_bindings.binding_names
                 raise SyntaxError(
-                    f"`{name}` is a top-level term, not a {scope.iterable} element field; "
-                    f"a {scope.iterable} element exposes {_disjunction(sorted(fields))}"
+                    f"`{name}` is a {self._bindings.term_noun} term, not a {scope.iterable} "
+                    f"element field; a {scope.iterable} element exposes "
+                    f"{_disjunction(sorted(fields))}"
                 )
             _raise_invalid_name(name, scope.grammar.element_bindings)
         return self._binding(name, self._bindings)
@@ -2917,6 +3141,9 @@ class _SemanticPolicy:
                 return self._binding(typing.cast(str, steps[1]), related)
         if _is_annotation(node.value, self._bindings):
             return "float" if node.attr == "score" else "string"
+        if scopes:
+            # Only loop-variable attributes are available inside element scopes.
+            raise _element_scope_error(node, scopes[-1])
         source = ast.unparse(node)
         if replacement := self._bindings.legacy_replacements.get(source):
             return self._binding(replacement, self._bindings)
@@ -2929,8 +3156,10 @@ class _SemanticPolicy:
             + f'. Read an arbitrary root-span attribute as `attributes["{source}"]`'
         )
 
-    def _subscript(self, node: ast.Subscript) -> _Kind:
+    def _subscript(self, node: ast.Subscript, scopes: tuple[_ElementScope, ...] = ()) -> _Kind:
         if _is_subscript(node, "attributes") or _is_subscript(node, "metadata"):
+            if scopes:
+                raise _element_scope_error(node, scopes[-1])
             if _get_attribute_keys_list(node) is None:
                 raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
             return "json"
@@ -3175,6 +3404,27 @@ class _SemanticPolicy:
         return "float"
 
 
+def _delegates_element_scope(bindings: _FilterBindings) -> bool:
+    """Return whether a permissive grain has strictly typed element scopes."""
+    return not bindings.strict_semantics and any(
+        grammar.element_bindings.strict_semantics for grammar in bindings.iterables.values()
+    )
+
+
+def _comprehension_calls(
+    expression: ast.Expression,
+    bindings: _FilterBindings,
+) -> typing.Iterator[tuple[ast.Call, str]]:
+    """Yield each accepted top-level comprehension call and its function name."""
+    for node in ast.walk(expression.body):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(func := node.func, ast.Name)
+            and func.id in bindings.quantifiers
+        ):
+            yield node, func.id
+
+
 def _validate_semantics(
     expression: ast.Expression,
     source: str,
@@ -3182,6 +3432,13 @@ def _validate_semantics(
 ) -> None:
     if bindings.strict_semantics:
         _SemanticPolicy(bindings).check(expression, source)
+        return
+    if not _delegates_element_scope(bindings):
+        return
+    # Apply strict typing only to delegated element scopes.
+    policy = _SemanticPolicy(bindings)
+    for call, kind in _comprehension_calls(expression, bindings):
+        policy._comprehension(call, kind, ())
 
 
 def _validate_expression(
@@ -3193,12 +3450,7 @@ def _validate_expression(
 ) -> None:
     """Validate the expression's structure, names, attributes, and operand types.
 
-    Annotation *name* existence is deliberately not validated: an unknown name
-    is valid and matches nothing, exactly as an unknown attribute path does --
-    the schemaless contract. A dormant hook that could have checked names
-    against the project at validation time was removed: it had no caller, and
-    as a hard gate it would have made a condition's validity depend on the
-    live annotation table rather than on the text.
+    Annotation names are schemaless: unknown names are valid and match nothing.
     """
     if not isinstance(expression, ast.Expression):
         raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
@@ -3213,8 +3465,12 @@ def _validate_expression(
                 or isinstance(node, ast.UnaryOp)
                 and isinstance(node.op, ast.Not)
                 or _is_annotation(node, bindings)
-                or _comprehension_argument(node, bindings) is not None
             ):
+                continue
+            if _comprehension_argument(node, bindings) is not None:
+                # A quantifier is a predicate; a reduction is a number, no more a
+                # condition here than in `and` / `or` position.
+                _require_condition(node)
                 continue
             if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript, ast.Constant)):
                 # A value as the whole condition, which is the same mistake as a
@@ -3326,10 +3582,15 @@ def _validate_expression(
         source_segment = ast.unparse(node)
         raise SyntaxError(f"invalid expression: {source_segment}")
     if not bindings.strict_semantics:
-        # Grains with `strict_semantics` run their own bindings-aware typed
-        # pass (`_validate_semantics`); the span-vocabulary operand rules here
-        # would second-guess it with span-shaped wording.
-        _validate_operand_types(expression)
+        # Strict grains and delegated element scopes use their own typed pass.
+        delegated: frozenset[int] = frozenset()
+        if _delegates_element_scope(bindings):
+            delegated = frozenset(
+                id(node)
+                for call, _ in _comprehension_calls(expression, bindings)
+                for node in ast.walk(call.args[0])
+            )
+        _validate_operand_types(expression, delegated)
 
 
 def _as_attribute(
