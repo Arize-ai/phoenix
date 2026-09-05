@@ -102,6 +102,7 @@ export function ChatMessageToolCallsEditor({
       case "PERPLEXITY":
       case "TOGETHER":
       case "ZAI":
+    case "THEGRID":
         return openAIToolCallsJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolCallsJSONSchema as JSONSchema7;
