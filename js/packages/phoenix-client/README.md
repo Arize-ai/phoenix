@@ -779,6 +779,33 @@ await setProjectRetentionPolicy({
 
 This helper only changes a project's assignment to an existing policy. Creating, reading, updating, and deleting retention policies is outside the scope of the TypeScript projects helper.
 
+## Secrets
+
+Use the `secrets` entrypoint to atomically create, update, or delete encrypted
+provider credentials. A string value creates or updates a key, while `null`
+deletes it. Duplicate keys use the last occurrence in the batch. The result
+contains only changed key names and never returns secret values.
+
+```ts
+import { upsertOrDeleteSecrets } from "@arizeai/phoenix-client/secrets";
+
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey) throw new Error("OPENAI_API_KEY is required");
+
+const result = await upsertOrDeleteSecrets({
+  secrets: [
+    { key: "OPENAI_API_KEY", value: apiKey },
+    { key: "OLD_PROVIDER_API_KEY", value: null },
+  ],
+});
+
+console.log(result.upsertedKeys);
+console.log(result.deletedKeys);
+```
+
+Managing secrets requires an administrator when Phoenix authentication is
+enabled. Avoid logging the request batch or otherwise retaining its values.
+
 ## Examples
 
 To run examples, install dependencies using `pnpm` and run:
