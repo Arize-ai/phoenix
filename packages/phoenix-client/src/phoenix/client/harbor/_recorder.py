@@ -19,7 +19,8 @@ from phoenix.client.client import AsyncClient
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import ExperimentSlice, JobPlan, canonical_digest
 from phoenix.client.harbor._naming import experiment_names, validate_experiment_naming
-from phoenix.client.harbor._scores import ExtractedEvaluation
+from phoenix.client.harbor._scores import ExtractedEvaluation, infrastructure_failures
+from phoenix.client.harbor._traces import HarborTrace, harbor_trace_id
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ __all__ = [
     "DatasetSnapshot",
     "ExperimentHandle",
     "PhoenixRecorder",
+    "trial_output",
 ]
 
 _INTEGRATION = "harbor"
@@ -47,6 +49,7 @@ class ExperimentHandle:
     experiment_id: str
     name: str
     created: bool
+    project_name: str | None = None
 
 
 class PhoenixRecorder:
@@ -168,19 +171,21 @@ class PhoenixRecorder:
         run: v1.ExperimentRun,
         *,
         trial_result: TrialResult,
+        expected_trace_id: str | None = None,
     ) -> bool:
         """Validate an immutable successful run or allow a failed run to be replaced."""
         if run.get("error"):
             return False
 
-        expected_output = _trial_output(trial_result)
+        expected_output = trial_output(trial_result)
         expected_error = _trial_error(trial_result)
         mismatches: list[str] = []
         if run.get("output") != expected_output:
             mismatches.append("output")
         if expected_error is not None:
             mismatches.append("error")
-        if run.get("trace_id") is not None:
+        stored_trace_id = run.get("trace_id")
+        if stored_trace_id is not None and stored_trace_id != expected_trace_id:
             mismatches.append("trace")
         if mismatches:
             trial_name = str(trial_result.trial_name)
@@ -198,6 +203,7 @@ class PhoenixRecorder:
         experiment: ExperimentHandle,
         dataset_example_id: str,
         repetition: int,
+        expected_trace_id: str,
         trial_result: TrialResult,
     ) -> v1.ExperimentRun:
         matches = [
@@ -212,7 +218,11 @@ class PhoenixRecorder:
                 f"but returned {len(matches)} matching runs for validation."
             )
         run = matches[0]
-        if not self.can_reuse_run(run, trial_result=trial_result):
+        if not self.can_reuse_run(
+            run,
+            trial_result=trial_result,
+            expected_trace_id=expected_trace_id,
+        ):
             raise HarborPluginError(
                 f"Phoenix rejected Harbor trial {trial_result.trial_name!r} as a duplicate, "
                 "but the matching run is failed and should be writable."
@@ -226,6 +236,7 @@ class PhoenixRecorder:
         snapshot: DatasetSnapshot,
         experiments: Mapping[str, ExperimentHandle],
         trial_result: TrialResult,
+        trace_id: str | None = None,
     ) -> v1.ExperimentRun:
         """Record one terminal Harbor trial as a Phoenix experiment run."""
         trial_name = str(trial_result.trial_name)
@@ -248,10 +259,11 @@ class PhoenixRecorder:
             return await self._client.experiments.log_run(
                 experiment_id=experiment.experiment_id,
                 dataset_example_id=example_id,
-                output=_trial_output(trial_result),
+                output=trial_output(trial_result),
                 start_time=start_time,
                 end_time=end_time,
                 repetition_number=slot.repetition,
+                trace_id=trace_id,
                 error=_trial_error(trial_result),
             )
         except httpx.HTTPStatusError as error:
@@ -260,6 +272,7 @@ class PhoenixRecorder:
                     experiment=experiment,
                     dataset_example_id=example_id,
                     repetition=slot.repetition,
+                    expected_trace_id=harbor_trace_id(plan, trial_result),
                     trial_result=trial_result,
                 )
             raise HarborPluginError(
@@ -271,6 +284,106 @@ class PhoenixRecorder:
                 f"Could not record Harbor trial {trial_name!r} in Phoenix experiment "
                 f"{experiment.name!r}: {error}"
             ) from error
+
+    async def confirm_trace(
+        self,
+        *,
+        experiment: ExperimentHandle,
+        trace: HarborTrace,
+    ) -> str | None:
+        """Upload missing spans and return the trace ID once Phoenix accepts them all.
+
+        Spans become queryable shortly after Phoenix queues them. A run recorded
+        without a trace keeps no trace: experiment runs are immutable, so replay
+        cannot attach one later.
+        """
+        try:
+            project_name = await self._project_name(experiment)
+            if project_name is None:
+                logger.warning(
+                    "Phoenix experiment %r has no trace project; recording the Harbor run "
+                    "without a trace.",
+                    experiment.name,
+                )
+                return None
+
+            expected = {span["context"]["span_id"] for span in trace.spans}
+            stored = await self._trace_span_ids(
+                project_name=project_name,
+                trace_id=trace.trace_id,
+                expected_count=len(expected),
+            )
+            if stored - expected:
+                logger.warning(
+                    "Phoenix trace %s in project %r contains unexpected span IDs; "
+                    "refusing to attach it to the Harbor run.",
+                    trace.trace_id,
+                    project_name,
+                )
+                return None
+
+            missing = expected - stored
+            if not missing:
+                return trace.trace_id
+            spans = [
+                span for span in reversed(trace.spans) if span["context"]["span_id"] in missing
+            ]
+            try:
+                result = await self._client.spans.log_spans(
+                    project_identifier=project_name,
+                    spans=spans,
+                )
+            except Exception:
+                stored = await self._trace_span_ids(
+                    project_name=project_name,
+                    trace_id=trace.trace_id,
+                    expected_count=len(expected),
+                )
+                if stored != expected:
+                    raise
+                return trace.trace_id
+            received = int(result.get("total_received", -1))
+            queued = int(result.get("total_queued", -1))
+            if received != len(spans) or queued != len(spans):
+                logger.warning(
+                    "Phoenix accepted %d of %d Harbor trace spans for trace %s; recording the "
+                    "run without a trace.",
+                    queued,
+                    len(spans),
+                    trace.trace_id,
+                )
+                return None
+            return trace.trace_id
+        except Exception as error:
+            logger.warning(
+                "Could not store Harbor trace %s for Phoenix experiment %r; recording the run "
+                "without a trace: %s",
+                trace.trace_id,
+                experiment.name,
+                error,
+            )
+            return None
+
+    async def _project_name(self, experiment: ExperimentHandle) -> str | None:
+        if experiment.project_name:
+            return experiment.project_name
+        detail = await self._client.experiments.get(experiment_id=experiment.experiment_id)
+        project_name = detail.get("project_name")
+        return str(project_name) if project_name else None
+
+    async def _trace_span_ids(
+        self,
+        *,
+        project_name: str,
+        trace_id: str,
+        expected_count: int,
+    ) -> set[str]:
+        spans = await self._client.spans.get_spans(
+            project_identifier=project_name,
+            trace_ids=[trace_id],
+            limit=expected_count + 1,
+        )
+        return {span["context"]["span_id"] for span in spans}
 
     async def record_evaluations(
         self,
@@ -310,7 +423,11 @@ class PhoenixRecorder:
         matches = [
             experiment
             for experiment in existing
-            if _identity_of(experiment.get("metadata")) == identity
+            if _matches_slice(
+                experiment.get("metadata"),
+                job_id=plan.job_id,
+                agent_digest=experiment_slice.identity_digest,
+            )
         ]
         if len(matches) > 1:
             ids = ", ".join(sorted(str(match["id"]) for match in matches))
@@ -343,6 +460,9 @@ class PhoenixRecorder:
             experiment_id=str(experiment["id"]),
             name=str(experiment.get("name") or name),
             created=created,
+            project_name=(
+                str(experiment["project_name"]) if experiment.get("project_name") else None
+            ),
         )
 
 
@@ -351,16 +471,17 @@ def experiment_identity(
     snapshot: DatasetSnapshot,
     experiment_slice: ExperimentSlice,
 ) -> str:
-    """Return an identity that separates job, dataset, and agent configuration.
+    """Return an identity that separates job execution and agent configuration.
 
     The job ID keeps separate executions from competing for the same immutable
-    experiment run keys.
+    experiment run keys. The dataset version is deliberately excluded: other
+    jobs sharing the dataset churn the latest version between replays, and a
+    replayed job must recover its original experiment.
     """
     return canonical_digest(
         {
             "integration": _INTEGRATION,
             "job_id": plan.job_id,
-            "dataset_version_id": snapshot.version_id,
             "agent": experiment_slice.identity_digest,
         }
     )
@@ -384,14 +505,23 @@ def _experiment_metadata(
     }
 
 
-def _identity_of(metadata: Any) -> str | None:
+def _matches_slice(metadata: Any, *, job_id: str, agent_digest: str) -> bool:
+    """Match a stored experiment to this job execution and agent configuration.
+
+    Matching uses the stable job and agent fields rather than the composite
+    identity digest: the digest historically included the dataset version, and
+    other Harbor jobs sharing one dataset churn the latest version between
+    replays, which must not make a completed job unrecoverable.
+    """
     if not isinstance(metadata, Mapping):
-        return None
+        return False
     fields = cast(Mapping[str, Any], metadata)
     if fields.get("integration") != _INTEGRATION:
-        return None
-    identity = fields.get("harbor_identity_digest")
-    return str(identity) if identity else None
+        return False
+    return (
+        str(fields.get("harbor_job_id") or "") == job_id
+        and str(fields.get("harbor_agent_digest") or "") == agent_digest
+    )
 
 
 def _require_consistent(
@@ -405,10 +535,13 @@ def _require_consistent(
     fields = cast(Mapping[str, Any], experiment)
     stored_version = fields.get("dataset_version_id")
     if stored_version is not None and stored_version != snapshot.version_id:
-        raise HarborPluginError(
-            f"Phoenix experiment {name!r} ({experiment['id']}) is pinned to dataset "
-            f"version {stored_version}, but this job resolved version "
-            f"{snapshot.version_id}."
+        logger.info(
+            "Phoenix experiment %r (%s) stays pinned to dataset version %s; "
+            "this replay resolved version %s.",
+            name,
+            experiment["id"],
+            stored_version,
+            snapshot.version_id,
         )
     stored_repetitions = fields.get("repetitions")
     if stored_repetitions is not None and int(stored_repetitions) != plan.repetitions:
@@ -434,7 +567,7 @@ def _run_key(identity: str, run: v1.ExperimentRun) -> RunKey:
     )
 
 
-def _trial_output(trial_result: TrialResult) -> dict[str, Any]:
+def trial_output(trial_result: TrialResult) -> dict[str, Any]:
     n_input, n_cache, n_output, cost = trial_result.compute_token_cost_totals()
     output: dict[str, Any] = {
         "harbor_trial_id": str(trial_result.id),
@@ -455,14 +588,4 @@ def _trial_output(trial_result: TrialResult) -> dict[str, Any]:
 
 
 def _trial_error(trial_result: TrialResult) -> str | None:
-    errors: list[str] = []
-    if error := trial_result.exception_info:
-        errors.append(f"{error.exception_type}: {error.exception_message}")
-    for step_result in trial_result.step_results or ():
-        if (
-            error := step_result.exception_info
-        ) is not None and step_result.verifier_result is None:
-            errors.append(
-                f"step {step_result.step_name}: {error.exception_type}: {error.exception_message}"
-            )
-    return "; ".join(errors) or None
+    return "; ".join(infrastructure_failures(trial_result)) or None

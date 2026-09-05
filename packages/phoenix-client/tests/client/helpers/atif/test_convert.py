@@ -1,30 +1,29 @@
 # pyright: reportPrivateUsage=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-"""Tests for ATIF trajectory to spans conversion."""
+"""Tests for ATIF trajectory to span conversion."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import pytest
 
 from phoenix.client.helpers.atif import _convert_atif_trajectories_to_spans
 from phoenix.client.helpers.atif._convert import (
     _base_session_id,
-    _build_subagent_ref_map,
     _convert_atif_trajectory_to_spans,
-    _flatten_atif_trajectories,
-    _get_parent_span_context,
+    _document_hash,
     _has_multimodal_content,
     _sha256_span_id,
     _sha256_trace_id,
-    _stable_trajectory_hash,
     _stringify_message,
 )
 from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_parent
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+PARENT_TRACE_ID = "0123456789abcdef0123456789abcdef"
+PARENT_SPAN_ID = "0123456789abcdef"
 
 
 def _load_fixture(name: str) -> Dict[str, Any]:
@@ -32,13 +31,85 @@ def _load_fixture(name: str) -> Dict[str, Any]:
         return json.load(f)  # type: ignore[no-any-return]
 
 
-def _span_kind_counts(spans: List[Any]) -> Dict[str, int]:
-    """Count spans by span_kind."""
+def _span_kind_counts(spans: Sequence[Any]) -> Dict[str, int]:
     counts: Dict[str, int] = {}
-    for s in spans:
-        k = s["span_kind"]
-        counts[k] = counts.get(k, 0) + 1
+    for span in spans:
+        counts[span["span_kind"]] = counts.get(span["span_kind"], 0) + 1
     return counts
+
+
+def of_kind(spans: Sequence[Any], kind: str) -> List[Any]:
+    return [span for span in spans if span["span_kind"] == kind]
+
+
+def named(spans: Sequence[Any], name: str) -> Any:
+    return next(span for span in spans if span["name"] == name)
+
+
+def attrs(span: Any) -> Dict[str, Any]:
+    return dict(span.get("attributes", {}))
+
+
+def metadata(span: Any) -> Dict[str, Any]:
+    return dict(attrs(span).get("metadata", {}))
+
+
+def assert_parents_resolve(spans: Sequence[Any]) -> None:
+    span_ids = {span["context"]["span_id"] for span in spans}
+    unresolved = [
+        (span["name"], span["parent_id"])
+        for span in spans
+        if "parent_id" in span and span["parent_id"] not in span_ids
+    ]
+    assert not unresolved, unresolved
+
+
+def group(
+    trajectories: Sequence[Any],
+    *,
+    trace_id: str = PARENT_TRACE_ID,
+    span_id: str = PARENT_SPAN_ID,
+) -> List[Any]:
+    """Convert trajectories, then hang them beneath a caller-owned span."""
+    return _reparent_spans_under_common_parent(
+        _convert_atif_trajectories_to_spans(trajectories),
+        parent_id=span_id,
+        trace_id=trace_id,
+    )
+
+
+def trajectory(
+    steps: List[Dict[str, Any]],
+    *,
+    session_id: Optional[str] = "run",
+    trajectory_id: Optional[str] = "document",
+    schema_version: str = "ATIF-v1.7",
+    agent_name: str = "worker",
+    **extra: Any,
+) -> Dict[str, Any]:
+    """Build a minimal trajectory around ``steps``."""
+    document: Dict[str, Any] = {
+        "schema_version": schema_version,
+        "agent": {"name": agent_name, "version": "1.0"},
+        "steps": steps,
+        **extra,
+    }
+    if session_id is not None:
+        document["session_id"] = session_id
+    if trajectory_id is not None:
+        document["trajectory_id"] = trajectory_id
+    return document
+
+
+def user_then_agent(agent_message: str = "done", **agent_fields: Any) -> List[Dict[str, Any]]:
+    return [
+        {"step_id": 1, "source": "user", "message": "go"},
+        {"step_id": 2, "source": "agent", "message": agent_message, **agent_fields},
+    ]
+
+
+def tool_call(call_id: str, name: str = "bash") -> Dict[str, Any]:
+    return {"tool_call_id": call_id, "function_name": name, "arguments": {}}
 
 
 @pytest.fixture()
@@ -72,147 +143,19 @@ def v17_embedded_subagents() -> Dict[str, Any]:
 
 
 class TestDeterministicIds:
-    def test_trace_id_is_32_hex(self) -> None:
-        tid = _sha256_trace_id("test-seed")
-        assert len(tid) == 32
-        int(tid, 16)  # should not raise
+    def test_ids_are_hex_and_seed_determined(self) -> None:
+        trace_id, span_id = _sha256_trace_id("seed"), _sha256_span_id("seed")
+        assert (len(trace_id), len(span_id)) == (32, 16)
+        int(trace_id, 16)
+        int(span_id, 16)
+        assert _sha256_trace_id("seed") == trace_id
+        assert _sha256_span_id("seed") == span_id
+        assert _sha256_trace_id("other") != trace_id
+        assert _sha256_span_id("other") != span_id
 
-    def test_span_id_is_16_hex(self) -> None:
-        sid = _sha256_span_id("test-seed")
-        assert len(sid) == 16
-        int(sid, 16)  # should not raise
-
-    def test_same_input_same_output(self) -> None:
-        assert _sha256_trace_id("abc") == _sha256_trace_id("abc")
-        assert _sha256_span_id("abc") == _sha256_span_id("abc")
-
-    def test_different_input_different_output(self) -> None:
-        assert _sha256_trace_id("a") != _sha256_trace_id("b")
-        assert _sha256_span_id("a") != _sha256_span_id("b")
-
-
-PARENT_TRACE_ID = "0123456789abcdef0123456789abcdef"
-PARENT_SPAN_ID = "0123456789abcdef"
-
-
-def group(
-    trajectories: Sequence[Any],
-    *,
-    trace_id: str = PARENT_TRACE_ID,
-    span_id: str = PARENT_SPAN_ID,
-) -> List[Any]:
-    """Convert trajectories, then hang them beneath a caller-owned span."""
-    return _reparent_spans_under_common_parent(
-        _convert_atif_trajectories_to_spans(trajectories),
-        parent_id=span_id,
-        trace_id=trace_id,
-    )
-
-
-class TestConvertThenReparent:
-    """Conversion and reparenting composed, over real ATIF fixtures."""
-
-    def test_top_level_roots_use_caller_parent(
-        self,
-        simple_trajectory: Dict[str, Any],
-        multi_tool_trajectory: Dict[str, Any],
-    ) -> None:
-        spans = group([simple_trajectory, multi_tool_trajectory])
-
-        roots = [span for span in spans if span["parent_id"] == PARENT_SPAN_ID]
-        assert len(roots) == 2
-        assert {span["name"] for span in roots} == {
-            simple_trajectory["agent"]["name"],
-            multi_tool_trajectory["agent"]["name"],
-        }
-        assert {span["context"]["trace_id"] for span in spans} == {PARENT_TRACE_ID}
-
-    def test_embedded_subagent_relationship_precedes_caller_parent(
-        self, v17_embedded_subagents: Dict[str, Any]
-    ) -> None:
-        spans = group([v17_embedded_subagents])
-
-        parent_root = [span for span in spans if span["name"] == "orchestrator"][0]
-        child_root = [span for span in spans if span["name"] == "researcher"][0]
-        parent_tool = [span for span in spans if span["name"] == "delegate_research"][0]
-        assert parent_root["parent_id"] == PARENT_SPAN_ID
-        assert child_root["parent_id"] == parent_tool["context"]["span_id"]
-        assert child_root["parent_id"] != PARENT_SPAN_ID
-        assert child_root["context"]["trace_id"] == PARENT_TRACE_ID
-
-    def test_cross_document_subagent_relationship_precedes_caller_parent(
-        self, subagent_fixture: Dict[str, Any]
-    ) -> None:
-        spans = group([subagent_fixture["parent"], subagent_fixture["child"]])
-
-        parent_root = [span for span in spans if span["name"] == "orchestrator"][0]
-        child_root = [span for span in spans if span["name"] == "summarizer"][0]
-        parent_tool = [span for span in spans if span["name"] == "delegate_summary"][0]
-        assert parent_root["parent_id"] == PARENT_SPAN_ID
-        assert child_root["parent_id"] == parent_tool["context"]["span_id"]
-        assert child_root["context"]["trace_id"] == PARENT_TRACE_ID
-
-    def test_reparenting_preserves_converter_span_ids(
+    def test_conversion_ids_survive_missing_timestamps(
         self, simple_trajectory: Dict[str, Any]
     ) -> None:
-        converted = _convert_atif_trajectories_to_spans([simple_trajectory])
-        grouped = _reparent_spans_under_common_parent(
-            converted,
-            parent_id=PARENT_SPAN_ID,
-            trace_id=PARENT_TRACE_ID,
-        )
-
-        assert [s["context"]["span_id"] for s in grouped] == [
-            s["context"]["span_id"] for s in converted
-        ]
-
-    def test_reparenting_preserves_tree_shape(self, v17_embedded_subagents: Dict[str, Any]) -> None:
-        # Moving the spans into a caller-owned trace must preserve the
-        # converter's internal parent links.
-        grouped = group([v17_embedded_subagents])
-        ungrouped = _convert_atif_trajectories_to_spans([v17_embedded_subagents])
-
-        def shape(spans: Sequence[Any]) -> set[tuple[str, str]]:
-            names = {span["context"]["span_id"]: span["name"] for span in spans}
-            return {
-                (names[span["context"]["span_id"]], names.get(span.get("parent_id", ""), "<root>"))
-                for span in spans
-            }
-
-        assert shape(grouped) == shape(ungrouped)
-
-
-class TestBatchConversion:
-    def test_pre_v17_shared_session_collision_is_avoided_by_trajectory_ids(self) -> None:
-        def trajectory(agent_name: str, message: str) -> Dict[str, Any]:
-            return {
-                "schema_version": "ATIF-v1.6",
-                "session_id": "shared-run",
-                "agent": {"name": agent_name, "version": "1.0"},
-                "steps": [
-                    {"step_id": 1, "source": "user", "message": message},
-                    {"step_id": 2, "source": "agent", "message": "done"},
-                ],
-            }
-
-        trajectory_a = trajectory("agent-a", "first")
-        trajectory_b = trajectory("agent-b", "second")
-        colliding_spans = _convert_atif_trajectories_to_spans([trajectory_a, trajectory_b])
-        colliding_ids = [span["context"]["span_id"] for span in colliding_spans]
-        assert len(set(colliding_ids)) < len(colliding_ids)
-
-        distinct_spans = _convert_atif_trajectories_to_spans(
-            [
-                {**trajectory_a, "trajectory_id": "trajectory-a"},
-                {**trajectory_b, "trajectory_id": "trajectory-b"},
-            ]
-        )
-        distinct_ids = [span["context"]["span_id"] for span in distinct_spans]
-        assert len(set(distinct_ids)) == len(distinct_ids)
-
-    def test_conversion_ids_are_deterministic(self, simple_trajectory: Dict[str, Any]) -> None:
-        # If steps omit timestamps, generated timestamps can differ between calls;
-        # span and trace IDs remain deterministic.
         without_timestamps = {
             **simple_trajectory,
             "steps": [
@@ -224,608 +167,481 @@ class TestBatchConversion:
         second = _convert_atif_trajectories_to_spans([without_timestamps])
         assert [span["context"] for span in first] == [span["context"] for span in second]
 
+    def test_pre_v17_shared_session_collision_is_avoided_by_trajectory_ids(self) -> None:
+        def document(agent_name: str, message: str) -> Dict[str, Any]:
+            return trajectory(
+                user_then_agent(message),
+                session_id="shared-run",
+                trajectory_id=None,
+                schema_version="ATIF-v1.6",
+                agent_name=agent_name,
+            )
+
+        a, b = document("agent-a", "first"), document("agent-b", "second")
+        colliding = [s["context"]["span_id"] for s in _convert_atif_trajectories_to_spans([a, b])]
+        assert len(set(colliding)) < len(colliding)
+
+        distinct = [
+            s["context"]["span_id"]
+            for s in _convert_atif_trajectories_to_spans(
+                [{**a, "trajectory_id": "a"}, {**b, "trajectory_id": "b"}]
+            )
+        ]
+        assert len(set(distinct)) == len(distinct)
+
     def test_does_not_mutate_caller_input(self, simple_trajectory: Dict[str, Any]) -> None:
         original = json.loads(json.dumps(simple_trajectory))
         _convert_atif_trajectories_to_spans([simple_trajectory])
         assert simple_trajectory == original
 
 
-class TestSimpleTrajectoryConversion:
-    """simple_trajectory.json: 3 steps (1 user, 2 agent) -> 1 turn.
-    1 root AGENT + 2 LLM + 1 TOOL = 4 spans.
-    """
+class TestConvertThenReparent:
+    """Conversion and reparenting composed over real ATIF fixtures."""
 
-    def test_span_count(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        assert len(spans) == 4
+    def test_top_level_roots_use_caller_parent(
+        self,
+        simple_trajectory: Dict[str, Any],
+        multi_tool_trajectory: Dict[str, Any],
+    ) -> None:
+        spans = group([simple_trajectory, multi_tool_trajectory])
 
-    def test_root_span(self, simple_trajectory: Dict[str, Any]) -> None:
+        roots = [span for span in spans if span["parent_id"] == PARENT_SPAN_ID]
+        assert {span["name"] for span in roots} == {
+            "finance-assistant",
+            "research-analyst",
+        }
+        assert {span["context"]["trace_id"] for span in spans} == {PARENT_TRACE_ID}
+
+    @pytest.mark.parametrize("embedded", [True, False], ids=["embedded-v17", "cross-document"])
+    def test_subagent_relationship_precedes_caller_parent(
+        self,
+        embedded: bool,
+        v17_embedded_subagents: Dict[str, Any],
+        subagent_fixture: Dict[str, Any],
+    ) -> None:
+        if embedded:
+            spans = group([v17_embedded_subagents])
+            child, tool = "researcher", "delegate_research"
+        else:
+            spans = group([subagent_fixture["parent"], subagent_fixture["child"]])
+            child, tool = "summarizer", "delegate_summary"
+
+        assert named(spans, "orchestrator")["parent_id"] == PARENT_SPAN_ID
+        assert named(spans, child)["parent_id"] == named(spans, tool)["context"]["span_id"]
+        assert named(spans, child)["context"]["trace_id"] == PARENT_TRACE_ID
+
+    def test_reparenting_preserves_span_ids_and_tree_shape(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        converted = _convert_atif_trajectories_to_spans([v17_embedded_subagents])
+        grouped = _reparent_spans_under_common_parent(
+            converted, parent_id=PARENT_SPAN_ID, trace_id=PARENT_TRACE_ID
+        )
+
+        def shape(spans: Sequence[Any]) -> set[tuple[str, str]]:
+            names = {span["context"]["span_id"]: span["name"] for span in spans}
+            return {
+                (names[span["context"]["span_id"]], names.get(span.get("parent_id", ""), "<root>"))
+                for span in spans
+            }
+
+        assert [s["context"]["span_id"] for s in grouped] == [
+            s["context"]["span_id"] for s in converted
+        ]
+        assert shape(grouped) == shape(converted)
+
+
+class TestSimpleTrajectory:
+    """simple_trajectory.json: one user request, an agent tool step, an agent reply."""
+
+    def test_span_tree(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
         root = spans[0]
-        assert root["span_kind"] == "AGENT"
-        assert root["name"] == "finance-assistant"
+        chains = of_kind(spans, "CHAIN")
+        llms = of_kind(spans, "LLM")
+        tools = of_kind(spans, "TOOL")
+
+        assert (root["span_kind"], root["name"], root["status_code"]) == (
+            "AGENT",
+            "finance-assistant",
+            "OK",
+        )
         assert "parent_id" not in root
-        assert root["status_code"] == "OK"
+        assert len({s["context"]["trace_id"] for s in spans}) == 1
+        assert [c["name"] for c in chains] == ["iteration 1", "iteration 2"]
+        assert all(c["parent_id"] == root["context"]["span_id"] for c in chains)
+        assert [llm["name"] for llm in llms] == ["gpt-4", "gpt-4"]
+        assert [llm["parent_id"] for llm in llms] == [c["context"]["span_id"] for c in chains]
+        assert [tool["name"] for tool in tools] == ["financial_search"]
+        assert tools[0]["parent_id"] == chains[0]["context"]["span_id"]
+        assert "GOOGL" in attrs(tools[0])["output.value"]
 
-    def test_all_spans_share_trace_id(self, simple_trajectory: Dict[str, Any]) -> None:
+    def test_root_carries_request_reply_and_final_metrics(
+        self, simple_trajectory: Dict[str, Any]
+    ) -> None:
+        root = _convert_atif_trajectory_to_spans(simple_trajectory)[0]
+        assert "GOOGL" in attrs(root)["input.value"]
+        assert "185.35" in attrs(root)["output.value"]
+        assert metadata(root)["final_metrics"] == simple_trajectory["final_metrics"]
+        assert not [key for key in attrs(root) if key.startswith("llm.")]
+
+    def test_llm_attributes(self, simple_trajectory: Dict[str, Any]) -> None:
+        llm = of_kind(_convert_atif_trajectory_to_spans(simple_trajectory), "LLM")[0]
+        a = attrs(llm)
+        assert a["llm.model_name"] == "gpt-4"
+        assert (a["llm.token_count.prompt"], a["llm.token_count.completion"]) == (520, 80)
+        assert a["llm.token_count.total"] == 600
+        assert a["llm.cost.total"] == 0.00045
+        assert a["llm.input_messages.0.message.role"] == "user"
+        assert "GOOGL" in a["llm.input_messages.0.message.content"]
+        assert a["llm.output_messages.0.message.role"] == "assistant"
+        assert (
+            a["llm.output_messages.0.message.tool_calls.0.tool_call.function.name"]
+            == "financial_search"
+        )
+
+    def test_agent_steps_carry_input_and_output(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        trace_ids = {s["context"]["trace_id"] for s in spans}
-        assert len(trace_ids) == 1
-
-    def test_no_chain_spans(self, simple_trajectory: Dict[str, Any]) -> None:
-        """User/system messages are no longer separate CHAIN spans."""
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        kinds = _span_kind_counts(spans)
-        assert "CHAIN" not in kinds
-
-    def test_agent_step_becomes_llm(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        assert len(llm_spans) == 2
-        # All LLM spans are children of root
-        root_id = spans[0]["context"]["span_id"]
-        for llm_span in llm_spans:
-            assert llm_span.get("parent_id") == root_id
-
-    def test_tool_call_becomes_tool_span(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        tool_spans = [s for s in spans if s["span_kind"] == "TOOL"]
-        assert len(tool_spans) == 1
-        assert tool_spans[0]["name"] == "financial_search"
-        # Tool is a sibling of the LLM span (both children of the AGENT)
-        root_id = spans[0]["context"]["span_id"]
-        assert tool_spans[0].get("parent_id") == root_id
-
-    def test_tool_span_has_observation(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        tool_span = [s for s in spans if s["span_kind"] == "TOOL"][0]
-        attrs = tool_span.get("attributes", {})
-        assert "GOOGL" in attrs.get("output.value", "")
-
-    def test_llm_token_counts(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        attrs = llm_spans[0].get("attributes", {})
-        assert attrs.get("llm.token_count.prompt") == 520
-        assert attrs.get("llm.token_count.completion") == 80
-        assert attrs.get("llm.token_count.total") == 600
-
-    def test_model_name_on_llm_span(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        attrs = llm_spans[0].get("attributes", {})
-        assert attrs.get("llm.model_name") == "gpt-4"
-
-    def test_root_span_has_input_output(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        root = spans[0]
-        attrs = root.get("attributes", {})
-        # Input is the user message for this turn
-        assert "GOOGL" in attrs.get("input.value", "")
-        # Output is the last agent message in this turn
-        assert "185.35" in attrs.get("output.value", "")
-
-    def test_cost_usd_on_llm_span(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        attrs = llm_spans[0].get("attributes", {})
-        assert attrs.get("llm.cost.total") == 0.00045
-
-    def test_total_cost_usd_on_root_span(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        root = spans[0]
-        attrs = root.get("attributes", {})
-        assert attrs.get("llm.cost.total") == 0.00078
+        first, second = of_kind(spans, "CHAIN")
+        assert attrs(first)["input.value"] == simple_trajectory["steps"][0]["message"]
+        assert attrs(first)["output.value"]
+        assert "GOOGL" in attrs(second)["input.value"]
+        assert attrs(second)["output.value"] == simple_trajectory["steps"][2]["message"]
 
 
-class TestMultiToolTrajectoryConversion:
-    """multi_tool_trajectory.json: 5 steps (1 user, 1 system, 3 agent) -> 1 turn.
-    1 root AGENT + 3 LLM + 4 TOOL = 8 spans.
-    """
+class TestMultiToolTrajectory:
+    """multi_tool_trajectory.json: user, agent with three tools, system, agent, agent."""
 
-    def test_span_count(self, multi_tool_trajectory: Dict[str, Any]) -> None:
+    def test_span_tree(self, multi_tool_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
-        assert len(spans) == 8
+        assert _span_kind_counts(spans) == {"AGENT": 1, "CHAIN": 3, "LLM": 3, "TOOL": 4}
+        assert {tool["name"] for tool in of_kind(spans, "TOOL")} == {
+            "financial_search",
+            "news_search",
+            "analyst_estimates",
+        }
+        assert_parents_resolve(spans)
 
-    def test_no_chain_spans(self, multi_tool_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
-        kinds = _span_kind_counts(spans)
-        assert "CHAIN" not in kinds
-
-    def test_parallel_tool_calls(self, multi_tool_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
-        tool_spans = [s for s in spans if s["span_kind"] == "TOOL"]
-        assert len(tool_spans) == 4
-        tool_names = {s["name"] for s in tool_spans}
-        assert "financial_search" in tool_names
-        assert "news_search" in tool_names
-        assert "analyst_estimates" in tool_names
-
-    def test_final_metrics_on_root(self, multi_tool_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
-        root = spans[0]
-        attrs = root.get("attributes", {})
-        assert attrs.get("llm.token_count.prompt") == 9150
-        assert attrs.get("llm.token_count.completion") == 635
-
-    def test_deterministic_ids_are_stable(self, multi_tool_trajectory: Dict[str, Any]) -> None:
-        spans_a = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
-        spans_b = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
-        for a, b in zip(spans_a, spans_b):
-            assert a["context"]["span_id"] == b["context"]["span_id"]
-            assert a["context"]["trace_id"] == b["context"]["trace_id"]
-
-    def test_user_message_appears_as_llm_input(self, multi_tool_trajectory: Dict[str, Any]) -> None:
-        """User message should appear as llm.input_messages on the first LLM span."""
-        spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        attrs = llm_spans[0].get("attributes", {})
-        assert attrs.get("llm.input_messages.0.message.role") == "user"
-
-    def test_system_message_appears_as_llm_input(
+    def test_vendor_metric_is_not_interpreted_as_llm_timing(
         self, multi_tool_trajectory: Dict[str, Any]
     ) -> None:
-        """System message should appear in llm.input_messages on a subsequent LLM span."""
-        spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        # The system step (step 3) precedes agent step 4, so LLM span for step 4
-        # should have system in its input messages
-        # Find an LLM span that has a system message in its inputs
-        found_system = False
-        for llm_span in llm_spans:
-            attrs = llm_span.get("attributes", {})
-            for key, val in attrs.items():
-                if key.endswith(".message.role") and val == "system":
-                    found_system = True
-                    break
-        assert found_system, "Expected system message in llm.input_messages on an LLM span"
+        llms = of_kind(_convert_atif_trajectory_to_spans(multi_tool_trajectory), "LLM")
+        assert [(span["start_time"], span["end_time"]) for span in llms] == [
+            ("2025-01-15T14:00:03+00:00", "2025-01-15T14:00:03+00:00"),
+            ("2025-01-15T14:00:09+00:00", "2025-01-15T14:00:09+00:00"),
+            ("2025-01-15T14:00:14+00:00", "2025-01-15T14:00:14+00:00"),
+        ]
+        assert all(metadata(span)["atif.timing"] == "event" for span in llms)
+
+    def test_prompt_reconstruction_includes_user_and_system_messages(
+        self, multi_tool_trajectory: Dict[str, Any]
+    ) -> None:
+        llms = of_kind(_convert_atif_trajectory_to_spans(multi_tool_trajectory), "LLM")
+        assert attrs(llms[0])["llm.input_messages.0.message.role"] == "user"
+        roles = {
+            value
+            for span in llms
+            for key, value in attrs(span).items()
+            if key.endswith(".message.role")
+        }
+        assert {"user", "system", "assistant", "tool"} <= roles
 
 
 class TestOptionalFields:
-    def test_missing_timestamps_still_converts(self) -> None:
-        """Steps without timestamps should still produce valid spans."""
-        trajectory: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.4",
-            "session_id": "no-timestamps",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "hello"},
-                {"step_id": 2, "source": "agent", "message": "hi"},
-            ],
-        }
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 1 LLM = 2 spans (no CHAIN for user)
-        assert len(spans) == 2
-        for span in spans:
-            assert span["start_time"]
-            assert span["end_time"]
-        root = spans[0]
-        assert root["end_time"] == spans[-1]["end_time"]
+    def test_missing_timestamps_still_convert(self) -> None:
+        spans = _convert_atif_trajectory_to_spans(
+            trajectory(user_then_agent("hi"), schema_version="ATIF-v1.4", trajectory_id=None)
+        )
+        assert len(spans) == 3
+        assert all(span["start_time"] and span["end_time"] for span in spans)
+        assert spans[0]["end_time"] == spans[-1]["end_time"]
 
-    def test_root_span_covers_children_when_last_step_has_no_timestamp(self) -> None:
-        trajectory: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.4",
-            "session_id": "missing-last-timestamp",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
-                {
-                    "step_id": 1,
-                    "source": "user",
-                    "message": "hello",
-                    "timestamp": "2025-01-15T10:00:00Z",
-                },
-                {
-                    "step_id": 2,
-                    "source": "agent",
-                    "message": "hi",
-                },
-            ],
-        }
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        root = spans[0]
-        agent_step = spans[-1]
-        assert root["end_time"] == agent_step["end_time"]
+    def test_root_covers_children_when_last_step_has_no_timestamp(self) -> None:
+        steps = user_then_agent("hi")
+        steps[0]["timestamp"] = "2025-01-15T10:00:00Z"
+        spans = _convert_atif_trajectory_to_spans(trajectory(steps))
+        assert spans[0]["end_time"] == spans[-1]["end_time"]
 
-    def test_optional_model_name(self) -> None:
-        """Trajectories without agent.model_name should convert."""
-        trajectory: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.4",
-            "session_id": "no-model",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
-                {
-                    "step_id": 1,
-                    "source": "user",
-                    "message": "hello",
-                    "timestamp": "2025-01-15T10:00:00Z",
-                },
-                {
-                    "step_id": 2,
-                    "source": "agent",
-                    "message": "hi",
-                    "timestamp": "2025-01-15T10:00:01Z",
-                },
-            ],
-        }
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 1 LLM = 2 spans
-        assert len(spans) == 2
-        llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
-        attrs = llm_span.get("attributes", {})
-        assert "llm.model_name" not in attrs
+    def test_missing_model_name_yields_bare_chat_span(self) -> None:
+        llm = of_kind(_convert_atif_trajectory_to_spans(trajectory(user_then_agent())), "LLM")[0]
+        assert llm["name"] == "LLM"
+        assert "llm.model_name" not in attrs(llm)
 
-    def test_observation_result_without_source_call_id(self) -> None:
-        """Observation results can omit source_call_id per the spec."""
-        trajectory: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.4",
-            "session_id": "no-source-call-id",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
+    def test_producer_cache_write_and_reasoning_tokens_are_mapped(self) -> None:
+        """Claude Code and Codex record these only under ``metrics.extra``."""
+
+        def llm_attrs(extra: Dict[str, Any]) -> Dict[str, Any]:
+            steps = user_then_agent("hi")
+            steps[1]["metrics"] = {"prompt_tokens": 10, "completion_tokens": 5, "extra": extra}
+            return attrs(of_kind(_convert_atif_trajectory_to_spans(trajectory(steps)), "LLM")[0])
+
+        claude = llm_attrs(
+            {"cache_creation_input_tokens": 944, "output_tokens_details": {"thinking_tokens": 208}}
+        )
+        assert claude["llm.token_count.prompt_details.cache_write"] == 944
+        assert claude["llm.token_count.completion_details.reasoning"] == 208
+
+        codex = llm_attrs({"cache_write_input_tokens": 12, "reasoning_output_tokens": 34})
+        assert codex["llm.token_count.prompt_details.cache_write"] == 12
+        assert codex["llm.token_count.completion_details.reasoning"] == 34
+
+        absent = llm_attrs({"reasoning_output_tokens": None, "total_tokens": 15})
+        assert "llm.token_count.prompt_details.cache_write" not in absent
+        assert "llm.token_count.completion_details.reasoning" not in absent
+
+    def test_single_unmatched_result_pairs_with_the_only_tool_call(self) -> None:
+        document = trajectory(
+            [
                 {
                     "step_id": 1,
                     "source": "agent",
                     "message": "checking",
-                    "timestamp": "2025-01-15T10:00:00Z",
-                    "tool_calls": [
-                        {
-                            "tool_call_id": "tc1",
-                            "function_name": "check",
-                            "arguments": {},
-                        }
-                    ],
+                    "tool_calls": [tool_call("tc1", "check")],
                     "observation": {"results": [{"content": "result without source_call_id"}]},
+                }
+            ]
+        )
+        tool = of_kind(_convert_atif_trajectory_to_spans(document), "TOOL")[0]
+        assert attrs(tool)["output.value"] == "result without source_call_id"
+
+    def test_non_monotonic_and_missing_timestamps_do_not_create_negative_durations(
+        self,
+    ) -> None:
+        document = trajectory(
+            [
+                {
+                    "step_id": 1,
+                    "source": "user",
+                    "message": "start",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                },
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "back",
+                    "timestamp": "2025-01-15T10:00:04Z",
+                },
+                {"step_id": 3, "source": "agent", "message": "no clock"},
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(document)
+        timed = of_kind(spans, "CHAIN") + of_kind(spans, "LLM")
+        assert all(span["start_time"] == span["end_time"] for span in timed)
+
+    def test_leading_missing_timestamp_collapses_to_first_known_event(self) -> None:
+        document = trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "start"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "finished",
+                    "timestamp": "2025-01-15T10:00:05Z",
                 },
             ],
-        }
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        tool_span = [s for s in spans if s["span_kind"] == "TOOL"][0]
-        attrs = tool_span.get("attributes", {})
-        assert "output.value" not in attrs
+            _phoenix_fallback_timestamp="2025-01-15T10:00:10Z",
+        )
+        spans = _convert_atif_trajectory_to_spans(document)
+        assert (spans[0]["start_time"], spans[0]["end_time"]) == (
+            "2025-01-15T10:00:05+00:00",
+            "2025-01-15T10:00:05+00:00",
+        )
+        chain = of_kind(spans, "CHAIN")[0]
+        assert chain["start_time"] == chain["end_time"]
+
+    def test_all_copied_document_emits_context_root_only(self) -> None:
+        document = trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "old input", "is_copied_context": True},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "old output",
+                    "is_copied_context": True,
+                },
+            ],
+            _phoenix_fallback_timestamp="2025-01-15T10:00:00Z",
+        )
+        spans = _convert_atif_trajectory_to_spans(document)
+        assert len(spans) == 1
+        assert spans[0]["start_time"] == spans[0]["end_time"] == "2025-01-15T10:00:00+00:00"
+        assert attrs(spans[0])["input.value"] == "old input"
+        assert attrs(spans[0])["output.value"] == ""
 
 
 class TestMessageAttributes:
-    def test_llm_input_messages_from_user(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        attrs = llm_spans[0].get("attributes", {})
-        assert attrs.get("llm.input_messages.0.message.role") == "user"
-        assert "GOOGL" in attrs.get("llm.input_messages.0.message.content", "")
-
-    def test_llm_output_message(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        attrs = llm_spans[0].get("attributes", {})
-        assert attrs.get("llm.output_messages.0.message.role") == "assistant"
-
-    def test_tool_calls_in_output_messages(self, simple_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        attrs = llm_spans[0].get("attributes", {})
-        key = "llm.output_messages.0.message.tool_calls.0.tool_call.function.name"
-        assert attrs.get(key) == "financial_search"
-
     def test_tool_definitions_are_flattened(self) -> None:
-        trajectory: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.5",
-            "session_id": "tool-definitions",
-            "agent": {
-                "name": "agent",
-                "version": "1.0",
-                "tool_definitions": [
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": "lookup",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {"ticker": {"type": "string"}},
-                            },
-                        },
-                    }
-                ],
-            },
-            "steps": [
-                {
-                    "step_id": 1,
-                    "source": "agent",
-                    "message": "checking",
-                    "timestamp": "2025-01-15T10:00:00Z",
-                }
-            ],
+        definition = {
+            "type": "function",
+            "function": {"name": "lookup", "parameters": {"type": "object"}},
         }
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
-        attrs = llm_span.get("attributes", {})
-        assert "llm.tools" not in attrs
-        assert "llm.tools.0.tool.json_schema" in attrs
+        document = trajectory([{"step_id": 1, "source": "agent", "message": "checking"}])
+        document["agent"]["tool_definitions"] = [definition]
+        llm = of_kind(_convert_atif_trajectory_to_spans(document), "LLM")[0]
+        assert "llm.tools" not in attrs(llm)
+        assert json.loads(attrs(llm)["llm.tools.0.tool.json_schema"]) == definition
+
+    def test_tool_only_step_still_has_an_assistant_output_message(self) -> None:
+        document = trajectory(
+            [{"step_id": 1, "source": "agent", "message": "", "tool_calls": [tool_call("c1")]}]
+        )
+        llm = of_kind(_convert_atif_trajectory_to_spans(document), "LLM")[0]
+        assert attrs(llm)["llm.output_messages.0.message.role"] == "assistant"
+        assert attrs(llm)["llm.output_messages.0.message.tool_calls.0.tool_call.id"] == "c1"
+        assert "output.value" not in attrs(llm)
 
 
 class TestMultimodalContent:
-    """Tests for multimodal (v1.6+) content part handling."""
+    """Multimodal (v1.6+) content part handling."""
 
     def test_stringify_message_with_image_parts(self) -> None:
-        message: List[Any] = [
-            {"type": "text", "text": "What is in this image?"},
-            {
-                "type": "image",
-                "source": {"media_type": "image/png", "path": "images/screenshot.png"},
-            },
-        ]
-        result = _stringify_message(message)
-        assert "What is in this image?" in result
-        assert "[image: images/screenshot.png]" in result
+        result = _stringify_message(
+            [
+                {"type": "text", "text": "What is in this image?"},
+                {"type": "image", "source": {"media_type": "image/png", "path": "img.png"}},
+            ]
+        )
+        assert result == "What is in this image?\n[image: img.png]"
 
-    def test_has_multimodal_content_with_image(self) -> None:
-        message: List[Any] = [
-            {"type": "text", "text": "hello"},
-            {"type": "image", "source": {"path": "img.png"}},
-        ]
-        assert _has_multimodal_content(message) is True
-
-    def test_has_multimodal_content_text_only_list(self) -> None:
-        message: List[Any] = [
-            {"type": "text", "text": "hello"},
-            {"type": "text", "text": "world"},
-        ]
-        assert _has_multimodal_content(message) is False
-
-    def test_has_multimodal_content_plain_string(self) -> None:
-        assert _has_multimodal_content("hello") is False
-
-    def test_has_multimodal_content_none(self) -> None:
-        assert _has_multimodal_content(None) is False
+    @pytest.mark.parametrize(
+        ("message", "expected"),
+        [
+            ([{"type": "text", "text": "hello"}, {"type": "image", "source": {"path": "i"}}], True),
+            ([{"type": "text", "text": "hello"}, {"type": "text", "text": "world"}], False),
+            ("hello", False),
+            (None, False),
+        ],
+        ids=["image", "text-parts", "string", "none"],
+    )
+    def test_has_multimodal_content(self, message: Any, expected: bool) -> None:
+        assert _has_multimodal_content(message) is expected
 
     def test_multimodal_input_uses_message_contents(
         self, multimodal_trajectory: Dict[str, Any]
     ) -> None:
-        """User message with image parts should produce message.contents attributes."""
-        spans = _convert_atif_trajectory_to_spans(multimodal_trajectory)
-        # First LLM span should have input from user step with image parts
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        attrs = llm_spans[0].get("attributes", {})
+        llm = of_kind(_convert_atif_trajectory_to_spans(multimodal_trajectory), "LLM")[0]
+        a = attrs(llm)
         prefix = "llm.input_messages.0"
-        assert attrs.get(f"{prefix}.message.role") == "user"
-        assert attrs.get(f"{prefix}.message.contents.0.message_content.type") == "text"
+        assert a[f"{prefix}.message.role"] == "user"
+        assert a[f"{prefix}.message.contents.0.message_content.type"] == "text"
+        assert a[f"{prefix}.message.contents.0.message_content.text"] == "What is in this image?"
+        assert a[f"{prefix}.message.contents.1.message_content.type"] == "image"
         assert (
-            attrs.get(f"{prefix}.message.contents.0.message_content.text")
-            == "What is in this image?"
+            "PNG_transparency_demonstration"
+            in (a[f"{prefix}.message.contents.1.message_content.image.image.url"])
         )
-        assert attrs.get(f"{prefix}.message.contents.1.message_content.type") == "image"
-        image_url = attrs.get(f"{prefix}.message.contents.1.message_content.image.image.url")
-        assert image_url is not None
-        assert "PNG_transparency_demonstration" in image_url
 
-    def test_multimodal_span_count(self, multimodal_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(multimodal_trajectory)
-        # 1 root + 2 LLM + 1 TOOL = 4 spans
-        assert len(spans) == 4
-
-    def test_multimodal_input_value_uses_serializable_content(
-        self, multimodal_trajectory: Dict[str, Any]
-    ) -> None:
-        """input.value should contain message content, not converter-private fields."""
-        spans = _convert_atif_trajectory_to_spans(multimodal_trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        attrs = llm_spans[0].get("attributes", {})
-
-        input_messages = json.loads(attrs["input.value"])
-        assert "_raw_parts" not in attrs["input.value"]
+        input_messages = json.loads(a["input.value"])
+        assert "_raw_parts" not in a["input.value"]
         assert input_messages[0]["role"] == "user"
-        assert isinstance(input_messages[0]["content"], list)
-        assert input_messages[0]["content"][0]["type"] == "text"
-        assert input_messages[0]["content"][1]["type"] == "image"
+        assert [part["type"] for part in input_messages[0]["content"]] == ["text", "image"]
 
-    def test_multimodal_flag_not_set_on_text_only(self, simple_trajectory: Dict[str, Any]) -> None:
-        """Text-only messages should not have the multimodal flag."""
-        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
-        for span in spans:
-            attrs = span.get("attributes", {})
-            meta = attrs.get("metadata", {})
-            assert "has_multimodal_content" not in meta
+    def test_multimodal_flag_only_on_multimodal_steps(
+        self, simple_trajectory: Dict[str, Any], multimodal_trajectory: Dict[str, Any]
+    ) -> None:
+        text_spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        assert all("has_multimodal_content" not in metadata(span) for span in text_spans)
 
 
 class TestParallelToolsMixedResults:
-    """Tests for parallel tool calls with success, error, and empty results.
-    parallel_tools_mixed_results.json: 3 steps (1 user, 2 agent) -> 1 turn.
-    1 root + 2 LLM + 3 TOOL = 6 spans.
-    """
-
-    def test_all_three_tool_spans_created(self, parallel_mixed_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
-        tool_spans = [s for s in spans if s["span_kind"] == "TOOL"]
-        assert len(tool_spans) == 3
-        names = {s["name"] for s in tool_spans}
-        assert names == {"get_weather", "get_stock", "get_news"}
-
-    def test_successful_tool_has_output(self, parallel_mixed_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
-        weather_span = [s for s in spans if s["name"] == "get_weather"][0]
-        attrs = weather_span.get("attributes", {})
-        assert "42°F" in attrs.get("output.value", "")
-
-    def test_error_tool_has_error_string_as_output(
+    def test_each_tool_span_reflects_its_own_result(
         self, parallel_mixed_trajectory: Dict[str, Any]
     ) -> None:
         spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
-        stock_span = [s for s in spans if s["name"] == "get_stock"][0]
-        attrs = stock_span.get("attributes", {})
-        assert "rate limit" in attrs.get("output.value", "").lower()
-
-    def test_empty_tool_has_no_output(self, parallel_mixed_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
-        news_span = [s for s in spans if s["name"] == "get_news"][0]
-        attrs = news_span.get("attributes", {})
-        assert "output.value" not in attrs
-
-    def test_span_count(self, parallel_mixed_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
-        # 1 root + 2 LLM + 3 TOOL = 6 spans
-        assert len(spans) == 6
+        tools = of_kind(spans, "TOOL")
+        assert {tool["name"] for tool in tools} == {
+            "get_weather",
+            "get_stock",
+            "get_news",
+        }
+        assert "42°F" in attrs(named(spans, "get_weather"))["output.value"]
+        assert "rate limit" in attrs(named(spans, "get_stock"))["output.value"].lower()
+        assert "output.value" not in attrs(named(spans, "get_news"))
 
 
 class TestSubagentLinking:
-    """Tests for cross-trajectory subagent linking."""
+    """Cross-trajectory subagent linking through pre-v1.7 session-keyed refs."""
 
-    def test_build_subagent_ref_map(self, subagent_fixture: Dict[str, Any]) -> None:
-        parent = subagent_fixture["parent"]
-        ref_map = _build_subagent_ref_map([parent])
-        assert "sess-child-summary-001" in ref_map
-        parent_tool_span_id, parent_trace_id = ref_map["sess-child-summary-001"]
-        expected_tool_span_id = _sha256_span_id("sess-parent-001:step:2:tool:call_summarize")
-        # _build_subagent_ref_map uses the old format: session_id:trace
-        expected_trace_id = _sha256_trace_id("sess-parent-001:trace")
-        assert parent_tool_span_id == expected_tool_span_id
-        assert parent_trace_id == expected_trace_id
-
-    def test_child_uses_parent_trace_id(self, subagent_fixture: Dict[str, Any]) -> None:
-        parent = subagent_fixture["parent"]
-        child = subagent_fixture["child"]
-        ref_map = _build_subagent_ref_map([parent, child])
-        parent_ctx = ref_map.get(child["session_id"])
-        assert parent_ctx is not None
-        child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=parent_ctx)
+    def test_child_joins_parent_trace_under_the_referencing_tool(
+        self, subagent_fixture: Dict[str, Any]
+    ) -> None:
+        parent, child = subagent_fixture["parent"], subagent_fixture["child"]
+        spans = _convert_atif_trajectories_to_spans([parent, child])
+        child_root = named(spans, "summarizer")
         parent_trace_id = _sha256_trace_id("sess-parent-001:trace")
-        for span in child_spans:
-            assert span["context"]["trace_id"] == parent_trace_id
 
-    def test_child_root_has_parent_id(self, subagent_fixture: Dict[str, Any]) -> None:
-        parent = subagent_fixture["parent"]
-        child = subagent_fixture["child"]
-        ref_map = _build_subagent_ref_map([parent, child])
-        parent_ctx = ref_map.get(child["session_id"])
-        assert parent_ctx is not None
-        child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=parent_ctx)
-        child_root = child_spans[0]
-        expected_parent_tool_id = _sha256_span_id("sess-parent-001:step:2:tool:call_summarize")
-        assert child_root.get("parent_id") == expected_parent_tool_id
+        assert child_root["parent_id"] == _sha256_span_id(
+            "sess-parent-001:step:2:tool:call_summarize"
+        )
+        assert child_root["parent_id"] == named(spans, "delegate_summary")["context"]["span_id"]
+        assert {span["context"]["trace_id"] for span in spans} == {parent_trace_id}
 
-    def test_independent_trajectories_get_own_trace_ids(self) -> None:
-        """Multiple trajectories without subagent refs should each get their own trace_id."""
-        traj_a: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.4",
-            "session_id": "independent-a",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "hello"},
-                {"step_id": 2, "source": "agent", "message": "hi"},
-            ],
-        }
-        traj_b: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.4",
-            "session_id": "independent-b",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "hey"},
-                {"step_id": 2, "source": "agent", "message": "yo"},
-            ],
-        }
-        ref_map = _build_subagent_ref_map([traj_a, traj_b])
-        assert len(ref_map) == 0
-        spans_a = _convert_atif_trajectory_to_spans(traj_a)
-        spans_b = _convert_atif_trajectory_to_spans(traj_b)
-        trace_a = spans_a[0]["context"]["trace_id"]
-        trace_b = spans_b[0]["context"]["trace_id"]
-        assert trace_a != trace_b
-
-    def test_unlinked_trajectory_has_no_parent_id_on_root(self) -> None:
-        trajectory: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.4",
-            "session_id": "no-parent",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "hello"},
-                {"step_id": 2, "source": "agent", "message": "hi"},
-            ],
-        }
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        root = spans[0]
-        assert "parent_id" not in root
+    def test_independent_trajectories_get_own_traces_without_parents(self) -> None:
+        a = trajectory(user_then_agent(), session_id="independent-a", trajectory_id=None)
+        b = trajectory(user_then_agent(), session_id="independent-b", trajectory_id=None)
+        spans = _convert_atif_trajectories_to_spans([a, b])
+        roots = of_kind(spans, "AGENT")
+        assert len({root["context"]["trace_id"] for root in roots}) == 2
+        assert all("parent_id" not in root for root in roots)
 
     def test_all_subagent_parents_are_emitted(self) -> None:
-        unmatched_agent_parent: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.4",
-            "session_id": "unmatched-agent-parent",
-            "agent": {"name": "parent", "version": "1.0"},
-            "steps": [
+        unmatched_parent = trajectory(
+            [
                 {"step_id": 1, "source": "user", "message": "summarize"},
                 {
                     "step_id": 2,
                     "source": "agent",
                     "message": "delegating",
                     "observation": {
-                        "results": [
-                            {
-                                "subagent_trajectory_ref": [
-                                    {"session_id": "unmatched-agent-child"}
-                                ],
-                            }
-                        ]
+                        "results": [{"subagent_trajectory_ref": [{"session_id": "child-run"}]}]
                     },
                 },
             ],
-        }
-        unmatched_agent_child: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.4",
-            "session_id": "unmatched-agent-child",
-            "agent": {"name": "child", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "answer"},
-                {"step_id": 2, "source": "agent", "message": "done"},
-            ],
-        }
+            session_id="parent-run",
+            trajectory_id=None,
+            schema_version="ATIF-v1.4",
+        )
+        unmatched_child = trajectory(
+            user_then_agent(),
+            session_id="child-run",
+            trajectory_id=None,
+            schema_version="ATIF-v1.4",
+            agent_name="child",
+        )
         harbor_batch = [
             _load_fixture("harbor_terminus2_summarization.json"),
             _load_fixture("harbor_terminus2_sub_summary.json"),
             _load_fixture("harbor_terminus2_sub_answers.json"),
             _load_fixture("harbor_terminus2_sub_questions.json"),
         ]
-        embedded_v17_batch = [_load_fixture("v17_embedded_subagents.json")]
-
-        for batch_name, trajectories in (
-            ("harbor", harbor_batch),
-            ("unmatched agent", [unmatched_agent_parent, unmatched_agent_child]),
-            ("embedded v1.7", embedded_v17_batch),
+        for batch in (
+            harbor_batch,
+            [unmatched_parent, unmatched_child],
+            [_load_fixture("v17_embedded_subagents.json")],
         ):
-            spans = _convert_atif_trajectories_to_spans(trajectories)
-            span_ids = {span["context"]["span_id"] for span in spans}
-            unresolved_parents = [
-                (span["name"], span["parent_id"])
-                for span in spans
-                if "parent_id" in span and span["parent_id"] not in span_ids
-            ]
-            assert not unresolved_parents, (batch_name, unresolved_parents)
+            assert_parents_resolve(_convert_atif_trajectories_to_spans(batch))
 
 
 class TestATIFV17Conversion:
-    def test_flatten_embedded_subagents_inherits_session(
+    def test_embedded_child_links_to_parent_tool_and_inherits_session(
         self, v17_embedded_subagents: Dict[str, Any]
     ) -> None:
-        flat = _flatten_atif_trajectories([v17_embedded_subagents])
-        assert len(flat) == 2
-        child = flat[1]
-        assert child["trajectory_id"] == "child-doc"
-        assert child["session_id"] == "run-v17-001"
+        spans = _convert_atif_trajectories_to_spans([v17_embedded_subagents])
+        child_root = named(spans, "researcher")
+        trace_id = _sha256_trace_id("run-v17-001:trace")
 
-    def test_build_subagent_ref_map_uses_trajectory_id(
-        self, v17_embedded_subagents: Dict[str, Any]
-    ) -> None:
-        flat = _flatten_atif_trajectories([v17_embedded_subagents])
-        ref_map = _build_subagent_ref_map(flat)
-        assert "child-doc" in ref_map
-        parent_tool_span_id, parent_trace_id = ref_map["child-doc"]
-        expected_trace_id = _sha256_trace_id("run-v17-001:trace")
-        assert parent_tool_span_id == _sha256_span_id(
-            f"{expected_trace_id}:parent-doc:step:2:tool:call_delegate"
+        assert child_root["context"]["trace_id"] == trace_id
+        assert child_root["parent_id"] == _sha256_span_id(
+            f"{trace_id}:parent-doc:step:2:tool:call_delegate"
         )
-        assert parent_trace_id == expected_trace_id
+        assert child_root["parent_id"] == (named(spans, "delegate_research")["context"]["span_id"])
+        assert attrs(child_root)["session.id"] == "run-v17-001"
+        assert metadata(child_root)["trajectory_id"] == "child-doc"
 
     def test_same_embedded_subagent_in_two_traces_does_not_collide(
         self, v17_embedded_subagents: Dict[str, Any]
     ) -> None:
-        # The same subagent document can be embedded under different parents.
-        # Phoenix requires globally unique span IDs, so the copies must not
-        # share IDs even though they are byte-identical documents. This is the
-        # behavior that mixing the trace ID into the span seed provides.
+        """Byte-identical embedded documents under different parents get distinct span IDs."""
         second_parent = {
             **json.loads(json.dumps(v17_embedded_subagents)),
             "trajectory_id": "other-parent-doc",
@@ -835,7 +651,6 @@ class TestATIFV17Conversion:
 
         span_ids = [span["context"]["span_id"] for span in spans]
         assert len(set(span_ids)) == len(span_ids)
-        # Both traces really do contain the same child document.
         child_roots = [s for s in spans if s["name"] == "researcher"]
         assert len(child_roots) == 2
         assert len({s["context"]["trace_id"] for s in child_roots}) == 2
@@ -844,270 +659,133 @@ class TestATIFV17Conversion:
         self, v17_embedded_subagents: Dict[str, Any]
     ) -> None:
         spans = _convert_atif_trajectory_to_spans(v17_embedded_subagents)
-        kinds = _span_kind_counts(spans)
-        assert kinds["AGENT"] == 1
-        assert kinds["LLM"] == 1
-        assert kinds["TOOL"] == 1
-
-        tool_span = [s for s in spans if s["span_kind"] == "TOOL"][0]
-        metadata = tool_span.get("attributes", {}).get("metadata", {})
-        assert metadata["llm_call_count"] == 0
-        assert metadata["tool_call_extra"] == {"runtime": "graph-dispatch"}
-        assert metadata["observation_extra"] == {"confidence": 0.91}
+        assert _span_kind_counts(spans) == {"AGENT": 1, "CHAIN": 3, "LLM": 1, "TOOL": 1}
+        tool_metadata = metadata(of_kind(spans, "TOOL")[0])
+        assert tool_metadata["llm_call_count"] == 0
+        assert tool_metadata["tool_call_extra"] == {"runtime": "graph-dispatch"}
+        assert tool_metadata["observation_extra"] == {"confidence": 0.91}
 
     def test_context_management_replace_reconstructs_llm_input(
         self, v17_embedded_subagents: Dict[str, Any]
     ) -> None:
-        spans = _convert_atif_trajectory_to_spans(v17_embedded_subagents)
-        llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
-        attrs = llm_span.get("attributes", {})
-        assert attrs["llm.input_messages.0.message.role"] == "system"
-        assert "Compacted context" in attrs["llm.input_messages.0.message.content"]
-        assert "Research current ATIF" not in attrs["input.value"]
-
-    def test_embedded_child_links_to_parent_tool(
-        self, v17_embedded_subagents: Dict[str, Any]
-    ) -> None:
-        flat = _flatten_atif_trajectories([v17_embedded_subagents])
-        parent, child = flat
-        ref_map = _build_subagent_ref_map(flat)
-        parent_ctx = _get_parent_span_context(child, ref_map)
-        assert parent_ctx is not None
-
-        child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=parent_ctx)
-        child_root = child_spans[0]
-        child_attrs = child_root.get("attributes", {})
-        expected_trace_id = _sha256_trace_id(f"{parent['session_id']}:trace")
-        assert child_root.get("parent_id") == _sha256_span_id(
-            f"{expected_trace_id}:parent-doc:step:2:tool:call_delegate"
-        )
-        assert child_root["context"]["trace_id"] == _sha256_trace_id(
-            f"{parent['session_id']}:trace"
-        )
-        assert child_attrs["session.id"] == parent["session_id"]
-        assert child_attrs.get("metadata", {})["trajectory_id"] == "child-doc"
-
-    def test_v17_same_session_without_trajectory_id_has_distinct_ids(self) -> None:
-        shared_session_id = "shared-v17-run"
-        trajectory_a: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "session_id": shared_session_id,
-            "agent": {"name": "agent-a", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "hello"},
-                {"step_id": 2, "source": "agent", "message": "hi"},
-            ],
-        }
-        trajectory_b: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "session_id": shared_session_id,
-            "agent": {"name": "agent-b", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "goodbye"},
-                {"step_id": 2, "source": "agent", "message": "bye"},
-            ],
-        }
-
-        spans_a = _convert_atif_trajectory_to_spans(trajectory_a)
-        spans_b = _convert_atif_trajectory_to_spans(trajectory_b)
-
-        assert spans_a[0]["context"]["trace_id"] != spans_b[0]["context"]["trace_id"]
-        span_ids = {span["context"]["span_id"] for span in spans_a + spans_b}
-        assert len(span_ids) == len(spans_a) + len(spans_b)
-
-    def test_v17_same_session_with_trajectory_ids_shares_trace_without_span_collisions(
-        self,
-    ) -> None:
-        shared_session_id = "shared-v17-run-with-doc-ids"
-        trajectory_a: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "session_id": shared_session_id,
-            "trajectory_id": "doc-a",
-            "agent": {"name": "agent-a", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "hello"},
-                {"step_id": 2, "source": "agent", "message": "hi"},
-            ],
-        }
-        trajectory_b: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "session_id": shared_session_id,
-            "trajectory_id": "doc-b",
-            "agent": {"name": "agent-b", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "goodbye"},
-                {"step_id": 2, "source": "agent", "message": "bye"},
-            ],
-        }
-
-        spans_a = _convert_atif_trajectory_to_spans(trajectory_a)
-        spans_b = _convert_atif_trajectory_to_spans(trajectory_b)
-
-        assert spans_a[0]["context"]["trace_id"] == spans_b[0]["context"]["trace_id"]
-        assert spans_a[0]["context"]["trace_id"] == _sha256_trace_id(f"{shared_session_id}:trace")
-        span_ids = {span["context"]["span_id"] for span in spans_a + spans_b}
-        assert len(span_ids) == len(spans_a) + len(spans_b)
-
-    def test_v17_document_hash_fallback_is_idempotent(self) -> None:
-        trajectory: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "session_id": "shared-v17-hash-fallback",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "hello"},
-                {"step_id": 2, "source": "agent", "message": "hi"},
-            ],
-        }
-
-        first_spans = _convert_atif_trajectory_to_spans(trajectory)
-        second_spans = _convert_atif_trajectory_to_spans(dict(trajectory))
-
-        assert [span["context"] for span in first_spans] == [
-            span["context"] for span in second_spans
-        ]
-        assert _stable_trajectory_hash(trajectory) == _stable_trajectory_hash(
-            {**trajectory, "_phoenix_parent_span_context": ("parent-span", "trace")}
-        )
-
-    def test_grandchild_embedded_subagent_links_to_nearest_parent_tool(self) -> None:
-        grandchild: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "trajectory_id": "grandchild-doc",
-            "agent": {"name": "grandchild", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "finish"},
-                {"step_id": 2, "source": "agent", "message": "done"},
-            ],
-        }
-        child: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "trajectory_id": "child-doc",
-            "agent": {"name": "child", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "delegate deeper"},
-                {
-                    "step_id": 2,
-                    "source": "agent",
-                    "message": "",
-                    "llm_call_count": 0,
-                    "tool_calls": [
-                        {
-                            "tool_call_id": "call_grandchild",
-                            "function_name": "delegate",
-                            "arguments": {},
-                        }
-                    ],
-                    "observation": {
-                        "results": [
-                            {
-                                "source_call_id": "call_grandchild",
-                                "subagent_trajectory_ref": [{"trajectory_id": "grandchild-doc"}],
-                            }
-                        ]
-                    },
-                },
-            ],
-            "subagent_trajectories": [grandchild],
-        }
-        parent: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "session_id": "run-grandchild",
-            "trajectory_id": "parent-doc",
-            "agent": {"name": "parent", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "delegate"},
-                {
-                    "step_id": 2,
-                    "source": "agent",
-                    "message": "",
-                    "llm_call_count": 0,
-                    "tool_calls": [
-                        {
-                            "tool_call_id": "call_child",
-                            "function_name": "delegate",
-                            "arguments": {},
-                        }
-                    ],
-                    "observation": {
-                        "results": [
-                            {
-                                "source_call_id": "call_child",
-                                "subagent_trajectory_ref": [{"trajectory_id": "child-doc"}],
-                            }
-                        ]
-                    },
-                },
-            ],
-            "subagent_trajectories": [child],
-        }
-
-        flat = _flatten_atif_trajectories([parent])
-        parent_flat, child_flat, grandchild_flat = flat
-        ref_map = _build_subagent_ref_map(flat)
-        trace_id = _sha256_trace_id("run-grandchild:trace")
-
-        child_parent_ctx = _get_parent_span_context(child_flat, ref_map)
-        grandchild_parent_ctx = _get_parent_span_context(grandchild_flat, ref_map)
-
-        assert parent_flat["session_id"] == "run-grandchild"
-        assert child_flat["session_id"] == "run-grandchild"
-        assert grandchild_flat["session_id"] == "run-grandchild"
-        assert child_parent_ctx == (
-            _sha256_span_id(f"{trace_id}:parent-doc:step:2:tool:call_child"),
-            trace_id,
-        )
-        assert grandchild_parent_ctx == (
-            _sha256_span_id(f"{trace_id}:child-doc:step:2:tool:call_grandchild"),
-            trace_id,
-        )
-        assert grandchild_parent_ctx is not None
-
-        grandchild_spans = _convert_atif_trajectory_to_spans(
-            grandchild_flat,
-            parent_span_context=grandchild_parent_ctx,
-        )
-        assert grandchild_spans[0].get("parent_id") == grandchild_parent_ctx[0]
-        assert grandchild_spans[0]["context"]["trace_id"] == trace_id
+        llm = of_kind(_convert_atif_trajectory_to_spans(v17_embedded_subagents), "LLM")[0]
+        assert attrs(llm)["llm.input_messages.0.message.role"] == "system"
+        assert "Compacted context" in attrs(llm)["llm.input_messages.0.message.content"]
+        assert "Research current ATIF" not in attrs(llm)["input.value"]
 
     def test_context_management_replace_preserves_empty_context(self) -> None:
-        trajectory: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "session_id": "run-empty-replacement",
-            "trajectory_id": "empty-replacement-doc",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
+        document = trajectory(
+            [
                 {"step_id": 1, "source": "user", "message": "old context"},
                 {
                     "step_id": 2,
                     "source": "agent",
                     "message": "",
                     "llm_call_count": 0,
-                    "tool_calls": [
-                        {
-                            "tool_call_id": "call_compact",
-                            "function_name": "compact",
-                            "arguments": {},
-                        }
-                    ],
+                    "tool_calls": [tool_call("call_compact", "compact")],
                     "observation": {"results": [{"source_call_id": "call_compact", "content": ""}]},
                     "extra": {"context_management": {"boundary": "replace"}},
                 },
                 {"step_id": 3, "source": "user", "message": "new context"},
                 {"step_id": 4, "source": "agent", "message": "answer"},
+            ]
+        )
+        llm = of_kind(_convert_atif_trajectory_to_spans(document), "LLM")[-1]
+        assert attrs(llm)["llm.input_messages.0.message.role"] == "system"
+        assert attrs(llm)["llm.input_messages.0.message.content"] == ""
+        assert "old context" not in attrs(llm)["input.value"]
+
+    def test_same_session_without_trajectory_id_gets_distinct_traces(self) -> None:
+        a = trajectory(user_then_agent("hi"), session_id="shared", trajectory_id=None)
+        b = trajectory(user_then_agent("bye"), session_id="shared", trajectory_id=None)
+        spans_a = _convert_atif_trajectory_to_spans(a)
+        spans_b = _convert_atif_trajectory_to_spans(b)
+        assert spans_a[0]["context"]["trace_id"] != spans_b[0]["context"]["trace_id"]
+        span_ids = {span["context"]["span_id"] for span in spans_a + spans_b}
+        assert len(span_ids) == len(spans_a) + len(spans_b)
+
+    def test_same_session_with_trajectory_ids_shares_trace_without_collisions(self) -> None:
+        a = trajectory(user_then_agent("hi"), session_id="shared", trajectory_id="doc-a")
+        b = trajectory(user_then_agent("bye"), session_id="shared", trajectory_id="doc-b")
+        spans_a = _convert_atif_trajectory_to_spans(a)
+        spans_b = _convert_atif_trajectory_to_spans(b)
+        assert spans_a[0]["context"]["trace_id"] == spans_b[0]["context"]["trace_id"]
+        assert spans_a[0]["context"]["trace_id"] == _sha256_trace_id("shared:trace")
+        span_ids = {span["context"]["span_id"] for span in spans_a + spans_b}
+        assert len(span_ids) == len(spans_a) + len(spans_b)
+
+    def test_document_hash_fallback_ignores_phoenix_private_keys(self) -> None:
+        document = trajectory(user_then_agent("hi"), trajectory_id=None)
+        first = _convert_atif_trajectory_to_spans(document)
+        second = _convert_atif_trajectory_to_spans(dict(document))
+        assert [span["context"] for span in first] == [span["context"] for span in second]
+        assert _document_hash(document) == _document_hash(
+            {**document, "_phoenix_parent_span_context": ("parent-span", "trace")}
+        )
+        assert _document_hash(document) == _document_hash(
+            {**document, "_phoenix_fallback_timestamp": "2025-01-15T10:00:00Z"}
+        )
+
+    def test_grandchild_embedded_subagent_links_to_nearest_parent_tool(self) -> None:
+        def delegating_step(call_id: str, child_id: str) -> Dict[str, Any]:
+            return {
+                "step_id": 2,
+                "source": "agent",
+                "message": "",
+                "llm_call_count": 0,
+                "tool_calls": [tool_call(call_id, "delegate")],
+                "observation": {
+                    "results": [
+                        {
+                            "source_call_id": call_id,
+                            "subagent_trajectory_ref": [{"trajectory_id": child_id}],
+                        }
+                    ]
+                },
+            }
+
+        grandchild = trajectory(
+            user_then_agent(),
+            session_id=None,
+            trajectory_id="grandchild-doc",
+            agent_name="grandchild",
+        )
+        child = trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "deeper"},
+                delegating_step("call_gc", "grandchild-doc"),
             ],
-        }
+            session_id=None,
+            trajectory_id="child-doc",
+            agent_name="child",
+            subagent_trajectories=[grandchild],
+        )
+        parent = trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "delegate"},
+                delegating_step("call_c", "child-doc"),
+            ],
+            session_id="run-grandchild",
+            trajectory_id="parent-doc",
+            agent_name="parent",
+            subagent_trajectories=[child],
+        )
 
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        llm_span = [span for span in spans if span["span_kind"] == "LLM"][-1]
-        attrs = llm_span.get("attributes", {})
+        spans = _convert_atif_trajectories_to_spans([parent])
+        trace_id = _sha256_trace_id("run-grandchild:trace")
+        tools = of_kind(spans, "TOOL")
 
-        assert attrs["llm.input_messages.0.message.role"] == "system"
-        assert attrs["llm.input_messages.0.message.content"] == ""
-        assert "old context" not in attrs["input.value"]
+        assert {span["context"]["trace_id"] for span in spans} == {trace_id}
+        assert {attrs(span)["session.id"] for span in spans} == {"run-grandchild"}
+        assert named(spans, "child")["parent_id"] == tools[0]["context"]["span_id"]
+        assert named(spans, "grandchild")["parent_id"] == (tools[1]["context"]["span_id"])
+        assert tools[1]["context"]["span_id"] == _sha256_span_id(
+            f"{trace_id}:child-doc:step:2:tool:call_gc"
+        )
 
 
 class TestMultiTurnBehavior:
-    """Test multi-turn structure: root AGENT -> turn AGENT spans -> LLM/TOOL."""
+    """Root AGENT -> turn AGENT -> step CHAIN -> LLM."""
 
     @pytest.fixture()
     def multi_turn_trajectory(self) -> Dict[str, Any]:
@@ -1143,362 +821,173 @@ class TestMultiTurnBehavior:
             ],
         }
 
-    def test_span_count(self, multi_turn_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
-        # 2 user messages -> 2 turns (multi-turn)
-        # 1 root AGENT + 2 turn AGENT + 2 LLM = 5
-        assert len(spans) == 5
-
-    def test_root_agent_exists(self, multi_turn_trajectory: Dict[str, Any]) -> None:
+    def test_turn_tree(self, multi_turn_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
         root = spans[0]
-        assert root["span_kind"] == "AGENT"
-        assert root["name"] == "assistant"
+        turns = [s for s in spans if s["name"].startswith("turn ")]
+        steps = of_kind(spans, "CHAIN")
+        llms = of_kind(spans, "LLM")
+
+        assert (root["name"], root["span_kind"]) == ("assistant", "AGENT")
         assert "parent_id" not in root
+        assert [t["name"] for t in turns] == ["turn 1", "turn 2"]
+        assert all(t.get("parent_id") == root["context"]["span_id"] for t in turns)
+        assert all(t["span_kind"] == "AGENT" for t in turns)
+        assert [s["parent_id"] for s in steps] == [t["context"]["span_id"] for t in turns]
+        assert [llm["parent_id"] for llm in llms] == [s["context"]["span_id"] for s in steps]
+        assert len({s["context"]["trace_id"] for s in spans}) == 1
 
-    def test_turn_agent_spans(self, multi_turn_trajectory: Dict[str, Any]) -> None:
+    def test_turn_timing_and_io(self, multi_turn_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
-        turn_spans = [s for s in spans if s["name"].startswith("turn_")]
-        assert len(turn_spans) == 2
-        assert turn_spans[0]["name"] == "turn_1"
-        assert turn_spans[1]["name"] == "turn_2"
-
-    def test_turn_spans_are_children_of_root(self, multi_turn_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
-        root_id = spans[0]["context"]["span_id"]
-        turn_spans = [s for s in spans if s["name"].startswith("turn_")]
-        for turn_span in turn_spans:
-            assert turn_span.get("parent_id") == root_id
-            assert turn_span["span_kind"] == "AGENT"
-
-    def test_llm_spans_are_children_of_turns(self, multi_turn_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
-        turn_spans = [s for s in spans if s["name"].startswith("turn_")]
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        assert len(llm_spans) == 2
-        # Each LLM span should be a child of its respective turn span
-        assert llm_spans[0].get("parent_id") == turn_spans[0]["context"]["span_id"]
-        assert llm_spans[1].get("parent_id") == turn_spans[1]["context"]["span_id"]
-
-    def test_turn_input_output(self, multi_turn_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
-        turn_spans = [s for s in spans if s["name"].startswith("turn_")]
-
-        # Turn 1: input is first user message, output is first agent reply
-        turn1_attrs = turn_spans[0].get("attributes", {})
-        assert turn1_attrs.get("input.value") == "What is 2+2?"
-        assert turn1_attrs.get("output.value") == "2+2 is 4."
-
-        # Turn 2: input is second user message, output is second agent reply
-        turn2_attrs = turn_spans[1].get("attributes", {})
-        assert turn2_attrs.get("input.value") == "And what is 3+3?"
-        assert turn2_attrs.get("output.value") == "3+3 is 6."
-
-    def test_all_spans_share_trace_id(self, multi_turn_trajectory: Dict[str, Any]) -> None:
-        spans = _convert_atif_trajectory_to_spans(multi_turn_trajectory)
-        trace_ids = {s["context"]["trace_id"] for s in spans}
-        assert len(trace_ids) == 1
+        turns = [s for s in spans if s["name"].startswith("turn ")]
+        assert [(t["start_time"], t["end_time"]) for t in turns] == [
+            ("2025-01-15T10:00:00+00:00", "2025-01-15T10:00:01+00:00"),
+            ("2025-01-15T10:00:02+00:00", "2025-01-15T10:00:03+00:00"),
+        ]
+        assert [(attrs(t)["input.value"], attrs(t)["output.value"]) for t in turns] == [
+            ("What is 2+2?", "2+2 is 4."),
+            ("And what is 3+3?", "3+3 is 6."),
+        ]
 
     def test_single_turn_skips_turn_agent(self) -> None:
-        """When there's only 1 turn, no turn AGENT spans are created."""
-        trajectory: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.4",
-            "session_id": "single-turn-check",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "hello"},
-                {"step_id": 2, "source": "agent", "message": "hi"},
-            ],
-        }
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 1 root + 1 LLM = 2 (no turn AGENT)
-        assert len(spans) == 2
-        turn_spans = [s for s in spans if s["name"].startswith("turn_")]
-        assert len(turn_spans) == 0
-        # LLM parents directly to root
-        root_id = spans[0]["context"]["span_id"]
-        llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
-        assert llm_span.get("parent_id") == root_id
+        spans = _convert_atif_trajectory_to_spans(trajectory(user_then_agent("hi")))
+        root, step, llm = spans
+        assert not [s for s in spans if s["name"].startswith("turn ")]
+        assert step.get("parent_id") == root["context"]["span_id"]
+        assert llm.get("parent_id") == step["context"]["span_id"]
 
 
 class TestContinuationMerging:
-    """Test that continuation trajectories (session_id ending in -cont-N) share a trace."""
+    """Continuation trajectories (session_id ending in -cont-N) share a trace."""
 
-    def test_base_session_id_strips_continuation_suffix(self) -> None:
-        assert _base_session_id("abc123") == "abc123"
-        assert _base_session_id("abc123-cont-1") == "abc123"
-        assert _base_session_id("abc123-cont-2") == "abc123"
-        assert _base_session_id("abc123-cont-10") == "abc123"
-        assert _base_session_id("abc123-cont-work-cont-2") == "abc123-cont-work"
+    @pytest.mark.parametrize(
+        ("session_id", "expected"),
+        [
+            ("abc123", "abc123"),
+            ("abc123-cont-1", "abc123"),
+            ("abc123-cont-10", "abc123"),
+            ("abc123-cont-work-cont-2", "abc123-cont-work"),
+            ("my-session-content-1", "my-session-content-1"),
+            ("abc-cont-xyz", "abc-cont-xyz"),
+            ("abc-cont-", "abc-cont-"),
+        ],
+    )
+    def test_base_session_id(self, session_id: str, expected: str) -> None:
+        assert _base_session_id(session_id) == expected
 
-    def test_base_session_id_preserves_non_continuation(self) -> None:
-        assert _base_session_id("my-session-content-1") == "my-session-content-1"
-        assert _base_session_id("abc-cont-xyz") == "abc-cont-xyz"
-        assert _base_session_id("abc-cont-") == "abc-cont-"
+    def test_harbor_continuation_shares_trace_with_distinct_spans(self) -> None:
+        original = _convert_atif_trajectory_to_spans(
+            _load_fixture("harbor_terminus2_continuation.json")
+        )
+        cont1 = _convert_atif_trajectory_to_spans(
+            _load_fixture("harbor_terminus2_continuation_cont1.json")
+        )
+        unrelated = _convert_atif_trajectory_to_spans(
+            _load_fixture("harbor_terminus2_timeout.json")
+        )
 
-    def test_continuation_shares_trace_id_with_original(self) -> None:
-        original = _load_fixture("harbor_terminus2_continuation.json")
-        cont1 = _load_fixture("harbor_terminus2_continuation_cont1.json")
-        original_spans = _convert_atif_trajectory_to_spans(original)
-        cont1_spans = _convert_atif_trajectory_to_spans(cont1)
-        assert original_spans[0]["context"]["trace_id"] == cont1_spans[0]["context"]["trace_id"]
+        assert original[0]["context"]["trace_id"] == cont1[0]["context"]["trace_id"]
+        assert original[0]["context"]["trace_id"] != unrelated[0]["context"]["trace_id"]
+        original_ids = {s["context"]["span_id"] for s in original}
+        assert original_ids.isdisjoint(s["context"]["span_id"] for s in cont1)
 
-    def test_continuation_has_distinct_span_ids(self) -> None:
-        original = _load_fixture("harbor_terminus2_continuation.json")
-        cont1 = _load_fixture("harbor_terminus2_continuation_cont1.json")
-        original_spans = _convert_atif_trajectory_to_spans(original)
-        cont1_spans = _convert_atif_trajectory_to_spans(cont1)
-        original_ids = {s["context"]["span_id"] for s in original_spans}
-        cont1_ids = {s["context"]["span_id"] for s in cont1_spans}
-        assert original_ids.isdisjoint(cont1_ids), "Span IDs should not collide"
-
-    def test_continuation_has_distinct_root_span_id(self) -> None:
-        original = _load_fixture("harbor_terminus2_continuation.json")
-        cont1 = _load_fixture("harbor_terminus2_continuation_cont1.json")
-        original_spans = _convert_atif_trajectory_to_spans(original)
-        cont1_spans = _convert_atif_trajectory_to_spans(cont1)
-        assert original_spans[0]["context"]["span_id"] != cont1_spans[0]["context"]["span_id"]
+        assert "is_continuation" not in metadata(original[0])
+        assert metadata(cont1[0])["is_continuation"] is True
+        assert all("has_copied_context" not in metadata(s) for s in of_kind(original, "LLM"))
+        assert all(metadata(s)["has_copied_context"] is True for s in of_kind(cont1, "LLM"))
 
     def test_v17_continuation_shares_base_trace_with_distinct_span_ids(self) -> None:
-        original: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "session_id": "run-v17-cont",
-            "trajectory_id": "v17-cont-original",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "start"},
-                {"step_id": 2, "source": "agent", "message": "started"},
-            ],
-        }
-        continuation: Dict[str, Any] = {
-            "schema_version": "ATIF-v1.7",
-            "session_id": "run-v17-cont-cont-1",
-            "trajectory_id": "v17-cont-follow-up",
-            "continued_trajectory_ref": "run-v17-cont",
-            "agent": {"name": "agent", "version": "1.0"},
-            "steps": [
-                {"step_id": 1, "source": "user", "message": "continue"},
-                {"step_id": 2, "source": "agent", "message": "continued"},
-            ],
-        }
-
+        original = trajectory(
+            user_then_agent("started"), session_id="run-v17-cont", trajectory_id="v17-original"
+        )
+        continuation = trajectory(
+            user_then_agent("continued"),
+            session_id="run-v17-cont-cont-1",
+            trajectory_id="v17-follow-up",
+            continued_trajectory_ref="run-v17-cont",
+        )
         original_spans = _convert_atif_trajectory_to_spans(original)
         continuation_spans = _convert_atif_trajectory_to_spans(continuation)
 
-        assert (
-            original_spans[0]["context"]["trace_id"] == continuation_spans[0]["context"]["trace_id"]
-        )
         assert original_spans[0]["context"]["trace_id"] == _sha256_trace_id("run-v17-cont:trace")
+        assert (
+            original_spans[0]["context"]["trace_id"]
+            == (continuation_spans[0]["context"]["trace_id"])
+        )
         original_ids = {span["context"]["span_id"] for span in original_spans}
-        continuation_ids = {span["context"]["span_id"] for span in continuation_spans}
-        assert original_ids.isdisjoint(continuation_ids)
-
-    def test_non_continuation_gets_own_trace_id(self) -> None:
-        """A session_id without -cont-N should not be affected."""
-        original = _load_fixture("harbor_terminus2_continuation.json")
-        timeout = _load_fixture("harbor_terminus2_timeout.json")
-        original_spans = _convert_atif_trajectory_to_spans(original)
-        timeout_spans = _convert_atif_trajectory_to_spans(timeout)
-        assert original_spans[0]["context"]["trace_id"] != timeout_spans[0]["context"]["trace_id"]
-
-    def test_continuation_root_has_is_continuation_metadata(self) -> None:
-        cont1 = _load_fixture("harbor_terminus2_continuation_cont1.json")
-        spans = _convert_atif_trajectory_to_spans(cont1)
-        root = spans[0]
-        attrs = root.get("attributes") or {}
-        metadata = attrs.get("metadata", {})
-        assert metadata["is_continuation"] is True
-
-    def test_original_root_does_not_have_is_continuation(self) -> None:
-        original = _load_fixture("harbor_terminus2_continuation.json")
-        spans = _convert_atif_trajectory_to_spans(original)
-        root = spans[0]
-        attrs = root.get("attributes") or {}
-        metadata = attrs.get("metadata", {})
-        assert "is_continuation" not in metadata
-
-    def test_continuation_llm_spans_have_copied_context_flag(self) -> None:
-        cont1 = _load_fixture("harbor_terminus2_continuation_cont1.json")
-        spans = _convert_atif_trajectory_to_spans(cont1)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        # All LLM spans in cont-1 follow is_copied_context steps
-        for llm in llm_spans:
-            attrs = llm.get("attributes") or {}
-            assert attrs.get("metadata", {}).get("has_copied_context") is True
-
-    def test_original_llm_spans_no_copied_context_flag(self) -> None:
-        original = _load_fixture("harbor_terminus2_continuation.json")
-        spans = _convert_atif_trajectory_to_spans(original)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        for llm in llm_spans:
-            attrs = llm.get("attributes") or {}
-            assert "has_copied_context" not in attrs.get("metadata", {})
+        assert original_ids.isdisjoint(span["context"]["span_id"] for span in continuation_spans)
 
 
 class TestHarborGoldenFiles:
-    """Tests against real Harbor golden trajectory files from the harbor-framework/harbor repo."""
+    """Real Harbor golden trajectory files."""
 
-    # -- OpenHands v1.5 --
+    @pytest.mark.parametrize(
+        ("fixture_name", "expected_kinds"),
+        [
+            ("harbor_openhands.json", {"AGENT": 1, "CHAIN": 2, "LLM": 2, "TOOL": 2}),
+            ("harbor_terminus2_summarization.json", {"AGENT": 3, "CHAIN": 8, "LLM": 7, "TOOL": 7}),
+            ("harbor_terminus2_continuation.json", {"AGENT": 1, "CHAIN": 4, "LLM": 3}),
+            ("harbor_terminus2_continuation_cont1.json", {"AGENT": 1, "CHAIN": 4, "LLM": 4}),
+            ("harbor_terminus2_invalid_json.json", {"AGENT": 1, "CHAIN": 4, "LLM": 4, "TOOL": 3}),
+            ("harbor_terminus2_timeout.json", {"AGENT": 1, "CHAIN": 3, "LLM": 3, "TOOL": 3}),
+            ("harbor_terminus2_sub_summary.json", {"AGENT": 1, "CHAIN": 1, "LLM": 1}),
+            ("harbor_terminus2_sub_answers.json", {"AGENT": 1, "CHAIN": 1, "LLM": 1}),
+            ("harbor_terminus2_sub_questions.json", {"AGENT": 1, "CHAIN": 1, "LLM": 1}),
+        ],
+    )
+    def test_golden_trajectory_span_shape(
+        self, fixture_name: str, expected_kinds: Dict[str, int]
+    ) -> None:
+        spans = _convert_atif_trajectory_to_spans(_load_fixture(fixture_name))
+        assert _span_kind_counts(spans) == expected_kinds
+        assert_parents_resolve(spans)
 
-    def test_openhands_converts_without_error(self) -> None:
-        trajectory = _load_fixture("harbor_openhands.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 6 steps: 1 system, 1 user, 2 system, 2 agent (with 1 tool call each).
-        # Single turn (leading system step + user grouped together).
-        # 1 root AGENT + 2 LLM + 2 TOOL = 5
-        assert len(spans) == 5
-        kinds = _span_kind_counts(spans)
-        assert kinds["AGENT"] == 1
-        assert "CHAIN" not in kinds
-        assert kinds["LLM"] == 2
-        assert kinds["TOOL"] == 2
-
-    def test_openhands_has_tool_definitions(self) -> None:
-        trajectory = _load_fixture("harbor_openhands.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        assert len(llm_spans) > 0
-        attrs = llm_spans[0].get("attributes", {})
-        tool_def_keys = [k for k in attrs if k.startswith("llm.tools.")]
-        assert len(tool_def_keys) > 0
-
-    def test_openhands_root_is_agent(self) -> None:
-        trajectory = _load_fixture("harbor_openhands.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        root = spans[0]
-        assert root["span_kind"] == "AGENT"
-        assert root["name"] == "openhands"
-        assert "parent_id" not in root
-
-    # -- Terminus-2: summarization (10 steps, subagent refs) --
-
-    def test_terminus2_summarization_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_summarization.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 10 steps (2 user, 1 system, 7 agent, 7 tool calls) -> 2 turns (multi-turn)
-        # 1 root AGENT + 2 turn AGENT + 7 LLM + 7 TOOL = 17
-        assert len(spans) == 17
-        kinds = _span_kind_counts(spans)
-        assert kinds["AGENT"] == 3
-        assert kinds["LLM"] == 7
-        assert kinds["TOOL"] == 7
-        assert "CHAIN" not in kinds
-
-    def test_terminus2_summarization_subagent_refs_detected(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_summarization.json")
-        ref_map = _build_subagent_ref_map([trajectory])
-        assert len(ref_map) > 0
+    def test_openhands_root_and_tool_definitions(self) -> None:
+        spans = _convert_atif_trajectory_to_spans(_load_fixture("harbor_openhands.json"))
+        assert (spans[0]["name"], spans[0]["span_kind"]) == ("openhands", "AGENT")
+        assert "parent_id" not in spans[0]
+        assert any(key.startswith("llm.tools.") for key in attrs(of_kind(spans, "LLM")[0]))
 
     def test_terminus2_summarization_batch_links_subagents(self) -> None:
-        """Batch convert parent + 3 subagent trajectories; children should link."""
         parent = _load_fixture("harbor_terminus2_summarization.json")
         children = [
             _load_fixture("harbor_terminus2_sub_summary.json"),
             _load_fixture("harbor_terminus2_sub_answers.json"),
             _load_fixture("harbor_terminus2_sub_questions.json"),
         ]
-        all_trajs = [parent] + children
-        ref_map = _build_subagent_ref_map(all_trajs)
-
+        spans = _convert_atif_trajectories_to_spans([parent, *children])
         parent_trace_id = _sha256_trace_id(f"{parent['session_id']}:trace")
-        for child in children:
-            child_sid = child["session_id"]
-            if child_sid in ref_map:
-                ctx = ref_map[child_sid]
-                child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=ctx)
-                for span in child_spans:
-                    assert span["context"]["trace_id"] == parent_trace_id
-                assert "parent_id" in child_spans[0]
+        child_roots = [named(spans, f"{child['agent']['name']}") for child in children]
 
-    # -- Terminus-2: continuation --
+        assert {span["context"]["trace_id"] for span in spans} == {parent_trace_id}
+        assert all("parent_id" in root for root in child_roots)
+        assert_parents_resolve(spans)
 
-    def test_terminus2_continuation_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_continuation.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 5 steps (1 user, 3 agent, 1 system) -> 1 turn -> 1 root + 3 LLM = 4
-        assert len(spans) == 4
-        kinds = _span_kind_counts(spans)
-        assert kinds["AGENT"] == 1
-        assert "CHAIN" not in kinds
-
-    def test_terminus2_continuation_has_continued_ref(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_continuation.json")
-        assert "continued_trajectory_ref" in trajectory
-
-    def test_terminus2_cont1_multi_turn(self) -> None:
-        """continuation_cont1 has 3 user messages -> 3 turns (multi-turn)."""
-        trajectory = _load_fixture("harbor_terminus2_continuation_cont1.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 8 steps (3 user, 5 agent) -> 3 turns (multi-turn)
-        # 1 root AGENT + 3 turn AGENT + 5 LLM = 9
-        assert len(spans) == 9
-        kinds = _span_kind_counts(spans)
-        assert kinds["AGENT"] == 4
-        assert kinds["LLM"] == 5
-        assert "CHAIN" not in kinds
-
-    # -- Terminus-2: invalid JSON (error recovery, reasoning_content) --
-
-    def test_terminus2_invalid_json_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_invalid_json.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 5 steps (1 user, 4 agent) -> 1 turn -> 1 root + 4 LLM + 3 TOOL = 8
-        assert len(spans) == 8
-        kinds = _span_kind_counts(spans)
-        assert kinds["TOOL"] == 3
-        assert "CHAIN" not in kinds
+    def test_only_llm_spans_carry_llm_attributes(self) -> None:
+        spans = _convert_atif_trajectories_to_spans(
+            [
+                _load_fixture("harbor_terminus2_summarization.json"),
+                _load_fixture("harbor_terminus2_sub_summary.json"),
+            ]
+        )
+        offenders = [
+            (span["name"], key)
+            for span in spans
+            if span["span_kind"] != "LLM"
+            for key in attrs(span)
+            if key.startswith("llm.")
+        ]
+        assert not offenders
 
     def test_terminus2_invalid_json_has_reasoning(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_invalid_json.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        reasoning_spans = [
-            s
-            for s in llm_spans
-            if s.get("attributes", {}).get("metadata", {}).get("reasoning_content")
-        ]
-        assert len(reasoning_spans) > 0
+        spans = _convert_atif_trajectory_to_spans(
+            _load_fixture("harbor_terminus2_invalid_json.json")
+        )
+        assert any(metadata(span).get("reasoning_content") for span in of_kind(spans, "LLM"))
 
-    # -- Terminus-2: timeout --
-
-    def test_terminus2_timeout_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_timeout.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 4 steps (1 user, 3 agent) -> 1 turn -> 1 root + 3 LLM + 3 TOOL = 7
-        assert len(spans) == 7
-        kinds = _span_kind_counts(spans)
-        assert kinds["TOOL"] == 3
-        assert "CHAIN" not in kinds
-
-    # -- Subagent child trajectories --
-
-    def test_terminus2_sub_summary_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_sub_summary.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 5 steps (2 user, 3 agent, 2 tool calls) -> 2 turns (multi-turn)
-        # 1 root AGENT + 2 turn AGENT + 3 LLM + 2 TOOL = 8
-        assert len(spans) == 8
-
-    def test_terminus2_sub_answers_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_sub_answers.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 7 steps (3 user, 4 agent, 2 tool calls) -> 3 turns (multi-turn)
-        # 1 root AGENT + 3 turn AGENT + 4 LLM + 2 TOOL = 10
-        assert len(spans) == 10
-
-    def test_terminus2_sub_questions_converts(self) -> None:
-        trajectory = _load_fixture("harbor_terminus2_sub_questions.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-        # 2 steps (1 user, 1 agent) -> 1 turn -> 1 root + 1 LLM = 2
-        assert len(spans) == 2
-
-
-class TestRealWorldTrajectories:
-    """Tests against real spec-conformant ATIF trajectories from Harbor."""
-
-    def test_harbor_failed_trajectory_conversion(self) -> None:
-        """Real Harbor ATIF-v1.2 trajectory from a failed Claude Code run."""
-        trajectory: Dict[str, Any] = {
+    def test_claude_code_failed_run_converts(self) -> None:
+        """A real ATIF-v1.2 trajectory from a Claude Code run that never logged in."""
+        document: Dict[str, Any] = {
             "schema_version": "ATIF-v1.2",
             "session_id": "a232fe2e-4a36-4aaa-a3d0-821ecd662a0f",
             "agent": {
@@ -1521,39 +1010,352 @@ class TestRealWorldTrajectories:
                     "source": "agent",
                     "model_name": "<synthetic>",
                     "message": "Not logged in",
-                    "metrics": {
-                        "prompt_tokens": 0,
-                        "completion_tokens": 0,
-                        "cached_tokens": 0,
-                        "extra": {
-                            "cache_creation_input_tokens": 0,
-                            "cache_read_input_tokens": 0,
-                        },
-                    },
+                    "metrics": {"prompt_tokens": 0, "completion_tokens": 0, "cached_tokens": 0},
                     "extra": {"stop_reason": "stop_sequence"},
                 },
             ],
-            "final_metrics": {
-                "total_prompt_tokens": 0,
-                "total_completion_tokens": 0,
-                "total_cached_tokens": 0,
-                "total_steps": 2,
-                "extra": {"total_cache_creation_input_tokens": 0},
-            },
+            "final_metrics": {"total_prompt_tokens": 0, "total_completion_tokens": 0},
         }
-        spans = _convert_atif_trajectory_to_spans(trajectory)
+        spans = _convert_atif_trajectory_to_spans(document)
+        assert (spans[0]["name"], spans[0]["span_kind"]) == ("claude-code", "AGENT")
+        llm = of_kind(spans, "LLM")[0]
+        assert llm["name"] == "<synthetic>"
+        assert "llm.token_count.total" not in attrs(llm)
+        assert attrs(llm)["output.value"] == "Not logged in"
 
-        # 1 root + 1 LLM = 2 spans (no CHAIN for user)
-        assert len(spans) == 2
-        root = spans[0]
-        assert root["name"] == "claude-code"
-        assert root["span_kind"] == "AGENT"
 
-        llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
-        attrs = llm_span.get("attributes", {})
-        assert attrs.get("llm.model_name") == "<synthetic>"
-        # 0 tokens - total should not be set
-        assert "llm.token_count.total" not in attrs
+class TestOperationNamingAndTiming:
+    """Visible step names and document timing anchors."""
 
-        # Output should be the error message
-        assert attrs.get("output.value") == "Not logged in"
+    def test_action_names_use_per_label_ordinals(self) -> None:
+        document = trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "go"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "working",
+                    "timestamp": "2025-01-15T10:00:01Z",
+                },
+                {
+                    "step_id": 3,
+                    "source": "system",
+                    "message": "Compacted context",
+                    "timestamp": "2025-01-15T10:00:02Z",
+                    "extra": {"context_management": {"kind": "summarization"}},
+                },
+                {
+                    "step_id": 4,
+                    "source": "agent",
+                    "message": "done",
+                    "timestamp": "2025-01-15T10:00:03Z",
+                },
+            ]
+        )
+        chains = of_kind(_convert_atif_trajectory_to_spans(document), "CHAIN")
+        assert [s["name"] for s in chains] == ["iteration 1", "compaction 1", "iteration 2"]
+        assert [metadata(s)["atif.step_id"] for s in chains] == [2, 3, 4]
+        assert metadata(chains[1])["atif.context_management"] is True
+        assert "atif.context_management" not in metadata(chains[0])
+
+    def test_copied_context_consumes_no_ordinal(self) -> None:
+        document = trajectory(
+            [
+                {"step_id": 1, "source": "agent", "message": "old work", "is_copied_context": True},
+                {"step_id": 2, "source": "user", "message": "go"},
+                {
+                    "step_id": 3,
+                    "source": "agent",
+                    "message": "fresh work",
+                    "timestamp": "2025-01-15T10:00:01Z",
+                },
+            ]
+        )
+        chains = of_kind(_convert_atif_trajectory_to_spans(document), "CHAIN")
+        assert [s["name"] for s in chains] == ["iteration 1"]
+
+    @pytest.mark.parametrize(
+        ("extra", "expected_name", "expected_metadata"),
+        [
+            (
+                {"_phoenix_is_continuation": True, "_phoenix_continuation_index": 2},
+                "worker (continuation 2)",
+                {"is_continuation": True, "continuation_index": 2},
+            ),
+            (
+                {"session_id": "run-cont-1"},
+                "worker (continuation)",
+                {"is_continuation": True},
+            ),
+        ],
+        ids=["continuation-index", "continuation-session"],
+    )
+    def test_root_name_qualifiers(
+        self, extra: Dict[str, Any], expected_name: str, expected_metadata: Dict[str, Any]
+    ) -> None:
+        root = _convert_atif_trajectory_to_spans({**trajectory(user_then_agent()), **extra})[0]
+        assert root["name"] == expected_name
+        assert expected_metadata.items() <= metadata(root).items()
+
+    def test_first_agent_step_anchors_document_with_measured_latency(self) -> None:
+        document = trajectory(
+            [
+                {
+                    "step_id": 3,
+                    "source": "agent",
+                    "message": "fresh work",
+                    "timestamp": "2025-01-15T10:00:30Z",
+                    "_phoenix_llm_latency_ms": 10000,
+                    "_phoenix_llm_latency_source": "test.measurement",
+                    "tool_calls": [tool_call("c1")],
+                }
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(document)
+        root, chain, llm, tool = spans
+        assert root["start_time"] == chain["start_time"] == "2025-01-15T10:00:20+00:00"
+        assert chain["end_time"] == "2025-01-15T10:00:30+00:00"
+        assert (llm["start_time"], llm["end_time"]) == (
+            "2025-01-15T10:00:20+00:00",
+            "2025-01-15T10:00:30+00:00",
+        )
+        assert metadata(llm)["atif.timing"] == "test.measurement"
+        assert tool["start_time"] == tool["end_time"] == "2025-01-15T10:00:30+00:00"
+
+    def test_measured_latency_is_clamped_to_the_step_interval(self) -> None:
+        document = trajectory(
+            [
+                {
+                    "step_id": 1,
+                    "source": "user",
+                    "message": "go",
+                    "timestamp": "2025-01-15T10:00:00Z",
+                },
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "slow",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                    "_phoenix_llm_latency_ms": 60000,
+                },
+            ]
+        )
+        llm = of_kind(_convert_atif_trajectory_to_spans(document), "LLM")[0]
+        assert (llm["start_time"], llm["end_time"]) == (
+            "2025-01-15T10:00:00+00:00",
+            "2025-01-15T10:00:05+00:00",
+        )
+        assert metadata(llm)["atif.timing"] == "adapter_clamped"
+        assert metadata(llm)["atif.measured_latency_ms"] == 60000
+
+    def test_first_step_without_latency_stays_point_event(self) -> None:
+        document = trajectory(
+            [
+                {
+                    "step_id": 3,
+                    "source": "agent",
+                    "message": "fresh",
+                    "timestamp": "2025-01-15T10:00:30Z",
+                }
+            ]
+        )
+        root = _convert_atif_trajectory_to_spans(document)[0]
+        assert root["start_time"] == root["end_time"] == "2025-01-15T10:00:30+00:00"
+
+
+class TestStepLevelObservations:
+    """The step span keeps observations that no tool call claims."""
+
+    def test_combined_observation_lands_on_step_span(self) -> None:
+        document = trajectory(
+            [
+                {
+                    "step_id": 1,
+                    "source": "agent",
+                    "message": "running commands",
+                    "tool_calls": [tool_call("a"), tool_call("b")],
+                    "observation": {"results": [{"content": "combined terminal output"}]},
+                }
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(document)
+        step = of_kind(spans, "CHAIN")[0]
+        assert all("output.value" not in attrs(s) for s in of_kind(spans, "TOOL"))
+        assert json.loads(attrs(step)["output.value"]) == {
+            "message": "running commands",
+            "observation": "combined terminal output",
+        }
+        assert attrs(step)["output.mime_type"] == "application/json"
+
+    def test_matched_results_pair_to_tools(self) -> None:
+        document = trajectory(
+            [
+                {
+                    "step_id": 1,
+                    "source": "agent",
+                    "message": "running",
+                    "tool_calls": [tool_call("a"), tool_call("b")],
+                    "observation": {
+                        "results": [
+                            {"source_call_id": "a", "content": "out-a"},
+                            {"source_call_id": "b", "content": "out-b"},
+                        ]
+                    },
+                }
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(document)
+        step = of_kind(spans, "CHAIN")[0]
+        assert [attrs(s)["output.value"] for s in of_kind(spans, "TOOL")] == ["out-a", "out-b"]
+        assert (attrs(step)["output.value"], attrs(step)["output.mime_type"]) == (
+            "running",
+            "text/plain",
+        )
+
+    def test_step_input_is_the_preceding_context(self) -> None:
+        document = trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "request"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "looking",
+                    "tool_calls": [tool_call("a")],
+                    "observation": {"results": [{"source_call_id": "a", "content": "tool output"}]},
+                },
+                {
+                    "step_id": 3,
+                    "source": "system",
+                    "message": "note",
+                    "extra": {"context_management": {"kind": "summarization"}},
+                },
+                {"step_id": 4, "source": "agent", "message": "answer"},
+            ]
+        )
+        chains = of_kind(_convert_atif_trajectory_to_spans(document), "CHAIN")
+        assert [s["name"] for s in chains] == ["iteration 1", "compaction 1", "iteration 2"]
+        assert attrs(chains[0])["input.value"] == "request"
+        assert attrs(chains[0])["output.value"]
+        assert attrs(chains[1])["input.value"] == "note"
+        assert attrs(chains[2])["input.value"] == "note"
+        assert attrs(chains[2])["output.value"] == "answer"
+
+    def test_tool_only_step_reports_tool_results_as_output(self) -> None:
+        document = trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "request"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "",
+                    "tool_calls": [tool_call("a"), tool_call("b")],
+                    "observation": {
+                        "results": [
+                            {"source_call_id": "a", "content": "first"},
+                            {"source_call_id": "b", "content": "second"},
+                        ]
+                    },
+                },
+            ]
+        )
+        step = named(_convert_atif_trajectory_to_spans(document), "iteration 1")
+        assert attrs(step)["input.value"] == "request"
+        assert attrs(step)["output.value"] == "first\nsecond"
+
+
+class TestTurnGrouping:
+    def test_consecutive_context_messages_do_not_create_turns(self) -> None:
+        """Codex-style leading system and doubled user context stays one turn."""
+        document = trajectory(
+            [
+                {"step_id": 1, "source": "system", "message": "skills"},
+                {"step_id": 2, "source": "user", "message": "<environment_context/>"},
+                {"step_id": 3, "source": "user", "message": "do the task"},
+                {
+                    "step_id": 4,
+                    "source": "agent",
+                    "message": "done",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                },
+            ],
+            agent_name="codex",
+        )
+        spans = _convert_atif_trajectory_to_spans(document)
+        assert [s["name"] for s in of_kind(spans, "AGENT")] == ["codex"]
+        assert [s["name"] for s in of_kind(spans, "CHAIN")] == ["iteration 1"]
+        assert attrs(spans[0])["input.value"] == "do the task"
+
+    def test_follow_up_user_message_after_agent_activity_starts_turn(self) -> None:
+        document = trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "first"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "one",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                },
+                {"step_id": 3, "source": "user", "message": "second"},
+                {
+                    "step_id": 4,
+                    "source": "agent",
+                    "message": "two",
+                    "timestamp": "2025-01-15T10:00:10Z",
+                },
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(document)
+        assert [s["name"] for s in spans if s["name"].startswith("turn ")] == ["turn 1", "turn 2"]
+
+    def test_continuation_input_falls_back_to_copied_request(self) -> None:
+        document = trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "original", "is_copied_context": True},
+                {
+                    "step_id": 2,
+                    "source": "user",
+                    "message": "handoff answers",
+                    "is_copied_context": True,
+                },
+                {
+                    "step_id": 3,
+                    "source": "agent",
+                    "message": "continuing",
+                    "timestamp": "2025-01-15T10:00:05Z",
+                },
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(document)
+        assert attrs(spans[0])["input.value"] == "handoff answers"
+        iteration = named(spans, "iteration 1")
+        assert attrs(iteration)["input.value"] == "handoff answers"
+        assert attrs(iteration)["output.value"] == "continuing"
+
+
+class TestEqualTimeEvents:
+    def test_events_keep_exact_timestamp_and_declared_tool_order(self) -> None:
+        document = trajectory(
+            [
+                {"step_id": 1, "source": "user", "message": "go"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "running",
+                    "timestamp": "2025-01-15T10:00:10Z",
+                    "tool_calls": [tool_call("a"), tool_call("b"), tool_call("c", "done")],
+                },
+            ]
+        )
+        spans = _convert_atif_trajectory_to_spans(document)
+        llm = of_kind(spans, "LLM")[0]
+        tools = of_kind(spans, "TOOL")
+        assert [llm["start_time"], *(t["start_time"] for t in tools)] == [
+            "2025-01-15T10:00:10+00:00"
+        ] * 4
+        assert all(t["start_time"] == t["end_time"] for t in tools)
+        assert [t["name"] for t in tools] == [
+            "bash",
+            "bash",
+            "done",
+        ]
+        assert [metadata(t)["atif.tool_call_index"] for t in tools] == [0, 1, 2]

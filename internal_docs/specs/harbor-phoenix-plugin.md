@@ -1,6 +1,6 @@
-# Phoenix plugin for Harbor — design specification
+# Phoenix plugin for Harbor: design specification
 
-**Status:** Proposed for prototype implementation
+**Status:** ATIF prototype implemented; OTLP deferred
 
 ## Contents
 
@@ -20,20 +20,25 @@
 
 ## 1. Summary
 
-Build a Harbor plugin that records Harbor evaluation jobs in Phoenix. Harbor remains responsible for running agents and verifiers. Phoenix stores the tasks, experiment runs, scores, and traces so teams can compare results across agents, models, attempts, and time.
+The Phoenix Harbor plugin records Harbor evaluation jobs in Phoenix. Harbor runs the agents and
+verifiers. Phoenix stores the tasks, experiment runs, scores, and traces so teams can compare
+results across agents, models, attempts, and time.
 
-The plugin will:
+The plugin:
 
-- infer a Phoenix dataset from the Harbor dataset;
-- create one Phoenix experiment for each agent and model in a job;
-- record each Harbor trial as an experiment run;
-- store Harbor's aggregate reward and infrastructure status as dense evaluation scores;
-- store other task- and step-level rewards as sparse diagnostic scores; and
-- link each run to an ATIF or live OTLP trace when the selected trace mode supports it.
+- infers a Phoenix dataset from the Harbor dataset
+- creates one Phoenix experiment for each agent and model in a job
+- records each Harbor trial as an experiment run
+- stores Harbor's aggregate reward and infrastructure status as dense evaluation scores
+- stores other task- and step-level rewards as sparse diagnostic scores
+- links each run to an ATIF trace when ATIF tracing succeeds
 
-ATIF is the default because it does not require agent instrumentation. OTLP provides live traces for instrumented agents. In this prototype, OTLP supports project routing and adapter-assisted run linkage. Generic per-trial context injection requires an upstream Harbor change (§5.3).
+ATIF is the default because it does not require agent instrumentation. OTLP provides live traces
+for instrumented agents. OTLP support is deferred for a follow-up. Its planned project routing,
+adapter-assisted run linkage, and generic per-trial context injection remain specified in §5.
 
-The prototype requires **no Phoenix server changes**. It requires **one new public API in `arize-phoenix-client`**: a pure ATIF conversion function (§5). This API is the only blocking dependency outside the plugin package.
+The prototype requires no Phoenix server changes. The plugin composes the existing package-internal
+pure ATIF conversion and reparenting helpers.
 
 ## 2. Goals and boundaries
 
@@ -41,7 +46,7 @@ The prototype requires **no Phoenix server changes**. It requires **one new publ
 
 - One-command setup through `harbor run --plugin arize-phoenix`.
 - Support any Harbor dataset and agent that meets the selected trace mode's requirements.
-- Preserve Harbor's task, trial, attempt, agent, model, and reward identities.
+- Preserve Harbor's task, logical trial, agent, model, and reward identities.
 - Show comparable results across agents and models.
 - Preserve completed results when a long-running job is interrupted.
 - Stop before spending trial compute when required Phoenix recording cannot be set up.
@@ -49,13 +54,13 @@ The prototype requires **no Phoenix server changes**. It requires **one new publ
 
 ### Boundaries
 
-- Harbor is the execution harness. Phoenix does not rerun these experiments or select Harbor tasks.
+- Harbor runs the agents and verifiers. Phoenix does not rerun these experiments or select Harbor tasks.
 - Harbor's verifier remains the authority for rewards. The plugin does not calculate a second aggregate reward.
 - Dataset example `output` remains an empty object. A Harbor solution is an executable way to produce an end state, not a reference response.
 - The prototype accepts one Harbor dataset or a direct-task-only job. It rejects jobs that
   combine both sources. A single direct task gets a namespaced synthetic dataset name;
   several direct tasks require an explicit `dataset` plugin setting.
-- The prototype does not create wrapper spans for Harbor lifecycle phases or verifiers.
+- The prototype does not wrap Harbor's environment setup, agent setup, or verifier phases in spans. Trial and step spans are built from the saved terminal result.
 - The prototype does not include a post-hoc ingestion command.
 
 ## 3. Data model
@@ -69,9 +74,9 @@ The prototype requires **no Phoenix server changes**. It requires **one new publ
 | Job × agent × model           | Experiment                  | One experiment for each agent and model                           |
 | Logical trial                 | Experiment run              | One run for each planned task attempt                             |
 | Planned attempt               | Repetition                  | Deterministic repetition number                                   |
-| Trial exception               | Run error                   | Kept separate from behavioral failure                             |
+| Trial or step exception       | Run error                   | Kept separate from verifier rewards                               |
 | Trial `reward`                | Dense evaluation            | Stored on behaviorally completed runs                             |
-| Infrastructure status         | Dense `infra_ok` evaluation | Stored on every attempted run                                     |
+| Infrastructure status         | Dense `infra_ok` evaluation | Stored on every recorded terminal run                             |
 | Step reward                   | Sparse evaluation           | Named `<step_name>.<reward_key>`                                  |
 | ATIF trajectory or OTLP spans | Trace                       | Linked to the experiment run when available                       |
 
@@ -112,12 +117,30 @@ Each task becomes a Phoenix dataset example with this shape:
   "output": {},
   "metadata": {
     "task_digest": "<full Harbor task digest>",
-    "...": "<other task fields and configuration>"
+    "task_source": "<resolved Harbor task source>",
+    "task_type": "<Harbor task type>",
+    "task_version": "<Harbor task version or null>",
+    "task_config": {}
   }
 }
 ```
 
-Put only the fields needed to identify and perform the task in `input`. Put other JSON-safe task fields in `metadata`, including the full task digest. Keep `output` empty because Harbor checks the environment state, not a reference response.
+For a multi-step task, `input` also contains the ordered step names and instructions:
+
+```json
+{
+  "steps": [
+    {
+      "name": "<step name>",
+      "instruction": "<step instruction>"
+    }
+  ]
+}
+```
+
+Put only the fields needed to identify and perform the task in `input`. Put the task digest,
+source, type, version, and redacted task configuration in `metadata`. Keep `output` empty because
+Harbor checks the environment state, not a reference response.
 
 At each job start, synchronize the full task set. Use the Harbor task ID as the stable external example `id`. Phoenix returns a separate `node_id`; save it for logging experiment runs.
 
@@ -143,10 +166,9 @@ Phoenix version requirements depend on the feature:
 | --- | --- | --- |
 | Experiment/run/evaluation logging | `arize-phoenix-client>=2.10.0` | Released |
 | Stable external dataset example IDs | Phoenix server `>=15.0` | Released |
-| Public ATIF conversion function (§5) | Unreleased client | **Required client addition** |
-| ATIF replay verification by span ID (§5) | Phoenix server `>=19.6` | Released; ATIF-mode-only floor |
+| ATIF span lookup and replay verification (§5) | Phoenix server `>=19.6` | Released; ATIF-mode-only floor |
 
-Startup checks report the installed version and any missing feature. Phoenix server `>=19.6` is required only for `atif` mode. The prototype needs the new client API listed above, but no server changes.
+Phoenix server `>=19.6` is required only for the span lookup used by ATIF mode.
 
 ### Job start
 
@@ -154,12 +176,18 @@ At `on_job_start`, the plugin:
 
 1. resolves the complete task and trial plan;
 2. synchronizes the complete dataset example snapshot;
-3. recovers or creates one experiment for each effective agent and model configuration, pinned to the current dataset version;
+3. recovers or creates one experiment for each effective agent and model configuration. Recovery
+   matches the stored Harbor job ID and agent identity digest. Other jobs may create new versions
+   of the same dataset between replays, so the recovered experiment stays pinned to its original
+   version. A new experiment uses the current dataset version;
 4. reads the server-assigned project name for each experiment;
 5. derives a stable repetition number for every trial; and
-6. in OTLP mode, validates each agent's exporter project and endpoint. If they are invalid, the error lists the exact flags to add.
+6. once deferred OTLP mode is implemented, validates each agent's exporter project and endpoint. If they are invalid, the error lists the exact flags to add.
 
-The plugin cannot list physical attempts at job start. Harbor creates retries later, and trial UUIDs do not exist until trial construction. The plugin must create per-attempt trace identity when each attempt starts.
+The plugin cannot list physical attempts at job start. Harbor creates retries later, and trial UUIDs
+do not exist until trial construction. The plugin creates ATIF identity from the saved terminal
+result after retry handling decides that the attempt is final. Planned OTLP attempt identity must be
+created after Harbor constructs each physical attempt.
 
 Creating examples before experiments is required because a Phoenix experiment is pinned to a dataset version when it is created.
 
@@ -167,7 +195,10 @@ Creating examples before experiments is required because a Phoenix experiment is
 
 Harbor may emit an END event for a failed attempt before it starts a retry. The event does not include the attempt number or say whether the attempt is terminal. The compatibility adapter reconstructs this decision. It counts START events for each logical trial and applies Harbor's `RetryConfig` rules in this order: exclude, include, then `max_retries`.
 
-`RetryConfig` is public, but this decision logic is private Harbor behavior. Contract tests must cover all three supported Harbor versions. Do not write Phoenix or ATIF data for an attempt that will be retried. The final attempt keeps the logical trial's precomputed repetition number.
+`RetryConfig` is public, but this decision logic is private Harbor behavior. Contract tests cover
+the installed Harbor version, and the E2E target defaults to the minimum supported version. Do not
+write Phoenix or ATIF data for an attempt that will be retried. The final attempt keeps the logical
+trial's precomputed repetition number.
 
 This logic has three limits:
 
@@ -177,7 +208,7 @@ This logic has three limits:
 
 At the terminal end of each logical trial, the plugin:
 
-1. uploads the ATIF trajectory or submits the plugin-owned OTLP root span;
+1. builds and uploads the ATIF trace when `trace_mode="atif"`;
 2. resolves the trace ID when available;
 3. writes the experiment run with its output, timing, trace link, and error status; and
 4. writes the dense and sparse evaluation scores emitted by Harbor.
@@ -190,9 +221,9 @@ The plugin streams each result as its trial ends. This provides live progress an
 
 ## 5. Trace modes
 
-Set `trace_mode` explicitly to `atif`, `otlp`, or `none`. The plugin does not auto-detect tracing because combining partial live spans with a converted ATIF trajectory could create duplicate traces.
+The planned trace modes are `atif` and `otlp`; `trace_mode=null` disables tracing. The plugin does not auto-detect tracing because combining partial live spans with a converted ATIF trajectory could create duplicate traces. The current implementation accepts `atif` and `null`; `otlp` is deferred for a follow-up.
 
-| Behavior | `atif` (default) | `otlp` |
+| Behavior | `atif` (default) | `otlp` (deferred) |
 |---|---|---|
 | Agent instrumentation required | No; agent must produce ATIF | Yes; standard OpenTelemetry instrumentation is sufficient |
 | Live during the trial | No; uploaded when the trial ends | Yes |
@@ -204,26 +235,89 @@ Set `trace_mode` explicitly to `atif`, `otlp`, or `none`. The plugin does not au
 
 ### ATIF mode
 
-ATIF mode requires **one new public API in `arize-phoenix-client`**. The current `upload_atif_trajectories_as_spans` API always uploads, cannot accept a parent, and returns counts instead of spans. The plugin needs the spans before upload. It uses them to check IDs, skip existing spans, and link the run only after upload succeeds.
+ATIF mode uses the existing package-internal pure conversion and common-parent helpers. The plugin
+needs the spans before upload so it can check deterministic IDs, repair partial uploads, and link
+the run only once Phoenix has accepted every missing span.
 
-Add a pure batch function that:
+The package-internal pure conversion helpers:
 
-- validates and converts one or more trajectories;
-- accepts an optional parent span context;
-- returns spans without uploading them;
-- preserves ATIF v1.7 sub-agent flattening and cross-document references; and
-- applies the parent context to all sub-agents.
+- validate and convert one or more trajectories;
+- return spans without uploading them;
+- preserve ATIF v1.7 sub-agent flattening and valid external references; and
+- reparent every disconnected trajectory root under one Harbor-owned trial root.
 
-Do not expose only the private single-trajectory converter. That would force the plugin to copy the batch logic listed above. Refactor the existing uploader to call the new function without changing uploader behavior.
+The conversion layer does not use a client. Harbor-specific discovery, normalization, deterministic
+identity, and upload-repair behavior stay private to the plugin.
 
-The function does not use a client, so it does not need an async version. The plugin can await the async span-log call.
+The trace mirrors Harbor's structure: trial → step → agent trajectory. The plugin creates one
+deterministic CHAIN root, `harbor.trial <task id>`, and sends all spans to the experiment's Phoenix
+project. A multi-step trial gets one `harbor.step <index> <step name>` CHAIN span per attempted
+step, in `step_results` order, with that step's trajectories beneath it; a single-step trial hangs
+its trajectories directly beneath the root. The step span's input is the step instruction, its
+output is the step's verifier rewards, and its status is `ERROR` for the step's own exception. The
+root's status is `ERROR` for the same failures that set the experiment run's error and drive
+`infra_ok`: any top-level or step exception, even when Harbor also records verifier rewards. Under
+native resume only the last cumulative snapshot is loaded, so earlier steps keep their `harbor.step`
+span without trajectories beneath it.
 
-The plugin creates one deterministic trial-level AGENT root. It converts saved trajectories under that root and sends all spans to the experiment's Phoenix project. Harbor-specific identity and replay logic stay in the plugin.
+Within a trajectory, each fresh agent step is one iteration of the agent loop and becomes a CHAIN
+span. LLM, TOOL, and referenced subagent work hangs beneath that iteration; a matching
+`source_call_id` narrows a subagent parent to its TOOL call. Copied context is prompt history and
+does not create duplicate execution spans.
+
+A span is named by its target; the span kind already names the operation. Harbor-owned spans
+keep a `harbor.` prefix, and ATIF vocabulary covers the steps within a trajectory:
+
+| Span | Kind | Name |
+| --- | --- | --- |
+| Trial | CHAIN | `harbor.trial <task id>` |
+| Step (multi-step only) | CHAIN | `harbor.step <index> <step name>` |
+| Trajectory root | AGENT | `<agent name>`; a continuation adds ` (continuation N)` |
+| Turn (multi-turn only) | AGENT | `turn N` |
+| Agent loop iteration | CHAIN | `iteration N` |
+| Context management | CHAIN | `compaction N` |
+| Operational system step (a handoff, for example) | CHAIN | `system event N` |
+| LLM call | LLM | `<model name>`, or `LLM` when the trajectory names no model |
+| Tool call | TOOL | `<tool name>` |
+
+Ordinals count fresh operational steps with the same label, regardless of interleaving; the
+producer's `step_id` stays in metadata as `atif.step_id`. A user message never consumes an ordinal.
+Consecutive user or system context messages do not open new turns; a turn starts only at a user
+message that follows agent activity.
+
+Names carry one distinguishing target each; everything else is a filterable attribute. Every span
+of a trajectory carries `metadata.agent_name`, and every span beneath a step carries
+`metadata.harbor.step_index` and `metadata.harbor.step_name`.
+
+Every AGENT and CHAIN span carries `input.value` and `output.value` when the trajectory provides
+them. An iteration's input is the context the agent received just before it (the preceding user or
+system message, or the previous iteration's observations); its output is the step message plus any
+observation that no tool call claims (paired to the step's only tool call when that pairing is
+unambiguous), or the tool results when the step only issued tool calls. Only LLM spans carry
+`llm.*` attributes; a trajectory's `final_metrics` are kept in the root span's
+`metadata.final_metrics`, so Phoenix's cumulative token counts do not double count.
+
+ATIF timestamps are point events. An iteration spans the preceding fresh event through its own
+event. Harbor enriches Terminus trajectories with `agent_result.metadata.api_request_times_msec`
+only when the number of request measurements exactly matches the number of fresh LLM steps. A
+single document uses its declared step order. Continuation and subagent graphs require timestamps
+on every fresh LLM step so their requests can be merged chronologically; otherwise enrichment is
+skipped rather than risking a shifted measurement. The converter does not interpret
+producer-specific latency metrics. Measured LLM spans use the Harbor request duration within the
+source interval. Unmeasured LLMs and TOOL calls are zero-duration events; the converter does not
+infer tool serialism, concurrency, or elapsed time.
+Equal-time events retain the exact ATIF timestamp. The converter lists an unmeasured LLM before its
+tool calls and tool calls in their declared array order, but that order does not imply serial tool
+execution. Immediately before upload, the Harbor adapter reverses the missing-span batch. Phoenix
+inserts the batch FIFO and returns trace spans by descending row ID; its stable start-time sort
+therefore restores the converter's causal and declared order for exact ties. Interrupted prefix
+uploads use the same reverse-and-filter rule during repair. Missing and non-monotonic clocks
+collapse instead of creating synthetic duration.
 
 For each in-memory trajectory, the plugin:
 
-- sets `trajectory_id` from the logical trial identity and step number; and
-- prefixes `session_id` with the same trial identity while keeping the original value as a suffix.
+- sets `trajectory_id` from the saved terminal trial identity, role, step, file, and embedding index; and
+- sets `session_id` to one value per trial (`harbor:<trace_id>`), so a trial appears as one Phoenix session containing one trace. The producer's original `trajectory_id` and `session_id` are kept in the agent metadata of the trajectory's root span.
 
 It does not change the source file.
 
@@ -235,28 +329,35 @@ Always set both values. Harbor v0.18.0 source shows why:
 
 The plugin must namespace `session_id` even when it sets `trajectory_id`. Phoenix resolves sessions from `session_id` without a project filter. A constant value could otherwise group unrelated trials into one session.
 
-Both IDs must be globally unique and stable across replays. Derive them from the Harbor job ID, task ID, repetition, and step number.
+Both IDs must be globally unique and stable across replays. The trace ID comes from the Harbor job
+ID and the saved terminal trial UUID, and `session_id` comes from the trace ID. Each
+`trajectory_id` also includes its role, step name, source path, and embedded position.
 
-For a multi-step task, the plugin creates one trial-level trace and places each step trajectory beneath the same root. One logical trial therefore appears as one experiment run with one trace.
+For a multi-step task, the plugin creates one trial-level trace with one `harbor.step` span per attempted step. One logical trial therefore appears as one experiment run with one trace.
 
 Deterministic IDs do not make span upload idempotent. Phoenix has two important ingestion behaviors:
 
 - If **any** span ID already exists, Phoenix rejects the full request. Do not send an existing span again.
 - Phoenix does not report duplicate span IDs **within one request**. It silently drops them. Validate that all IDs in a request are unique.
 
-On replay, query the expected span IDs and send only missing spans. Wait until every span is queryable before writing the run and trace link. This query requires Phoenix server `>=19.6` in `atif` mode.
+Before upload, query the expected span IDs and send only missing spans. Link the run as soon as
+Phoenix reports every missing span queued. The spans become queryable within Phoenix's bulk-insert
+interval. Experiment runs are immutable, so a run recorded without a trace keeps no trace on later
+replays. This query requires Phoenix server `>=19.6` in `atif` mode.
 
 ### OTLP mode
 
+This section describes behavior deferred for a follow-up. It remains the planned OTLP contract.
+
 OTLP has three separate features:
 
-1. project routing, available now;
-2. adapter-assisted trace-to-run linkage, available now; and
+1. project routing;
+2. adapter-assisted trace-to-run linkage; and
 3. plugin-owned per-trial trace identity, blocked on Harbor.
 
 Harbor does not create OpenTelemetry spans. Agents create them. Each agent has one shared environment, `AgentConfig.env`, which Harbor copies when it constructs the agent.
 
-#### 5.1 Project routing — available now, generic
+#### 5.1 Project routing
 
 The user supplies the exporter endpoint, credentials, and project through Harbor's per-agent environment (`--agent-env`, or an `env:` block per agent in a job config file). Phoenix routes on the `openinference.project.name` resource attribute, or on an `x-project-name` header over HTTP.
 
@@ -268,20 +369,20 @@ Do **not** mutate `job.config.agents[*].env` at `on_job_start`. Harbor saves the
 
 Where the sandbox uses a network allowlist, the Phoenix host must be added with Harbor's agent-host allowlist flag.
 
-#### 5.2 Trace→run linkage — available now, adapter-assisted
+#### 5.2 Trace→run linkage
 
 Use both mechanisms:
 
 - **Report-back.** The adapter adds its trace ID to the Harbor agent context metadata. Merge with existing metadata instead of replacing it. Note: non-empty metadata disables Harbor's automatic token and cost fields.
 - **Correlation query.** The adapter adds `harbor.trial.id` as a **span** attribute. The plugin queries the experiment project for that terminal trial UUID.
 
-Both mechanisms require a Phoenix-owned adapter. The adapter can read the trial UUID from its context, create one deterministic trace around all steps, and report the trace ID. This works today without a Harbor change.
+Both mechanisms require a Phoenix-owned adapter. The adapter can read the trial UUID from its context, create one deterministic trace around all steps, and report the trace ID.
 
 Correlation keys must be span attributes. Phoenix drops all OTLP **resource** attributes except the project name. Also, Harbor creates the job UUID after CLI setup, so only a user-supplied job label can be static.
 
 The adapter creates the root span, so the plugin learns the trace ID only after the trial runs. It cannot validate linkage at job start.
 
-#### 5.3 Plugin-owned per-trial context — blocked on Harbor
+#### 5.3 Plugin-owned per-trial context
 
 Generic OTLP needs the plugin to inject a trial root before Harbor constructs an agent. Released Harbor versions and current `main` cannot do this:
 
@@ -289,7 +390,7 @@ Generic OTLP needs the plugin to inject a trial root before Harbor constructs an
 - concurrent trials share one `AgentConfig`, so per-trial mutation would race; and
 - trial-start hooks run after the agent copies its environment.
 
-This blocks a plugin-owned root, startup trace validation, and retry-attempt labels. The upstream fix is a runtime-overrides hook that runs before agent construction. Its values must not affect saved config, job locks, or resume checks. Until the minimum Harbor version includes this hook, `trace_mode: otlp` supports only §5.1 and §5.2. State this limit during startup checks.
+This blocks a plugin-owned root, startup trace validation, and retry-attempt labels. The upstream fix is a runtime-overrides hook that runs before agent construction. Its values must not affect saved config, job locks, or resume checks. Once the plugin accepts `trace_mode: otlp`, the initial implementation can support only §5.1 and §5.2 until the minimum Harbor version includes this hook. State this limit during startup checks.
 
 #### 5.4 Consequences that hold in every OTLP variant
 
@@ -313,16 +414,17 @@ Harbor can use a different verifier for every task, so not every score is meanin
 
 A run is **behaviorally completed** when Harbor produced a verifier result. The plugin records each reward under its exact Harbor key. Only a verifier result with a literal `reward` key produces a Phoenix evaluation named `reward`.
 
-| Harbor terminal state | Top-level exception | Step exceptions | Behaviorally completed | `reward` | `infra_ok` |
-| --- | --- | --- | --- | --- | --- |
-| Success | none | none | Yes | Harbor's aggregate | 1 |
-| Behavioral zero | none | none | Yes | `0` | 1 |
-| Single-step agent or verifier failure | present | n/a | No | not written | 0 |
-| Multi-step failure recorded on a step | usually none | present | Yes, if a final verifier result exists | Harbor's aggregate | 0 |
-| Fatal multi-step failure with no verifier result | none or present | present | No | not written | 0 |
-| Cancellation | `CancelledError` | partial | No | not written | 0 |
+| Harbor terminal state | Top-level exception | Step exceptions | Behaviorally completed | Run error | `reward` | `infra_ok` |
+| --- | --- | --- | --- | --- | --- | --- |
+| Success | none | none | Yes | no | Harbor's aggregate | 1 |
+| Behavioral zero | none | none | Yes | no | `0` | 1 |
+| Single-step agent or verifier failure | present | n/a | No | yes | not written | 0 |
+| Scored multi-step exception | usually none | present | Yes, if a final verifier result exists | yes | Harbor's aggregate | 0 |
+| Multi-step exception with no verifier result | none or present | present | No | yes | not written | 0 |
+| Cancellation | `CancelledError` | partial | No | yes | not written | 0 |
 
-Infrastructure status and behavioral completion are independent. A run can be behaviorally completed and still have `infra_ok = 0`.
+Exception status and behavioral completion are independent. A run can retain verifier rewards
+while also carrying a run error, `infra_ok = 0`, and an `ERROR` trace root.
 
 `reward` is present only when Harbor emits that key. The plugin does not promote a sole differently named value or infer an aggregate from other keys. Consumers must check `reward` coverage before computing cross-task summaries.
 
@@ -336,7 +438,7 @@ Infrastructure status and behavioral completion are independent. A run can be be
 Rules:
 
 - Read scores from `step_results` as well as the final verifier result.
-- Check the top-level result and every step result for infrastructure errors. Any exception sets `infra_ok = 0`. A reward of zero without an exception keeps `infra_ok = 1`.
+- Check the top-level result and every step result for exceptions. Any exception sets the run error and `infra_ok = 0`. A reward of zero without an exception keeps `infra_ok = 1`.
 - Store every final-verifier reward as `<reward_key>` and every step reward as `<step_name>.<reward_key>`. Do not infer `reward` from another key, even when the verifier emits only one value.
 - Add `multi_step_reward_strategy` to each trial-level reward evaluation for a multi-step task. Resolve Harbor's omitted default to `mean`; preserve an explicit `final`. Do not add this metadata to step-level scores, `infra_ok`, or single-step rewards.
 - Reject empty or duplicate step names before writing and detect any remaining generated-name collision during extraction.
@@ -356,10 +458,10 @@ Phoenix can calculate token cost and latency from traces. Consumers can calculat
 | Dataset | Resolved Harbor dataset identity or explicit override |
 | Example | Task ID within the dataset |
 | Example version | Full Harbor task digest |
-| Experiment | Harbor job ID, dataset version, and effective agent/model configuration |
+| Experiment | Harbor job ID and effective agent/model configuration; pinned to its creation-time dataset version |
 | Run | Experiment, example, and repetition number (1-based) |
 | Evaluation | Run and evaluation name |
-| ATIF trace | Deterministic from the complete Harbor job and logical trial identity |
+| ATIF trace | Harbor job ID and saved terminal trial UUID |
 | OTLP attempt trace | Deterministic from the Harbor job and physical trial-attempt identity |
 
 A Harbor job is one execution across all configured agents and models. A job with N agent/model configurations creates N experiments on one dataset.
@@ -372,7 +474,10 @@ Repetition numbers start at 1 because Phoenix rejects zero. Set the experiment's
 
 This key works only when task IDs and experiment identities are unique. Reject duplicates before writing to Phoenix.
 
-Agent and model identity includes readable names and a stable digest of configuration that affects behavior. Build the digest from an explicit allowlist. Never include credentials or environment secrets. Different configurations must create different experiments even when their display names match.
+Agent and model identity includes readable names and a stable digest of configuration that affects
+behavior. The digest excludes scheduling and logging fields. It includes environment variable names
+but not their values. Different digested configurations must create different experiments even when
+their display names match.
 
 Trace IDs must be globally unique. Phoenix joins a span to the existing trace with that ID, including that trace's project. An ID collision can silently send spans to the wrong project.
 
@@ -395,16 +500,19 @@ Successful runs are immutable. Phoenix returns `409` if code tries to update a r
 
 Evaluations returned through the experiment read API have placeholder IDs. Do not use them to find stored rows. Upsert by `(run, evaluation name)`.
 
-Finding and then creating an experiment is not atomic. Run only one ingester for each Harbor job. When a stable job directory exists, use a best-effort local lock. Concurrent ingestion across processes or machines requires a Phoenix server idempotency feature and is out of scope.
+Finding and then creating an experiment is not atomic. Run only one ingester for each Harbor job.
+Concurrent ingestion across processes or machines requires a Phoenix server idempotency feature
+and is out of scope.
 
 ### Failure policy
 
 Selecting the Phoenix plugin makes successful Phoenix recording a requirement. This avoids spending compute on a job that will not be recorded. Users can omit the plugin when they want to run Harbor without Phoenix.
 
-- At `on_job_start`, validate dataset identity, Harbor compatibility, trace requirements, the Phoenix connection, and initial writes. Raise a clear error to stop the job before trial compute.
+- At `on_job_start`, validate dataset identity, Harbor compatibility, the Phoenix connection, and initial writes. Raise a clear error to stop the job before trial compute.
 - The plugin configures HTTPX's built-in retries for `ConnectError` and `ConnectTimeout` while establishing a connection. It does not retry HTTP responses or other transport errors itself. Any run or evaluation write that still fails raises and stops the job, except for the handled run-conflict recovery path. Completed Phoenix records remain available and Harbor persists terminal trial results for resume.
+- ATIF discovery and conversion are best-effort. A missing or invalid trajectory emits a warning, then the plugin records the run and evaluations without a trace. Because successful Phoenix runs are immutable, a later replay cannot add that missing trace link.
 - Keep one terminal-failure flag. After it is set, make later trial-end callbacks no-ops while Harbor cancels sibling trials.
-- Record a top-level exception or a fatal step exception as a run error and `infra_ok = 0`; do not rewrite it as `reward = 0`. A step exception is fatal when Harbor reports no verifier result for that step. Other step exceptions affect `infra_ok` but not the native run error.
+- Record every top-level and step exception in the run error and set `infra_ok = 0`. Keep any verifier rewards Harbor produced alongside the exception, and do not rewrite the exception as `reward = 0`. Use the same collected exception list for the trace root's `ERROR` status and status message.
 - Do not ingest an attempt that Harbor will retry. Until Harbor exposes a terminal-attempt event, count START events by logical trial name and apply Harbor's retry rules.
 
 The adapter checks capabilities at runtime. Set a minimum Harbor version but no upper bound. Test the minimum version, latest stable release, and Harbor `main`. Add a temporary upper bound only for a known released incompatibility.
@@ -418,14 +526,15 @@ Pass settings through Harbor's `--plugin-kwarg` option.
 | `dataset` | inferred from Harbor | Phoenix dataset name override |
 | `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix endpoint |
 | `api_key` | `PHOENIX_API_KEY` | Phoenix authentication |
-| `trace_mode` | `atif` | `atif`, `otlp`, or `none` |
+| `trace_mode` | `atif` | Current: `atif` or `null`; planned: `atif`, `otlp`, or `null` |
 | `experiment_name` | unset | Exact name for a job with one agent configuration |
 | `experiment_name_template` | `{job.name} · {agent.name} · {agent.model}` | Experiment naming |
-| `project` | experiment's project | Optional trace-project override |
 
 Experiment names must distinguish agent/model configurations in Phoenix's compare view. `{job.name}` defaults to a Harbor timestamp. If two configurations still have the same name, append a short configuration digest. This can happen when they differ only in skills, environment, or keyword arguments.
 
-In OTLP mode the plugin does not inject exporter configuration. The user supplies endpoint, credentials, and `openinference.project.name` through Harbor's per-agent environment, and the plugin validates them at job start (§5.1).
+Planned OTLP mode will not inject exporter configuration. The user will supply endpoint,
+credentials, and `openinference.project.name` through Harbor's per-agent environment, and the
+plugin will validate them at job start (§5.1).
 
 ## 9. Prototype scope
 
@@ -437,23 +546,18 @@ In OTLP mode the plugin does not inject exporter configuration. The user supplie
 - One experiment for each agent and model
 - Streaming experiment runs with deterministic repetitions
 - Dense aggregate scores and sparse step-level scores
-- A new public pure ATIF conversion function in `arize-phoenix-client`
+- Package-internal pure ATIF conversion and Harbor-specific trace construction
 - ATIF trace conversion and experiment-run linkage
 - One trial-level ATIF trace for single-step and multi-step tasks
-- OTLP project-routing validation (§5.1) and adapter-assisted trace→run linkage (§5.2)
-- Fail-closed validation and ingestion
-- Compatibility tests against supported Harbor versions
-
-### Blocked on upstream Harbor
-
-- Plugin-owned per-trial trace identity and W3C context injection for agents Phoenix does not control (§5.3)
-- OTLP trace-link validation at job start instead of after the trial
-- Attribution of individual physical retry attempts
-
-These features need a pre-construction runtime-overrides hook in Harbor. They are designed but not scheduled. They do not block other prototype work.
+- Safe continuation and sub-agent graph traversal
+- Deterministic partial-upload repair
+- Fail-closed dataset, experiment, run, and evaluation ingestion; best-effort ATIF conversion
+- Contract tests for the Harbor APIs the plugin reads, plus an E2E target that accepts a Harbor version override
 
 ### Deferred
 
+- OTLP project routing and adapter-assisted trace-to-run linkage (§5.1 and §5.2)
+- Attribution of individual physical retry attempts
 - Post-hoc ingestion command
 - Harbor lifecycle and verifier wrapper spans
 - Linking traces emitted independently by instrumented verifiers
@@ -462,14 +566,14 @@ These features need a pre-construction runtime-overrides hook in Harbor. They ar
 
 ### Acceptance criteria
 
-1. A public multi-step Harbor task creates a Phoenix experiment with runs, dense scores, step scores, and clickable ATIF traces. This needs no Phoenix server change and one new `arize-phoenix-client` API.
+1. A public multi-step Harbor task creates a Phoenix experiment with runs, dense scores, step scores, and clickable ATIF traces without a Phoenix server change.
 2. A two-agent job creates two experiments over one dataset and supports side-by-side comparison.
 3. Sequential replay or resume creates no duplicate dataset versions, experiments, successful runs, evaluations, or traces. If several experiments match, the job fails with a clear error.
 4. Changing a task creates a new dataset version, and each experiment remains pinned to the correct version.
 5. Invalid Phoenix configuration or an unavailable endpoint stops Harbor before trials begin. Losing the endpoint later stops the job, while runs already streamed to Phoenix remain available.
 6. Users can identify which step failed from the stored, unscaled step rewards.
-7. In `otlp` mode, a missing or invalid endpoint or project stops the job before trial compute. The error shows the exact flags to add.
-8. A Phoenix-owned multi-step OTLP adapter creates one trace for the final attempt. The plugin links it by report-back, with a correlation query as fallback.
+7. When deferred OTLP mode is implemented, a missing or invalid endpoint or project stops the job before trial compute. The error shows the exact flags to add.
+8. When deferred OTLP mode is implemented, a Phoenix-owned multi-step OTLP adapter creates one trace for the final attempt. The plugin links it by report-back, with a correlation query as fallback.
 
 Criterion 8 covers only Phoenix-owned adapters. Generic OTLP for third-party agents remains blocked (§5.3).
 
@@ -495,8 +599,8 @@ This design depends on private or unverified behavior. Add a contract test for e
 
 | Assumption | Basis | Risk if wrong |
 | --- | --- | --- |
-| Harbor's private job-plan attributes keep a stable shape | Verified on 0.18.0, 0.20.0, and `main` | A Harbor refactor breaks ingestion |
-| START counts and public retry settings identify the final attempt | Verified in source across three versions; not a public contract | The plugin writes an intermediate attempt or skips a final attempt |
+| Harbor's private job-plan attributes keep a stable shape | Contract tests run against the installed version; E2E defaults to 0.21.0 | A Harbor refactor breaks ingestion |
+| START counts and public retry settings identify the final attempt | Source-derived behavior covered by plugin tests; not a public contract | The plugin writes an intermediate attempt or skips a final attempt |
 | A trial-end hook error stops the job and cancels sibling trials | Source review and an isolated hook test; not tested in a container job | Recording may not fail closed |
 | Agents omit `trajectory_id`; steps share `session_id`; some session IDs are constant | Harbor v0.18.0 source and examples | Handled by always setting both IDs |
 | Multi-step tasks use one ATIF file per step | Observed; not a public contract | Step trajectories may be missing or have the wrong parent |

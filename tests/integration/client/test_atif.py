@@ -1,7 +1,7 @@
 """End-to-end coverage for uploading ATIF trajectories as spans.
 
 Conversion is unit-tested in ``packages/phoenix-client/tests``; what needs a
-live server is whether the resulting span batch survives a round trip — that
+live server is whether the resulting span batch survives a round trip. That
 Phoenix accepts every span, resolves the parent links, and stores the batch as
 one connected trace.
 
@@ -17,6 +17,7 @@ from secrets import token_hex
 from typing import Any, Dict, Iterator, List
 
 import pytest
+
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.atif import (  # pyright: ignore[reportPrivateUsage]
@@ -65,7 +66,7 @@ def _project(_app: _AppInfo) -> Iterator[str]:
 def _trial_span(trace_id: str, span_id: str) -> v1.Span:
     """The caller-owned span standing in for an enclosing operation."""
     return {
-        "name": "harbor.trial",
+        "name": "harbor.trial task-a",
         "context": {"trace_id": trace_id, "span_id": span_id},
         "span_kind": "CHAIN",
         "start_time": "2026-03-26T10:00:00+00:00",
@@ -107,13 +108,12 @@ class TestAtifTrajectoryUpload:
         ]
         assert not unresolvable, f"spans persisted with unresolvable parents: {unresolvable}"
 
-        # The parent trajectory hangs off the trial span. Its summarization
-        # step has no matching TOOL span, so the parent trajectory's root
-        # parents the referenced sub-trajectories instead.
         roots = {s["name"] for s in fetched if s.get("parent_id") == parent_span_id}
         assert roots == {"terminus-2"}
 
-        parent_root_id = next(s["context"]["span_id"] for s in fetched if s["name"] == "terminus-2")
+        handoff_step_id = next(
+            s["context"]["span_id"] for s in fetched if s["name"] == "system event 1"
+        )
         subagent_root_names = {
             "terminus-2-summarization-questions",
             "terminus-2-summarization-answers",
@@ -121,7 +121,7 @@ class TestAtifTrajectoryUpload:
         }
         assert {
             s["name"]: s.get("parent_id") for s in fetched if s["name"] in subagent_root_names
-        } == {name: parent_root_id for name in subagent_root_names}
+        } == {name: handoff_step_id for name in subagent_root_names}
 
     async def test_separate_trials_with_distinct_trajectory_ids_do_not_collide(
         self,

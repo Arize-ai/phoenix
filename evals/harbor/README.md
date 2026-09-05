@@ -38,13 +38,13 @@ uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
   harbor run -p evals/harbor/tasks/regression-triage -a oracle -e docker \
   --plugin arize-phoenix \
   --plugin-kwarg endpoint=http://127.0.0.1:6006 \
-  --plugin-kwarg trace_mode=none \
   --yes
 ```
 
 A single direct task uses `harbor-task/<declared task name>` as its Phoenix dataset.
 For several direct tasks, pass `--plugin-kwarg dataset=<name>` to name the synthetic
-dataset explicitly.
+dataset explicitly. Trace recording defaults to `atif`; pass `--plugin-kwarg trace_mode=null`
+to record runs and scores without traces.
 
 ## Experiment names
 
@@ -76,8 +76,8 @@ Python callers can inspect the same field catalog through
 `phoenix.client.harbor.EXPERIMENT_NAME_TEMPLATE_FIELDS`. Standard format specifications work for
 the string-valued fields.
 
-The plugin identifies an experiment by its Harbor job ID, Phoenix dataset version, and agent
-configuration digest, not by its display name. Two jobs may use the same exact name without being
+The plugin identifies an experiment by its Harbor job ID and agent configuration digest, not by
+its display name. Two jobs may use the same exact name without being
 treated as the same experiment. Include `{job.name}` or `{job.id}` when those jobs should also be
 easy to distinguish by name in Phoenix.
 
@@ -101,6 +101,25 @@ server, and exercises dataset snapshots, experiment runs, repetitions, multiple 
 and startup failures with Harbor 0.21.0. Successful runs remove their temporary workspace. Failed
 runs print and retain the workspace path for investigation. Set `HARBOR_E2E_KEEP=1` to retain a
 successful run as well.
+
+Run the credentialed ATIF matrix with:
+
+```bash
+OPENAI_API_KEY=... ANTHROPIC_API_KEY=... make harbor-plugin-e2e-atif
+```
+
+This target runs three cases, selectable with `HARBOR_E2E_ATIF_CASES` (comma-separated):
+
+| Case | Agent | What it checks |
+| --- | --- | --- |
+| `terminus` | Terminus-2 on `HARBOR_ATIF_MODEL` | Three Terminal-Bench trials in one experiment: run linkage, measured LLM timing, equal-time ordering, idempotent resume |
+| `compaction` | Terminus-2, forced summarization | The compaction span, continuation trajectory, and three summarizer subagent trajectories |
+| `multi-step` | Claude Code on `HARBOR_ATIF_CLAUDE_MODEL` | The three-step `evals/harbor/plugin_e2e/word-count` task: one trace with a `harbor.step` span per step, step rewards, idempotent resume |
+
+Every case prints the resulting trace tree and checks the shared invariants: one `harbor.trial`
+root, resolvable parents, one session, target-named spans, no `llm.*` attributes outside LLM
+spans, and input and output on every iteration. Set `HARBOR_E2E_ENDPOINT` to reuse a running
+Phoenix server; otherwise the target starts an isolated server.
 
 Browse job results in a local web viewer:
 

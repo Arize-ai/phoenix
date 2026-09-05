@@ -9,7 +9,7 @@ import asyncio
 import contextlib
 import logging
 from collections.abc import AsyncGenerator
-from typing import Literal
+from typing import get_args
 
 import httpx
 from harbor.job import Job
@@ -28,7 +28,7 @@ from phoenix.client.client import (
 )
 from phoenix.client.harbor._adapter import build_job_plan, existing_trial_results
 from phoenix.client.harbor._errors import HarborPluginError
-from phoenix.client.harbor._model import JobPlan
+from phoenix.client.harbor._model import JobPlan, TraceMode
 from phoenix.client.harbor._naming import (
     validate_experiment_name_for_plan,
     validate_experiment_naming,
@@ -38,15 +38,19 @@ from phoenix.client.harbor._recorder import (
     ExperimentHandle,
     PhoenixRecorder,
     RunKey,
+    trial_output,
 )
 from phoenix.client.harbor._scores import extract_evaluations
+from phoenix.client.harbor._traces import build_harbor_trace, harbor_trace_id
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
 logger = logging.getLogger(__name__)
 
+_TRACE_MODES = get_args(TraceMode)
+
 
 class PhoenixJobPlugin(BaseJobPlugin):
-    """Record a Harbor job as a Phoenix dataset and experiments."""
+    """Record a Harbor job as Phoenix datasets, experiments, runs, scores, and traces."""
 
     def __init__(
         self,
@@ -54,7 +58,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
         dataset: str | None = None,
         endpoint: str | None = None,
         api_key: str | None = None,
-        trace_mode: Literal["none"] = "none",
+        trace_mode: TraceMode | None = "atif",
         experiment_name: str | None = None,
         experiment_name_template: str | None = None,
     ) -> None:
@@ -65,7 +69,9 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 Harbor's dataset configuration or direct task.
             endpoint: Phoenix HTTP endpoint. Defaults to ``PHOENIX_COLLECTOR_ENDPOINT``.
             api_key: Phoenix API key. Defaults to ``PHOENIX_API_KEY``.
-            trace_mode: Trace recording mode. This version supports only ``"none"``.
+            trace_mode: Trace recording mode. ``"atif"`` (the default) attaches the persisted
+                Harbor trajectories to each experiment run. ``None`` disables tracing; on the
+                Harbor command line, pass ``--plugin-kwarg trace_mode=null``.
             experiment_name: Exact Phoenix experiment name. This is only valid when the Harbor
                 job resolves one experiment slice.
             experiment_name_template: Format string used to name one Phoenix experiment per
@@ -73,12 +79,12 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 ``EXPERIMENT_NAME_TEMPLATE_FIELDS``.
         """
         super().__init__()
-        if trace_mode != "none":
-            raise ValueError(
-                f"Unsupported trace_mode {trace_mode!r}. Only trace_mode='none' is available."
-            )
+        if trace_mode is not None and trace_mode not in _TRACE_MODES:
+            supported = ", ".join(repr(mode) for mode in (*_TRACE_MODES, None))
+            raise ValueError(f"Unsupported trace_mode {trace_mode!r}. Use one of {supported}.")
 
         self.dataset = dataset
+        self.trace_mode = trace_mode
         self.endpoint = endpoint or str(get_base_url())
         self._api_key = api_key or get_env_phoenix_api_key()
         self.experiment_name, self.experiment_name_template = validate_experiment_naming(
@@ -202,6 +208,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
             and PhoenixRecorder.can_reuse_run(
                 existing_experiment_run,
                 trial_result=trial_result,
+                expected_trace_id=harbor_trace_id(plan, trial_result),
             )
             else None
         )
@@ -214,13 +221,39 @@ class PhoenixJobPlugin(BaseJobPlugin):
         async def record_run_and_evaluations(
             phoenix_recorder: PhoenixRecorder,
         ) -> v1.ExperimentRun:
-            # A resumed job may already have an immutable successful run. Reuse it,
-            # then upsert evaluations that an interrupted ingestion may have missed.
+            trace_id: str | None = None
+            if self.trace_mode == "atif" and reusable_experiment_run is None:
+                try:
+                    trace = await asyncio.to_thread(
+                        build_harbor_trace,
+                        plan=plan,
+                        slot=slot,
+                        task=task,
+                        trial_result=trial_result,
+                        run_output=trial_output(trial_result),
+                    )
+                    if trace is not None:
+                        trace_id = await phoenix_recorder.confirm_trace(
+                            experiment=self.experiments[slot.identity_digest],
+                            trace=trace,
+                        )
+                except Exception as error:
+                    logger.warning(
+                        "Could not prepare ATIF tracing for Harbor job %s, trial %s, task %s, "
+                        "repetition %d: %s",
+                        plan.job_id,
+                        trial_result.trial_name,
+                        slot.task_id,
+                        slot.repetition,
+                        error,
+                    )
+
             run = reusable_experiment_run or await phoenix_recorder.record_experiment_run(
                 plan=plan,
                 snapshot=snapshot,
                 experiments=self.experiments,
                 trial_result=trial_result,
+                trace_id=trace_id,
             )
             await phoenix_recorder.record_evaluations(str(run["id"]), evaluations)
             return run

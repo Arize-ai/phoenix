@@ -335,15 +335,11 @@ def _validate_atif_trajectory(
                                 has_trajectory_path = isinstance(ref_trajectory_path, str) and bool(
                                     ref_trajectory_path.strip()
                                 )
-                                if not has_trajectory_id:
-                                    if has_trajectory_path:
-                                        errors.append(
-                                            f"{ref_prefix}: trajectory_path-only subagent "
-                                            "references are not supported; provide "
-                                            "trajectory_id for Phoenix linking"
-                                        )
-                                    else:
-                                        errors.append(f"{ref_prefix}: trajectory_id is required")
+                                if not has_trajectory_id and not has_trajectory_path:
+                                    errors.append(
+                                        f"{ref_prefix}: trajectory_id or "
+                                        "trajectory_path is required"
+                                    )
                                 if (
                                     has_trajectory_id
                                     and not has_trajectory_path

@@ -9,7 +9,12 @@ from typing import Any, Literal, Protocol
 
 from phoenix.client.harbor._errors import HarborPluginError
 
-__all__ = ["ExtractedEvaluation", "extract_evaluations"]
+__all__ = [
+    "ExtractedEvaluation",
+    "extract_evaluations",
+    "format_exception",
+    "infrastructure_failures",
+]
 
 
 class _ExceptionInfo(Protocol):
@@ -117,7 +122,7 @@ def extract_evaluations(
             )
             _append_unique(records, origins, record, origin=origin)
 
-    failures = _infrastructure_failures(trial_result)
+    failures = infrastructure_failures(trial_result)
     _append_unique(
         records,
         origins,
@@ -174,19 +179,27 @@ def _evaluation_times(
     return timing.started_at or timing.finished_at or fallback, timing.finished_at or fallback
 
 
-def _infrastructure_failures(trial_result: _TrialResult) -> list[str]:
+def infrastructure_failures(trial_result: _TrialResult) -> list[str]:
+    """Return every execution failure Harbor recorded for a trial.
+
+    Harbor can preserve verifier rewards alongside an exception. The score and
+    execution error are independent, so a scored exception still makes
+    ``infra_ok`` false, marks the experiment run as failed, and sets the trace
+    root status to ``ERROR``.
+    """
     failures: list[str] = []
     if trial_result.exception_info is not None:
-        failures.append(_format_exception("trial", trial_result.exception_info))
+        failures.append(format_exception("trial", trial_result.exception_info))
     for step_result in trial_result.step_results or ():
         if step_result.exception_info is not None:
             failures.append(
-                _format_exception(str(step_result.step_name), step_result.exception_info)
+                format_exception(str(step_result.step_name), step_result.exception_info)
             )
     return failures
 
 
-def _format_exception(where: str, exception: _ExceptionInfo) -> str:
+def format_exception(where: str, exception: _ExceptionInfo) -> str:
+    """Format a Harbor exception as ``<where>: <type>: <message>``."""
     return f"{where}: {exception.exception_type}: {exception.exception_message}"
 
 

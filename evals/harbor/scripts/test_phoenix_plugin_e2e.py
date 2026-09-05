@@ -11,10 +11,12 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence, cast
 
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
@@ -22,13 +24,62 @@ from phoenix.client.__generated__ import v1
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TASKS_DIR = REPO_ROOT / "evals" / "harbor" / "tasks"
 DIRECT_TASK = TASKS_DIR / "regression-triage"
+MULTI_STEP_TASK = REPO_ROOT / "evals" / "harbor" / "plugin_e2e" / "word-count"
 HARBOR_VERSION = os.environ.get("HARBOR_VERSION", "0.21.0")
 HARBOR_PYTHON = os.environ.get("HARBOR_PYTHON", "3.13")
+HARBOR_ATIF_MODEL = os.environ.get("HARBOR_ATIF_MODEL", "openai/gpt-5-mini")
+HARBOR_ATIF_CLAUDE_MODEL = os.environ.get("HARBOR_ATIF_CLAUDE_MODEL", "anthropic/claude-sonnet-4-5")
+HARBOR_ATIF_CASES = os.environ.get("HARBOR_E2E_ATIF_CASES", "terminus,compaction,multi-step")
+HARBOR_ATIF_DATASET = "terminal-bench/terminal-bench-2-1@6"
+HARBOR_ATIF_DATASET_NAME = "terminal-bench/terminal-bench-2-1"
+HARBOR_ATIF_TASKS = (
+    "terminal-bench/regex-log",
+    "terminal-bench/cancel-async-tasks",
+    "terminal-bench/fix-git",
+)
+HARBOR_ATIF_COMPACTION_TASK = "terminal-bench/fix-git"
+HARBOR_ATIF_COMPACTION_SOURCE_PATHS = {
+    "agent/trajectory.json",
+    "agent/trajectory.cont-1.json",
+    "agent/trajectory.summarization-1-answers.json",
+    "agent/trajectory.summarization-1-questions.json",
+    "agent/trajectory.summarization-1-summary.json",
+}
+HARBOR_ATIF_COMPACTION_AGENTS = {
+    "terminus-2",
+    "terminus-2 (continuation 1)",
+    "terminus-2-summarization-answers",
+    "terminus-2-summarization-questions",
+    "terminus-2-summarization-summary",
+}
 
 
 def _check(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def _span_metadata(span: Mapping[str, Any]) -> dict[str, Any]:
+    """Read metadata from nested or OpenInference-flattened attributes."""
+    raw_attributes: object = span.get("attributes") or {}
+    if not isinstance(raw_attributes, Mapping):
+        return {}
+    attributes = cast(Mapping[str, Any], raw_attributes)
+
+    metadata: dict[str, Any] = {
+        key.removeprefix("metadata."): value
+        for key, value in attributes.items()
+        if key.startswith("metadata.")
+    }
+    nested = attributes.get("metadata")
+    if isinstance(nested, str):
+        try:
+            nested = json.loads(nested)
+        except json.JSONDecodeError:
+            nested = None
+    if isinstance(nested, Mapping):
+        metadata.update(cast(Mapping[str, Any], nested))
+    return metadata
 
 
 def _run(
@@ -113,6 +164,12 @@ def _run_numbers(client: Client, experiment_id: str) -> list[int]:
 def _run_ids(client: Client, experiment_id: str) -> set[str]:
     detail = client.experiments.get_experiment(experiment_id=experiment_id)
     return {run["id"] for run in detail["task_runs"]}
+
+
+def _runs(client: Client, experiment_id: str) -> list[v1.ExperimentRun]:
+    return client.experiments._get_all_experiment_runs(  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+        experiment_id=experiment_id
+    )
 
 
 def _experiment_records(endpoint: str, experiment_id: str) -> list[dict[str, Any]]:
@@ -205,7 +262,13 @@ def _harbor_command(
     endpoint: str,
     jobs_dir: Path,
     arguments: Iterable[str],
+    *,
+    trace_mode: str | None = "atif",
 ) -> list[str]:
+    """Build a ``harbor run`` command that loads the plugin from the built wheel.
+
+    ``trace_mode=None`` passes ``null``, which Harbor's kwarg parser turns into ``None``.
+    """
     return [
         "uvx",
         "--refresh",
@@ -225,9 +288,568 @@ def _harbor_command(
         "--plugin-kwarg",
         f"endpoint={endpoint}",
         "--plugin-kwarg",
-        "trace_mode=none",
+        f"trace_mode={'null' if trace_mode is None else trace_mode}",
         "--yes",
     ]
+
+
+def _print_plugin_warnings(harbor_output: str) -> None:
+    """Surface plugin warnings, which Harbor otherwise hides inside a passing run."""
+    for line in harbor_output.splitlines():
+        if "Harbor ATIF" in line or "phoenix.client.harbor" in line:
+            print(f"      {line.strip()}")
+
+
+def _expected_atif_source_paths(
+    trial_dir: Path, trial_result: Mapping[str, Any]
+) -> tuple[str, ...]:
+    """Mirror the plugin's selection of canonical trial trajectories."""
+    step_names = _step_names(trial_result)
+    config = cast(Mapping[str, Any], trial_result.get("config") or {})
+    if not step_names:
+        paths = [trial_dir / "agent" / "trajectory.json"]
+        if config.get("user_agent") is not None:
+            paths.append(trial_dir / "user-agent" / "trajectory.json")
+        return tuple(path.relative_to(trial_dir).as_posix() for path in paths if path.is_file())
+
+    paths = [trial_dir / "steps" / name / "agent" / "trajectory.json" for name in step_names]
+    agent_config = cast(Mapping[str, Any], config.get("agent") or {})
+    if agent_config.get("resume_trajectory"):
+        paths = [next((path for path in reversed(paths) if path.is_file()), paths[-1])]
+    return tuple(path.relative_to(trial_dir).as_posix() for path in paths if path.is_file())
+
+
+def _step_names(trial_result: Mapping[str, Any]) -> list[str]:
+    steps = cast(list[Mapping[str, Any]], trial_result.get("step_results") or [])
+    return [str(step["step_name"]) for step in steps]
+
+
+def _parse_time(value: Any) -> datetime:
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+
+
+def _trace_spans(client: Client, project_name: str, trace_id: str) -> list[v1.Span]:
+    spans = client.spans.get_spans(
+        project_identifier=project_name,
+        trace_ids=[trace_id],
+        limit=10_000,
+    )
+    _check(bool(spans), f"ATIF trace {trace_id} has no spans")
+    return spans
+
+
+def _print_trace_tree(spans: Sequence[Mapping[str, Any]]) -> None:
+    """Print the trace as an indented tree so the ATIF rendering can be inspected."""
+    children: dict[str | None, list[Mapping[str, Any]]] = {}
+    for span in spans:
+        children.setdefault(span.get("parent_id"), []).append(span)
+    kind_order = {"AGENT": 0, "CHAIN": 1, "LLM": 2, "TOOL": 3}
+    for siblings in children.values():
+        siblings.sort(
+            key=lambda span: (_parse_time(span["start_time"]), kind_order.get(span["span_kind"], 9))
+        )
+
+    def walk(parent_id: str | None, depth: int) -> None:
+        for span in children.get(parent_id, []):
+            duration = (
+                _parse_time(span["end_time"]) - _parse_time(span["start_time"])
+            ).total_seconds()
+            print(f"      {'  ' * depth}{span['span_kind']:<5} {span['name']}  ({duration:.2f}s)")
+            walk(span["context"]["span_id"], depth + 1)
+
+    walk(None, 0)
+
+
+def _assert_trace_shape(spans: Sequence[Mapping[str, Any]], trace_id: str) -> Mapping[str, Any]:
+    """Check the invariants every Harbor ATIF trace must satisfy; return the trial root."""
+    spans_by_id = {span["context"]["span_id"]: span for span in spans}
+    roots = [span for span in spans if span.get("parent_id") is None]
+    _check(len(roots) == 1 and str(roots[0]["name"]).startswith("harbor.trial "), repr(roots))
+    _check(roots[0]["span_kind"] == "CHAIN", repr(roots[0]))
+    _check(
+        all(span.get("parent_id") in spans_by_id for span in spans if span.get("parent_id")),
+        "ATIF trace contains an unresolved parent",
+    )
+    _check(
+        all(span["attributes"].get("session.id") == f"harbor:{trace_id}" for span in spans),
+        "ATIF trace does not share one trial session",
+    )
+    for span in spans:
+        _check(_parse_time(span["start_time"]) <= _parse_time(span["end_time"]), repr(span))
+        kind = span["span_kind"]
+        name = str(span["name"])
+        if kind == "LLM":
+            _check(name == span["attributes"].get("llm.model_name", "LLM"), repr(span))
+        else:
+            _check(
+                not any(str(key).startswith("llm.") for key in span["attributes"]),
+                f"{kind} span {name!r} carries llm.* attributes",
+            )
+        if kind == "TOOL":
+            _check(name == span["attributes"].get("tool.name"), repr(span))
+            _check(span["start_time"] == span["end_time"], "ATIF invented tool durations")
+        if kind == "AGENT":
+            _check(
+                name == _span_metadata(span).get("agent_name")
+                or name.startswith(f"{_span_metadata(span).get('agent_name')} (continuation")
+                or name.startswith("turn "),
+                f"unexpected AGENT name {name!r}",
+            )
+        if kind in {"LLM", "TOOL"}:
+            _check(
+                spans_by_id[str(span["parent_id"])]["span_kind"] == "CHAIN",
+                "ATIF LLM/TOOL spans are not nested under their source step",
+            )
+        if kind == "CHAIN" and name.startswith("iteration "):
+            _check(
+                "input.value" in span["attributes"] and "output.value" in span["attributes"],
+                f"agent step {name!r} lacks input or output: {sorted(span['attributes'])!r}",
+            )
+    _check(any(span["span_kind"] in {"LLM", "TOOL"} for span in spans), "no LLM/TOOL spans")
+    return roots[0]
+
+
+def _assert_resume_is_idempotent(
+    command: Sequence[str],
+    client: Client,
+    endpoint: str,
+    *,
+    description: str,
+    dataset_id: str,
+    job_name: str,
+    experiment_id: str,
+    project_name: str,
+    trace_ids: Sequence[str],
+) -> None:
+    run_ids_before = _run_ids(client, experiment_id)
+    evaluations_before = _evaluation_state(endpoint, experiment_id)
+    span_ids_before = {
+        trace_id: {
+            span["context"]["span_id"] for span in _trace_spans(client, project_name, trace_id)
+        }
+        for trace_id in trace_ids
+    }
+
+    _print_plugin_warnings(_run(command, description=description))
+
+    _check(
+        [item["id"] for item in _job_experiments(client, dataset_id, job_name)] == [experiment_id],
+        "resume created or lost an experiment",
+    )
+    _check(_run_ids(client, experiment_id) == run_ids_before, "resume changed the run set")
+    _check(
+        _evaluation_state(endpoint, experiment_id) == evaluations_before,
+        "resume changed evaluations",
+    )
+    span_ids_after = {
+        trace_id: {
+            span["context"]["span_id"] for span in _trace_spans(client, project_name, trace_id)
+        }
+        for trace_id in trace_ids
+    }
+    _check(span_ids_after == span_ids_before, "resume changed the trace span set")
+
+
+def _single_traced_run(
+    client: Client, *, dataset_name: str, job_name: str
+) -> tuple[v1.Experiment, v1.ExperimentRun, str, str]:
+    """Return the job's one experiment, its one run, the run's trace ID, and project."""
+    dataset = _find_dataset(client, dataset_name)
+    experiments = _job_experiments(client, dataset["id"], job_name)
+    _check(len(experiments) == 1, repr(experiments))
+    experiment = experiments[0]
+    runs = _runs(client, experiment["id"])
+    _check(len(runs) == 1, repr(runs))
+    trace_id = runs[0].get("trace_id")
+    _check(isinstance(trace_id, str) and len(trace_id) == 32, repr(runs[0]))
+    project_name = experiment.get("project_name")
+    _check(bool(project_name), repr(experiment))
+    return experiment, runs[0], str(trace_id), str(project_name)
+
+
+def _run_atif_compaction_case(
+    wheel: Path,
+    endpoint: str,
+    jobs_dir: Path,
+    client: Client,
+    *,
+    job_name: str,
+) -> None:
+    compaction_job_name = f"{job_name}-compaction"
+    command = _harbor_command(
+        wheel,
+        endpoint,
+        jobs_dir,
+        [
+            "-d",
+            HARBOR_ATIF_DATASET,
+            "-i",
+            HARBOR_ATIF_COMPACTION_TASK,
+            "-a",
+            "terminus-2",
+            "-m",
+            HARBOR_ATIF_MODEL,
+            "--ae",
+            "OPENAI_API_KEY=${OPENAI_API_KEY}",
+            "--ak",
+            "max_turns=2",
+            "--ak",
+            "proactive_summarization_threshold=271500",
+            "--ak",
+            'trajectory_config={"linear_history":true}',
+            "-e",
+            "docker",
+            "-n",
+            "1",
+            "-r",
+            "0",
+            "--job-name",
+            compaction_job_name,
+        ],
+    )
+    _print_plugin_warnings(
+        _run(command, description="Terminus-2 records compaction and continuation ATIF traces")
+    )
+
+    job_dir = jobs_dir / compaction_job_name
+    trial_dirs = sorted(path for path in job_dir.iterdir() if path.is_dir())
+    _check(len(trial_dirs) == 1, repr(trial_dirs))
+    written_source_paths = {
+        path.relative_to(trial_dirs[0]).as_posix()
+        for path in (trial_dirs[0] / "agent").glob("trajectory*.json")
+    }
+    _check(
+        HARBOR_ATIF_COMPACTION_SOURCE_PATHS <= written_source_paths,
+        f"forced compaction wrote {sorted(written_source_paths)!r}",
+    )
+
+    experiment, _, trace_id, project_name = _single_traced_run(
+        client, dataset_name=HARBOR_ATIF_DATASET_NAME, job_name=compaction_job_name
+    )
+    spans = _trace_spans(client, project_name, trace_id)
+    _print_trace_tree(spans)
+    root = _assert_trace_shape(spans, trace_id)
+    _check(
+        HARBOR_ATIF_COMPACTION_SOURCE_PATHS
+        <= set(_span_metadata(root).get("atif_source_paths") or ()),
+        repr(_span_metadata(root)),
+    )
+    agent_spans = [span for span in spans if span["span_kind"] == "AGENT"]
+    _check(
+        HARBOR_ATIF_COMPACTION_AGENTS == {span["name"] for span in agent_spans},
+        repr(agent_spans),
+    )
+    continuation = next(
+        span for span in agent_spans if span["name"] == "terminus-2 (continuation 1)"
+    )
+    _check(
+        _span_metadata(continuation).get("is_continuation") is True
+        and _span_metadata(continuation).get("continuation_index") == 1,
+        repr(continuation),
+    )
+    compaction_spans = [span for span in spans if span["name"] == "compaction 1"]
+    _check(len(compaction_spans) == 1, repr(compaction_spans))
+    _check(
+        _span_metadata(compaction_spans[0]).get("atif.context_management") is True,
+        repr(compaction_spans[0]),
+    )
+
+    _assert_resume_is_idempotent(
+        command,
+        client,
+        endpoint,
+        description="forced compaction resume is idempotent",
+        dataset_id=_find_dataset(client, HARBOR_ATIF_DATASET_NAME)["id"],
+        job_name=compaction_job_name,
+        experiment_id=experiment["id"],
+        project_name=project_name,
+        trace_ids=[trace_id],
+    )
+
+
+def _run_atif_multi_step_case(
+    wheel: Path,
+    endpoint: str,
+    jobs_dir: Path,
+    client: Client,
+    *,
+    job_name: str,
+) -> None:
+    """Run a three-step task with Claude Code and check one trace spans every step."""
+    _check(bool(os.environ.get("ANTHROPIC_API_KEY")), "ANTHROPIC_API_KEY is required")
+    multi_step_job_name = f"{job_name}-multi-step"
+    command = _harbor_command(
+        wheel,
+        endpoint,
+        jobs_dir,
+        [
+            "-p",
+            str(MULTI_STEP_TASK),
+            "-a",
+            "claude-code",
+            "-m",
+            HARBOR_ATIF_CLAUDE_MODEL,
+            "--ae",
+            "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}",
+            "-e",
+            "docker",
+            "-n",
+            "1",
+            "-r",
+            "0",
+            "--job-name",
+            multi_step_job_name,
+        ],
+    )
+    _print_plugin_warnings(
+        _run(command, description="Claude Code records one trace for a multi-step task")
+    )
+
+    job_dir = jobs_dir / multi_step_job_name
+    trial_dirs = sorted(path for path in job_dir.iterdir() if path.is_dir())
+    _check(len(trial_dirs) == 1, repr(trial_dirs))
+    trial_result = json.loads((trial_dirs[0] / "result.json").read_text())
+    step_names = _step_names(trial_result)
+    _check(bool(step_names), f"no step results in {trial_result!r}")
+    expected_source_paths = _expected_atif_source_paths(trial_dirs[0], trial_result)
+    _check(
+        len(expected_source_paths) == len(step_names),
+        f"expected one trajectory per step, found {expected_source_paths!r}",
+    )
+
+    experiment, run, trace_id, project_name = _single_traced_run(
+        client, dataset_name="harbor-task/arize/word-count", job_name=multi_step_job_name
+    )
+    records = _experiment_records(endpoint, experiment["id"])
+    _check(len(records) == 1, repr(records))
+    annotations = {annotation["name"]: annotation for annotation in records[0]["annotations"]}
+    _check({"reward", "infra_ok"} <= annotations.keys(), repr(annotations))
+    _check(
+        {f"{name}.reward" for name in step_names} <= annotations.keys(),
+        f"missing step rewards in {sorted(annotations)!r}",
+    )
+    print(
+        "      rewards: "
+        + ", ".join(f"{name}={annotations[name]['score']}" for name in sorted(annotations))
+    )
+
+    spans = _trace_spans(client, project_name, trace_id)
+    _print_trace_tree(spans)
+    root = _assert_trace_shape(spans, trace_id)
+    root_metadata = _span_metadata(root)
+    _check(
+        set(expected_source_paths) <= set(root_metadata.get("atif_source_paths") or ()),
+        f"expected ATIF roots {expected_source_paths!r}, got {root_metadata!r}",
+    )
+    run_output = cast(Mapping[str, Any], run.get("output") or {})
+    _check(
+        root_metadata.get("harbor_trial_id") == run_output.get("harbor_trial_id"),
+        f"trace root and run disagree on the trial: {root_metadata!r} vs {run!r}",
+    )
+    step_spans = [
+        span
+        for span in spans
+        if span["span_kind"] == "CHAIN" and span.get("parent_id") == root["context"]["span_id"]
+    ]
+    _check(
+        [span["name"] for span in step_spans]
+        == [f"harbor.step {index} {name}" for index, name in enumerate(step_names, start=1)],
+        f"expected one harbor.step span per attempted step, got {step_spans!r}",
+    )
+    for index, step_span in enumerate(step_spans, start=1):
+        step_name = step_names[index - 1]
+        step_attributes: Mapping[str, Any] = step_span.get("attributes") or {}
+        _check("input.value" in step_attributes, f"{step_span['name']} has no instruction")
+        _check(
+            json.loads(str(step_attributes.get("output.value") or "{}")).get("reward")
+            == annotations[f"{step_name}.reward"]["score"],
+            f"{step_span['name']} output does not match the step reward",
+        )
+        descendants = [
+            span for span in spans if span.get("parent_id") == step_span["context"]["span_id"]
+        ]
+        _check(
+            any(span["span_kind"] == "AGENT" for span in descendants)
+            and all(_span_metadata(span).get("harbor.step_index") == index for span in descendants),
+            f"{step_span['name']} has no agent root stamped with its step: {descendants!r}",
+        )
+
+    _assert_resume_is_idempotent(
+        command,
+        client,
+        endpoint,
+        description="multi-step resume is idempotent",
+        dataset_id=_find_dataset(client, "harbor-task/arize/word-count")["id"],
+        job_name=multi_step_job_name,
+        experiment_id=experiment["id"],
+        project_name=project_name,
+        trace_ids=[trace_id],
+    )
+
+
+def _run_atif_terminus_case(
+    wheel: Path,
+    endpoint: str,
+    jobs_dir: Path,
+    client: Client,
+    *,
+    job_name: str,
+) -> None:
+    _check(bool(os.environ.get("OPENAI_API_KEY")), "OPENAI_API_KEY is required")
+    command = _harbor_command(
+        wheel,
+        endpoint,
+        jobs_dir,
+        [
+            "-d",
+            HARBOR_ATIF_DATASET,
+            *(item for task_name in HARBOR_ATIF_TASKS for item in ("-i", task_name)),
+            "-a",
+            "terminus-2",
+            "-m",
+            HARBOR_ATIF_MODEL,
+            "--ae",
+            "OPENAI_API_KEY=${OPENAI_API_KEY}",
+            "--ak",
+            "max_turns=12",
+            "-e",
+            "docker",
+            "-n",
+            "1",
+            "-r",
+            "0",
+            "--job-name",
+            job_name,
+        ],
+    )
+    _print_plugin_warnings(
+        _run(command, description="Terminus-2 records a run with its ATIF trace")
+    )
+
+    trial_dirs = sorted(path for path in (jobs_dir / job_name).iterdir() if path.is_dir())
+    _check(len(trial_dirs) == len(HARBOR_ATIF_TASKS), repr(trial_dirs))
+    trials_by_name: dict[str, tuple[Path, tuple[str, ...]]] = {}
+    for trial_dir in trial_dirs:
+        trial_result = json.loads((trial_dir / "result.json").read_text())
+        expected_source_paths = _expected_atif_source_paths(trial_dir, trial_result)
+        _check(bool(expected_source_paths), f"{trial_dir.name} wrote no importable trajectory.json")
+        for relative_path in expected_source_paths:
+            payload = json.loads((trial_dir / relative_path).read_text())
+            _check(str(payload.get("schema_version", "")).startswith("ATIF-v1."), relative_path)
+        trials_by_name[trial_dir.name] = (trial_dir, expected_source_paths)
+
+    dataset = _find_dataset(client, HARBOR_ATIF_DATASET_NAME)
+    experiments = _job_experiments(client, dataset["id"], job_name)
+    _check(len(experiments) == 1, repr(experiments))
+    experiment = experiments[0]
+    runs = _runs(client, experiment["id"])
+    _check(len(runs) == len(HARBOR_ATIF_TASKS), repr(runs))
+    trace_ids = [str(run.get("trace_id")) for run in runs]
+    _check(
+        len(set(trace_ids)) == len(HARBOR_ATIF_TASKS)
+        and all(len(trace_id) == 32 for trace_id in trace_ids),
+        repr(runs),
+    )
+    project_name = str(experiment.get("project_name") or "")
+    _check(bool(project_name), repr(experiment))
+    job_result_id = str(json.loads((jobs_dir / job_name / "result.json").read_text()).get("id"))
+    for run in runs:
+        trace_id = str(run.get("trace_id"))
+        spans = _trace_spans(client, project_name, trace_id)
+        root = _assert_trace_shape(spans, trace_id)
+        root_metadata = _span_metadata(root)
+        trial_name = str(root_metadata.get("harbor_trial_name"))
+        _check(trial_name in trials_by_name, repr(root_metadata))
+        linked_output = cast(Mapping[str, Any], run.get("output") or {})
+        _check(
+            root_metadata.get("harbor_trial_id") == linked_output.get("harbor_trial_id"),
+            f"run {run.get('id')!r} links trace {trace_id} whose root records "
+            f"trial {root_metadata.get('harbor_trial_id')!r}, not {linked_output!r}",
+        )
+        _check(
+            root_metadata.get("harbor_job_id") == job_result_id,
+            f"trace root records job {root_metadata.get('harbor_job_id')!r}, "
+            f"expected {job_result_id!r}",
+        )
+        trial_dir, expected_source_paths = trials_by_name[trial_name]
+        recorded_source_paths = tuple(root_metadata.get("atif_source_paths") or ())
+        _check(
+            set(expected_source_paths) <= set(recorded_source_paths),
+            f"expected ATIF roots {expected_source_paths!r}, got {root_metadata!r}",
+        )
+        _check(
+            all((trial_dir / path).is_file() for path in recorded_source_paths),
+            f"trace lists an ATIF source that is not a trial file: {recorded_source_paths!r}",
+        )
+        llm_spans = [span for span in spans if span["span_kind"] == "LLM"]
+        _check(
+            all(
+                _span_metadata(span).get("atif.timing") == "harbor.api_request_times_msec"
+                for span in llm_spans
+            ),
+            "Terminus-2 request measurements were not applied to every LLM step",
+        )
+        _assert_equal_time_children_keep_declared_order(spans)
+    project_spans = client.spans.get_spans(project_identifier=project_name, limit=10_000)
+    project_trace_ids = {span["context"]["trace_id"] for span in project_spans}
+    _check(
+        project_trace_ids == set(trace_ids),
+        f"experiment project holds traces {sorted(project_trace_ids)!r} "
+        f"but runs link {sorted(trace_ids)!r}",
+    )
+
+    _assert_resume_is_idempotent(
+        command,
+        client,
+        endpoint,
+        description="second ATIF resume is idempotent",
+        dataset_id=dataset["id"],
+        job_name=job_name,
+        experiment_id=experiment["id"],
+        project_name=project_name,
+        trace_ids=trace_ids,
+    )
+
+
+def _assert_equal_time_children_keep_declared_order(spans: Sequence[Mapping[str, Any]]) -> None:
+    """Check that Phoenix returns an LLM before its tools and tools in ATIF array order."""
+    leaf_spans = [span for span in spans if span["span_kind"] in {"LLM", "TOOL"}]
+    step_ids = {
+        span["context"]["span_id"]
+        for span in spans
+        if span["span_kind"] == "CHAIN" and _span_metadata(span).get("atif.step_id") is not None
+    }
+    for step_id in step_ids:
+        children = sorted(
+            (span for span in leaf_spans if span.get("parent_id") == step_id),
+            key=lambda span: _parse_time(span["start_time"]),
+        )
+        llm_children = [span for span in children if span["span_kind"] == "LLM"]
+        tool_children = [span for span in children if span["span_kind"] == "TOOL"]
+        if llm_children:
+            _check(children[0] is llm_children[0], "LLM does not precede its requested tools")
+        _check(
+            [_span_metadata(span).get("atif.tool_call_index") for span in tool_children]
+            == list(range(len(tool_children))),
+            "Equal-time tools do not preserve ATIF array order",
+        )
+
+
+def _run_atif_matrix(root: Path, wheel: Path, endpoint: str) -> None:
+    jobs_dir = root / "jobs"
+    jobs_dir.mkdir(exist_ok=True)
+    client = Client(base_url=endpoint)
+    job_name = os.environ.get("HARBOR_E2E_JOB_NAME", "plugin-e2e-atif")
+    cases = {
+        "terminus": _run_atif_terminus_case,
+        "compaction": _run_atif_compaction_case,
+        "multi-step": _run_atif_multi_step_case,
+    }
+    selected = [case.strip() for case in HARBOR_ATIF_CASES.split(",") if case.strip()]
+    unknown = sorted(set(selected) - cases.keys())
+    _check(not unknown, f"unknown HARBOR_E2E_ATIF_CASES {unknown!r}; choose from {sorted(cases)!r}")
+    for case in selected:
+        cases[case](wheel, endpoint, jobs_dir, client, job_name=job_name)
 
 
 def _run_matrix(root: Path, wheel: Path, endpoint: str) -> None:
@@ -582,33 +1204,44 @@ def main() -> int:
         _check(bool(wheels), "Phoenix client wheel was not created")
         wheel = wheels[-1].resolve()
 
-        port = _free_port()
-        grpc_port = _free_port()
-        endpoint = f"http://127.0.0.1:{port}"
-        phoenix_dir = root / "phoenix"
-        phoenix_dir.mkdir()
-        log_path = root / "phoenix.log"
-        log_file = log_path.open("w")
-        env = os.environ.copy()
-        env["PHOENIX_WORKING_DIR"] = str(phoenix_dir)
-        env["PHOENIX_PORT"] = str(port)
-        env["PHOENIX_GRPC_PORT"] = str(grpc_port)
-        phoenix_process = subprocess.Popen(
-            ["uv", "run", "phoenix", "serve"],
-            cwd=REPO_ROOT,
-            env=env,
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        _wait_for_phoenix(endpoint, phoenix_process, log_path)
-        print(f"PASS  isolated Phoenix is healthy at {endpoint}")
+        external_endpoint = os.environ.get("HARBOR_E2E_ENDPOINT")
+        if external_endpoint:
+            endpoint = external_endpoint.rstrip("/")
+            with urllib.request.urlopen(f"{endpoint}/healthz", timeout=5) as response:
+                _check(response.status == 200, f"Phoenix at {endpoint} is not healthy")
+            print(f"PASS  external Phoenix is healthy at {endpoint}")
+        else:
+            port = _free_port()
+            grpc_port = _free_port()
+            endpoint = f"http://127.0.0.1:{port}"
+            phoenix_dir = root / "phoenix"
+            phoenix_dir.mkdir()
+            log_path = root / "phoenix.log"
+            log_file = log_path.open("w")
+            env = os.environ.copy()
+            env["PHOENIX_WORKING_DIR"] = str(phoenix_dir)
+            env["PHOENIX_PORT"] = str(port)
+            env["PHOENIX_GRPC_PORT"] = str(grpc_port)
+            phoenix_process = subprocess.Popen(
+                ["uv", "run", "phoenix", "serve"],
+                cwd=REPO_ROOT,
+                env=env,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+            _wait_for_phoenix(endpoint, phoenix_process, log_path)
+            print(f"PASS  isolated Phoenix is healthy at {endpoint}")
 
-        _run_matrix(root, wheel, endpoint)
+        if os.environ.get("HARBOR_E2E_ATIF") == "1":
+            _run_atif_matrix(root, wheel, endpoint)
+        else:
+            _run_matrix(root, wheel, endpoint)
         succeeded = True
         print("PASS  Phoenix Harbor plugin E2E matrix")
         return 0
     except Exception as error:
+        traceback.print_exc()
         print(f"\nFAIL  {error}", file=sys.stderr)
         print(f"Artifacts retained at {root}", file=sys.stderr)
         return 1

@@ -1,141 +1,216 @@
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-"""Convert an ATIF trajectory dict into a list of Phoenix/OTel-compatible spans."""
+"""Convert ATIF trajectories into Phoenix spans.
 
-# Intentionally not mapped to OpenInference span attributes:
-# - continued_trajectory_ref: no OpenInference equivalent for trajectory continuation
-# - notes: free-form annotation with no OpenInference equivalent
-# - reasoning_effort (on agent steps): configuration hint, not observable output
-# - step-level extra: arbitrary vendor extensions, no standard mapping,
-#   except the v1.7 context_management convention used for prompt reconstruction
-#   (agent-level extra IS merged into root span metadata)
-# - prompt_token_ids, completion_token_ids (in step metrics): RL training data,
-#   no OpenInference attribute; arrays can be very large
-# - logprobs (in step metrics): RL training data, no OpenInference attribute
-#
-# Mapped elsewhere (not in this "not mapped" list but worth noting):
-# - subagent_trajectory_ref: resolved to cross-trace parent_id links via _build_subagent_ref_map
-# - cost_usd (in step metrics): mapped to llm.cost.total on LLM spans
+Each trajectory becomes one trace: a root AGENT span, an AGENT span per user
+turn when there are several turns, a CHAIN span per fresh operational step,
+and LLM and TOOL spans beneath each step. Spans are named by their target
+(the agent, model, or tool) because the span kind already names the
+operation; iterations and turns use ATIF vocabulary.
+
+ATIF fields with no OpenInference equivalent (``notes``, ``reasoning_effort``,
+token ID arrays, and logprobs) are not mapped.
+"""
 
 from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Union, cast
 
 from phoenix.client.__generated__ import v1
 
+# Phoenix-private keys that adapters may add to a trajectory before conversion.
 _PARENT_SPAN_CONTEXT_KEY = "_phoenix_parent_span_context"
+_FALLBACK_TIMESTAMP_KEY = "_phoenix_fallback_timestamp"
+_IS_CONTINUATION_KEY = "_phoenix_is_continuation"
+_CONTINUATION_INDEX_KEY = "_phoenix_continuation_index"
+_LLM_LATENCY_MS_KEY = "_phoenix_llm_latency_ms"
+_LLM_LATENCY_SOURCE_KEY = "_phoenix_llm_latency_source"
+
+_SpanContext = tuple[str, str]
+"""``(parent_span_id, trace_id)`` of the span a child trajectory hangs from."""
+
+
+# --- Identity -----------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _TrajectoryIds:
+    """Identities derived once per trajectory and shared by every span."""
+
+    session_id: str
+    """Phoenix ``session.id``: the run-scoped identity."""
+    trace_id: str
+    span_seed: str
+    """Document-scoped seed for deterministic span IDs."""
 
 
 def _sha256_span_id(seed: str) -> str:
-    """Derive a deterministic 16-hex-char span ID from a seed string."""
     return hashlib.sha256(seed.encode()).hexdigest()[:16]
 
 
 def _sha256_trace_id(seed: str) -> str:
-    """Derive a deterministic 32-hex-char trace ID from a seed string."""
     return hashlib.sha256(seed.encode()).hexdigest()[:32]
 
 
-def _stable_trajectory_hash(trajectory: Mapping[str, Any]) -> str:
-    """Derive a stable fallback identity for trajectories without IDs."""
-    trajectory_for_hash = {
-        key: value for key, value in trajectory.items() if not key.startswith("_phoenix_")
-    }
-    serialized = json.dumps(trajectory_for_hash, sort_keys=True, default=str)
-    return hashlib.sha256(serialized.encode()).hexdigest()[:16]
+def _text(value: object) -> Optional[str]:
+    """Return ``value`` when it is a non-blank string."""
+    return value if isinstance(value, str) and value.strip() else None
 
 
-def _trajectory_session_id(
-    trajectory: Mapping[str, Any],
-    fallback_session_id: Optional[str] = None,
-) -> str:
-    """Return the run-scoped session identity used for ``session.id``."""
-    session_id = trajectory.get("session_id")
-    if isinstance(session_id, str) and session_id.strip():
-        return session_id
-    if fallback_session_id:
-        return fallback_session_id
-    trajectory_id = trajectory.get("trajectory_id")
-    if isinstance(trajectory_id, str) and trajectory_id.strip():
-        return trajectory_id
-    return f"atif-{_stable_trajectory_hash(trajectory)}"
-
-
-def _trajectory_span_seed(
-    trajectory: Mapping[str, Any],
-    trace_id: Optional[str] = None,
-) -> str:
-    """Return the document-scoped identity used for deterministic span IDs."""
-    minor = _schema_minor_version(trajectory) or 0
-    trajectory_id = trajectory.get("trajectory_id")
-    if isinstance(trajectory_id, str) and trajectory_id.strip():
-        seed = trajectory_id
-    elif minor >= 7:
-        seed = f"atif-{_stable_trajectory_hash(trajectory)}"
-    else:
-        return _trajectory_session_id(trajectory)
-    return f"{trace_id}:{seed}" if minor >= 7 and trace_id else seed
-
-
-def _trajectory_trace_seed(trajectory: Mapping[str, Any]) -> str:
-    """Return the run-scoped identity used for deterministic trace IDs."""
-    session_id = trajectory.get("session_id")
-    if isinstance(session_id, str) and session_id.strip():
-        if (
-            (_schema_minor_version(trajectory) or 0) >= 7
-            and "trajectory_id" not in trajectory
-            and session_id == _base_session_id(session_id)
-            and not trajectory.get("continued_trajectory_ref")
-        ):
-            return f"atif-{_stable_trajectory_hash(trajectory)}"
-        return _base_session_id(session_id)
-    return _trajectory_span_seed(trajectory)
-
-
-def _trajectory_lookup_keys(trajectory: Mapping[str, Any]) -> List[str]:
-    """Return supported ref-map keys for a trajectory, preferred first."""
-    keys: List[str] = []
-    trajectory_id = trajectory.get("trajectory_id")
-    if isinstance(trajectory_id, str) and trajectory_id.strip():
-        keys.append(trajectory_id)
-    session_id = trajectory.get("session_id")
-    if isinstance(session_id, str) and session_id.strip():
-        keys.append(session_id)
-    return keys
-
-
-def _schema_minor_version(trajectory: Mapping[str, Any]) -> Optional[int]:
+def _schema_minor_version(trajectory: Mapping[str, Any]) -> int:
+    """Return the minor ATIF version, or 0 when the version is unreadable."""
     schema_version = trajectory.get("schema_version")
     if not isinstance(schema_version, str) or "-v" not in schema_version:
-        return None
+        return 0
     try:
         return int(schema_version.split("-v", 1)[1].split(".", 1)[1])
     except (IndexError, ValueError):
-        return None
+        return 0
+
+
+def _document_hash(trajectory: Mapping[str, Any]) -> str:
+    """Return a stable identity for a trajectory that declares no usable ID."""
+    public = {key: value for key, value in trajectory.items() if not key.startswith("_phoenix_")}
+    serialized = json.dumps(public, sort_keys=True, default=str)
+    return f"atif-{hashlib.sha256(serialized.encode()).hexdigest()[:16]}"
+
+
+def _base_session_id(session_id: str) -> str:
+    """Strip the ``-cont-N`` suffix Harbor appends to continuation sessions."""
+    base, separator, index = session_id.rpartition("-cont-")
+    return base if separator and index.isdigit() else session_id
+
+
+def _session_id(trajectory: Mapping[str, Any], fallback: Optional[str] = None) -> str:
+    return (
+        _text(trajectory.get("session_id"))
+        or fallback
+        or _text(trajectory.get("trajectory_id"))
+        or _document_hash(trajectory)
+    )
+
+
+def _span_seed(trajectory: Mapping[str, Any], trace_id: Optional[str]) -> str:
+    """Return the document-scoped seed for span IDs.
+
+    ATIF v1.7 seeds fall back to a document hash and are qualified by the trace
+    so that identical embedded documents under different parents stay distinct.
+    Earlier versions keep seeding from ``session_id`` for stable replays.
+    """
+    trajectory_id = _text(trajectory.get("trajectory_id"))
+    if _schema_minor_version(trajectory) < 7:
+        return trajectory_id or _session_id(trajectory)
+    seed = trajectory_id or _document_hash(trajectory)
+    return f"{trace_id}:{seed}" if trace_id else seed
+
+
+def _trace_seed(trajectory: Mapping[str, Any]) -> str:
+    """Return the run-scoped seed for trace IDs.
+
+    Continuations share the base session's trace. A v1.7 standalone document
+    that declares neither ``trajectory_id`` nor a continuation is hashed so
+    that sibling documents sharing one run session get separate traces.
+    """
+    session_id = _text(trajectory.get("session_id"))
+    if session_id is None:
+        return _span_seed(trajectory, None)
+    standalone_v17 = (
+        _schema_minor_version(trajectory) >= 7
+        and "trajectory_id" not in trajectory
+        and session_id == _base_session_id(session_id)
+        and not trajectory.get("continued_trajectory_ref")
+    )
+    return _document_hash(trajectory) if standalone_v17 else _base_session_id(session_id)
+
+
+def _trajectory_ids(
+    trajectory: Mapping[str, Any],
+    parent_span_context: Optional[_SpanContext],
+) -> _TrajectoryIds:
+    if parent_span_context is not None:
+        trace_id = parent_span_context[1]
+    else:
+        trace_id = _sha256_trace_id(f"{_trace_seed(trajectory)}:trace")
+    return _TrajectoryIds(
+        session_id=_session_id(trajectory),
+        trace_id=trace_id,
+        span_seed=_span_seed(trajectory, trace_id),
+    )
+
+
+def _root_span_id(span_seed: str) -> str:
+    return _sha256_span_id(f"{span_seed}:root")
+
+
+def _step_span_id(span_seed: str, step_id: object) -> str:
+    return _sha256_span_id(f"{span_seed}:step:{step_id}:operation")
+
+
+def _llm_span_id(span_seed: str, step_id: object) -> str:
+    return _sha256_span_id(f"{span_seed}:step:{step_id}")
+
+
+def _tool_span_id(span_seed: str, step_id: object, call_id: object) -> str:
+    return _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{call_id}")
+
+
+# --- Subagent references ------------------------------------------------------
+
+
+def _trajectory_lookup_keys(trajectory: Mapping[str, Any]) -> List[str]:
+    """Return the keys a ref map may use for a trajectory, preferred first."""
+    keys = [_text(trajectory.get("trajectory_id")), _text(trajectory.get("session_id"))]
+    return [key for key in keys if key]
 
 
 def _subagent_ref_lookup_keys(
     ref: Mapping[str, Any],
     parent_trajectory: Mapping[str, Any],
 ) -> List[str]:
-    """Return ref-map keys for a subagent ref.
+    """Return the ref-map keys a subagent ref resolves through.
 
-    ATIF v1.7 resolves embedded refs by trajectory_id. Pre-v1.7 files used
-    session_id as the child lookup key, so keep that path for existing data.
+    ATIF v1.7 resolves refs by ``trajectory_id``. Earlier versions resolved
+    them by ``session_id``, so that key is kept for older documents.
     """
-    keys: List[str] = []
-    trajectory_id = ref.get("trajectory_id")
-    if isinstance(trajectory_id, str) and trajectory_id.strip():
-        keys.append(trajectory_id)
+    keys = [_text(ref.get("trajectory_id"))]
+    if _schema_minor_version(parent_trajectory) < 7:
+        keys.append(_text(ref.get("session_id")))
+    return [key for key in keys if key]
 
-    minor = _schema_minor_version(parent_trajectory)
-    if minor is None or minor < 7:
-        session_id = ref.get("session_id")
-        if isinstance(session_id, str) and session_id.strip():
-            keys.append(session_id)
-    return keys
+
+def _get_parent_span_context(
+    trajectory: Mapping[str, Any],
+    ref_map: Mapping[str, _SpanContext],
+) -> Optional[_SpanContext]:
+    """Return the parent span context a subagent ref assigned to a trajectory."""
+    embedded = trajectory.get(_PARENT_SPAN_CONTEXT_KEY)
+    if isinstance(embedded, tuple) and len(embedded) == 2:
+        return embedded
+    for key in _trajectory_lookup_keys(trajectory):
+        if key in ref_map:
+            return ref_map[key]
+    return None
+
+
+def _iter_subagent_refs(
+    trajectory: Mapping[str, Any],
+) -> Iterator[tuple[Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]]]:
+    """Yield ``(step, observation result, ref)`` for refs on fresh steps."""
+    for step in trajectory.get("steps", []):
+        if step.get("is_copied_context", False):
+            continue
+        observation = step.get("observation")
+        results = observation.get("results") if isinstance(observation, Mapping) else None
+        for result in results if isinstance(results, list) else []:
+            if not isinstance(result, Mapping):
+                continue
+            refs = result.get("subagent_trajectory_ref")
+            for ref in refs if isinstance(refs, list) else []:
+                if isinstance(ref, Mapping):
+                    yield step, result, ref
 
 
 def _subagent_parent_span_id(
@@ -143,153 +218,289 @@ def _subagent_parent_span_id(
     result: Mapping[str, Any],
     span_seed: str,
 ) -> str:
-    """Return the emitted span that should parent a referenced subagent."""
+    """Return the closest span the document proves a subagent hangs from.
+
+    A ``source_call_id`` that matches one of the step's tool calls attaches the
+    child to that tool span. Otherwise the child attaches to the step span, or
+    to the trajectory root when the step is not operational.
+    """
     source_call_id = result.get("source_call_id")
-    tool_calls = step.get("tool_calls")
-    has_matching_tool_call = (
-        step.get("source") == "agent"
-        and isinstance(source_call_id, str)
-        and isinstance(tool_calls, list)
-        and any(
-            isinstance(tool_call, Mapping) and tool_call.get("tool_call_id") == source_call_id
-            for tool_call in tool_calls
-        )
-    )
-    if has_matching_tool_call:
-        step_id = step.get("step_id")
-        return _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{source_call_id}")
-    return _sha256_span_id(f"{span_seed}:root")
+    call_ids = {
+        tool_call.get("tool_call_id")
+        for tool_call in step.get("tool_calls", [])
+        if isinstance(tool_call, Mapping)
+    }
+    step_id = step.get("step_id")
+    if isinstance(source_call_id, str) and source_call_id in call_ids:
+        return _tool_span_id(span_seed, step_id, source_call_id)
+    if _is_operational_step(step):
+        return _step_span_id(span_seed, step_id)
+    return _root_span_id(span_seed)
 
 
-def _get_parent_span_context(
+def _register_subagent_refs(
+    ref_map: Dict[str, _SpanContext],
     trajectory: Mapping[str, Any],
-    ref_map: Mapping[str, tuple[str, str]],
-) -> Optional[tuple[str, str]]:
-    """Return the parent span context for a trajectory if a subagent ref links it."""
-    parent_ctx = trajectory.get(_PARENT_SPAN_CONTEXT_KEY)
-    if (
-        isinstance(parent_ctx, tuple)
-        and len(parent_ctx) == 2
-        and all(isinstance(value, str) for value in parent_ctx)
-    ):
-        return parent_ctx
-    for key in _trajectory_lookup_keys(trajectory):
-        parent_ctx = ref_map.get(key)
-        if parent_ctx is not None:
-            return parent_ctx
-    return None
+    ids: _TrajectoryIds,
+) -> None:
+    """Add every subagent ref in ``trajectory`` to ``ref_map``; first ref wins."""
+    for step, result, ref in _iter_subagent_refs(trajectory):
+        parent_span_id = _subagent_parent_span_id(step, result, ids.span_seed)
+        for key in _subagent_ref_lookup_keys(ref, trajectory):
+            ref_map.setdefault(key, (parent_span_id, ids.trace_id))
+
+
+def _build_subagent_ref_map(
+    trajectories: Sequence[Mapping[str, Any]],
+) -> Dict[str, _SpanContext]:
+    """Map child lookup keys to the parent span context their ref names.
+
+    Trajectories are visited in order, so a parent must precede its children
+    for cross-document links. Embedded subagents flattened by
+    :func:`_flatten_atif_trajectories` already carry their parent context.
+    """
+    ref_map: Dict[str, _SpanContext] = {}
+    for trajectory in trajectories:
+        ids = _trajectory_ids(trajectory, _get_parent_span_context(trajectory, ref_map))
+        _register_subagent_refs(ref_map, trajectory, ids)
+    return ref_map
 
 
 def _flatten_atif_trajectories(
     trajectories: Sequence[Mapping[str, Any]],
 ) -> List[Mapping[str, Any]]:
-    """Return top-level and embedded ATIF v1.7 subagent trajectories.
+    """Return every trajectory plus its embedded ATIF v1.7 subagents.
 
-    Embedded subagents may omit ``session_id`` in v1.7. When they do, they
-    inherit the nearest parent run identity for Phoenix's ``session.id`` while
-    still using their own ``trajectory_id`` for deterministic span IDs.
-    Embedded refs resolved against their containing parent carry Phoenix-only
-    parent span context under ``_PARENT_SPAN_CONTEXT_KEY`` so duplicate child
-    IDs in different parents are resolved locally.
+    An embedded subagent without a ``session_id`` inherits the nearest parent
+    session. Its parent span context is resolved against the containing parent
+    only and stored under a Phoenix-private key, so identical child IDs under
+    different parents do not collide.
     """
     flattened: List[Mapping[str, Any]] = []
 
     def visit(
         trajectory: Mapping[str, Any],
-        inherited_session_id: Optional[str] = None,
-        parent_span_context: Optional[tuple[str, str]] = None,
+        inherited_session_id: Optional[str],
+        parent_span_context: Optional[_SpanContext],
     ) -> None:
-        effective_session_id = _trajectory_session_id(trajectory, inherited_session_id)
-        if "session_id" not in trajectory and inherited_session_id:
-            trajectory_for_conversion: Mapping[str, Any] = {
-                **trajectory,
-                "session_id": inherited_session_id,
-            }
-        else:
-            trajectory_for_conversion = trajectory
+        document = dict(trajectory)
+        if "session_id" not in document and inherited_session_id:
+            document["session_id"] = inherited_session_id
         if parent_span_context is not None:
-            # This flattened view is converter-internal; stable hash inputs drop
-            # Phoenix-private keys before deriving fallback document identity.
-            trajectory_for_conversion = {
-                **trajectory_for_conversion,
-                _PARENT_SPAN_CONTEXT_KEY: parent_span_context,
-            }
-        flattened.append(trajectory_for_conversion)
+            document[_PARENT_SPAN_CONTEXT_KEY] = parent_span_context
+        flattened.append(document)
 
-        subagent_trajectories = trajectory.get("subagent_trajectories")
-        if not isinstance(subagent_trajectories, list):
+        children = trajectory.get("subagent_trajectories")
+        if not isinstance(children, list):
             return
-        if parent_span_context is not None:
-            trace_id = parent_span_context[1]
-        else:
-            trace_id = _sha256_trace_id(
-                f"{_trajectory_trace_seed(trajectory_for_conversion)}:trace"
-            )
-        span_seed = _trajectory_span_seed(trajectory_for_conversion, trace_id)
-        local_ref_map: Dict[str, tuple[str, str]] = {}
-        for step in trajectory_for_conversion.get("steps", []):
-            observation = step.get("observation")
-            if not isinstance(observation, Mapping):
-                continue
-            results = observation.get("results")
-            if not isinstance(results, list):
-                continue
-            for result in results:
-                if not isinstance(result, Mapping):
-                    continue
-                refs = result.get("subagent_trajectory_ref", [])
-                if not isinstance(refs, list):
-                    continue
-                parent_span_id = _subagent_parent_span_id(step, result, span_seed)
-                for ref in refs:
-                    if not isinstance(ref, Mapping):
-                        continue
-                    for key in _subagent_ref_lookup_keys(ref, trajectory_for_conversion):
-                        local_ref_map[key] = (parent_span_id, trace_id)
-        for subagent in subagent_trajectories:
-            if isinstance(subagent, Mapping):
-                subagent_parent_ctx = None
-                for key in _trajectory_lookup_keys(subagent):
-                    subagent_parent_ctx = local_ref_map.get(key)
-                    if subagent_parent_ctx is not None:
-                        break
-                visit(subagent, effective_session_id, subagent_parent_ctx)
+        local_ref_map: Dict[str, _SpanContext] = {}
+        _register_subagent_refs(
+            local_ref_map, document, _trajectory_ids(document, parent_span_context)
+        )
+        session_id = _session_id(trajectory, inherited_session_id)
+        for child in children:
+            if isinstance(child, Mapping):
+                visit(child, session_id, _get_parent_span_context(child, local_ref_map))
 
     for trajectory in trajectories:
-        visit(trajectory)
+        visit(trajectory, None, None)
     return flattened
 
 
-def _parse_timestamp(ts: Optional[str]) -> Optional[datetime]:
-    """Parse an ISO 8601 timestamp string to a timezone-aware datetime.
+# --- Steps --------------------------------------------------------------------
 
-    Returns None if the input is None or empty.
-    """
-    if not ts:
+
+def _context_management(step: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Return the step's ``extra.context_management`` block, or an empty map."""
+    extra = step.get("extra")
+    value = extra.get("context_management") if isinstance(extra, Mapping) else None
+    return value if isinstance(value, Mapping) else {}
+
+
+def _is_compaction_step(step: Mapping[str, Any]) -> bool:
+    return bool(_context_management(step))
+
+
+def _is_operational_step(step: Mapping[str, Any]) -> bool:
+    """Return whether a fresh step represents observable execution."""
+    return (
+        step.get("source") == "agent"
+        or bool(step.get("tool_calls"))
+        or bool(step.get("observation"))
+        or _is_compaction_step(step)
+    )
+
+
+def _has_llm_call(step: Mapping[str, Any]) -> bool:
+    """Agent steps call an LLM unless they declare ``llm_call_count: 0``."""
+    return step.get("source") == "agent" and step.get("llm_call_count") != 0
+
+
+def _measured_latency_ms(step: Mapping[str, Any]) -> Optional[float]:
+    """Return the adapter-supplied LLM latency, if any."""
+    value = step.get(_LLM_LATENCY_MS_KEY)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
         return None
-    dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt
+    return float(value)
 
 
-def _format_timestamp(dt: datetime) -> str:
-    """Format a datetime as ISO 8601 with timezone."""
-    return dt.isoformat()
+def _parse_timestamp(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
 
 
-def _stringify_message(
-    message: Union[str, list[Any], None],
-) -> str:
-    """Convert an ATIF message field to a plain string.
+def _format_timestamp(value: datetime) -> str:
+    return value.isoformat()
 
-    Handles both str messages and multimodal list[ContentPart] (v1.6+).
+
+def _document_start(
+    steps: Sequence[Mapping[str, Any]],
+    fresh_indices: Sequence[int],
+) -> Optional[datetime]:
+    """Return the first fresh event, moved back by a measured first LLM latency."""
+    for i in fresh_indices:
+        timestamp = _parse_timestamp(steps[i].get("timestamp"))
+        if timestamp is None:
+            continue
+        latency_ms = _measured_latency_ms(steps[i]) if _has_llm_call(steps[i]) else None
+        return timestamp - timedelta(milliseconds=latency_ms) if latency_ms else timestamp
+    return None
+
+
+def _step_timings(
+    steps: Sequence[Mapping[str, Any]],
+    fresh_indices: Sequence[int],
+    start: datetime,
+) -> Dict[int, tuple[datetime, datetime]]:
+    """Bound each fresh step by the preceding event and its own timestamp.
+
+    ATIF records when a step happened, not when it began. A missing or
+    non-monotonic timestamp collapses onto the preceding event rather than
+    inventing elapsed time.
     """
+    timings: Dict[int, tuple[datetime, datetime]] = {}
+    previous_end = start
+    for i in fresh_indices:
+        timestamp = _parse_timestamp(steps[i].get("timestamp"))
+        end = timestamp if timestamp is not None and timestamp >= previous_end else previous_end
+        timings[i] = (previous_end, end)
+        previous_end = end
+    return timings
+
+
+def _llm_timing(
+    step: Mapping[str, Any],
+    step_start: datetime,
+    step_end: datetime,
+) -> tuple[datetime, datetime, Dict[str, Any]]:
+    """Return the LLM interval and its timing metadata.
+
+    A measured latency is clamped to the step interval. Without one, the LLM
+    call is a point event at the step timestamp.
+    """
+    latency_ms = _measured_latency_ms(step)
+    if latency_ms is None:
+        return step_end, step_end, {"atif.timing": "event"}
+    source = step.get(_LLM_LATENCY_SOURCE_KEY)
+    source = source if isinstance(source, str) else "adapter"
+    measured_end = step_start + timedelta(milliseconds=latency_ms)
+    if measured_end > step_end:
+        source = f"{source}_clamped"
+        measured_end = step_end
+    return step_start, measured_end, {"atif.timing": source, "atif.measured_latency_ms": latency_ms}
+
+
+def _split_into_turns(
+    steps: Sequence[Mapping[str, Any]],
+    fresh_indices: Sequence[int],
+) -> List[List[int]]:
+    """Group fresh step indices into turns.
+
+    A turn is one user request plus the activity that answers it. A user
+    message opens a new turn only after agent activity, so leading system
+    steps and consecutive context messages stay in the turn they introduce.
+    """
+    turns: List[List[int]] = []
+    current: List[int] = []
+    has_agent_activity = False
+    for i in fresh_indices:
+        source = steps[i].get("source")
+        if source == "user" and has_agent_activity:
+            turns.append(current)
+            current, has_agent_activity = [], False
+        current.append(i)
+        has_agent_activity = has_agent_activity or source == "agent"
+    if current:
+        turns.append(current)
+    return turns
+
+
+def _step_names(
+    steps: Sequence[Mapping[str, Any]],
+    fresh_indices: Sequence[int],
+) -> Dict[int, str]:
+    """Name operational steps with per-label ordinals (``iteration 3``).
+
+    An agent step is one iteration of the agent loop. A compaction step and
+    an operational system step (a handoff, for example) are labeled by what
+    they are; the ordinal counts steps with the same label.
+    """
+    ordinals: Dict[str, int] = {}
+    names: Dict[int, str] = {}
+    for i in fresh_indices:
+        step = steps[i]
+        if not _is_operational_step(step):
+            continue
+        if _is_compaction_step(step):
+            label = "compaction"
+        elif step.get("source") == "agent":
+            label = "iteration"
+        else:
+            label = f"{step.get('source', 'unknown')} event"
+        ordinals[label] = ordinals.get(label, 0) + 1
+        names[i] = f"{label} {ordinals[label]}"
+    return names
+
+
+def _pair_observations(
+    step: Mapping[str, Any],
+) -> tuple[Dict[str, Mapping[str, Any]], List[Mapping[str, Any]]]:
+    """Split observation results into those matched to a tool call and the rest.
+
+    A result names its tool call through ``source_call_id``. When the step has
+    exactly one tool call and exactly one unmatched result, they are paired.
+    """
+    tool_calls = [call for call in step.get("tool_calls", []) if isinstance(call, Mapping)]
+    call_ids = {call.get("tool_call_id") for call in tool_calls if call.get("tool_call_id")}
+    observation = step.get("observation") or {}
+    matched: Dict[str, Mapping[str, Any]] = {}
+    unmatched: List[Mapping[str, Any]] = []
+    for result in observation.get("results", []):
+        if not isinstance(result, Mapping):
+            continue
+        source_call_id = result.get("source_call_id")
+        if isinstance(source_call_id, str) and source_call_id in call_ids:
+            matched[source_call_id] = result
+        elif result.get("content") is not None:
+            unmatched.append(result)
+    if len(tool_calls) == 1 and len(unmatched) == 1:
+        only_call_id = str(tool_calls[0].get("tool_call_id", "tc_0"))
+        if only_call_id not in matched:
+            matched[only_call_id] = unmatched.pop()
+    return matched, unmatched
+
+
+# --- Messages -----------------------------------------------------------------
+
+
+def _stringify_message(message: Union[str, list[Any], None]) -> str:
+    """Flatten a string or multimodal ``list[ContentPart]`` message to text."""
     if message is None:
         return ""
     if isinstance(message, str):
         return message
-    # list[ContentPart] — concatenate text parts, placeholder for images
     parts: list[str] = []
     for part in message:
         if isinstance(part, str):
@@ -299,137 +510,286 @@ def _stringify_message(
             if text:
                 parts.append(str(text))
             elif part.get("type") == "image" and isinstance(part.get("source"), dict):
-                path = part["source"].get("path", "unknown")
-                parts.append(f"[image: {path}]")
-    return "\n".join(parts) if parts else ""
+                parts.append(f"[image: {part['source'].get('path', 'unknown')}]")
+    return "\n".join(parts)
 
 
-def _stringify_content(
-    content: Union[str, list[Any], None],
-) -> Optional[str]:
-    """Convert an observation result content to a plain string.
-
-    Returns None if content is None.
-    """
-    if content is None:
-        return None
-    if isinstance(content, str):
-        return content
-    return _stringify_message(content)
+def _stringify_content(content: Union[str, list[Any], None]) -> Optional[str]:
+    return None if content is None else _stringify_message(content)
 
 
 def _stringify_observation_results(results: Sequence[Any]) -> str:
-    """Convert observation result contents to a compact context string."""
-    parts: list[str] = []
-    for result in results:
-        if not isinstance(result, dict):
-            continue
-        content = _stringify_content(result.get("content"))
-        if content:
-            parts.append(content)
+    parts = [
+        content
+        for result in results
+        if isinstance(result, dict)
+        for content in [_stringify_content(result.get("content"))]
+        if content
+    ]
     return "\n".join(parts)
 
 
 def _has_multimodal_content(message: Union[str, list[Any], None]) -> bool:
-    """Check whether a message contains non-text content parts."""
     if not isinstance(message, list):
         return False
     return any(isinstance(part, dict) and part.get("type") != "text" for part in message)
 
 
 def _build_content_part_attributes(prefix: str, parts: list[Any]) -> Dict[str, Any]:
-    """Build OpenInference ``message.contents`` attributes for multimodal parts.
-
-    Writes the standard attribute pattern::
-
-        {prefix}.message.contents.{j}.message_content.type = "text" | "image"
-        {prefix}.message.contents.{j}.message_content.text = "..."
-        {prefix}.message.contents.{j}.message_content.image.image.url = "..."
-    """
+    """Write multimodal parts as OpenInference ``message.contents`` attributes."""
     attrs: Dict[str, Any] = {}
     for j, part in enumerate(parts):
-        cp = f"{prefix}.message.contents.{j}.message_content"
+        key = f"{prefix}.message.contents.{j}.message_content"
         if isinstance(part, str):
-            attrs[f"{cp}.type"] = "text"
-            attrs[f"{cp}.text"] = part
+            attrs[f"{key}.type"] = "text"
+            attrs[f"{key}.text"] = part
         elif isinstance(part, dict):
             part_type = part.get("type", "text")
-            attrs[f"{cp}.type"] = part_type
-            if part_type == "text":
-                text = part.get("text")
-                if text:
-                    attrs[f"{cp}.text"] = str(text)
+            attrs[f"{key}.type"] = part_type
+            if part_type == "text" and part.get("text"):
+                attrs[f"{key}.text"] = str(part["text"])
             elif part_type == "image" and isinstance(part.get("source"), dict):
                 path = part["source"].get("path", "")
                 if path:
-                    attrs[f"{cp}.image.image.url"] = path
+                    attrs[f"{key}.image.image.url"] = path
     return attrs
 
 
-def _serialize_input_messages(
-    input_messages: Sequence[Mapping[str, Any]],
-) -> str:
-    """Serialize prompt messages without leaking internal helper fields."""
-    serialized_messages: list[dict[str, Any]] = []
-    for message in input_messages:
-        serialized: dict[str, Any] = {}
-        for key, value in message.items():
-            if key == "_raw_parts":
-                serialized["content"] = value
-            else:
-                serialized[key] = value
-        serialized_messages.append(serialized)
-    return json.dumps(serialized_messages)
+def _tool_call_message(tool_call: Mapping[str, Any]) -> Dict[str, Any]:
+    """Return an OpenAI-style tool call entry for an assistant message."""
+    function: Dict[str, Any] = {"name": tool_call.get("function_name", "")}
+    if tool_call.get("arguments") is not None:
+        function["arguments"] = json.dumps(tool_call["arguments"])
+    entry: Dict[str, Any] = {"function": function}
+    if tool_call.get("tool_call_id"):
+        entry["id"] = tool_call["tool_call_id"]
+    return entry
 
 
-def _build_llm_attributes(
-    step: Mapping[str, Any],
-    agent: Mapping[str, Any],
+def _chat_message(role: str, raw_message: Any) -> Dict[str, Any]:
+    message: Dict[str, Any] = {"role": role}
+    text = _stringify_message(raw_message)
+    if text:
+        message["content"] = text
+    if isinstance(raw_message, list):
+        message["_raw_parts"] = raw_message
+    return message
+
+
+def _assistant_message(step: Mapping[str, Any]) -> Dict[str, Any]:
+    message = _chat_message("assistant", step.get("message"))
+    tool_calls = step.get("tool_calls") or []
+    if tool_calls:
+        message["tool_calls"] = [_tool_call_message(call) for call in tool_calls]
+    return message
+
+
+def _messages_from_step(step: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    """Return the chat messages one earlier step contributes to a prompt."""
+    source = step.get("source")
+    if source in ("user", "system"):
+        message = _chat_message(str(source), step.get("message"))
+        return [message] if "content" in message else []
+    if source != "agent":
+        return []
+    assistant = _assistant_message(step)
+    tool_calls = step.get("tool_calls") or []
+    if not tool_calls or not step.get("observation"):
+        return [assistant]
+    contents = {
+        result["source_call_id"]: content
+        for result in step["observation"].get("results", [])
+        if isinstance(result, dict) and isinstance(result.get("source_call_id"), str)
+        for content in [_stringify_content(result.get("content"))]
+        if content is not None
+    }
+    tool_messages = [
+        {
+            "role": "tool",
+            "content": contents.get(call.get("tool_call_id", ""), ""),
+            "tool_call_id": call.get("tool_call_id", ""),
+        }
+        for call in tool_calls
+    ]
+    return [assistant, *tool_messages]
+
+
+def _context_window(
+    steps: Sequence[Mapping[str, Any]],
+    step_index: int,
+) -> tuple[int, Optional[str]]:
+    """Return the first step still in context and the summary that replaced history.
+
+    A step whose ``context_management.boundary`` is ``replace`` (ATIF v1.7)
+    drops everything before it from the prompt and substitutes its observation.
+    """
+    start, replacement = 0, None
+    for i in range(step_index):
+        if _context_management(steps[i]).get("boundary") != "replace":
+            continue
+        observation = steps[i].get("observation")
+        results = observation.get("results", []) if isinstance(observation, dict) else []
+        replacement = _stringify_observation_results(results)
+        start = i + 1
+    return start, replacement
+
+
+def _prompt_messages(
+    steps: Sequence[Mapping[str, Any]],
+    step_index: int,
+) -> List[Dict[str, Any]]:
+    """Reconstruct the conversation an LLM step most likely received.
+
+    The real prompt may differ when the producer used a sliding window or
+    summarization that ATIF does not record. Observations are placed only by
+    ``source_call_id``; an observation without one (Terminus-2 records a
+    multi-command batch's terminal output that way) is left out of the prompt,
+    though the step span still reports it.
+    """
+    start, replacement = _context_window(steps, step_index)
+    messages: List[Dict[str, Any]] = []
+    if replacement is not None:
+        messages.append({"role": "system", "content": replacement})
+    for step in steps[start:step_index]:
+        messages.extend(_messages_from_step(step))
+    return messages
+
+
+def _message_attributes(prefix: str, message: Mapping[str, Any]) -> Dict[str, Any]:
+    """Flatten one chat message into OpenInference message attributes."""
+    attrs: Dict[str, Any] = {f"{prefix}.message.role": message["role"]}
+    if "_raw_parts" in message:
+        attrs.update(_build_content_part_attributes(prefix, message["_raw_parts"]))
+    elif "content" in message:
+        attrs[f"{prefix}.message.content"] = message["content"]
+    if "tool_call_id" in message:
+        attrs[f"{prefix}.message.tool_call_id"] = message["tool_call_id"]
+    for index, tool_call in enumerate(message.get("tool_calls", [])):
+        key = f"{prefix}.message.tool_calls.{index}.tool_call"
+        if "id" in tool_call:
+            attrs[f"{key}.id"] = tool_call["id"]
+        attrs[f"{key}.function.name"] = tool_call["function"]["name"]
+        if "arguments" in tool_call["function"]:
+            attrs[f"{key}.function.arguments"] = tool_call["function"]["arguments"]
+    return attrs
+
+
+def _serialize_messages(messages: Sequence[Mapping[str, Any]]) -> str:
+    """Serialize prompt messages, exposing raw multimodal parts as ``content``."""
+    serialized = [
+        {("content" if key == "_raw_parts" else key): value for key, value in message.items()}
+        for message in messages
+    ]
+    return json.dumps(serialized)
+
+
+def _build_message_attributes(
+    steps: Sequence[Mapping[str, Any]],
+    step_index: int,
 ) -> Dict[str, Any]:
+    """Build ``llm.input_messages``, ``llm.output_messages``, and ``input.value``."""
+    attrs: Dict[str, Any] = {}
+    prompt = _prompt_messages(steps, step_index)
+    for index, message in enumerate(prompt):
+        attrs.update(_message_attributes(f"llm.input_messages.{index}", message))
+    if prompt:
+        attrs["input.value"] = _serialize_messages(prompt)
+        attrs["input.mime_type"] = "application/json"
+    output = _assistant_message(steps[step_index])
+    if "content" in output or "tool_calls" in output:
+        attrs.update(_message_attributes("llm.output_messages.0", output))
+    return attrs
+
+
+# --- Attributes ---------------------------------------------------------------
+
+
+def _update_metadata(attributes: Dict[str, Any], values: Mapping[str, Any]) -> None:
+    """Merge values into ``attributes["metadata"]`` without replacing it."""
+    metadata = attributes.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+        attributes["metadata"] = metadata
+    metadata.update(values)
+
+
+def _io_attributes(
+    input_value: Optional[str] = None,
+    output_value: Optional[str] = None,
+    *,
+    output_mime_type: str = "text/plain",
+) -> Dict[str, Any]:
+    attrs: Dict[str, Any] = {}
+    if input_value is not None:
+        attrs["input.value"] = input_value
+        attrs["input.mime_type"] = "text/plain"
+    if output_value is not None:
+        attrs["output.value"] = output_value
+        attrs["output.mime_type"] = output_mime_type
+    return attrs
+
+
+def _producer_token_count(metrics: Mapping[str, Any], *paths: str) -> Optional[int]:
+    """Return the first token count found under ``metrics.extra`` at the dotted paths.
+
+    ATIF has no fields for cache-write or reasoning tokens, so producers put
+    them in ``extra`` under their own names: Claude Code writes
+    ``cache_creation_input_tokens`` and ``output_tokens_details.thinking_tokens``;
+    Codex writes ``cache_write_input_tokens`` and ``reasoning_output_tokens``.
+    """
+    extra = metrics.get("extra")
+    if not isinstance(extra, Mapping):
+        return None
+    for path in paths:
+        value: Any = extra
+        for key in path.split("."):
+            value = value.get(key) if isinstance(value, Mapping) else None
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+    return None
+
+
+def _build_llm_attributes(step: Mapping[str, Any], agent: Mapping[str, Any]) -> Dict[str, Any]:
     """Build OpenInference LLM attributes from an agent step."""
     attrs: Dict[str, Any] = {}
-
-    # Model name (step-level overrides agent-level)
     model_name = step.get("model_name") or agent.get("model_name")
     if model_name:
         attrs["llm.model_name"] = model_name
+    attrs.update(_io_attributes(output_value=_stringify_message(step.get("message")) or None))
 
-    # Input/output values
-    message = _stringify_message(step.get("message"))
-    if message:
-        attrs["output.value"] = message
-        attrs["output.mime_type"] = "text/plain"
-
-    # Reasoning content
-    reasoning = step.get("reasoning_content")
-    if reasoning:
-        attrs["metadata"] = {"reasoning_content": reasoning}
-
-    # Token counts from the spec "metrics" field.
-    metrics: Dict[str, Any] = step.get("metrics") or {}
-    if metrics.get("prompt_tokens") is not None:
-        attrs["llm.token_count.prompt"] = metrics["prompt_tokens"]
-    if metrics.get("completion_tokens") is not None:
-        attrs["llm.token_count.completion"] = metrics["completion_tokens"]
-    prompt_tokens: int = int(metrics.get("prompt_tokens", 0) or 0)
-    completion_tokens: int = int(metrics.get("completion_tokens", 0) or 0)
+    metrics: Mapping[str, Any] = step.get("metrics") or {}
+    prompt_tokens = metrics.get("prompt_tokens")
+    completion_tokens = metrics.get("completion_tokens")
+    if prompt_tokens is not None:
+        attrs["llm.token_count.prompt"] = prompt_tokens
+    if completion_tokens is not None:
+        attrs["llm.token_count.completion"] = completion_tokens
     if prompt_tokens or completion_tokens:
-        attrs["llm.token_count.total"] = prompt_tokens + completion_tokens
-    # Cache token details
+        attrs["llm.token_count.total"] = int(prompt_tokens or 0) + int(completion_tokens or 0)
     if metrics.get("cached_tokens") is not None:
         attrs["llm.token_count.prompt_details.cache_read"] = metrics["cached_tokens"]
-
-    # Cost
+    cache_write = _producer_token_count(
+        metrics, "cache_creation_input_tokens", "cache_write_input_tokens"
+    )
+    if cache_write is not None:
+        attrs["llm.token_count.prompt_details.cache_write"] = cache_write
+    reasoning = _producer_token_count(
+        metrics, "reasoning_output_tokens", "output_tokens_details.thinking_tokens"
+    )
+    if reasoning is not None:
+        attrs["llm.token_count.completion_details.reasoning"] = reasoning
     if metrics.get("cost_usd") is not None:
         attrs["llm.cost.total"] = metrics["cost_usd"]
 
+    metadata: Dict[str, Any] = {}
+    if step.get("reasoning_content"):
+        metadata["reasoning_content"] = step["reasoning_content"]
     if step.get("llm_call_count") is not None:
-        attrs.setdefault("metadata", {})["llm_call_count"] = step["llm_call_count"]
-
-    # Multimodal flag
+        metadata["llm_call_count"] = step["llm_call_count"]
     if _has_multimodal_content(step.get("message")):
-        attrs.setdefault("metadata", {})["has_multimodal_content"] = True
-
+        metadata["has_multimodal_content"] = True
+    if metadata:
+        attrs["metadata"] = metadata
     return attrs
 
 
@@ -438,18 +798,12 @@ def _build_tool_attributes(
     observation_content: Optional[str],
     observation_result: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Build OpenInference TOOL span attributes."""
-    attrs: Dict[str, Any] = {}
-
-    attrs["tool.name"] = tool_call.get("function_name", "unknown")
-    arguments = tool_call.get("arguments")
-    if arguments is not None:
-        attrs["input.value"] = json.dumps(arguments)
+    """Build OpenInference TOOL attributes from a tool call and its result."""
+    attrs: Dict[str, Any] = {"tool.name": tool_call.get("function_name") or "unknown"}
+    if tool_call.get("arguments") is not None:
+        attrs["input.value"] = json.dumps(tool_call["arguments"])
         attrs["input.mime_type"] = "application/json"
-
-    if observation_content is not None:
-        attrs["output.value"] = observation_content
-        attrs["output.mime_type"] = "text/plain"
+    attrs.update(_io_attributes(output_value=observation_content))
 
     metadata: Dict[str, Any] = {}
     if tool_call.get("extra") is not None:
@@ -458,601 +812,409 @@ def _build_tool_attributes(
         metadata["observation_extra"] = observation_result["extra"]
     if metadata:
         attrs["metadata"] = metadata
-
     return attrs
 
 
-def _build_llm_tools_attributes(
-    tool_definitions: Sequence[Mapping[str, Any]],
-) -> Dict[str, str]:
-    """Build flattened OpenInference tool definition attributes."""
-    attrs: Dict[str, str] = {}
-    for idx, tool_definition in enumerate(tool_definitions):
-        attrs[f"llm.tools.{idx}.tool.json_schema"] = json.dumps(tool_definition)
-    return attrs
+def _build_llm_tools_attributes(tool_definitions: Sequence[Mapping[str, Any]]) -> Dict[str, str]:
+    return {
+        f"llm.tools.{index}.tool.json_schema": json.dumps(definition)
+        for index, definition in enumerate(tool_definitions)
+    }
 
 
-def _get_step_timestamps(
-    steps: Sequence[Mapping[str, Any]],
-    step_index: int,
-    fallback_start: datetime,
-) -> tuple[datetime, datetime]:
-    """Determine start/end timestamps for a step.
-
-    Strategy:
-    - If the step has a timestamp, use it as start_time.
-    - Otherwise use fallback_start (previous step's end or trajectory start).
-    - For end_time: use next step's timestamp if available, else start + 1s.
-    """
-    step = steps[step_index]
-    ts = _parse_timestamp(step.get("timestamp"))
-    start = ts if ts is not None else fallback_start
-
-    # Look for the next step with a timestamp for the end
-    end: Optional[datetime] = None
-    for j in range(step_index + 1, len(steps)):
-        next_ts = _parse_timestamp(steps[j].get("timestamp"))
-        if next_ts is not None:
-            end = next_ts
-            break
-
-    if end is None:
-        end = start + timedelta(seconds=1)
-
-    return start, end
-
-
-def _build_message_attributes(
-    steps: Sequence[Mapping[str, Any]],
-    step_index: int,
-) -> Dict[str, Any]:
-    """Build LLM input/output message attributes for an agent step.
-
-    Input messages are the full conversation history up to this step,
-    reconstructed from all preceding steps. This approximates what the
-    LLM would have received as its prompt, though the actual prompt
-    may differ (e.g. sliding windows, summarization).
-    """
-    attrs: Dict[str, Any] = {}
-    step = steps[step_index]
-
-    # Build full conversation history from all prior steps,
-    # including tool calls and their results. This reconstructs
-    # the message array the LLM would receive as its prompt.
-    input_messages: List[Dict[str, Any]] = []
-
-    context_start_index = 0
-    replacement_context: Optional[str] = None
-    for i in range(step_index):
-        prev = steps[i]
-        extra = prev.get("extra")
-        context_management = extra.get("context_management") if isinstance(extra, dict) else None
-        if isinstance(context_management, dict) and context_management.get("boundary") == "replace":
-            observation = prev.get("observation")
-            results = observation.get("results", []) if isinstance(observation, dict) else []
-            replacement_context = _stringify_observation_results(results)
-            context_start_index = i + 1
-
-    if replacement_context is not None:
-        input_messages.append({"role": "system", "content": replacement_context})
-
-    for i in range(context_start_index, step_index):
-        prev = steps[i]
-        src = prev.get("source")
-        raw_msg = prev.get("message")
-        msg = _stringify_message(raw_msg)
-
-        if src == "user" and msg:
-            entry: Dict[str, Any] = {"role": "user", "content": msg}
-            if isinstance(raw_msg, list):
-                entry["_raw_parts"] = raw_msg
-            input_messages.append(entry)
-        elif src == "system" and msg:
-            entry = {"role": "system", "content": msg}
-            if isinstance(raw_msg, list):
-                entry["_raw_parts"] = raw_msg
-            input_messages.append(entry)
-        elif src == "agent":
-            # Assistant message (may include tool calls)
-            assistant_msg: Dict[str, Any] = {
-                "role": "assistant",
-            }
-            if msg:
-                assistant_msg["content"] = msg
-            if isinstance(raw_msg, list):
-                assistant_msg["_raw_parts"] = raw_msg
-            # Include tool calls if present
-            prev_tool_calls = prev.get("tool_calls", [])
-            if prev_tool_calls:
-                assistant_msg["tool_calls"] = [
-                    {
-                        "id": tc.get("tool_call_id", ""),
-                        "function": {
-                            "name": tc.get("function_name", ""),
-                            "arguments": json.dumps(tc.get("arguments", {})),
-                        },
-                    }
-                    for tc in prev_tool_calls
-                ]
-            input_messages.append(assistant_msg)
-
-            # Add tool result messages from observation
-            observation = prev.get("observation")
-            if observation and prev_tool_calls:
-                results = observation.get("results", [])
-                obs_map: Dict[str, str] = {}
-                for r in results:
-                    if isinstance(r, dict):
-                        scid: object = r.get("source_call_id")
-                        if isinstance(scid, str):
-                            c = _stringify_content(r.get("content"))
-                            if c is not None:
-                                obs_map[scid] = c
-                for tc in prev_tool_calls:
-                    tc_id = tc.get("tool_call_id", "")
-                    tc_result = obs_map.get(tc_id, "")
-                    input_messages.append(
-                        {
-                            "role": "tool",
-                            "content": tc_result,
-                            "tool_call_id": tc_id,
-                        }
-                    )
-
-    for idx, msg_dict in enumerate(input_messages):
-        prefix = f"llm.input_messages.{idx}"
-        attrs[f"{prefix}.message.role"] = msg_dict["role"]
-        if "_raw_parts" in msg_dict:
-            # Multimodal content — write message.contents array
-            attrs.update(_build_content_part_attributes(prefix, msg_dict["_raw_parts"]))
-        elif "content" in msg_dict:
-            attrs[f"{prefix}.message.content"] = msg_dict["content"]
-        if "tool_call_id" in msg_dict:
-            attrs[f"{prefix}.message.tool_call_id"] = msg_dict["tool_call_id"]
-        # Tool calls on assistant messages
-        if "tool_calls" in msg_dict:
-            for tc_idx, tc in enumerate(msg_dict["tool_calls"]):
-                tc_pf = f"{prefix}.message.tool_calls.{tc_idx}"
-                if "id" in tc:
-                    attrs[f"{tc_pf}.tool_call.id"] = tc["id"]
-                fn = tc.get("function", {})
-                if "name" in fn:
-                    attrs[f"{tc_pf}.tool_call.function.name"] = fn["name"]
-                if "arguments" in fn:
-                    attrs[f"{tc_pf}.tool_call.function.arguments"] = fn["arguments"]
-
-    # Set input.value to the JSON representation of input messages,
-    # matching how real instrumented traces store it.
-    if input_messages:
-        attrs["input.value"] = _serialize_input_messages(input_messages)
-        attrs["input.mime_type"] = "application/json"
-
-    # Output message
-    raw_output = step.get("message")
-    agent_message = _stringify_message(raw_output)
-    if agent_message:
-        attrs["llm.output_messages.0.message.role"] = "assistant"
-        if isinstance(raw_output, list):
-            attrs.update(_build_content_part_attributes("llm.output_messages.0", raw_output))
-        else:
-            attrs["llm.output_messages.0.message.content"] = agent_message
-
-    # Tool calls in output message
-    tool_calls = step.get("tool_calls", [])
-    for idx, tc in enumerate(tool_calls):
-        tc_prefix = f"llm.output_messages.0.message.tool_calls.{idx}"
-        attrs[f"{tc_prefix}.tool_call.function.name"] = tc.get("function_name", "")
-        tc_id = tc.get("tool_call_id")
-        if tc_id:
-            attrs[f"{tc_prefix}.tool_call.id"] = tc_id
-        arguments = tc.get("arguments")
-        if arguments is not None:
-            attrs[f"{tc_prefix}.tool_call.function.arguments"] = json.dumps(arguments)
-
-    return attrs
-
-
-def _build_subagent_ref_map(
-    trajectories: Sequence[Mapping[str, Any]],
-) -> Dict[str, tuple[str, str]]:
-    """Scan trajectories for subagent_trajectory_ref entries.
-
-    Embedded refs flattened by _flatten_atif_trajectories may already carry
-    parent context under _PARENT_SPAN_CONTEXT_KEY. This map remains necessary
-    for non-embedded batch links and older separate-trajectory refs.
-
-    Trace IDs are derived from the run-scoped session identity. Parent span
-    IDs use a matching emitted TOOL span when one exists, or the parent
-    trajectory's root AGENT span otherwise. Both use the document-scoped
-    trajectory identity, matching the deterministic IDs produced by the
-    converter.
-
-    Returns:
-        Dict mapping child resolution key -> (parent_span_id, parent_trace_id)
-    """
-    ref_map: Dict[str, tuple[str, str]] = {}
-    for trajectory in trajectories:
-        parent_ctx = _get_parent_span_context(trajectory, ref_map)
-        if parent_ctx is not None:
-            trace_id = parent_ctx[1]
-        else:
-            trace_id = _sha256_trace_id(f"{_trajectory_trace_seed(trajectory)}:trace")
-        span_seed = _trajectory_span_seed(trajectory, trace_id)
-        for step in trajectory.get("steps", []):
-            observation = step.get("observation")
-            if not observation:
-                continue
-            for result in observation.get("results", []):
-                if not isinstance(result, dict):
-                    continue
-                refs = result.get("subagent_trajectory_ref", [])
-                if not isinstance(refs, list):
-                    continue
-                for ref in refs:
-                    if not isinstance(ref, dict):
-                        continue
-                    parent_span_id = _subagent_parent_span_id(step, result, span_seed)
-                    for key in _subagent_ref_lookup_keys(ref, trajectory):
-                        ref_map[key] = (parent_span_id, trace_id)
-    return ref_map
-
-
-def _split_into_turns(
-    steps: Sequence[Mapping[str, Any]],
-) -> List[List[int]]:
-    """Split step indices into turns based on user messages.
-
-    The first turn includes all steps from the beginning through the
-    agent/system steps that follow the first user message, up to (but
-    not including) the next user message. Each subsequent user message
-    starts a new turn. This means leading system/context steps before
-    the first user message are grouped into the first turn rather than
-    creating an empty turn.
-
-    Returns a list of lists of step indices.
-    """
-    turns: List[List[int]] = []
-    current: List[int] = []
-    seen_first_user = False
-    for i, step in enumerate(steps):
+def _user_messages(steps: Sequence[Mapping[str, Any]], *, stop_at_agent: bool) -> Iterator[str]:
+    """Yield non-empty user messages, optionally stopping at the first fresh agent step."""
+    for step in steps:
+        fresh = not step.get("is_copied_context", False)
+        if stop_at_agent and fresh and step.get("source") == "agent":
+            return
         if step.get("source") == "user":
-            if seen_first_user and current:
-                turns.append(current)
-                current = []
-            seen_first_user = True
-        current.append(i)
-    if current:
-        turns.append(current)
-    return turns
+            message = _stringify_message(step.get("message"))
+            if message:
+                yield message
 
 
-def _base_session_id(session_id: str) -> str:
-    """Extract the base session_id, stripping any continuation suffix.
+def _get_trajectory_input(steps: Sequence[Mapping[str, Any]]) -> str:
+    """Return the user request that the trajectory answers.
 
-    Harbor appends ``-cont-{N}`` to the session_id for continuation
-    trajectories (context window splits). We derive trace_id from the
-    base so that the original and all continuations share one trace.
-
-    Examples::
-
-        "abc123"         -> "abc123"
-        "abc123-cont-1"  -> "abc123"
-        "abc123-cont-2"  -> "abc123"
+    Some producers record environment context as extra leading user steps, so
+    the request is the last fresh user message before the first fresh agent
+    step. A continuation document may carry its whole prompt as copied
+    context, so copied user messages are the final fallback.
     """
-    parts = session_id.rsplit("-cont-", 1)
-    if len(parts) == 2 and parts[1].isdigit():
-        return parts[0]
-    return session_id
+    fresh = [step for step in steps if not step.get("is_copied_context", False)]
+    before_agent = list(_user_messages(fresh, stop_at_agent=True))
+    if before_agent:
+        return before_agent[-1]
+    anywhere = next(_user_messages(fresh, stop_at_agent=False), "")
+    if anywhere:
+        return anywhere
+    copied = list(_user_messages(steps, stop_at_agent=True))
+    return copied[-1] if copied else ""
 
 
-def _get_turn_input(
-    steps: Sequence[Mapping[str, Any]],
-    step_indices: Sequence[int],
-) -> str:
-    """Extract the user message that starts a turn."""
-    for idx in step_indices:
-        if steps[idx].get("source") == "user":
-            return _stringify_message(steps[idx].get("message"))
-    # Fallback: first non-empty message in the turn
-    for idx in step_indices:
-        msg = _stringify_message(steps[idx].get("message"))
-        if msg:
-            return msg
+def _get_trajectory_output(steps: Sequence[Mapping[str, Any]]) -> str:
+    """Return the last fresh agent message."""
+    for step in reversed(steps):
+        if step.get("source") == "agent" and not step.get("is_copied_context", False):
+            return _stringify_message(step.get("message"))
     return ""
 
 
-def _get_turn_output(
-    steps: Sequence[Mapping[str, Any]],
-    step_indices: Sequence[int],
-) -> str:
-    """Extract the last agent reply in a turn."""
-    for idx in reversed(step_indices):
-        if steps[idx].get("source") == "agent":
-            return _stringify_message(steps[idx].get("message"))
+def _get_turn_input(steps: Sequence[Mapping[str, Any]], step_indices: Sequence[int]) -> str:
+    """Return the user message that opens a turn, or its first message."""
+    for i in step_indices:
+        if steps[i].get("source") == "user":
+            return _stringify_message(steps[i].get("message"))
+    return next((_stringify_message(steps[i].get("message")) for i in step_indices), "")
+
+
+def _get_turn_output(steps: Sequence[Mapping[str, Any]], step_indices: Sequence[int]) -> str:
+    """Return the last agent message in a turn."""
+    for i in reversed(step_indices):
+        if steps[i].get("source") == "agent":
+            return _stringify_message(steps[i].get("message"))
     return ""
+
+
+def _step_input(
+    steps: Sequence[Mapping[str, Any]],
+    fresh_indices: Sequence[int],
+    step_index: int,
+) -> Optional[str]:
+    """Return what the agent received just before a step.
+
+    That is the preceding fresh step's message for user and system steps, or
+    its observations for an agent step. The first fresh step of a continuation
+    document has no fresh predecessor; it received the copied context, so the
+    nearest copied step is the fallback.
+    """
+    fresh_before = [i for i in fresh_indices if i < step_index]
+    copied_before = [i for i in range(step_index) if i not in fresh_before]
+    for i in [*reversed(fresh_before), *reversed(copied_before)]:
+        previous = steps[i]
+        if previous.get("source") == "agent":
+            observation = previous.get("observation") or {}
+            text = _stringify_observation_results(observation.get("results", []))
+        else:
+            text = _stringify_message(previous.get("message"))
+        if text:
+            return text
+    return None
+
+
+# --- Spans --------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _Document:
+    """A trajectory plus the values every span derives from it."""
+
+    trajectory: Mapping[str, Any]
+    ids: _TrajectoryIds
+    parent_span_id: Optional[str]
+    fresh_indices: List[int]
+    start: datetime
+    timings: Dict[int, tuple[datetime, datetime]]
+    llm_tool_attrs: Dict[str, str]
+
+    @property
+    def steps(self) -> Sequence[Mapping[str, Any]]:
+        return cast(Sequence[Mapping[str, Any]], self.trajectory["steps"])
+
+    @property
+    def agent(self) -> Mapping[str, Any]:
+        return cast(Mapping[str, Any], self.trajectory["agent"])
+
+    @property
+    def end(self) -> datetime:
+        return self.timings[self.fresh_indices[-1]][1] if self.fresh_indices else self.start
+
+    @property
+    def root_span_id(self) -> str:
+        return _root_span_id(self.ids.span_seed)
+
+    def span(
+        self,
+        *,
+        name: str,
+        span_id: str,
+        kind: str,
+        parent_id: Optional[str],
+        start: datetime,
+        end: datetime,
+        attributes: Mapping[str, Any],
+    ) -> v1.Span:
+        span_attributes: Dict[str, Any] = {
+            "openinference.span.kind": kind,
+            "session.id": self.ids.session_id,
+            **attributes,
+        }
+        _update_metadata(span_attributes, {"agent_name": self.agent.get("name")})
+        span: v1.Span = {
+            "name": name,
+            "context": {"trace_id": self.ids.trace_id, "span_id": span_id},
+            "span_kind": kind,
+            "start_time": _format_timestamp(start),
+            "end_time": _format_timestamp(end),
+            "status_code": "OK",
+            "attributes": span_attributes,
+        }
+        if parent_id is not None:
+            span["parent_id"] = parent_id
+        return span
+
+
+def _prepare_document(
+    trajectory: Mapping[str, Any],
+    parent_span_context: Optional[_SpanContext],
+) -> _Document:
+    steps: Sequence[Mapping[str, Any]] = trajectory["steps"]
+    fresh_indices = [i for i, step in enumerate(steps) if not step.get("is_copied_context", False)]
+    start = _document_start(steps, fresh_indices) or _parse_timestamp(
+        trajectory.get(_FALLBACK_TIMESTAMP_KEY)
+    )
+    if start is None:
+        start = datetime.now(tz=timezone.utc)
+    tool_definitions = trajectory["agent"].get("tool_definitions") or []
+    return _Document(
+        trajectory=trajectory,
+        ids=_trajectory_ids(trajectory, parent_span_context),
+        parent_span_id=parent_span_context[0] if parent_span_context else None,
+        fresh_indices=fresh_indices,
+        start=start,
+        timings=_step_timings(steps, fresh_indices, start),
+        llm_tool_attrs=_build_llm_tools_attributes(tool_definitions),
+    )
+
+
+def _root_name_and_metadata(doc: _Document) -> tuple[str, Dict[str, Any]]:
+    """Return the root span name and the agent metadata it carries."""
+    trajectory, agent = doc.trajectory, doc.agent
+    metadata: Dict[str, Any] = {"agent_version": agent.get("version")}
+    if _text(trajectory.get("trajectory_id")):
+        metadata["trajectory_id"] = trajectory["trajectory_id"]
+    if agent.get("model_name"):
+        metadata["model_name"] = agent["model_name"]
+    metadata.update(agent.get("extra") or {})
+    if trajectory.get("final_metrics"):
+        metadata["final_metrics"] = trajectory["final_metrics"]
+
+    name = str(agent.get("name") or "agent")
+    session_id = trajectory.get("session_id")
+    is_continuation = bool(trajectory.get(_IS_CONTINUATION_KEY)) or (
+        isinstance(session_id, str) and session_id != _base_session_id(session_id)
+    )
+    if is_continuation:
+        metadata["is_continuation"] = True
+        index = trajectory.get(_CONTINUATION_INDEX_KEY)
+        if isinstance(index, int) and index > 0:
+            metadata["continuation_index"] = index
+            name = f"{name} (continuation {index})"
+        else:
+            name = f"{name} (continuation)"
+    return name, metadata
+
+
+def _root_span(doc: _Document) -> v1.Span:
+    name, metadata = _root_name_and_metadata(doc)
+    return doc.span(
+        name=name,
+        span_id=doc.root_span_id,
+        kind="AGENT",
+        parent_id=doc.parent_span_id,
+        start=doc.start,
+        end=doc.end,
+        attributes={
+            **_io_attributes(_get_trajectory_input(doc.steps), _get_trajectory_output(doc.steps)),
+            "metadata": metadata,
+        },
+    )
+
+
+def _turn_span(doc: _Document, turn_index: int, step_indices: Sequence[int]) -> v1.Span:
+    return doc.span(
+        name=f"turn {turn_index + 1}",
+        span_id=_sha256_span_id(f"{doc.ids.span_seed}:turn:{turn_index}"),
+        kind="AGENT",
+        parent_id=doc.root_span_id,
+        start=doc.timings[step_indices[0]][1],
+        end=doc.timings[step_indices[-1]][1],
+        attributes=_io_attributes(
+            _get_turn_input(doc.steps, step_indices),
+            _get_turn_output(doc.steps, step_indices),
+        ),
+    )
+
+
+def _step_io_attributes(
+    doc: _Document,
+    step_index: int,
+    unmatched_results: Sequence[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    """Return input and output for a step span.
+
+    An agent step receives the preceding context and produces its message plus
+    any observation that no tool call claims; a step that only issued tool
+    calls reports their results. A system step's own message is its input.
+    """
+    step = doc.steps[step_index]
+    message = _stringify_message(step.get("message")) or None
+    observation = _stringify_observation_results(unmatched_results) or None
+    if step.get("source") != "agent":
+        return _io_attributes(message, observation)
+    if message is None and observation is None:
+        results = (step.get("observation") or {}).get("results", [])
+        observation = _stringify_observation_results(results) or None
+    input_value = _step_input(doc.steps, doc.fresh_indices, step_index)
+    if message and observation:
+        return _io_attributes(
+            input_value,
+            json.dumps({"message": message, "observation": observation}),
+            output_mime_type="application/json",
+        )
+    return _io_attributes(input_value, message or observation)
+
+
+def _step_span(
+    doc: _Document,
+    step_index: int,
+    name: str,
+    parent_id: str,
+    unmatched_results: Sequence[Mapping[str, Any]],
+) -> v1.Span:
+    step = doc.steps[step_index]
+    step_id = step.get("step_id", step_index + 1)
+    metadata: Dict[str, Any] = {
+        "atif.step_id": step_id,
+        "atif.source": str(step.get("source", "unknown")),
+        "atif.timing": "event_interval",
+    }
+    if _is_compaction_step(step):
+        metadata["atif.context_management"] = True
+    start, end = doc.timings[step_index]
+    return doc.span(
+        name=name,
+        span_id=_step_span_id(doc.ids.span_seed, step_id),
+        kind="CHAIN",
+        parent_id=parent_id,
+        start=start,
+        end=end,
+        attributes={
+            **_step_io_attributes(doc, step_index, unmatched_results),
+            "metadata": metadata,
+        },
+    )
+
+
+def _llm_span(doc: _Document, step_index: int, parent_id: str) -> v1.Span:
+    step = doc.steps[step_index]
+    step_id = step.get("step_id", step_index + 1)
+    start, end, timing_metadata = _llm_timing(step, *doc.timings[step_index])
+    attrs = _build_llm_attributes(step, doc.agent)
+    attrs.update(_build_message_attributes(doc.steps, step_index))
+    attrs.update(doc.llm_tool_attrs)
+    if any(doc.steps[i].get("is_copied_context") for i in range(step_index)):
+        _update_metadata(attrs, {"has_copied_context": True})
+    _update_metadata(attrs, {"atif.step_id": step_id, **timing_metadata})
+    model_name = attrs.get("llm.model_name")
+    return doc.span(
+        name=str(model_name) if model_name else "LLM",
+        span_id=_llm_span_id(doc.ids.span_seed, step_id),
+        kind="LLM",
+        parent_id=parent_id,
+        start=start,
+        end=end,
+        attributes=attrs,
+    )
+
+
+def _tool_span(
+    doc: _Document,
+    step_index: int,
+    call_index: int,
+    tool_call: Mapping[str, Any],
+    result: Optional[Mapping[str, Any]],
+    parent_id: str,
+) -> v1.Span:
+    step = doc.steps[step_index]
+    step_id = step.get("step_id", step_index + 1)
+    call_id = tool_call.get("tool_call_id", f"tc_{call_index}")
+    content = _stringify_content(result.get("content")) if result is not None else None
+    attrs = _build_tool_attributes(tool_call, content, result)
+    metadata: Dict[str, Any] = {}
+    if step.get("llm_call_count") == 0:
+        metadata["llm_call_count"] = 0
+    metadata.update(
+        {"atif.step_id": step_id, "atif.tool_call_index": call_index, "atif.timing": "event"}
+    )
+    _update_metadata(attrs, metadata)
+    event_time = doc.timings[step_index][1]
+    return doc.span(
+        name=str(attrs["tool.name"]),
+        span_id=_tool_span_id(doc.ids.span_seed, step_id, call_id),
+        kind="TOOL",
+        parent_id=parent_id,
+        start=event_time,
+        end=event_time,
+        attributes=attrs,
+    )
+
+
+def _step_spans(doc: _Document, step_index: int, name: str, parent_id: str) -> List[v1.Span]:
+    """Return the CHAIN span for a step and its LLM and TOOL children."""
+    step = doc.steps[step_index]
+    matched, unmatched = _pair_observations(step)
+    chain = _step_span(doc, step_index, name, parent_id, unmatched)
+    chain_id = chain["context"]["span_id"]
+    spans = [chain]
+    if _has_llm_call(step):
+        spans.append(_llm_span(doc, step_index, chain_id))
+    for call_index, tool_call in enumerate(step.get("tool_calls", [])):
+        call_id = tool_call.get("tool_call_id", f"tc_{call_index}")
+        spans.append(
+            _tool_span(doc, step_index, call_index, tool_call, matched.get(call_id), chain_id)
+        )
+    return spans
 
 
 def _convert_atif_trajectory_to_spans(
     trajectory: Mapping[str, Any],
-    parent_span_context: Optional[tuple[str, str]] = None,
+    parent_span_context: Optional[_SpanContext] = None,
 ) -> List[v1.Span]:
     """Convert a validated ATIF trajectory into a flat list of spans.
 
-    Produces one trace per trajectory. For multi-turn conversations,
-    each user turn gets a nested AGENT span under the root:
+    Single-turn trajectories place each step under the root; multi-turn
+    trajectories add one AGENT span per turn::
 
-    Single-turn::
+        AGENT <agent name>
+          AGENT turn 1                 (multi-turn only)
+            CHAIN iteration 1
+              LLM <model name>
+              TOOL <tool name>
+            CHAIN iteration 2
+              LLM <model name>
 
-        AGENT (root)
-          LLM
-            TOOL
-          LLM
-
-    Multi-turn::
-
-        AGENT (root)
-          AGENT (turn 1 — input=user msg 1, output=agent reply 1)
-            LLM
-              TOOL
-          AGENT (turn 2 — input=user msg 2, output=agent reply 2)
-            LLM
-
-    User/system messages are not separate spans — they appear as
-    ``llm.input_messages`` on the LLM spans that follow them.
-
-    IDs are deterministic: trace IDs usually use the run-scoped session
-    identity, while span IDs use the document-scoped trajectory identity
-    when present. ATIF v1.7 standalone trajectories without
-    ``trajectory_id`` use a stable document hash for trace/span IDs so
-    independent trajectory documents that share a run-scoped ``session_id``
-    do not collide. Re-uploading the same trajectory produces the same
+    Copied-context steps contribute to reconstructed prompts only. IDs are
+    deterministic, so converting the same trajectory twice yields the same
     trace.
 
     Args:
-        trajectory: A validated ATIF trajectory dict.
-        parent_span_context: Optional (parent_span_id, parent_trace_id) tuple
-            for linking child trajectories to a parent's tool span.
+        trajectory: A validated ATIF trajectory.
+        parent_span_context: ``(parent_span_id, trace_id)`` when a subagent ref
+            links this trajectory beneath another trajectory's span.
     """
-    session_id = _trajectory_session_id(trajectory)
-    agent: Mapping[str, Any] = trajectory["agent"]
-    steps: List[Mapping[str, Any]] = trajectory["steps"]
-
-    if parent_span_context is not None:
-        trace_id = parent_span_context[1]
-    else:
-        # Derive trace_id from the base session_id so that continuation
-        # trajectories (session_id ending in -cont-N) share one trace.
-        trace_id = _sha256_trace_id(f"{_trajectory_trace_seed(trajectory)}:trace")
-    span_seed = _trajectory_span_seed(trajectory, trace_id)
-    root_span_id = _sha256_span_id(f"{span_seed}:root")
-
-    # --- Compute step timings upfront ---
-    fallback_now = datetime.now(tz=timezone.utc)
-    first_start: Optional[datetime] = None
-    for s in steps:
-        ts = _parse_timestamp(s.get("timestamp"))
-        if ts is not None:
-            first_start = ts
-            break
-    if first_start is None:
-        first_start = fallback_now
-
-    step_timings: List[tuple[datetime, datetime]] = []
-    prev_end = first_start
-    for i, _step in enumerate(steps):
-        step_start, step_end = _get_step_timestamps(steps, i, prev_end)
-        step_timings.append((step_start, step_end))
-        prev_end = step_end
-    last_end = step_timings[-1][1]
-
-    # --- Shared attributes ---
-    tool_definitions = agent.get("tool_definitions")
-    llm_tool_attrs: Dict[str, str] = {}
-    if tool_definitions:
-        llm_tool_attrs = _build_llm_tools_attributes(tool_definitions)
-
-    agent_meta: Dict[str, Any] = {
-        "agent_name": agent.get("name"),
-        "agent_version": agent.get("version"),
-    }
-    trajectory_id = trajectory.get("trajectory_id")
-    if isinstance(trajectory_id, str) and trajectory_id.strip():
-        agent_meta["trajectory_id"] = trajectory_id
-    if agent.get("model_name"):
-        agent_meta["model_name"] = agent["model_name"]
-    if agent.get("extra"):
-        agent_meta.update(agent["extra"])
-
-    all_spans: List[v1.Span] = []
-
-    # --- Root AGENT span (trajectory-level) ---
-    raw_session_id = trajectory.get("session_id")
-    is_continuation = isinstance(raw_session_id, str) and raw_session_id != _base_session_id(
-        raw_session_id
-    )
-    root_meta = dict(agent_meta)
-    if is_continuation:
-        root_meta["is_continuation"] = True
-    root_attrs: Dict[str, Any] = {
-        "openinference.span.kind": "AGENT",
-        "session.id": session_id,
-        "input.value": _get_trajectory_input(steps),
-        "input.mime_type": "text/plain",
-        "output.value": _get_trajectory_output(steps),
-        "output.mime_type": "text/plain",
-        "metadata": root_meta,
-    }
-
-    final_metrics = trajectory.get("final_metrics")
-    if final_metrics:
-        total_prompt = final_metrics.get("total_prompt_tokens")
-        if total_prompt is not None:
-            root_attrs["llm.token_count.prompt"] = total_prompt
-        total_completion = final_metrics.get("total_completion_tokens")
-        if total_completion is not None:
-            root_attrs["llm.token_count.completion"] = total_completion
-        if total_prompt is not None or total_completion is not None:
-            root_attrs["llm.token_count.total"] = (total_prompt or 0) + (total_completion or 0)
-        total_cost = final_metrics.get("total_cost_usd")
-        if total_cost is not None:
-            root_attrs["llm.cost.total"] = total_cost
-
-    root_span: v1.Span = {
-        "name": agent.get("name", "agent"),
-        "context": {
-            "trace_id": trace_id,
-            "span_id": root_span_id,
-        },
-        "span_kind": "AGENT",
-        "start_time": _format_timestamp(first_start),
-        "end_time": _format_timestamp(last_end),
-        "status_code": "OK",
-        "attributes": root_attrs,
-    }
-    if parent_span_context is not None:
-        root_span["parent_id"] = parent_span_context[0]
-    all_spans.append(root_span)
-
-    # --- Split into turns ---
-    turns = _split_into_turns(steps)
-    multi_turn = len(turns) > 1
-
-    for turn_idx, step_indices in enumerate(turns):
-        # For multi-turn: create a nested AGENT span per turn.
-        # For single-turn: LLM spans parent directly to the root.
-        if multi_turn:
-            turn_span_id = _sha256_span_id(f"{span_seed}:turn:{turn_idx}")
-            turn_start = step_timings[step_indices[0]][0]
-            turn_end = step_timings[step_indices[-1]][1]
-            turn_attrs: Dict[str, Any] = {
-                "openinference.span.kind": "AGENT",
-                "session.id": session_id,
-                "input.value": _get_turn_input(steps, step_indices),
-                "input.mime_type": "text/plain",
-                "output.value": _get_turn_output(steps, step_indices),
-                "output.mime_type": "text/plain",
-            }
-            turn_span: v1.Span = {
-                "name": f"turn_{turn_idx + 1}",
-                "context": {
-                    "trace_id": trace_id,
-                    "span_id": turn_span_id,
-                },
-                "parent_id": root_span_id,
-                "span_kind": "AGENT",
-                "start_time": _format_timestamp(turn_start),
-                "end_time": _format_timestamp(turn_end),
-                "status_code": "OK",
-                "attributes": turn_attrs,
-            }
-            all_spans.append(turn_span)
-            llm_parent_id = turn_span_id
-        else:
-            llm_parent_id = root_span_id
-
-        # --- LLM + TOOL spans for agent steps ---
-        for i in step_indices:
-            step = steps[i]
-            if step.get("source") != "agent":
-                continue
-
-            step_id = step.get("step_id", i + 1)
-            step_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}")
-            step_start, step_end = step_timings[i]
-            is_deterministic_dispatch = step.get("llm_call_count") == 0
-
-            if not is_deterministic_dispatch:
-                llm_attrs = _build_llm_attributes(step, agent)
-                llm_attrs["openinference.span.kind"] = "LLM"
-                llm_attrs["session.id"] = session_id
-                llm_attrs.update(_build_message_attributes(steps, i))
-                llm_attrs.update(llm_tool_attrs)
-
-                # Flag LLM spans whose input includes copied context
-                has_copied = any(steps[j].get("is_copied_context") for j in range(i))
-                if has_copied:
-                    llm_attrs.setdefault("metadata", {})["has_copied_context"] = True
-
-                step_span: v1.Span = {
-                    "name": "LLM",
-                    "context": {
-                        "trace_id": trace_id,
-                        "span_id": step_span_id,
-                    },
-                    "parent_id": llm_parent_id,
-                    "span_kind": "LLM",
-                    "start_time": _format_timestamp(step_start),
-                    "end_time": _format_timestamp(step_end),
-                    "status_code": "OK",
-                    "attributes": llm_attrs,
-                }
-                all_spans.append(step_span)
-
-            # TOOL sibling spans (peers of LLM, both children of the AGENT)
-            tool_calls = step.get("tool_calls", [])
-            observation = step.get("observation", {})
-            results: List[Any] = observation.get("results", []) if observation else []
-            obs_map: Dict[str, Mapping[str, Any]] = {}
-            for r in results:
-                if not isinstance(r, dict):
-                    continue
-                scid: object = r.get("source_call_id")
-                if not isinstance(scid, str):
-                    continue
-                obs_map[scid] = r
-
-            for j, tc in enumerate(tool_calls):
-                tc_id = tc.get("tool_call_id", f"tc_{j}")
-                tool_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{tc_id}")
-                obs_result = obs_map.get(tc_id)
-                obs_content = (
-                    _stringify_content(obs_result.get("content"))
-                    if obs_result is not None
-                    else None
-                )
-                tool_attrs = _build_tool_attributes(tc, obs_content, obs_result)
-                tool_attrs["openinference.span.kind"] = "TOOL"
-                tool_attrs["session.id"] = session_id
-                if is_deterministic_dispatch:
-                    tool_attrs.setdefault("metadata", {})["llm_call_count"] = 0
-
-                # Offset tool start times by 1ms per tool so the waterfall
-                # sorts them after the LLM span that requested them.
-                tool_start = step_start + timedelta(milliseconds=j + 1)
-
-                tool_span: v1.Span = {
-                    "name": tc.get("function_name", "tool_call"),
-                    "context": {
-                        "trace_id": trace_id,
-                        "span_id": tool_span_id,
-                    },
-                    "parent_id": llm_parent_id,
-                    "span_kind": "TOOL",
-                    "start_time": _format_timestamp(tool_start),
-                    "end_time": _format_timestamp(step_end),
-                    "status_code": "OK",
-                    "attributes": tool_attrs,
-                }
-                all_spans.append(tool_span)
-
-    return all_spans
-
-
-def _get_trajectory_input(
-    steps: Sequence[Mapping[str, Any]],
-) -> str:
-    """Extract the first user message as the trajectory input."""
-    for step in steps:
-        if step.get("source") == "user":
-            return _stringify_message(step.get("message"))
-    return ""
-
-
-def _get_trajectory_output(
-    steps: Sequence[Mapping[str, Any]],
-) -> str:
-    """Extract the last agent message as the trajectory output."""
-    for step in reversed(steps):
-        if step.get("source") == "agent":
-            return _stringify_message(step.get("message"))
-    return ""
+    doc = _prepare_document(trajectory, parent_span_context)
+    names = _step_names(doc.steps, doc.fresh_indices)
+    turns = _split_into_turns(doc.steps, doc.fresh_indices)
+    spans = [_root_span(doc)]
+    for turn_index, step_indices in enumerate(turns):
+        parent_id = doc.root_span_id
+        if len(turns) > 1:
+            turn = _turn_span(doc, turn_index, step_indices)
+            spans.append(turn)
+            parent_id = turn["context"]["span_id"]
+        for step_index in step_indices:
+            if step_index in names:
+                spans.extend(_step_spans(doc, step_index, names[step_index], parent_id))
+    return spans
