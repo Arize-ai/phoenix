@@ -18,6 +18,9 @@ export interface DocumentRelevanceEvaluatorArgs<
 
 /**
  * A record to be evaluated by the document relevance evaluator.
+ *
+ * @deprecated Use the retrieval relevance evaluator's record shape instead, which
+ * names this field `context` rather than `documentText`.
  */
 export interface DocumentRelevanceEvaluationRecord {
   input: string;
@@ -27,6 +30,13 @@ export interface DocumentRelevanceEvaluationRecord {
 
 /**
  * Creates a document relevance evaluator function.
+ *
+ * @deprecated Use {@link createRetrievalRelevanceEvaluator} instead. It covers both
+ * single-document and holistic retrieval evaluation, and the documentation has
+ * recommended it since the Document Relevance page was removed. When migrating, the
+ * input field `documentText` becomes `context` and the negative label `unrelated`
+ * becomes `irrelevant`. Per-document evaluation is still possible: pass a single
+ * document as `context` and call the evaluator once per document.
  *
  * This function returns an evaluator that determines whether a given document text
  * is relevant to a provided input question. The evaluator uses a classification model
