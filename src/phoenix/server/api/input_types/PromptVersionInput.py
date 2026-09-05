@@ -71,6 +71,7 @@ def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
         or provider is ModelProvider.PERPLEXITY
         or provider is ModelProvider.TOGETHER
         or provider is ModelProvider.ZAI
+        or provider is ModelProvider.THEGRID
     ):
         return "openai"
     assert_never(provider)

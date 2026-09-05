@@ -932,6 +932,7 @@ describe("processAttributeToolCalls", () => {
     PERPLEXITY: ["PERPLEXITY", testSpanToolCall, expectedTestOpenAIToolCall],
     TOGETHER: ["TOGETHER", testSpanToolCall, expectedTestOpenAIToolCall],
     ZAI: ["ZAI", testSpanToolCall, expectedTestOpenAIToolCall],
+    THEGRID: ["THEGRID", testSpanToolCall, expectedTestOpenAIToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",
@@ -1537,6 +1538,7 @@ describe("getToolsFromAttributes", () => {
     PERPLEXITY: ["PERPLEXITY", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     TOGETHER: ["TOGETHER", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     ZAI: ["ZAI", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    THEGRID: ["THEGRID", testSpanOpenAITool, testSpanOpenAIToolCanonical],
   };
 
   test.for(Object.values(ProviderToToolTestMap))(

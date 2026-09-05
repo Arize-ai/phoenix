@@ -15474,7 +15474,8 @@
           "MINIMAX",
           "PERPLEXITY",
           "TOGETHER",
-          "ZAI"
+          "ZAI",
+          "THEGRID"
         ],
         "title": "ModelProvider"
       },

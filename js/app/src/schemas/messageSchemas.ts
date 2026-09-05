@@ -420,6 +420,7 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "PERPLEXITY":
     case "TOGETHER":
     case "ZAI":
+    case "THEGRID":
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
       return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
@@ -459,6 +460,7 @@ type ProviderToMessageMap = {
   PERPLEXITY: OpenAIMessage;
   TOGETHER: OpenAIMessage;
   ZAI: OpenAIMessage;
+  THEGRID: OpenAIMessage;
   AWS: AwsMessage;
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers

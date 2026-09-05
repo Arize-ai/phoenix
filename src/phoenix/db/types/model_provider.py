@@ -139,6 +139,7 @@ class ModelProvider(Enum):
     PERPLEXITY = "PERPLEXITY"
     TOGETHER = "TOGETHER"
     ZAI = "ZAI"
+    THEGRID = "THEGRID"
 
 
 def is_sdk_compatible_with_model_provider(

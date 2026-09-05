@@ -173,6 +173,7 @@ const OPENAI_COMPATIBLE_PROVIDERS: ReadonlySet<ModelProvider> = new Set([
   "PERPLEXITY",
   "TOGETHER",
   "ZAI",
+  "THEGRID",
 ]);
 
 function convertAttributeToolCall({
@@ -1455,6 +1456,7 @@ export const createToolCallForProvider = (
     case "PERPLEXITY":
     case "TOGETHER":
     case "ZAI":
+    case "THEGRID":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();

@@ -23,7 +23,8 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "MINIMAX" ||
     provider === "PERPLEXITY" ||
     provider === "TOGETHER" ||
-    provider === "ZAI"
+    provider === "ZAI" ||
+    provider === "THEGRID"
   );
 }
 
@@ -70,6 +71,8 @@ export function getProviderName(provider: ModelProvider): string {
       return "Together";
     case "ZAI":
       return "Z.ai";
+    case "THEGRID":
+      return "The Grid";
     default:
       return assertUnreachable(provider);
   }
@@ -114,6 +117,8 @@ export function getSemConvProvider(provider: ModelProvider): string {
       return "together"; // TODO: Add support for Together to semantic conventions
     case "ZAI":
       return "zai"; // TODO: Add support for Z.ai to semantic conventions
+    case "THEGRID":
+      return "thegrid"; // TODO: Add support for The Grid to semantic conventions
     default:
       return assertUnreachable(provider);
   }

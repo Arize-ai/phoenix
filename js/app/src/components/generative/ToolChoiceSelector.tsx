@@ -44,6 +44,7 @@ export const TOOL_CHOICE_CONFIG_BY_PROVIDER = {
   PERPLEXITY: { oneOrMoreToken: "required" },
   TOGETHER: { oneOrMoreToken: "required" },
   ZAI: { oneOrMoreToken: "required" },
+  THEGRID: { oneOrMoreToken: "required" },
   ANTHROPIC: { oneOrMoreToken: "any" },
   AWS: { oneOrMoreToken: "any" },
   GOOGLE: { oneOrMoreToken: "any" },

@@ -270,6 +270,8 @@ def _semconv_provider_to_gql_generative_provider_key(
         return GenerativeProviderKey.ZAI
     if semconv_provider_str == "minimax":
         return GenerativeProviderKey.MINIMAX
+    if semconv_provider_str == "thegrid":
+        return GenerativeProviderKey.THEGRID
     try:
         semconv_provider = OpenInferenceLLMProviderValues(semconv_provider_str)
     except Exception:

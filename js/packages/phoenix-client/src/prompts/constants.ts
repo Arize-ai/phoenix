@@ -19,4 +19,5 @@ export const PromptModelProviders: Record<PromptModelProvider, string> = {
   MINIMAX: "MiniMax",
   PERPLEXITY: "Perplexity",
   ZAI: "Z.ai",
+  THEGRID: "The Grid",
 };

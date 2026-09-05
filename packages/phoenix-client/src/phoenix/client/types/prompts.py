@@ -77,6 +77,7 @@ class PromptVersion:
             "PERPLEXITY",
             "TOGETHER",
             "ZAI",
+            "THEGRID",
         ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
@@ -115,6 +116,7 @@ class PromptVersion:
             "PERPLEXITY",
             "TOGETHER",
             "ZAI",
+            "THEGRID",
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
@@ -198,6 +200,11 @@ class PromptVersion:
                 moonshot=v1.PromptMoonshotInvocationParametersContent(),
             )
         elif model_provider == "MINIMAX":
+            self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=v1.PromptOpenAIInvocationParametersContent(),
+            )
+        elif model_provider == "THEGRID":
             self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
                 type="openai",
                 openai=v1.PromptOpenAIInvocationParametersContent(),
@@ -541,6 +548,7 @@ def _to_sdk(
         "PERPLEXITY",
         "TOGETHER",
         "ZAI",
+        "THEGRID",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -568,6 +576,8 @@ def _to_sdk(
     if model_provider == "MOONSHOT":
         return "openai"
     if model_provider == "MINIMAX":
+        return "openai"
+    if model_provider == "THEGRID":
         return "openai"
     if model_provider == "PERPLEXITY":
         return "openai"

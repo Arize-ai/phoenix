@@ -1426,6 +1426,25 @@ class ZAIClient(OpenAICompatibleClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.THEGRID,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "text-standard",
+        "text-prime",
+        "text-max",
+        "code-standard",
+        "code-prime",
+        "code-max",
+        "agent-standard",
+        "agent-prime",
+        "agent-max",
+    ],
+)
+class TheGridClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
@@ -3953,6 +3972,46 @@ async def _get_builtin_provider_client(
 
         client_factory = LLMClientFactory(
             create_together_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.THEGRID:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="THEGRID_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="The Grid",
+        )
+        base_url = base_url or getenv("THEGRID_BASE_URL") or "https://api.thegrid.ai/v1"
+
+        if not api_key:
+            if base_url.startswith("https://api.thegrid.ai/"):
+                raise BadRequest(
+                    "An API key is required for The Grid models. "
+                    "Set the THEGRID_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_thegrid_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_thegrid_client, openai_rate_limit_key(api_key, base_url)
         )
         return OpenAIChatCompletionsClient(
             client_factory=client_factory,
