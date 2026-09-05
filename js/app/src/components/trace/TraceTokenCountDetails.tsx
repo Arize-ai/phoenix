@@ -15,6 +15,13 @@ export function TraceTokenCountDetails(props: { traceNodeId: string }) {
               cumulativeTokenCountPrompt
               cumulativeTokenCountCompletion
             }
+            costDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value {
+                tokens
+              }
+            }
           }
         }
       }
@@ -27,10 +34,30 @@ export function TraceTokenCountDetails(props: { traceNodeId: string }) {
       const tracePrompt = data.node.rootSpan?.cumulativeTokenCountPrompt ?? 0;
       const traceCompletion =
         data.node.rootSpan?.cumulativeTokenCountCompletion ?? 0;
+
+      // CostBreakdown.tokens includes tokens for which no cost was computed,
+      // so the per-token-type breakdown renders even when a model has no
+      // pricing configured.
+      const promptDetails: Record<string, number> = {};
+      const completionDetails: Record<string, number> = {};
+      data.node.costDetailSummaryEntries?.forEach((detail) => {
+        if (detail.value.tokens == null) {
+          return;
+        }
+        const details = detail.isPrompt ? promptDetails : completionDetails;
+        details[detail.tokenType] = detail.value.tokens;
+      });
+
       return {
         total: tracePrompt + traceCompletion,
         prompt: tracePrompt,
         completion: traceCompletion,
+        promptDetails:
+          Object.keys(promptDetails).length > 0 ? promptDetails : undefined,
+        completionDetails:
+          Object.keys(completionDetails).length > 0
+            ? completionDetails
+            : undefined,
       };
     }
 

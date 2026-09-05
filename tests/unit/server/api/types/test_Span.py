@@ -1033,3 +1033,163 @@ async def test_as_example_revision_with_annotations(
         assert "annotator_kind" in annotation
         # annotator_kind should be a string, not a function or enum
         assert annotation["annotator_kind"] in ("HUMAN", "LLM", "CODE")
+
+
+@pytest.fixture
+async def _span_cost_cumulative_data(
+    db: DbSessionFactory,
+) -> tuple[models.Span, models.Span, models.Span]:
+    """
+    A trace with a 3-level span chain (root -> child -> grandchild), each
+    carrying its own SpanCostDetail rows, so cumulativeCostDetailSummaryEntries
+    can be checked at every level of the tree.
+    """
+    async with db() as session:
+        project = models.Project(name=token_hex(8))
+        session.add(project)
+        await session.flush()
+        now = datetime.now(timezone.utc)
+        trace = models.Trace(
+            trace_id=token_hex(16),
+            project_rowid=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add(trace)
+        await session.flush()
+
+        def _new_span(parent: Optional[models.Span]) -> models.Span:
+            return models.Span(
+                trace_rowid=trace.id,
+                span_id=token_hex(8),
+                parent_id=None if parent is None else parent.span_id,
+                name=token_hex(8),
+                span_kind="LLM",
+                start_time=now,
+                end_time=now,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+
+        root = _new_span(None)
+        session.add(root)
+        await session.flush()
+        child = _new_span(root)
+        session.add(child)
+        await session.flush()
+        grandchild = _new_span(child)
+        session.add(grandchild)
+        await session.flush()
+
+        async def _add_cost_details(
+            span: models.Span,
+            entries: list[tuple[str, bool, float, float]],
+        ) -> None:
+            span_cost = models.SpanCost(
+                span_rowid=span.id,
+                trace_rowid=trace.id,
+                span_start_time=span.start_time,
+                model_id=None,
+            )
+            session.add(span_cost)
+            await session.flush()
+            for token_type, is_prompt, tokens, cost in entries:
+                session.add(
+                    models.SpanCostDetail(
+                        span_cost_id=span_cost.id,
+                        token_type=token_type,
+                        is_prompt=is_prompt,
+                        tokens=tokens,
+                        cost=cost,
+                        cost_per_token=None,
+                    )
+                )
+            await session.flush()
+
+        await _add_cost_details(
+            root,
+            [("input", True, 10, 0.1), ("cache_read", True, 5, 0.01)],
+        )
+        await _add_cost_details(
+            child,
+            [("input", True, 20, 0.2), ("output", False, 8, 0.08)],
+        )
+        await _add_cost_details(
+            grandchild,
+            [("cache_read", True, 3, 0.003), ("output", False, 2, 0.02)],
+        )
+
+        await session.commit()
+    return root, child, grandchild
+
+
+async def test_cumulative_cost_detail_summary_entries_aggregates_self_and_descendants(
+    _span_cost_cumulative_data: tuple[models.Span, models.Span, models.Span],
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """
+    cumulativeCostDetailSummaryEntries must fold in every descendant's
+    SpanCostDetail rows, the same way cumulativeTokenCountPrompt folds in
+    every descendant's token count, so a query can tell whether prompt
+    caching was hit anywhere under a given span.
+    """
+    root, child, grandchild = _span_cost_cumulative_data
+    query = """
+      query ($spanId: ID!) {
+        span: node(id: $spanId) {
+          ... on Span {
+            cumulativeCostDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value {
+                tokens
+                cost
+              }
+            }
+          }
+        }
+      }
+    """
+
+    async def _entries(span_rowid: int) -> dict[tuple[str, bool], tuple[Any, Any]]:
+        response = await gql_client.execute(
+            query=query,
+            variables={"spanId": str(GlobalID(Span.__name__, str(span_rowid)))},
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        return {
+            (entry["tokenType"], entry["isPrompt"]): (
+                entry["value"]["tokens"],
+                entry["value"]["cost"],
+            )
+            for entry in data["span"]["cumulativeCostDetailSummaryEntries"]
+        }
+
+    # A leaf span's cumulative entries are exactly its own entries.
+    grandchild_entries = await _entries(grandchild.id)
+    assert grandchild_entries == {
+        ("cache_read", True): (3, pytest.approx(0.003)),
+        ("output", False): (2, pytest.approx(0.02)),
+    }
+
+    # An interior span folds in its own entries plus its descendants'.
+    child_entries = await _entries(child.id)
+    assert child_entries == {
+        ("input", True): (20, pytest.approx(0.2)),
+        ("cache_read", True): (3, pytest.approx(0.003)),
+        ("output", False): (2 + 8, pytest.approx(0.02 + 0.08)),
+    }
+
+    # The root folds in the whole subtree.
+    root_entries = await _entries(root.id)
+    assert root_entries == {
+        ("input", True): (10 + 20, pytest.approx(0.1 + 0.2)),
+        ("cache_read", True): (5 + 3, pytest.approx(0.01 + 0.003)),
+        ("output", False): (2 + 8, pytest.approx(0.02 + 0.08)),
+    }

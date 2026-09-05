@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f2e12ca063296b20818d3067347d3ae>>
+ * @generated SignedSource<<66f6de5fdd31687492c79088172620be>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,13 @@ export type TraceTokenCountDetailsQuery$variables = {
 export type TraceTokenCountDetailsQuery$data = {
   readonly node: {
     readonly __typename: "Trace";
+    readonly costDetailSummaryEntries: ReadonlyArray<{
+      readonly isPrompt: boolean;
+      readonly tokenType: string;
+      readonly value: {
+        readonly tokens: number | null;
+      };
+    }>;
     readonly rootSpan: {
       readonly cumulativeTokenCountCompletion: number | null;
       readonly cumulativeTokenCountPrompt: number | null;
@@ -68,6 +75,49 @@ v4 = {
 v5 = {
   "alias": null,
   "args": null,
+  "concreteType": "SpanCostDetailSummaryEntry",
+  "kind": "LinkedField",
+  "name": "costDetailSummaryEntries",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "tokenType",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "isPrompt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "value",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "tokens",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
@@ -103,7 +153,8 @@ return {
                   (v4/*:: as any*/)
                 ],
                 "storageKey": null
-              }
+              },
+              (v5/*:: as any*/)
             ],
             "type": "Trace",
             "abstractKey": null
@@ -143,31 +194,32 @@ return {
                 "selections": [
                   (v3/*:: as any*/),
                   (v4/*:: as any*/),
-                  (v5/*:: as any*/)
+                  (v6/*:: as any*/)
                 ],
                 "storageKey": null
-              }
+              },
+              (v5/*:: as any*/)
             ],
             "type": "Trace",
             "abstractKey": null
           },
-          (v5/*:: as any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "e9131ab8a67b6b79dc9995bb3ce0cb55",
+    "cacheID": "2bbabae3886d6f4ab54e142c3e6dbe83",
     "id": null,
     "metadata": {},
     "name": "TraceTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Trace {\n      rootSpan {\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Trace {\n      rootSpan {\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        id\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c0178c78b8c3bb146caa2579d6bc75c4";
+(node as any).hash = "e5db20a0ad1678586935beb2f41120c7";
 
 export default node;
