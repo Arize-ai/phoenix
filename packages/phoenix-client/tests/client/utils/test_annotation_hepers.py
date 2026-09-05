@@ -120,6 +120,54 @@ class TestAnnotationDataFrameValidation:
         with pytest.raises(ValueError, match="DataFrame must have ALL required ID columns"):
             _validate_document_annotations_dataframe(dataframe=df_missing_doc)
 
+    def test_all_id_columns_are_type_checked_not_just_the_first(self) -> None:
+        """Regression test: every configured ID column must be type-validated.
+
+        _DOCUMENT_ID_CONFIG has two ID columns (span_id, document_position).
+        Validation used to only check available_id_columns[0] (span_id),
+        silently skipping document_position. An invalid document_position
+        would then pass validation and only fail later during chunking with
+        a confusing, deep error instead of a clear validation error.
+        """
+        # Non-integer document_position must fail validation, not chunking.
+        df_bad_type = pd.DataFrame(
+            {
+                "name": ["relevance"],
+                "annotator_kind": ["HUMAN"],
+                "span_id": ["span1"],
+                "document_position": ["not-an-int"],
+                "label": ["relevant"],
+            }
+        )
+        with pytest.raises(ValueError, match="document_position values must be of type int"):
+            _validate_document_annotations_dataframe(dataframe=df_bad_type)
+
+        # A None document_position must also fail validation, not chunking.
+        df_none = pd.DataFrame(
+            {
+                "name": ["relevance", "relevance"],
+                "annotator_kind": ["HUMAN", "HUMAN"],
+                "span_id": ["span1", "span2"],
+                "document_position": [0, None],
+                "label": ["relevant", "relevant"],
+            }
+        )
+        with pytest.raises(ValueError, match="document_position values cannot be None"):
+            _validate_document_annotations_dataframe(dataframe=df_none)
+
+        # A bad span_id (the first configured column) must still fail too.
+        df_bad_span = pd.DataFrame(
+            {
+                "name": ["relevance"],
+                "annotator_kind": ["HUMAN"],
+                "span_id": [""],
+                "document_position": [0],
+                "label": ["relevant"],
+            }
+        )
+        with pytest.raises(ValueError, match="span_id values must be non-empty strings"):
+            _validate_document_annotations_dataframe(dataframe=df_bad_span)
+
     def test_global_parameter_validation(self) -> None:
         """Test validation when fields are required vs optional in DataFrame."""
         df_with_fields = pd.DataFrame(
