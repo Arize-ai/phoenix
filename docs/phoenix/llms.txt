@@ -322,6 +322,7 @@
 
 ### Evaluation Integrations
 
+- [Harbor](https://arize.com/docs/phoenix/integrations/evaluation-integrations/harbor): Record Harbor agent benchmarks as Phoenix experiments with rewards, infrastructure status, and ATIF traces
 - [Cleanlab](https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab): Use Cleanlab TLM confidence scores to flag untrustworthy LLM outputs in Phoenix
 - [MLflow](https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow): Use Phoenix evaluators as MLflow scorers for GenAI evaluation workflows
 - [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas): Evaluate agents and RAG pipelines using Ragas metrics alongside Phoenix tracing
