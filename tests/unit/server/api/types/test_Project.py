@@ -11,7 +11,7 @@ import httpx
 import pandas as pd
 import pytest
 from faker import Faker
-from sqlalchemy import insert
+from sqlalchemy import delete, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
@@ -2069,6 +2069,38 @@ class TestProject:
         httpx_client: httpx.AsyncClient,
     ) -> Any:
         return await _node(field, Project.__name__, project.id, httpx_client)
+
+    async def test_fields_of_deleted_project_return_not_found(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """A stale ID (e.g. remembered by the UI for a since-deleted project) should
+        produce a clear NotFound error, not a masked internal server error from the
+        non-nullable field resolvers."""
+        async with db() as session:
+            project = await _add_project(session, name="deleted-project-not-found-test")
+            project_id = project.id
+        async with db() as session:
+            await session.execute(delete(models.Project).where(models.Project.id == project_id))
+        gid = str(GlobalID(Project.__name__, str(project_id)))
+        # `description` is nullable, so it needs the row-existence check to
+        # avoid resolving a deleted project as a phantom node with null fields.
+        for field_name in ("name", "description"):
+            query = "query($id:ID!){node(id:$id){... on Project{" + field_name + "}}}"
+            response = await httpx_client.post(
+                "/graphql",
+                json={"query": query, "variables": {"id": gid}},
+            )
+            assert response.status_code == 200
+            errors = response.json().get("errors")
+            assert errors
+            assert errors[0]["message"] == f"Project not found: {gid}"
+        # A live project with a NULL description still resolves to null rather
+        # than being mistaken for a deleted row.
+        async with db() as session:
+            live_project = await _add_project(session, name="live-project-null-description")
+        assert await self._node("description", live_project, httpx_client) is None
 
     async def test_annotation_name_counts(
         self,

@@ -158,6 +158,21 @@ const revalidateOnPathChange: ShouldRevalidateFunction = ({
   return defaultShouldRevalidate;
 };
 
+// For loaders that read nothing from the URL: no navigation — path or search
+// param change alike — can change their data, so only genuinely same-URL
+// requests (useRevalidator, post-action revalidation) defer to the router's
+// default. Compares href, not pathname: the router's default revalidates on
+// search-param changes, which pages like dashboards trigger on every
+// time-range adjustment.
+const revalidateOnlyOnDemand: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}) => {
+  if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+  return false;
+};
+
 // :projectId's loader depends only on its own param. Same-URL requests
 // (useRevalidator) defer to the router's default so manual revalidation works.
 export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
@@ -499,7 +514,7 @@ export const appRouteObjects = createRoutesFromElements(
           }}
           element={<DashboardsRoot />}
           loader={dashboardsLoader}
-          shouldRevalidate={revalidateOnPathChange}
+          shouldRevalidate={revalidateOnlyOnDemand}
         >
           <Route index element={<DashboardsEmptyPage />} />
           <Route
