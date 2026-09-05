@@ -11896,7 +11896,7 @@
             },
             "type": "array",
             "title": "Example Ids",
-            "description": "Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
+            "description": "Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
           }
         },
         "type": "object",
@@ -21559,7 +21559,7 @@
             },
             "type": "array",
             "title": "Add Example Ids",
-            "description": "Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
+            "description": "Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
           },
           "remove_example_ids": {
             "items": {
@@ -21567,7 +21567,7 @@
             },
             "type": "array",
             "title": "Remove Example Ids",
-            "description": "Dataset example IDs (GlobalIDs) to remove from the split."
+            "description": "Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split."
           }
         },
         "type": "object",

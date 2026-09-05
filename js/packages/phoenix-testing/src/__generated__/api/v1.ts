@@ -2678,7 +2678,7 @@ export interface components {
             };
             /**
              * Example Ids
-             * @description Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
+             * @description Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
              */
             example_ids?: string[];
         };
@@ -6657,12 +6657,12 @@ export interface components {
             } | null;
             /**
              * Add Example Ids
-             * @description Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
+             * @description Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
              */
             add_example_ids?: string[];
             /**
              * Remove Example Ids
-             * @description Dataset example IDs (GlobalIDs) to remove from the split.
+             * @description Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split.
              */
             remove_example_ids?: string[];
         };

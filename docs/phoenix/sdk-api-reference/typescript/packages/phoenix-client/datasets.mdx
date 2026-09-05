@@ -3,7 +3,7 @@ title: "Datasets"
 description: "Create and inspect datasets with @arizeai/phoenix-client"
 ---
 
-Datasets are the foundation for experiment runs. The dataset helpers cover creation (which upserts by name), record inspection, and example appends.
+Datasets are the foundation for experiment runs. The dataset helpers cover creation (which upserts by name), record inspection, example appends, and split management.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
@@ -25,6 +25,7 @@ const { datasetId } = await createDataset({
   description: "Support questions with expected answers",
   examples: [
     {
+      id: "order-tracking",
       input: { question: "Where is my order?" },
       output: { answer: "Use the tracking page in your account." },
       metadata: { channel: "chat" },
@@ -48,6 +49,7 @@ const dataset = await createDataset({
   description: "Support questions with expected answers",
   examples: [
     {
+      id: "order-tracking",
       input: { question: "Where is my order?" },
       output: { answer: "Use the tracking page in your account." },
     },
@@ -58,6 +60,7 @@ await appendDatasetExamples({
   dataset,
   examples: [
     {
+      id: "password-reset",
       input: { question: "How do I reset my password?" },
       output: { answer: "Use the forgot password flow." },
     },
@@ -71,6 +74,59 @@ await appendDatasetExamples({
 
 Use `getDataset`, `getDatasetExamples`, and `getDatasetInfo` to inspect datasets after creation.
 
+## Manage Splits On An Existing Dataset
+
+Use `createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit` to
+manage train, test, validation, or other named subsets after a dataset exists.
+Select the dataset by name or GlobalID. Example membership accepts either the
+user-provided `id` or Phoenix `nodeId` returned by `getDatasetExamples`.
+
+```ts
+import {
+  createDatasetSplit,
+  deleteDatasetSplit,
+  getDatasetExamples,
+  updateDatasetSplit,
+} from "@arizeai/phoenix-client/datasets";
+
+const datasetIdentifier = "support-eval";
+const dataset = { datasetName: datasetIdentifier };
+const { examples } = await getDatasetExamples({
+  dataset,
+});
+const [firstExample, secondExample] = examples;
+if (firstExample == null || secondExample == null) {
+  throw new Error("At least two examples are required to demonstrate split updates");
+}
+
+const testSplit = await createDatasetSplit({
+  dataset,
+  name: "test",
+  description: "Held-out evaluation examples",
+  exampleIds: [firstExample.id],
+});
+
+// Only provided fields change. Adding an existing member or removing a
+// non-member is an idempotent no-op.
+await updateDatasetSplit({
+  dataset,
+  splitId: testSplit.id,
+  description: "Reviewed held-out examples",
+  addExampleIds: [secondExample.id],
+  removeExampleIds: [firstExample.id],
+});
+
+// Deleting a split removes its memberships, not the underlying examples.
+await deleteDatasetSplit({
+  dataset,
+  splitId: testSplit.id,
+});
+```
+
+Split names are unique across the Phoenix instance. Creating or renaming a
+split to an existing name fails with HTTP 409. These helpers require Phoenix
+server 19.20.0 or newer.
+
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
   <ul>
@@ -79,5 +135,8 @@ Use `getDataset`, `getDatasetExamples`, and `getDatasetInfo` to inspect datasets
     <li><code>src/datasets/getDataset.ts</code></li>
     <li><code>src/datasets/getDatasetExamples.ts</code></li>
     <li><code>src/datasets/getDatasetInfo.ts</code></li>
+    <li><code>src/datasets/createDatasetSplit.ts</code></li>
+    <li><code>src/datasets/updateDatasetSplit.ts</code></li>
+    <li><code>src/datasets/deleteDatasetSplit.ts</code></li>
   </ul>
 </section>

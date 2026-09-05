@@ -1,13 +1,18 @@
+import type { components } from "../__generated__/api/v1";
 import type { Node } from "./core";
 
+/** A named subset of examples in a dataset. */
+export type DatasetSplit = components["schemas"]["DatasetSplit"];
+
 type DatasetSelectorBase = { versionId?: string; splits?: string[] };
+
+/** A dataset identified by either its GlobalID or name. */
+export type DatasetIdentifier = { datasetId: string } | { datasetName: string };
 
 /**
  * A dataset can be identified by its datasetId, datasetName, or datasetVersionId
  */
-export type DatasetSelector =
-  | (DatasetSelectorBase & { datasetId: string })
-  | (DatasetSelectorBase & { datasetName: string });
+export type DatasetSelector = DatasetSelectorBase & DatasetIdentifier;
 
 /**
  * Overview information about a dataset

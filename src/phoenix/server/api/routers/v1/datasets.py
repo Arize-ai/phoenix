@@ -19,7 +19,7 @@ from anyio import to_thread
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import Field
-from sqlalchemy import and_, case, delete, func, insert, select
+from sqlalchemy import and_, case, delete, func, insert, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -1528,8 +1528,8 @@ class CreateDatasetSplitRequestBody(V1RoutesBaseModel):
     example_ids: list[str] = Field(
         default_factory=list,
         description=(
-            "Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must "
-            "belong to this dataset. Omit to create an empty split."
+            "Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the "
+            "split with. Each example must belong to this dataset. Omit to create an empty split."
         ),
     )
 
@@ -1550,13 +1550,16 @@ class UpdateDatasetSplitRequestBody(V1RoutesBaseModel):
     add_example_ids: list[str] = Field(
         default_factory=list,
         description=(
-            "Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to "
-            "this dataset. Adding an example already in the split is a no-op."
+            "Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. "
+            "Each example must belong to this dataset. Adding an example already in the split "
+            "is a no-op."
         ),
     )
     remove_example_ids: list[str] = Field(
         default_factory=list,
-        description="Dataset example IDs (GlobalIDs) to remove from the split.",
+        description=(
+            "Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split."
+        ),
     )
 
 
@@ -1569,46 +1572,72 @@ async def _resolve_dataset_example_rowids(
     dataset_id: int,
     example_ids: list[str],
 ) -> list[int]:
-    """Parse dataset example GlobalIDs and confirm each belongs to the dataset.
+    """Resolve dataset example GlobalIDs or user-provided IDs within a dataset.
 
     Returns the unique example row IDs, preserving the order in which they were
-    first seen. Raises 422 for malformed IDs and 404 if any example does not
-    exist in the dataset.
+    first seen. Valid DatasetExample GlobalIDs take precedence over matching
+    user-provided IDs. Raises 404 if any example does not exist in the dataset.
     """
     if not example_ids:
         return []
-    unique_rowids: dict[int, None] = {}
-    for example_gid in example_ids:
+
+    global_rowids_by_identifier: dict[str, int] = {}
+    external_identifiers: set[str] = set()
+    for example_identifier in example_ids:
         try:
             rowid = from_global_id_with_expected_type(
-                GlobalID.from_id(example_gid),
+                GlobalID.from_id(example_identifier),
                 DATASET_EXAMPLE_NODE_NAME,
             )
         except Exception:
-            raise HTTPException(
-                detail=f"Invalid dataset example ID: {example_gid}",
-                status_code=422,
-            )
-        unique_rowids[rowid] = None
-    rowids = list(unique_rowids)
-    found = set(
+            external_identifiers.add(example_identifier)
+        else:
+            global_rowids_by_identifier[example_identifier] = rowid
+
+    lookup_conditions = []
+    if global_rowids_by_identifier:
+        lookup_conditions.append(models.DatasetExample.id.in_(global_rowids_by_identifier.values()))
+    if external_identifiers:
+        lookup_conditions.append(models.DatasetExample.external_id.in_(external_identifiers))
+
+    examples = list(
         await session.scalars(
-            select(models.DatasetExample.id).where(
-                models.DatasetExample.id.in_(rowids),
+            select(models.DatasetExample).where(
                 models.DatasetExample.dataset_id == dataset_id,
+                or_(*lookup_conditions),
             )
         )
     )
-    missing = [rowid for rowid in rowids if rowid not in found]
-    if missing:
-        missing_gids = ", ".join(
-            str(GlobalID(DATASET_EXAMPLE_NODE_NAME, str(rowid))) for rowid in missing
-        )
+    found_rowids = {example.id for example in examples}
+    rowids_by_external_identifier = {
+        example.external_id: example.id for example in examples if example.external_id is not None
+    }
+
+    resolved_rowids: dict[int, None] = {}
+    missing_identifiers: dict[str, None] = {}
+    for example_identifier in example_ids:
+        if example_identifier in global_rowids_by_identifier:
+            global_rowid = global_rowids_by_identifier[example_identifier]
+            if global_rowid not in found_rowids:
+                missing_identifiers[example_identifier] = None
+                continue
+            resolved_rowids[global_rowid] = None
+            continue
+
+        external_rowid = rowids_by_external_identifier.get(example_identifier)
+        if external_rowid is None:
+            missing_identifiers[example_identifier] = None
+        else:
+            resolved_rowids[external_rowid] = None
+
+    if missing_identifiers:
         raise HTTPException(
-            detail=f"Dataset examples not found in this dataset: {missing_gids}",
+            detail=(
+                f"Dataset examples not found in this dataset: {', '.join(missing_identifiers)}"
+            ),
             status_code=404,
         )
-    return rowids
+    return list(resolved_rowids)
 
 
 async def _dataset_scoped_example_count(
