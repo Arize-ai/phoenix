@@ -17,6 +17,7 @@ from phoenix.client.helpers.atif._convert import (
     _has_multimodal_content,
     _sha256_span_id,
     _sha256_trace_id,
+    _step_inputs,
     _stringify_message,
 )
 from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_parent
@@ -178,8 +179,8 @@ class TestDeterministicIds:
             )
 
         a, b = document("agent-a", "first"), document("agent-b", "second")
-        colliding = [s["context"]["span_id"] for s in _convert_atif_trajectories_to_spans([a, b])]
-        assert len(set(colliding)) < len(colliding)
+        with pytest.raises(ValueError, match="duplicate span IDs"):
+            _convert_atif_trajectories_to_spans([a, b])
 
         distinct = [
             s["context"]["span_id"]
@@ -389,7 +390,7 @@ class TestOptionalFields:
         assert "llm.token_count.prompt_details.cache_write" not in absent
         assert "llm.token_count.completion_details.reasoning" not in absent
 
-    def test_single_unmatched_result_pairs_with_the_only_tool_call(self) -> None:
+    def test_single_unmatched_result_is_not_assigned_to_the_only_tool_call(self) -> None:
         document = trajectory(
             [
                 {
@@ -401,8 +402,11 @@ class TestOptionalFields:
                 }
             ]
         )
-        tool = of_kind(_convert_atif_trajectory_to_spans(document), "TOOL")[0]
-        assert attrs(tool)["output.value"] == "result without source_call_id"
+        spans = _convert_atif_trajectory_to_spans(document)
+        assert "output.value" not in attrs(of_kind(spans, "TOOL")[0])
+        assert json.loads(attrs(of_kind(spans, "CHAIN")[0])["output.value"])["observation"] == (
+            "result without source_call_id"
+        )
 
     def test_non_monotonic_and_missing_timestamps_do_not_create_negative_durations(
         self,
@@ -1261,6 +1265,148 @@ class TestStepLevelObservations:
         step = named(_convert_atif_trajectory_to_spans(document), "iteration 1")
         assert attrs(step)["input.value"] == "request"
         assert attrs(step)["output.value"] == "first\nsecond"
+
+
+class TestObservationContext:
+    @pytest.mark.parametrize("with_image", [False, True])
+    def test_all_call_results_survive_in_tool_output_and_prompt(self, with_image: bool) -> None:
+        image = {"type": "image", "source": {"media_type": "image/png", "path": "screen.png"}}
+        results: List[Dict[str, Any]] = [
+            {"source_call_id": "a", "content": "first", "extra": {"part": 1}},
+            {
+                "source_call_id": "a",
+                "content": [image] if with_image else "second",
+                "extra": {"part": 2},
+            },
+        ]
+        steps = user_then_agent(
+            "checking", tool_calls=[tool_call("a")], observation={"results": results}
+        )
+        steps.append({"step_id": 3, "source": "agent", "message": "done"})
+        spans = _convert_atif_trajectories_to_spans([trajectory(steps)])
+        tool = of_kind(spans, "TOOL")[0]
+        llm = of_kind(spans, "LLM")[-1]
+        prompt = json.loads(attrs(llm)["input.value"])
+        message = next(message for message in prompt if message.get("role") == "tool")
+        expected = [{"type": "text", "text": "first"}, image] if with_image else "first\nsecond"
+        assert message["content"] == expected
+        assert message["tool_call_id"] == "a"
+        assert metadata(tool)["observation_extra"] == [{"part": 1}, {"part": 2}]
+        assert metadata(llm)["atif.input_source"] == "reconstructed"
+        if with_image:
+            assert json.loads(attrs(tool)["output.value"]) == expected
+            assert attrs(tool)["output.mime_type"] == "application/json"
+            assert (
+                attrs(llm)[
+                    "llm.input_messages.2.message.contents.1.message_content.image.image.url"
+                ]
+                == "screen.png"
+            )
+        else:
+            assert attrs(tool)["output.value"] == expected
+
+    @pytest.mark.parametrize("call_count", [0, 1, 2])
+    def test_unassigned_feedback_has_no_invented_role_or_tool_link(self, call_count: int) -> None:
+        steps = user_then_agent(
+            "checking",
+            tool_calls=[tool_call(str(i)) for i in range(call_count)],
+            observation={"results": [{"content": "try again"}]},
+        )
+        steps.append({"step_id": 3, "source": "agent", "message": "done"})
+        spans = _convert_atif_trajectories_to_spans([trajectory(steps)])
+        last_llm = of_kind(spans, "LLM")[-1]
+        prompt = json.loads(attrs(last_llm)["input.value"])
+        assert prompt[-1] == {"observation": "try again", "after_step_id": 2}
+        assert not any(message.get("role") == "tool" for message in prompt)
+        assert all("output.value" not in attrs(tool) for tool in of_kind(spans, "TOOL"))
+        assert not any(
+            value == "tool"
+            for key, value in attrs(last_llm).items()
+            if key.endswith(".message.role")
+        )
+
+    def test_step_inputs_keep_fresh_precedence_and_copied_fallback(self) -> None:
+        steps: List[Dict[str, Any]] = [
+            {"source": "user", "message": "copied request", "is_copied_context": True},
+            {"source": "agent", "message": "thinking"},
+            {"source": "agent", "observation": {"results": [{"content": "fresh result"}]}},
+            {"source": "user", "message": "copied later", "is_copied_context": True},
+            {"source": "agent", "message": "done"},
+        ]
+        assert _step_inputs(steps) == [
+            None,
+            "copied request",
+            "copied request",
+            "fresh result",
+            "fresh result",
+        ]
+
+    def test_step_input_preparation_visits_long_histories_once(self) -> None:
+        class CountingSteps(list[Dict[str, Any]]):
+            visits = 0
+
+            def __iter__(self) -> Any:
+                for step in super().__iter__():
+                    self.visits += 1
+                    yield step
+
+        steps = CountingSteps([{"source": "user", "message": str(i)} for i in range(2000)])
+        assert _step_inputs(steps) == [None, *(str(i) for i in range(1999))]
+        assert steps.visits == len(steps)
+
+
+class TestGraphSafety:
+    @staticmethod
+    def delegated_document(identity: str, child_id: str) -> Dict[str, Any]:
+        return trajectory(
+            user_then_agent(
+                tool_calls=[tool_call("delegate")],
+                observation={
+                    "results": [
+                        {
+                            "source_call_id": "delegate",
+                            "subagent_trajectory_ref": [
+                                {"trajectory_id": child_id, "trajectory_path": f"{child_id}.json"}
+                            ],
+                        }
+                    ]
+                },
+            ),
+            session_id=identity,
+            trajectory_id=identity,
+        )
+
+    def test_shuffled_external_graph_fails_explicitly(self) -> None:
+        root = self.delegated_document("root", "middle")
+        middle = self.delegated_document("middle", "leaf")
+        leaf = trajectory(user_then_agent(), session_id="leaf", trajectory_id="leaf")
+        assert_parents_resolve(_convert_atif_trajectories_to_spans([root, middle, leaf]))
+        with pytest.raises(ValueError, match="unresolved parent"):
+            _convert_atif_trajectories_to_spans([leaf, middle, root])
+
+    def test_nested_embedded_id_collision_fails_explicitly(self) -> None:
+        parents = [self.delegated_document(identity, "worker") for identity in ("left", "right")]
+        for parent in parents:
+            parent["session_id"] = "shared"
+            parent["subagent_trajectories"] = [
+                trajectory(user_then_agent(), trajectory_id="worker")
+            ]
+        root = self.delegated_document("root", "left")
+        root["steps"][1]["observation"]["results"][0]["subagent_trajectory_ref"].append(
+            {"trajectory_id": "right", "trajectory_path": "right.json"}
+        )
+        root["subagent_trajectories"] = parents
+        with pytest.raises(ValueError, match="duplicate span IDs"):
+            _convert_atif_trajectories_to_spans([root])
+
+    def test_parent_cycle_is_rejected(self) -> None:
+        root = self.delegated_document("root", "child")
+        child = self.delegated_document("child", "root")
+        # A shared session keeps IDs consistent so the actual cycle, rather
+        # than an unresolved cross-trace parent, is what gets rejected.
+        child["session_id"] = "root"
+        with pytest.raises(ValueError, match="parent cycle"):
+            _convert_atif_trajectories_to_spans([root, child])
 
 
 class TestTurnGrouping:

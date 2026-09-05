@@ -733,3 +733,115 @@ def test_different_trials_namespace_reused_producer_ids(tmp_path: Path) -> None:
     assert {span["context"]["span_id"] for span in first.spans}.isdisjoint(
         span["context"]["span_id"] for span in second.spans
     )
+
+
+@pytest.mark.parametrize("external_file_exists", [False, True])
+def test_embedded_reference_takes_precedence_over_file(
+    tmp_path: Path, external_file_exists: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    parent, child = trajectory(), trajectory(session_id="child-session")
+    child["trajectory_id"] = "child"
+    parent["subagent_trajectories"] = [child]
+    parent["steps"][1]["observation"] = {
+        "results": [
+            {
+                "subagent_trajectory_ref": [
+                    {"trajectory_id": "child", "trajectory_path": "child.json"}
+                ]
+            }
+        ]
+    }
+    write(tmp_path / "task-a__1/agent/trajectory.json", parent)
+    if external_file_exists:
+        write(tmp_path / "task-a__1/agent/child.json", child)
+
+    trace = build(tmp_path)
+
+    assert trace is not None
+    assert trace.source_paths == ("agent/trajectory.json",)
+    assert len(agent_roots(trace)) == 2
+    assert "Rejected" not in caplog.text
+
+
+@pytest.mark.parametrize("embedded", [False, True])
+def test_subagent_continuations_keep_the_original_caller(tmp_path: Path, embedded: bool) -> None:
+    parent, child = trajectory(), trajectory(session_id="child-session")
+    child["trajectory_id"] = "child"
+    child["continued_trajectory_ref"] = "child-cont1.json"
+    parent["steps"][1]["tool_calls"] = [
+        {"tool_call_id": "delegate", "function_name": "delegate", "arguments": {}}
+    ]
+    ref = {"trajectory_id": "child"} if embedded else {"trajectory_path": "child.json"}
+    parent["steps"][1]["observation"] = {
+        "results": [{"source_call_id": "delegate", "subagent_trajectory_ref": [ref]}]
+    }
+    if embedded:
+        parent["subagent_trajectories"] = [child]
+    else:
+        write(tmp_path / "task-a__1/agent/child.json", child)
+    write(tmp_path / "task-a__1/agent/trajectory.json", parent)
+    first_continuation = trajectory(session_id="child-session-cont-1")
+    first_continuation["continued_trajectory_ref"] = "child-cont2.json"
+    write(tmp_path / "task-a__1/agent/child-cont1.json", first_continuation)
+    write(
+        tmp_path / "task-a__1/agent/child-cont2.json", trajectory(session_id="child-session-cont-2")
+    )
+
+    trace = build(tmp_path)
+
+    assert trace is not None
+    assert {"agent/child-cont1.json", "agent/child-cont2.json"} <= set(trace.source_paths)
+    roots = agent_roots(trace)
+    assert len(roots) == 4
+    caller = next(span for span in trace.spans if span["span_kind"] == "TOOL")
+    assert all(root["parent_id"] == caller["context"]["span_id"] for root in roots[1:])
+    assert [root["attributes"]["metadata"].get("continuation_index") for root in roots] == [
+        None,
+        None,
+        1,
+        2,
+    ]
+    assert build(tmp_path) == trace
+
+
+def test_role_directory_cannot_resolve_outside_trial(tmp_path: Path) -> None:
+    outside = tmp_path / "another-trial"
+    write(outside / "trajectory.json", trajectory())
+    trial_root = tmp_path / "task-a__1"
+    trial_root.mkdir()
+    (trial_root / "agent").symlink_to(outside, target_is_directory=True)
+
+    assert build(tmp_path) is None
+
+
+def test_measured_agent_first_turn_contains_its_iteration(tmp_path: Path) -> None:
+    source = trajectory()
+    source["steps"] = [
+        {
+            "step_id": 1,
+            "source": "agent",
+            "message": "started",
+            "timestamp": "2026-08-26T12:00:10Z",
+        },
+        {"step_id": 2, "source": "user", "message": "next", "timestamp": "2026-08-26T12:00:20Z"},
+        {"step_id": 3, "source": "agent", "message": "done", "timestamp": "2026-08-26T12:00:30Z"},
+    ]
+    write(tmp_path / "task-a__1/agent/trajectory.json", source)
+
+    trace = build_with_request_times(tmp_path, [2000, 2000])
+
+    assert trace is not None
+    turn = next(span for span in trace.spans if span["name"] == "turn 1")
+    iteration = next(span for span in trace.spans if span["name"] == "iteration 1")
+    assert turn["start_time"] == iteration["start_time"] == "2026-08-26T12:00:08+00:00"
+
+
+def test_zero_llm_control_step_keeps_trace_without_inventing_work(tmp_path: Path) -> None:
+    source = trajectory()
+    source["steps"][1]["llm_call_count"] = 0
+    write(tmp_path / "task-a__1/agent/trajectory.json", source)
+
+    trace = build(tmp_path)
+
+    assert trace is not None
+    assert [span["span_kind"] for span in trace.spans] == ["CHAIN", "AGENT", "CHAIN"]

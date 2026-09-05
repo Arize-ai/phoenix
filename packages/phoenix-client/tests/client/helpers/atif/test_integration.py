@@ -70,6 +70,16 @@ class TestUploadIntegration:
             )
         mock_client.spans.log_spans.assert_not_called()
 
+    def test_duplicate_span_ids_are_rejected_before_upload(
+        self, simple_trajectory: Dict[str, Any]
+    ) -> None:
+        mock_client = MagicMock()
+        with pytest.raises(ValueError, match="duplicate span IDs"):
+            upload_atif_trajectories_as_spans(
+                mock_client, [simple_trajectory, simple_trajectory], project_name="default"
+            )
+        mock_client.spans.log_spans.assert_not_called()
+
     def test_continuation_upload_uses_fresh_steps_for_timing_and_structure(self) -> None:
         trajectory: Dict[str, Any] = {
             "schema_version": "ATIF-v1.7",

@@ -26,6 +26,7 @@ _PARENT_SPAN_CONTEXT_KEY = "_phoenix_parent_span_context"
 _FALLBACK_TIMESTAMP_KEY = "_phoenix_fallback_timestamp"
 _IS_CONTINUATION_KEY = "_phoenix_is_continuation"
 _CONTINUATION_INDEX_KEY = "_phoenix_continuation_index"
+_CONTINUATION_OF_KEY = "_phoenix_continuation_of"
 _LLM_LATENCY_MS_KEY = "_phoenix_llm_latency_ms"
 _LLM_LATENCY_SOURCE_KEY = "_phoenix_llm_latency_source"
 
@@ -192,6 +193,11 @@ def _get_parent_span_context(
     for key in _trajectory_lookup_keys(trajectory):
         if key in ref_map:
             return ref_map[key]
+    # A continuation of a subagent belongs beneath the same caller as the
+    # first document. The adapter records that document's normalized identity.
+    continued_from = trajectory.get(_CONTINUATION_OF_KEY)
+    if isinstance(continued_from, str):
+        return ref_map.get(continued_from)
     return None
 
 
@@ -466,29 +472,25 @@ def _step_names(
 
 def _pair_observations(
     step: Mapping[str, Any],
-) -> tuple[Dict[str, Mapping[str, Any]], List[Mapping[str, Any]]]:
+) -> tuple[Dict[str, List[Mapping[str, Any]]], List[Mapping[str, Any]]]:
     """Split observation results into those matched to a tool call and the rest.
 
-    A result names its tool call through ``source_call_id``. When the step has
-    exactly one tool call and exactly one unmatched result, they are paired.
+    Only ``source_call_id`` establishes a pairing. Several results may name
+    the same call; preserve all of them in their declared order.
     """
     tool_calls = [call for call in step.get("tool_calls", []) if isinstance(call, Mapping)]
     call_ids = {call.get("tool_call_id") for call in tool_calls if call.get("tool_call_id")}
     observation = step.get("observation") or {}
-    matched: Dict[str, Mapping[str, Any]] = {}
+    matched: Dict[str, List[Mapping[str, Any]]] = {}
     unmatched: List[Mapping[str, Any]] = []
     for result in observation.get("results", []):
         if not isinstance(result, Mapping):
             continue
         source_call_id = result.get("source_call_id")
         if isinstance(source_call_id, str) and source_call_id in call_ids:
-            matched[source_call_id] = result
+            matched.setdefault(source_call_id, []).append(result)
         elif result.get("content") is not None:
             unmatched.append(result)
-    if len(tool_calls) == 1 and len(unmatched) == 1:
-        only_call_id = str(tool_calls[0].get("tool_call_id", "tc_0"))
-        if only_call_id not in matched:
-            matched[only_call_id] = unmatched.pop()
     return matched, unmatched
 
 
@@ -527,6 +529,19 @@ def _stringify_observation_results(results: Sequence[Any]) -> str:
         if content
     ]
     return "\n".join(parts)
+
+
+def _observation_content(results: Sequence[Mapping[str, Any]]) -> Union[str, list[Any], None]:
+    """Combine ordered results without flattening structured content parts."""
+    contents = [result["content"] for result in results if result.get("content") is not None]
+    if not contents:
+        return None
+    if all(isinstance(content, str) for content in contents):
+        return "\n".join(contents)
+    parts: list[Any] = []
+    for content in contents:
+        parts.extend(content if isinstance(content, list) else [{"type": "text", "text": content}])
+    return parts
 
 
 def _has_multimodal_content(message: Union[str, list[Any], None]) -> bool:
@@ -568,11 +583,8 @@ def _tool_call_message(tool_call: Mapping[str, Any]) -> Dict[str, Any]:
 
 def _chat_message(role: str, raw_message: Any) -> Dict[str, Any]:
     message: Dict[str, Any] = {"role": role}
-    text = _stringify_message(raw_message)
-    if text:
-        message["content"] = text
-    if isinstance(raw_message, list):
-        message["_raw_parts"] = raw_message
+    if raw_message is not None:
+        message["content"] = raw_message
     return message
 
 
@@ -585,33 +597,30 @@ def _assistant_message(step: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def _messages_from_step(step: Mapping[str, Any]) -> List[Dict[str, Any]]:
-    """Return the chat messages one earlier step contributes to a prompt."""
+    """Return normalized messages and unassigned feedback from one step.
+
+    An observation without a matching call ID is kept as an observation
+    entry in ``input.value``. ATIF does not establish its provider role, so
+    it does not become an OpenInference chat message.
+    """
     source = step.get("source")
     if source in ("user", "system"):
-        message = _chat_message(str(source), step.get("message"))
-        return [message] if "content" in message else []
-    if source != "agent":
+        messages = [_chat_message(str(source), step.get("message"))]
+    elif source == "agent":
+        messages = [_assistant_message(step)]
+    else:
         return []
-    assistant = _assistant_message(step)
-    tool_calls = step.get("tool_calls") or []
-    if not tool_calls or not step.get("observation"):
-        return [assistant]
-    contents = {
-        result["source_call_id"]: content
-        for result in step["observation"].get("results", [])
-        if isinstance(result, dict) and isinstance(result.get("source_call_id"), str)
-        for content in [_stringify_content(result.get("content"))]
-        if content is not None
-    }
-    tool_messages = [
-        {
-            "role": "tool",
-            "content": contents.get(call.get("tool_call_id", ""), ""),
-            "tool_call_id": call.get("tool_call_id", ""),
-        }
-        for call in tool_calls
-    ]
-    return [assistant, *tool_messages]
+    matched, unmatched = _pair_observations(step)
+    for call in step.get("tool_calls") or []:
+        call_id = call["tool_call_id"]
+        content = _observation_content(matched.get(call_id, []))
+        if content is not None:
+            messages.append({**_chat_message("tool", content), "tool_call_id": call_id})
+    if unmatched:
+        messages.append(
+            {"observation": _observation_content(unmatched), "after_step_id": step["step_id"]}
+        )
+    return messages
 
 
 def _context_window(
@@ -638,13 +647,11 @@ def _prompt_messages(
     steps: Sequence[Mapping[str, Any]],
     step_index: int,
 ) -> List[Dict[str, Any]]:
-    """Reconstruct the conversation an LLM step most likely received.
+    """Return reconstructed ATIF context for one LLM step.
 
-    The real prompt may differ when the producer used a sliding window or
-    summarization that ATIF does not record. Observations are placed only by
-    ``source_call_id``; an observation without one (Terminus-2 records a
-    multi-command batch's terminal output that way) is left out of the prompt,
-    though the step span still reports it.
+    This is normalized ATIF context, not a provider request. The real prompt
+    may differ when the producer used context selection that ATIF does not
+    record. Feedback without a call ID stays in a separate observation entry.
     """
     start, replacement = _context_window(steps, step_index)
     messages: List[Dict[str, Any]] = []
@@ -658,8 +665,8 @@ def _prompt_messages(
 def _message_attributes(prefix: str, message: Mapping[str, Any]) -> Dict[str, Any]:
     """Flatten one chat message into OpenInference message attributes."""
     attrs: Dict[str, Any] = {f"{prefix}.message.role": message["role"]}
-    if "_raw_parts" in message:
-        attrs.update(_build_content_part_attributes(prefix, message["_raw_parts"]))
+    if isinstance(message.get("content"), list):
+        attrs.update(_build_content_part_attributes(prefix, message["content"]))
     elif "content" in message:
         attrs[f"{prefix}.message.content"] = message["content"]
     if "tool_call_id" in message:
@@ -674,15 +681,6 @@ def _message_attributes(prefix: str, message: Mapping[str, Any]) -> Dict[str, An
     return attrs
 
 
-def _serialize_messages(messages: Sequence[Mapping[str, Any]]) -> str:
-    """Serialize prompt messages, exposing raw multimodal parts as ``content``."""
-    serialized = [
-        {("content" if key == "_raw_parts" else key): value for key, value in message.items()}
-        for message in messages
-    ]
-    return json.dumps(serialized)
-
-
 def _build_message_attributes(
     steps: Sequence[Mapping[str, Any]],
     step_index: int,
@@ -690,10 +688,10 @@ def _build_message_attributes(
     """Build ``llm.input_messages``, ``llm.output_messages``, and ``input.value``."""
     attrs: Dict[str, Any] = {}
     prompt = _prompt_messages(steps, step_index)
-    for index, message in enumerate(prompt):
+    for index, message in enumerate(message for message in prompt if "role" in message):
         attrs.update(_message_attributes(f"llm.input_messages.{index}", message))
     if prompt:
-        attrs["input.value"] = _serialize_messages(prompt)
+        attrs["input.value"] = json.dumps(prompt)
         attrs["input.mime_type"] = "application/json"
     output = _assistant_message(steps[step_index])
     if "content" in output or "tool_calls" in output:
@@ -795,21 +793,28 @@ def _build_llm_attributes(step: Mapping[str, Any], agent: Mapping[str, Any]) -> 
 
 def _build_tool_attributes(
     tool_call: Mapping[str, Any],
-    observation_content: Optional[str],
-    observation_result: Optional[Mapping[str, Any]] = None,
+    observation_results: Sequence[Mapping[str, Any]],
 ) -> Dict[str, Any]:
     """Build OpenInference TOOL attributes from a tool call and its result."""
     attrs: Dict[str, Any] = {"tool.name": tool_call.get("function_name") or "unknown"}
     if tool_call.get("arguments") is not None:
         attrs["input.value"] = json.dumps(tool_call["arguments"])
         attrs["input.mime_type"] = "application/json"
-    attrs.update(_io_attributes(output_value=observation_content))
+    content = _observation_content(observation_results)
+    structured = isinstance(content, list)
+    attrs.update(
+        _io_attributes(
+            output_value=json.dumps(content) if isinstance(content, list) else content,
+            output_mime_type="application/json" if structured else "text/plain",
+        )
+    )
 
     metadata: Dict[str, Any] = {}
     if tool_call.get("extra") is not None:
         metadata["tool_call_extra"] = tool_call["extra"]
-    if observation_result is not None and observation_result.get("extra") is not None:
-        metadata["observation_extra"] = observation_result["extra"]
+    extras = [result["extra"] for result in observation_results if result.get("extra") is not None]
+    if extras:
+        metadata["observation_extra"] = extras[0] if len(extras) == 1 else extras
     if metadata:
         attrs["metadata"] = metadata
     return attrs
@@ -877,30 +882,24 @@ def _get_turn_output(steps: Sequence[Mapping[str, Any]], step_indices: Sequence[
     return ""
 
 
-def _step_input(
-    steps: Sequence[Mapping[str, Any]],
-    fresh_indices: Sequence[int],
-    step_index: int,
-) -> Optional[str]:
-    """Return what the agent received just before a step.
-
-    That is the preceding fresh step's message for user and system steps, or
-    its observations for an agent step. The first fresh step of a continuation
-    document has no fresh predecessor; it received the copied context, so the
-    nearest copied step is the fallback.
-    """
-    fresh_before = [i for i in fresh_indices if i < step_index]
-    copied_before = [i for i in range(step_index) if i not in fresh_before]
-    for i in [*reversed(fresh_before), *reversed(copied_before)]:
-        previous = steps[i]
-        if previous.get("source") == "agent":
-            observation = previous.get("observation") or {}
+def _step_inputs(steps: Sequence[Mapping[str, Any]]) -> List[Optional[str]]:
+    """Compute preceding inputs once, preferring fresh context over copied history."""
+    inputs: List[Optional[str]] = []
+    fresh_input: Optional[str] = None
+    copied_input: Optional[str] = None
+    for step in steps:
+        inputs.append(fresh_input or copied_input)
+        if step.get("source") == "agent":
+            observation = step.get("observation") or {}
             text = _stringify_observation_results(observation.get("results", []))
         else:
-            text = _stringify_message(previous.get("message"))
+            text = _stringify_message(step.get("message"))
         if text:
-            return text
-    return None
+            if step.get("is_copied_context", False):
+                copied_input = text
+            else:
+                fresh_input = text
+    return inputs
 
 
 # --- Spans --------------------------------------------------------------------
@@ -916,6 +915,7 @@ class _Document:
     fresh_indices: List[int]
     start: datetime
     timings: Dict[int, tuple[datetime, datetime]]
+    inputs: List[Optional[str]]
     llm_tool_attrs: Dict[str, str]
 
     @property
@@ -984,6 +984,7 @@ def _prepare_document(
         fresh_indices=fresh_indices,
         start=start,
         timings=_step_timings(steps, fresh_indices, start),
+        inputs=_step_inputs(steps),
         llm_tool_attrs=_build_llm_tools_attributes(tool_definitions),
     )
 
@@ -1033,12 +1034,16 @@ def _root_span(doc: _Document) -> v1.Span:
 
 
 def _turn_span(doc: _Document, turn_index: int, step_indices: Sequence[int]) -> v1.Span:
+    start = min(
+        (doc.timings[i][0] for i in step_indices if _is_operational_step(doc.steps[i])),
+        default=doc.timings[step_indices[0]][1],
+    )
     return doc.span(
         name=f"turn {turn_index + 1}",
         span_id=_sha256_span_id(f"{doc.ids.span_seed}:turn:{turn_index}"),
         kind="AGENT",
         parent_id=doc.root_span_id,
-        start=doc.timings[step_indices[0]][1],
+        start=start,
         end=doc.timings[step_indices[-1]][1],
         attributes=_io_attributes(
             _get_turn_input(doc.steps, step_indices),
@@ -1066,7 +1071,7 @@ def _step_io_attributes(
     if message is None and observation is None:
         results = (step.get("observation") or {}).get("results", [])
         observation = _stringify_observation_results(results) or None
-    input_value = _step_input(doc.steps, doc.fresh_indices, step_index)
+    input_value = doc.inputs[step_index]
     if message and observation:
         return _io_attributes(
             input_value,
@@ -1116,7 +1121,10 @@ def _llm_span(doc: _Document, step_index: int, parent_id: str) -> v1.Span:
     attrs.update(doc.llm_tool_attrs)
     if any(doc.steps[i].get("is_copied_context") for i in range(step_index)):
         _update_metadata(attrs, {"has_copied_context": True})
-    _update_metadata(attrs, {"atif.step_id": step_id, **timing_metadata})
+    _update_metadata(
+        attrs,
+        {"atif.step_id": step_id, "atif.input_source": "reconstructed", **timing_metadata},
+    )
     model_name = attrs.get("llm.model_name")
     return doc.span(
         name=str(model_name) if model_name else "LLM",
@@ -1134,14 +1142,13 @@ def _tool_span(
     step_index: int,
     call_index: int,
     tool_call: Mapping[str, Any],
-    result: Optional[Mapping[str, Any]],
+    results: Sequence[Mapping[str, Any]],
     parent_id: str,
 ) -> v1.Span:
     step = doc.steps[step_index]
     step_id = step.get("step_id", step_index + 1)
     call_id = tool_call.get("tool_call_id", f"tc_{call_index}")
-    content = _stringify_content(result.get("content")) if result is not None else None
-    attrs = _build_tool_attributes(tool_call, content, result)
+    attrs = _build_tool_attributes(tool_call, results)
     metadata: Dict[str, Any] = {}
     if step.get("llm_call_count") == 0:
         metadata["llm_call_count"] = 0
@@ -1173,7 +1180,7 @@ def _step_spans(doc: _Document, step_index: int, name: str, parent_id: str) -> L
     for call_index, tool_call in enumerate(step.get("tool_calls", [])):
         call_id = tool_call.get("tool_call_id", f"tc_{call_index}")
         spans.append(
-            _tool_span(doc, step_index, call_index, tool_call, matched.get(call_id), chain_id)
+            _tool_span(doc, step_index, call_index, tool_call, matched.get(call_id, []), chain_id)
         )
     return spans
 

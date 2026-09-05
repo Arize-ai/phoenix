@@ -26,12 +26,14 @@ from phoenix.client.harbor._scores import format_exception, infrastructure_failu
 from phoenix.client.helpers.atif import _convert_atif_trajectories_to_spans
 from phoenix.client.helpers.atif._convert import (
     _CONTINUATION_INDEX_KEY,
+    _CONTINUATION_OF_KEY,
     _FALLBACK_TIMESTAMP_KEY,
     _IS_CONTINUATION_KEY,
     _LLM_LATENCY_MS_KEY,
     _LLM_LATENCY_SOURCE_KEY,
 )
 from phoenix.client.helpers.atif._reparent import _reparent_spans_under_common_parent
+from phoenix.client.helpers.atif._validate import _validate_span_graph
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +145,7 @@ def build_harbor_trace(
             source_paths=loader.source_paths,
             unresolved_references=loader.unresolved_references,
         )
+        _validate_span_graph([root, *converted])
     except Exception as error:
         loader.warn(f"Could not convert Harbor ATIF for trial {trial_name!r}: {error}")
         return None
@@ -477,6 +480,7 @@ def _load_file(
     fallback_timestamp: datetime | None,
     reference: str | None = None,
     continuation_index: int = 0,
+    continuation_of: str | None = None,
 ) -> MutableMapping[str, Any] | None:
     """Load, validate, and normalize one ATIF file and everything it references.
 
@@ -517,7 +521,8 @@ def _load_file(
         if continuation_index > 0:
             document[_IS_CONTINUATION_KEY] = True
             document[_CONTINUATION_INDEX_KEY] = continuation_index
-        _resolve_file_references(
+            document[_CONTINUATION_OF_KEY] = continuation_of
+        _resolve_document_references(
             loader,
             document,
             physical_path=canonical_path,
@@ -526,20 +531,6 @@ def _load_file(
             step_name=step_name,
             fallback_timestamp=fallback_timestamp,
         )
-        continuation = document.get("continued_trajectory_ref")
-        if isinstance(continuation, str) and continuation:
-            target = _local_reference(loader, reference=continuation, referring_path=canonical_path)
-            if target is not None:
-                _load_file(
-                    loader,
-                    path=target,
-                    allowed_directory=allowed_directory,
-                    role=role,
-                    step_name=step_name,
-                    fallback_timestamp=fallback_timestamp,
-                    reference=continuation,
-                    continuation_index=continuation_index + 1,
-                )
     finally:
         loader.active.discard(canonical_path)
     return document
@@ -553,6 +544,7 @@ def _accepted_path(
 ) -> Path | None:
     """Return the canonical path of a JSON file inside the role directory, or None."""
     try:
+        allowed_directory.relative_to(loader.trial_root.resolve(strict=True))
         canonical_path = path.resolve(strict=True)
         canonical_path.relative_to(allowed_directory)
         if not canonical_path.is_file() or canonical_path.suffix.lower() != ".json":
@@ -646,7 +638,7 @@ def _normalize_document(
         ref.pop("session_id", None)
 
 
-def _resolve_file_references(
+def _resolve_document_references(
     loader: _Loader,
     document: MutableMapping[str, Any],
     *,
@@ -656,14 +648,15 @@ def _resolve_file_references(
     step_name: str | None,
     fallback_timestamp: datetime | None,
 ) -> None:
-    """Load ``trajectory_path`` references and point them at the loaded IDs.
+    """Resolve subagents and continuations for file and embedded documents.
 
-    A reference that cannot be loaded is reported on the trial root span and
-    dropped unless it still names a ``trajectory_id`` (an embedded child, for
-    example), because the converter cannot resolve path-only references.
+    Prefer an embedded child when a ref supplies both an ID and a path. Each
+    continuation carries its first document's identity so the converter can
+    keep it beneath the same caller.
     """
+    embedded_ids = {child["trajectory_id"] for child in _embedded_subagents(document)}
     for child in _embedded_subagents(document):
-        _resolve_file_references(
+        _resolve_document_references(
             loader,
             child,
             physical_path=physical_path,
@@ -675,6 +668,8 @@ def _resolve_file_references(
 
     def resolve(ref: Any) -> bool:
         """Rewrite one ref to its loaded child; return whether to keep the ref."""
+        if isinstance(ref, MutableMapping) and ref.get("trajectory_id") in embedded_ids:
+            return True
         reference = ref.get("trajectory_path") if isinstance(ref, MutableMapping) else None
         if not isinstance(reference, str) or not reference:
             return True
@@ -699,6 +694,22 @@ def _resolve_file_references(
 
     for refs in _subagent_reference_lists(document):
         refs[:] = [ref for ref in refs if resolve(ref)]
+
+    continuation = document.get("continued_trajectory_ref")
+    if isinstance(continuation, str) and continuation:
+        target = _local_reference(loader, reference=continuation, referring_path=physical_path)
+        if target is not None:
+            _load_file(
+                loader,
+                path=target,
+                allowed_directory=allowed_directory,
+                role=role,
+                step_name=step_name,
+                fallback_timestamp=fallback_timestamp,
+                reference=continuation,
+                continuation_index=document.get(_CONTINUATION_INDEX_KEY, 0) + 1,
+                continuation_of=document.get(_CONTINUATION_OF_KEY) or document["trajectory_id"],
+            )
 
 
 def _embedded_subagents(document: Mapping[str, Any]) -> Iterator[MutableMapping[str, Any]]:

@@ -22,7 +22,7 @@ from ._convert import (
     _flatten_atif_trajectories,
     _get_parent_span_context,
 )
-from ._validate import _validate_atif_trajectory
+from ._validate import _validate_atif_trajectory, _validate_span_graph
 
 __all__ = ["upload_atif_trajectories_as_spans"]
 
@@ -49,6 +49,7 @@ def _convert_atif_trajectories_to_spans(
             )
         )
 
+    _validate_span_graph(all_spans)
     return all_spans
 
 
@@ -103,7 +104,9 @@ def upload_atif_trajectories_as_spans(
     under the closest span the document proves: the TOOL span whose
     ``source_call_id`` the reference names, else the referencing step's
     CHAIN, else the parent's root. Upload parent and child together for the
-    link to resolve. ATIF v1.7 embedded ``subagent_trajectories`` are
+    link to resolve, with parents before children. Duplicate span IDs,
+    unresolved parents, and cycles are rejected before upload. ATIF v1.7
+    embedded ``subagent_trajectories`` are
     flattened automatically and resolved by ``trajectory_id``::
 
         AGENT orchestrator
@@ -164,9 +167,17 @@ def upload_atif_trajectories_as_spans(
 
     **Known limitation**
 
-    Each LLM span carries the full conversation history as
-    ``llm.input_messages``. Very long sessions can exceed attribute size
-    limits and be truncated or rejected, as with live instrumentation.
+    LLM inputs are reconstructed ATIF context, not exact provider requests.
+    ``metadata.atif.input_source = "reconstructed"`` marks this distinction.
+    Results with a matching call ID become tool messages; feedback without
+    one remains an ``observation`` entry with ``after_step_id`` in
+    ``input.value``, without an inferred message role. Multimodal results
+    retain their content parts. No media bytes are read or uploaded.
+
+    Each LLM span repeats its reconstructed context in ``input.value`` and
+    its known-role messages in ``llm.input_messages``. Very long sessions can
+    exceed attribute size limits and be truncated or rejected, as with live
+    instrumentation.
 
     Args:
         client: A Phoenix ``Client`` instance.

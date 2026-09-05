@@ -243,11 +243,17 @@ The package-internal pure conversion helpers:
 
 - validate and convert one or more trajectories;
 - return spans without uploading them;
-- preserve ATIF v1.7 sub-agent flattening and valid external references; and
-- reparent every disconnected trajectory root under one Harbor-owned trial root.
+- preserve ATIF v1.7 sub-agent flattening and valid external references;
+- reject duplicate span IDs, unresolved parents, cross-trace parent links, and cycles before upload; and
+- reparent every independent trajectory root under one Harbor-owned trial root.
 
 The conversion layer does not use a client. Harbor-specific discovery, normalization, deterministic
 identity, and upload-repair behavior stay private to the plugin.
+
+When a subagent reference supplies both an embedded ID and a file path, the embedded match takes
+precedence so the child is converted once. Continuations are followed for file and embedded
+documents, and remain beneath the original document's caller. Role directories and referenced
+files must resolve inside the trial directory, including when symlinks are present.
 
 The trace mirrors Harbor's structure: trial → step → agent trajectory. The plugin creates one
 deterministic CHAIN root, `harbor.trial <task id>`, and sends all spans to the experiment's Phoenix
@@ -292,10 +298,19 @@ of a trajectory carries `metadata.agent_name`, and every span beneath a step car
 Every AGENT and CHAIN span carries `input.value` and `output.value` when the trajectory provides
 them. An iteration's input is the context the agent received just before it (the preceding user or
 system message, or the previous iteration's observations); its output is the step message plus any
-observation that no tool call claims (paired to the step's only tool call when that pairing is
-unambiguous), or the tool results when the step only issued tool calls. Only LLM spans carry
+observation that no tool call claims, or the tool results when the step only issued tool calls.
+Only an explicit `source_call_id` pairs a result with a tool; multiple results for that call are
+preserved in order. Only LLM spans carry
 `llm.*` attributes; a trajectory's `final_metrics` are kept in the root span's
 `metadata.final_metrics`, so Phoenix's cumulative token counts do not double count.
+
+LLM inputs are reconstructed ATIF context, not exact provider requests. Every LLM span carries
+`metadata.atif.input_source = "reconstructed"`. Known message roles map to OpenInference; feedback
+without a matching call ID stays as an `observation` entry with `after_step_id` in `input.value`,
+without an inferred role or tool association. Multimodal tool results retain their content parts
+in reconstructed inputs and serialized tool outputs. No media bytes are read or uploaded.
+An agent step with `llm_call_count: 0` still gets its iteration CHAIN even if it issued no tools,
+and creates no synthetic LLM span.
 
 ATIF timestamps are point events. An iteration spans the preceding fresh event through its own
 event. Harbor enriches Terminus trajectories with `agent_result.metadata.api_request_times_msec`
