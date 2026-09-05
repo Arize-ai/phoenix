@@ -98,6 +98,16 @@ export const LIST_PROJECT_TRACES: RouteRequirement = {
   minServerVersion: [13, 15, 0],
 };
 
+export const GET_TRACES_FILTERS: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "error",
+  parameterLocation: "query",
+  route: "GET /v1/projects/{id}/traces",
+  minServerVersion: [20, 8, 0],
+  description:
+    "The 'error', 'min_latency_ms', and 'max_latency_ms' query parameters on GET /v1/projects/{id}/traces",
+};
+
 export const TRANSFER_TRACES: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -234,6 +244,7 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_SPANS_FILTERS,
   GET_SPANS_BY_ATTRIBUTE,
   LIST_PROJECT_TRACES,
+  GET_TRACES_FILTERS,
   TRANSFER_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
   ADD_TRACE_NOTE_IDENTIFIER,
