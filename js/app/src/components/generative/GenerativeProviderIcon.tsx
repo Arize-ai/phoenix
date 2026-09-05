@@ -287,6 +287,69 @@ const ZAISVG = ({ height }: { height: number }) => (
   </svg>
 );
 
+const TheGridSVG = ({ height }: { height: number }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>The Grid</title>
+    <rect width="24" height="24" rx="5" fill="#0049E6" />
+    <g transform="translate(2.4 2.4) scale(0.8)">
+      <path
+        d="M4 3L7.76471 6.40541V8.35135H4V3Z"
+        fill="white"
+      />
+      <path
+        d="M4 21L7.76471 17.5946V15.6486H4V21Z"
+        fill="white"
+      />
+      <path
+        d="M20 3L16.2353 6.40541V8.35135H20V3Z"
+        fill="white"
+      />
+      <path
+        d="M20 21L16.2353 17.5946V15.6486H20V21Z"
+        fill="white"
+      />
+      <path
+        d="M9.17642 3L11.0588 6.40542V8.35135H9.17642V3Z"
+        fill="white"
+      />
+      <path
+        d="M9.17642 21L11.0588 17.5946V15.6486H9.17642V21Z"
+        fill="white"
+      />
+      <path
+        d="M14.8236 3L12.9412 6.40542V8.35135H14.8236V3Z"
+        fill="white"
+      />
+      <path
+        d="M14.8236 21L12.9412 17.5946V15.6486H14.8236V21Z"
+        fill="white"
+      />
+      <path
+        d="M4 8.59458L7.7647 10.5405V13.4594L4 15.4054V8.59458Z"
+        fill="white"
+      />
+      <path
+        d="M9.17642 8.59457L11.0588 10.5405V13.4594L9.17642 15.4054V8.59457Z"
+        fill="white"
+      />
+      <path
+        d="M14.8236 8.59457L12.9412 10.5405V13.4594L14.8236 15.4054V8.59457Z"
+        fill="white"
+      />
+      <path
+        d="M20 8.59458L16.2353 10.5405V13.4594L20 15.4054V8.59458Z"
+        fill="white"
+      />
+    </g>
+  </svg>
+);
+
 const PROVIDER_ICONS: Record<
   ModelProvider,
   ({ height }: { height: number }) => React.ReactNode
@@ -307,6 +370,7 @@ const PROVIDER_ICONS: Record<
   PERPLEXITY: PerplexitySVG,
   TOGETHER: TogetherSVG,
   ZAI: ZAISVG,
+  THEGRID: TheGridSVG,
 };
 
 export type GenerativeProviderIconProps = {

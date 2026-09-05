@@ -29,6 +29,7 @@ export const BUILT_IN_PROVIDERS = [
   "TOGETHER",
   "XAI",
   "ZAI",
+  "THEGRID",
 ] as const satisfies readonly BuiltInProvider[];
 
 /**

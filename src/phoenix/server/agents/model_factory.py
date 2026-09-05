@@ -147,6 +147,8 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
         return ("TOGETHER_API_KEY",)
     if provider is ModelProvider.ZAI:
         return ("ZAI_API_KEY",)
+    if provider is ModelProvider.THEGRID:
+        return ("THEGRID_API_KEY",)
     assert_never(provider)
 
 
@@ -474,6 +476,7 @@ def _get_pydantic_ai_model_from_builtin_provider(
         ModelProvider.PERPLEXITY,
         ModelProvider.TOGETHER,
         ModelProvider.ZAI,
+        ModelProvider.THEGRID,
     }:
         provider_settings: dict[
             ModelProvider,
@@ -554,6 +557,13 @@ def _get_pydantic_ai_model_from_builtin_provider(
                 "https://api.z.ai/api/paas/v4",
                 "An API key is required for Z.ai models. "
                 "Set ZAI_API_KEY in the environment or Phoenix secrets.",
+            ),
+            ModelProvider.THEGRID: (
+                "THEGRID_API_KEY",
+                getenv("THEGRID_BASE_URL") or "https://api.thegrid.ai/v1",
+                "https://api.thegrid.ai/v1",
+                "An API key is required for The Grid models. "
+                "Set THEGRID_API_KEY in the environment or Phoenix secrets.",
             ),
         }
         credential_key, base_url, default_base_url, missing_credential_message = provider_settings[

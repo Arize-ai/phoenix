@@ -1401,6 +1401,7 @@ class BuiltInModelProvider(TypedDict):
         "PERPLEXITY",
         "TOGETHER",
         "ZAI",
+        "THEGRID",
     ]
     name: str
 
@@ -1424,6 +1425,7 @@ class BuiltInProviderModelSelection(TypedDict):
         "PERPLEXITY",
         "TOGETHER",
         "ZAI",
+        "THEGRID",
     ]
     modelName: str
 
@@ -2289,6 +2291,7 @@ class PromptVersionData(TypedDict):
         "PERPLEXITY",
         "TOGETHER",
         "ZAI",
+        "THEGRID",
     ]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]

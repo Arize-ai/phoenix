@@ -18,6 +18,7 @@ export const ModelProviders: Record<ModelProvider, string> = {
   PERPLEXITY: "Perplexity",
   TOGETHER: "Together",
   ZAI: "Z.ai",
+  THEGRID: "The Grid",
 };
 
 /**
@@ -74,6 +75,7 @@ export const ProviderToCredentialsConfigMap: Record<
   PERPLEXITY: [{ envVarName: "PERPLEXITY_API_KEY", isRequired: true }],
   TOGETHER: [{ envVarName: "TOGETHER_API_KEY", isRequired: true }],
   ZAI: [{ envVarName: "ZAI_API_KEY", isRequired: true }],
+  THEGRID: [{ envVarName: "THEGRID_API_KEY", isRequired: true }],
   AWS: [
     { envVarName: "AWS_ACCESS_KEY_ID", isRequired: true },
     { envVarName: "AWS_SECRET_ACCESS_KEY", isRequired: true },
@@ -155,6 +157,7 @@ export const STRING_TO_PROVIDER_MAP: Readonly<Record<string, ModelProvider>> = {
   perplexity: "PERPLEXITY",
   together: "TOGETHER",
   zai: "ZAI",
+  thegrid: "THEGRID",
 } as const;
 
 /**

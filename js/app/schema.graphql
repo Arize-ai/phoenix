@@ -2424,6 +2424,7 @@ enum GenerativeProviderKey {
   PERPLEXITY
   TOGETHER
   ZAI
+  THEGRID
 }
 
 type GoogleGenAIAuthenticationMethod {

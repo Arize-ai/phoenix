@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9b231797e6116a8acb7b02b24d4903ba>>
+ * @generated SignedSource<<96e19d8e4460ca2b9f903529630eb342>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "THEGRID" | "TOGETHER" | "XAI" | "ZAI";
 export type useModelMenuDataQuery$variables = Record<PropertyKey, never>;
 export type useModelMenuDataQuery$data = {
   readonly generativeModelCustomProviders: {
