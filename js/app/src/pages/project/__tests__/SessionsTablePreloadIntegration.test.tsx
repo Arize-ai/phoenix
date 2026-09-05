@@ -69,12 +69,8 @@ vi.mock("@phoenix/contexts/TracingContext", () => ({
     selector(tracingState),
 }));
 
-vi.mock("@phoenix/pages/trace/TracePaginationContext", () => ({
-  useTracePagination: () => null,
-}));
-
-vi.mock("@phoenix/components/table/useShiftClickRowSelection", () => ({
-  useShiftClickRowSelection: () => ({ selectRow: vi.fn() }),
+vi.mock("@phoenix/pages/trace/SessionPaginationContext", () => ({
+  useSessionPagination: () => null,
 }));
 
 vi.mock("@phoenix/components/table", async (importOriginal) => ({
@@ -92,10 +88,10 @@ vi.mock("@phoenix/components/table", async (importOriginal) => ({
   }),
 }));
 
-vi.mock("../TraceFilterConditionField", async () => {
+vi.mock("../SessionFilterConditionField", async () => {
   const React = await import("react");
   return {
-    TraceFilterConditionFieldWithVocabulary: (
+    SessionFilterConditionFieldWithVocabulary: (
       props: NonNullable<typeof fieldMocks.props>
     ) => {
       fieldMocks.props = props;
@@ -104,9 +100,26 @@ vi.mock("../TraceFilterConditionField", async () => {
   };
 });
 
-vi.mock("../SpanColumnSelector", () => ({
-  SpanColumnSelector: () => null,
+vi.mock("../SessionColumnSelector", () => ({
+  SessionColumnSelector: () => null,
 }));
+
+vi.mock("../SessionsTableAside", () => ({
+  SessionsTableAside: () => null,
+}));
+
+vi.mock("../SessionsTableEmpty", () => ({
+  SessionsTableEmpty: () => null,
+}));
+
+vi.mock("../TableAside", async () => {
+  const React = await import("react");
+  return {
+    TableAsidePanel: ({ children }: { children: React.ReactNode }) =>
+      React.createElement("div", null, children),
+    TableAsideToggleButton: () => null,
+  };
+});
 
 vi.mock("../TableMetricsCharts", async () => {
   const React = await import("react");
@@ -123,13 +136,13 @@ vi.mock("../TableMetricsChartSelector", () => ({
   TableMetricsChartSelector: () => null,
 }));
 
-import type { TracesTable_spans$key } from "../__generated__/TracesTable_spans.graphql";
-import { TraceFiltersProvider } from "../TraceFiltersContext";
-import { TracesTable } from "../TracesTable";
+import type { SessionsTable_sessions$key } from "../__generated__/SessionsTable_sessions.graphql";
+import { SessionFiltersProvider } from "../SessionFiltersContext";
+import { SessionsTable } from "../SessionsTable";
 
-const seed = "num_spans >= 5";
+const seed = "num_traces >= 5";
 
-describe("TracesTable preload integration", () => {
+describe("SessionsTable preload integration", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -144,7 +157,7 @@ describe("TracesTable preload integration", () => {
       data: {
         id: "project-integration",
         name: "integration project",
-        rootSpans: { edges: [] },
+        sessions: { edges: [] },
       },
       hasNext: false,
       isLoadingNext: false,
@@ -164,12 +177,15 @@ describe("TracesTable preload integration", () => {
         <ThemeProvider themeMode="light" disableBodyTheme>
           <MemoryRouter
             initialEntries={[
-              `/projects/project-integration/traces?traceFilterCondition=${encodeURIComponent(seed)}`,
+              `/projects/project-integration/sessions?sessionFilterCondition=${encodeURIComponent(seed)}`,
             ]}
           >
-            <TraceFiltersProvider>
-              <TracesTable project={{} as TracesTable_spans$key} seed={seed} />
-            </TraceFiltersProvider>
+            <SessionFiltersProvider>
+              <SessionsTable
+                project={{} as SessionsTable_sessions$key}
+                seed={seed}
+              />
+            </SessionFiltersProvider>
             <SearchProbe />
           </MemoryRouter>
         </ThemeProvider>
@@ -193,7 +209,7 @@ describe("TracesTable preload integration", () => {
 
     expect(relayMocks.refetch).not.toHaveBeenCalled();
     expect(probedSearch).toBe(
-      `?traceFilterCondition=${encodeURIComponent(seed)}`
+      `?sessionFilterCondition=${encodeURIComponent(seed)}`
     );
   });
 
@@ -202,16 +218,16 @@ describe("TracesTable preload integration", () => {
 
     await act(async () => {
       fieldMocks.props?.onValidCondition({
-        condition: "latency_ms > 1000",
+        condition: "num_traces >= 10",
         isInitialSettlement: false,
       });
     });
 
     expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
     expect(relayMocks.refetch.mock.calls[0]?.[0]).toMatchObject({
-      traceFilterCondition: "latency_ms > 1000",
+      sessionFilterCondition: "num_traces >= 10",
     });
-    expect(probedSearch).toContain("traceFilterCondition=latency_ms");
+    expect(probedSearch).toContain("sessionFilterCondition=num_traces");
   });
 
   it("deletes the URL param when the user clears the condition", async () => {
@@ -225,9 +241,9 @@ describe("TracesTable preload integration", () => {
     });
 
     expect(relayMocks.refetch.mock.calls[0]?.[0]).toMatchObject({
-      traceFilterCondition: null,
+      sessionFilterCondition: null,
     });
-    expect(probedSearch).not.toContain("traceFilterCondition");
+    expect(probedSearch).not.toContain("sessionFilterCondition");
   });
 });
 

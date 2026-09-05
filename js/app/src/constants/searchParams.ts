@@ -10,6 +10,12 @@ export const SELECTED_SPAN_NODE_ID_PARAM = "selectedSpanNodeId";
  */
 export const SPAN_FILTER_CONDITION_PARAM = "spanFilterCondition";
 
+/** The applied trace filter condition on the traces tab; absent means none. */
+export const TRACE_FILTER_CONDITION_PARAM = "traceFilterCondition";
+
+/** The applied session filter condition on the sessions tab; absent means none. */
+export const SESSION_FILTER_CONDITION_PARAM = "sessionFilterCondition";
+
 /**
  * The search param that contains the selected session details sub-view.
  * This is used to preserve the active session tab across reloads and links.
