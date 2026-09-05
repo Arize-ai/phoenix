@@ -1,5 +1,8 @@
+import json
 import logging
 from typing import Any, Dict, List, Type, cast
+
+import jsonschema
 
 from ...prompts import (
     Message,
@@ -51,6 +54,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         super().__init__(client, model)
         self._validate_client()
         self._is_async = self._check_if_async_client()
+        self._preferred_method: ObjectGenerationMethod | None = None
 
     @classmethod
     def client_name(cls) -> str:
@@ -143,15 +147,35 @@ class AnthropicAdapter(BaseLLMAdapter):
         kwargs = {**required_kwargs, **kwargs}
 
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            raise ValueError(
-                "Anthropic does not support native structured output. Use TOOL_CALLING or AUTO."
-            )
+            return self._generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            return self._generate_with_tool_calling(prompt, schema, **kwargs)
+            if self._preferred_method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+                return self._generate_with_structured_output(prompt, schema, **kwargs)
+            if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
+                return self._generate_with_tool_calling(prompt, schema, **kwargs)
+
+            from anthropic import BadRequestError as _AnthropicBadRequestError
+
+            try:
+                result = self._generate_with_structured_output(prompt, schema, **kwargs)
+                self._preferred_method = ObjectGenerationMethod.STRUCTURED_OUTPUT
+                return result
+            except _AnthropicBadRequestError as structured_error:
+                if not self._is_unsupported_structured_output_error(structured_error):
+                    raise
+                logger.debug(
+                    "Native structured output rejected as unsupported by %s; "
+                    "falling back to tool calling: %s",
+                    self.model,
+                    structured_error,
+                )
+                result = self._generate_with_tool_calling(prompt, schema, **kwargs)
+                self._preferred_method = ObjectGenerationMethod.TOOL_CALLING
+                return result
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -173,13 +197,79 @@ class AnthropicAdapter(BaseLLMAdapter):
         kwargs = {**required_kwargs, **kwargs}
 
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            raise ValueError(
-                "Anthropic does not support native structured output. Use TOOL_CALLING or AUTO."
-            )
+            return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
         elif method == ObjectGenerationMethod.TOOL_CALLING:
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
         elif method == ObjectGenerationMethod.AUTO:
-            return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+            if self._preferred_method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+                return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
+            if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
+                return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+
+            from anthropic import BadRequestError as _AnthropicBadRequestError
+
+            try:
+                result = await self._async_generate_with_structured_output(prompt, schema, **kwargs)
+                self._preferred_method = ObjectGenerationMethod.STRUCTURED_OUTPUT
+                return result
+            except _AnthropicBadRequestError as structured_error:
+                if not self._is_unsupported_structured_output_error(structured_error):
+                    raise
+                logger.debug(
+                    "Native structured output rejected as unsupported by %s; "
+                    "falling back to tool calling: %s",
+                    self.model,
+                    structured_error,
+                )
+                result = await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+                self._preferred_method = ObjectGenerationMethod.TOOL_CALLING
+                return result
+        else:
+            raise ValueError(f"Unsupported object generation method: {method}")
+
+    def _generate_with_structured_output(
+        self,
+        prompt: PromptLike,
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        messages, system = self._build_messages(prompt)
+        if system:
+            kwargs["system"] = system
+        kwargs["output_config"] = {
+            "format": {
+                "type": "json_schema",
+                "schema": schema,
+            }
+        }
+        response = self.client.messages.create(
+            model=self.model,
+            messages=messages,
+            **kwargs,
+        )
+        return self._parse_structured_output_response(response, schema)
+
+    async def _async_generate_with_structured_output(
+        self,
+        prompt: PromptLike,
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        messages, system = self._build_messages(prompt)
+        if system:
+            kwargs["system"] = system
+        kwargs["output_config"] = {
+            "format": {
+                "type": "json_schema",
+                "schema": schema,
+            }
+        }
+        response = await self.client.messages.create(
+            model=self.model,
+            messages=messages,
+            **kwargs,
+        )
+        return self._parse_structured_output_response(response, schema)
 
     def _generate_with_tool_calling(
         self,
@@ -198,15 +288,25 @@ class AnthropicAdapter(BaseLLMAdapter):
             model=self.model,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "tool", "name": "extract_structured_data"},
+            tool_choice={
+                "type": "tool",
+                "name": "extract_structured_data",
+                "disable_parallel_tool_use": True,
+            },
             **kwargs,
         )
 
+        self._raise_for_incomplete_response(response)
         for content_block in response.content:
-            if hasattr(content_block, "type") and content_block.type == "tool_use":
-                return cast(Dict[str, Any], content_block.input)
+            if (
+                getattr(content_block, "type", None) == "tool_use"
+                and getattr(content_block, "name", None) == "extract_structured_data"
+            ):
+                result = cast(Dict[str, Any], content_block.input)
+                self._validate_result(result, schema)
+                return result
 
-        raise ValueError("No tool use in response")
+        raise ValueError("Anthropic returned no matching tool use in response")
 
     async def _async_generate_with_tool_calling(
         self,
@@ -225,15 +325,93 @@ class AnthropicAdapter(BaseLLMAdapter):
             model=self.model,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "tool", "name": "extract_structured_data"},
+            tool_choice={
+                "type": "tool",
+                "name": "extract_structured_data",
+                "disable_parallel_tool_use": True,
+            },
             **kwargs,
         )
 
+        self._raise_for_incomplete_response(response)
         for content_block in response.content:
-            if hasattr(content_block, "type") and content_block.type == "tool_use":
-                return cast(Dict[str, Any], content_block.input)
+            if (
+                getattr(content_block, "type", None) == "tool_use"
+                and getattr(content_block, "name", None) == "extract_structured_data"
+            ):
+                result = cast(Dict[str, Any], content_block.input)
+                self._validate_result(result, schema)
+                return result
 
-        raise ValueError("No tool use in response")
+        raise ValueError("Anthropic returned no matching tool use in response")
+
+    def _parse_structured_output_response(
+        self,
+        response: Any,
+        schema: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        self._raise_for_incomplete_response(response)
+        text_blocks = [
+            text
+            for block in response.content
+            if getattr(block, "type", None) == "text"
+            and isinstance((text := getattr(block, "text", None)), str)
+        ]
+        if not text_blocks:
+            raise ValueError("Anthropic structured output returned no text content")
+        try:
+            result = json.loads("".join(text_blocks))
+        except json.JSONDecodeError as error:
+            raise ValueError(
+                f"Anthropic structured output returned malformed JSON: {error}"
+            ) from error
+        if not isinstance(result, dict):
+            raise ValueError("Anthropic structured output must be a JSON object")
+        self._validate_result(result, schema)
+        return cast(Dict[str, Any], result)
+
+    def _raise_for_incomplete_response(self, response: Any) -> None:
+        stop_reason = getattr(response, "stop_reason", None)
+        if stop_reason == "refusal" or any(
+            getattr(block, "type", None) == "refusal" for block in getattr(response, "content", [])
+        ):
+            raise ValueError("Anthropic refused to generate structured output")
+        if stop_reason == "max_tokens":
+            raise ValueError(
+                "Anthropic structured output was truncated because max_tokens was reached"
+            )
+
+    def _validate_result(self, result: Any, schema: Dict[str, Any]) -> None:
+        try:
+            jsonschema.validate(instance=result, schema=schema)
+        except jsonschema.ValidationError as error:
+            raise ValueError(
+                f"Anthropic structured output does not match the requested schema: {error.message}"
+            ) from error
+
+    def _is_unsupported_structured_output_error(self, error: Exception) -> bool:
+        body = getattr(error, "body", None)
+        details = f"{error} {json.dumps(body, default=str) if body is not None else ''}".lower()
+        feature_markers = (
+            "output_config",
+            "output config",
+            "output format",
+            "json_schema",
+            "json schema",
+            "json output",
+            "structured output",
+        )
+        unsupported_markers = (
+            "not supported",
+            "does not support",
+            "unsupported",
+            "unknown parameter",
+            "unrecognized",
+            "not available",
+        )
+        return any(marker in details for marker in feature_markers) and any(
+            marker in details for marker in unsupported_markers
+        )
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get("description", "Respond in a format matching the provided schema")
