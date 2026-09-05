@@ -173,7 +173,7 @@ examples:
         notes: >-
           Evaluator built from an observed failure mode (the skill's "evals
           from observed failures, not generic metrics" guidance). Medium
-          because the failure framing sits near debug-trace; the explicit
+          because the failure framing sits near phoenix-open-coding; the explicit
           "build me an eval" ask resolves it to evaluators.
 
   # ===== Negative triggers: evaluators skill should NOT fire =====
@@ -199,7 +199,7 @@ examples:
         agreement: high
         n_opinions: 3
         notes: >-
-          Cross-trace failure diagnosis routes to debug-trace, not evaluators.
+          Cross-trace failure diagnosis routes to phoenix-open-coding, not evaluators.
           No evaluator surface mounted.
 
   - id: negative-rewrite-prompt

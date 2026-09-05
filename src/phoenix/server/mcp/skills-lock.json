@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "phoenix-axial-coding": {
+      "source": "../../../../.agents/skills/phoenix-axial-coding",
+      "sourceType": "local",
+      "computedHash": "1034e69ce3a238591fe2f4f9f78e46b9529b95ab0f323966aefca90f15ba93e7"
+    },
+    "phoenix-open-coding": {
+      "source": "../../../../.agents/skills/phoenix-open-coding",
+      "sourceType": "local",
+      "computedHash": "43327c42c57405cf993356e5135aa2cc3edfc468e54ad20db5597b7f88becb0d"
+    }
+  }
+}

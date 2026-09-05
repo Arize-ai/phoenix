@@ -1,11 +1,11 @@
 ---
 name: phoenix-cli
-description: Debug LLM applications using the Phoenix CLI. Fetch traces, analyze errors, structure trace review with open coding and axial coding, inspect datasets, review experiments, query annotation configs, and use the GraphQL API. Use whenever the user is analyzing traces or spans, investigating LLM/agent failures, deciding what to do after instrumenting an app, building failure taxonomies, choosing what evals to write, or asking "what's going wrong", "what kinds of mistakes", or "where do I focus" — even without naming a technique.
+description: Debug LLM applications using the Phoenix CLI. Fetch traces, spans, and sessions, annotate them, analyze errors, inspect datasets, review experiments, query annotation configs, and use the GraphQL API. Use whenever the user works with a Phoenix instance from the terminal.
 license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
   author: arize-ai
-  version: "3.3.0"
+  version: "3.4.0"
 ---
 
 # Phoenix CLI
@@ -163,29 +163,6 @@ default (URL-only config, browser login on first use); pass `--header "Name:
 value"` (repeatable) for an API-key bearer fallback — for Codex a
 `Authorization: Bearer ${VAR}` header becomes `bearer_token_env_var`. `--format
 raw` prints `{"endpoint","url","serverName","agent","scope","auth","file?"}`.
-
-## Quick Reference
-
-| Task | Files |
-| ---- | ----- |
-| Look at sampled traces, spans, or sessions and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
-| Group those notes into a structured failure taxonomy and quantify what matters | [references/axial-coding](references/axial-coding.md) |
-
-Both stages tag every artifact with one shared **coding annotation identifier** (descriptive shape, e.g. `coding-run:chatbot-context-loss-2026-05-06`) so the run is queryable, reversible, and viewable as a unit. Pass `--identifier <value>` explicitly on every `px` call — shell inheritance is unreliable across agent harnesses. Open coding writes notes via `px ... add-note` and records a small local JSONL sidecar at `.px/coding/<sanitized-identifier>.jsonl`; axial coding reads that sidecar as the deterministic handoff and records labels in `.px/coding/<sanitized-identifier>-axial.jsonl`. Pick the identifier once per run (see [references/open-coding.md](references/open-coding.md#coding-annotation-identifier-pick-this-first)), then share the Phoenix UI link from the wrap-up section. Revert is opt-in and runs three identifier-bound DELETEs only after explicit user confirmation.
-
-> **Workflow term vs. server annotation name.** The skill prose calls this value the **coding annotation identifier** (shell-variable hint: `CODING_ANNOTATION_IDENTIFIER`). The server-side annotation NAME used for the UI filter is unchanged — `coding_session_id` — for data compatibility with rows already written by previous runs. Don't try to rename the server-side annotation; treat the asymmetry as load-bearing.
-
-## Workflows
-
-**"What do I do after instrumenting?" / "Where do I focus?" / "What's going wrong?"**
-[open-coding](references/open-coding.md) → [axial-coding](references/axial-coding.md) → build evals for the top categories.
-
-## Reference Categories
-
-| Prefix | Description |
-| ------ | ----------- |
-| `references/open-coding` | Free-form notes against sampled traces, spans, or sessions — reach for it whenever the user wants to make sense of LLM traffic but has no failure categories yet. Includes a unit-of-analysis diagnostic so the workflow runs at the level the failure modes actually live at (trace for stateless single-shot calls, session for multi-turn agents, span for mechanical/in-isolation failures). |
-| `references/axial-coding` | Inductive grouping of notes into a MECE taxonomy with counts — reach for it whenever the user has observations and needs categories or eval targets |
 
 ## Auth
 
