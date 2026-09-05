@@ -1,5 +1,5 @@
 <skills>
-  <description>Skills carry task-specific instructions for working with Phoenix. If you find yourself working on a task that is relevant to one of the skills below, call `load_skill` to read instructions for that particular skill.</description>
+  <description>Skills carry task-specific instructions for working with Phoenix. Before acting on a user request, check whether any available skill matches the task. When a request matches a skill's trigger guidance, call `load_skill` for that skill before doing substantive work in that domain.</description>
   <available_skills>
 {% for skill in skills %}
     <skill>
@@ -9,6 +9,9 @@
 {% endfor %}
   </available_skills>
   <usage>
+    If a user request clearly matches one skill, load it first.
+    If a request spans multiple skills, load each relevant skill before proceeding.
+    Do not load unrelated skills.
     Load each skill at most once per conversation: if a successful load already appears in the conversation, reuse it.
     A loaded skill may list reference files; load one with `load_skill_reference`, using the exact names the skill lists.
   </usage>
