@@ -13,6 +13,16 @@ import pandas as pd
 from jsonpath_ng import parse  # type: ignore
 from jsonpath_ng.exceptions import JsonPathParserError  # type: ignore
 
+from .formatting import (
+    OMITTED_LATER_MESSAGES_MARKER,
+    OMITTED_MESSAGES_MARKER,
+    TRUNCATION_MARKER,
+    NormalizedMessage,
+    ToolCall,
+    format_messages,
+    normalize_messages,
+)
+
 
 def download_benchmark_dataset(task: str, dataset_name: str) -> "pd.DataFrame":
     """Downloads an Arize evals benchmark dataset as a pandas dataframe.
@@ -515,4 +525,12 @@ __all__ = [
     "extract_with_jsonpath",
     "to_annotation_dataframe",
     "default_tqdm_progress_bar_formatter",
+    # message formatting
+    "format_messages",
+    "normalize_messages",
+    "NormalizedMessage",
+    "ToolCall",
+    "OMITTED_MESSAGES_MARKER",
+    "OMITTED_LATER_MESSAGES_MARKER",
+    "TRUNCATION_MARKER",
 ]
