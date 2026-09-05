@@ -957,6 +957,12 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/users",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
+                  {
+                    "group": "Models",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/models/model-providers"
+                    ]
+                  },
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
                   {
