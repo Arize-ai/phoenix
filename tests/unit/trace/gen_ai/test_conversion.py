@@ -1072,3 +1072,92 @@ def test_embedding_attributes_empty_for_non_embedding_span() -> None:
         )
         == {}
     )
+
+
+# ---------------------------------------------------------------------------
+# early-draft (pre-v1.41) part shapes from drifted producers
+# ---------------------------------------------------------------------------
+
+
+def test_v130_blob_part_with_data_field_becomes_data_url() -> None:
+    """google-genai-style producers emit ``data`` and no ``modality``; the fold
+    must land them on the v1.41.1 schema instead of dropping them silently."""
+    out = get_openinference_message_attributes(
+        _input_messages(
+            [
+                {
+                    "role": "user",
+                    "parts": [{"type": "blob", "mime_type": "image/png", "data": "SGVsbG8="}],
+                }
+            ]
+        )
+    )
+    base = f"{SpanAttributes.LLM_INPUT_MESSAGES}.0"
+    image = MessageContentAttributes.MESSAGE_CONTENT_IMAGE
+    assert (
+        out[f"{base}.{MessageAttributes.MESSAGE_CONTENTS}.0.{image}.{ImageAttributes.IMAGE_URL}"]
+        == "data:image/png;base64,SGVsbG8="
+    )
+
+
+def test_blob_part_modality_defaults_from_mime_main_type() -> None:
+    """A non-AV blob (application/pdf) still renders: modality defaults to the
+    MIME main type, which the ``Modality | str`` schema accepts."""
+    out = get_openinference_message_attributes(
+        _input_messages(
+            [
+                {
+                    "role": "user",
+                    "parts": [{"type": "blob", "mime_type": "application/pdf", "data": "AAAA"}],
+                }
+            ]
+        )
+    )
+    base = f"{SpanAttributes.LLM_INPUT_MESSAGES}.0"
+    image = MessageContentAttributes.MESSAGE_CONTENT_IMAGE
+    assert (
+        out[f"{base}.{MessageAttributes.MESSAGE_CONTENTS}.0.{image}.{ImageAttributes.IMAGE_URL}"]
+        == "data:application/pdf;base64,AAAA"
+    )
+
+
+def test_uri_part_without_modality_renders() -> None:
+    out = get_openinference_message_attributes(
+        _input_messages(
+            [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "type": "uri",
+                            "mime_type": "image/jpeg",
+                            "uri": "https://example.com/cat.jpg",
+                        }
+                    ],
+                }
+            ]
+        )
+    )
+    base = f"{SpanAttributes.LLM_INPUT_MESSAGES}.0"
+    image = MessageContentAttributes.MESSAGE_CONTENT_IMAGE
+    assert (
+        out[f"{base}.{MessageAttributes.MESSAGE_CONTENTS}.0.{image}.{ImageAttributes.IMAGE_URL}"]
+        == "https://example.com/cat.jpg"
+    )
+
+
+def test_v130_blob_part_in_system_instructions_survives() -> None:
+    """system_instructions is a flat part list; the fold must cover that shape too."""
+    attributes = {
+        gen_ai.GEN_AI_SYSTEM_INSTRUCTIONS: json.dumps(
+            [{"type": "blob", "mime_type": "image/png", "data": "SGVsbG8="}]
+        ),
+    }
+    out = get_openinference_message_attributes(attributes)
+    image = MessageContentAttributes.MESSAGE_CONTENT_IMAGE
+    assert (
+        out[
+            f"{SpanAttributes.LLM_INPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_CONTENTS}.0.{image}.{ImageAttributes.IMAGE_URL}"
+        ]
+        == "data:image/png;base64,SGVsbG8="
+    )
