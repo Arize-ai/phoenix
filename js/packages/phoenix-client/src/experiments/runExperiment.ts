@@ -87,6 +87,15 @@ export type RunExperimentParams = ClientFn & {
    */
   experimentMetadata?: Record<string, unknown>;
   /**
+   * The name of the project into which the experiment's traces are recorded.
+   *
+   * If omitted, the server generates a hidden, single-use project. When provided, the project
+   * is treated as user-owned: it stays visible in project lists and is not auto-deleted with
+   * the experiment, letting multiple experiments consolidate their traces into one named
+   * project.
+   */
+  projectName?: string;
+  /**
    * The dataset to run the experiment on
    */
   dataset: DatasetSelector;
@@ -190,6 +199,7 @@ async function prepareRecordedExperiment({
   dataset,
   datasetSelector,
   projectName: defaultProjectName,
+  requestedProjectName,
   experimentName,
   experimentDescription,
   experimentMetadata,
@@ -202,6 +212,7 @@ async function prepareRecordedExperiment({
   dataset: Dataset;
   datasetSelector: DatasetSelector;
   projectName: string;
+  requestedProjectName: string | undefined;
   experimentName: string | undefined;
   experimentDescription: string | undefined;
   experimentMetadata: Record<string, unknown>;
@@ -217,7 +228,9 @@ async function prepareRecordedExperiment({
         name: experimentName,
         description: experimentDescription,
         metadata: experimentMetadata,
-        project_name: defaultProjectName,
+        // Only send project_name when the caller explicitly set it. Otherwise,
+        // the server creates the hidden, single-use project for the experiment.
+        ...(requestedProjectName ? { project_name: requestedProjectName } : {}),
         repetitions,
         ...(datasetSelector.splits ? { splits: datasetSelector.splits } : {}),
         ...(dataset.versionId ? { version_id: dataset.versionId } : {}),
@@ -368,6 +381,7 @@ export async function runExperiment({
   experimentName,
   experimentDescription,
   experimentMetadata = {},
+  projectName: userProjectName,
   client: _client,
   dataset: datasetSelector,
   task,
@@ -401,7 +415,10 @@ export async function runExperiment({
       ? Math.min(dryRun, dataset.examples.length)
       : dataset.examples.length;
 
-  const defaultProjectName = `${dataset.name}-exp-${new Date().toISOString()}`;
+  // This fallback is only used locally for dry runs or when an older server
+  // response omits project_name; it is never sent as an explicit user project.
+  const defaultProjectName =
+    userProjectName ?? `${dataset.name}-exp-${new Date().toISOString()}`;
   const prepared = isDryRun
     ? prepareDryRunExperiment({
         dataset,
@@ -416,6 +433,7 @@ export async function runExperiment({
         dataset,
         datasetSelector,
         projectName: defaultProjectName,
+        requestedProjectName: userProjectName,
         experimentName,
         experimentDescription,
         experimentMetadata,

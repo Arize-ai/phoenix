@@ -26,6 +26,14 @@ export type CreateExperimentParams = ClientFn & {
    */
   experimentMetadata?: Record<string, unknown>;
   /**
+   * The name of the project into which the experiment's traces are recorded.
+   *
+   * If omitted, the server generates a hidden, single-use project. When provided, the project
+   * is treated as user-owned: it is created if needed (without modifying an existing project),
+   * stays visible in project lists, and is not auto-deleted with the experiment.
+   */
+  projectName?: string;
+  /**
    * List of dataset split identifiers (GlobalIDs or names) to filter by
    */
   splits?: readonly string[];
@@ -47,6 +55,7 @@ export async function createExperiment({
   experimentName,
   experimentDescription,
   experimentMetadata = {},
+  projectName,
   splits,
   repetitions = 1,
 }: CreateExperimentParams): Promise<ExperimentInfo> {
@@ -64,6 +73,7 @@ export async function createExperiment({
         description: experimentDescription,
         metadata: experimentMetadata,
         repetitions,
+        ...(projectName ? { project_name: projectName } : {}),
         ...(datasetVersionId ? { version_id: datasetVersionId } : {}),
         ...(splits ? { splits: [...splits] } : {}),
       },

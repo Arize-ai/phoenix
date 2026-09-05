@@ -9,6 +9,7 @@ import sqlalchemy as sa
 
 from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
+from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -49,8 +50,13 @@ class ExperimentSweeper(DaemonTask):
         async with self._db() as session:
             project_names = (await session.scalars(stmt)).all()
             num_deleted = len(project_names)
+            # Only auto-delete projects with auto-generated names. User-owned projects (names
+            # that do not match the generated pattern) are left intact even when the experiment
+            # that referenced them is swept away.
             non_null_project_names = {
-                project_name for project_name in project_names if project_name
+                project_name
+                for project_name in project_names
+                if project_name and is_experiment_project_name(project_name)
             }
             if non_null_project_names:
                 # Only delete projects that have no remaining experiments (ephemeral or
