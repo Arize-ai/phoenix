@@ -1,4 +1,7 @@
-import { MessageAttributePostfixes } from "@arizeai/openinference-semantic-conventions";
+import {
+  MessageAttributePostfixes,
+  SemanticAttributePrefixes,
+} from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 
 import type { CardProps } from "@phoenix/components";
@@ -51,6 +54,19 @@ export function LLMMessage({
   });
   // as of multi-modal models, a message can also be a list
   const messagesContents = message[MessageAttributePostfixes.contents];
+  // Some instrumentations (OpenAI Responses) record the answer both as the
+  // flat content and as a text part of the contents list. The list renders
+  // first, so only render the flat content when it says something the list
+  // does not.
+  const isContentInContents =
+    !!messageContent &&
+    Array.isArray(messagesContents) &&
+    messagesContents.some(
+      (content) =>
+        content?.[SemanticAttributePrefixes.message_content]?.text ===
+        messageContent
+    );
+  const standaloneContent = isContentInContents ? undefined : messageContent;
   const toolCalls = getToolCalls(message);
   const hasFunctionCall =
     message[MessageAttributePostfixes.function_call_arguments_json] &&
@@ -136,7 +152,7 @@ export function LLMMessage({
                 </DisclosurePanel>
               </Disclosure>
             ) : // when the message is any other kind, just show the content without a disclosure
-            messageContent ? (
+            standaloneContent ? (
               <View width="100%">
                 <ConnectedMarkdownBlock>
                   {normalizedContent}
