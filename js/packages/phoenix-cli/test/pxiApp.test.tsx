@@ -731,7 +731,7 @@ describe("PXI app", () => {
     unmount();
   });
 
-  it("interrupts an in-flight request on Esc and sends the partial transcript next", async () => {
+  it("interrupts an in-flight request on Esc and keeps the partial transcript", async () => {
     const submittedMessages: PxiMessage[][] = [];
     const abortSignals: AbortSignal[] = [];
     const partialAssistantMessage: PxiMessage = {
@@ -784,8 +784,11 @@ describe("PXI app", () => {
     await flushPendingEscapeInput();
 
     expect(abortSignals[0]?.aborted).toBe(true);
-    expect(lastFrame()).toContain("Interrupted by user before completion.");
-    expect(lastFrame()).not.toContain("PXI is thinking");
+    const interruptedFrame = stripAnsi(lastFrame() ?? "");
+    expect(interruptedFrame).toContain("Partial answer");
+    expect(interruptedFrame).toContain("⊘ ◆ phoenix_graphql Interrupted");
+    expect(interruptedFrame).toContain("── Response interrupted ──");
+    expect(interruptedFrame).not.toContain("PXI is thinking");
 
     await act(async () => {
       stdin.write("continue");
@@ -798,15 +801,283 @@ describe("PXI app", () => {
     const assistantMessage = submittedMessages[1]?.find(
       (message) => message.role === "assistant"
     );
+    // The unresolved tool call is closed out and the message flagged the way
+    // the server persists an interrupted turn, so the poll changes nothing.
     expect(assistantMessage?.parts).toEqual([
       { type: "text", text: "Partial answer", state: "done" },
       {
-        type: "text",
-        text: "\n\n[Interrupted by user before completion.]",
-        state: "done",
+        type: "dynamic-tool",
+        toolCallId: "tool-1",
+        toolName: "phoenix_graphql",
+        state: "output-available",
+        input: { query: "{ projects" },
+        output: "The tool call was interrupted before a result was produced.",
+        callProviderMetadata: { pydantic_ai: { outcome: "interrupted" } },
       },
     ]);
+    expect(assistantMessage?.metadata?.phoenix).toMatchObject({
+      type: "assistant",
+      interrupted: true,
+    });
     unmount();
+  });
+
+  it("keeps the interruption marker when the persisted turn is swapped in", async () => {
+    // Fake only intervals: the poll runs on setInterval while Ink resolves a
+    // bare Esc keypress on a real setTimeout.
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const partialAssistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [{ type: "text", text: "Partial answer", state: "streaming" }],
+    };
+    const persistedUserMessage: PxiMessage = {
+      id: "user-1",
+      role: "user",
+      parts: [{ type: "text", text: "hello" }],
+    };
+    const persistedInterruptedMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [{ type: "text", text: "Partial answer", state: "done" }],
+      metadata: {
+        phoenix: {
+          type: "assistant",
+          sessionId: "session-1",
+          interrupted: true,
+        },
+      },
+    };
+    const persistedSession = {
+      id: "session-1",
+      title: "Interrupted session",
+      updatedAt: "2026-07-24T12:05:00Z",
+      isTemporary: false,
+      isActive: false,
+      lastMessageId: persistedInterruptedMessage.id,
+      messages: [persistedUserMessage, persistedInterruptedMessage],
+      model: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      } satisfies ModelSelection,
+    };
+    const getSession = vi.fn(async () => persistedSession);
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => ({
+        id: "session-1",
+        title: "",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+        messages: [],
+      }),
+      listSessions: async () => [],
+      getSession,
+      getSessionSyncState: async () => ({
+        isActive: false,
+        updatedAt: persistedSession.updatedAt,
+        lastMessageId: persistedSession.lastMessageId,
+      }),
+      patchSessionModel: async ({ model }) => model,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const client: PxiChatClient = {
+      sendMessage: async ({ abortSignal, onAssistantMessage }) => {
+        onAssistantMessage(partialAssistantMessage);
+        return new Promise((resolve) => {
+          abortSignal?.addEventListener("abort", () => resolve(null), {
+            once: true,
+          });
+        });
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+        sessionModelResolver={async (model: ModelSelection) => model}
+      />
+    );
+
+    try {
+      await writeInput({ stdin, input: "hello" });
+      await writeInput({ stdin, input: "\r" });
+      expect(lastFrame()).toContain("Partial answer");
+
+      await act(async () => {
+        stdin.write(ESCAPE_CHARACTER);
+      });
+      await flushPendingEscapeInput();
+      expect(stripAnsi(lastFrame() ?? "")).toContain(
+        "── Response interrupted ──"
+      );
+      // The server had already persisted the turn, so the interrupt reconcile
+      // swaps in the persisted copy right away...
+      await act(async () => Promise.resolve());
+      expect(getSession).toHaveBeenCalledTimes(1);
+
+      // ...and the idle poll sees an unchanged tail and skips the refetch.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(getSession).toHaveBeenCalledTimes(1);
+      const frame = stripAnsi(lastFrame() ?? "");
+      expect(frame).toContain("Partial answer");
+      expect(frame).toContain("── Response interrupted ──");
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it("separates the interruption marker from a trailing tool line by one blank line", () => {
+    const interruptedMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        { type: "text", text: "Looking that up.", state: "done" },
+        {
+          type: "dynamic-tool",
+          toolCallId: "tool-1",
+          toolName: "phoenix_graphql",
+          state: "output-available",
+          input: { query: "{ projects { id } }" },
+          output: "The tool call was interrupted before a result was produced.",
+          callProviderMetadata: { pydantic_ai: { outcome: "interrupted" } },
+        },
+      ],
+      metadata: {
+        phoenix: {
+          type: "assistant",
+          sessionId: "session-1",
+          interrupted: true,
+        },
+      },
+    };
+    const { lastFrame, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        initialMessages={[interruptedMessage]}
+      />
+    );
+    const lines = stripAnsi(lastFrame() ?? "")
+      .split("\n")
+      .map((line) => line.trimEnd());
+    const toolLineIndex = lines.findIndex((line) =>
+      line.includes("phoenix_graphql")
+    );
+    const markerLineIndex = lines.findIndex((line) =>
+      line.includes("── Response interrupted ──")
+    );
+    expect(toolLineIndex).toBeGreaterThan(-1);
+    expect(lines[toolLineIndex]).toContain("⊘ ◆ phoenix_graphql Interrupted");
+    expect(markerLineIndex).toBe(toolLineIndex + 2);
+    expect(lines[toolLineIndex + 1]).toBe("");
+    unmount();
+  });
+
+  it("waits for the server to persist an interrupted turn before the next send", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+    });
+    const partialAssistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [{ type: "text", text: "Partial answer", state: "streaming" }],
+    };
+    let isInterruptedTurnPersisted = false;
+    const getSessionSyncState = vi.fn(async () => ({
+      isActive: false,
+      updatedAt: "2026-07-24T12:00:00Z",
+      lastMessageId: isInterruptedTurnPersisted ? "assistant-1" : null,
+    }));
+    const getSession = vi.fn(async () => {
+      throw new Error("not used");
+    });
+    const sessionClient: PxiSessionClient = {
+      createSession: async () => ({
+        id: "session-1",
+        title: "",
+        updatedAt: "2026-07-24T12:00:00Z",
+        isTemporary: false,
+        messages: [],
+      }),
+      listSessions: async () => [],
+      getSession,
+      getSessionSyncState,
+      patchSessionModel: async ({ model }) => model,
+      compactSession: async () => {
+        throw new Error("not used");
+      },
+    };
+    const sentTexts: string[] = [];
+    const client: PxiChatClient = {
+      sendMessage: async ({ messages, abortSignal, onAssistantMessage }) => {
+        const lastMessage = messages.at(-1);
+        sentTexts.push(
+          lastMessage?.parts[0]?.type === "text"
+            ? lastMessage.parts[0].text
+            : ""
+        );
+        if (sentTexts.length === 1) {
+          onAssistantMessage(partialAssistantMessage);
+          return new Promise((resolve) => {
+            abortSignal?.addEventListener("abort", () => resolve(null), {
+              once: true,
+            });
+          });
+        }
+        return null;
+      },
+    };
+    const { stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        sessionClient={sessionClient}
+        sessionModelResolver={async (model: ModelSelection) => model}
+      />
+    );
+
+    try {
+      await writeInput({ stdin, input: "hello" });
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => Promise.resolve());
+      expect(sentTexts).toEqual(["hello"]);
+
+      await act(async () => {
+        stdin.write(ESCAPE_CHARACTER);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30);
+      });
+      expect(getSessionSyncState).toHaveBeenCalledTimes(1);
+
+      // The follow-up is held while the server has not yet written the
+      // interrupted turn.
+      await writeInput({ stdin, input: "again" });
+      await writeInput({ stdin, input: "\r" });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(getSessionSyncState).toHaveBeenCalledTimes(2);
+      expect(sentTexts).toEqual(["hello"]);
+
+      isInterruptedTurnPersisted = true;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(getSessionSyncState).toHaveBeenCalledTimes(3);
+      expect(sentTexts).toEqual(["hello", "again"]);
+      // The pending send supersedes the transcript swap.
+      expect(getSession).not.toHaveBeenCalled();
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
   });
 
   it("renders tool progress without hiding transcript text", () => {
@@ -1225,17 +1496,29 @@ describe("PXI app", () => {
   });
 
   it("browses and restores a persisted session", async () => {
-    const restoredMessage: PxiMessage = {
+    const restoredUserMessage: PxiMessage = {
       id: "restored-user",
       role: "user",
       parts: [{ type: "text", text: "restored conversation" }],
+    };
+    const restoredInterruptedMessage: PxiMessage = {
+      id: "restored-assistant",
+      role: "assistant",
+      parts: [{ type: "text", text: "partial response", state: "done" }],
+      metadata: {
+        phoenix: {
+          type: "assistant",
+          sessionId: "session-2",
+          interrupted: true,
+        },
+      },
     };
     const getSession = vi.fn(async ({ sessionId }: { sessionId: string }) => ({
       id: sessionId,
       title: "Second session",
       updatedAt: "2026-07-24T12:00:00Z",
       isTemporary: false,
-      messages: [restoredMessage],
+      messages: [restoredUserMessage, restoredInterruptedMessage],
       // Differs from the --provider/--model flags so restoring writes the
       // flag model instead of resolving against the server catalog.
       model: {
@@ -1291,8 +1574,11 @@ describe("PXI app", () => {
     await act(async () => Promise.resolve());
 
     expect(getSession).toHaveBeenCalledWith({ sessionId: "session-2" });
-    expect(stripAnsi(lastFrame() ?? "")).toContain("restored conversation");
-    expect(stripAnsi(lastFrame() ?? "")).toContain("session: Second session");
+    const restoredFrame = stripAnsi(lastFrame() ?? "");
+    expect(restoredFrame).toContain("restored conversation");
+    expect(restoredFrame).toContain("partial response");
+    expect(restoredFrame).toContain("── Response interrupted ──");
+    expect(restoredFrame).toContain("session: Second session");
     unmount();
   });
 

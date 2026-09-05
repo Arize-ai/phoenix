@@ -1,4 +1,5 @@
 import type { EventEmitter } from "node:events";
+import { isToolUIPart } from "ai";
 import { Box, Text, useApp, useInput, useStdin } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
@@ -37,11 +38,13 @@ import {
 import { formatTokenUsageLine, getLatestAssistantUsage } from "./tokenUsage";
 import {
   getToolProgressFromPart,
+  withInterruptedToolOutcome,
   type ToolProgress,
   type ToolProgressState,
 } from "./toolProgress";
 import type {
   ModelSelection,
+  PhoenixAssistantMessageMetadata,
   PxiChatClient,
   PxiMessage,
   PxiRuntimeOptions,
@@ -121,6 +124,9 @@ const PENDING_TOOL_STATES: ReadonlySet<ToolProgressState> = new Set([
 ]);
 const PENDING_ELSEWHERE_TOOL_STATUS_TEXT =
   "Pending in another client — sending a message here interrupts it";
+/** Output the server records on a tool call the user interrupted. */
+const INTERRUPTED_TOOL_OUTPUT_TEXT =
+  "The tool call was interrupted before a result was produced.";
 const ESCAPE_INPUT = "\x1B";
 const BACKSPACE_INPUTS = new Set(["\b", "\x7F"]);
 const FORWARD_DELETE_INPUTS = new Set([
@@ -134,10 +140,12 @@ const KITTY_BACKSPACE_INPUT_PATTERN =
 // oxlint-disable-next-line no-control-regex -- matches Kitty keyboard-protocol escape sequences
 const KITTY_FORWARD_DELETE_INPUT_PATTERN = /^\x1B\[3;\d+:[12]~$/;
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
-const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
 /** Normal and busy cadences for synchronizing the active session. */
 const SESSION_POLL_INTERVAL_MS = 10_000;
 const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
+/** Cadence and cap for confirming the server persisted an interrupted turn. */
+const INTERRUPT_RECONCILE_INTERVAL_MS = 500;
+const INTERRUPT_RECONCILE_MAX_ATTEMPTS = 10;
 const SESSION_BUSY_STATUS_TEXT =
   "Session is being used elsewhere, the chat will refresh when complete";
 const SESSION_STALE_STATUS_TEXT =
@@ -164,6 +172,9 @@ const COMPACT_WHILE_BUSY_ERROR_TEXT =
 const COMPACT_DRAFT_SESSION_ERROR_TEXT =
   "There is no persisted conversation to compact.";
 const COMPACTION_DIVIDER_TEXT = "── Conversation compacted ──";
+const INTERRUPTED_RESPONSE_DIVIDER_TEXT = "── Response interrupted ──";
+const EMPTY_INTERRUPTED_RESPONSE_DIVIDER_TEXT =
+  "── Interrupted before a response was generated ──";
 
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
@@ -265,6 +276,9 @@ function ToolStateIndicator({
   if (isPendingElsewhere) {
     return <Text color="yellow">⚠</Text>;
   }
+  if (tool.isInterrupted) {
+    return <Text dimColor>⊘</Text>;
+  }
   if (RUNNING_TOOL_STATES.has(tool.state)) {
     return <ToolSpinner />;
   }
@@ -303,7 +317,11 @@ function InlineToolProgress({
   marginTop: number;
   marginBottom: number;
 }) {
-  if (tool.isQuiet && tool.state === "output-available") {
+  if (
+    tool.isQuiet &&
+    tool.state === "output-available" &&
+    !tool.isInterrupted
+  ) {
     return (
       <Box paddingLeft={2} marginTop={marginTop} marginBottom={marginBottom}>
         <Text wrap="truncate-end">
@@ -314,7 +332,9 @@ function InlineToolProgress({
     );
   }
   const showStatusText =
-    tool.state === "approval-requested" || tool.state === "output-denied";
+    tool.isInterrupted ||
+    tool.state === "approval-requested" ||
+    tool.state === "output-denied";
   return (
     <Box
       flexDirection="column"
@@ -333,7 +353,10 @@ function InlineToolProgress({
         {isPendingElsewhere ? (
           <Text color="yellow"> {PENDING_ELSEWHERE_TOOL_STATUS_TEXT}</Text>
         ) : showStatusText ? (
-          <Text color="yellow"> {tool.statusText}</Text>
+          <Text color="yellow" dimColor={tool.isInterrupted}>
+            {" "}
+            {tool.statusText}
+          </Text>
         ) : null}
         {tool.previewText ? <Text dimColor> · {tool.previewText}</Text> : null}
         {tool.statusSuffix ? (
@@ -460,6 +483,12 @@ function Transcript({
         }
         const label = message.role === "user" ? "You" : "PXI";
         const color = message.role === "user" ? "cyan" : "green";
+        const isInterrupted = isInterruptedMessage({ message });
+        // A trailing tool line already carries its own bottom margin.
+        const lastPart = message.parts.at(-1);
+        const endsWithTool =
+          lastPart !== undefined &&
+          getToolProgressFromPart({ part: lastPart }) !== null;
         return (
           <Box key={message.id} flexDirection="column" marginBottom={1}>
             <Text color={color} bold>
@@ -470,6 +499,15 @@ function Transcript({
               hasLivePendingTools={message.id === liveMessageId}
               phoenixBaseUrl={phoenixBaseUrl}
             />
+            {isInterrupted ? (
+              <Box marginTop={endsWithTool ? 0 : 1}>
+                <Text color="yellow" bold>
+                  {message.parts.length > 0
+                    ? INTERRUPTED_RESPONSE_DIVIDER_TEXT
+                    : EMPTY_INTERRUPTED_RESPONSE_DIVIDER_TEXT}
+                </Text>
+              </Box>
+            ) : null}
           </Box>
         );
       })}
@@ -862,50 +900,84 @@ function getDraftInputText({ input }: { input: string }) {
   return input.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
-function getCompletedInterruptedPart({
+/**
+ * Finalize one part of an interrupted message the way the server does: text
+ * and reasoning are marked done, and a tool call still awaiting a result is
+ * resolved as a neutral `output-available` carrying the interrupted outcome.
+ */
+function closeOutInterruptedPart({
   part,
 }: {
   part: PxiMessagePart;
-}): PxiMessagePart | null {
+}): PxiMessagePart {
   if (part.type === "text" || part.type === "reasoning") {
     return { ...part, state: "done" };
   }
   if (part.type === "dynamic-tool") {
-    return part.state === "output-available" ||
-      part.state === "output-error" ||
-      part.state === "output-denied"
-      ? part
-      : null;
+    if (!PENDING_TOOL_STATES.has(part.state)) {
+      return part;
+    }
+    return {
+      type: "dynamic-tool",
+      toolCallId: part.toolCallId,
+      toolName: part.toolName,
+      title: part.title,
+      providerExecuted: part.providerExecuted,
+      state: "output-available",
+      input: part.input,
+      output: INTERRUPTED_TOOL_OUTPUT_TEXT,
+      callProviderMetadata: withInterruptedToolOutcome(
+        part.callProviderMetadata
+      ),
+    };
   }
-  if (
-    "state" in part &&
-    typeof part.type === "string" &&
-    part.type.startsWith("tool-")
-  ) {
-    return part.state === "output-available" ||
-      part.state === "output-error" ||
-      part.state === "output-denied"
-      ? part
-      : null;
+  if (isToolUIPart(part) && PENDING_TOOL_STATES.has(part.state)) {
+    return {
+      type: part.type,
+      toolCallId: part.toolCallId,
+      title: part.title,
+      providerExecuted: part.providerExecuted,
+      state: "output-available",
+      input: part.input,
+      output: INTERRUPTED_TOOL_OUTPUT_TEXT,
+      callProviderMetadata: withInterruptedToolOutcome(
+        part.callProviderMetadata
+      ),
+    };
   }
   return part;
 }
 
+/**
+ * Close out an interrupted assistant message the way the server persists it,
+ * so the transcript does not change when the poll swaps in the persisted copy.
+ */
 function markMessageInterrupted({
   message,
+  sessionId,
 }: {
   message: PxiMessage;
+  sessionId: string;
 }): PxiMessage {
+  const phoenixMetadata = message.metadata?.phoenix;
+  const interruptedMetadata: PhoenixAssistantMessageMetadata =
+    phoenixMetadata?.type === "assistant"
+      ? { ...phoenixMetadata, interrupted: true }
+      : { type: "assistant", sessionId, interrupted: true };
   return {
     ...message,
-    parts: [
-      ...message.parts.flatMap((part) => {
-        const completedPart = getCompletedInterruptedPart({ part });
-        return completedPart ? [completedPart] : [];
-      }),
-      { type: "text", text: INTERRUPTED_MESSAGE_TEXT, state: "done" },
-    ],
+    parts: message.parts.map((part) => closeOutInterruptedPart({ part })),
+    metadata: { ...message.metadata, phoenix: interruptedMetadata },
   };
+}
+
+function isInterruptedMessage({ message }: { message: PxiMessage }) {
+  const phoenixMetadata = message.metadata?.phoenix;
+  return (
+    message.role === "assistant" &&
+    phoenixMetadata?.type === "assistant" &&
+    phoenixMetadata.interrupted === true
+  );
 }
 
 /** Animated "PXI is thinking…" indicator shown while a reply is streaming. */
@@ -1011,6 +1083,13 @@ export function PxiApp({
   );
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
+  /**
+   * Confirmation that the server persisted the turn this client interrupted.
+   * The next send awaits it so its `lastMessageId` check cannot race the
+   * server's write of the interrupted message.
+   */
+  const interruptReconcileRef = useRef<Promise<void> | null>(null);
+  const sendCountRef = useRef(0);
   const modelRequestIdRef = useRef(0);
   const sessionRequestIdRef = useRef(0);
   /**
@@ -1169,15 +1248,97 @@ export function PxiApp({
     exit();
   };
 
+  /** Poll until the persisted transcript's tail is the interrupted message. */
+  const waitForInterruptedTurnPersisted = async ({
+    sessionId,
+    messageId,
+  }: {
+    sessionId: string;
+    messageId: string;
+  }): Promise<boolean> => {
+    for (
+      let attempt = 0;
+      attempt < INTERRUPT_RECONCILE_MAX_ATTEMPTS;
+      attempt += 1
+    ) {
+      if (attempt > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, INTERRUPT_RECONCILE_INTERVAL_MS)
+        );
+      }
+      try {
+        const syncState = await serverSessionClient.getSessionSyncState({
+          sessionId,
+        });
+        if (!syncState.isActive && syncState.lastMessageId === messageId) {
+          return true;
+        }
+      } catch {
+        // Transient failure: try again on the next tick.
+      }
+    }
+    return false;
+  };
+
+  /**
+   * After an interrupt, swap in the server's copy of the turn as soon as it
+   * is persisted instead of waiting for the idle poll. Skipped once a new
+   * send starts: the send only needs the persistence confirmation.
+   */
+  const reconcileInterruptedTurn = ({
+    sessionId,
+    messageId,
+  }: {
+    sessionId: string;
+    messageId: string;
+  }) => {
+    const requestId = sessionRequestIdRef.current;
+    const sendCount = sendCountRef.current;
+    const isSuperseded = () =>
+      sessionRequestIdRef.current !== requestId ||
+      sendCountRef.current !== sendCount;
+    const reconcile = waitForInterruptedTurnPersisted({ sessionId, messageId })
+      .then(async (isPersisted) => {
+        if (!isPersisted || isSuperseded()) {
+          return;
+        }
+        const session = await serverSessionClient.getSession({ sessionId });
+        if (isSuperseded()) {
+          return;
+        }
+        recordSyncedSessionState(session);
+        setActiveSession(session);
+        setMessages(session.messages);
+      })
+      .catch(() => {
+        // The idle poll reconciles on its next tick.
+      })
+      .finally(() => {
+        if (interruptReconcileRef.current === reconcile) {
+          interruptReconcileRef.current = null;
+        }
+      });
+    interruptReconcileRef.current = reconcile;
+  };
+
   const interruptStream = () => {
     if (status !== "streaming") {
       return;
     }
     abortControllerRef.current?.abort();
     const assistantMessage = streamingAssistantMessageRef.current;
+    if (assistantMessage && activeSession) {
+      reconcileInterruptedTurn({
+        sessionId: activeSession.id,
+        messageId: assistantMessage.id,
+      });
+    }
     if (assistantMessage) {
       const interruptedMessage = markMessageInterrupted({
         message: assistantMessage,
+        // Only a draft session has no id; the marker is local until the poll
+        // replaces it with the persisted message.
+        sessionId: activeSession?.id ?? "",
       });
       streamingAssistantMessageRef.current = interruptedMessage;
       setMessages((currentMessages) => {
@@ -1194,6 +1355,7 @@ export function PxiApp({
   const startNewSession = ({ temporary }: { temporary: boolean }) => {
     modelRequestIdRef.current += 1;
     sessionRequestIdRef.current += 1;
+    interruptReconcileRef.current = null;
     setActiveSession(null);
     lastSyncedSessionStateRef.current = null;
     setActiveModelSelection(options.modelSelection);
@@ -1212,6 +1374,7 @@ export function PxiApp({
 
   const closeSessionPicker = () => {
     sessionRequestIdRef.current += 1;
+    interruptReconcileRef.current = null;
     setSessionPicker(null);
   };
 
@@ -1294,6 +1457,7 @@ export function PxiApp({
 
   const openModelPicker = () => {
     sessionRequestIdRef.current += 1;
+    interruptReconcileRef.current = null;
     setSessionPicker(null);
     const requestId = modelRequestIdRef.current + 1;
     modelRequestIdRef.current = requestId;
@@ -1617,6 +1781,7 @@ export function PxiApp({
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     streamingAssistantMessageRef.current = null;
+    sendCountRef.current += 1;
     setError(null);
     setShowStaleRefreshNotice(false);
     setShowModelStaleNotice(false);
@@ -1652,6 +1817,7 @@ export function PxiApp({
       if (!resolvedClient) {
         throw new Error("Could not initialize the PXI chat client.");
       }
+      await interruptReconcileRef.current;
       return resolvedClient.sendMessage({
         messages: nextMessages,
         abortSignal: abortController.signal,
