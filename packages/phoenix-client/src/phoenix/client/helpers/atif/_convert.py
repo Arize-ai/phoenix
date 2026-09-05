@@ -1,14 +1,12 @@
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 """Convert ATIF trajectories into Phoenix spans.
 
-Each trajectory becomes one trace: a root AGENT span, an AGENT span per user
-turn when there are several turns, a CHAIN span per fresh operational step,
-and LLM and TOOL spans beneath each step. Spans are named by their target
-(the agent, model, or tool) because the span kind already names the
-operation; iterations and turns use ATIF vocabulary.
+Each trajectory gets an AGENT root, an AGENT span per turn in multi-turn
+conversations, and a CHAIN span per fresh operational step. LLM and TOOL
+spans sit beneath each step. Linked subagents and continuations share a trace.
 
-ATIF fields with no OpenInference equivalent (``notes``, ``reasoning_effort``,
-token ID arrays, and logprobs) are not mapped.
+ATIF fields without a mapping, including ``notes``, ``reasoning_effort``,
+token ID arrays, and logprobs, are omitted.
 """
 
 from __future__ import annotations
@@ -31,7 +29,7 @@ _LLM_LATENCY_MS_KEY = "_phoenix_llm_latency_ms"
 _LLM_LATENCY_SOURCE_KEY = "_phoenix_llm_latency_source"
 
 _SpanContext = tuple[str, str]
-"""``(parent_span_id, trace_id)`` of the span a child trajectory hangs from."""
+"""``(parent_span_id, trace_id)`` for a child trajectory's parent."""
 
 
 # --- Identity -----------------------------------------------------------------
@@ -224,7 +222,7 @@ def _subagent_parent_span_id(
     result: Mapping[str, Any],
     span_seed: str,
 ) -> str:
-    """Return the closest span the document proves a subagent hangs from.
+    """Choose a subagent's parent from its reference and source call ID.
 
     A ``source_call_id`` that matches one of the step's tool calls attaches the
     child to that tool span. Otherwise the child attaches to the step span, or
@@ -571,7 +569,7 @@ def _build_content_part_attributes(prefix: str, parts: list[Any]) -> Dict[str, A
 
 
 def _tool_call_message(tool_call: Mapping[str, Any]) -> Dict[str, Any]:
-    """Return an OpenAI-style tool call entry for an assistant message."""
+    """Serialize a tool call for reconstructed messages and OpenInference attributes."""
     function: Dict[str, Any] = {"name": tool_call.get("function_name", "")}
     if tool_call.get("arguments") is not None:
         function["arguments"] = json.dumps(tool_call["arguments"])

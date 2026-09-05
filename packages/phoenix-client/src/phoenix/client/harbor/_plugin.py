@@ -69,11 +69,13 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 Harbor's dataset configuration or direct task.
             endpoint: Phoenix HTTP endpoint. Defaults to ``PHOENIX_COLLECTOR_ENDPOINT``.
             api_key: Phoenix API key. Defaults to ``PHOENIX_API_KEY``.
-            trace_mode: Trace recording mode. ``"atif"`` (the default) attaches the persisted
-                Harbor trajectories to each experiment run. ``None`` disables tracing; on the
-                Harbor command line, pass ``--plugin-kwarg trace_mode=null``.
+            trace_mode: Defaults to ``"atif"``, which converts saved Harbor trajectories
+                and links the trace after Phoenix accepts its spans. Tracing failures warn
+                and leave the run untraced; they do not change its scores or error status.
+                ``None`` disables tracing. On the Harbor command line, pass
+                ``--plugin-kwarg trace_mode=null``.
             experiment_name: Exact Phoenix experiment name. This is only valid when the Harbor
-                job resolves one experiment slice.
+                job has one agent configuration.
             experiment_name_template: Format string used to name one Phoenix experiment per
                 resolved agent configuration. Supported fields are published in
                 ``EXPERIMENT_NAME_TEMPLATE_FIELDS``.

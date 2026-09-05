@@ -407,7 +407,7 @@ def _documents_with_embedded_subagents(
 def _request_timed_llm_steps(
     documents: Sequence[MutableMapping[str, Any]],
 ) -> list[MutableMapping[str, Any]] | None:
-    """Return fresh LLM steps in a defensible request order.
+    """Return fresh LLM steps in document order, or timestamp order across documents.
 
     Step order is authoritative within one document. Across continuation or
     subagent documents, timestamps are required so their events can be merged
@@ -446,9 +446,9 @@ def _apply_request_times(documents: Sequence[MutableMapping[str, Any]], agent_co
     """Copy Harbor's per-request measurements into matching ATIF LLM steps.
 
     Some Harbor agents record request latency on ``AgentContext`` but omit it
-    from ATIF. Enrichment is all-or-nothing so a partial or aggregated list can
-    never be shifted onto the wrong steps. Phoenix-private fields keep this
-    Harbor convention out of the general ATIF schema.
+    from ATIF. Apply durations only when the counts match and the steps can
+    be ordered. Phoenix-private fields keep this Harbor convention out of
+    the general ATIF schema.
     """
     context_metadata = getattr(agent_context, "metadata", None)
     if not isinstance(context_metadata, Mapping):

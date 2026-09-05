@@ -293,9 +293,9 @@ class PhoenixRecorder:
     ) -> str | None:
         """Upload missing spans and return the trace ID once Phoenix accepts them all.
 
-        Spans become queryable shortly after Phoenix queues them. A run recorded
-        without a trace keeps no trace: experiment runs are immutable, so replay
-        cannot attach one later.
+        Spans become queryable shortly after Phoenix queues them. Lookup or
+        upload failures warn and return None. A successful run recorded without
+        a trace cannot gain one on replay because successful runs are immutable.
         """
         try:
             project_name = await self._project_name(experiment)
