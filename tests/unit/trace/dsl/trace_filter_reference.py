@@ -252,8 +252,8 @@ _ELEMENT_FIELDS: Mapping[str, frozenset[str]] = {
             "llm_token_count_total",
         }
     ),
-    "trace_annotations": frozenset({"name", "label", "score"}),
-    "span_annotations": frozenset({"name", "label", "score"}),
+    "trace_annotations": frozenset({"name", "label", "score", "identifier"}),
+    "span_annotations": frozenset({"name", "label", "score", "identifier"}),
     "span_cost_details": frozenset({"token_type", "is_prompt", "cost", "tokens", "cost_per_token"}),
 }
 
@@ -364,7 +364,7 @@ class _Evaluator:
     def _annotation_attribute(self, node: ast.Attribute) -> Any:
         key = _annotation_key(node.value)
         annotation = self._annotations.get(str(key))
-        if annotation is None or node.attr not in ("score", "label"):
+        if annotation is None or node.attr not in ("score", "label", "identifier"):
             return MISSING
         value = getattr(annotation, node.attr)
         return MISSING if value is None else value
@@ -881,6 +881,19 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'trace_annotations["Quality"].score > 0.5 and trace_annotations["Quality"].label == "good"',
     'trace_annotations["Quality"].score is None',
     'trace_annotations["Missing"].score > 0',
+    'trace_annotations["Quality"].identifier == "second"',
+    'trace_annotations["Quality"].identifier == "missing-run"',
+    'trace_annotations["Quality"].identifier == ""',
+    'trace_annotations["Quality"].identifier == "second" and '
+    'trace_annotations["Quality"].label == "bad"',
+    'trace_annotations["Quality"].identifier == "second" and '
+    'trace_annotations["Quality"].label == "good"',
+    'trace_annotations["Quality"].identifier == "third" and '
+    'trace_annotations["Quality"].score is None',
+    'trace_annotations["Missing"].identifier == ""',
+    'any(a.name == "Quality" and a.identifier == "third" for a in trace_annotations)',
+    'any(a.identifier == "" for a in trace_annotations)',
+    'any(a.identifier == "second" for a in span_annotations)',
     '"hello" in input',
     'input == "Hello there"',
     'output == "Goodbye"',

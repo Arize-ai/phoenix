@@ -183,6 +183,7 @@ _ANNOTATION_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyTyp
         "name": _ElementField("name", "string"),
         "label": _ElementField("label", "string"),
         "score": _ElementField("score", "float"),
+        "identifier": _ElementField("identifier", "string"),
     }
 )
 _COST_DETAIL_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
@@ -476,9 +477,11 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "session_annotations.name": "Annotation name.",
         "session_annotations.label": "Annotation label; null when the annotation has none.",
         "session_annotations.score": "Annotation score; null when the annotation has none.",
+        "session_annotations.identifier": "Annotation identifier; empty string when unset.",
         "span_annotations.name": "Annotation name.",
         "span_annotations.label": "Annotation label; null when the annotation has none.",
         "span_annotations.score": "Annotation score; null when the annotation has none.",
+        "span_annotations.identifier": "Annotation identifier; empty string when unset.",
         "span_cost_details.token_type": (
             "Token type this cost row covers, e.g. input, output, audio."
         ),

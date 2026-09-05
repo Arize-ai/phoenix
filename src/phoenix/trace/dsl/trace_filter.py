@@ -154,6 +154,7 @@ _ANNOTATION_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyTyp
         "name": _ElementField("name", "string"),
         "label": _ElementField("label", "string"),
         "score": _ElementField("score", "float"),
+        "identifier": _ElementField("identifier", "string"),
     }
 )
 _COST_DETAIL_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
@@ -484,9 +485,13 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "trace_annotations.name": "A trace annotation's name.",
         "trace_annotations.label": "A trace annotation's label; null when absent.",
         "trace_annotations.score": "A trace annotation's score; null when absent.",
+        "trace_annotations.identifier": (
+            "A trace annotation's identifier; empty string when unset."
+        ),
         "span_annotations.name": "A span annotation's name.",
         "span_annotations.label": "A span annotation's label; null when absent.",
         "span_annotations.score": "A span annotation's score; null when absent.",
+        "span_annotations.identifier": "A span annotation's identifier; empty string when unset.",
         "span_cost_details.token_type": "Token type covered by a span cost row in the trace.",
         "span_cost_details.is_prompt": (
             "Whether a span cost row in the trace counts toward the prompt side."
