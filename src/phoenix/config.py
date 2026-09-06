@@ -374,6 +374,7 @@ Whether to mask internal server errors from the GraphQL and REST APIs. Defaults 
 
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
+ENV_PHOENIX_CSP_IMG_SRC_ALLOWLIST = "PHOENIX_CSP_IMG_SRC_ALLOWLIST"
 ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
 """
 Forbid login via password and disable the creation of local users, which log in via passwords.
@@ -1226,6 +1227,13 @@ def get_env_enable_auth() -> bool:
     Gets the value of the PHOENIX_ENABLE_AUTH environment variable.
     """
     return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
+
+
+def get_env_csp_img_src_allowlist() -> str:
+    """
+    Gets the img-src allowlist for the UI Content-Security-Policy.
+    """
+    return os.environ.get(ENV_PHOENIX_CSP_IMG_SRC_ALLOWLIST, "'self' data:")
 
 
 def get_env_disable_basic_auth() -> bool:

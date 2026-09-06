@@ -65,6 +65,7 @@ from phoenix.config import (
     get_env_allow_external_resources,
     get_env_allowed_providers,
     get_env_allowed_sandbox_providers,
+    get_env_csp_img_src_allowlist,
     get_env_csrf_trusted_origins,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
@@ -392,6 +393,21 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
         response.headers[PHOENIX_SERVER_VERSION_HEADER] = phoenix_version
+        img_src = get_env_csp_img_src_allowlist()
+        response.headers["Content-Security-Policy"] = "; ".join(
+            (
+                "default-src 'self'",
+                "script-src 'self' 'wasm-unsafe-eval' blob:",
+                "style-src 'self' 'unsafe-inline'",
+                f"img-src {img_src}",
+                "font-src 'self' data:",
+                "connect-src 'self'",
+                "worker-src 'self' blob:",
+                "object-src 'none'",
+                "base-uri 'self'",
+                "frame-ancestors 'self'",
+            )
+        )
         return response
 
 
