@@ -155,7 +155,7 @@ def _experiment_records(endpoint: str, experiment_id: str) -> list[dict[str, Any
     with urllib.request.urlopen(
         f"{endpoint}/v1/experiments/{experiment_id}/json", timeout=10
     ) as response:
-        return json.loads(response.read())
+        return cast(list[dict[str, Any]], json.loads(response.read()))
 
 
 def _evaluation_state(

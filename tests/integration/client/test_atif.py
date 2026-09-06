@@ -17,7 +17,6 @@ from secrets import token_hex
 from typing import Any, Dict, Iterator, List
 
 import pytest
-
 from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.atif import (  # pyright: ignore[reportPrivateUsage]
