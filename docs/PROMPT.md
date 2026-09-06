@@ -89,6 +89,7 @@ This is the **canonical list** of supported integrations. Use these tables to ma
 | `llama_index` | LlamaIndex | https://arize.com/docs/phoenix/integrations/python/llamaindex |
 | `crewai` | CrewAI | https://arize.com/docs/phoenix/integrations/python/crewai |
 | `dspy` | DSPy | https://arize.com/docs/phoenix/integrations/python/dspy |
+| `ag2` | AG2 | https://arize.com/docs/phoenix/integrations/python/ag2 |
 | `autogen` | AutoGen | https://arize.com/docs/phoenix/integrations/python/autogen |
 | `pydantic_ai` | Pydantic AI | https://arize.com/docs/phoenix/integrations/python/pydantic |
 | `haystack` | Haystack | https://arize.com/docs/phoenix/integrations/python/haystack |
