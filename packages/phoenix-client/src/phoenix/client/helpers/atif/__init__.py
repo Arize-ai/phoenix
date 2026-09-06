@@ -61,8 +61,11 @@ def upload_atif_trajectories_as_spans(
 ) -> v1.CreateSpansResponseBody:
     """Upload one or more ATIF trajectories as spans to Phoenix.
 
-    Supports ATIF schema versions v1.0 through v1.7. Callers load the documents;
-    this helper does not read referenced files, fetch URLs, or upload media bytes.
+    Converts ATIF (Agent Trajectory Interchange Format) trajectory dicts
+    into Phoenix/OpenTelemetry-compatible span trees and uploads them.
+    Supports ATIF schema versions v1.0 through v1.7. Callers load the
+    documents; this helper does not read referenced files, fetch URLs, or
+    upload media bytes.
 
     **Trace structure**
 

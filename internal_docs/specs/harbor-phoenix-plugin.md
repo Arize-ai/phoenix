@@ -165,9 +165,9 @@ Phoenix version requirements depend on the feature:
 | --- | --- | --- |
 | Experiment/run/evaluation logging | `arize-phoenix-client>=2.10.0` | Released |
 | Stable external dataset example IDs | Phoenix server `>=15.0` | Released |
-| ATIF span lookup and replay verification (§5) | Phoenix server `>=19.6` | Released; ATIF-mode-only floor |
+| ATIF trace lookup and replay verification (§5) | Phoenix server `>=13.9` | Released; ATIF-mode-only floor |
 
-Phoenix server `>=19.6` is required only for the span lookup used by ATIF mode.
+Phoenix server `>=13.9` is required only for the trace ID filter used by ATIF mode.
 
 ### Job start
 
@@ -356,7 +356,7 @@ Deterministic IDs do not make span upload idempotent. Phoenix has two important 
 Before upload, query the expected span IDs and send only missing spans. Link the run as soon as
 Phoenix reports every missing span queued. The spans become queryable within Phoenix's bulk-insert
 interval. Successful experiment runs are immutable. A successful run recorded without a trace
-keeps no trace on later replays. This query requires Phoenix server `>=19.6` in `atif` mode.
+keeps no trace on later replays. This query requires Phoenix server `>=13.9` in `atif` mode.
 
 ### Planned OTLP mode
 
