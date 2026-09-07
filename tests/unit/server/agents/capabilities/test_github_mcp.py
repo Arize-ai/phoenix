@@ -7,6 +7,7 @@ import httpx
 import pytest
 from pydantic import SecretStr
 from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import ApprovalRequiredToolset, FilteredToolset
 
@@ -118,6 +119,22 @@ class TestDegradeOnConnectFailure:
         # A second enter after failure stays degraded and still does not raise.
         async with toolset:
             assert await toolset.get_tools(Mock()) == {}
+
+    async def test_tool_listing_failure_degrades_instead_of_raising(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A transport failure AFTER a successful init (tools/list is its own
+        # RPC) must also degrade to no tools rather than fail the turn with a
+        # potentially header-echoing exception.
+        toolset: GitHubMCPToolset[Any] = GitHubMCPToolset(_config())
+
+        async def raise_transport_error(self: Any, ctx: Any) -> Any:
+            raise httpx.ConnectError(f"listing failed, headers: Bearer {_TOKEN}")
+
+        monkeypatch.setattr(MCPToolset, "get_tools", raise_transport_error)
+        assert await toolset.get_tools(Mock()) == {}
+        # The toolset stays degraded for the rest of the run.
+        assert await toolset.get_tools(Mock()) == {}
 
 
 class TestErrorSanitization:

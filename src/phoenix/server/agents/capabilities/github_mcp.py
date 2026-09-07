@@ -99,7 +99,19 @@ class GitHubMCPToolset(MCPToolset[AgentDepsT]):
     async def get_tools(self, ctx: RunContext[AgentDepsT]) -> dict[str, Any]:
         if self._unavailable:
             return {}
-        return await super().get_tools(ctx)
+        try:
+            return await super().get_tools(ctx)
+        except Exception as exc:
+            # Same degrade-and-sanitize policy as __aenter__: a tools/list
+            # failure after a successful init must not fail the turn, and the
+            # raw exception text can echo request headers, including the auth
+            # header, so only the failure class is logged.
+            logger.warning(
+                "GitHub MCP tool listing failed (%s); continuing the turn without GitHub tools",
+                type(exc).__name__,
+            )
+            self._unavailable = True
+            return {}
 
 
 async def _call_tool_with_sanitized_errors(
