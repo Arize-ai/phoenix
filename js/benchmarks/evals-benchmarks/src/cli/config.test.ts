@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAULT_EVAL_MODEL } from "../resolveEvalModel.js";
 import {
+  assertPromptTechniques,
   assertSingleValueAxes,
   buildExperimentName,
   buildSweepCoordinates,
@@ -12,6 +13,7 @@ import {
   DEFAULT_DATA_FORMAT,
   DEFAULT_PROMPT_TECHNIQUE,
   listEvaluators,
+  listPromptTechniques,
   resolveEvalFile,
   resolveSweepPlans,
   splitCsvList,
@@ -106,52 +108,74 @@ describe("listEvaluators / resolveEvalFile", () => {
 });
 
 describe("assertSingleValueAxes", () => {
-  it("allows omitted or single-value prompt/format", () => {
-    expect(() =>
-      assertSingleValueAxes({ prompts: [], formats: [] })
-    ).not.toThrow();
-    expect(() =>
-      assertSingleValueAxes({
-        prompts: ["zero-shot"],
-        formats: ["raw"],
-      })
-    ).not.toThrow();
+  it("allows omitted or single-value format", () => {
+    expect(() => assertSingleValueAxes({ formats: [] })).not.toThrow();
+    expect(() => assertSingleValueAxes({ formats: ["raw"] })).not.toThrow();
   });
 
-  it("rejects a prompt or format matrix", () => {
+  it("rejects a format matrix", () => {
     expect(() =>
       assertSingleValueAxes({
-        prompts: ["zero-shot", "few-shot"],
-        formats: ["raw"],
-      })
-    ).toThrow(/not implemented yet/);
-    expect(() =>
-      assertSingleValueAxes({
-        prompts: ["zero-shot"],
         formats: ["raw", "messages"],
       })
     ).toThrow(/not implemented yet/);
   });
 });
 
+describe("assertPromptTechniques", () => {
+  it("allows default for every evaluator and few-shot for toxicity", () => {
+    expect(listPromptTechniques({ evaluator: "toxicity" })).toEqual([
+      "default",
+      "few-shot",
+    ]);
+    expect(listPromptTechniques({ evaluator: "hallucination" })).toEqual([
+      "default",
+    ]);
+    expect(() =>
+      assertPromptTechniques({
+        evaluator: "toxicity",
+        prompts: ["default", "few-shot"],
+      })
+    ).not.toThrow();
+  });
+
+  it("rejects few-shot on evaluators without a template", () => {
+    expect(() =>
+      assertPromptTechniques({
+        evaluator: "hallucination",
+        prompts: ["few-shot"],
+      })
+    ).toThrow(/Unsupported prompt technique/);
+  });
+});
+
 describe("coordinates and env", () => {
-  it("stamps the cell model and sets EVAL_MODEL for the child process", () => {
+  it("stamps the cell model and prompt and sets env for the child process", () => {
     const coordinates = buildSweepCoordinates({
       evalModelName: DEFAULT_EVAL_MODEL,
+      promptTechnique: "few-shot",
     });
     expect(coordinates).toEqual({
       model: DEFAULT_EVAL_MODEL,
-      promptTechnique: DEFAULT_PROMPT_TECHNIQUE,
+      promptTechnique: "few-shot",
       dataFormat: DEFAULT_DATA_FORMAT,
     });
     expect(buildExperimentName({ evaluator: "toxicity", coordinates })).toBe(
-      "toxicity / gpt-4o-mini / default / default"
+      "toxicity / gpt-4o-mini / few-shot / default"
     );
     expect(buildSweepEnv({ experimentName: "n", coordinates })).toEqual({
       EVAL_MODEL: DEFAULT_EVAL_MODEL,
+      EVAL_PROMPT_TECHNIQUE: "few-shot",
       PHOENIX_EXPERIMENT_NAME: "n",
       PHOENIX_EXPERIMENT_METADATA: JSON.stringify(coordinates),
     });
+  });
+
+  it("defaults promptTechnique when omitted", () => {
+    expect(
+      buildSweepCoordinates({ evalModelName: DEFAULT_EVAL_MODEL })
+        .promptTechnique
+    ).toBe(DEFAULT_PROMPT_TECHNIQUE);
   });
 });
 
@@ -179,7 +203,7 @@ describe("resolveSweepPlans", () => {
     });
   });
 
-  it("emits one plan per --models value", () => {
+  it("emits one plan per --models value when --prompts is omitted", () => {
     const srcDir = writeEvalFiles({ ids: ["toxicity"] });
     const plans = resolveSweepPlans({
       flags: {
@@ -205,18 +229,56 @@ describe("resolveSweepPlans", () => {
     ).toBe("gpt-4o");
   });
 
-  it("errors when --prompts or --formats request a matrix", () => {
+  it("emits a cartesian product of --models and --prompts", () => {
+    const srcDir = writeEvalFiles({ ids: ["toxicity"] });
+    const plans = resolveSweepPlans({
+      flags: {
+        help: false,
+        evaluator: "toxicity",
+        models: "gpt-4o-mini,gpt-4o",
+        prompts: "default,few-shot",
+      },
+      srcDir,
+    });
+    expect(plans.map((plan) => plan.experimentName)).toEqual([
+      "toxicity / gpt-4o-mini / default / default",
+      "toxicity / gpt-4o-mini / few-shot / default",
+      "toxicity / gpt-4o / default / default",
+      "toxicity / gpt-4o / few-shot / default",
+    ]);
+    expect(
+      buildSweepEnv({
+        experimentName: plans[1]!.experimentName,
+        coordinates: plans[1]!.coordinates,
+      }).EVAL_PROMPT_TECHNIQUE
+    ).toBe("few-shot");
+  });
+
+  it("errors when --formats request a matrix", () => {
     const srcDir = writeEvalFiles({ ids: ["toxicity"] });
     expect(() =>
       resolveSweepPlans({
         flags: {
           help: false,
           evaluator: "toxicity",
-          models: "gpt-4o-mini,gpt-4o",
-          prompts: "zero-shot,few-shot",
+          formats: "raw,messages",
         },
         srcDir,
       })
     ).toThrow(/not implemented yet/);
+  });
+
+  it("errors when few-shot is requested for another evaluator", () => {
+    const srcDir = writeEvalFiles({ ids: ["hallucination"] });
+    expect(() =>
+      resolveSweepPlans({
+        flags: {
+          help: false,
+          evaluator: "hallucination",
+          prompts: "few-shot",
+        },
+        srcDir,
+      })
+    ).toThrow(/Unsupported prompt technique/);
   });
 });

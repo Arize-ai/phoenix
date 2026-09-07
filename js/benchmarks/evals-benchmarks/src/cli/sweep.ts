@@ -1,10 +1,10 @@
 /**
  * Eval-library benchmark sweep entry point.
  *
- * Each --models value is one Vitest process / Phoenix experiment on the same
- * dataset. Prompt and format stay at the baked-in defaults.
+ * Each model × prompt cell is one Vitest process / Phoenix experiment on the
+ * same dataset. Format stays at the baked-in default.
  *
- *   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --models gpt-4o-mini,gpt-4o
+ *   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --prompts default,few-shot
  */
 import { spawn } from "node:child_process";
 import { delimiter, join } from "node:path";
@@ -53,18 +53,22 @@ function runVitest({
 }
 
 async function main(): Promise<void> {
+  /* step 1: parse arguments */
   const flags = parseSweepArgs(process.argv.slice(2));
   if (flags.help) {
     process.stdout.write(SWEEP_HELP);
     return;
   }
+  /* step 2: get the list of plans to execute */
   const plans = resolveSweepPlans({ flags, srcDir });
   let failed = false;
   for (const plan of plans) {
+    /* step 3: build the environment variables for the child process */
     const sweepEnv = buildSweepEnv({
       experimentName: plan.experimentName,
       coordinates: plan.coordinates,
     });
+    /* step 4: run the child process */
     const exitCode = await runVitest({
       evalFile: plan.evalFile,
       env: { ...process.env, ...sweepEnv },

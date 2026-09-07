@@ -5,8 +5,16 @@ import { DEFAULT_EVAL_MODEL } from "../resolveEvalModel.js";
 
 export const DEFAULT_PROMPT_TECHNIQUE = "default";
 export const DEFAULT_DATA_FORMAT = "default";
+export const FEW_SHOT_PROMPT_TECHNIQUE = "few-shot";
 
 const EVAL_FILE_SUFFIX = ".eval.ts";
+
+/** Techniques available for every evaluator. Extra techniques are per-evaluator. */
+const UNIVERSAL_PROMPT_TECHNIQUES = [DEFAULT_PROMPT_TECHNIQUE] as const;
+
+const EXTRA_PROMPT_TECHNIQUES: Partial<Record<string, readonly string[]>> = {
+  toxicity: [FEW_SHOT_PROMPT_TECHNIQUE],
+};
 
 export class SweepCliError extends Error {
   readonly exitCode: number;
@@ -21,21 +29,23 @@ export class SweepCliError extends Error {
 export const SWEEP_HELP = `Usage:
   pnpm --filter evals-benchmarks sweep -- --evaluator <id> [options]
 
-Run eval-library benchmarks as Phoenix experiments. Each --models value is one
-experiment on the same dataset (sequential Vitest runs). --prompts and --formats
-are still single-value only; omit them to use the baked-in prompt and format.
+Run eval-library benchmarks as Phoenix experiments. Each model × prompt cell is
+one experiment on the same dataset (sequential Vitest runs). --formats is still
+single-value only; omit it to use the baked-in format.
 
 Options:
   --evaluator <id>   Required. Benchmark id (filename without ${EVAL_FILE_SUFFIX}).
   --models <list>    Comma-separated judge models (default: EVAL_MODEL or gpt-4o-mini).
                      Use provider:model when the id is ambiguous (e.g. anthropic:claude-sonnet-4-5).
-  --prompts <list>   Prompt techniques (reserved; at most one value).
+  --prompts <list>   Prompt techniques (default: default). default is always valid;
+                     few-shot is currently only implemented for toxicity.
   --formats <list>   Data formats (reserved; at most one value).
   -h, --help         Show this help.
 
 Examples:
   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity
   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --models gpt-4o-mini,gpt-4o
+  pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --prompts default,few-shot
 `;
 
 export type SweepCliFlags = {
@@ -84,6 +94,18 @@ export function listEvaluators({ srcDir }: { srcDir: string }): string[] {
 }
 
 /**
+ * Prompt techniques implemented for an evaluator (`default` plus extras).
+ */
+export function listPromptTechniques({
+  evaluator,
+}: {
+  evaluator: string;
+}): string[] {
+  const extras = EXTRA_PROMPT_TECHNIQUES[evaluator] ?? [];
+  return [...UNIVERSAL_PROMPT_TECHNIQUES, ...extras];
+}
+
+/**
  * Resolve `--evaluator` to a path relative to the package root (`src/<id>.eval.ts`).
  */
 export function resolveEvalFile({
@@ -103,39 +125,61 @@ export function resolveEvalFile({
 }
 
 /**
- * Prompt and format axes are still single-value. Models may be a list.
+ * Format axis is still single-value.
  */
 export function assertSingleValueAxes({
-  prompts,
   formats,
 }: {
-  prompts: string[];
   formats: string[];
 }): void {
-  const hasUnimplementedMatrix = prompts.length > 1 || formats.length > 1;
-  if (!hasUnimplementedMatrix) {
+  if (formats.length <= 1) {
     return;
   }
   throw new SweepCliError(
     [
-      "Prompt and format sweeps are not implemented yet.",
-      "Pass at most one value each for --prompts and --formats,",
-      "or omit those flags. --models may list multiple judges.",
+      "Format sweeps are not implemented yet.",
+      "Pass at most one value for --formats, or omit the flag.",
+      "--models and --prompts may list multiple values.",
     ].join(" ")
   );
 }
 
 /**
- * Coordinates for one sweep cell. Prompt/format stay at the baked-in default.
+ * Reject unknown or unimplemented prompt techniques for this evaluator.
+ */
+export function assertPromptTechniques({
+  evaluator,
+  prompts,
+}: {
+  evaluator: string;
+  prompts: string[];
+}): void {
+  const allowed = listPromptTechniques({ evaluator });
+  const unknown = prompts.filter((technique) => !allowed.includes(technique));
+  if (unknown.length === 0) {
+    return;
+  }
+  throw new SweepCliError(
+    [
+      `Unsupported prompt technique(s) for ${JSON.stringify(evaluator)}: ${unknown.join(", ")}.`,
+      `Known for this evaluator: ${allowed.join(", ")}.`,
+    ].join(" ")
+  );
+}
+
+/**
+ * Coordinates for one sweep cell. Format stays at the baked-in default.
  */
 export function buildSweepCoordinates({
   evalModelName = process.env.EVAL_MODEL ?? DEFAULT_EVAL_MODEL,
+  promptTechnique = DEFAULT_PROMPT_TECHNIQUE,
 }: {
   evalModelName?: string;
+  promptTechnique?: string;
 } = {}): SweepCoordinates {
   return {
     model: evalModelName,
-    promptTechnique: DEFAULT_PROMPT_TECHNIQUE,
+    promptTechnique,
     dataFormat: DEFAULT_DATA_FORMAT,
   };
 }
@@ -154,7 +198,7 @@ export function buildExperimentName({
 }
 
 /**
- * Env vars the child Vitest process uses for judge model and experiment identity.
+ * Env vars the child Vitest process uses for judge model, prompt, and experiment identity.
  */
 export function buildSweepEnv({
   experimentName,
@@ -165,21 +209,27 @@ export function buildSweepEnv({
 }): Record<string, string> {
   return {
     EVAL_MODEL: coordinates.model,
+    EVAL_PROMPT_TECHNIQUE: coordinates.promptTechnique,
     PHOENIX_EXPERIMENT_NAME: experimentName,
     PHOENIX_EXPERIMENT_METADATA: JSON.stringify(coordinates),
   };
 }
 
-function buildPlanForModel({
+function buildPlanForCell({
   evaluator,
   evalFile,
   evalModelName,
+  promptTechnique,
 }: {
   evaluator: string;
   evalFile: string;
   evalModelName: string;
+  promptTechnique: string;
 }): SweepPlan {
-  const coordinates = buildSweepCoordinates({ evalModelName });
+  const coordinates = buildSweepCoordinates({
+    evalModelName,
+    promptTechnique,
+  });
   const experimentName = buildExperimentName({ evaluator, coordinates });
   return {
     evaluator,
@@ -191,7 +241,7 @@ function buildPlanForModel({
 }
 
 /**
- * Build one sweep cell per judge model from CLI flags.
+ * Build one sweep cell per model × prompt combination from CLI flags.
  */
 export function resolveSweepPlans({
   flags,
@@ -210,13 +260,23 @@ export function resolveSweepPlans({
     throw new SweepCliError(`Missing required --evaluator.\n\n${SWEEP_HELP}`);
   }
   const models = splitCsvList(flags.models);
+  const prompts = splitCsvList(flags.prompts);
   assertSingleValueAxes({
-    prompts: splitCsvList(flags.prompts),
     formats: splitCsvList(flags.formats),
   });
   const evalFile = resolveEvalFile({ evaluator, srcDir });
+  assertPromptTechniques({ evaluator, prompts });
   const modelNames = models.length > 0 ? models : [evalModelName];
-  return modelNames.map((modelName) =>
-    buildPlanForModel({ evaluator, evalFile, evalModelName: modelName })
+  const promptTechniques =
+    prompts.length > 0 ? prompts : [DEFAULT_PROMPT_TECHNIQUE];
+  return modelNames.flatMap((modelName) =>
+    promptTechniques.map((promptTechnique) =>
+      buildPlanForCell({
+        evaluator,
+        evalFile,
+        evalModelName: modelName,
+        promptTechnique,
+      })
+    )
   );
 }

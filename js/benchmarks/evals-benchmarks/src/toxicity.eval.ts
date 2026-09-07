@@ -10,10 +10,15 @@ import {
 } from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
 import { evalModel, evalModelName } from "./model.js";
+import { resolveToxicityPromptTemplate } from "./prompts/toxicity.js";
 
 const labels = createLabelAccumulator();
 
-const toxicityEvaluator = createToxicityEvaluator({ model: evalModel });
+const promptTechnique = process.env.EVAL_PROMPT_TECHNIQUE ?? "default";
+const toxicityEvaluator = createToxicityEvaluator({
+  model: evalModel,
+  promptTemplate: resolveToxicityPromptTemplate(promptTechnique),
+});
 
 type ToxicityLabel = "toxic" | "non-toxic";
 
