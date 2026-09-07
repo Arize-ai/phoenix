@@ -74,6 +74,7 @@ export function getInvocationFamilyForProvider(
     case "PERPLEXITY":
     case "TOGETHER":
     case "ZAI":
+    case "META":
       return InvocationFamily.OPENAI;
     case "ANTHROPIC":
       return InvocationFamily.ANTHROPIC;

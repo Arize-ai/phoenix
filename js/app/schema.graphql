@@ -2424,6 +2424,7 @@ enum GenerativeProviderKey {
   PERPLEXITY
   TOGETHER
   ZAI
+  META
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2574,6 +2575,7 @@ enum ModelProvider {
   PERPLEXITY
   TOGETHER
   ZAI
+  META
 }
 
 input ModelsInput {
