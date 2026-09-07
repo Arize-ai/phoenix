@@ -119,7 +119,7 @@ class ReferenceTrace:
 
     @property
     def error_count(self) -> int:
-        return sum(1 for span in self.spans if span.status_code.upper() == "ERROR")
+        return sum(1 for span in self.spans if span.status_code == "ERROR")
 
     @property
     def token_count_prompt(self) -> int:
@@ -159,10 +159,10 @@ class ReferenceTrace:
 
     @property
     def _llm_spans(self) -> tuple[ReferenceSpan, ...]:
-        return tuple(span for span in self.spans if span.span_kind.upper() == "LLM")
+        return tuple(span for span in self.spans if span.span_kind == "LLM")
 
     def _span_kind_count(self, span_kind: str) -> int:
-        return sum(1 for span in self.spans if span.span_kind.upper() == span_kind)
+        return sum(1 for span in self.spans if span.span_kind == span_kind)
 
     def annotations_named(self, name: str) -> tuple[ReferenceAnnotation, ...]:
         return tuple(annotation for annotation in self.annotations if annotation.name == name)
@@ -190,14 +190,12 @@ class ReferenceTrace:
         return self.start_time_for(span) + timedelta(milliseconds=span.latency_ms)
 
     def cumulative_error_count(self, span: ReferenceSpan) -> int:
-        return int(span.status_code.upper() == "ERROR") + sum(
+        return int(span.status_code == "ERROR") + sum(
             self.cumulative_error_count(child) for child in self.children(span)
         )
 
     def cumulative_token_count(self, span: ReferenceSpan, side: str) -> int:
-        own = (
-            getattr(span, f"llm_token_count_{side}") or 0 if span.span_kind.upper() == "LLM" else 0
-        )
+        own = getattr(span, f"llm_token_count_{side}") or 0 if span.span_kind == "LLM" else 0
         return own + sum(self.cumulative_token_count(child, side) for child in self.children(span))
 
 
@@ -769,7 +767,7 @@ FIXTURE_TRACES: tuple[ReferenceTrace, ...] = (
         spans=(
             ReferenceSpan(
                 "Chat",
-                span_kind="llm",
+                span_kind="LLM",
                 llm_token_count_prompt=10,
                 llm_token_count_completion=5,
                 attributes={
@@ -782,12 +780,12 @@ FIXTURE_TRACES: tuple[ReferenceTrace, ...] = (
             ),
             ReferenceSpan(
                 "lookup",
-                span_kind="tool",
+                span_kind="TOOL",
                 parent="root",
                 llm_token_count_prompt=999,
                 annotations=(ReferenceAnnotation("Correctness", label="correct", score=0.9),),
             ),
-            ReferenceSpan("lookup-peer", span_kind="tool", parent="root"),
+            ReferenceSpan("lookup-peer", span_kind="TOOL", parent="root"),
         ),
     ),
     ReferenceTrace(
@@ -801,7 +799,7 @@ FIXTURE_TRACES: tuple[ReferenceTrace, ...] = (
                 llm_token_count_completion=3,
                 attributes={"input": {"value": "Please refund"}},
             ),
-            ReferenceSpan("search", span_kind="TOOL", status_code="error", parent="root"),
+            ReferenceSpan("search", span_kind="TOOL", status_code="ERROR", parent="root"),
             ReferenceSpan("search", span_kind="TOOL", parent="root"),
         ),
     ),

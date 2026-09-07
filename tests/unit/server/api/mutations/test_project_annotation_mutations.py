@@ -89,7 +89,7 @@ async def annotation_data(db: DbSessionFactory) -> AnnotationData:
                 trace_rowid=trace_rowid,
                 span_id=span_id,
                 name=span_id,
-                span_kind="internal",
+                span_kind="UNKNOWN",
                 start_time=start_time,
                 end_time=start_time,
                 attributes={},

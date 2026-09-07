@@ -1270,7 +1270,7 @@ def token_counts_by_trace(keys: Collection[int]) -> Select[Any]:
             func.sum(func.coalesce(models.Span.llm_token_count_prompt, 0)).label("prompt"),
             func.sum(func.coalesce(models.Span.llm_token_count_completion, 0)).label("completion"),
         )
-        .where(func.upper(models.Span.span_kind) == "LLM")
+        .where(models.Span.span_kind == "LLM")
         .where(models.Span.trace_rowid.in_(keys))
         .group_by(models.Span.trace_rowid)
     )

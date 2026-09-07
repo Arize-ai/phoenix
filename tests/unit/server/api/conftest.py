@@ -51,7 +51,7 @@ async def span_data_with_documents(db: DbSessionFactory) -> None:
             trace_rowid=trace.id,
             span_id="f2fbba1d7911049c",
             name="foo",
-            span_kind="bar",
+            span_kind="UNKNOWN",
             start_time=datetime.now(),
             end_time=datetime.now(),
             attributes={

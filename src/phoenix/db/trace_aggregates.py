@@ -114,7 +114,7 @@ def token_counts_by_trace() -> TraceAggregate:
             func.sum(models.Span.llm_token_count_total).label("total"),
         ),
         source=models.Span,
-        where=(func.upper(models.Span.span_kind) == "LLM",),
+        where=(models.Span.span_kind == "LLM",),
     )
 
 
@@ -137,7 +137,7 @@ def span_kind_count_by_trace(span_kind: str) -> TraceAggregate:
         group_key=models.Span.trace_rowid,
         values=(func.count(models.Span.id).label("span_kind_count"),),
         source=models.Span,
-        where=(func.upper(models.Span.span_kind) == span_kind.upper(),),
+        where=(models.Span.span_kind == span_kind.upper(),),
     )
 
 
