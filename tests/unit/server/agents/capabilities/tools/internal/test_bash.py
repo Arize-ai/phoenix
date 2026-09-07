@@ -277,6 +277,44 @@ async def test_help_reflects_permissions(
     assert with_mutations["stderr"] == ""
 
 
+async def test_schema_search_finds_a_field(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema echo")
+    assert result["exitCode"] == 0
+    assert result["stdout"].startswith("Query.echo(text: String!): String!")
+
+
+async def test_schema_lookup_prints_a_type(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema Query")
+    assert result["exitCode"] == 0
+    assert "type Query {" in result["stdout"]
+    assert "hello: String!" in result["stdout"]
+
+
+async def test_schema_search_with_no_match_says_so(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema zzqx")
+    assert result["exitCode"] == 0
+    assert result["stdout"].startswith("-- No type")
+
+
+async def test_schema_search_omits_mutations_when_disabled(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema deleteEverything")
+    assert result["exitCode"] == 0
+    assert "mutation deleteEverything" not in result["stdout"]
+    assert "Mutations are disabled for this session" in result["stdout"]
+
+
+async def test_schema_search_lists_mutations_when_enabled(
+    run_bash_with_mutations: RunBash,
+) -> None:
+    result = await run_bash_with_mutations("phoenix-gql schema deleteEverything")
+    assert result["stdout"].startswith("mutation deleteEverything: String!")
+
+
+async def test_help_mentions_schema_search(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql --help")
+    assert "phoenix-gql schema" in result["stdout"]
+
+
 async def test_output_path_writes_file(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql '{ hello }' --output /home/user/workspace/out.json")
 
