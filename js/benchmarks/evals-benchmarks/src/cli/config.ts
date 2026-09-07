@@ -5,6 +5,8 @@ import { DEFAULT_EVAL_MODEL } from "../resolveEvalModel.js";
 
 export const DEFAULT_PROMPT_TECHNIQUE = "default";
 export const DEFAULT_DATA_FORMAT = "default";
+export const JSON_DATA_FORMAT = "json";
+export const MESSAGES_DATA_FORMAT = "messages";
 export const FEW_SHOT_PROMPT_TECHNIQUE = "few-shot";
 
 const EVAL_FILE_SUFFIX = ".eval.ts";
@@ -15,6 +17,16 @@ const UNIVERSAL_PROMPT_TECHNIQUES = [DEFAULT_PROMPT_TECHNIQUE] as const;
 const EXTRA_PROMPT_TECHNIQUES: Partial<Record<string, readonly string[]>> = {
   toxicity: [FEW_SHOT_PROMPT_TECHNIQUE],
 };
+
+/** Format ids implemented by applyDataFormat. */
+export const UNIVERSAL_DATA_FORMATS = [
+  DEFAULT_DATA_FORMAT,
+  JSON_DATA_FORMAT,
+  MESSAGES_DATA_FORMAT,
+] as const;
+
+/** Eval files that read EVAL_DATA_FORMAT and call applyDataFormat. */
+export const FORMAT_WIRED_EVALUATORS = ["toxicity"] as const;
 
 export class SweepCliError extends Error {
   readonly exitCode: number;
@@ -29,9 +41,8 @@ export class SweepCliError extends Error {
 export const SWEEP_HELP = `Usage:
   pnpm --filter evals-benchmarks sweep -- --evaluator <id> [options]
 
-Run eval-library benchmarks as Phoenix experiments. Each model × prompt cell is
-one experiment on the same dataset (sequential Vitest runs). --formats is still
-single-value only; omit it to use the baked-in format.
+Run eval-library benchmarks as Phoenix experiments. Each model × prompt ×
+format cell is one experiment on the same dataset (sequential Vitest runs).
 
 Options:
   --evaluator <id>   Required. Benchmark id (filename without ${EVAL_FILE_SUFFIX}).
@@ -39,13 +50,15 @@ Options:
                      Use provider:model when the id is ambiguous (e.g. anthropic:claude-sonnet-4-5).
   --prompts <list>   Prompt techniques (default: default). default is always valid;
                      few-shot is currently only implemented for toxicity.
-  --formats <list>   Data formats (reserved; at most one value).
+  --formats <list>   Input formats: default, json, messages (default: default).
+                     Non-default formats are currently wired only for toxicity.
   -h, --help         Show this help.
 
 Examples:
   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity
   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --models gpt-4o-mini,gpt-4o
   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --prompts default,few-shot
+  pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --formats default,json,messages
 `;
 
 export type SweepCliFlags = {
@@ -125,21 +138,48 @@ export function resolveEvalFile({
 }
 
 /**
- * Format axis is still single-value.
+ * Reject unknown format ids.
  */
-export function assertSingleValueAxes({
-  formats,
-}: {
-  formats: string[];
-}): void {
-  if (formats.length <= 1) {
+export function assertDataFormats({ formats }: { formats: string[] }): void {
+  const allowed = new Set<string>(UNIVERSAL_DATA_FORMATS);
+  const unknown = formats.filter((dataFormat) => !allowed.has(dataFormat));
+  if (unknown.length === 0) {
     return;
   }
   throw new SweepCliError(
     [
-      "Format sweeps are not implemented yet.",
-      "Pass at most one value for --formats, or omit the flag.",
-      "--models and --prompts may list multiple values.",
+      `Unknown data format(s): ${unknown.join(", ")}.`,
+      `Known: ${UNIVERSAL_DATA_FORMATS.join(", ")}.`,
+    ].join(" ")
+  );
+}
+
+/**
+ * Non-default formats require the eval file to call applyDataFormat.
+ */
+export function assertFormatWiring({
+  evaluator,
+  formats,
+}: {
+  evaluator: string;
+  formats: string[];
+}): void {
+  const requestsNonDefault = formats.some(
+    (dataFormat) => dataFormat !== DEFAULT_DATA_FORMAT
+  );
+  if (!requestsNonDefault) {
+    return;
+  }
+  const isWired = (FORMAT_WIRED_EVALUATORS as readonly string[]).includes(
+    evaluator
+  );
+  if (isWired) {
+    return;
+  }
+  throw new SweepCliError(
+    [
+      `Data format sweeps are not wired yet for ${JSON.stringify(evaluator)}.`,
+      `Non-default --formats currently work for: ${FORMAT_WIRED_EVALUATORS.join(", ")}.`,
     ].join(" ")
   );
 }
@@ -168,19 +208,21 @@ export function assertPromptTechniques({
 }
 
 /**
- * Coordinates for one sweep cell. Format stays at the baked-in default.
+ * Coordinates for one sweep cell.
  */
 export function buildSweepCoordinates({
   evalModelName = process.env.EVAL_MODEL ?? DEFAULT_EVAL_MODEL,
   promptTechnique = DEFAULT_PROMPT_TECHNIQUE,
+  dataFormat = DEFAULT_DATA_FORMAT,
 }: {
   evalModelName?: string;
   promptTechnique?: string;
+  dataFormat?: string;
 } = {}): SweepCoordinates {
   return {
     model: evalModelName,
     promptTechnique,
-    dataFormat: DEFAULT_DATA_FORMAT,
+    dataFormat,
   };
 }
 
@@ -198,7 +240,7 @@ export function buildExperimentName({
 }
 
 /**
- * Env vars the child Vitest process uses for judge model, prompt, and experiment identity.
+ * Env vars the child Vitest process uses for judge model, prompt, format, and experiment identity.
  */
 export function buildSweepEnv({
   experimentName,
@@ -210,6 +252,7 @@ export function buildSweepEnv({
   return {
     EVAL_MODEL: coordinates.model,
     EVAL_PROMPT_TECHNIQUE: coordinates.promptTechnique,
+    EVAL_DATA_FORMAT: coordinates.dataFormat,
     PHOENIX_EXPERIMENT_NAME: experimentName,
     PHOENIX_EXPERIMENT_METADATA: JSON.stringify(coordinates),
   };
@@ -220,15 +263,18 @@ function buildPlanForCell({
   evalFile,
   evalModelName,
   promptTechnique,
+  dataFormat,
 }: {
   evaluator: string;
   evalFile: string;
   evalModelName: string;
   promptTechnique: string;
+  dataFormat: string;
 }): SweepPlan {
   const coordinates = buildSweepCoordinates({
     evalModelName,
     promptTechnique,
+    dataFormat,
   });
   const experimentName = buildExperimentName({ evaluator, coordinates });
   return {
@@ -241,7 +287,7 @@ function buildPlanForCell({
 }
 
 /**
- * Build one sweep cell per model × prompt combination from CLI flags.
+ * Build one sweep cell per model × prompt × format combination from CLI flags.
  */
 export function resolveSweepPlans({
   flags,
@@ -261,22 +307,26 @@ export function resolveSweepPlans({
   }
   const models = splitCsvList(flags.models);
   const prompts = splitCsvList(flags.prompts);
-  assertSingleValueAxes({
-    formats: splitCsvList(flags.formats),
-  });
+  const formats = splitCsvList(flags.formats);
+  assertDataFormats({ formats });
   const evalFile = resolveEvalFile({ evaluator, srcDir });
   assertPromptTechniques({ evaluator, prompts });
+  assertFormatWiring({ evaluator, formats });
   const modelNames = models.length > 0 ? models : [evalModelName];
   const promptTechniques =
     prompts.length > 0 ? prompts : [DEFAULT_PROMPT_TECHNIQUE];
+  const dataFormats = formats.length > 0 ? formats : [DEFAULT_DATA_FORMAT];
   return modelNames.flatMap((modelName) =>
-    promptTechniques.map((promptTechnique) =>
-      buildPlanForCell({
-        evaluator,
-        evalFile,
-        evalModelName: modelName,
-        promptTechnique,
-      })
+    promptTechniques.flatMap((promptTechnique) =>
+      dataFormats.map((dataFormat) =>
+        buildPlanForCell({
+          evaluator,
+          evalFile,
+          evalModelName: modelName,
+          promptTechnique,
+          dataFormat,
+        })
+      )
     )
   );
 }

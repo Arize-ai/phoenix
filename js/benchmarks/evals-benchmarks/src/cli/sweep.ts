@@ -1,10 +1,10 @@
 /**
  * Eval-library benchmark sweep entry point.
  *
- * Each model × prompt cell is one Vitest process / Phoenix experiment on the
- * same dataset. Format stays at the baked-in default.
+ * Each model × prompt × format cell is one Vitest process / Phoenix experiment
+ * on the same dataset.
  *
- *   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --prompts default,few-shot
+ *   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --formats default,json,messages
  */
 import { spawn } from "node:child_process";
 import { delimiter, join } from "node:path";

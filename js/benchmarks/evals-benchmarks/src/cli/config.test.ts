@@ -5,8 +5,9 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAULT_EVAL_MODEL } from "../resolveEvalModel.js";
 import {
+  assertDataFormats,
+  assertFormatWiring,
   assertPromptTechniques,
-  assertSingleValueAxes,
   buildExperimentName,
   buildSweepCoordinates,
   buildSweepEnv,
@@ -107,18 +108,27 @@ describe("listEvaluators / resolveEvalFile", () => {
   });
 });
 
-describe("assertSingleValueAxes", () => {
-  it("allows omitted or single-value format", () => {
-    expect(() => assertSingleValueAxes({ formats: [] })).not.toThrow();
-    expect(() => assertSingleValueAxes({ formats: ["raw"] })).not.toThrow();
+describe("assertDataFormats / assertFormatWiring", () => {
+  it("allows omitted, default, json, and messages", () => {
+    expect(() => assertDataFormats({ formats: [] })).not.toThrow();
+    expect(() =>
+      assertDataFormats({ formats: ["default", "json", "messages"] })
+    ).not.toThrow();
   });
 
-  it("rejects a format matrix", () => {
+  it("rejects unknown format ids", () => {
+    expect(() => assertDataFormats({ formats: ["raw"] })).toThrow(
+      /Unknown data format/
+    );
+  });
+
+  it("rejects non-default formats on evals that are not wired", () => {
     expect(() =>
-      assertSingleValueAxes({
-        formats: ["raw", "messages"],
-      })
-    ).toThrow(/not implemented yet/);
+      assertFormatWiring({ evaluator: "hallucination", formats: ["json"] })
+    ).toThrow(/not wired yet/);
+    expect(() =>
+      assertFormatWiring({ evaluator: "toxicity", formats: ["json"] })
+    ).not.toThrow();
   });
 });
 
@@ -166,6 +176,7 @@ describe("coordinates and env", () => {
     expect(buildSweepEnv({ experimentName: "n", coordinates })).toEqual({
       EVAL_MODEL: DEFAULT_EVAL_MODEL,
       EVAL_PROMPT_TECHNIQUE: "few-shot",
+      EVAL_DATA_FORMAT: DEFAULT_DATA_FORMAT,
       PHOENIX_EXPERIMENT_NAME: "n",
       PHOENIX_EXPERIMENT_METADATA: JSON.stringify(coordinates),
     });
@@ -229,32 +240,35 @@ describe("resolveSweepPlans", () => {
     ).toBe("gpt-4o");
   });
 
-  it("emits a cartesian product of --models and --prompts", () => {
+  it("emits a cartesian product of --models, --prompts, and --formats", () => {
     const srcDir = writeEvalFiles({ ids: ["toxicity"] });
     const plans = resolveSweepPlans({
       flags: {
         help: false,
         evaluator: "toxicity",
-        models: "gpt-4o-mini,gpt-4o",
+        models: "gpt-4o-mini",
         prompts: "default,few-shot",
+        formats: "default,json,messages",
       },
       srcDir,
     });
     expect(plans.map((plan) => plan.experimentName)).toEqual([
       "toxicity / gpt-4o-mini / default / default",
+      "toxicity / gpt-4o-mini / default / json",
+      "toxicity / gpt-4o-mini / default / messages",
       "toxicity / gpt-4o-mini / few-shot / default",
-      "toxicity / gpt-4o / default / default",
-      "toxicity / gpt-4o / few-shot / default",
+      "toxicity / gpt-4o-mini / few-shot / json",
+      "toxicity / gpt-4o-mini / few-shot / messages",
     ]);
     expect(
       buildSweepEnv({
-        experimentName: plans[1]!.experimentName,
-        coordinates: plans[1]!.coordinates,
-      }).EVAL_PROMPT_TECHNIQUE
-    ).toBe("few-shot");
+        experimentName: plans[2]!.experimentName,
+        coordinates: plans[2]!.coordinates,
+      }).EVAL_DATA_FORMAT
+    ).toBe("messages");
   });
 
-  it("errors when --formats request a matrix", () => {
+  it("errors on unknown --formats values", () => {
     const srcDir = writeEvalFiles({ ids: ["toxicity"] });
     expect(() =>
       resolveSweepPlans({
@@ -265,7 +279,21 @@ describe("resolveSweepPlans", () => {
         },
         srcDir,
       })
-    ).toThrow(/not implemented yet/);
+    ).toThrow(/Unknown data format/);
+  });
+
+  it("errors when a non-default format is requested for an unwired evaluator", () => {
+    const srcDir = writeEvalFiles({ ids: ["hallucination"] });
+    expect(() =>
+      resolveSweepPlans({
+        flags: {
+          help: false,
+          evaluator: "hallucination",
+          formats: "json",
+        },
+        srcDir,
+      })
+    ).toThrow(/not wired yet/);
   });
 
   it("errors when few-shot is requested for another evaluator", () => {
