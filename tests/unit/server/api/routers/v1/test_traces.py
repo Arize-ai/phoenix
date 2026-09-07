@@ -302,6 +302,28 @@ async def test_traces_endpoint_otlp_compliance(
     response_message.ParseFromString(response.content)
 
 
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "APPLICATION/X-PROTOBUF",
+        "application/x-protobuf; charset=utf-8",
+    ],
+)
+async def test_traces_endpoint_accepts_content_type_parameters_and_casing(
+    httpx_client: httpx.AsyncClient,
+    content_type: str,
+) -> None:
+    request_data = ExportTraceServiceRequest().SerializeToString()
+
+    response = await httpx_client.post(
+        "v1/traces",
+        content=request_data,
+        headers={"Content-Type": content_type},
+    )
+
+    assert response.status_code == 200
+
+
 async def test_delete_trace_by_trace_id(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
