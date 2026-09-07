@@ -5,12 +5,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional
 
 from fastmcp import FastMCP
+from graphql import OperationType as GraphQLOperationType
 from pydantic import TypeAdapter
 
 from phoenix.server.api.graphql_execute import (
     MAX_QUERY_BYTES,
     GraphQLRefusal,
+    GraphQLRefusalCode,
     execute_operation,
+    operation_types,
     validate_document,
 )
 from phoenix.server.api.schema_search import cached_index, lookup, search
@@ -19,7 +22,11 @@ from phoenix.server.mcp.graphql.output import (
     ExecuteGraphqlOutput,
     ExecuteGraphqlResultEnvelope,
 )
-from phoenix.server.mcp_server import _META_ANNOTATIONS, _current_mcp_principal
+from phoenix.server.mcp_server import (
+    _DEFAULT_ANNOTATIONS,
+    _META_ANNOTATIONS,
+    _current_mcp_principal,
+)
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -73,9 +80,9 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
     Args:
         mcp: The server to register on.
         app: Application owning the schema and the GraphQL context factory.
-        allow_mutations: Whether a mutation tool may be registered alongside the
-            read tools. Reserved for the mutation surface; the read tools
-            registered here never admit a mutation.
+        allow_mutations: Register `executeGraphqlMutation` alongside the read
+            tools, and let the schema tool describe mutations. The read tools
+            themselves never admit a mutation either way.
     """
 
     # Resolved per call rather than closed over: the MCP servers are built
@@ -153,6 +160,67 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
                 variables=variables,
                 context=_context(),
                 allow_mutations=False,
+            )
+            return ExecuteGraphqlResultEnvelope(
+                data=outcome.data,
+                errors=[dict(error) for error in outcome.errors],
+            )
+        except GraphQLRefusal as refusal:
+            return ExecuteGraphqlErrorEnvelope.from_refusal(refusal)
+
+    if not allow_mutations:
+        return
+
+    # Annotated destructive so the client is the one that asks. This surface has
+    # no approval step of its own: nothing here can reach a person, and a client
+    # driving it unattended has nobody to ask. What bounds the call is the
+    # caller's own permissions, enforced by the same resolvers the GraphQL
+    # endpoint runs.
+    @mcp.tool(
+        tags={_GRAPHQL_TAG},
+        annotations=_DEFAULT_ANNOTATIONS,
+        output_schema=_EXECUTE_GRAPHQL_OUTPUT_SCHEMA,
+    )
+    async def executeGraphqlMutation(
+        mutation: str,
+        variables: Optional[dict[str, Any]] = None,
+        validate_only: bool = False,
+    ) -> ExecuteGraphqlOutput:
+        """Execute a GraphQL mutation against Phoenix's API. This changes stored data.
+
+        Confirm the change with the person you are acting for before calling
+        this. There is no second chance: the mutation runs when called, and
+        Phoenix keeps no undo.
+
+        Call `describeGraphqlSchema` with the mutation's name first. It returns
+        the input types the mutation requires, which are not guessable from the
+        name, and says what the mutation does.
+
+        Returns the same two shapes as `executeGraphqlQuery`: `{data, errors}`
+        when the operation ran, `{error: {code, message}}` when it was refused
+        and never ran. A mutation that reports `errors` may still have committed
+        part of its work, so read them rather than retrying blindly.
+
+        Only mutations. A document containing only queries is refused; use
+        `executeGraphqlQuery` for those. `validate_only=True` checks the
+        document against the schema without running it, which does not check
+        variable values or permissions.
+        """
+        try:
+            if validate_only:
+                validate_document(_schema(), mutation)
+                return ExecuteGraphqlResultEnvelope(data=None, errors=[])
+            if GraphQLOperationType.MUTATION not in operation_types(mutation):
+                raise GraphQLRefusal(
+                    GraphQLRefusalCode.NOT_A_MUTATION,
+                    "This tool runs mutations. Use executeGraphqlQuery to read.",
+                )
+            outcome = await execute_operation(
+                _schema(),
+                query=mutation,
+                variables=variables,
+                context=_context(),
+                allow_mutations=True,
             )
             return ExecuteGraphqlResultEnvelope(
                 data=outcome.data,
