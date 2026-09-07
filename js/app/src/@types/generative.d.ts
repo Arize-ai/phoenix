@@ -15,7 +15,8 @@ declare type ModelProvider =
   | "MINIMAX"
   | "PERPLEXITY"
   | "TOGETHER"
-  | "ZAI";
+  | "ZAI"
+  | "META";
 
 /**
  * The role of a chat message

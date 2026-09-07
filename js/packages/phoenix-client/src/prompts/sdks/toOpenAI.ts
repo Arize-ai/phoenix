@@ -57,6 +57,8 @@ function getInvocationParameters(
       return parameters.together;
     case "zai":
       return parameters.zai;
+    case "meta":
+      return parameters.meta;
     default:
       // eslint-disable-next-line no-console
       console.warn(

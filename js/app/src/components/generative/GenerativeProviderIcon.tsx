@@ -287,6 +287,23 @@ const ZAISVG = ({ height }: { height: number }) => (
   </svg>
 );
 
+const MetaSVG = ({ height }: { height: number }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Meta</title>
+    <rect width="24" height="24" rx="5" fill="#0866FF" />
+    <path
+      d="M6.6 7.2c1.3 0 2.3.9 3.2 2.3.7 1.1 1.1 1.9 1.6 2.8.5-.9.9-1.7 1.6-2.8.9-1.4 1.9-2.3 3.2-2.3 1.8 0 3.2 1.7 3.2 4.4 0 2.6-1.3 4.5-3 4.5-1.2 0-2-.6-2.9-2 .3-.5.6-1 .9-1.6.6 1 1 1.4 1.6 1.4.8 0 1.3-.9 1.3-2.3 0-1.5-.5-2.4-1.4-2.4-.7 0-1.3.6-2 1.7-.4.6-.8 1.4-1.3 2.3l-.3.6c-.9 1.7-1.7 2.6-3 2.6-1.7 0-3-1.8-3-4.4 0-2.7 1.4-4.5 3.2-4.5Zm0 1.9c-.8 0-1.3.9-1.3 2.4 0 1.4.5 2.3 1.3 2.3.5 0 .9-.4 1.5-1.4l-.4-.7c-.4-.8-.8-1.5-1.1-2-.1.4 0 0 0 0Z"
+      fill="white"
+    />
+  </svg>
+);
+
 const PROVIDER_ICONS: Record<
   ModelProvider,
   ({ height }: { height: number }) => React.ReactNode
@@ -307,6 +324,7 @@ const PROVIDER_ICONS: Record<
   PERPLEXITY: PerplexitySVG,
   TOGETHER: TogetherSVG,
   ZAI: ZAISVG,
+  META: MetaSVG,
 };
 
 export type GenerativeProviderIconProps = {

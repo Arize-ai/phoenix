@@ -173,6 +173,7 @@ const OPENAI_COMPATIBLE_PROVIDERS: ReadonlySet<ModelProvider> = new Set([
   "PERPLEXITY",
   "TOGETHER",
   "ZAI",
+  "META",
 ]);
 
 function convertAttributeToolCall({
@@ -1455,6 +1456,7 @@ export const createToolCallForProvider = (
     case "PERPLEXITY":
     case "TOGETHER":
     case "ZAI":
+    case "META":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
@@ -1925,7 +1927,7 @@ export function getToolDefinitionDisplay(
     };
   }
   // OpenAI-compatible: OPENAI, AZURE_OPENAI, DEEPSEEK, XAI, OLLAMA, CEREBRAS,
-  // FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI
+  // FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI, META
   return {
     type: "function",
     function: {

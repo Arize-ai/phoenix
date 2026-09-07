@@ -241,6 +241,7 @@ type ProviderToToolCallMap = {
   PERPLEXITY: OpenAIToolCall;
   TOGETHER: OpenAIToolCall;
   ZAI: OpenAIToolCall;
+  META: OpenAIToolCall;
   AWS: AwsToolCall;
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
@@ -298,6 +299,7 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "PERPLEXITY":
     case "TOGETHER":
     case "ZAI":
+    case "META":
       return toolCall as ProviderToToolCallMap[T];
     case "AWS":
       return openAIToolCallToAws.parse(toolCall) as ProviderToToolCallMap[T];

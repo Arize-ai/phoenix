@@ -245,6 +245,7 @@ class _InvocationParametersConversion:
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
             v1.PromptZAIInvocationParameters,
+            v1.PromptMetaInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = _InvocationParameters(
@@ -420,6 +421,15 @@ class _InvocationParametersConversion:
                 sampling["temperature"] = zai_params["temperature"]
             if "top_p" in zai_params:
                 sampling["top_p"] = zai_params["top_p"]
+        elif obj["type"] == "meta":
+            meta_params: v1.PromptMetaInvocationParametersContent
+            meta_params = obj["meta"]
+            if "max_tokens" in meta_params:
+                ans["max_tokens"] = meta_params["max_tokens"]
+            if "temperature" in meta_params:
+                sampling["temperature"] = meta_params["temperature"]
+            if "top_p" in meta_params:
+                sampling["top_p"] = meta_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         if sampling:
