@@ -37,6 +37,7 @@ from ._helpers import (
     _Password,
     _Profile,
     _random_schema,
+    _remember_real_stderr,
     _RoleOrUser,
     _SpanExporterFactory,
     _start_span,
@@ -45,6 +46,13 @@ from ._helpers import (
     _UserGenerator,
     _Username,
 )
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    # Experiment diagnostics: capture is suspended here, so this dup is the
+    # real stderr and reaches the job log from inside a test.
+    _remember_real_stderr()
+
 
 # Partition the port number space across pytest-xdist workers so that two
 # workers can never hand out the same port. Each worker draws sequentially

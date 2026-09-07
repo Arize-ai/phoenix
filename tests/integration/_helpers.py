@@ -23,7 +23,7 @@ from random import random
 from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
-from time import sleep, time
+from time import sleep, strftime, time
 from types import MappingProxyType, TracebackType
 from typing import (
     Any,
@@ -764,7 +764,9 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
     process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
     log: list[str] = []
     lock: Lock = Lock()
-    Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
+    label = f"{os.environ.get('PYTEST_XDIST_WORKER', 'master')}:{app.env.get('PHOENIX_PORT')}"
+    _diag(f"server {label} pid={process.pid} starting")
+    Thread(target=_capture_stdout, args=(process, log, lock, label), daemon=True).start()
     t = 60
     time_limit = time() + t
     timed_out = False
@@ -786,8 +788,10 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
                 print(line, end="")
             log.clear()
         yield app
+        _diag(f"server {label} pid={process.pid} killing")
         process.kill()
         process.wait(10)
+        _diag(f"server {label} pid={process.pid} exited")
     finally:
         for line in log:
             print(line, end="")
@@ -799,16 +803,64 @@ def _is_alive(
     return process.is_running() and process.status() != STATUS_ZOMBIE
 
 
+# Experiment diagnostics. The reader thread is the only thing draining the
+# server's stdout pipe: if it dies, the pipe fills and the server blocks on its
+# own log write, which presents as every request to that server hanging. So the
+# thread reports its own death, and with PHOENIX_TEST_SERVER_LOG_TO_STDERR=1 it
+# also tees each server line to the job log as it arrives, past pytest's
+# capture, so the last request before a stall is visible.
+_TEE_SERVER_LOG = os.environ.get("PHOENIX_TEST_SERVER_LOG_TO_STDERR") == "1"
+
+# pytest's default fd-level capture redirects file descriptor 2 for the duration
+# of every test, so a write to sys.__stderr__ from inside a test lands in the
+# capture file and is lost on a worker crash. pytest's own faulthandler plugin
+# keeps a dup of the real stderr taken in pytest_configure, when capture is
+# suspended; the integration conftest does the same for these diagnostics.
+_DIAG_FD: Optional[int] = None
+
+
+def _remember_real_stderr() -> None:
+    global _DIAG_FD
+    try:
+        fileno = sys.stderr.fileno()
+        if fileno < 0:
+            raise AttributeError
+    except (AttributeError, ValueError):
+        # pytest-xdist may replace sys.stderr with an object that is not a
+        # real file; pytest's faulthandler plugin falls back the same way.
+        assert sys.__stderr__ is not None
+        fileno = sys.__stderr__.fileno()
+    _DIAG_FD = os.dup(fileno)
+
+
+def _diag_write(text: str) -> None:
+    os.write(2 if _DIAG_FD is None else _DIAG_FD, text.encode("utf-8", "replace"))
+
+
+def _diag(message: str) -> None:
+    if _TEE_SERVER_LOG:
+        _diag_write(f"[{strftime('%H:%M:%S')} {message}]\n")
+
+
 def _capture_stdout(
     process: Popen,
     log: list[str],
     lock: Lock,
+    label: str = "",
 ) -> None:
-    while _is_alive(process):
-        line = process.stdout.readline()
-        if line or (log and log[-1] != line):
-            with lock:
-                log.append(line)
+    try:
+        while _is_alive(process):
+            line = process.stdout.readline()
+            if line or (log and log[-1] != line):
+                with lock:
+                    log.append(line)
+                if _TEE_SERVER_LOG and line:
+                    _diag_write(f"[{label}] {line}")
+    except BaseException as exc:
+        _diag_write(f"[{strftime('%H:%M:%S')} server {label} stdout reader died: {exc!r}]\n")
+        raise
+    else:
+        _diag(f"server {label} stdout reader finished")
 
 
 @asynccontextmanager
