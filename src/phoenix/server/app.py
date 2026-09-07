@@ -1248,6 +1248,11 @@ def create_app(
             monty_consumer="agent",
             read_only=True,
             db=db,
+            # PXI reaches GraphQL through the `phoenix-gql` shell builtin, which
+            # carries the mutation policy and the approval gate. That builtin
+            # ships with the bash capability, so these tools are the fallback
+            # for exactly the deployments that turn it off.
+            graphql_tools=get_env_phoenix_agents_disable_bash(),
             skills_roots=PXI_SKILLS_ROOTS,
         )
     app.state.pxi_mcp_server = pxi_mcp_server
