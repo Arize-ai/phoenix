@@ -79,7 +79,7 @@ Start with the default `atif` mode when your Harbor agent writes ATIF trajectori
 | Final logical trial | Experiment run | Physical retries keep the logical repetition number. The plugin records only the terminal attempt. |
 | Verifier reward | Experiment evaluation | The plugin records each Harbor reward as a named CODE evaluation on the experiment run. |
 | Trial or step exception | Run error | Errors are stored separately from behavioral rewards. |
-| ATIF trajectory | Trace | One trial-level trace links to the experiment run when conversion succeeds. |
+| ATIF trajectory | Trace | One trial-level trace links to the experiment run when conversion succeeds. Multi-step trials include one span per attempted step. |
 
 Each Harbor task becomes one dataset example, including a multi-step task. For a multi-step task, the example input also contains the ordered step names and instructions. Phoenix dataset examples have an empty reference `output` because Harbor verifies an environment state rather than a single reference response.
 
@@ -124,31 +124,40 @@ Harbor tasks can use different verifiers, so the plugin keeps summary metrics se
 
 A multi-step run can have verifier rewards and an exception at the same time. Phoenix keeps both: the reward remains available, while the run has an error and `infra_ok=0`.
 
+Trial-level evaluations for a multi-step task include the resolved `multi_step_reward_strategy` in their metadata. Harbor uses `mean` when the task does not set a strategy; an explicit `final` value remains `final`. Step evaluations and `infra_ok` do not carry this metadata.
+
 For comparisons, check `reward` coverage before calculating an aggregate. Then use `infra_ok` to separate agent behavior from broken environments, timeouts, or verifier failures. Step-level scores show where a multi-step task failed.
 
 ## Understand ATIF traces
 
 ATIF is the default trace mode. The plugin reads saved trajectories after the final trial attempt, converts them to OpenInference spans, and uploads them to the experiment's Phoenix project. The sandbox does not need a Phoenix endpoint or Phoenix credentials.
 
-One Harbor trial becomes one trace and one Phoenix session:
+One Harbor trial becomes one trace and one Phoenix session. A multi-step trial adds a span for each attempted step:
 
 ```text
-harbor.trial                         CHAIN
-  agent trajectory                  AGENT
-    turn                            AGENT
-      fresh ATIF operation          CHAIN
-        model call                  LLM
-        tool call                   TOOL
-          referenced subagent       AGENT
+harbor.trial <task>                  CHAIN
+  harbor.step 1 <step name>          CHAIN, multi-step trials only
+    <agent>                          AGENT
+      turn 1                         AGENT, multi-turn trajectories only
+        iteration 1                  CHAIN
+          <model>                    LLM
+          <tool>                     TOOL
+            <subagent>               AGENT
 ```
 
-The converter preserves fresh agent operations, model calls, tool calls, continuations, and referenced subagents. User and system messages used as prompt history remain LLM context instead of becoming duplicate execution spans. Multi-step task trajectories share the same `harbor.trial` root.
+Single-step trajectories attach directly to the `harbor.trial` root. Each multi-step `harbor.step` span records the step instruction, timing, exception status, and any verifier rewards. Its trajectories appear beneath it. This keeps an attempted step visible even when Harbor did not save a trajectory for that step.
+
+Agent, model, and tool spans use their names from ATIF. Fresh agent operations use `iteration N`; context-management operations use `compaction N`; and other operational system steps use `system event N`. An agent step with `llm_call_count: 0` has no LLM span, but it still keeps its operation and tool spans. Continuation roots use `<agent> (continuation N)`. Referenced subagents attach to the matching tool call when `source_call_id` proves that relationship, or to the referencing operation when it does not.
+
+The converter supports ATIF v1.0 through v1.7. It reconstructs LLM inputs from ATIF messages and marks them with `metadata.atif.input_source = "reconstructed"`; it does not parse provider-native message formats. User and system prompts and copied context contribute to those inputs without creating duplicate execution spans. An observation becomes a tool result only when its `source_call_id` matches the call. Multiple results for one call remain in order. Unmatched step observations stay on the operation span, while unassigned feedback remains structured in the reconstructed input without an invented message role or tool association. Structured text and image parts remain in serialized messages, but the plugin does not read or upload media bytes. ATIF v1.8 audio fields are not supported.
+
+Only LLM spans carry `llm.*` attributes. The converter keeps trajectory-level `final_metrics` on the agent root so Phoenix does not count the same tokens twice. It maps producer-specific cache-write and reasoning token counts when they are present.
 
 ATIF timestamps describe events rather than complete operation durations. The plugin uses request timings only when it can map every measurement to one LLM step. It leaves ambiguous LLM and tool durations at zero instead of inventing timing or concurrency.
 
 Trace discovery and conversion are best-effort. If the agent does not save a valid trajectory, the plugin logs a warning and records the run and evaluations without a trace. A successful Phoenix run is immutable, so replay cannot add a missing trace link later.
 
-Use `trace_mode=none` when the agent has no ATIF output or when you do not want traces:
+Use `trace_mode=null` when the agent has no ATIF output or when you do not want traces:
 
 ```bash
 harbor run \
@@ -156,12 +165,12 @@ harbor run \
   -a your-agent \
   -m your-provider/your-model \
   --plugin arize-phoenix \
-  --plugin-kwarg trace_mode=none \
+  --plugin-kwarg trace_mode=null \
   --yes
 ```
 
 <Note>
-Live OpenTelemetry Protocol (OTLP) support is deferred to a follow-up. This release accepts `atif` and `none`, and does not link live OpenTelemetry traces from Harbor agents to experiment runs.
+Live OpenTelemetry Protocol (OTLP) support is deferred to a follow-up. This release accepts `atif` or `null`, and does not link live OpenTelemetry traces from Harbor agents to experiment runs.
 </Note>
 
 ## Name experiments
@@ -199,7 +208,7 @@ Pass settings with Harbor's `--plugin-kwarg` option.
 | `dataset` | Inferred from Harbor | Override the Phoenix dataset name. Required for several direct tasks. |
 | `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | Override the Phoenix base endpoint for this job. |
 | `api_key` | `PHOENIX_API_KEY` | Override the Phoenix API key. Prefer the environment variable so the key does not enter shell history. |
-| `trace_mode` | `atif` | Use `atif` or `none`. |
+| `trace_mode` | `atif` | Use `atif`, or pass `null` to disable tracing. |
 | `experiment_name` | Unset | Set one exact name. Valid only for a job with one agent configuration. |
 | `experiment_name_template` | `{job.name} · {agent.name} · {agent.model}` | Name one experiment per agent configuration. |
 
@@ -207,7 +216,7 @@ Pass settings with Harbor's `--plugin-kwarg` option.
 
 The plugin writes each trial when it reaches its final state. This gives you live progress and preserves completed runs when the job stops.
 
-On resume or replay, the plugin recovers the matching experiment, reuses matching successful runs, retries failed runs, and upserts their evaluations. Deterministic task, run, and trace identities prevent duplicate records during sequential ingestion.
+On resume or replay, the plugin recovers the matching experiment, reuses matching successful runs, retries failed runs, and upserts their evaluations. If another Harbor job created a newer version of the shared dataset, the recovered experiment remains pinned to its original version. Deterministic task, run, and trace identities prevent duplicate records during sequential ingestion.
 
 Run only one process for a given Harbor job. Experiment recovery is not atomic across multiple ingesters.
 

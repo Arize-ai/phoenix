@@ -30,13 +30,13 @@ pip install "arize-phoenix-client[harbor]"
 
 Use `atif` unless the agent has no ATIF trajectory or the user does not want traces. ATIF is the default. It reads trajectory files after the final trial attempt, so the sandbox needs no Phoenix endpoint, credentials, instrumentation, or outbound network access.
 
-Use `none` to record datasets, experiments, runs, and evaluations without traces:
+Use `null` to record datasets, experiments, runs, and evaluations without traces:
 
 ```bash
---plugin-kwarg trace_mode=none
+--plugin-kwarg trace_mode=null
 ```
 
-Live OpenTelemetry Protocol (OTLP) support is deferred to a follow-up. This release accepts only `atif` and `none`, and does not link live OpenTelemetry agent traces to experiment runs.
+Live OpenTelemetry Protocol (OTLP) support is deferred to a follow-up. This release accepts `atif` or `null`, and does not link live OpenTelemetry agent traces to experiment runs.
 
 ## Set the Phoenix destination
 
@@ -78,7 +78,7 @@ Use this mapping when explaining a job or checking its results:
 | Final verifier reward | Experiment evaluation with the original key and CODE annotator kind |
 | Step verifier reward | Evaluation named `<step_name>.<reward_key>` |
 | Trial or step exception | Run error and `infra_ok=0` |
-| Saved ATIF trajectories | One trace linked to the run |
+| Saved ATIF trajectories | One trace linked to the run, with one step span per attempted step in a multi-step task |
 
 Each single-step or multi-step Harbor task becomes one Phoenix dataset example. A multi-step example input includes its ordered step names and instructions. Phoenix examples keep `output` empty because Harbor verifies the environment state rather than a single reference response.
 
@@ -154,6 +154,8 @@ Do not infer `reward` from another lone key. Check its coverage before computing
 
 A run may contain rewards and still have `infra_ok=0`. Harbor can produce verifier output before or alongside a step exception. Preserve both facts when explaining the result.
 
+For a multi-step task, trial-level reward evaluations include `multi_step_reward_strategy` metadata. Harbor's omitted default resolves to `mean`; preserve an explicit `final`. Step evaluations and `infra_ok` do not include this field.
+
 For comparisons:
 
 1. Check the fraction of runs with `reward`.
@@ -163,19 +165,26 @@ For comparisons:
 
 ## Interpret ATIF traces
 
-One logical trial maps to one trace and one Phoenix session. The trace starts with a plugin-owned `harbor.trial` CHAIN span:
+One logical trial maps to one trace and one Phoenix session. The trace starts with a plugin-owned `harbor.trial` CHAIN span. Multi-step trials add one `harbor.step` span per attempted step:
 
 ```text
-harbor.trial                         CHAIN
-  agent trajectory                  AGENT
-    turn                            AGENT
-      fresh ATIF operation          CHAIN
-        model call                  LLM
-        tool call                   TOOL
-          referenced subagent       AGENT
+harbor.trial <task>                  CHAIN
+  harbor.step 1 <step name>          CHAIN, multi-step trials only
+    <agent>                          AGENT
+      turn 1                         AGENT, multi-turn trajectories only
+        iteration 1                  CHAIN
+          <model>                    LLM
+          <tool>                     TOOL
+            <subagent>               AGENT
 ```
 
-The converter keeps fresh operations, model calls, tool calls, continuations, and referenced subagents. Copied user or system context remains in LLM messages and does not become duplicate execution spans. All steps of a multi-step task share one trial root.
+Single-step trajectories attach directly to the trial root. Each multi-step `harbor.step` span carries its instruction, timing, exception status, and any verifier rewards. A step remains visible even when its trajectory is missing. All step spans and trajectories share the trial root.
+
+Agent, model, and tool spans use their ATIF names. Fresh agent operations use `iteration N`; context-management operations use `compaction N`; and other operational system steps use `system event N`. Multi-turn trajectories add `turn N` spans. Steps with `llm_call_count: 0` keep their operation and tool spans but do not create an LLM span. Continuation roots use `<agent> (continuation N)`.
+
+The converter supports ATIF v1.0 through v1.7. It reconstructs LLM inputs from ATIF and marks them with `metadata.atif.input_source = "reconstructed"`. Copied prompt history contributes to those inputs without creating spans. It pairs an observation with a tool call only when `source_call_id` matches. Keep multiple results in order. Unmatched step observations stay on the operation span; unassigned feedback remains structured in the reconstructed input without an invented role or tool association. Structured text and image parts remain serialized, but media bytes are not uploaded. ATIF v1.8 audio fields are unsupported.
+
+Only LLM spans carry `llm.*` attributes. Trajectory `final_metrics` remain in agent-root metadata to avoid double-counting tokens. Producer-specific cache-write and reasoning token counts map to the corresponding OpenInference token-detail attributes when present.
 
 ATIF timestamps are point events. Zero-duration LLM or TOOL spans can mean no unambiguous duration was available. Do not interpret them as proof that the operation took no time. Declared tool order does not prove serial execution.
 
@@ -190,7 +199,7 @@ Selecting the plugin makes successful Phoenix recording required.
 - Harbor keeps terminal results that the plugin can ingest during resume.
 - ATIF conversion or upload failure does not stop the job. The run is recorded without a trace.
 
-Sequential resume and replay reuse matching datasets, experiments, successful runs, evaluations, and traces. Failed runs can be retried. Do not run multiple ingesters for the same Harbor job because experiment recovery is not atomic across processes.
+Sequential resume and replay reuse matching datasets, experiments, successful runs, evaluations, and traces. Failed runs can be retried. If another job creates a newer version of the shared dataset, recover the original experiment and keep it pinned to its creation-time version. Do not run multiple ingesters for the same Harbor job because experiment recovery is not atomic across processes.
 
 If Phoenix reports a conflict, do not tell the user to ignore it. The plugin validates the stored run's trial output and trace identity. A mismatch requires a new Harbor job or resolution of the conflicting Phoenix record.
 
