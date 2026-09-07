@@ -108,7 +108,7 @@ help: ## Show this help message
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
 	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
 	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
-	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Run the isolated Phoenix Harbor plugin E2E matrix"
+	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real headless-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -482,6 +482,8 @@ HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
 # Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
 HARBOR_ENV ?= docker
 HARBOR_VERSION ?= 0.21.0
+HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
+HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
 # harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
 # repo's .python-version (3.10).
 HARBOR_PYTHON ?= 3.13
@@ -513,9 +515,10 @@ harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud stor
 	@echo -e "$(CYAN)Publishing Harbor fixtures...$(NC)"
 	./evals/harbor/scripts/publish_fixtures.sh
 
-harbor-plugin-e2e: ## Run the isolated Phoenix Harbor plugin E2E matrix
+harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix
 	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
-		uv run python evals/harbor/scripts/test_phoenix_plugin_e2e.py
+		HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_ATIF_CLAUDE_MODEL=$(HARBOR_ATIF_CLAUDE_MODEL) \
+		uv run python tests/integration/harbor/run_plugin_e2e.py
 
 harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
 	$(check-harbor-staged)

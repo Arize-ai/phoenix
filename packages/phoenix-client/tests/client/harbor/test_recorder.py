@@ -34,10 +34,12 @@ from phoenix.client.harbor._model import (
 )
 from phoenix.client.harbor._recorder import (
     DatasetSnapshot,
+    ExperimentHandle,
     PhoenixRecorder,
     experiment_identity,
 )
 from phoenix.client.harbor._scores import ExtractedEvaluation
+from phoenix.client.harbor._traces import HarborTrace, harbor_trace_id
 
 
 def task(task_id: str, digest: str = "sha256:" + "a" * 64, **overrides: Any) -> TaskRecord:
@@ -138,6 +140,9 @@ class FakeExperiments:
             "repetitions": kwargs.get("repetitions"),
         }
 
+    async def get(self, *, experiment_id: str) -> dict[str, Any]:
+        return next(experiment for experiment in self.existing if experiment["id"] == experiment_id)
+
     async def _get_all_experiment_runs(
         self, *, experiment_id: str
     ) -> builtins.list[dict[str, Any]]:
@@ -162,10 +167,41 @@ class FakeExperiments:
         return {"id": f"evaluation-{len(self.logged_evaluations)}"}
 
 
+class FakeSpans:
+    def __init__(
+        self,
+        query_results: list[list[dict[str, Any]]] | None = None,
+        log_result: dict[str, Any] | None = None,
+        log_error: Exception | None = None,
+    ) -> None:
+        self.query_results = list(query_results or [[]])
+        self.log_result = log_result
+        self.log_error = log_error
+        self.queries: list[dict[str, Any]] = []
+        self.logged: list[dict[str, Any]] = []
+
+    async def get_spans(self, **kwargs: Any) -> list[dict[str, Any]]:
+        self.queries.append(kwargs)
+        if len(self.query_results) > 1:
+            return self.query_results.pop(0)
+        return self.query_results[0]
+
+    async def log_spans(self, **kwargs: Any) -> dict[str, Any]:
+        self.logged.append(kwargs)
+        if self.log_error is not None:
+            raise self.log_error
+        spans = kwargs["spans"]
+        return self.log_result or {
+            "total_received": len(spans),
+            "total_queued": len(spans),
+        }
+
+
 class FakeClient:
-    def __init__(self, datasets: Any = None, experiments: Any = None) -> None:
+    def __init__(self, datasets: Any = None, experiments: Any = None, spans: Any = None) -> None:
         self.datasets = datasets
         self.experiments = experiments or FakeExperiments()
+        self.spans = spans or FakeSpans()
 
 
 def recorder(client: Any, **kwargs: Any) -> PhoenixRecorder:
@@ -284,6 +320,10 @@ class TestResolveExperiments:
         ]
         assert all(call["dataset_version_id"] == "version-1" for call in experiments.created)
         assert all(handle.created for handle in handles.values())
+        assert {handle.project_name for handle in handles.values()} == {
+            "Experiment-1",
+            "Experiment-2",
+        }
 
     async def test_experiment_records_harbors_attempt_count(self) -> None:
         experiments = FakeExperiments()
@@ -305,7 +345,6 @@ class TestResolveExperiments:
 
     async def test_replay_reuses_experiment(self) -> None:
         job = plan()
-        identity = experiment_identity(job, SNAPSHOT, job.slices[0])
         experiments = FakeExperiments(
             [
                 {
@@ -314,7 +353,11 @@ class TestResolveExperiments:
                     "project_name": "Experiment-abc",
                     "dataset_version_id": "version-1",
                     "repetitions": 1,
-                    "metadata": {"integration": "harbor", "harbor_identity_digest": identity},
+                    "metadata": {
+                        "integration": "harbor",
+                        "harbor_job_id": job.job_id,
+                        "harbor_agent_digest": job.slices[0].identity_digest,
+                    },
                 }
             ]
         )
@@ -338,8 +381,11 @@ class TestResolveExperiments:
 
     async def test_duplicate_identity_lists_ids(self) -> None:
         job = plan()
-        identity = experiment_identity(job, SNAPSHOT, job.slices[0])
-        metadata = {"integration": "harbor", "harbor_identity_digest": identity}
+        metadata = {
+            "integration": "harbor",
+            "harbor_job_id": job.job_id,
+            "harbor_agent_digest": job.slices[0].identity_digest,
+        }
         experiments = FakeExperiments(
             [{"id": "one", "metadata": metadata}, {"id": "two", "metadata": metadata}]
         )
@@ -348,14 +394,17 @@ class TestResolveExperiments:
 
     async def test_repetition_mismatch_rejects_recovery(self) -> None:
         job = plan(repetitions=2)
-        identity = experiment_identity(job, SNAPSHOT, job.slices[0])
         experiments = FakeExperiments(
             [
                 {
                     "id": "experiment-existing",
                     "dataset_version_id": "version-1",
                     "repetitions": 5,
-                    "metadata": {"integration": "harbor", "harbor_identity_digest": identity},
+                    "metadata": {
+                        "integration": "harbor",
+                        "harbor_job_id": job.job_id,
+                        "harbor_agent_digest": job.slices[0].identity_digest,
+                    },
                 }
             ]
         )
@@ -370,12 +419,36 @@ class TestExperimentIdentity:
             second, SNAPSHOT, second.slices[0]
         )
 
-    def test_a_changed_task_set_is_a_separate_experiment(self) -> None:
+    def test_dataset_version_churn_does_not_change_identity(self) -> None:
+        """Other jobs sharing the dataset mint versions between replays."""
         job = plan()
         other = DatasetSnapshot("dataset-1", "version-2", {"task-a": "node-a"})
-        assert experiment_identity(job, SNAPSHOT, job.slices[0]) != experiment_identity(
+        assert experiment_identity(job, SNAPSHOT, job.slices[0]) == experiment_identity(
             job, other, job.slices[0]
         )
+
+    async def test_version_churn_still_recovers_the_experiment(self) -> None:
+        job = plan()
+        experiments = FakeExperiments(
+            [
+                {
+                    "id": "experiment-existing",
+                    "dataset_version_id": "version-recorded-earlier",
+                    "repetitions": 1,
+                    "metadata": {
+                        "integration": "harbor",
+                        "harbor_job_id": job.job_id,
+                        "harbor_agent_digest": job.slices[0].identity_digest,
+                    },
+                }
+            ]
+        )
+        handles = await recorder(FakeClient(experiments=experiments)).resolve_experiments(
+            job, SNAPSHOT
+        )
+        assert experiments.created == []
+        handle = handles[job.slices[0].identity_digest]
+        assert (handle.experiment_id, handle.created) == ("experiment-existing", False)
 
     async def test_two_jobs_can_use_the_same_exact_display_name(self) -> None:
         first_experiments = FakeExperiments()
@@ -542,17 +615,13 @@ class TestRecordExperimentRun:
         assert "reward" not in logged["output"]
 
     @pytest.mark.parametrize(
-        ("has_verifier_result", "expected_error"),
-        [
-            (False, "step build: StepError: failed"),
-            (True, None),
-        ],
-        ids=["fatal-step-error", "non-fatal-step-error"],
+        "has_verifier_result",
+        [False, True],
+        ids=["unscored-step-error", "scored-step-error"],
     )
-    async def test_only_fatal_step_errors_mark_the_experiment_run_failed(
+    async def test_any_step_error_marks_the_experiment_run_failed(
         self,
         has_verifier_result: bool,
-        expected_error: str | None,
     ) -> None:
         experiments = FakeExperiments()
         job = plan(
@@ -589,7 +658,7 @@ class TestRecordExperimentRun:
             trial_result=trial_result(steps=[step_result]),
         )
 
-        assert experiments.logged_runs[0]["error"] == expected_error
+        assert experiments.logged_runs[0]["error"] == "build: StepError: failed"
 
     async def test_duplicate_conflict_reuses_matching_successful_run(self) -> None:
         request = httpx.Request("POST", "https://phoenix.example/v1/experiments/1/runs")
@@ -598,24 +667,7 @@ class TestRecordExperimentRun:
             request=request,
             response=httpx.Response(409, request=request),
         )
-        existing_run = {
-            "id": "run-existing",
-            "experiment_id": "experiment-1",
-            "dataset_example_id": "node-a",
-            "repetition_number": 1,
-            "output": {
-                "harbor_trial_id": "trial-id",
-                "harbor_trial_name": "task-a__1",
-                "harbor_trial_uri": "file:///trial",
-                "task_name": "task-a",
-                "token_usage": {"input": 10, "cache": 2, "output": 4},
-                "cost_usd": 0.01,
-            },
-        }
-        experiments = FakeExperiments(
-            runs=[existing_run],
-            log_error=conflict,
-        )
+        result = trial_result()
         job = plan(
             trials=(
                 TrialSlot(
@@ -629,17 +681,165 @@ class TestRecordExperimentRun:
                 ),
             )
         )
+        existing_run = {
+            "id": "run-existing",
+            "experiment_id": "experiment-1",
+            "dataset_example_id": "node-a",
+            "repetition_number": 1,
+            "trace_id": harbor_trace_id(job, result),
+            "output": {
+                "harbor_trial_id": "trial-id",
+                "harbor_trial_name": "task-a__1",
+                "harbor_trial_uri": "file:///trial",
+                "task_name": "task-a",
+                "token_usage": {"input": 10, "cache": 2, "output": 4},
+                "cost_usd": 0.01,
+            },
+        }
+        experiments = FakeExperiments(
+            runs=[existing_run],
+            log_error=conflict,
+        )
         client = FakeClient(experiments=experiments)
         handles = await recorder(client).resolve_experiments(job, SNAPSHOT)
         recorded = await recorder(client).record_experiment_run(
             plan=job,
             snapshot=SNAPSHOT,
             experiments=handles,
-            trial_result=trial_result(),
+            trial_result=result,
         )
 
         assert recorded == existing_run
         assert len(experiments.logged_runs) == 1
+
+
+def span(span_id: str, trace_id: str = "a" * 32) -> dict[str, Any]:
+    return {
+        "name": span_id,
+        "context": {"trace_id": trace_id, "span_id": span_id},
+        "span_kind": "CHAIN",
+        "start_time": "2026-08-26T12:00:00+00:00",
+        "end_time": "2026-08-26T12:00:01+00:00",
+        "status_code": "OK",
+        "attributes": {},
+    }
+
+
+def harbor_trace() -> HarborTrace:
+    return HarborTrace(
+        trace_id="a" * 32,
+        spans=cast(Any, (span("1" * 16), span("2" * 16))),
+        source_paths=("agent/trajectory.json",),
+    )
+
+
+class TestConfirmTrace:
+    async def test_uploads_missing_spans_to_the_experiment_project(self) -> None:
+        spans = FakeSpans(query_results=[[], [span("1" * 16), span("2" * 16)]])
+        client = FakeClient(spans=spans)
+
+        trace_id = await recorder(client).confirm_trace(
+            experiment=ExperimentHandle("experiment-1", "test", True, "Experiment-project"),
+            trace=harbor_trace(),
+        )
+
+        assert trace_id == "a" * 32
+        assert spans.logged[0]["project_identifier"] == "Experiment-project"
+        assert [item["context"]["span_id"] for item in spans.logged[0]["spans"]] == [
+            "2" * 16,
+            "1" * 16,
+        ]
+        assert all(query["project_identifier"] == "Experiment-project" for query in spans.queries)
+
+    async def test_complete_replay_posts_nothing(self) -> None:
+        spans = FakeSpans(query_results=[[span("1" * 16), span("2" * 16)]])
+
+        trace_id = await recorder(FakeClient(spans=spans)).confirm_trace(
+            experiment=ExperimentHandle("experiment-1", "test", False, "project"),
+            trace=harbor_trace(),
+        )
+
+        assert trace_id == "a" * 32
+        assert spans.logged == []
+
+    async def test_partial_replay_posts_missing_spans_in_reverse_order(self) -> None:
+        trace = HarborTrace(
+            trace_id="a" * 32,
+            spans=cast(Any, (span("1" * 16), span("2" * 16), span("3" * 16))),
+            source_paths=("agent/trajectory.json",),
+        )
+        spans = FakeSpans(
+            query_results=[
+                [span("3" * 16)],
+                [span("1" * 16), span("2" * 16), span("3" * 16)],
+            ]
+        )
+
+        trace_id = await recorder(FakeClient(spans=spans)).confirm_trace(
+            experiment=ExperimentHandle("experiment-1", "test", False, "project"),
+            trace=trace,
+        )
+
+        assert trace_id == "a" * 32
+        assert [item["context"]["span_id"] for item in spans.logged[0]["spans"]] == [
+            "2" * 16,
+            "1" * 16,
+        ]
+
+    async def test_rejected_upload_is_fine_when_spans_already_stored(self) -> None:
+        spans = FakeSpans(
+            query_results=[[], [span("1" * 16), span("2" * 16)]],
+            log_error=RuntimeError("duplicate spans"),
+        )
+
+        trace_id = await recorder(FakeClient(spans=spans)).confirm_trace(
+            experiment=ExperimentHandle("experiment-1", "test", False, "project"),
+            trace=harbor_trace(),
+        )
+
+        assert trace_id == "a" * 32
+        assert len(spans.queries) == 2
+
+    async def test_missing_list_project_falls_back_to_detail(self) -> None:
+        experiments = FakeExperiments(
+            existing=[{"id": "experiment-1", "project_name": "detail-project"}]
+        )
+        spans = FakeSpans(query_results=[[span("1" * 16), span("2" * 16)]])
+
+        trace_id = await recorder(FakeClient(experiments=experiments, spans=spans)).confirm_trace(
+            experiment=ExperimentHandle("experiment-1", "test", False),
+            trace=harbor_trace(),
+        )
+
+        assert trace_id == "a" * 32
+        assert spans.queries[0]["project_identifier"] == "detail-project"
+
+    async def test_unexpected_stored_span_refuses_attachment(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        spans = FakeSpans(query_results=[[span("f" * 16)]])
+
+        trace_id = await recorder(FakeClient(spans=spans)).confirm_trace(
+            experiment=ExperimentHandle("experiment-1", "test", False, "project"),
+            trace=harbor_trace(),
+        )
+
+        assert trace_id is None
+        assert spans.logged == []
+        assert "unexpected span IDs" in caplog.text
+
+    async def test_count_mismatch_leaves_run_untraced(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        spans = FakeSpans(log_result={"total_received": 2, "total_queued": 1})
+
+        trace_id = await recorder(FakeClient(spans=spans)).confirm_trace(
+            experiment=ExperimentHandle("experiment-1", "test", False, "project"),
+            trace=harbor_trace(),
+        )
+
+        assert trace_id is None
+        assert "accepted 1 of 2" in caplog.text
 
 
 class TestRecordEvaluations:

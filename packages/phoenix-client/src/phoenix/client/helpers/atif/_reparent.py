@@ -1,9 +1,7 @@
 # pyright: reportPrivateUsage=false
 """Reparent spans beneath a caller-owned parent span.
 
-Operates purely on ``v1.Span`` values and knows nothing about ATIF. Conversion
-decides a span tree's internal shape; reparenting decides where that tree
-hangs.
+Operates on ``v1.Span`` values without interpreting ATIF documents.
 """
 
 from __future__ import annotations
@@ -21,24 +19,14 @@ def _reparent_spans_under_common_parent(
 ) -> List[v1.Span]:
     """Return ``spans`` regrouped as one tree beneath a caller-owned parent.
 
-    Every span joins ``trace_id``. Spans that are already children keep their
-    existing parent, so relationships established during conversion — subagent
-    handoffs, continuations, turn nesting — are preserved.
+    Every span joins ``trace_id`` and keeps its span ID. Parent links within
+    the batch stay unchanged. Spans with no parent in the batch attach to
+    ``parent_id``, including those whose previous parent is outside the batch.
 
-    A span is treated as a root, and attached to ``parent_id``, when it has no
-    parent *within this batch*. That covers both spans with no ``parent_id`` at
-    all and spans whose ``parent_id`` refers to a span that is not present.
-    The latter happens with real ATIF data: a step can declare
-    ``subagent_trajectory_ref`` while carrying no tool call, in which case
-    conversion points the subagent at a tool span that is never emitted.
-    Attaching those to the common parent keeps the result a single connected
-    tree instead of leaving subtrees dangling off a nonexistent span.
-
-    Span IDs are preserved. Callers must give separate logical span trees
-    distinct IDs before reparenting them. Duplicate input span IDs are rejected
-    because they make parent remapping ambiguous and Phoenix cannot reliably
-    ingest them. ``parent_id`` refers to a span the caller already created and
-    must not collide with a span in this batch.
+    The caller must create the common parent and supply distinct input span
+    IDs. Duplicate IDs and collisions with ``parent_id`` raise ``ValueError``.
+    This helper does not validate cycles. ATIF callers validate the graph
+    before reparenting.
     """
     span_ids: set[str] = set()
     duplicate_span_ids: set[str] = set()

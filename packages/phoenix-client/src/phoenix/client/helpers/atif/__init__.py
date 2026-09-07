@@ -4,9 +4,8 @@
 Public API:
     upload_atif_trajectories_as_spans(client, trajectories, *, project_name)
 
-Conversion and reparenting are separate steps: ``_convert.py`` decides each
-trajectory's span tree, ``_reparent.py`` decides where a batch of trees hangs.
-Callers that need both compose them.
+``_convert.py`` builds trajectory span trees. ``_reparent.py`` attaches them
+to a caller-owned parent, as the Harbor plugin does for its trial root.
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ from ._convert import (
     _flatten_atif_trajectories,
     _get_parent_span_context,
 )
-from ._validate import _validate_atif_trajectory
+from ._validate import _validate_atif_trajectory, _validate_span_graph
 
 __all__ = ["upload_atif_trajectories_as_spans"]
 
@@ -43,9 +42,13 @@ def _convert_atif_trajectories_to_spans(
     for trajectory in flat_trajectories:
         parent_ctx = _get_parent_span_context(trajectory, ref_map)
         all_spans.extend(
-            _convert_atif_trajectory_to_spans(trajectory, parent_span_context=parent_ctx)
+            _convert_atif_trajectory_to_spans(
+                trajectory,
+                parent_span_context=parent_ctx,
+            )
         )
 
+    _validate_span_graph(all_spans)
     return all_spans
 
 
@@ -60,120 +63,114 @@ def upload_atif_trajectories_as_spans(
 
     Converts ATIF (Agent Trajectory Interchange Format) trajectory dicts
     into Phoenix/OpenTelemetry-compatible span trees and uploads them.
-    Supports ATIF schema versions v1.0 through v1.7.
+    Supports ATIF schema versions v1.0 through v1.7. Callers load the
+    documents; this helper does not read referenced files, fetch URLs, or
+    upload media bytes.
 
     **Trace structure**
 
-    Each trajectory produces one trace. Only agent steps become spans;
-    user and system messages appear as ``llm.input_messages`` on the LLM
-    spans that follow them (matching how real instrumented traces work).
+    Each trajectory gets an AGENT root. Spans use the names from ATIF:
+    the agent name for the root, the model name for LLM calls, and the tool
+    name for tool calls. Each fresh agent step becomes a CHAIN span named
+    ``iteration N``; context management and
+    operational system steps become ``compaction N`` and ``system event N``.
+    The producer's ``step_id`` is kept in ``metadata.atif.step_id`` and the
+    agent name in ``metadata.agent_name`` on every span. User messages are
+    prompt context, not spans.
 
-    - Single-turn trajectories are flat. LLM and TOOL spans are
-      siblings under the AGENT — the agent runtime executes tools,
-      not the LLM::
+    Single-turn trajectories place each step under the root::
 
-        AGENT (root — input=user message, output=final agent reply)
-          LLM
-          TOOL
-          LLM
+        AGENT assistant
+          CHAIN iteration 1
+            LLM gpt-4
+            TOOL search
+          CHAIN iteration 2
+            LLM gpt-4
 
-    - Multi-turn trajectories (multiple user messages) get nested AGENT
-      spans, one per turn. A new turn starts at each follow-up user
-      message::
-
-        AGENT (root — input=first user message, output=final agent reply)
-          AGENT turn_1 (input=user msg 1, output=agent reply 1)
-            LLM
-            TOOL
-          AGENT turn_2 (input=user msg 2, output=agent reply 2)
-            LLM
-
-    **Multi-agent / subagent handoffs**
-
-    When trajectories in the batch reference each other via
-    ``subagent_trajectory_ref``, the child trajectory's spans join the
-    parent's trace. A matching emitted TOOL span parents the child when the
-    reference's ``source_call_id`` identifies one of the agent step's tool
-    calls. Otherwise, the parent trajectory's root AGENT span parents the
-    child. Upload the parent and child trajectories together in one call for
-    linking to work. ATIF v1.7 embedded ``subagent_trajectories`` are
-    flattened and uploaded automatically, with ``trajectory_id`` used as the
-    canonical embedded reference key::
-
-        AGENT (parent)
-          LLM
-          TOOL (delegate_task)
-            AGENT (child agent)
-              LLM
-              TOOL
-
-    **Continuation trajectories**
-
-    When an agent's context window is exhausted, Harbor splits the
-    session across files using ``continued_trajectory_ref``. The
-    continuation trajectory gets a ``session_id`` ending in
-    ``-cont-{N}``. These are automatically detected and merged into the
-    same trace as the original, so the full agent session appears as one
-    trace. The continuation's root span is annotated with
-    ``metadata.is_continuation = True``.
-
-    **Multimodal content (v1.6+)**
-
-    Messages containing image content parts (``type: "image"`` with a
-    ``source.path`` URL) are written using the OpenInference
-    ``message.contents`` array format, with image URLs stored in
-    ``message_content.image.image.url``. Text-only messages use the
-    standard ``message.content`` string attribute.
-
-    **Copied context**
-
-    Steps marked ``is_copied_context: true`` (replayed conversation
-    history from a continuation handoff) are included in
-    ``llm.input_messages`` as normal messages. LLM spans whose input
-    includes any copied context steps are annotated with
+    Multi-turn trajectories add one AGENT span per turn. A turn starts at
+    each user message that follows agent activity. Steps marked
+    ``is_copied_context: true`` contribute prompt history without creating
+    execution spans. LLM spans that use copied history carry
     ``metadata.has_copied_context = True``.
 
-    **Deterministic dispatch (v1.7+)**
+    An agent step with ``llm_call_count: 0`` still gets an iteration CHAIN
+    and any declared TOOL spans, but no LLM span.
 
-    Agent steps with ``llm_call_count: 0`` represent non-LLM orchestration
-    that issued tool calls. These steps do not create synthetic LLM spans;
-    their TOOL spans are still emitted under the AGENT/turn parent.
+    **Subagents**
+
+    When trajectories in a batch reference each other through
+    ``subagent_trajectory_ref``, the child's spans join the parent's trace
+    under the TOOL span named by the observation's matching
+    ``source_call_id``, else the referencing step's CHAIN, else the parent's
+    root. Upload parent and child together for the
+    link to resolve, with parents before children. Duplicate span IDs,
+    unresolved parents, cross-trace parent links, and cycles are rejected
+    before upload. ATIF v1.7 embedded ``subagent_trajectories`` are included
+    automatically and resolved by ``trajectory_id``.
+
+    **Continuations**
+
+    Load continuation files into the same batch. A ``session_id`` ending in
+    ``-cont-N`` joins the original session's trace. Its root is named
+    ``<agent> (continuation N)`` and carries ``metadata.is_continuation = True``.
+    The Harbor plugin follows local ``continued_trajectory_ref`` files itself.
+
+    **Timing**
+
+    ATIF records one event timestamp per step, not an interval. A step's
+    CHAIN spans from the preceding fresh event to its own timestamp. LLM and
+    TOOL spans are zero-duration events at the step timestamp unless an
+    adapter supplies a measured LLM latency; ATIF does not say whether tool
+    calls in one step ran serially or concurrently. Missing or non-monotonic
+    timestamps collapse onto the preceding event rather than inventing
+    duration. Document order and tool-call array order are preserved.
 
     **Attribute mapping**
 
     - ``metrics.prompt_tokens`` / ``completion_tokens`` →
-      ``llm.token_count.prompt`` / ``completion`` / ``total``
+      ``llm.token_count.prompt`` / ``completion`` / ``total`` on LLM spans
     - ``metrics.cached_tokens`` →
       ``llm.token_count.prompt_details.cache_read``
     - ``metrics.cost_usd`` → ``llm.cost.total``
     - ``agent.model_name`` or step ``model_name`` → ``llm.model_name``
     - ``agent.tool_definitions`` → ``llm.tools.{i}.tool.json_schema``
     - ``reasoning_content`` → ``metadata.reasoning_content``
+    - ``final_metrics`` → ``metadata.final_metrics`` on the root span
     - ``session_id`` → ``session.id`` on all spans
+    - Text and image message parts → OpenInference ``message.contents``
 
     **Deterministic IDs**
 
-    Trace IDs are derived from the run-scoped ``session_id`` when present.
-    For ATIF v1.7 standalone trajectories that omit ``trajectory_id`` and
-    do not declare a continuation, a stable document hash is used instead
-    so separate trajectory documents that share a run-scoped ``session_id``
-    do not collapse into one trace. Span IDs use document-scoped
-    ``trajectory_id`` when available, with the same v1.7 document-hash
-    fallback to avoid collisions.
+    IDs are deterministic for the same documents and parent relationships.
+    The converter uses session and document identities, with content hashes
+    for v1.7 documents that lack a document ID. Give separate documents
+    distinct ``trajectory_id`` values when available.
 
-    **Known limitation: long conversations**
+    This helper does not skip stored spans. Phoenix rejects a batch containing
+    an existing span ID. The Harbor plugin handles replay separately by
+    querying stored IDs and uploading only missing spans.
 
-    Each LLM span includes the full conversation history up to that
-    point as ``llm.input_messages`` attributes. For long multi-turn
-    sessions (roughly 16+ turns with dense tool calls), this can exceed
-    OpenTelemetry attribute size limits, causing spans to be truncated
-    or rejected. This matches the behavior of real-time instrumentors
-    and is a known platform-wide issue, not specific to ATIF conversion.
+    **Reconstructed messages and limits**
+
+    LLM inputs are reconstructed ATIF context, not exact provider requests.
+    Every LLM span records ``metadata.atif.input_source = "reconstructed"``.
+    ATIF sources ``user``, ``system``, and ``agent`` map to roles ``user``,
+    ``system``, and ``assistant``. The converter does not parse provider-native
+    messages or interpret tool argument keys.
+    Results with a matching call ID become tool messages; feedback without
+    one remains an ``observation`` entry with ``after_step_id`` in
+    ``input.value``, without an inferred message role. Multimodal results
+    retain their content parts. ATIF v1.8 audio fields are not supported.
+
+    Each LLM span repeats its reconstructed context in ``input.value`` and
+    its known-role messages in ``llm.input_messages``. Very long sessions can
+    exceed attribute size limits and be truncated or rejected, as with live
+    instrumentation.
 
     Args:
         client: A Phoenix ``Client`` instance.
         trajectories: A sequence of ATIF trajectory dicts conforming to
-            the ATIF schema (v1.0–v1.7).
+            ATIF v1.0 through v1.7. Put parents before external children.
         project_name: The Phoenix project to upload spans into.
         timeout: Request timeout in seconds.
 
@@ -182,32 +179,21 @@ def upload_atif_trajectories_as_spans(
         ``total_received`` and ``total_queued`` counts.
 
     Raises:
-        ValueError: If any trajectory fails validation.
+        ValueError: If a trajectory or the resulting span graph fails validation.
 
     Example::
 
+        import json
         from phoenix.client import Client
-        from phoenix.client.helpers.atif import (
-            upload_atif_trajectories_as_spans,
-        )
+        from phoenix.client.helpers.atif import upload_atif_trajectories_as_spans
 
-        client = Client()
-        trajectories = [
-            {
-                "schema_version": "ATIF-v1.4",
-                "session_id": "sess-001",
-                "agent": {
-                    "name": "my-agent",
-                    "version": "1.0",
-                    "model_name": "gpt-4",
-                },
-                "steps": [...],
-            }
-        ]
+        with open("trajectory.json") as f:
+            trajectory = json.load(f)
+
         result = upload_atif_trajectories_as_spans(
-            client, trajectories, project_name="my-project"
+            Client(), [trajectory], project_name="my-agent-eval"
         )
-        print(result)  # {"total_received": 5, "total_queued": 5}
+        print(result)  # Counts of spans received and queued
     """
     all_spans = _convert_atif_trajectories_to_spans(trajectories)
 

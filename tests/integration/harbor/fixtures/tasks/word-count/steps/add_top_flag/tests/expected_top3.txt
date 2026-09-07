@@ -1,0 +1,3 @@
+the 8
+dog 4
+fox 3
