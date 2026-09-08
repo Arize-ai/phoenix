@@ -213,6 +213,27 @@ function isReady(url: string): boolean {
   return result.status === 0;
 }
 
+function hasReachableService(session: Session): boolean {
+  return (
+    isReady(
+      `${getPortlessUrl({ name: "phoenix", worktreePath: session.worktreePath })}/healthz`
+    ) ||
+    isReady(
+      `${getPortlessUrl({ name: "phoenix-vite", worktreePath: session.worktreePath })}/@vite/client`
+    )
+  );
+}
+
+function stopPortlessServices(session: Session): void {
+  for (const name of ["phoenix", "phoenix-vite"]) {
+    run({
+      command: PORTLESS,
+      arguments_: ["run", "--name", name, "--force", "true"],
+      cwd: session.worktreePath,
+    });
+  }
+}
+
 function quoteShell(value: string): string {
   return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
@@ -359,7 +380,7 @@ async function startSession(): Promise<number> {
     throw new Error("Run `make install-node` before starting a dev session.");
   const identity = getIdentity();
   const existing = await readSession(identity.id);
-  if (existing && isRunning(existing))
+  if (existing && (isRunning(existing) || hasReachableService(existing)))
     throw new Error(
       `This worktree is already running at ${getPortlessUrl({ name: "phoenix", worktreePath: identity.worktreePath })}`
     );
@@ -401,19 +422,35 @@ async function startSession(): Promise<number> {
       stdio: "inherit",
     }
   );
-  const stop = (signal: NodeJS.Signals) =>
-    child.pid &&
-    process.kill(process.platform === "win32" ? child.pid : -child.pid, signal);
-  process.once("SIGINT", stop);
-  process.once("SIGTERM", stop);
-  const exitCode = await new Promise<number>((resolveExit, reject) => {
-    child.once("error", reject);
-    child.once("close", (code) => resolveExit(code ?? 0));
-  });
-  process.removeListener("SIGINT", stop);
-  process.removeListener("SIGTERM", stop);
-  await writeSession({ ...session, pid: null });
-  return exitCode;
+  let isStopping = false;
+  const stop = (signal: NodeJS.Signals) => {
+    if (isStopping) return;
+    isStopping = true;
+    try {
+      sendMprocs(session, { c: "quit" });
+    } catch {
+      if (child.pid)
+        process.kill(
+          process.platform === "win32" ? child.pid : -child.pid,
+          signal
+        );
+    }
+  };
+  const signals: NodeJS.Signals[] = ["SIGHUP", "SIGINT", "SIGTERM"];
+  for (const signal of signals) process.once(signal, stop);
+  try {
+    return await new Promise<number>((resolveExit, reject) => {
+      child.once("error", reject);
+      child.once("close", (code) => resolveExit(code ?? 0));
+    });
+  } finally {
+    for (const signal of signals) process.removeListener(signal, stop);
+    try {
+      stopPortlessServices(session);
+    } finally {
+      await writeSession({ ...session, pid: null });
+    }
+  }
 }
 
 function sendMprocs(session: Session, command: unknown): void {
@@ -436,7 +473,11 @@ async function listSessions(): Promise<void> {
   );
   if (sessions.length === 0) return console.log("No Phoenix dev sessions.");
   for (const session of sessions) {
-    const status = isRunning(session) ? "running" : "stopped";
+    const status = isRunning(session)
+      ? "running"
+      : hasReachableService(session)
+        ? "orphaned"
+        : "stopped";
     console.log(
       `${session.id}  ${status.padEnd(7)}  ${session.branch}  ${getPortlessUrl({ name: "phoenix", worktreePath: session.worktreePath })}`
     );
@@ -453,16 +494,19 @@ async function printStatus(selector?: string): Promise<void> {
     name: "phoenix-vite",
     worktreePath: session.worktreePath,
   });
+  const isApiReady = isReady(`${appUrl}/healthz`);
+  const isFrontendReady = isReady(`${viteUrl}/@vite/client`);
+  const status = isRunning(session)
+    ? "running"
+    : isApiReady || isFrontendReady
+      ? "orphaned"
+      : "stopped";
   console.log(`Phoenix dev session ${session.id}`);
-  console.log(`  status    ${isRunning(session) ? "running" : "stopped"}`);
+  console.log(`  status    ${status}`);
   console.log(`  branch    ${session.branch}`);
   console.log(`  app       ${appUrl}`);
-  console.log(
-    `  api       ${isReady(`${appUrl}/healthz`) ? "ready" : "unavailable"}`
-  );
-  console.log(
-    `  frontend  ${isReady(`${viteUrl}/@vite/client`) ? "ready" : "unavailable"}`
-  );
+  console.log(`  api       ${isApiReady ? "ready" : "unavailable"}`);
+  console.log(`  frontend  ${isFrontendReady ? "ready" : "unavailable"}`);
   console.log(`  logs      ${getLogDirectory(session.id)}`);
 }
 
@@ -496,6 +540,7 @@ async function cleanSession(selector?: string): Promise<void> {
   const directory = getSessionDirectory(session.id);
   if (relative(STATE_ROOT, directory).startsWith(".."))
     throw new Error(`Refusing to remove unmanaged path ${directory}.`);
+  stopPortlessServices(session);
   await rm(directory, { recursive: true });
   console.log(`Removed data and logs for ${session.id} (${session.branch}).`);
 }
@@ -503,10 +548,15 @@ async function cleanSession(selector?: string): Promise<void> {
 async function stopSessions(selector?: string): Promise<void> {
   const sessions =
     selector === "--all"
-      ? (await readSessions()).filter(isRunning)
+      ? await readSessions()
       : [await selectSession(selector)];
   for (const session of sessions) {
-    sendMprocs(session, { c: "quit" });
+    if (isRunning(session)) {
+      sendMprocs(session, { c: "quit" });
+    } else {
+      await writeSession({ ...session, pid: null });
+    }
+    stopPortlessServices(session);
     console.log(`Stopping ${session.id} (${session.branch})...`);
   }
 }
