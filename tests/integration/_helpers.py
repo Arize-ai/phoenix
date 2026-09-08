@@ -761,7 +761,22 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
     command = f"{sys.executable} -m phoenix.server.main serve --debug"
     env = {**os.environ, **app.env} if sys.platform == "win32" else dict(app.env)
-    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
+    # The server's stdio and this pipe's reader must agree on an encoding, and
+    # the reader must never die on a byte it cannot decode: it is the only
+    # thing draining the pipe, and a server whose pipe is full blocks on its
+    # next log write and stops answering requests. The locale encoding that
+    # Popen(text=True) would otherwise use is cp1252 on Windows, which cannot
+    # decode the box-drawing glyphs Rich puts around a logged traceback.
+    env["PYTHONIOENCODING"] = "utf-8"
+    process = Popen(
+        command.split(),
+        stdout=PIPE,
+        stderr=STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+    )
     log: list[str] = []
     lock: Lock = Lock()
     Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
