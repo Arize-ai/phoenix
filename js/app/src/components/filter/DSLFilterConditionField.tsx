@@ -600,6 +600,7 @@ export function DSLFilterConditionField<
     loadedCompletionsRef.current = null;
   }, [loadCompletions]);
 
+  /* eslint-disable react/preserve-manual-memoization */
   const contentAttributes = useMemo(
     () =>
       EditorView.contentAttributes.of({
@@ -713,6 +714,7 @@ export function DSLFilterConditionField<
     contentAttributes,
     selectOnOpen,
   ]);
+  /* eslint-enable react/preserve-manual-memoization */
 
   // Completion data can arrive after the user has already focused the empty
   // field — the sampled record behind a mapping path field, a fetched name

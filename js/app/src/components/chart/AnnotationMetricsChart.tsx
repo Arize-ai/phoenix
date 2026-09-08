@@ -229,7 +229,7 @@ function AnnotationMetricsChartContent({
   const semanticColors = useSemanticChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
-  const { data, reference, labels } = series;
+  const { data, labels } = series;
   // Null means "no good-versus-bad reading": stay on the categorical palette.
   const {
     chartData,

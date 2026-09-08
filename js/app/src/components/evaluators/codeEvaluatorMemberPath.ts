@@ -45,6 +45,7 @@ export type CodeEvaluatorMemberCursor = {
  * Returns null when the text is not a member access — a bare name is the body's
  * root completion, not a drill into something.
  */
+// oxlint-disable-next-line complexity
 export function getCodeEvaluatorMemberCursor(
   textBeforeCursor: string
 ): CodeEvaluatorMemberCursor | null {
