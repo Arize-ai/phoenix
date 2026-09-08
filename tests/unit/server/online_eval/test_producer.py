@@ -291,16 +291,23 @@ async def test_builtin_implementation_version_changes_fingerprint(
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
-        evaluator = models.BuiltinEvaluator(
-            name=Identifier(root="contains"),
-            kind="BUILTIN",
-            key="contains",
-            input_schema={},
-            output_configs=[],
-            synced_at=_now(),
+        # The test database is seeded with the app's startup rows, which include
+        # the synced builtin evaluators; reuse that row rather than insert a
+        # second `contains` (evaluators.name is unique).
+        evaluator = await session.scalar(
+            select(models.BuiltinEvaluator).where(models.BuiltinEvaluator.key == "contains")
         )
-        session.add(evaluator)
-        await session.flush()
+        if evaluator is None:
+            evaluator = models.BuiltinEvaluator(
+                name=Identifier(root="contains"),
+                kind="BUILTIN",
+                key="contains",
+                input_schema={},
+                output_configs=[],
+                synced_at=_now(),
+            )
+            session.add(evaluator)
+            await session.flush()
         project_evaluator = models.ProjectEvaluator(
             trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
             project_id=project.id,
