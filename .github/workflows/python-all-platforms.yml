@@ -187,7 +187,7 @@ jobs:
           version-file: "pyproject.toml"
       - name: Run integration tests
         timeout-minutes: 30
-        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4
+        run: uvx tox run -e integration_tests -- -ra --durations=20 --reruns 5 --timeout 360 -n 4
 
   phoenix-client-non-linux:
     name: Phoenix Client (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.py }})
