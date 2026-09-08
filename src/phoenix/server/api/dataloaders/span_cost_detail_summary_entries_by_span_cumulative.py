@@ -3,7 +3,6 @@ from typing import Iterable
 
 import sqlalchemy as sa
 from sqlalchemy import func, select
-from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -25,10 +24,12 @@ class SpanCostDetailSummaryEntriesBySpanCumulativeDataLoader(DataLoader[Key, Res
         self._db = db
 
     async def _load_fn(self, keys: Iterable[Key]) -> list[Result]:
+        keys = list(keys)
+        span_path_segment = sa.cast(models.Span.id, sa.String) + ","
         roots = sa.values(
             sa.Column("root_rowid", sa.Integer),
             name="roots",
-        ).data([(key,) for key in keys])
+        ).data([(key,) for key in set(keys)])
 
         subtree = (
             select(
@@ -36,6 +37,7 @@ class SpanCostDetailSummaryEntriesBySpanCumulativeDataLoader(DataLoader[Key, Res
                 models.Span.span_id,
                 models.Span.trace_rowid,
                 roots.c.root_rowid,
+                (sa.literal(",", sa.String) + span_path_segment).label("path"),
             )
             .join_from(roots, models.Span, models.Span.id == roots.c.root_rowid)
             .cte("subtree", recursive=True)
@@ -47,7 +49,9 @@ class SpanCostDetailSummaryEntriesBySpanCumulativeDataLoader(DataLoader[Key, Res
                 models.Span.span_id,
                 models.Span.trace_rowid,
                 parents.c.root_rowid,
-            ).join_from(
+                (parents.c.path + span_path_segment).label("path"),
+            )
+            .join_from(
                 parents,
                 models.Span,
                 sa.and_(
@@ -55,6 +59,7 @@ class SpanCostDetailSummaryEntriesBySpanCumulativeDataLoader(DataLoader[Key, Res
                     models.Span.parent_id == parents.c.span_id,
                 ),
             )
+            .where(parents.c.path.not_like(sa.literal("%,", sa.String) + span_path_segment + "%"))
         )
 
         stmt = (
@@ -62,8 +67,8 @@ class SpanCostDetailSummaryEntriesBySpanCumulativeDataLoader(DataLoader[Key, Res
                 subtree.c.root_rowid,
                 models.SpanCostDetail.token_type,
                 models.SpanCostDetail.is_prompt,
-                coalesce(func.sum(models.SpanCostDetail.cost), 0).label("cost"),
-                coalesce(func.sum(models.SpanCostDetail.tokens), 0).label("tokens"),
+                func.sum(models.SpanCostDetail.cost).label("cost"),
+                func.sum(models.SpanCostDetail.tokens).label("tokens"),
             )
             .select_from(subtree)
             .join(models.SpanCost, models.SpanCost.span_rowid == subtree.c.id)
