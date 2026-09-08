@@ -31,7 +31,10 @@ import {
 } from "@phoenix/utils/jsonUtils";
 
 import { defaultCardProps } from "./constants";
-import { MessageContentsList } from "./MessageContentsList";
+import {
+  getReasoningDisclosureIds,
+  MessageContentsList,
+} from "./MessageContentsList";
 import { formatJSONForCopy, getMessagePreview, getToolCalls } from "./utils";
 
 /**
@@ -108,13 +111,13 @@ export function LLMMessage({
         <Flex direction="column" alignItems="start">
           {/* one group holds every row of the card -- reasoning, contents,
               content, tool calls -- so it alone rules them off from each
-              other. Reasoning rows are not in the expanded keys: the thinking
-              is context for the answer, so it starts out of the way */}
+              other, and every row starts open */}
           <DisclosureGroup
             css={css`
               width: 100%;
             `}
             defaultExpandedKeys={[
+              ...getReasoningDisclosureIds(messagesContents),
               "tool-content",
               ...toolCallDisclosureIds,
               "function-call",
