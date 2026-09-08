@@ -126,7 +126,7 @@ export const EditCodeEvaluatorDialogContent = ({
   initialSourceCode,
   sandboxConfigs,
   initialSandboxConfigId,
-  evaluatorNodeId,
+  codeEvaluatorNodeId,
 }: {
   onSubmit: (payload: {
     language: CodeEvaluatorLanguage;
@@ -149,7 +149,8 @@ export const EditCodeEvaluatorDialogContent = ({
   initialSourceCode: string;
   sandboxConfigs: SandboxConfigOption[];
   initialSandboxConfigId?: string | null;
-  evaluatorNodeId?: string | null;
+  /** Relay node ID of the underlying code evaluator, not an association wrapper. */
+  codeEvaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
   const grain = useEvaluatorStore(
@@ -254,9 +255,9 @@ export const EditCodeEvaluatorDialogContent = ({
   const advertisedCodeEvaluatorContext = useMemo(
     () => ({
       type: "code_evaluator" as const,
-      evaluatorNodeId: evaluatorNodeId ?? null,
+      evaluatorNodeId: codeEvaluatorNodeId ?? null,
     }),
-    [evaluatorNodeId]
+    [codeEvaluatorNodeId]
   );
   useAdvertiseAgentContext(advertisedCodeEvaluatorContext);
 
@@ -295,7 +296,7 @@ export const EditCodeEvaluatorDialogContent = ({
         firstOutputConfigName;
       return {
         mode: mode === "create" ? "create" : "edit",
-        evaluatorNodeId: evaluatorNodeId ?? null,
+        evaluatorNodeId: codeEvaluatorNodeId ?? null,
         name: draftName,
         description: state.evaluator.description,
         language: local.language,
@@ -437,7 +438,7 @@ export const EditCodeEvaluatorDialogContent = ({
         }
       }
     };
-  }, [agentStore, store, mode, evaluatorNodeId]);
+  }, [agentStore, store, mode, codeEvaluatorNodeId]);
 
   const handleCancel = () => {
     onCancel?.();
