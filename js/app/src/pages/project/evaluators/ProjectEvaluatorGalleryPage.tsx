@@ -170,6 +170,7 @@ export function ProjectEvaluatorGalleryPage() {
   );
 }
 
+// oxlint-disable-next-line complexity
 function EvaluatorGallery() {
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
