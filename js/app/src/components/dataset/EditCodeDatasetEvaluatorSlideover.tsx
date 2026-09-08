@@ -474,7 +474,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           initialSourceCode={evaluatorSourceCode}
           sandboxConfigs={sandboxConfigs}
           initialSandboxConfigId={initialSandboxConfigId}
-          evaluatorNodeId={evaluator.id}
+          codeEvaluatorNodeId={evaluator.id}
         />
       )}
     </EvaluatorStoreProvider>
