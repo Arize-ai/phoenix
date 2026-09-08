@@ -61,6 +61,7 @@ import {
   UserMessage,
 } from "./ChatMessage";
 import { ChatScrollContext } from "./ChatScrollContext";
+import { getConversationUsage } from "./ChatSessionUsage";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
@@ -591,6 +592,7 @@ export function ChatView({
   }, [sessionId, sendMessage, store]);
 
   const showsEmptyState = messages.length === 0 && !isBusyElsewhere;
+  const conversationUsage = getConversationUsage({ messages });
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
     useAgentModelCredentialStatus(modelMenuValue);
@@ -1016,6 +1018,8 @@ export function ChatView({
               onModelChange={onModelChange}
               isInputDisabled={isCompacting || isBusyElsewhere}
               isSubmitDisabled={isSubmitDisabled}
+              hasMessages={messages.length > 0}
+              promptTokenCount={conversationUsage?.tokenCount.prompt ?? null}
               onStop={() => {
                 void stop();
               }}
