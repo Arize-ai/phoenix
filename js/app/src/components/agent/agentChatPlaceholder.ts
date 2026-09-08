@@ -15,10 +15,11 @@ export type AgentChatSuggestionContext = AgentContext["type"] | null;
 /**
  * Select the most relevant teaching placeholder for the PXI composer.
  *
- * Empty conversations retain the neutral prompt. Once a conversation has
- * started, compaction takes priority over contextual skill suggestions because
- * it addresses an immediate context-window concern. Skill suggestions are only
- * shown when the advertised skill catalog confirms that the skill is available.
+ * Compaction takes priority because it addresses an immediate context-window
+ * concern. Specific page contexts can teach relevant skills even before the
+ * conversation starts, while broad project guidance waits until the user has
+ * begun chatting. Skill suggestions are only shown when the advertised catalog
+ * confirms that the skill is available.
  */
 export function getAgentChatPlaceholder({
   hasMessages,
@@ -31,9 +32,6 @@ export function getAgentChatPlaceholder({
   suggestionContext: AgentChatSuggestionContext;
   availableSkillNames: ReadonlySet<string>;
 }): string {
-  if (!hasMessages) {
-    return DEFAULT_PLACEHOLDER;
-  }
   if (
     promptTokenCount != null &&
     promptTokenCount >= COMPACTION_PLACEHOLDER_TOKEN_THRESHOLD
@@ -50,7 +48,7 @@ export function getAgentChatPlaceholder({
         ? DEBUG_TRACE_PLACEHOLDER
         : DEFAULT_PLACEHOLDER;
     case "project":
-      return availableSkillNames.has("debug-trace")
+      return hasMessages && availableSkillNames.has("debug-trace")
         ? DEBUG_PROJECT_PLACEHOLDER
         : DEFAULT_PLACEHOLDER;
     case "playground":

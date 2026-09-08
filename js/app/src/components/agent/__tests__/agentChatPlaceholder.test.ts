@@ -12,12 +12,34 @@ const availableSkillNames = new Set([
 ]);
 
 describe("getAgentChatPlaceholder", () => {
-  it("uses the default placeholder for an empty conversation", () => {
+  it("uses the default placeholder for an empty contextless conversation", () => {
     expect(
       getAgentChatPlaceholder({
         hasMessages: false,
-        promptTokenCount: COMPACTION_PLACEHOLDER_TOKEN_THRESHOLD,
+        promptTokenCount: null,
+        suggestionContext: null,
+        availableSkillNames,
+      })
+    ).toBe("Send a message");
+  });
+
+  it("allows a specific context to teach a skill in an empty conversation", () => {
+    expect(
+      getAgentChatPlaceholder({
+        hasMessages: false,
+        promptTokenCount: null,
         suggestionContext: "span",
+        availableSkillNames,
+      })
+    ).toBe("Try /debug-trace to understand this span");
+  });
+
+  it("keeps broad project guidance neutral in an empty conversation", () => {
+    expect(
+      getAgentChatPlaceholder({
+        hasMessages: false,
+        promptTokenCount: null,
+        suggestionContext: "project",
         availableSkillNames,
       })
     ).toBe("Send a message");
