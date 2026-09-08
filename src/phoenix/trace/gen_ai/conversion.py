@@ -638,7 +638,8 @@ def _normalize_v130_message_parts(value: Any) -> Any:
     for item in payload:
         if not isinstance(item, dict):
             continue
-        parts = item.get("parts") if isinstance(item.get("parts"), list) else [item]
+        raw_parts = item.get("parts")
+        parts = raw_parts if isinstance(raw_parts, list) else [item]
         for part in parts:
             if not isinstance(part, dict) or part.get("type") not in ("blob", "uri", "file"):
                 continue
