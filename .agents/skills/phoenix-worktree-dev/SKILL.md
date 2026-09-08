@@ -91,4 +91,7 @@ make dev-sessions ARGS="doctor"
 ```
 
 `stop` preserves the session environment and data. `clean` removes them, so the
-next start takes a fresh snapshot.
+next start takes a fresh snapshot. Session listings and status output show the
+age of each private database clone. Treat clones older than seven days as a
+cleanup prompt, not permission to delete data: tell the user about the retained
+clone and clean it only when they confirm it is no longer needed.

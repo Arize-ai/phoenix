@@ -33,6 +33,7 @@ const PORTLESS = join(
   "portless"
 );
 const MPROCS = join(APP_ROOT, "node_modules", ".bin", "mprocs");
+const STALE_DATABASE_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 type Session = {
   id: string;
@@ -42,6 +43,7 @@ type Session = {
   controlPort: number;
   grpcPort: number;
   startedAt: string;
+  databaseClonedAt: string | null;
 };
 
 function run({
@@ -108,6 +110,8 @@ const getDataDirectory = (id: string) => join(getSessionDirectory(id), "data");
 const getLogDirectory = (id: string) => join(getSessionDirectory(id), "logs");
 const getEnvironmentPath = (id: string) =>
   join(getSessionDirectory(id), "env.sh");
+const getDatabasePath = (id: string) =>
+  join(getDataDirectory(id), "phoenix.db");
 
 async function readSession(id: string): Promise<Session | null> {
   try {
@@ -129,6 +133,30 @@ async function readSessions(): Promise<Session[]> {
   return (await Promise.all(ids.map(readSession))).filter(
     (session): session is Session => session !== null
   );
+}
+
+/**
+ * @param params - Age formatting parameters.
+ * @param params.clonedAt - Time when the database clone was created.
+ * @param params.now - Reference time. Defaults to the current time.
+ */
+function getDatabaseAge({
+  clonedAt,
+  now = new Date(),
+}: {
+  clonedAt: string | null;
+  now?: Date;
+}): { ageMs: number; label: string } | null {
+  if (!clonedAt) return null;
+  const ageMs = Math.max(0, now.getTime() - Date.parse(clonedAt));
+  const ageHours = Math.floor(ageMs / (60 * 60 * 1000));
+  const label =
+    ageHours < 1
+      ? "<1h"
+      : ageHours < 48
+        ? `${ageHours}h`
+        : `${Math.floor(ageHours / 24)}d`;
+  return { ageMs, label };
 }
 
 async function writeSession(session: Session): Promise<void> {
@@ -292,18 +320,18 @@ async function seedDatabase({
   environmentPath: string;
   primaryRoot: string;
   targetPath: string;
-}): Promise<void> {
+}): Promise<boolean> {
   const isEnabled = !["0", "false", "no"].includes(
     (process.env.PHOENIX_DEV_SEED_DATABASE ?? "true").toLowerCase()
   );
-  if (!isEnabled || existsSync(targetPath)) return;
+  if (!isEnabled || existsSync(targetPath)) return false;
   const sourcePath = findSqliteDatabase({
     environment: readEnvironment(environmentPath),
     primaryRoot,
   });
   if (!sourcePath || !existsSync(sourcePath)) {
     console.log("No primary SQLite database found; using empty session data.");
-    return;
+    return false;
   }
   console.log(`Copying ${sourcePath} ...`);
   const temporaryPath = `${targetPath}.tmp`;
@@ -311,13 +339,14 @@ async function seedDatabase({
   try {
     await backup(source, temporaryPath, { rate: 4096 });
     await rename(temporaryPath, targetPath);
+    return true;
   } finally {
     source.close();
     await rm(temporaryPath, { force: true });
   }
 }
 
-async function prepareSession(session: Session): Promise<void> {
+async function prepareSession(session: Session): Promise<boolean> {
   const primaryRoot = dirname(
     resolve(
       session.worktreePath,
@@ -340,10 +369,10 @@ async function prepareSession(session: Session): Promise<void> {
     else await writeFile(primaryEnvironment, "");
     await chmod(primaryEnvironment, 0o600);
   }
-  await seedDatabase({
+  const didCloneDatabase = await seedDatabase({
     environmentPath: primaryEnvironment,
     primaryRoot,
-    targetPath: join(dataDirectory, "phoenix.db"),
+    targetPath: getDatabasePath(session.id),
   });
   const appUrl = getPortlessUrl({
     name: "phoenix",
@@ -373,6 +402,7 @@ async function prepareSession(session: Session): Promise<void> {
     "",
   ].join("\n");
   await writeFile(getEnvironmentPath(session.id), environment, { mode: 0o600 });
+  return didCloneDatabase;
 }
 
 async function startSession(): Promise<number> {
@@ -390,9 +420,16 @@ async function startSession(): Promise<number> {
     controlPort: await getFreePort(),
     grpcPort: await getFreePort(),
     startedAt: new Date().toISOString(),
+    databaseClonedAt: existing?.databaseClonedAt ?? null,
   };
-  await prepareSession(session);
-  await writeSession(session);
+  const didCloneDatabase = await prepareSession(session);
+  const activeSession: Session = {
+    ...session,
+    databaseClonedAt: didCloneDatabase
+      ? session.startedAt
+      : session.databaseClonedAt,
+  };
+  await writeSession(activeSession);
   const url = getPortlessUrl({
     name: "phoenix",
     worktreePath: session.worktreePath,
@@ -427,7 +464,7 @@ async function startSession(): Promise<number> {
     if (isStopping) return;
     isStopping = true;
     try {
-      sendMprocs(session, { c: "quit" });
+      sendMprocs(activeSession, { c: "quit" });
     } catch {
       if (child.pid)
         process.kill(
@@ -446,9 +483,9 @@ async function startSession(): Promise<number> {
   } finally {
     for (const signal of signals) process.removeListener(signal, stop);
     try {
-      stopPortlessServices(session);
+      stopPortlessServices(activeSession);
     } finally {
-      await writeSession({ ...session, pid: null });
+      await writeSession({ ...activeSession, pid: null });
     }
   }
 }
@@ -478,8 +515,12 @@ async function listSessions(): Promise<void> {
       : hasReachableService(session)
         ? "orphaned"
         : "stopped";
+    const databaseAge = getDatabaseAge({
+      clonedAt: session.databaseClonedAt,
+    });
+    const database = databaseAge ? `db ${databaseAge.label}` : "no db clone";
     console.log(
-      `${session.id}  ${status.padEnd(7)}  ${session.branch}  ${getPortlessUrl({ name: "phoenix", worktreePath: session.worktreePath })}`
+      `${session.id}  ${status.padEnd(8)}  ${database.padEnd(11)}  ${session.branch}  ${getPortlessUrl({ name: "phoenix", worktreePath: session.worktreePath })}`
     );
   }
 }
@@ -496,6 +537,9 @@ async function printStatus(selector?: string): Promise<void> {
   });
   const isApiReady = isReady(`${appUrl}/healthz`);
   const isFrontendReady = isReady(`${viteUrl}/@vite/client`);
+  const databaseAge = getDatabaseAge({
+    clonedAt: session.databaseClonedAt,
+  });
   const status = isRunning(session)
     ? "running"
     : isApiReady || isFrontendReady
@@ -507,7 +551,16 @@ async function printStatus(selector?: string): Promise<void> {
   console.log(`  app       ${appUrl}`);
   console.log(`  api       ${isApiReady ? "ready" : "unavailable"}`);
   console.log(`  frontend  ${isFrontendReady ? "ready" : "unavailable"}`);
+  console.log(
+    `  database  ${databaseAge ? `cloned ${databaseAge.label} ago` : "no primary database clone"}`
+  );
   console.log(`  logs      ${getLogDirectory(session.id)}`);
+  if (databaseAge && databaseAge.ageMs > STALE_DATABASE_AGE_MS) {
+    const cleanupStep = status === "stopped" ? "run" : "stop it, then run";
+    console.log(
+      `  cleanup   clone is over 7d old; ${cleanupStep} make dev-sessions ARGS="clean ${session.id}" if it is no longer needed`
+    );
+  }
 }
 
 async function restartSession({
