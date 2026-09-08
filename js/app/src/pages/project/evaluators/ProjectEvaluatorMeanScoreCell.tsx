@@ -158,6 +158,7 @@ export function ProjectEvaluatorMeanScoreCell({
   );
 }
 
+// oxlint-disable-next-line complexity
 function AnnotationMeanScoreView({
   annotation,
   scoreWindow,
