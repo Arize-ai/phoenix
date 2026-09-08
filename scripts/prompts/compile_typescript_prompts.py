@@ -6,16 +6,38 @@ import argparse
 import json
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import yaml
 from jinja2 import Template
-from pydantic import BaseModel
+from phoenix.evals.llm.prompts import FormatterFactory
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class PromptMessage(BaseModel):
     role: Literal["user"]
     content: str
+
+
+EvaluatorScope = Literal["span", "trace", "session"]
+EvaluatorCategory = Literal[
+    "grounding_and_retrieval",
+    "agents",
+    "response_quality",
+    "safety_and_security",
+    "user_experience",
+]
+
+
+class EvaluatorInput(BaseModel):
+    description: str
+
+    @field_validator("description")
+    @classmethod
+    def description_must_not_be_empty(cls, description: str) -> str:
+        if not description.strip():
+            raise ValueError("input description must not be empty")
+        return description
 
 
 class ClassificationEvaluatorConfig(BaseModel):
@@ -24,6 +46,52 @@ class ClassificationEvaluatorConfig(BaseModel):
     optimization_direction: Literal["minimize", "maximize", "neutral"]
     messages: list[PromptMessage]
     choices: dict[str, float]
+    substitutions: Optional[dict[str, str]] = None
+    labels: list[str] = []
+    scope: Optional[EvaluatorScope] = None
+    recommended: bool = False
+    category: Optional[EvaluatorCategory] = None
+    details: Optional[str] = None
+    inputs: Optional[dict[str, EvaluatorInput]] = None
+
+    @field_validator("inputs")
+    @classmethod
+    def input_names_must_not_be_empty(
+        cls, inputs: Optional[dict[str, EvaluatorInput]]
+    ) -> Optional[dict[str, EvaluatorInput]]:
+        if inputs is not None and any(not input_name.strip() for input_name in inputs):
+            raise ValueError("input name must not be empty")
+        return inputs
+
+    @model_validator(mode="after")
+    def validate_source_inputs(self) -> "ClassificationEvaluatorConfig":
+        if self.inputs is None:
+            return self
+
+        source_variables = set()
+        for message in self.messages:
+            source_variables.update(_get_template_variables(message.content))
+
+        declared_inputs = set(self.inputs)
+        missing_inputs = source_variables - declared_inputs
+        unused_inputs = declared_inputs - source_variables
+        if missing_inputs or unused_inputs:
+            errors = []
+            if missing_inputs:
+                errors.append(f"missing inputs: {sorted(missing_inputs)}")
+            if unused_inputs:
+                errors.append(f"unused inputs: {sorted(unused_inputs)}")
+            raise ValueError("; ".join(errors))
+        return self
+
+
+def _get_template_variables(template: str) -> set[str]:
+    formatter = FormatterFactory.auto_detect_and_create(template)
+    return {
+        re.split(r"[.\[]", variable, maxsplit=1)[0]
+        for variable in formatter.extract_variables(template)
+        if variable != "."
+    }
 
 
 CLASSIFICATION_EVALUATOR_CONFIG_FILE_TEMPLATE = """\
@@ -128,7 +196,7 @@ if __name__ == "__main__":
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Compile all YAML prompts to TypeScript
-    yaml_files = list(prompts_dir.glob("*.yaml"))
+    yaml_files = list(prompts_dir.glob("*_CLASSIFICATION_EVALUATOR_CONFIG.yaml"))
     config_names = []
 
     for yaml_file in sorted(yaml_files):

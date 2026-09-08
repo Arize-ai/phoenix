@@ -64,3 +64,14 @@ class EvaluatorPreviewItemInput:
     evaluator: EvaluatorPreviewInput
     context: JSON
     input_mapping: EvaluatorInputMappingInput
+    apply_online_evaluation_limits: bool = strawberry.field(
+        default=False,
+        description=(
+            "Whether to enforce the execution limits an online evaluation runs "
+            "under: the rendered LLM message cap and the sandbox payload cap. "
+            "Set this when the preview stands in for a scheduled run, so a "
+            "preview cannot succeed where the live evaluation would be "
+            "rejected. The limits themselves come from the server's "
+            "configuration, never from this request."
+        ),
+    )

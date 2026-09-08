@@ -1,7 +1,5 @@
 import { css, keyframes } from "@emotion/react";
 
-import { APP_PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
-
 /**
  * The popover surface shared by every floating element the filter field
  * shows — the typeahead menu, its info panel, and the error popover — so
@@ -14,30 +12,45 @@ export const popoverSurfaceCSS = css`
   box-shadow: 0 8px 16px var(--global-overlay-shadow-color);
 `;
 
-/** Shared CodeMirror autocomplete menu and info-panel chrome. */
+/**
+ * Shared CodeMirror autocomplete menu and info-panel chrome.
+ *
+ * Applied globally, because `typeaheadTooltips` renders the menu into
+ * `document.body` rather than under any of its editors' wrappers. Every rule
+ * is scoped to the `dsl-filter-typeahead` class the typeahead surfaces ask
+ * for, so other editors' menus are untouched.
+ */
+/**
+ * Completion `type` values spelled with this prefix are row classes: the menu
+ * chrome in `typeaheadMenuCSS` below styles them, and `optionClass` passes
+ * them through unchanged.
+ */
+export const TYPEAHEAD_COMPLETION_CLASS_PREFIX = "typeahead-completion--";
+
+export function toTypeaheadCompletionClass(type: string | undefined): string {
+  return type?.startsWith(TYPEAHEAD_COMPLETION_CLASS_PREFIX) ? type : "";
+}
+
 export const typeaheadMenuCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
     padding: var(--global-dimension-size-50);
-    z-index: ${APP_PORTALED_OVERLAY_Z_INDEX};
     /* CodeMirror anchors the tooltip to the text line inside the field, so
        the offset must clear the field's inner padding and border before it
        reads as a gap below the input itself. A transform (rather than
-       margin) keeps CodeMirror's own tooltip measurement and positioning
-       math untouched. */
-    transform: translateY(var(--global-dimension-size-200));
+       margin) keeps CodeMirror's own positioning math untouched;
+       typeaheadTooltips insets the space it measures against by the same
+       amount so a menu at the viewport edge still fits. */
+    --menu-gap: var(--typeahead-menu-gap, var(--global-dimension-size-200));
+    transform: translateY(var(--menu-gap));
     &.cm-tooltip-above {
-      transform: translateY(calc(-1 * var(--global-dimension-size-200)));
+      transform: translateY(calc(-1 * var(--menu-gap)));
     }
     & > ul {
       font-family: var(--global-font-family-sans);
       font-size: var(--global-font-size-s);
       line-height: var(--global-line-height-s);
-      /* Keep the menu short enough to fit on either side of a field in a
-         centered dialog. CodeMirror chooses above/below from the measured
-         height, so a viewport-relative cap prevents an unnecessary flip into
-         the viewport edge on compact screens. */
-      max-height: min(400px, 40vh);
+      max-height: 400px;
       min-width: 280px;
       /* Wide enough that the longest shipped suggestion snippet (~77 mono
          chars) fits its own stacked line — see li.dsl-filter-suggestion */
@@ -97,6 +110,23 @@ export const typeaheadMenuCSS = css`
       margin-left: 0;
       max-width: 100%;
     }
+    /* A row for something the record does not supply — kept in the menu so
+       its absence is visible, dimmed so the absence reads. */
+    li.typeahead-completion--unset {
+      color: var(--global-text-color-300);
+    }
+    /* A container row: the chevron says the row can be drilled with a dot. */
+    li.typeahead-completion--container .cm-completionLabel::after {
+      content: " ›";
+      color: var(--global-text-color-500);
+    }
+    /* Details that read as prose rather than as a value */
+    li.typeahead-completion--unset .cm-completionDetail,
+    li.typeahead-completion--hint .cm-completionDetail {
+      font-family: var(--global-font-family-sans);
+      font-style: italic;
+      color: var(--global-text-color-300);
+    }
     .cm-completionMatchedText {
       text-decoration: none;
       font-weight: var(--font-weight-heavy);
@@ -114,26 +144,15 @@ export const typeaheadMenuCSS = css`
       max-width: 60%;
       flex: 0 1 auto;
     }
-  }
-  /* The info panel shown beside the highlighted completion */
-  .cm-tooltip.cm-completionInfo {
-    ${popoverSurfaceCSS}
-    font-family: var(--global-font-family-sans);
-    font-size: var(--global-font-size-s);
-    padding: var(--global-dimension-size-100);
-    color: var(--global-text-color-700);
-    max-width: 300px;
-  }
-`;
-
-/**
- * CodeMirror tooltips normally inherit the field's scoped Emotion styles.
- * Inside a modal they are reparented to the overlay container to escape the
- * dialog's transformed overflow clip, so repeat that scope at the portal root.
- */
-export const portaledTypeaheadMenuCSS = css`
-  .dsl-filter-tooltip-root {
-    ${typeaheadMenuCSS}
+    /* The info panel shown beside the highlighted completion */
+    & .cm-tooltip.cm-completionInfo {
+      ${popoverSurfaceCSS}
+      font-family: var(--global-font-family-sans);
+      font-size: var(--global-font-size-s);
+      padding: var(--global-dimension-size-100);
+      color: var(--global-text-color-700);
+      max-width: 300px;
+    }
   }
 `;
 
@@ -167,7 +186,6 @@ export const dslFilterCodeMirrorCSS = css`
   .cm-selectionLayer .cm-selectionBackground {
     background: var(--global-color-cyan-400) !important;
   }
-  ${typeaheadMenuCSS}
   /* The tab-through blanks an inserted snippet leaves behind — CodeMirror's
      default marking is a near-invisible gray, so tint them with the primary
      color to read as "fill me in": the active one is selected for overtyping,
@@ -223,12 +241,6 @@ export const dslFilterFieldCSS = css`
   background-color: var(--global-input-field-background-color);
   transition: all 0.2s ease-in-out;
   overflow-x: hidden;
-  /* Carry the focus ring's geometry at rest and reveal it with color alone,
-     the way the text inputs do. Leaving the outline unset means focus has to
-     transition off the initial medium-width outline, which animates a thicker
-     ring inward from outside the border. */
-  outline: var(--focus-ring-thickness) solid transparent;
-  outline-offset: calc(-1 * var(--focus-ring-thickness));
   &:hover {
     border-color: var(--global-input-field-border-color-active);
   }
@@ -236,7 +248,8 @@ export const dslFilterFieldCSS = css`
     border-color: var(--global-input-field-border-color-active);
   }
   &:has(.cm-content:focus-visible) {
-    outline-color: var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
   /* Flag invalidity only once the user has left the field — a red border
      while they're still typing/fixing the expression is too alarming */

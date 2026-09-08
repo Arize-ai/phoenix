@@ -53,7 +53,7 @@ const projectConfigPageCSS = css`
 
 const projectConfigPageInnerCSS = css`
   padding: var(--global-dimension-size-400);
-  max-width: 800px;
+  max-width: var(--global-text-content-max-width);
   min-width: 500px;
   box-sizing: border-box;
   width: 100%;

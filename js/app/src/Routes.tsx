@@ -13,6 +13,7 @@ import {
   createDataRouterNavigationStateSource,
   registerRouterNavigationStateSource,
 } from "@phoenix/agent/tools/navigation/routerStateRegistry";
+import type { ParentCrumbToFn } from "@phoenix/hooks/useMatchesWithCrumb";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -24,6 +25,13 @@ import {
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import type { ProjectEvaluatorDetailsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import { ProjectEvaluatorDetailsPage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
+import {
+  PROJECT_EVALUATOR_DETAILS_ROUTE_ID,
+  ProjectEvaluatorTracePage,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
@@ -56,8 +64,11 @@ import type {
   SpanPlaygroundPageLoaderData,
 } from "./pages";
 import {
+  AttachCodeProjectEvaluatorPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
+  CopyCodeProjectEvaluatorPage,
+  CopyLlmProjectEvaluatorPage,
   dashboardsLoader,
   DashboardsEmptyPage,
   DashboardsRoot,
@@ -67,6 +78,7 @@ import {
   DatasetsPage,
   datasetVersionsLoader,
   DatasetVersionsPage,
+  EditProjectEvaluatorPage,
   ErrorElement,
   ExamplePage,
   examplesLoader,
@@ -79,6 +91,9 @@ import {
   homeLoader,
   LoggedOutPage,
   LoginPage,
+  NewCodeProjectEvaluatorPage,
+  NewGalleryLlmFromTemplateProjectEvaluatorPage,
+  NewLlmProjectEvaluatorPage,
   OAuth2ConsentPage,
   PlaygroundPage,
   playgroundPageLoader,
@@ -89,6 +104,9 @@ import {
   ProfileGenerativeAIPage,
   ProfilePage,
   ProfilePreferencesPage,
+  ProjectEvaluatorsPage,
+  ProjectEvaluatorGalleryPage,
+  projectEvaluatorsLoader,
   ProjectIndexPage,
   projectLoader,
   ProjectMetricsPage,
@@ -478,6 +496,214 @@ export const appRouteObjects = createRoutesFromElements(
                   },
                 }}
               />
+              <Route
+                path="evaluators"
+                element={<ProjectEvaluatorsPage />}
+                loader={projectEvaluatorsLoader}
+                // Time range changes are search-param writes; the table
+                // refetches its own fragment for those, so re-running the
+                // loader would fetch the first page twice.
+                shouldRevalidate={revalidateOnPathChange}
+                handle={{
+                  agentRoute: {
+                    label: "Project Evaluators",
+                    description:
+                      "Browse templates, create, and manage project evaluators — online evals that automatically run against live spans.",
+                  },
+                }}
+              >
+                <Route
+                  path="new/llm"
+                  element={<NewLlmProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "New Project LLM Evaluator",
+                      description:
+                        "Author a new LLM-as-a-judge evaluator for a project from scratch.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/code"
+                  element={<NewCodeProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "New Project Code Evaluator",
+                      description:
+                        "Author a new Python or TypeScript code evaluator for a project from scratch.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/copy-llm/:evaluatorId"
+                  element={<CopyLlmProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Copy LLM Evaluator Into Project",
+                      description:
+                        "Create a project evaluator seeded from an existing LLM evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/copy-code/:evaluatorId"
+                  element={<CopyCodeProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Duplicate Code Evaluator Into Project",
+                      description:
+                        "Create and attach a new project code evaluator seeded from an existing code evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being duplicated.",
+                    },
+                  }}
+                />
+                <Route
+                  path="new/attach/:evaluatorId"
+                  element={<AttachCodeProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Attach Code Evaluator To Project",
+                      description:
+                        "Attach an existing code evaluator to a project. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being attached.",
+                    },
+                  }}
+                />
+              </Route>
+            </Route>
+            <Route
+              path="evaluator-gallery"
+              element={<ProjectEvaluatorGalleryPage />}
+              handle={{
+                crumb: () => "Evaluator gallery",
+                parentCrumbTo: (({ parentPathname, search }) => ({
+                  pathname: `${parentPathname}/evaluators`,
+                  search,
+                })) satisfies ParentCrumbToFn,
+                agentRoute: {
+                  label: "Project Evaluator Gallery",
+                  description:
+                    "Browse evaluator templates and create a project evaluator from a template, from scratch, or an existing evaluator.",
+                },
+              }}
+            >
+              <Route
+                path="new/template/:templateName"
+                element={<NewGalleryLlmFromTemplateProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "New Project Evaluator From Gallery Template",
+                    description:
+                      "Create a project LLM evaluator seeded from the selected evaluator gallery template.",
+                  },
+                }}
+              />
+              <Route
+                path="new/llm"
+                element={<NewLlmProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "New Project LLM Evaluator From Gallery",
+                    description:
+                      "Author a new LLM-as-a-judge evaluator for a project from scratch, started from the evaluator gallery.",
+                  },
+                }}
+              />
+              <Route
+                path="new/code"
+                element={<NewCodeProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "New Project Code Evaluator From Gallery",
+                    description:
+                      "Author a new Python or TypeScript code evaluator for a project from scratch, started from the evaluator gallery.",
+                  },
+                }}
+              />
+              <Route
+                path="new/copy-llm/:evaluatorId"
+                element={<CopyLlmProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Copy LLM Evaluator Into Project From Gallery",
+                    description:
+                      "Create a project evaluator seeded from an existing LLM evaluator while browsing the evaluator gallery. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+                  },
+                }}
+              />
+              <Route
+                path="new/copy-code/:evaluatorId"
+                element={<CopyCodeProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Duplicate Code Evaluator Into Project From Gallery",
+                    description:
+                      "Create and attach a new project code evaluator seeded from an existing code evaluator while browsing the evaluator gallery. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being duplicated.",
+                  },
+                }}
+              />
+              <Route
+                path="new/attach/:evaluatorId"
+                element={<AttachCodeProjectEvaluatorPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Attach Code Evaluator To Project From Gallery",
+                    description:
+                      "Attach an existing code evaluator to a project while browsing the evaluator gallery. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being attached.",
+                  },
+                }}
+              />
+            </Route>
+            {/* The evaluator details page is a full page rather than a tab,
+                mirroring the dataset evaluator details route. The edit
+                slideover nests beneath it so it opens over the details view. */}
+            <Route
+              path="evaluators"
+              handle={{
+                crumb: () => "evaluators",
+                agentRoute: {
+                  label: "Project Evaluators",
+                  description:
+                    "Create and manage project evaluators — online evals that automatically run against live spans.",
+                },
+              }}
+            >
+              <Route
+                id={PROJECT_EVALUATOR_DETAILS_ROUTE_ID}
+                path=":projectEvaluatorId"
+                element={<ProjectEvaluatorDetailsPage />}
+                loader={projectEvaluatorDetailsLoader}
+                handle={{
+                  crumb: (data: ProjectEvaluatorDetailsLoaderData) =>
+                    data?.evaluatorDisplayName || "evaluator",
+                  agentRoute: {
+                    label: "Project Evaluator Details",
+                    description:
+                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, or source code and sandbox for code evaluators, annotation output configs, input mapping, evaluation target, filter condition, sampling rate, and enabled state — a stats overview for the selected time range (evaluation run volume by status, scores and labels produced, LLM cost, last run and queue activity), its metrics over time (scores and labels produced, evaluation run volume, latency percentiles, and LLM cost), a code evaluator's version history with diffs, and the traces its own runs produced. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                  },
+                }}
+              >
+                <Route
+                  path="edit"
+                  element={<EditProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Edit Project Evaluator",
+                      description:
+                        "Edit a project evaluator's definition and scope. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                    },
+                  }}
+                />
+                <Route
+                  path=":traceId"
+                  element={<ProjectEvaluatorTracePage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Project Evaluator Trace",
+                      description:
+                        "Inspect one trace a project evaluator produced when it ran — its mapped inputs, model call or sandbox run, and parsed judgment. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
+                    },
+                  }}
+                />
+              </Route>
             </Route>
           </Route>
         </Route>

@@ -18,6 +18,9 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.__generated__.classification_evaluator_configs import (
+    ClassificationEvaluatorConfig as PydanticClassificationEvaluatorConfig,
+)
 from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
 )
@@ -27,6 +30,7 @@ from phoenix.db.helpers import (
     SupportedSQLDialect,
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
+    exclude_project_evaluator_trace_projects,
     pg_table_sizes_stmt,
 )
 from phoenix.db.models import LatencyMs
@@ -72,7 +76,12 @@ from phoenix.server.api.types.AgentsConfig import AgentsConfig
 from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.AgentSkill import AgentSkill
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
-from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
+from phoenix.server.api.types.ClassificationEvaluatorConfig import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInputDescriptor,
+    EvaluatorScope,
+)
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
@@ -83,6 +92,7 @@ from phoenix.server.api.types.Evaluator import (
     DatasetEvaluator,
     Evaluator,
     LLMEvaluator,
+    ProjectEvaluator,
 )
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -160,6 +170,63 @@ from phoenix.utilities.template_formatters import TemplateFormatterError
 logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
+
+
+def _to_gql_classification_evaluator_config(
+    config: PydanticClassificationEvaluatorConfig,
+) -> ClassificationEvaluatorConfig:
+    """Convert a generated config to the GraphQL shape shared by both config queries."""
+    if config.optimization_direction == "maximize":
+        optimization_direction = OptimizationDirection.MAXIMIZE
+    elif config.optimization_direction == "minimize":
+        optimization_direction = OptimizationDirection.MINIMIZE
+    else:
+        optimization_direction = OptimizationDirection.NONE
+
+    gql_messages: list[PromptMessage] = []
+    for message in config.messages:
+        role_value = message.role.lower()
+        if role_value == "user":
+            role = PromptMessageRole.USER
+        elif role_value == "system":
+            role = PromptMessageRole.SYSTEM
+        elif role_value in ("ai", "assistant"):
+            role = PromptMessageRole.AI
+        elif role_value == "tool":
+            role = PromptMessageRole.TOOL
+        else:
+            role = PromptMessageRole.USER
+
+        content = type_cast(
+            list[ContentPart],
+            [TextContentPart(text=TextContentValue(text=message.content))],
+        )
+        gql_messages.append(PromptMessage(role=role, content=content))
+
+    inputs = (
+        [
+            EvaluatorInputDescriptor(
+                name=input_name,
+                description=input_descriptor.description,
+            )
+            for input_name, input_descriptor in config.inputs.items()
+        ]
+        if config.inputs is not None
+        else None
+    )
+    return ClassificationEvaluatorConfig(
+        name=config.name,
+        description=config.description,
+        optimization_direction=optimization_direction,
+        messages=gql_messages,
+        choices=JSON(config.choices),
+        labels=config.labels,
+        scope=EvaluatorScope(config.scope.value) if config.scope else None,
+        recommended=config.recommended,
+        category=EvaluatorCategory(config.category.value) if config.category else None,
+        details=config.details,
+        inputs=inputs,
+    )
 
 
 @strawberry.input
@@ -497,6 +564,7 @@ class Query:
             )
         projects_query = exclude_experiment_projects(projects_query)
         projects_query = exclude_dataset_evaluator_projects(projects_query)
+        projects_query = exclude_project_evaluator_trace_projects(projects_query)
         async with info.context.db.read() as session:
             projects = await session.stream_scalars(projects_query)
             data = [Project(id=project.id, db_record=project) async for project in projects]
@@ -1114,6 +1182,14 @@ class Query:
             return BuiltInEvaluator(id=node_id)
         elif type_name == DatasetEvaluator.__name__:
             return DatasetEvaluator(id=node_id)
+        elif type_name == ProjectEvaluator.__name__:
+            async with info.context.db.read() as session:
+                if project_evaluator_record := await session.scalar(
+                    select(models.ProjectEvaluator).where(models.ProjectEvaluator.id == node_id)
+                ):
+                    return ProjectEvaluator(id=node_id, db_record=project_evaluator_record)
+                else:
+                    raise NotFound(f"Unknown project evaluator: {id}")
         elif type_name == SandboxConfig.__name__:
             return SandboxConfig(id=node_id)
         if type_name == GenerativeModelCustomProvider.__name__:
@@ -1201,12 +1277,14 @@ class Query:
         # escaping LIKE metacharacters (% and _) so they match literally rather
         # than acting as wildcards.
         projects_stmt = (
-            exclude_dataset_evaluator_projects(
-                exclude_experiment_projects(
-                    select(models.Project).where(
-                        or_(
-                            models.Project.name.icontains(search_term, autoescape=True),
-                            models.Project.description.icontains(search_term, autoescape=True),
+            exclude_project_evaluator_trace_projects(
+                exclude_dataset_evaluator_projects(
+                    exclude_experiment_projects(
+                        select(models.Project).where(
+                            or_(
+                                models.Project.name.icontains(search_term, autoescape=True),
+                                models.Project.description.icontains(search_term, autoescape=True),
+                            )
                         )
                     )
                 )
@@ -1394,6 +1472,7 @@ class Query:
         before: Optional[CursorString] = UNSET,
         sort: Optional[EvaluatorSort] = UNSET,
         filter: Optional[EvaluatorFilter] = UNSET,
+        exclude_project_id: Optional[GlobalID] = UNSET,
     ) -> Connection[Evaluator]:
         args = ConnectionArgs(
             first=first,
@@ -1421,6 +1500,16 @@ class Query:
                 has_dataset_association,
             )
         )
+
+        if isinstance(exclude_project_id, GlobalID):
+            project_rowid = from_global_id_with_expected_type(exclude_project_id, Project.__name__)
+            has_project_association = exists(
+                select(models.ProjectEvaluator.id).where(
+                    models.ProjectEvaluator.evaluator_id == PolymorphicEvaluator.id,
+                    models.ProjectEvaluator.project_id == project_rowid,
+                )
+            )
+            query = query.where(~has_project_association)
 
         if filter:
             if filter.col.value == "name":
@@ -1501,51 +1590,18 @@ class Query:
         info: Info[Context, None],
         labels: Optional[list[str]] = UNSET,
     ) -> list[ClassificationEvaluatorConfig]:
-        pydantic_configs = get_classification_evaluator_configs(
+        configs = get_classification_evaluator_configs(
             labels=labels if labels is not UNSET else None
         )
+        return [_to_gql_classification_evaluator_config(config) for config in configs]
 
-        gql_configs: list[ClassificationEvaluatorConfig] = []
-        for config in pydantic_configs:
-            if config.optimization_direction == "maximize":
-                optimization_direction = OptimizationDirection.MAXIMIZE
-            elif config.optimization_direction == "minimize":
-                optimization_direction = OptimizationDirection.MINIMIZE
-            else:
-                optimization_direction = OptimizationDirection.NONE
-
-            gql_messages: list[PromptMessage] = []
-            for msg in config.messages:
-                role_str = msg.role.lower()
-                if role_str == "user":
-                    role = PromptMessageRole.USER
-                elif role_str == "system":
-                    role = PromptMessageRole.SYSTEM
-                elif role_str in ("ai", "assistant"):
-                    role = PromptMessageRole.AI
-                elif role_str == "tool":
-                    role = PromptMessageRole.TOOL
-                else:
-                    # Default to USER if unknown role
-                    role = PromptMessageRole.USER
-
-                content = type_cast(
-                    list[ContentPart],
-                    [TextContentPart(text=TextContentValue(text=msg.content))],
-                )
-
-                gql_messages.append(PromptMessage(role=role, content=content))
-
-            gql_config = ClassificationEvaluatorConfig(
-                name=config.name,
-                description=config.description,
-                optimization_direction=optimization_direction,
-                messages=gql_messages,
-                choices=JSON(config.choices),
-            )
-            gql_configs.append(gql_config)
-
-        return gql_configs
+    @strawberry.field
+    async def evaluator_gallery_configs(
+        self,
+        info: Info[Context, None],
+    ) -> list[ClassificationEvaluatorConfig]:
+        configs = get_classification_evaluator_configs(gallery_ready=True)
+        return [_to_gql_classification_evaluator_config(config) for config in configs]
 
     @strawberry.field
     async def default_project_trace_retention_policy(
@@ -1926,6 +1982,7 @@ class Query:
         stmt = select(func.count(models.Project.id))
         stmt = exclude_experiment_projects(stmt)
         stmt = exclude_dataset_evaluator_projects(stmt)
+        stmt = exclude_project_evaluator_trace_projects(stmt)
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
 

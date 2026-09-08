@@ -39,4 +39,8 @@ export interface BadgeProps extends StylableProps {
    * @default 'wrap'
    */
   overflowMode?: BadgeOverflowMode;
+  /**
+   * Native tooltip text shown on hover.
+   */
+  title?: string;
 }

@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
+from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES
 from phoenix.db import models
 from phoenix.server.monty_runtime import (
     MontyBusy,
@@ -174,6 +175,8 @@ class TestInlineCodeEvaluatorPreviewMutation:
         sandbox_config_id: str | None,
         language: str = "PYTHON",
         source_code: str = "def evaluate(output):\n    return 1.0",
+        context: Any = None,
+        apply_online_evaluation_limits: bool = False,
     ) -> Any:
         return await gql_client.execute(
             TestEvaluatorPreviewMutation._MUTATION,
@@ -200,11 +203,14 @@ class TestInlineCodeEvaluatorPreviewMutation:
                                     ],
                                 }
                             },
-                            "context": {"output": {"answer": "4"}},
+                            "context": (
+                                {"output": {"answer": "4"}} if context is None else context
+                            ),
                             "inputMapping": {
                                 "literalMapping": {},
                                 "pathMapping": {},
                             },
+                            "applyOnlineEvaluationLimits": apply_online_evaluation_limits,
                         }
                     ]
                 }
@@ -346,6 +352,47 @@ class TestInlineCodeEvaluatorPreviewMutation:
         backend.execute_in_session.assert_not_called()
         backend.close_session.assert_not_called()
 
+    async def test_applies_the_online_sandbox_payload_limit_on_request(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES, "1024")
+        backend = AsyncMock()
+        fenced_stdout = f"{PHOENIX_RESULT_BEGIN}\n1.0\n{PHOENIX_RESULT_END}\n"
+        backend.execute_with_inputs = AsyncMock(
+            return_value=ExecutionResult(stdout=fenced_stdout, stderr="", error=None)
+        )
+        backend.close = AsyncMock(return_value=None)
+        oversized_context = {"output": "o" * 4096}
+
+        with patch(
+            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            return_value=backend,
+        ):
+            unlimited = await self._preview_inline_code_evaluator(
+                gql_client,
+                sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+                context=oversized_context,
+            )
+            limited = await self._preview_inline_code_evaluator(
+                gql_client,
+                sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+                context=oversized_context,
+                apply_online_evaluation_limits=True,
+            )
+
+        # Authoring against a dataset stays unlimited; a preview standing in for
+        # a scheduled run is rejected exactly as the live evaluation rejects it.
+        assert unlimited.data and not unlimited.errors
+        assert unlimited.data["evaluatorPreviews"]["results"][0]["error"] is None
+        assert limited.data and not limited.errors
+        error = limited.data["evaluatorPreviews"]["results"][0]["error"]
+        assert error is not None
+        assert "exceeds the allowed 1024 bytes" in error
+        assert ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES in error
+
     async def test_reports_busy_monty_runtime_as_bad_request(
         self,
         gql_client: AsyncGraphQLClient,
@@ -465,3 +512,82 @@ class TestCodeEvaluatorPreviewNoSandbox:
         assert result.errors is not None
         assert "no-sandbox-eval" in result.errors[0].message
         assert "/settings/sandboxes" in result.errors[0].message
+
+
+class TestStoredCodeEvaluatorPreview:
+    _MUTATION = TestEvaluatorPreviewMutation._MUTATION
+
+    async def test_returns_preview_result_with_stored_output_configs(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_languages: None,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        from phoenix.db.types.annotation_configs import (
+            ContinuousOutputConfig,
+            OptimizationDirection,
+        )
+        from phoenix.db.types.evaluators import InputMapping
+        from phoenix.db.types.identifier import Identifier
+
+        async with db() as session:
+            code_eval = models.CodeEvaluator(
+                name=Identifier("stored-code-eval"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[
+                    ContinuousOutputConfig(
+                        type="CONTINUOUS",
+                        name="score",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description=None,
+                        lower_bound=0.0,
+                        upper_bound=1.0,
+                    )
+                ],
+                language="PYTHON",
+                sandbox_config_id=sandbox_config.id,
+            )
+            session.add(code_eval)
+            await session.flush()
+            version = models.CodeEvaluatorVersion(
+                code_evaluator_id=code_eval.id,
+                source_code="def evaluate(output): return 0.75",
+            )
+            session.add(version)
+            await session.flush()
+            code_eval_id = code_eval.id
+
+        backend = AsyncMock()
+        fenced_stdout = f"{PHOENIX_RESULT_BEGIN}\n0.75\n{PHOENIX_RESULT_END}\n"
+        backend.execute_with_inputs = AsyncMock(
+            return_value=ExecutionResult(stdout=fenced_stdout, stderr="", error=None)
+        )
+        backend.close = AsyncMock(return_value=None)
+
+        gid = str(GlobalID("CodeEvaluator", str(code_eval_id)))
+        with patch(
+            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            return_value=backend,
+        ):
+            result = await gql_client.execute(
+                self._MUTATION,
+                {
+                    "input": {
+                        "previews": [
+                            {
+                                "evaluator": {"codeEvaluatorId": gid},
+                                "context": {"output": "test"},
+                                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                            }
+                        ]
+                    }
+                },
+            )
+
+        assert result.data and not result.errors
+        results = result.data["evaluatorPreviews"]["results"]
+        assert len(results) == 1
+        assert results[0]["evaluatorName"] == "stored-code-eval"
+        assert results[0]["error"] is None
+        assert results[0]["annotation"]["score"] == 0.75

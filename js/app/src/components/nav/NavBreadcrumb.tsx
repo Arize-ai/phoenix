@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import {
   Breadcrumb,
@@ -10,6 +10,7 @@ import { useMatchesWithCrumb } from "@phoenix/hooks/useMatchesWithCrumb";
 
 export function NavBreadcrumb() {
   const matchesWithCrumb = useMatchesWithCrumb();
+  const { search } = useLocation();
   const numMatches = matchesWithCrumb.length;
   return (
     <Breadcrumbs size="L">
@@ -18,12 +19,18 @@ export function NavBreadcrumb() {
         const copyableItems = match.handle.copy
           ? match.handle?.copy(match.loaderData)
           : [];
+        const nextMatch = matchesWithCrumb[index + 1];
+        const breadcrumbDestination =
+          nextMatch?.handle.parentCrumbTo?.({
+            parentPathname: match.pathname,
+            search,
+          }) ?? match.pathname;
         const isLastCrumb = index === numMatches - 1;
         const showCopyableItems = isLastCrumb && copyableItems.length;
         return (
           <Breadcrumb key={index}>
             <Flex direction="row" gap="size-100">
-              <Link to={match.pathname} title={crumb}>
+              <Link to={breadcrumbDestination} title={crumb}>
                 {crumb}
               </Link>
               {showCopyableItems ? (

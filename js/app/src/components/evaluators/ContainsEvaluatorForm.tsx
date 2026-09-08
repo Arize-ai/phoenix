@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useShallow } from "zustand/react/shallow";
 
 import { Flex, Label, Switch, Text } from "@phoenix/components";
 import { BuiltInEvaluatorOutputConfig } from "@phoenix/components/evaluators/BuiltInEvaluatorOutputConfig";
@@ -44,12 +43,12 @@ export const ContainsEvaluatorForm = () => {
   const [containsTextPath, setContainsTextPath] = useState<string>(
     () => getValues("pathMapping.text") ?? ""
   );
-  const { evaluatorMappingSource } = useEvaluatorStore(
-    useShallow((state) => ({
-      evaluatorMappingSource: state.evaluatorMappingSource,
-    }))
+  const evaluatorMappingSource = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource
   );
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+  const allExampleKeys = useFlattenedEvaluatorInputKeys({
+    evaluatorMappingSource,
+  });
 
   // Register validator for required SwitchableEvaluatorInput fields.
   // Triggering both path and literal names is safe because only the
@@ -81,7 +80,6 @@ export const ContainsEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="text"
           label="Text"
-          description="The text to search for the words in."
           defaultMode={textDefaultMode}
           control={control}
           setValue={setValue}
@@ -95,7 +93,6 @@ export const ContainsEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="words"
           label="Words"
-          description="A comma separated list of words to search for in the text."
           defaultMode={wordsDefaultMode}
           control={control}
           setValue={setValue}

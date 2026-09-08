@@ -1,6 +1,16 @@
-import { createEvaluatorStore } from "../evaluatorStore";
+import {
+  createEvaluatorStore,
+  SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  type EvaluatorStoreProps,
+} from "../evaluatorStore";
 
-const createFreeformStore = () =>
+const createFreeformStore = (
+  evaluatorMappingSourceState?: Pick<
+    EvaluatorStoreProps,
+    "evaluatorMappingSource"
+  >
+) =>
   createEvaluatorStore({
     evaluator: {
       kind: "CODE",
@@ -20,7 +30,127 @@ const createFreeformStore = () =>
         upperBound: null,
       },
     ],
+    ...evaluatorMappingSourceState,
   });
+
+describe("evaluatorStore mapping source grain", () => {
+  it("keeps dataset mapping sources including reference data", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "dataset",
+        source: {
+          input: { question: "What is Phoenix?" },
+          output: { answer: "An AI observability platform" },
+          reference: { answer: "An observability platform for AI" },
+          metadata: { category: "product" },
+        },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      grain: "dataset",
+      source: {
+        input: { question: "What is Phoenix?" },
+        output: { answer: "An AI observability platform" },
+        reference: { answer: "An observability platform for AI" },
+        metadata: { category: "product" },
+      },
+    });
+  });
+
+  it("keeps span mapping sources limited to runtime context fields", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: { question: "What is Phoenix?" },
+          output: { answer: "An AI observability platform" },
+          metadata: { latency_ms: 12.5, attributes: { llm: {} } },
+        },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource.source).toEqual({
+      input: { question: "What is Phoenix?" },
+      output: { answer: "An AI observability platform" },
+      metadata: { latency_ms: 12.5, attributes: { llm: {} } },
+    });
+    expect(store.getState().evaluator.inputMapping).toEqual({
+      literalMapping: {},
+      pathMapping: {},
+    });
+  });
+
+  it("keeps a recorded session context under the grain it was bound as", () => {
+    // The store is left on span: a session context is structurally identical to
+    // a span one, so only the grain the caller binds it under says what it is.
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "span",
+        source: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+      },
+    });
+
+    store.getState().setEvaluatorMappingSource({
+      grain: "session",
+      source: {
+        input: "hi",
+        output: "hello",
+        metadata: { duration_ms: 42, turns: [{ input: "hi" }] },
+      },
+    });
+
+    // Read as a span, `turns` is metadata no span vocabulary names, and the
+    // context would be dropped for an empty one.
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      grain: "session",
+      source: {
+        input: "hi",
+        output: "hello",
+        metadata: { duration_ms: 42, turns: [{ input: "hi" }] },
+      },
+    });
+  });
+
+  it("resets the source to the new grain's default when the grain changes", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: "What is Phoenix?",
+          output: "An AI observability platform",
+          metadata: {},
+        },
+      },
+    });
+
+    store.getState().setEvaluatorMappingSourceGrain("session");
+
+    expect(store.getState().evaluatorMappingSource).toEqual({
+      grain: "session",
+      source: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+    });
+  });
+
+  it("preserves raw string and null span input/output verbatim", () => {
+    const store = createFreeformStore({
+      evaluatorMappingSource: {
+        grain: "span",
+        source: {
+          input: "What is Phoenix?",
+          output: null,
+          metadata: {},
+        },
+      },
+    });
+
+    expect(store.getState().evaluatorMappingSource.source).toEqual({
+      input: "What is Phoenix?",
+      output: null,
+      metadata: {},
+    });
+  });
+});
 
 describe("evaluatorStore bounds handlers", () => {
   it("setOutputConfigLowerBoundAtIndex updates lowerBound on the freeform config", () => {

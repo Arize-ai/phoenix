@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c0ebefad8ef495498cc892298ebe2e9>>
+ * @generated SignedSource<<7923daf01db6a9098673be4ab855140d>>
  * @lightSyntaxTransform
  */
 
@@ -8,10 +8,10 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SessionsTableSessionFilterVocabularyQuery$variables = {
+export type SessionFilterConditionFieldVocabularyQuery$variables = {
   id: string;
 };
-export type SessionsTableSessionFilterVocabularyQuery$data = {
+export type SessionFilterConditionFieldVocabularyQuery$data = {
   readonly project: {
     readonly sessionFilterVocabulary?: ReadonlyArray<{
       readonly category: string;
@@ -22,9 +22,9 @@ export type SessionsTableSessionFilterVocabularyQuery$data = {
     }>;
   };
 };
-export type SessionsTableSessionFilterVocabularyQuery = {
-  response: SessionsTableSessionFilterVocabularyQuery$data;
-  variables: SessionsTableSessionFilterVocabularyQuery$variables;
+export type SessionFilterConditionFieldVocabularyQuery = {
+  response: SessionFilterConditionFieldVocabularyQuery$data;
+  variables: SessionFilterConditionFieldVocabularyQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -100,7 +100,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SessionsTableSessionFilterVocabularyQuery",
+    "name": "SessionFilterConditionFieldVocabularyQuery",
     "selections": [
       {
         "alias": "project",
@@ -122,7 +122,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "SessionsTableSessionFilterVocabularyQuery",
+    "name": "SessionFilterConditionFieldVocabularyQuery",
     "selections": [
       {
         "alias": "project",
@@ -153,16 +153,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "40a2888a1d5ca2f41532e43b026a6e93",
+    "cacheID": "ce769f4e22791a7a2282a8d331116976",
     "id": null,
     "metadata": {},
-    "name": "SessionsTableSessionFilterVocabularyQuery",
+    "name": "SessionFilterConditionFieldVocabularyQuery",
     "operationKind": "query",
-    "text": "query SessionsTableSessionFilterVocabularyQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      sessionFilterVocabulary {\n        name\n        type\n        description\n        category\n        iterableName\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SessionFilterConditionFieldVocabularyQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      sessionFilterVocabulary {\n        name\n        type\n        description\n        category\n        iterableName\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "99c0486b11805a81b0c04228d95040f7";
+(node as any).hash = "a315f91ed0f59f2866b1d6c32331eb61";
 
 export default node;

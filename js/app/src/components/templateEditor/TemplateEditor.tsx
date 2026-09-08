@@ -1,11 +1,13 @@
+import { acceptCompletion, startCompletion } from "@codemirror/autocomplete";
 import { defaultKeymap } from "@codemirror/commands";
+import { Prec } from "@codemirror/state";
 import { css } from "@emotion/react";
 import type {
   BasicSetupOptions,
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
@@ -15,6 +17,7 @@ import { createTemplateAutocomplete } from "./autocomplete";
 import { TemplateFormats } from "./constants";
 import { FStringTemplating } from "./language/fString";
 import { MustacheLikeTemplating } from "./language/mustacheLike";
+import { useTemplateEvaluatorContext } from "./TemplateEvaluatorContext";
 import type { TemplateFormat } from "./types";
 
 type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
@@ -42,6 +45,9 @@ const basicSetupOptions: BasicSetupOptions = {
 
 const baseExtensions = [
   EditorView.lineWrapping,
+  // Tab accepts the highlighted row ahead of the editor's indent binding;
+  // with no menu open it indents as before.
+  Prec.highest(keymap.of([{ key: "Tab", run: acceptCompletion }])),
   keymap.of([
     ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
   ]),
@@ -66,6 +72,7 @@ export const TemplateEditor = ({
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
   const { theme } = useTheme();
+  const evaluationContext = useTemplateEvaluatorContext();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const extensions = useMemo(() => {
     const ext: TemplateEditorProps["extensions"] = [
@@ -85,17 +92,21 @@ export const TemplateEditor = ({
       default:
         assertUnreachable(templateFormat);
     }
-    // Add autocomplete extension if available paths are provided and templating is enabled
     if (
-      availablePaths &&
-      availablePaths.length > 0 &&
+      (evaluationContext !== null || (availablePaths?.length ?? 0) > 0) &&
       !readOnly &&
       templateFormat !== TemplateFormats.NONE
     ) {
-      ext.push(createTemplateAutocomplete(availablePaths, templateFormat));
+      ext.push(
+        createTemplateAutocomplete(
+          availablePaths ?? [],
+          templateFormat,
+          evaluationContext
+        )
+      );
     }
     return ext;
-  }, [templateFormat, availablePaths, readOnly, ariaLabel]);
+  }, [templateFormat, availablePaths, readOnly, ariaLabel, evaluationContext]);
 
   useEffect(() => {
     if (readOnly) {
@@ -104,12 +115,27 @@ export const TemplateEditor = ({
     }
   }, [readOnly, defaultValue]);
 
+  // The evaluator's materialized inputs can arrive after the user has already
+  // opened a template variable — the reconfigure they cause discards any open
+  // dropdown, so re-open it. The completion source offers nothing outside an
+  // open `{{`, so this is inert anywhere else in the template.
+  const editorViewRef = useRef<EditorView | null>(null);
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (editorView?.hasFocus) {
+      startCompletion(editorView);
+    }
+  }, [extensions]);
+
   return (
     <CodeMirror
       theme={codeMirrorTheme}
       extensions={extensions}
       basicSetup={basicSetupOptions}
       readOnly={readOnly}
+      onCreateEditor={(editorView) => {
+        editorViewRef.current = editorView;
+      }}
       {...props}
       value={value}
     />
@@ -147,10 +173,6 @@ export const TemplateEditorWrap = ({
         }
         & .cm-cursor {
           display: ${!readOnly ? "auto" : "none !important"};
-        }
-        // Ensure autocomplete tooltip appears above other elements (e.g., chat message cards)
-        & .cm-tooltip-autocomplete {
-          z-index: 100;
         }
       `}
     >

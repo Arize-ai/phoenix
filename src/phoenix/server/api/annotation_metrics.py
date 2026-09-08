@@ -50,6 +50,9 @@ def build_entity_weighted_annotation_metrics_stmt(
             entity_scores.c.bucket,
             entity_scores.c.name,
             func.avg(entity_scores.c.mean_score).label("mean_score"),
+            # The mean's weight: how many entities carried a score. Lets a
+            # consumer re-aggregate adjacent buckets without re-querying.
+            func.count(entity_scores.c.mean_score).label("scored_entity_count"),
         )
         .group_by(entity_scores.c.bucket, entity_scores.c.name)
         .subquery()
@@ -67,6 +70,7 @@ def build_entity_weighted_annotation_metrics_stmt(
         coverage.c.score_sum,
         literal(None).label("avg_label_fraction"),
         mean_scores.c.mean_score.label("avg_score"),
+        mean_scores.c.scored_entity_count,
     ).join(
         mean_scores,
         and_(
@@ -155,6 +159,7 @@ def build_entity_weighted_annotation_metrics_stmt(
         literal(0).label("score_sum"),
         label_fractions.c.avg_label_fraction,
         literal(None).label("avg_score"),
+        literal(0).label("scored_entity_count"),
     )
     metrics = union_all(label_rows, coverage_rows).subquery()
     return select(metrics).order_by(metrics.c.bucket, metrics.c.name, metrics.c.label)

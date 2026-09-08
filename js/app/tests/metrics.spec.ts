@@ -24,7 +24,7 @@ test.describe("Prometheus metrics", () => {
     // Drive traffic through the app so the middleware records requests against
     // the GraphQL/REST included routers.
     await page.goto("/projects");
-    await page.waitForURL("**/projects");
+    await page.waitForURL(/\/projects(\?|$)/);
     await expect(
       page.getByRole("button", { name: "New Project" })
     ).toBeVisible();

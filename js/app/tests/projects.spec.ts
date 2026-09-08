@@ -1,5 +1,61 @@
 import { randomUUID } from "crypto";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Locator,
+  type Page,
+  type Request,
+} from "@playwright/test";
+
+/**
+ * Resolves once no GraphQL request has been in flight for half a second.
+ * Playwright's "networkidle" load state belongs to a document navigation, so
+ * after an in-app history move it is already satisfied; this watches the
+ * requests themselves. Call it before the action whose requests it should see.
+ */
+function waitForGraphQLToSettle(page: Page): Promise<void> {
+  const isGraphQL = (request: Request) => request.url().includes("/graphql");
+  return new Promise((resolve, reject) => {
+    let inFlight = 0;
+    let quiet: NodeJS.Timeout | undefined;
+    const deadline = setTimeout(() => {
+      stop();
+      reject(new Error("GraphQL requests did not settle within 30s"));
+    }, 30_000);
+    const stop = () => {
+      clearTimeout(quiet);
+      clearTimeout(deadline);
+      page.off("request", onRequest);
+      page.off("requestfinished", onSettled);
+      page.off("requestfailed", onSettled);
+    };
+    const armQuiet = () => {
+      clearTimeout(quiet);
+      if (inFlight === 0) {
+        quiet = setTimeout(() => {
+          stop();
+          resolve();
+        }, 500);
+      }
+    };
+    const onRequest = (request: Request) => {
+      if (isGraphQL(request)) {
+        inFlight += 1;
+        clearTimeout(quiet);
+      }
+    };
+    const onSettled = (request: Request) => {
+      if (isGraphQL(request)) {
+        inFlight -= 1;
+        armQuiet();
+      }
+    };
+    page.on("request", onRequest);
+    page.on("requestfinished", onSettled);
+    page.on("requestfailed", onSettled);
+    armQuiet();
+  });
+}
 
 async function createProject(
   page: Page,
@@ -7,7 +63,7 @@ async function createProject(
   description: string
 ) {
   await page.goto("/projects");
-  await page.waitForURL("**/projects");
+  await page.waitForURL(/\/projects(\?|$)/);
   await page.getByRole("button", { name: "New Project" }).click();
   await expect(
     page.getByRole("heading", { name: "New project" })
@@ -17,6 +73,13 @@ async function createProject(
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
+
+// The evaluator slideovers are routes, so the test asserts on them. Each ends
+// in `(\?|$)` because project pages always carry a time-range search param.
+const EVALUATORS_URL = /\/projects\/[^/]+\/evaluators(\?|$)/;
+const NEW_LLM_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/new\/llm(\?|$)/;
+const EDIT_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/[^/]+\/edit(\?|$)/;
+const EVALUATOR_DETAILS_URL = /\/projects\/[^/]+\/evaluators\/[^/]+(\?|$)/;
 
 async function clickSortableHeaderAndExpect(
   header: Locator,
@@ -30,7 +93,7 @@ test.describe.serial("Projects", () => {
   const projectName = `test-project-${randomUUID()}`;
   test("can create a project", async ({ page }) => {
     await page.goto("/projects");
-    await page.waitForURL("**/projects");
+    await page.waitForURL(/\/projects(\?|$)/);
 
     await page.getByRole("button", { name: "New Project" }).click();
     await expect(
@@ -58,7 +121,7 @@ test.describe.serial("Projects", () => {
     page,
   }) => {
     await page.goto("/projects");
-    await page.waitForURL("**/projects");
+    await page.waitForURL(/\/projects(\?|$)/);
 
     const search = page.getByRole("searchbox", {
       name: "Search projects by name",
@@ -100,7 +163,7 @@ test.describe.serial("Projects", () => {
     await createProject(page, projectNameZ, "Compiler sort test project Z");
 
     await page.goto("/projects");
-    await page.waitForURL("**/projects");
+    await page.waitForURL(/\/projects(\?|$)/);
 
     await page.getByRole("radio", { name: "Table view" }).click();
 
@@ -188,6 +251,155 @@ test.describe.serial("Projects", () => {
     );
   });
 
+  test("can create, edit, and delete a span LLM evaluator", async ({
+    page,
+  }) => {
+    const evaluatorProjectName = `evaluator-project-${randomUUID().slice(0, 8)}`;
+    const evaluatorName = `span-evaluator-${randomUUID().slice(0, 8)}`;
+    const updatedEvaluatorName = `${evaluatorName}-updated`;
+    await createProject(
+      page,
+      evaluatorProjectName,
+      "Project evaluator lifecycle test"
+    );
+
+    const evaluatorsTab = page.getByRole("tab", { name: "Evaluators" });
+    await evaluatorsTab.click();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+
+    await expect(
+      page.getByText("Evaluators read span inputs", { exact: false })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Browse eval gallery" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Build from scratch" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("searchbox", { name: "Search evaluators by name" })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("table", { name: "Project evaluators" })
+    ).toHaveCount(0);
+    await expect(evaluatorsTab).toContainText("0");
+
+    await page.getByRole("button", { name: "Build from scratch" }).click();
+    await expect(
+      page.getByRole("menuitem", { name: "Browse eval gallery" })
+    ).toHaveCount(0);
+    await page
+      .getByRole("menuitem", { name: "Create new LLM evaluator" })
+      .click();
+
+    // The slideover is a route of its own, so it is linkable and closable with
+    // the browser's back button.
+    await expect(page).toHaveURL(NEW_LLM_EVALUATOR_URL);
+    const createDialog = page.getByRole("dialog", {
+      name: "Create new LLM evaluator",
+    });
+    await expect(createDialog).toBeVisible();
+    await expect(
+      createDialog.getByRole("tab", { name: "Values" })
+    ).toBeVisible();
+    await page.goBack();
+    await expect(createDialog).not.toBeVisible();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+    await page.goForward();
+    await expect(createDialog).toBeVisible();
+    // The annotation output has a "Name" field too; the evaluator's own name is
+    // the first one.
+    await createDialog.getByLabel("Name").first().fill(evaluatorName);
+    await createDialog
+      .getByRole("button", { name: "Create", exact: true })
+      .click();
+    await expect(createDialog).not.toBeVisible();
+
+    const table = page.getByRole("table", { name: "Project evaluators" });
+    await expect(
+      page.getByRole("searchbox", { name: "Search evaluators by name" })
+    ).toBeVisible();
+    const evaluatorRow = table
+      .getByRole("row")
+      .filter({ hasText: evaluatorName });
+    await expect(evaluatorRow).toBeVisible();
+    await expect(evaluatorsTab).toContainText("1");
+    // Exact, because the generated evaluator name contains "span" as a
+    // substring.
+    await expect(
+      evaluatorRow.getByRole("cell", { name: "Span", exact: true })
+    ).toBeVisible();
+    await expect(
+      evaluatorRow.getByRole("cell", { name: "100%" })
+    ).toBeVisible();
+
+    // The evaluator's name links to its read-only details page.
+    await evaluatorRow
+      .getByRole("link", { name: evaluatorName, exact: true })
+      .click();
+    await expect(page).toHaveURL(EVALUATOR_DETAILS_URL);
+    await expect(
+      page.getByRole("heading", { name: `Evaluator: ${evaluatorName}` })
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Scope" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Prompt" })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+
+    await evaluatorRow
+      .getByRole("button", { name: "Evaluator actions" })
+      .click();
+    await page.getByRole("menuitem", { name: "Edit" }).click();
+    await expect(page).toHaveURL(EDIT_EVALUATOR_URL);
+    const editDialog = page.getByRole("dialog", {
+      name: `Edit LLM evaluator “${evaluatorName}”`,
+    });
+    await expect(editDialog).toBeVisible();
+    await editDialog.getByLabel("Name").first().fill(updatedEvaluatorName);
+    await editDialog.getByRole("button", { name: "Update" }).click();
+    await expect(editDialog).not.toBeVisible();
+
+    // The edit slideover is nested under the details page, so saving lands on
+    // the details view showing the fresh name.
+    await expect(page).toHaveURL(EVALUATOR_DETAILS_URL);
+    await expect(
+      page.getByRole("heading", { name: `Evaluator: ${updatedEvaluatorName}` })
+    ).toBeVisible();
+
+    // Deletion lives on the list's row action menu, not the details page.
+    const listSettled = waitForGraphQLToSettle(page);
+    await page.goBack();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+    // The list renders from the Relay store and refreshes over the network
+    // in the background; nothing visible marks that refresh landing. Deleting
+    // while it is in flight makes the refresh resolve the deleted row's
+    // evaluator after the commit, which errors the query and unmounts the
+    // page, so let the refresh land first — a user would not beat a request.
+    await listSettled;
+    const updatedRow = table
+      .getByRole("row")
+      .filter({ hasText: updatedEvaluatorName });
+    await expect(updatedRow).toBeVisible();
+    await updatedRow.getByRole("button", { name: "Evaluator actions" }).click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    const deleteDialog = page.getByRole("dialog").filter({
+      has: page.getByRole("heading", { name: "Delete evaluator" }),
+    });
+    await expect(deleteDialog).toBeVisible();
+    await deleteDialog
+      .getByRole("button", { name: "Delete evaluator" })
+      .click();
+    await expect(deleteDialog).not.toBeVisible();
+    await expect(updatedRow).not.toBeVisible();
+    await expect(evaluatorsTab).toContainText("0");
+    await expect(
+      page.getByRole("button", { name: "Build from scratch" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("searchbox", { name: "Search evaluators by name" })
+    ).toHaveCount(0);
+  });
+
   test("project table remains usable after mutation workflows", async ({
     page,
   }) => {
@@ -199,7 +411,7 @@ test.describe.serial("Projects", () => {
     );
 
     await page.goto("/projects");
-    await page.waitForURL("**/projects");
+    await page.waitForURL(/\/projects(\?|$)/);
 
     const search = page.getByRole("searchbox", {
       name: "Search projects by name",

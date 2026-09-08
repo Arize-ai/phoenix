@@ -87,8 +87,12 @@ const useEvaluatorNameInputForm = () => {
 
 export const EvaluatorNameInput = ({
   placeholder = "e.g. code_eval",
+  onValueChange,
   ...props
-}: Partial<TextFieldProps> & { placeholder?: string }) => {
+}: Partial<TextFieldProps> & {
+  placeholder?: string;
+  onValueChange?: () => void;
+}) => {
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
   const { control, trigger } = form;
@@ -132,6 +136,7 @@ export const EvaluatorNameInput = ({
           const selectionStart = input?.selectionStart ?? value.length;
 
           const transformed = transformEvaluatorName(value);
+          onValueChange?.();
 
           // Calculate new cursor position by transforming the text before cursor
           const beforeCursor = value.slice(0, selectionStart);
@@ -154,7 +159,7 @@ export const EvaluatorNameInput = ({
           hasBlurredRef.current = true;
           field.onBlur();
           // Re-trigger validation to include blur-only rules
-          trigger("name");
+          void trigger("name");
         };
 
         return (

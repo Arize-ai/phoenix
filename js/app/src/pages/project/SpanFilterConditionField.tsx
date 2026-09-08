@@ -1,5 +1,11 @@
 import type { Completion } from "@codemirror/autocomplete";
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
@@ -122,6 +128,10 @@ type SpanFilterConditionFieldProps = {
   validationRetryKey?: number;
   placeholder?: string;
 };
+/**
+ * Requires `SpanFiltersProvider`/`TracingProvider`; use
+ * {@link SpanFilterConditionFieldCore} outside them.
+ */
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const {
     onValidCondition,
@@ -129,12 +139,69 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     validationRetryKey,
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
-  const [isConditionValid, setIsConditionValid] = useState<boolean>(true);
   const filterCondition = useSpanFilterCondition();
   const { setFilterCondition } = useSpanFilterActions();
-  const deferredFilterCondition = useDeferredValue(filterCondition);
-
   const projectId = useTracingContext((state) => state.projectId);
+  return (
+    <SpanFilterConditionFieldCore
+      projectId={projectId}
+      filterCondition={filterCondition}
+      onFilterConditionChange={setFilterCondition}
+      onValidCondition={onValidCondition}
+      onValidationFailed={onValidationFailed}
+      validationRetryKey={validationRetryKey}
+      placeholder={placeholder}
+      advertiseFilterToAgent
+    />
+  );
+}
+
+export type SpanFilterConditionFieldCoreProps = {
+  projectId?: string;
+  filterCondition: string;
+  onFilterConditionChange: (condition: string) => void;
+  onValidCondition: (args: SpanFilterValidConditionArgs) => void;
+  onValidationFailed?: (reason: SpanFilterValidationFailureReason) => void;
+  validationRetryKey?: number;
+  /** An empty condition reports as valid (unfiltered). */
+  onValidityChange?: (isValid: boolean) => void;
+  placeholder?: string;
+  /**
+   * Opt in only where the `set_spans_filter` client action is registered (the
+   * tracing pages).
+   */
+  advertiseFilterToAgent?: boolean;
+};
+
+/**
+ * Takes all filter state as props, so it can mount outside
+ * `SpanFiltersProvider`/`TracingProvider`.
+ */
+export function SpanFilterConditionFieldCore(
+  props: SpanFilterConditionFieldCoreProps
+) {
+  const {
+    projectId,
+    filterCondition,
+    onFilterConditionChange,
+    onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
+    onValidityChange,
+    placeholder = "filter condition (e.x. span_kind == 'LLM')",
+    advertiseFilterToAgent = false,
+  } = props;
+  const [isConditionValid, setIsConditionValid] = useState<boolean>(true);
+  const deferredFilterCondition = useDeferredValue(filterCondition);
+  // DSLFilterConditionField's validation effect keys on its callbacks, so the
+  // handlers below must keep stable identities even when a caller passes a
+  // fresh closure per render.
+  const onValidConditionRef = useRef(onValidCondition);
+  // eslint-disable-next-line react/refs
+  onValidConditionRef.current = onValidCondition;
+  const onValidityChangeRef = useRef(onValidityChange);
+  // eslint-disable-next-line react/refs
+  onValidityChangeRef.current = onValidityChange;
 
   // Stable identities: the field caches completions per loader, and its
   // validation effect keys on validateCondition — an unstable identity
@@ -144,8 +211,20 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       loadAnnotationCompletions: projectId
         ? () => fetchAnnotationCompletions(projectId)
         : undefined,
-      validateCondition: (condition: string) =>
-        validateSpanFilterCondition(condition, projectId),
+      validateCondition: (condition: string) => {
+        if (projectId) {
+          return validateSpanFilterCondition(condition, projectId);
+        }
+        // Without a project there is nothing to validate against; treat the
+        // condition as valid rather than blocking the caller. Root-scoping is
+        // a fact about the parsed condition that only the server answers, so
+        // it stays unanswered rather than being guessed at.
+        return Promise.resolve({
+          isValid: true,
+          errorMessage: null,
+          selectsRootSpansOnly: null,
+        });
+      },
     }),
     [projectId]
   );
@@ -182,7 +261,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       // field resolves without asking the server. An empty condition restricts
       // nothing, so it is knowably not root-scoped. Otherwise the server's
       // answer passes through as-is, `null` (unanswered) included.
-      onValidCondition({
+      onValidConditionRef.current({
         condition,
         selectsRootSpansOnly: validationResult
           ? validationResult.selectsRootSpansOnly
@@ -190,8 +269,13 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         isInitialSettlement,
       });
     },
-    [recordValidCondition, onValidCondition]
+    [recordValidCondition]
   );
+
+  const handleValidationStateChange = useCallback((isValid: boolean) => {
+    setIsConditionValid(isValid);
+    onValidityChangeRef.current?.(isValid);
+  }, []);
 
   // Advertise a project context that carries the current spanFilter while
   // the field is mounted. The merge in `selectActiveContexts` layers this
@@ -200,7 +284,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   // An in-progress invalid edit surfaces as empty rather than a known-bad
   // expression.
   let advertisedContext: AgentContext | null = null;
-  if (projectId) {
+  if (advertiseFilterToAgent && projectId) {
     const trimmed = deferredFilterCondition.trim();
     const spanFilter = isConditionValid && trimmed ? trimmed : "";
     advertisedContext = {
@@ -220,7 +304,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     <AIQueryDSLFilterField
       aria-label="Filter spans"
       value={filterCondition}
-      onChange={setFilterCondition}
+      onChange={onFilterConditionChange}
       placeholder={placeholder}
       completions={spanFilterCompletions}
       snippets={spanFilterSnippets}
@@ -230,7 +314,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       onValidCondition={handleValidCondition}
       onValidationFailed={onValidationFailed}
       validationRetryKey={validationRetryKey}
-      onValidationStateChange={setIsConditionValid}
+      onValidationStateChange={handleValidationStateChange}
       aiQuery={spanFilterAIQuery}
     />
   );

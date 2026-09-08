@@ -58,6 +58,7 @@
     "@codemirror/legacy-modes": "^6.5.3",
     "@codemirror/lint": "^6.9.7",
     "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.8",
     "@dnd-kit/abstract": "^0.5.0",
     "@dnd-kit/helpers": "^0.5.0",
     "@dnd-kit/react": "^0.5.0",

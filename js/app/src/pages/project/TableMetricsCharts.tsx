@@ -7,8 +7,11 @@ import {
   useDefaultLayout,
 } from "react-resizable-panels";
 
-import { useTimeRange } from "@phoenix/components";
-import { ChartPanelStrip } from "@phoenix/components/chart";
+import { useTimeRange, View } from "@phoenix/components";
+import {
+  CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS,
+  ChartPanelStrip,
+} from "@phoenix/components/chart";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -22,7 +25,6 @@ import {
 import { MetricFetchKeyProvider } from "./metrics/types";
 import { useClosedTimeRange } from "./metrics/useClosedTimeRange";
 
-const CHARTS_PANEL_DEFAULT_SIZE_PIXELS = 230;
 const CHARTS_PANEL_MIN_SIZE_PIXELS = 160;
 const CHARTS_PANEL_MAX_SIZE = "60%";
 
@@ -65,21 +67,30 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
   const timeRange = useClosedTimeRange({ refreshKey: fetchKey });
   const charts = getProjectMetricCharts(selectedChartKeys);
   return (
-    <ChartPanelStrip chartCount={charts.length}>
-      {/* Re-fetch the charts on each stream refresh so they stay live */}
-      <MetricFetchKeyProvider value={fetchKey}>
-        {charts.map((chart) => (
-          <DeferredProjectMetricPanel
-            key={chart.key}
-            chart={chart}
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={setCustomTimeRange}
-            fillHeight
-          />
-        ))}
-      </MetricFetchKeyProvider>
-    </ChartPanelStrip>
+    // The strip owns no outer spacing, so this edge-to-edge placement above
+    // the table supplies its own gutters.
+    <View
+      paddingStart="size-200"
+      paddingEnd="size-200"
+      paddingTop="size-100"
+      height="100%"
+    >
+      <ChartPanelStrip chartCount={charts.length}>
+        {/* Re-fetch the charts on each stream refresh so they stay live */}
+        <MetricFetchKeyProvider value={fetchKey}>
+          {charts.map((chart) => (
+            <DeferredProjectMetricPanel
+              key={chart.key}
+              chart={chart}
+              projectId={projectId}
+              timeRange={timeRange}
+              onTimeRangeSelected={setCustomTimeRange}
+              fillHeight
+            />
+          ))}
+        </MetricFetchKeyProvider>
+      </ChartPanelStrip>
+    </View>
   );
 });
 
@@ -121,7 +132,7 @@ export function TableMetricsChartsPanelGroup({
         <>
           <Panel
             id="metrics-charts"
-            defaultSize={CHARTS_PANEL_DEFAULT_SIZE_PIXELS}
+            defaultSize={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
             minSize={CHARTS_PANEL_MIN_SIZE_PIXELS}
             maxSize={CHARTS_PANEL_MAX_SIZE}
             groupResizeBehavior="preserve-pixel-size"

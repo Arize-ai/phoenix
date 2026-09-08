@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
+from math import isfinite
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -333,6 +334,95 @@ of memory. Adjust this value based on your system's available memory and expecte
 throughput.
 
 Defaults to 20000.
+"""
+ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS = "PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS"
+"""
+How long an observed span high-water id must age before the online-eval producer scans up
+to it. Defaults to 60.
+"""
+ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS = "PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS"
+"""
+How often the online-eval producer re-sweeps recent spans for work units missed by the
+frontier scan. Defaults to 3600.
+
+Configure this together with PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS: gap-free
+re-coverage requires the lookback span ids to be at least the instance-wide ingest rate
+multiplied by this interval. Spans share one id sequence, so the relevant rate is the sum
+across all projects and tenants.
+"""
+ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS = (
+    "PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS"
+)
+"""
+How far behind the producer watermark, measured in span ids, the backstop sweep looks.
+Defaults to 100000.
+
+With the default 3600-second interval, 100000 ids provides gap-free re-coverage only below
+about 28 spans per second instance-wide. Above that rate, rows can leave the lookback between
+sweeps, so the backstop no longer bounds exceptional loss from late-visible spans or skipped
+criteria. The reaper floor is aligned to this lookback; changes to the lookback and interval
+must preserve the coverage relationship and move the reaper floor with them.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK = "PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK"
+"""
+The maximum span-id range the online-eval producer advances through in one tick.
+Defaults to 10000.
+
+Higher values increase catch-up throughput at the cost of larger per-tick transactions;
+lower values reduce transaction size but take longer to catch up to the observed frontier.
+"""
+ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS = "PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS"
+"""
+How long a PENDING online-eval work unit may wait before the reaper marks it EXPIRED.
+Defaults to 0 (disabled).
+"""
+ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_RETENTION_SECONDS"
+"""
+How long terminal online-eval work units are kept before the reaper deletes them.
+Defaults to 604800 (7 days).
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING"
+"""
+The outstanding work-unit count above which the online-eval producer stops materializing
+new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING = "PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING"
+"""
+The outstanding session work-unit count above which the session sweeper stops materializing
+new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Defaults to 10000.
+"""
+ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
+"""
+The maximum number of work units each SPAN and SESSION online-eval consumer claims per
+tick. Both consumers deliberately read this one value: provider capacity and database
+connections are per-replica resources, not per-target resources. Each consumer runs its
+whole claimed batch at once and waits for it before claiming again; aggregate evaluator
+execution across both consumers is capped by
+PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY. Together with
+PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS this bounds each consumer's claim
+throughput at claim_batch_size / tick_interval work units per second. Defaults to 10.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
+"""Maximum aggregate evaluator executions across online-eval consumers. Defaults to 10."""
+ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY"
+"""Maximum aggregate online-eval consumer DB phases. Defaults to 5."""
+ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS = (
+    "PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS"
+)
+"""
+Seconds an online-eval consumer sleeps between claim cycles. Together with
+PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE this bounds per-replica evaluation throughput.
+Defaults to 5.0.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES = "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES"
+"""
+The maximum aggregate UTF-8 byte size of rendered messages sent by an online LLM evaluator.
+Defaults to 65536.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES = "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES"
+"""
+The maximum UTF-8 byte size of a rendered session code-evaluator payload.
+Defaults to 65536.
 """
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
@@ -3454,6 +3544,202 @@ def get_env_max_spans_queue_size() -> int:
             f"{max_size}. Value must be a positive integer."
         )
     return max_size
+
+
+def get_env_online_eval_frontier_lag_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS environment variable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS, 60.0)
+    if not isfinite(seconds) or seconds < 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS}: "
+            f"{seconds}. Value must be a finite non-negative number."
+        )
+    return seconds
+
+
+def get_env_online_eval_backstop_interval_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS environment variable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS, 3600.0)
+    if not isfinite(seconds) or seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS}: "
+            f"{seconds}. Value must be a finite positive number."
+        )
+    return seconds
+
+
+def get_env_online_eval_backstop_lookback_span_ids() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS environment variable.
+    """
+    span_ids = _int_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS, 100_000)
+    if span_ids < 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS}: "
+            f"{span_ids}. Value must be a non-negative integer."
+        )
+    return span_ids
+
+
+def get_env_online_eval_max_span_ids_per_tick() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK environment variable.
+
+    Raises:
+        ValueError: If the value is not a positive integer.
+    """
+    max_span_ids = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK, 10_000)
+    if max_span_ids <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK}: "
+            f"{max_span_ids}. Value must be a positive integer."
+        )
+    return max_span_ids
+
+
+def get_env_online_eval_pending_ttl_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS environment variable.
+
+    Defaults to 0, which disables TTL-based shedding: pending work units wait
+    until a consumer claims them, however long that takes (the admission gate
+    bounds queue growth). Setting a positive TTL opts into load shedding —
+    pending units older than the TTL are expired terminally and are NEVER
+    evaluated or re-materialized, so only set this if dropping evals on old
+    spans under sustained backlog is acceptable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS, 0.0)
+    if not isfinite(seconds) or seconds < 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS}: "
+            f"{seconds}. Value must be a finite non-negative number."
+        )
+    return seconds
+
+
+def get_env_online_eval_retention_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_RETENTION_SECONDS environment variable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS, 604_800.0)
+    if not isfinite(seconds) or seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS}: "
+            f"{seconds}. Value must be a finite positive number."
+        )
+    return seconds
+
+
+def get_env_online_eval_max_outstanding() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING environment variable.
+
+    Counts PENDING + RUNNING + retryable ERROR (non-terminal work).
+    """
+    max_outstanding = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING, 10_000)
+    if max_outstanding <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING}: "
+            f"{max_outstanding}. Value must be a positive integer."
+        )
+    return max_outstanding
+
+
+def get_env_online_eval_max_session_outstanding() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING environment variable.
+
+    Counts PENDING + RUNNING + retryable ERROR (non-terminal work).
+    """
+    max_outstanding = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING, 10_000)
+    if max_outstanding <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING}: "
+            f"{max_outstanding}. Value must be a positive integer."
+        )
+    return max_outstanding
+
+
+def get_env_online_eval_claim_batch_size() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE environment variable.
+    """
+    batch_size = _int_val(ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE, 10)
+    if batch_size < 1:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE}: "
+            f"{batch_size}. Value must be a positive integer."
+        )
+    return batch_size
+
+
+def _online_eval_positive_int(name: str, default: int) -> int:
+    value = _int_val(name, default)
+    if value < 1:
+        raise ValueError(
+            f"Invalid value for environment variable {name}: "
+            f"{value}. Value must be a positive integer."
+        )
+    return value
+
+
+def get_env_online_eval_max_evaluator_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, 10)
+
+
+def get_env_online_eval_max_db_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY, 5)
+
+
+def get_env_online_eval_consumer_tick_interval_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS
+    environment variable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS, 5.0)
+    if not isfinite(seconds) or seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS}: "
+            f"{seconds}. Value must be a finite positive number."
+        )
+    return seconds
+
+
+def get_env_online_eval_max_llm_message_bytes() -> int:
+    """Get the rendered online-eval LLM message cap."""
+    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES, 65_536)
+    if max_bytes < 1_024:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES}: "
+            f"{max_bytes}. Value must be an integer of at least 1024."
+        )
+    return max_bytes
+
+
+def get_env_online_eval_max_sandbox_payload_bytes() -> int:
+    """Get the session sandbox payload cap, whose minimum is 1024 UTF-8 bytes."""
+    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES, 65_536)
+    if max_bytes < 1_024:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES}: "
+            f"{max_bytes}. Value must be an integer of at least 1024."
+        )
+    return max_bytes
 
 
 def get_env_root_url() -> URL:
