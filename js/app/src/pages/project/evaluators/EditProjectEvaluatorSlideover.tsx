@@ -444,7 +444,7 @@ function EditLlmProjectEvaluatorContent({
             isSubmitDisabled={!isFilterValid}
             mode="update"
             error={error}
-            evaluatorNodeId={evaluator.id}
+            evaluatorNodeId={evaluator.evaluator.id}
             formLeftPanel={
               <ProjectLlmEvaluatorFormSections
                 projectId={evaluator.project.id}
