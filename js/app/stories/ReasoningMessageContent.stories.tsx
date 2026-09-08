@@ -11,9 +11,10 @@ const containerCSS = css`
 `;
 
 /**
- * A reasoning (thinking) part of a traced LLM message, rendered inside the
- * message card's contents list. The block is set apart from the answer so a
- * reader can tell what the model thought from what it said, and it still
+ * A reasoning (thinking) part of a traced LLM message, rendered as a collapsed
+ * row flush with the message card in the shape of its tool call rows. The row
+ * quotes the first line of the thinking while closed, so a reader can tell
+ * what the model thought from what it said without opening it, and it still
  * appears when the provider returned the reasoning as an opaque payload.
  */
 const meta: Meta<typeof ReasoningMessageContent> = {
@@ -44,8 +45,9 @@ const summaryText =
   "**Analyzing train speeds and catch-up time**\n\nOkay, let’s break this down: we have two trains. The first train travels at 60 mph, and the second at 90 mph, leaving 2 hours later. Let t be the time since the first train left. The first train will have traveled 60t, while the second will have traveled 90(t-2). Setting these equal, I can solve for t.\n\n**Finding catch-up time**\n\n60t = 90(t-2) gives t = 6 hours. So they catch up 6 hours after the first train leaves. That's my final answer!";
 
 /**
- * OpenAI Responses reasoning with a detailed summary: the summary renders as
- * markdown and the item id can be copied from the header.
+ * OpenAI Responses reasoning with a detailed summary: the closed row quotes
+ * the summary's first heading, opening it renders the summary as markdown
+ * with the item id captioned beneath, and the id can be copied from the row.
  */
 export const WithSummary: Story = {
   args: {

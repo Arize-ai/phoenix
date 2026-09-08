@@ -58,15 +58,15 @@ export function LLMMessage({
   // flat content and as a text part of the contents list. The list renders
   // first, so only render the flat content when it says something the list
   // does not.
-  const isContentInContents =
-    !!messageContent &&
+  const standaloneContent =
     Array.isArray(messagesContents) &&
     messagesContents.some(
       (content) =>
         content?.[SemanticAttributePrefixes.message_content]?.text ===
         messageContent
-    );
-  const standaloneContent = isContentInContents ? undefined : messageContent;
+    )
+      ? undefined
+      : messageContent;
   const toolCalls = getToolCalls(message);
   const hasFunctionCall =
     message[MessageAttributePostfixes.function_call_arguments_json] &&
@@ -105,21 +105,14 @@ export function LLMMessage({
           </Flex>
         }
       >
-        <ErrorBoundary>
-          {messagesContents ? (
-            <MessageContentsList messageContents={messagesContents} />
-          ) : null}
-        </ErrorBoundary>
         <Flex direction="column" alignItems="start">
+          {/* one group holds every row of the card -- reasoning, contents,
+              content, tool calls -- so it alone rules them off from each
+              other. Reasoning rows are not in the expanded keys: the thinking
+              is context for the answer, so it starts out of the way */}
           <DisclosureGroup
             css={css`
               width: 100%;
-              // the copy buttons in these rows stay visible rather than
-              // appearing on hover: an action a reader has to find by pointing
-              // at it is one touch users cannot reach at all
-              .disclosure__trigger {
-                width: 100%;
-              }
             `}
             defaultExpandedKeys={[
               "tool-content",
@@ -127,6 +120,11 @@ export function LLMMessage({
               "function-call",
             ]}
           >
+            <ErrorBoundary>
+              {messagesContents ? (
+                <MessageContentsList messageContents={messagesContents} />
+              ) : null}
+            </ErrorBoundary>
             {/* when the message is a tool result, show the tool result in a disclosure */}
             {role.toLowerCase() === "tool" ? (
               <Disclosure id="tool-content">
@@ -174,7 +172,7 @@ export function LLMMessage({
                         idx === 0
                           ? css`
                               border-top: 1px solid
-                                var(--global-border-color-default);
+                                var(--global-disclosure-border-color);
                             `
                           : null
                       }

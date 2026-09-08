@@ -8,18 +8,25 @@ import { ReasoningMessageContent } from "./ReasoningMessageContent";
 import { SpanImage } from "./SpanImage";
 import { isReasoningMessageContent } from "./utils";
 
-const messageContentListCSS = css`
+/**
+ * Text and images sit in the card's padding and wrap into a row, so several
+ * images share a line.
+ */
+const messageContentMediaListCSS = css`
   display: flex;
   flex-direction: row;
   gap: var(--global-dimension-size-200);
   flex-wrap: wrap;
   padding: var(--global-dimension-size-200);
+  margin: 0;
+  list-style: none;
+  box-sizing: border-box;
 `;
 
 /**
- * Display text and reasoning content in full width. The item must not grow
- * past the list on account of an unbreakable token in its content (a reasoning
- * item id, a long URL), so its minimum width is released from its content.
+ * Display text content in full width. The item must not grow past the list on
+ * account of an unbreakable token in its content (a long URL), so its minimum
+ * width is released from its content.
  */
 const messageContentTextListItemCSS = css`
   flex: 1 1 100%;
@@ -27,12 +34,10 @@ const messageContentTextListItemCSS = css`
 `;
 
 /**
- * Displays multi-modal message content. Typically an image or text, or the
- * reasoning a thinking model produced before its answer.
+ * Displays a text or image part of a multi-modal message.
  * Examples:
  * {"message_content":{"text":"What is in this image?","type":"text"}}
  * {"message_content":{"type":"image","image":{"image":{"url":"https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"}}}}
- * {"message_content":{"type":"reasoning","id":"rs_123","text":"**Weighing the options**\n\n..."}}
  */
 function MessageContentListItem({
   messageContentAttribute,
@@ -40,13 +45,6 @@ function MessageContentListItem({
   messageContentAttribute: AttributeMessageContent;
 }) {
   const { message_content } = messageContentAttribute;
-  if (isReasoningMessageContent(messageContentAttribute)) {
-    return (
-      <li css={messageContentTextListItemCSS}>
-        <ReasoningMessageContent content={message_content} />
-      </li>
-    );
-  }
   const text = message_content?.text;
   const normalizedText = text
     ? formatContentAsString(text, { unquotePlainString: true })
@@ -66,24 +64,65 @@ function MessageContentListItem({
   );
 }
 
+type MessageContentsSegment =
+  | { kind: "reasoning"; content: AttributeMessageContent }
+  | { kind: "media"; contents: AttributeMessageContent[] };
+
 /**
- * A list of message contents. Used for multi-modal models.
+ * The contents of a message in the order they arrived, with each run of text
+ * and image parts gathered into one padded list and each reasoning part left
+ * on its own. Reasoning renders as a row flush with the card, in the shape of
+ * the card's tool call rows, so it cannot share a padded list with the answer.
+ * Example: {"message_content":{"type":"reasoning","id":"rs_123","text":"**Weighing the options**\n\n..."}}
+ */
+function segmentMessageContents(
+  messageContents: AttributeMessageContent[]
+): MessageContentsSegment[] {
+  const segments: MessageContentsSegment[] = [];
+  for (const content of messageContents) {
+    if (isReasoningMessageContent(content)) {
+      segments.push({ kind: "reasoning", content });
+      continue;
+    }
+    const last = segments[segments.length - 1];
+    if (last?.kind === "media") {
+      last.contents.push(content);
+    } else {
+      segments.push({ kind: "media", contents: [content] });
+    }
+  }
+  return segments;
+}
+
+/**
+ * A list of message contents. Used for multi-modal models and for the
+ * reasoning a thinking model produced before its answer.
+ *
+ * Renders its segments without a wrapper so they sit directly in the message
+ * card's disclosure group, which owns the rules between the reasoning rows and
+ * whatever follows them.
  */
 export function MessageContentsList({
   messageContents,
 }: {
   messageContents: AttributeMessageContent[];
 }) {
-  return (
-    <ul css={messageContentListCSS} data-testid="message-content-list">
-      {messageContents.map((messageContent, idx) => {
-        return (
+  return segmentMessageContents(messageContents).map((segment, idx) =>
+    segment.kind === "reasoning" ? (
+      <ReasoningMessageContent
+        key={idx}
+        id={`reasoning-${idx}`}
+        content={segment.content.message_content}
+      />
+    ) : (
+      <ul key={idx} css={messageContentMediaListCSS}>
+        {segment.contents.map((content, contentIdx) => (
           <MessageContentListItem
-            key={idx}
-            messageContentAttribute={messageContent}
+            key={contentIdx}
+            messageContentAttribute={content}
           />
-        );
-      })}
-    </ul>
+        ))}
+      </ul>
+    )
   );
 }
