@@ -1,7 +1,10 @@
 # This file is generated. Do not edit by hand.
 # ruff: noqa: E501
 
-from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._models import (
+    ClassificationEvaluatorConfig,
+    PromptMessage,
+)
 
 PII_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG = ClassificationEvaluatorConfig(
     name="pii_detection",
