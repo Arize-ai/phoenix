@@ -3,7 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from random import choice, randint, random
 from secrets import token_hex
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, NamedTuple, Optional
 
 import pytest
 from faker import Faker
@@ -26,6 +26,12 @@ _SpanRowId: TypeAlias = int
 _SpanId: TypeAlias = str
 
 fake = Faker()
+
+
+class _SpanCostDetailsTree(NamedTuple):
+    root: models.Span
+    child: models.Span
+    grandchild: models.Span
 
 
 async def test_project_resolver_returns_correct_project(
@@ -1036,14 +1042,9 @@ async def test_as_example_revision_with_annotations(
 
 
 @pytest.fixture
-async def _span_cost_cumulative_data(
+async def _span_cost_details_tree(
     db: DbSessionFactory,
-) -> tuple[models.Span, models.Span, models.Span]:
-    """
-    A trace with a 3-level span chain (root -> child -> grandchild), each
-    carrying its own SpanCostDetail rows, so cumulativeCostDetailSummaryEntries
-    can be checked at every level of the tree.
-    """
+) -> _SpanCostDetailsTree:
     async with db() as session:
         project = models.Project(name=token_hex(8))
         session.add(project)
@@ -1125,20 +1126,13 @@ async def _span_cost_cumulative_data(
         )
 
         await session.commit()
-    return root, child, grandchild
+    return _SpanCostDetailsTree(root=root, child=child, grandchild=grandchild)
 
 
 async def test_cumulative_cost_detail_summary_entries_aggregates_self_and_descendants(
-    _span_cost_cumulative_data: tuple[models.Span, models.Span, models.Span],
+    _span_cost_details_tree: _SpanCostDetailsTree,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """
-    cumulativeCostDetailSummaryEntries must fold in every descendant's
-    SpanCostDetail rows, the same way cumulativeTokenCountPrompt folds in
-    every descendant's token count, so a query can tell whether prompt
-    caching was hit anywhere under a given span.
-    """
-    root, child, grandchild = _span_cost_cumulative_data
     query = """
       query ($spanId: ID!) {
         span: node(id: $spanId) {
@@ -1171,23 +1165,20 @@ async def test_cumulative_cost_detail_summary_entries_aggregates_self_and_descen
             for entry in data["span"]["cumulativeCostDetailSummaryEntries"]
         }
 
-    # A leaf span's cumulative entries are exactly its own entries.
-    grandchild_entries = await _entries(grandchild.id)
+    grandchild_entries = await _entries(_span_cost_details_tree.grandchild.id)
     assert grandchild_entries == {
         ("cache_read", True): (3, pytest.approx(0.003)),
         ("output", False): (2, pytest.approx(0.02)),
     }
 
-    # An interior span folds in its own entries plus its descendants'.
-    child_entries = await _entries(child.id)
+    child_entries = await _entries(_span_cost_details_tree.child.id)
     assert child_entries == {
         ("input", True): (20, pytest.approx(0.2)),
         ("cache_read", True): (3, pytest.approx(0.003)),
         ("output", False): (2 + 8, pytest.approx(0.02 + 0.08)),
     }
 
-    # The root folds in the whole subtree.
-    root_entries = await _entries(root.id)
+    root_entries = await _entries(_span_cost_details_tree.root.id)
     assert root_entries == {
         ("input", True): (10 + 20, pytest.approx(0.1 + 0.2)),
         ("cache_read", True): (5 + 3, pytest.approx(0.01 + 0.003)),

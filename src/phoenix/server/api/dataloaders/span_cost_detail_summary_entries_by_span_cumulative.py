@@ -20,15 +20,6 @@ Result: TypeAlias = list[SpanCostDetailSummaryEntry]
 
 
 class SpanCostDetailSummaryEntriesBySpanCumulativeDataLoader(DataLoader[Key, Result]):
-    """
-    Aggregates SpanCostDetail rows, grouped by token type, across a span and
-    all of its descendants (children, grandchildren, etc.). Mirrors
-    SpanCostDetailSummaryEntriesByTraceDataLoader, but scoped to the subtree
-    rooted at each key instead of the whole trace, the same way
-    Span.cumulative_token_count_prompt is scoped relative to
-    Trace.rootSpan.cumulativeTokenCountPrompt.
-    """
-
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db

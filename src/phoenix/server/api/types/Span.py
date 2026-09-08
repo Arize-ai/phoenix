@@ -832,8 +832,7 @@ class Span(Node):
         ]
 
     @strawberry.field(
-        description="Cost detail breakdown (by token type) aggregated from self "
-        "and all descendant spans (children, grandchildren, etc.)",
+        description="Cost details aggregated from this span and all descendant spans",
     )  # type: ignore
     async def cumulative_cost_detail_summary_entries(
         self, info: Info[Context, None]

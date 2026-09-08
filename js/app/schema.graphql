@@ -4334,9 +4334,7 @@ type Span implements Node {
   costSummary: SpanCostSummary
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 
-  """
-  Cost detail breakdown (by token type) aggregated from self and all descendant spans (children, grandchildren, etc.)
-  """
+  """Cost details aggregated from this span and all descendant spans"""
   cumulativeCostDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
