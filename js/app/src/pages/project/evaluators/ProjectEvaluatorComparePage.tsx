@@ -15,7 +15,6 @@ import {
   Loading,
   PageHeader,
   Text,
-  Token,
   View,
 } from "@phoenix/components";
 import { Empty } from "@phoenix/components/core/empty";
@@ -35,6 +34,7 @@ import type {
   ProjectEvaluatorCompareInvalidReason,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
 import { projectEvaluatorCompareLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
+import { ProjectEvaluatorCompareSelect } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareSelect";
 import { EVALUATOR_COMPARE_COLORS } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
@@ -91,6 +91,15 @@ function ProjectEvaluatorComparePageLoaded({
   if (!evaluatorA || !evaluatorB) {
     return <ProjectEvaluatorCompareInvalid reason="not-found" />;
   }
+  const compatibleEvaluators =
+    data.project?.__typename === "Project"
+      ? data.project.evaluators.edges
+          .map(({ evaluator }) => evaluator)
+          .filter(
+            (evaluator) =>
+              evaluator.evaluationTarget === evaluatorA.evaluationTarget
+          )
+      : [evaluatorA, evaluatorB];
 
   return (
     <main css={mainCSS}>
@@ -102,9 +111,17 @@ function ProjectEvaluatorComparePageLoaded({
         subTitle="Where two evaluators agree, disagree, and drift over the same telemetry"
         extra={
           <Flex direction="row" alignItems="center" gap="size-100">
-            <Token color={EVALUATOR_COMPARE_COLORS.a} maxWidth="240px">
-              {evaluatorA.name}
-            </Token>
+            <ProjectEvaluatorCompareSelect
+              label="Select evaluator A"
+              color={EVALUATOR_COMPARE_COLORS.a}
+              selectedEvaluator={evaluatorA}
+              options={compatibleEvaluators.filter(
+                (evaluator) => evaluator.id !== evaluatorB.id
+              )}
+              onSelectionChange={(evaluatorId) =>
+                navigate(paths.compare({ a: evaluatorId, b: evaluatorB.id }))
+              }
+            />
             <IconButton
               size="S"
               aria-label="Swap evaluators"
@@ -114,9 +131,17 @@ function ProjectEvaluatorComparePageLoaded({
             >
               <Icon svg={<Icons.Repeat />} />
             </IconButton>
-            <Token color={EVALUATOR_COMPARE_COLORS.b} maxWidth="240px">
-              {evaluatorB.name}
-            </Token>
+            <ProjectEvaluatorCompareSelect
+              label="Select evaluator B"
+              color={EVALUATOR_COMPARE_COLORS.b}
+              selectedEvaluator={evaluatorB}
+              options={compatibleEvaluators.filter(
+                (evaluator) => evaluator.id !== evaluatorA.id
+              )}
+              onSelectionChange={(evaluatorId) =>
+                navigate(paths.compare({ a: evaluatorA.id, b: evaluatorId }))
+              }
+            />
           </Flex>
         }
       />
