@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 7.10.0
+
+### Minor Changes
+
+- c839254: Add `error`, `minLatencyMs`, and `maxLatencyMs` filters to `getTraces`, matching the query parameters on `GET /v1/projects/{id}/traces` (requires Phoenix server >= 20.8.0).
+
 ## 7.9.0
 
 ### Minor Changes
