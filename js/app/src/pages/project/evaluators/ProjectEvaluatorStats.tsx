@@ -28,6 +28,10 @@ import {
   EvaluatorRunsMetricPanel,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorMetricPanels";
 import {
+  StatField,
+  StatFieldList,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorStatFields";
+import {
   formatLastRun,
   getAnnotationLevel,
   getProjectEvaluatorStatus,
@@ -142,54 +146,6 @@ export function ProjectEvaluatorStats({
   );
 }
 
-const activityFieldsCSS = css`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--global-dimension-size-200);
-  align-content: start;
-  margin: 0;
-  height: 100%;
-
-  dt,
-  dd {
-    margin: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  /* Tabular figures so the numbers align */
-  dd {
-    font-variant-numeric: tabular-nums;
-  }
-
-  .project-evaluator-stats__activity-field {
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-25);
-    min-width: 0;
-  }
-`;
-
-function ActivityField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="project-evaluator-stats__activity-field">
-      <dt>
-        <Text size="XS" color="text-700">
-          {label}
-        </Text>
-      </dt>
-      <dd>{children}</dd>
-    </div>
-  );
-}
-
 /** The evaluator's status and lifetime run totals, tiled like the metric panels. */
 function ProjectEvaluatorActivityPanel({
   projectEvaluator,
@@ -209,8 +165,8 @@ function ProjectEvaluatorActivityPanel({
       subtitle="Run recency and lifetime totals"
       fillHeight
     >
-      <dl css={activityFieldsCSS}>
-        <ActivityField label="status">
+      <StatFieldList>
+        <StatField label="status">
           <TooltipTrigger delay={0}>
             <Focusable>
               <Badge variant={status.variant}>{status.label}</Badge>
@@ -220,8 +176,8 @@ function ProjectEvaluatorActivityPanel({
               <Text size="XS">{status.explanation}</Text>
             </Tooltip>
           </TooltipTrigger>
-        </ActivityField>
-        <ActivityField label="last run">
+        </StatField>
+        <StatField label="last run">
           {runSummary.lastRunAt == null ? (
             <Text size="S">{formatLastRun(runSummary.lastRunAt)}</Text>
           ) : (
@@ -236,29 +192,29 @@ function ProjectEvaluatorActivityPanel({
               </Tooltip>
             </TooltipTrigger>
           )}
-        </ActivityField>
-        <ActivityField label="queued">
+        </StatField>
+        <StatField label="queued">
           <Text size="S">{intFormatter(runSummary.queuedCount)}</Text>
-        </ActivityField>
-        <ActivityField label="evaluated">
+        </StatField>
+        <StatField label="evaluated">
           <Text size="S">{intFormatter(runSummary.evaluatedCount)}</Text>
-        </ActivityField>
-        <ActivityField label="failed">
+        </StatField>
+        <StatField label="failed">
           <Text
             size="S"
             color={runSummary.failedCount > 0 ? "danger" : undefined}
           >
             {intFormatter(runSummary.failedCount)}
           </Text>
-        </ActivityField>
-        <ActivityField label="created">
+        </StatField>
+        <StatField label="created">
           <Text size="S">
             <time dateTime={projectEvaluator.createdAt}>
               {shortDateFormatter(new Date(projectEvaluator.createdAt))}
             </time>
           </Text>
-        </ActivityField>
-      </dl>
+        </StatField>
+      </StatFieldList>
     </ChartPanel>
   );
 }
