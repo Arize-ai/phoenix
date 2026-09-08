@@ -60,6 +60,7 @@ class PromptVersion:
         *,
         model_name: str,
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal[
             "OPENAI",
             "AZURE_OPENAI",
@@ -88,7 +89,9 @@ class PromptVersion:
             prompt (Sequence[v1.PromptMessage]): A sequence of prompt messages.
             model_name (str): The name of the model to use for the prompt.
             description (Optional[str]): A description of the prompt. Defaults
-            to None. model_provider (Literal["OPENAI", "AZURE_OPENAI",
+                to None.
+            metadata (Optional[Mapping[str, Any]]): Metadata for the prompt version.
+            model_provider (Literal["OPENAI", "AZURE_OPENAI",
             "ANTHROPIC", "GOOGLE",
                 "DEEPSEEK", "XAI", "AWS", "OLLAMA"]): The provider of the model
                 to use for the prompt. Defaults to "OPENAI".
@@ -120,6 +123,7 @@ class PromptVersion:
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
+        self._metadata = dict(metadata or {})
         self._invocation_parameters: Union[
             v1.PromptOpenAIInvocationParameters,
             v1.PromptAzureOpenAIInvocationParameters,
@@ -234,6 +238,7 @@ class PromptVersion:
     def __dir__(self) -> list[str]:
         return [
             "id",
+            "metadata",
             "format",
             "from_openai",
             "from_anthropic",
@@ -246,6 +251,11 @@ class PromptVersion:
         Prompt Version ID if stored in the Phoenix backend
         """
         return self._id
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Metadata associated with this prompt version."""
+        return dict(self._metadata)
 
     def format(
         self,
@@ -308,6 +318,7 @@ class PromptVersion:
             messages,
             model_name=obj["model_name"],
             description=obj.get("description"),
+            metadata=obj.get("metadata"),
             model_provider=obj["model_provider"],
             template_format=obj["template_format"],
         )
@@ -331,6 +342,7 @@ class PromptVersion:
             template_type=self._template_type,
             template_format=self._template_format,
             invocation_parameters=self._invocation_parameters,
+            metadata=self._metadata,
         )
         if self._tools is not None:
             ans["tools"] = self._tools

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any, Mapping
 
 import httpx
 import pytest
@@ -8,7 +9,7 @@ import pytest
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import DELETE_PROMPT, PATCH_PROMPT
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
-from phoenix.client.types import NOT_GIVEN
+from phoenix.client.types import NOT_GIVEN, PromptVersion
 
 
 def _make_prompt(
@@ -26,8 +27,52 @@ def _make_prompt(
     return prompt
 
 
+def _make_prompt_version(
+    *,
+    metadata: Mapping[str, Any] | None = None,
+) -> v1.PromptVersion:
+    version = v1.PromptVersion(
+        id="version-1",
+        model_provider="OPENAI",
+        model_name="gpt-4o",
+        template={
+            "type": "chat",
+            "messages": [{"role": "user", "content": "Hello"}],
+        },
+        template_type="CHAT",
+        template_format="MUSTACHE",
+        invocation_parameters={"type": "openai", "openai": {}},
+    )
+    if metadata is not None:
+        version["metadata"] = metadata
+    return version
+
+
 class _GuardSentinel(Exception):
     pass
+
+
+class TestPromptsCreate:
+    def test_create_sends_and_returns_version_metadata(self) -> None:
+        metadata = {"agent": "support", "dependencies": ["retriever", "answerer"]}
+        created_version = _make_prompt_version(metadata=metadata)
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/v1/prompts"
+            assert json.loads(request.content)["version"]["metadata"] == metadata
+            return httpx.Response(200, json={"data": created_version})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        version = PromptVersion(
+            [{"role": "user", "content": "Hello"}],
+            model_name="gpt-4o",
+            metadata=metadata,
+        )
+
+        result = Prompts(client).create(version=version, name="my-prompt")
+
+        assert result.metadata == metadata
 
 
 class TestPromptsUpdate:

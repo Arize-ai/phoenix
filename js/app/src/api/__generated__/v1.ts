@@ -5296,6 +5296,13 @@ export interface components {
         PromptVersion: {
             /** Description */
             description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the prompt version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
@@ -5315,6 +5322,13 @@ export interface components {
         PromptVersionData: {
             /** Description */
             description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the prompt version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
