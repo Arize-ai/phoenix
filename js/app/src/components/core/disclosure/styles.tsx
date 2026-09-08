@@ -3,18 +3,20 @@ import { css } from "@emotion/react";
 export const disclosureGroupCSS = css`
   & > * {
     width: 100%;
-    .react-aria-Heading {
-      width: 100%;
-      .react-aria-Button[slot="trigger"] {
-        width: 100%;
-      }
-    }
   }
 
   // add border between items, only when child is expanded
   > .disclosure:not(:last-child) {
     &[data-expanded="true"] {
-      border-bottom: 1px solid var(--global-border-color-default);
+      border-bottom: 1px solid var(--global-disclosure-border-color);
+    }
+  }
+
+  // a collapsed last item sits against the edge of whatever holds the group,
+  // so the rule its trigger would draw is either a double line or a dangling one
+  > .disclosure:last-child:not([data-expanded="true"]) {
+    .react-aria-Button[slot="trigger"] {
+      border-bottom: none;
     }
   }
 
@@ -41,13 +43,20 @@ export const disclosureCSS = css`
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    // the trigger fills its row, and its content row can shrink below the
+    // width of an unbreakable token so text inside it can truncate
+    width: 100%;
+    box-sizing: border-box;
+    > .flex {
+      min-width: 0;
+    }
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
     padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
 
     // style trigger
     color: var(--global-text-color-900);
-    border-bottom: 1px solid var(--global-border-color-default);
+    border-bottom: 1px solid var(--global-disclosure-border-color);
     outline: none;
     background-color: transparent;
     &:hover:not([disabled]) {

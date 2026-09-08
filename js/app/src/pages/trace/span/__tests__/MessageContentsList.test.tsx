@@ -68,11 +68,52 @@ describe("MessageContentsList", () => {
 
     const [block] = reasoningBlocks();
     expect(reasoningBlocks()).toHaveLength(1);
-    expect(block.textContent).toContain(`Reasoning: ${REASONING_ID}`);
+    expect(block.textContent).toContain("Reasoning");
+    expect(block.textContent).toContain(REASONING_ID);
     expect(block.textContent).toContain("Six hours is 360 minutes.");
     // the answer renders outside the reasoning block
     expect(block.textContent).not.toContain("The answer is 360 minutes.");
     expect(container.textContent).toContain("The answer is 360 minutes.");
+  });
+
+  // the message card is already two cards deep; the thinking is context for
+  // the answer rather than the answer, so it starts out of the way
+  it("starts collapsed", () => {
+    renderContents([
+      {
+        message_content: {
+          type: "reasoning",
+          id: REASONING_ID,
+          text: "**Weighing the options**\n\nSix hours is 360 minutes.",
+        },
+      },
+    ]);
+    const [block] = reasoningBlocks();
+    const panel = block.querySelector<HTMLElement>(".disclosure__panel");
+    const trigger = block.querySelector<HTMLButtonElement>(
+      '.react-aria-Button[slot="trigger"]'
+    );
+    expect(block.dataset.expanded).toBeUndefined();
+    expect(panel?.hidden).toBe(true);
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  // a closed row would otherwise say only "Reasoning"; the first line of the
+  // summary tells the reader what the model was thinking about
+  it("quotes the summary's first line without its markdown while collapsed", () => {
+    renderContents([
+      {
+        message_content: {
+          type: "reasoning",
+          text: "**Weighing the options**\n\nSix hours is 360 minutes.",
+        },
+      },
+    ]);
+    const preview = reasoningBlocks()[0].querySelector(
+      ".reasoning-message-content__preview"
+    );
+    expect(preview?.textContent).toMatch(/^Weighing the options/);
+    expect(preview?.textContent).not.toContain("**");
   });
 
   it("offers the provider item id for copying", () => {
@@ -100,6 +141,10 @@ describe("MessageContentsList", () => {
     const [block] = reasoningBlocks();
     expect(block.textContent).toContain("encrypted");
     expect(block.textContent).not.toContain("gAAAAABqmxPv");
+    // the closed row says so too, so nobody opens it to find nothing
+    expect(
+      block.querySelector(".reasoning-message-content__preview")?.textContent
+    ).toBe("Encrypted");
   });
 
   it("describes redacted thinking as redacted", () => {

@@ -1155,6 +1155,10 @@ const disclosureCSS = (theme: Theme) => css`
     --global-disclosure-background-color-active: ${theme === "dark"
       ? "rgba(255, 255, 255, 0.07)"
       : "rgba(0, 0, 0, 0.03)"};
+    /* the rule a disclosure draws under its trigger and between its items. A
+       container with a border of its own (a tinted card) re-points this at
+       that border so the rules inside it match its edge */
+    --global-disclosure-border-color: var(--global-border-color-default);
   }
 `;
 

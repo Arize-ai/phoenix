@@ -7,6 +7,7 @@ import {
   getLLMAttributes,
   getMessagePreview,
   getPromptTemplatePreview,
+  getReasoningPreview,
   getRerankerAttributes,
   getRetrieverAttributes,
   getToolAttributes,
@@ -493,5 +494,31 @@ describe("groupDocumentEvaluationsByPosition", () => {
 
   it("returns an empty map for no evaluations", () => {
     expect(groupDocumentEvaluationsByPosition([])).toEqual({});
+  });
+});
+
+describe("getReasoningPreview", () => {
+  it("quotes the first heading without its bold markers", () => {
+    expect(
+      getReasoningPreview(
+        "**Weighing the options**\n\nSix hours is 360 minutes."
+      )
+    ).toBe("Weighing the options Six hours is 360 minutes.");
+  });
+
+  it("drops heading marks and inline code ticks", () => {
+    expect(getReasoningPreview("## Plan\n\nCall `lookup` first.")).toBe(
+      "Plan Call lookup first."
+    );
+  });
+
+  it("keeps emphasis text and arithmetic that only looks like emphasis", () => {
+    expect(getReasoningPreview("So _t_ is 6 and 60*t = 90*(t-2).")).toBe(
+      "So t is 6 and 60*t = 90*(t-2)."
+    );
+  });
+
+  it("is undefined for a blank summary", () => {
+    expect(getReasoningPreview("   \n")).toBeUndefined();
   });
 });
