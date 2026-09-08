@@ -49,6 +49,10 @@ function TestProjectEvaluatorPaths() {
         category: "RESPONSE_QUALITY",
         templateName: "Correctness",
       })}
+      data-compare={paths.compare({
+        a: "ProjectEvaluator:a/source",
+        b: "ProjectEvaluator:b/source",
+      })}
     />
   );
 }
@@ -111,6 +115,36 @@ describe("useProjectEvaluatorPaths", () => {
     );
     expect(output?.getAttribute("data-template-gallery")).toBe(
       "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=RESPONSE_QUALITY&template=Correctness&proof=preserved"
+    );
+    expect(output?.getAttribute("data-compare")).toBe(
+      "/projects/project-1/evaluators/compare?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved&a=ProjectEvaluator%3Aa%2Fsource&b=ProjectEvaluator%3Ab%2Fsource"
+    );
+  });
+
+  it("removes stale compare ids from non-compare destinations", () => {
+    act(() => {
+      root.render(
+        <MemoryRouter
+          initialEntries={[
+            "/projects/project-1/evaluators/compare?timeRangeKey=7d&a=old-a&b=old-b",
+          ]}
+        >
+          <Routes>
+            <Route
+              path="/projects/:projectId/evaluators/compare"
+              element={<TestProjectEvaluatorPaths />}
+            />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+
+    const output = container.querySelector("output");
+    expect(output?.getAttribute("data-list-new-llm")).toBe(
+      "/projects/project-1/evaluators/new/llm?timeRangeKey=7d"
+    );
+    expect(output?.getAttribute("data-compare")).toContain(
+      "?timeRangeKey=7d&a=ProjectEvaluator%3Aa%2Fsource&b=ProjectEvaluator%3Ab%2Fsource"
     );
   });
 });
