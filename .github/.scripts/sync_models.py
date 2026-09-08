@@ -180,6 +180,31 @@ def _tier_customization(
     )
 
 
+OUTPUT_RATE_FIELDS: tuple[str, ...] = (
+    "output_cost_per_token",
+    "output_cost_per_image_token",
+)
+
+
+def _output_rate_field(model_info: dict[str, Any]) -> Optional[str]:
+    """
+    Resolve which LiteLLM field prices Phoenix's ``output`` token type.
+
+    Phoenix bills every completion token that has no more specific price at the ``output``
+    rate, and the cost calculator requires that rate whenever any completion price is
+    configured. LiteLLM publishes a text rate (``output_cost_per_token``) for chat models,
+    but image generation models such as gpt-image-2 emit only image tokens and carry just
+    ``output_cost_per_image_token``. Prefer the text rate when published and fall back to
+    the image-token rate otherwise. The image-token rate is always emitted as an explicit
+    ``image`` price as well, so instrumentation that reports image tokens separately bills
+    them exactly regardless of which field backs ``output``.
+    """
+    for field in OUTPUT_RATE_FIELDS:
+        if _is_positive_number(model_info.get(field)):
+            return field
+    return None
+
+
 def _is_positive_number(value: Any) -> bool:
     try:
         return float(value) > 0
@@ -190,13 +215,8 @@ def _is_positive_number(value: Any) -> bool:
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
-        # Both an input and an output rate are required for pricing. Image generation
-        # models (e.g. gpt-image-2) bill their output exclusively as image tokens and
-        # LiteLLM publishes that rate as ``output_cost_per_image_token`` without an
-        # ``output_cost_per_token``, so accept either as the output rate.
-        if "input_cost_per_token" in model_info and (
-            "output_cost_per_token" in model_info or "output_cost_per_image_token" in model_info
-        ):
+        # Both an input and an output rate are required for pricing.
+        if "input_cost_per_token" in model_info and _output_rate_field(model_info) is not None:
             models_with_pricing.append(model_id)
 
     filtered_model_ids = filter_models(models_with_pricing)
@@ -223,20 +243,13 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                 )
             )
 
-        # Image generation models have no plain output rate: every output token is an
-        # image token, so fall back to the image token rate for the "output" price that
-        # the cost calculator requires as the completion default.
-        if output_cost := float(
-            model_info.get("output_cost_per_token")
-            or model_info.get("output_cost_per_image_token")
-            or 0
-        ):
+        if (output_field := _output_rate_field(model_info)) is not None:
             token_prices.append(
                 TokenPrice(
                     token_type="output",
-                    base_rate=output_cost,
+                    base_rate=float(model_info[output_field]),
                     is_prompt=False,
-                    customization=_tier_customization(model_info, "output_cost_per_token"),
+                    customization=_tier_customization(model_info, output_field),
                 )
             )
 
