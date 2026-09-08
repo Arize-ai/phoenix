@@ -30,7 +30,6 @@ export const EditLLMEvaluatorDialogContent = ({
   submitHint?: ReactNode;
   mode: "create" | "update";
   error?: string;
-  /** Relay node ID of the underlying LLM evaluator, not an association wrapper. */
   llmEvaluatorNodeId?: string | null;
   title?: string;
   formLeftPanel?: ReactNode;
