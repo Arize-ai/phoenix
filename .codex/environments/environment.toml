@@ -5,15 +5,6 @@ name = "phoenix"
 [setup]
 script = '''
 uv sync --python 3.10
-WORKTREE_PATH="$(pwd)"
-WORKTREE_ID="$(basename "$(dirname "${WORKTREE_PATH}")")"
-PORT_OFFSET="$(printf '%s' "${WORKTREE_PATH}" | cksum | awk '{print $1 % 1000}')"
-PHOENIX_PORT="$((6006 + PORT_OFFSET))"
-PHOENIX_WORKING_DIR="/tmp/${WORKTREE_ID}"
-VITE_PORT="$((5173 + PORT_OFFSET))"
-DEBUGPY_PORT="$((5678 + PORT_OFFSET))"
-
-mkdir -p "${PHOENIX_WORKING_DIR}"
 
 cd js
 pnpm install
@@ -22,13 +13,6 @@ pnpm run build:deps
 
 touch .env
 
-cat >> .env <<EOF
-export PHOENIX_PORT=${PHOENIX_PORT}
-export PHOENIX_WORKING_DIR=${PHOENIX_WORKING_DIR}
-export VITE_PORT=${VITE_PORT}
-export DEBUGPY_PORT=${DEBUGPY_PORT}
-EOF
-
 cd ../..
 '''
 
@@ -36,6 +20,5 @@ cd ../..
 name = "run"
 icon = "tool"
 command = '''
-cd js/app
-pnpm dev
+make dev-session
 '''

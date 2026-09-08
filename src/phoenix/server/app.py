@@ -277,8 +277,8 @@ class AppConfig(NamedTuple):
     """ Whether the in-process MCP server is mounted at /mcp """
     mcp_code_mode_enabled: bool = False
     """ Whether the MCP server presents the code-mode tool surface """
-    dev_vite_port: int = 5173
-    """ Port the Vite dev server runs on. Only used in development mode. """
+    dev_vite_url: str = "http://localhost:5173"
+    """ URL of the Vite dev server. Only used in development mode. """
 
 
 class Static(StaticFiles):
@@ -333,7 +333,7 @@ class Static(StaticFiles):
                     "basename": get_root_path(scope),
                     "platform_version": phoenix_version,
                     "is_development": self._app_config.is_development,
-                    "vite_port": self._app_config.dev_vite_port,
+                    "vite_url": self._app_config.dev_vite_url,
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
@@ -925,6 +925,7 @@ def create_app(
     debug: bool = False,
     dev: bool = False,
     dev_vite_port: int = 5173,
+    dev_vite_url: Optional[str] = None,
     read_only: bool = False,
     grpc_port: Optional[int] = None,
     enable_prometheus: bool = False,
@@ -1305,7 +1306,7 @@ def create_app(
                     mcp_server_enabled=mcp_mount_path is not None,
                     mcp_code_mode_enabled=mcp_mount_path is not None and get_env_mcp_code_mode(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
-                    dev_vite_port=dev_vite_port,
+                    dev_vite_url=dev_vite_url or f"http://localhost:{dev_vite_port}",
                 ),
             ),
             name="static",

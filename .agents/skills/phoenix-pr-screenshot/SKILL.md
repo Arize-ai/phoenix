@@ -1,6 +1,6 @@
 ---
 name: phoenix-pr-screenshot
-description: Screenshot a running Phoenix feature and attach images to a GitHub PR. Builds the frontend, starts Phoenix with env vars, uses agent-browser to capture screenshots, uploads to GCS, and updates the PR body.
+description: Screenshot a running Phoenix feature and attach images to a GitHub PR. Builds the frontend, uses agent-browser to capture screenshots, uploads to GCS, and updates the PR body.
 user-invocable: true
 metadata:
   internal: true
@@ -24,7 +24,7 @@ Capture screenshots of the Phoenix UI to visually document a feature in a pull r
 The Phoenix backend serves the built frontend from `src/phoenix/server/static/`. Build it from the `js/app/` directory:
 
 ```bash
-cd <repo-root>/app
+cd <repo-root>/js/app
 pnpm install   # only if node_modules is missing
 pnpm run build
 ```
@@ -33,25 +33,22 @@ This compiles the React app and copies static assets into the Python server's st
 
 ### Step 2: Start Phoenix
 
-Start the Phoenix backend with any env vars the feature requires. Always use a fresh working directory to avoid DB migration conflicts in worktrees:
+Use a Phoenix development instance that matches the current checkout. If none is
+running, start one with the repository's development commands and any
+feature-specific environment variables. In a git worktree, follow the
+`phoenix-worktree-dev` skill for optional isolated session management.
 
-```bash
-PHOENIX_PORT=6007 PHOENIX_WORKING_DIR=/tmp/phoenix-screenshot-demo <OTHER_ENV_VARS> uv run phoenix serve &
-```
-
-Key points:
-- Use `PHOENIX_PORT` (not `--port`) to set the port — the CLI doesn't accept a port flag
-- Use a temp `PHOENIX_WORKING_DIR` so you don't collide with an existing DB that may have newer migrations
-- Wait for the server to be ready: `sleep 10 && curl -s -o /dev/null -w "%{http_code}" http://localhost:6007/playground` should return 200
-- Check `/tmp/phoenix-*.log` if it fails — common issues are migration errors (use a fresh working dir) or port conflicts
+Prefer fresh data for screenshots unless the feature needs an existing dataset.
+Record the instance base URL as `PHOENIX_URL`, wait until it is ready, and do not
+start a second server when a suitable one already exists.
 
 ### Step 3: Screenshot with agent-browser
 
 Navigate to the relevant page, interact with UI elements to show the feature, and capture screenshots:
 
 ```bash
-# Open the page
-agent-browser open http://localhost:6007/playground
+# Use the base URL of the selected development instance
+agent-browser open "${PHOENIX_URL}/playground"
 
 # Wait for React to fully render
 agent-browser wait --load networkidle
@@ -110,13 +107,9 @@ Always preserve the existing PR body content — read it first with `gh pr view 
 
 ### Step 6: Cleanup
 
-```bash
-# Kill the Phoenix server
-kill <PID>
-
-# Close the browser
-agent-browser close
-```
+Stop only the development instance started for this screenshot workflow, using
+the matching development command. Then close the browser with `agent-browser
+close`.
 
 ## Removing screenshots
 
