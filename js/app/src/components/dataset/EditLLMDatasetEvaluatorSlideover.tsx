@@ -388,7 +388,7 @@ const EditEvaluatorDialog = ({
           isSubmitting={isUpdating}
           mode="update"
           error={error}
-          evaluatorNodeId={datasetEvaluator.evaluator.id}
+          llmEvaluatorNodeId={datasetEvaluator.evaluator.id}
         />
       )}
     </EvaluatorStoreProvider>
