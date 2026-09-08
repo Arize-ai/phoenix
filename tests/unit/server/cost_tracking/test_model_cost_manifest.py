@@ -78,3 +78,35 @@ def test_flagship_models_carry_threshold_based_tier_rates(
     assert customization["key"] == "llm.token_count.prompt"
     assert customization["threshold"] == pytest.approx(threshold, rel=1e-9)
     assert customization["new_rate"] == pytest.approx(elevated_rate, rel=1e-9)
+
+
+@pytest.mark.parametrize(
+    "model_name, input_rate, output_rate, image_input_rate, image_output_rate",
+    [
+        # LiteLLM prices image generation output only as ``output_cost_per_image_token``;
+        # the sync must fall back to that rate rather than dropping the model.
+        ("gpt-image-2", 5e-6, 3e-5, 8e-6, 3e-5),
+        ("gpt-image-1", 5e-6, 4e-5, 1e-5, 4e-5),
+        ("gpt-image-1-mini", 2e-6, 8e-6, 2.5e-6, 8e-6),
+        # Manually maintained until LiteLLM publishes them (released 2026-09-08).
+        ("gpt-image-2.5-flare", 5e-6, 3e-5, 8e-6, 3e-5),
+        ("gpt-image-2.5-sunburst", 5e-6, 3e-5, 8e-6, 3e-5),
+    ],
+)
+def test_image_generation_models_carry_output_and_image_token_rates(
+    models_by_name: dict[str, dict[str, Any]],
+    model_name: str,
+    input_rate: float,
+    output_rate: float,
+    image_input_rate: float,
+    image_output_rate: float,
+) -> None:
+    assert model_name in models_by_name, f"missing model entry: {model_name}"
+    prices = {
+        (price["token_type"], price["is_prompt"]): price["base_rate"]
+        for price in models_by_name[model_name]["token_prices"]
+    }
+    assert prices[("input", True)] == pytest.approx(input_rate, rel=1e-9)
+    assert prices[("output", False)] == pytest.approx(output_rate, rel=1e-9)
+    assert prices[("image", True)] == pytest.approx(image_input_rate, rel=1e-9)
+    assert prices[("image", False)] == pytest.approx(image_output_rate, rel=1e-9)
