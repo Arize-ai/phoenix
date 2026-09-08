@@ -25,17 +25,27 @@ class DatasetExamplePatch:
 
 
 @strawberry.input
-class PatchDatasetExamplesInput:
+class DatasetExampleAddition:
     """
-    Input type to the patchDatasetExamples mutation.
+    Contains the information needed to add a new example to a dataset.
     """
 
-    patches: list[DatasetExamplePatch]
+    input: JSON
+    output: JSON
+    metadata: JSON
+    external_id: Optional[str] = UNSET
+
+
+@strawberry.input
+class PatchDatasetExamplesInput:
+    """
+    Input type to the patchDatasetExamples mutation. The additions, patches, and
+    deletions are committed together as one dataset version.
+    """
+
+    dataset_id: GlobalID
+    additions: list[DatasetExampleAddition] = strawberry.field(default_factory=list)
+    patches: list[DatasetExamplePatch] = strawberry.field(default_factory=list)
+    example_ids_to_delete: list[GlobalID] = strawberry.field(default_factory=list)
     version_description: Optional[str] = UNSET
     version_metadata: Optional[JSON] = UNSET
-    dataset_id: Optional[GlobalID] = strawberry.field(
-        default=UNSET,
-        description="When provided, every patched example must belong to this dataset "
-        "or the whole mutation is rejected — lets callers scope the write to the "
-        "dataset they believe they are editing.",
-    )
