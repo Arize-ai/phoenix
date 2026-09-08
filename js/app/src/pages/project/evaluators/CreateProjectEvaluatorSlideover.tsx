@@ -213,6 +213,7 @@ const CreateProjectEvaluatorDialog = ({
     })
   );
 
+  // oxlint-disable-next-line complexity
   const initialState = (() => {
     if (creationMode.kind === "newCode" || creationMode.kind === "copyCode") {
       const copiedState =
