@@ -7,7 +7,7 @@ async function openAssistant(page: Page) {
   const rail = page.getByRole("complementary", { name: "Assistant" });
   await expect(rail).toBeVisible();
   const acknowledgeButton = rail.getByRole("button", { name: "Acknowledge" });
-  const input = rail.getByPlaceholder("Send a message...");
+  const input = rail.getByLabel("Message input");
   await expect(acknowledgeButton.or(input)).toBeVisible();
   if (await acknowledgeButton.isVisible()) {
     await acknowledgeButton.click();
@@ -24,7 +24,7 @@ test.describe("application frame overlays", () => {
   }) => {
     await page.goto("/datasets");
     const rail = await openAssistant(page);
-    const railInput = rail.getByPlaceholder("Send a message...");
+    const railInput = rail.getByLabel("Message input");
     await rail.evaluate((element) => {
       element.setAttribute("data-e2e-identity", "persistent-rail");
     });
@@ -81,7 +81,7 @@ test.describe("application frame overlays", () => {
       .getByRole("button", { name: "Switch assistant to floating panel" })
       .click();
 
-    const assistantInput = page.getByPlaceholder("Send a message...");
+    const assistantInput = page.getByLabel("Message input");
     await expect(assistantInput).toBeVisible();
     // The detached panel may float over the top nav; activate the trigger
     // with the keyboard since this test audits assistant interactivity, not
@@ -222,7 +222,7 @@ test.describe("application frame overlays", () => {
           .map((animation) => animation.finished.catch(() => {}))
       );
     });
-    const railInput = rail.getByPlaceholder("Send a message...");
+    const railInput = rail.getByLabel("Message input");
     await rail.evaluate((element) => {
       element.setAttribute("data-e2e-identity", "persistent-rail");
     });
