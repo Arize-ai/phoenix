@@ -1,5 +1,6 @@
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import type { SpanCumulativeTokenCountDetailsQuery$data } from "./__generated__/SpanCumulativeTokenCountDetailsQuery.graphql";
 import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
 import { TokenDetailsBreakdown } from "./TokenDetailsBreakdown";
 
@@ -12,6 +13,32 @@ export type TokenCountDetailsProps = Omit<
    */
   label?: string;
 };
+
+type Span = Extract<
+  SpanCumulativeTokenCountDetailsQuery$data["node"],
+  { __typename: "Span" }
+>;
+
+type CostDetailSummaryEntry =
+  Span["cumulativeCostDetailSummaryEntries"][number];
+
+export function getTokenCountDetailsFromCostDetails(
+  costDetails: ReadonlyArray<CostDetailSummaryEntry>
+): Pick<TokenCountDetailsProps, "promptDetails" | "completionDetails"> {
+  const getDetails = (isPrompt: boolean) => {
+    const entries = costDetails.flatMap((detail) =>
+      detail.isPrompt === isPrompt && detail.value.tokens != null
+        ? [[detail.tokenType, detail.value.tokens] as const]
+        : []
+    );
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+  };
+
+  return {
+    promptDetails: getDetails(true),
+    completionDetails: getDetails(false),
+  };
+}
 
 export function TokenCountDetails({
   total,
