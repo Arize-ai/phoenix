@@ -70,6 +70,8 @@ export function LLMMessage({
     )
       ? undefined
       : messageContent;
+  const hasStandaloneContent =
+    Boolean(standaloneContent) && normalizedContent.trim().length > 0;
   const toolCalls = getToolCalls(message);
   const hasFunctionCall =
     message[MessageAttributePostfixes.function_call_arguments_json] &&
@@ -153,7 +155,7 @@ export function LLMMessage({
                 </DisclosurePanel>
               </Disclosure>
             ) : // when the message is any other kind, just show the content without a disclosure
-            standaloneContent ? (
+            hasStandaloneContent ? (
               <View width="100%">
                 <ConnectedMarkdownBlock>
                   {normalizedContent}

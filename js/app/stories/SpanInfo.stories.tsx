@@ -140,6 +140,106 @@ export const LLMReasoning: Story = {
 };
 
 /**
+ * A Pi-style agent step with reasoning and tool calls but no answer. Empty,
+ * whitespace-only, and missing text parts must not leave padded blank rows.
+ */
+export const LLMReasoningAndToolCalls: Story = {
+  args: {
+    span: {
+      ...llmReasoningSpan,
+      input: null,
+      output: null,
+      attributes: JSON.stringify({
+        llm: {
+          input_messages: [
+            {
+              message: {
+                role: "user",
+                content: "Review the frontend and design code.",
+              },
+            },
+          ],
+          output_messages: [
+            {
+              message: {
+                role: "assistant",
+                content: " \n\t",
+                contents: [
+                  { message_content: { type: "text", text: "" } },
+                  {
+                    message_content: {
+                      type: "reasoning",
+                      text: "**Preparing to review frontend and design code**\n\nI will read the components and design conventions before reviewing the changes.",
+                    },
+                  },
+                  { message_content: { type: "text", text: " \n\t" } },
+                  { message_content: { type: "text" } },
+                ],
+                tool_calls: [
+                  {
+                    tool_call: {
+                      id: "call_read_components",
+                      function: {
+                        name: "read_file",
+                        arguments: '{"path":"src/components/Message.tsx"}',
+                      },
+                    },
+                  },
+                  {
+                    tool_call: {
+                      id: "call_read_design",
+                      function: {
+                        name: "read_file",
+                        arguments: '{"path":"docs/design.md"}',
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    },
+  },
+};
+
+/** A tool-only step with an empty text part and no flat answer. */
+export const LLMToolCallsWithoutContent: Story = {
+  args: {
+    span: {
+      ...llmReasoningSpan,
+      input: null,
+      output: null,
+      attributes: JSON.stringify({
+        llm: {
+          output_messages: [
+            {
+              message: {
+                role: "assistant",
+                content: "",
+                contents: [{ message_content: { type: "text", text: "" } }],
+                tool_calls: [
+                  {
+                    tool_call: {
+                      id: "call_read_components",
+                      function: {
+                        name: "read_file",
+                        arguments: '{"path":"src/components/Message.tsx"}',
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    },
+  },
+};
+
+/**
  * A failed LLM call: danger status alert with the status message and no
  * output.
  */
