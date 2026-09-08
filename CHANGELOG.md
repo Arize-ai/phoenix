@@ -1,5 +1,28 @@
 # Changelog
 
+## [20.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.8.0...arize-phoenix-v20.9.0) (2026-09-08)
+
+
+### Features
+
+* **client:** add ATIF tracing to Harbor plugin ([#15715](https://github.com/Arize-ai/phoenix/issues/15715)) ([30dccec](https://github.com/Arize-ai/phoenix/commit/30dccec0744d55612366aa3d444eb7dc12f7831b))
+
+
+### Bug Fixes
+
+* **agents:** stop retrying GitHub calls after an authorization failure ([#15917](https://github.com/Arize-ai/phoenix/issues/15917)) ([18fdcd2](https://github.com/Arize-ai/phoenix/commit/18fdcd2d6865775bc1f6119133b2c8fb0dd6a866))
+* **cost:** update built-in model token prices ([#15971](https://github.com/Arize-ai/phoenix/issues/15971)) ([83855f7](https://github.com/Arize-ai/phoenix/commit/83855f743d16983cd85bb287c8c84ce27b447736))
+* **server:** remove PEP 765 return in finally from playground_users.get_user ([#15964](https://github.com/Arize-ai/phoenix/issues/15964)) ([9c531a5](https://github.com/Arize-ai/phoenix/commit/9c531a5c9deabf6fafefafc7e9a869298fa18bcb))
+* **traces:** count only leaf LLM spans in project token totals ([#15913](https://github.com/Arize-ai/phoenix/issues/15913)) ([38db726](https://github.com/Arize-ai/phoenix/commit/38db726bfe752021324fba4ef1198a9b8a750d82))
+
+
+### Documentation
+
+* add Phoenix and AX selector ([#15988](https://github.com/Arize-ai/phoenix/issues/15988)) ([c1288c9](https://github.com/Arize-ai/phoenix/commit/c1288c9c35e951a6e22c7d39a4a649ea58fa33ec))
+* add Simplified Chinese translation (README.zh.md) ([3e33ecf](https://github.com/Arize-ai/phoenix/commit/3e33ecfffd67ef506a20996fef3f1656e68fb041))
+* fix integration table links in README ([#15949](https://github.com/Arize-ai/phoenix/issues/15949)) ([41cf183](https://github.com/Arize-ai/phoenix/commit/41cf183554e8ebb9507afdb37625243626148e5c))
+* fix wording, TOC anchor, and header markup in Chinese README ([8486607](https://github.com/Arize-ai/phoenix/commit/84866072793ff3b51f9c4783d8b1ee9095116025))
+
 ## [20.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.7.0...arize-phoenix-v20.8.0) (2026-09-04)
 
 
