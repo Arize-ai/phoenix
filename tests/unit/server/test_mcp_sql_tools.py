@@ -1,6 +1,6 @@
 import pytest
 from fastmcp import FastMCP
-from mcp.types import TextContent
+from mcp_types import TextContent
 
 from phoenix.server.mcp.sql.allowlist import load_allowlist
 from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode

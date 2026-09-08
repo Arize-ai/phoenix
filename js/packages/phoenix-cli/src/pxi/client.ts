@@ -521,11 +521,24 @@ export function buildPxiContexts({
 
 /** Shared request fields derived from the resolved runtime options. */
 function buildPxiRequestBase({ options }: { options: PxiRuntimeOptions }) {
+  // The profile's GitHub token rides each request ephemerally; the server
+  // injects it as transport auth for the GitHub tools and never persists it.
+  const githubToken = options.config.githubPersonalAccessToken;
   return {
     id: options.sessionId,
     trigger: "submit-message" as const,
     // The CLI drives the headless agent rather than the browser assistant.
     headless: true,
+    ...(githubToken
+      ? {
+          credentials: [
+            {
+              key: "GITHUB_PERSONAL_ACCESS_TOKEN" as const,
+              value: githubToken,
+            },
+          ],
+        }
+      : {}),
     recordLocalTraces: options.ingestTraces,
     exportRemoteTraces: options.exportRemoteTraces,
     instrumentUserId: options.attachUserId,

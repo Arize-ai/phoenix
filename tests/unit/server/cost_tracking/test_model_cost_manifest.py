@@ -47,6 +47,9 @@ def models_by_name(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
         ("gpt-5.4", "output", 272_000, 1.5e-5, 2.25e-5),
         ("gpt-5.5", "input", 272_000, 5e-6, 1e-5),
         ("gpt-5.5", "output", 272_000, 3e-5, 4.5e-5),
+        ("minimax/MiniMax-M3", "input", 512_000, 3e-7, 6e-7),
+        ("minimax/MiniMax-M3", "output", 512_000, 1.2e-6, 2.4e-6),
+        ("minimax/MiniMax-M3", "cache_read", 512_000, 6e-8, 1.2e-7),
     ],
 )
 def test_flagship_models_carry_threshold_based_tier_rates(

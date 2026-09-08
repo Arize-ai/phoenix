@@ -52,9 +52,10 @@ _BOUND_PRINCIPAL: ContextVar[Optional["PhoenixUser"]] = ContextVar(
 def bind_principal(principal: Optional["PhoenixUser"]) -> Iterator[None]:
     """Run the enclosed block as ``principal`` for in-process dispatch.
 
-    Enter before opening the connection that carries the calls: context
-    variables are captured at task creation, and an in-memory MCP session serves
-    its calls from a task spawned at connect time.
+    Enter before opening the connection that carries the calls. A context
+    variable is captured when the serving task is created, and transports differ
+    in whether that is at connect time or per call; binding before connect is
+    visible to the tool either way.
     """
     token = _BOUND_PRINCIPAL.set(principal)
     try:

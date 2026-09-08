@@ -145,6 +145,75 @@ export function getChatRole(_role: string): ChatMessageRole {
  *
  * NB: Only exported for testing
  */
+type AttributeToolCall = NonNullable<
+  MessageSchema["message"]["tool_calls"]
+>[number]["tool_call"];
+
+function parseAttributeToolCallArguments(
+  toolCall: NonNullable<AttributeToolCall>
+): Record<string, unknown> {
+  const rawArguments = toolCall.function?.arguments;
+  if (rawArguments == null) return {};
+  const { json } = safelyParseJSON(rawArguments);
+  return isStringKeyedObject(json) ? json : {};
+}
+
+const OPENAI_COMPATIBLE_PROVIDERS: ReadonlySet<ModelProvider> = new Set([
+  "OPENAI",
+  "AZURE_OPENAI",
+  "DEEPSEEK",
+  "XAI",
+  "AWS",
+  "OLLAMA",
+  "CEREBRAS",
+  "FIREWORKS",
+  "GROQ",
+  "MOONSHOT",
+  "MINIMAX",
+  "PERPLEXITY",
+  "TOGETHER",
+  "ZAI",
+]);
+
+function convertAttributeToolCall({
+  toolCall,
+  provider,
+}: {
+  toolCall: NonNullable<AttributeToolCall>;
+  provider: ModelProvider;
+}): NonNullable<ChatMessage["toolCalls"]>[number] {
+  const argumentsValue = parseAttributeToolCallArguments(toolCall);
+  if (OPENAI_COMPATIBLE_PROVIDERS.has(provider)) {
+    return {
+      id: toolCall.id ?? "",
+      type: "function",
+      function: {
+        name: toolCall.function?.name ?? "",
+        arguments: argumentsValue,
+      },
+    } satisfies OpenAIToolCall;
+  }
+  switch (provider) {
+    case "ANTHROPIC":
+      return {
+        id: toolCall.id ?? "",
+        type: "tool_use",
+        name: toolCall.function?.name ?? "",
+        input: argumentsValue,
+      } satisfies AnthropicToolCall;
+    case "GOOGLE":
+      return {
+        id: toolCall.id ?? "",
+        function: {
+          name: toolCall.function?.name ?? "",
+          arguments: argumentsValue,
+        },
+      } as JSONLiteral;
+    default:
+      throw new Error(`Unsupported tool call provider: ${provider}`);
+  }
+}
+
 export function processAttributeToolCalls({
   toolCalls,
   provider,
@@ -156,63 +225,11 @@ export function processAttributeToolCalls({
     return undefined;
   }
   return toolCalls
-    .map(({ tool_call }) => {
-      if (tool_call == null) {
-        return null;
-      }
-
-      let toolCallArgs: Record<string, unknown> = {};
-      if (tool_call.function?.arguments != null) {
-        const { json: parsedArguments } = safelyParseJSON(
-          tool_call.function.arguments
-        );
-        if (isStringKeyedObject(parsedArguments)) {
-          toolCallArgs = parsedArguments;
-        }
-      }
-
-      switch (provider) {
-        case "OPENAI":
-        case "AZURE_OPENAI":
-        case "DEEPSEEK":
-        case "XAI":
-        case "AWS":
-        case "OLLAMA":
-        case "CEREBRAS":
-        case "FIREWORKS":
-        case "GROQ":
-        case "MOONSHOT":
-        case "PERPLEXITY":
-        case "TOGETHER":
-          return {
-            id: tool_call.id ?? "",
-            type: "function" as const,
-            function: {
-              name: tool_call.function?.name ?? "",
-              arguments: toolCallArgs,
-            },
-          } satisfies OpenAIToolCall;
-        case "ANTHROPIC": {
-          return {
-            id: tool_call.id ?? "",
-            type: "tool_use" as const,
-            name: tool_call.function?.name ?? "",
-            input: toolCallArgs,
-          } satisfies AnthropicToolCall;
-        }
-        // TODO(apowell): #5348 Add Google tool call
-        case "GOOGLE":
-          return {
-            id: tool_call.id ?? "",
-            function: {
-              name: tool_call.function?.name ?? "",
-              arguments: toolCallArgs,
-            },
-          } as JSONLiteral;
-        default:
-          return assertUnreachable(provider);
-      }
-    })
+    .map(({ tool_call }) =>
+      tool_call == null
+        ? null
+        : convertAttributeToolCall({ toolCall: tool_call, provider })
+    )
     .filter((toolCall): toolCall is NonNullable<typeof toolCall> => {
       return toolCall != null;
     });
@@ -728,71 +745,75 @@ export function getModelInvocationParametersFromAttributes(
 function rawSpanToolChoiceToCanonical(
   raw: unknown
 ): CanonicalToolChoice | null {
-  // OpenAI / OpenAI-compatible: strings or typed objects
-  const openai = openAIToolChoiceSchema.safeParse(raw);
-  if (openai.success) {
-    const c = openai.data;
-    if (c === "none") return { type: "NONE" };
-    if (c === "auto") return { type: "ZERO_OR_MORE" };
-    if (c === "required") return { type: "ONE_OR_MORE" };
-    if (c.type === "function")
-      return { type: "SPECIFIC_FUNCTION", functionName: c.function.name };
-    if (c.type === "allowed_tools")
-      return c.allowed_tools.mode === "required"
-        ? { type: "ONE_OR_MORE" }
-        : { type: "ZERO_OR_MORE" };
-    if (c.type === "custom")
-      return { type: "SPECIFIC_FUNCTION", functionName: c.custom.name };
-  }
+  return (
+    parseOpenAIToolChoice(raw) ??
+    parseAnthropicToolChoice(raw) ??
+    parseGoogleToolChoice(raw) ??
+    parseAwsToolChoice(raw)
+  );
+}
 
-  // Anthropic: { type: "none"|"auto"|"any"|"tool", name?, disable_parallel_tool_use? }
-  const anthropic = anthropicToolChoiceSchema.safeParse(raw);
-  if (anthropic.success) {
-    const c = anthropic.data;
-    switch (c.type) {
-      case "none":
-        return { type: "NONE" };
-      case "auto":
-        return { type: "ZERO_OR_MORE" };
-      case "any":
-        return { type: "ONE_OR_MORE" };
-      case "tool":
-        return { type: "SPECIFIC_FUNCTION", functionName: c.name };
-    }
+function parseOpenAIToolChoice(raw: unknown): CanonicalToolChoice | null {
+  const parsed = openAIToolChoiceSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  const choice = parsed.data;
+  if (choice === "none") return { type: "NONE" };
+  if (choice === "auto") return { type: "ZERO_OR_MORE" };
+  if (choice === "required") return { type: "ONE_OR_MORE" };
+  if (choice.type === "function") {
+    return { type: "SPECIFIC_FUNCTION", functionName: choice.function.name };
   }
-
-  // Google: { function_calling_config: { mode, allowed_function_names? } }
-  const google = googleToolChoiceSchema.safeParse(raw);
-  if (google.success) {
-    const { mode, allowed_function_names } =
-      google.data.function_calling_config;
-    if (allowed_function_names?.length === 1)
-      return {
-        type: "SPECIFIC_FUNCTION",
-        functionName: allowed_function_names[0],
-      };
-    switch (mode) {
-      case "none":
-        return { type: "NONE" };
-      case "auto":
-      case "mode_unspecified":
-        return { type: "ZERO_OR_MORE" };
-      case "any":
-      case "validated":
-        return { type: "ONE_OR_MORE" };
-    }
+  if (choice.type === "allowed_tools") {
+    return choice.allowed_tools.mode === "required"
+      ? { type: "ONE_OR_MORE" }
+      : { type: "ZERO_OR_MORE" };
   }
+  return choice.type === "custom"
+    ? { type: "SPECIFIC_FUNCTION", functionName: choice.custom.name }
+    : null;
+}
 
-  // AWS Bedrock: { auto: {} } | { any: {} } | { tool: { name } }
-  const aws = awsToolChoiceSchema.safeParse(raw);
-  if (aws.success) {
-    const c = aws.data;
-    if ("tool" in c && c.tool)
-      return { type: "SPECIFIC_FUNCTION", functionName: c.tool.name };
-    if ("any" in c && c.any) return { type: "ONE_OR_MORE" };
-    if ("auto" in c && c.auto) return { type: "ZERO_OR_MORE" };
+function parseAnthropicToolChoice(raw: unknown): CanonicalToolChoice | null {
+  const parsed = anthropicToolChoiceSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  switch (parsed.data.type) {
+    case "none":
+      return { type: "NONE" };
+    case "auto":
+      return { type: "ZERO_OR_MORE" };
+    case "any":
+      return { type: "ONE_OR_MORE" };
+    case "tool":
+      return { type: "SPECIFIC_FUNCTION", functionName: parsed.data.name };
+    default:
+      return null;
   }
+}
 
+function parseGoogleToolChoice(raw: unknown): CanonicalToolChoice | null {
+  const parsed = googleToolChoiceSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  const { mode, allowed_function_names: names } =
+    parsed.data.function_calling_config;
+  if (names?.length === 1) {
+    return { type: "SPECIFIC_FUNCTION", functionName: names[0] };
+  }
+  if (mode === "none") return { type: "NONE" };
+  if (mode === "auto" || mode === "mode_unspecified") {
+    return { type: "ZERO_OR_MORE" };
+  }
+  return { type: "ONE_OR_MORE" };
+}
+
+function parseAwsToolChoice(raw: unknown): CanonicalToolChoice | null {
+  const parsed = awsToolChoiceSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  const choice = parsed.data;
+  if ("tool" in choice && choice.tool) {
+    return { type: "SPECIFIC_FUNCTION", functionName: choice.tool.name };
+  }
+  if ("any" in choice && choice.any) return { type: "ONE_OR_MORE" };
+  if ("auto" in choice && choice.auto) return { type: "ZERO_OR_MORE" };
   return null;
 }
 
@@ -995,6 +1016,83 @@ export function getPromptTemplateVariablesFromAttributes(
  * @param span the {@link PlaygroundSpan|Span} to transform into a playground instance
  * @returns a {@link PlaygroundInstance} with certain fields pre-populated from the span attributes
  */
+type SpanModelConfig = ReturnType<
+  typeof getBaseModelConfigFromAttributes
+>["modelConfig"];
+
+function getSpanOpenAIApiType({
+  provider,
+  modelConfig,
+  parsedAttributes,
+}: {
+  provider: ModelProvider;
+  modelConfig: SpanModelConfig;
+  parsedAttributes: unknown;
+}): OpenAIApiType {
+  if (provider !== "OPENAI" && provider !== "AZURE_OPENAI") {
+    return DEFAULT_OPENAI_API_TYPE;
+  }
+  return (
+    modelConfig?.openaiApiType ??
+    inferOpenAIApiTypeFromSpan(parsedAttributes) ??
+    DEFAULT_OPENAI_API_TYPE
+  );
+}
+
+function addOpenAIApiType({
+  modelConfig,
+  apiType,
+}: {
+  modelConfig: SpanModelConfig;
+  apiType: OpenAIApiType;
+}): SpanModelConfig {
+  if (
+    modelConfig?.provider !== "OPENAI" &&
+    modelConfig?.provider !== "AZURE_OPENAI"
+  ) {
+    return modelConfig;
+  }
+  return {
+    ...modelConfig,
+    openaiApiType: modelConfig.openaiApiType ?? apiType,
+  };
+}
+
+function mergeSpanInvocationConfig({
+  modelConfig,
+  invocationParameters,
+  responseFormat,
+  responseFormatParsingErrors,
+}: {
+  modelConfig: SpanModelConfig;
+  invocationParameters: ProviderInvocationConfig;
+  responseFormat: CanonicalResponseFormat | undefined;
+  responseFormatParsingErrors: string[];
+}): SpanModelConfig {
+  if (modelConfig == null) return null;
+  return {
+    ...modelConfig,
+    ...(responseFormat != null && responseFormatParsingErrors.length === 0
+      ? { responseFormat }
+      : {}),
+    invocationParameters,
+  };
+}
+
+function normalizeSpanMessages(
+  messages: ChatMessage[] | null
+): ChatMessage[] | null {
+  return (
+    messages?.map((message) => ({
+      ...message,
+      content:
+        message.role === "tool"
+          ? formatContentAsString(message.content)
+          : message.content,
+    })) ?? null
+  );
+}
+
 export function transformSpanAttributesToPlaygroundInstance(
   span: PlaygroundSpan
 ): {
@@ -1054,23 +1152,15 @@ export function transformSpanAttributesToPlaygroundInstance(
   const spanProvider =
     modelConfig?.provider ?? basePlaygroundInstance.model.provider;
 
-  const openaiApiTypeForParams =
-    spanProvider === "OPENAI" || spanProvider === "AZURE_OPENAI"
-      ? (modelConfig?.openaiApiType ??
-        inferOpenAIApiTypeFromSpan(parsedAttributes) ??
-        DEFAULT_OPENAI_API_TYPE)
-      : DEFAULT_OPENAI_API_TYPE;
-
-  if (
-    modelConfig &&
-    (modelConfig.provider === "OPENAI" ||
-      modelConfig.provider === "AZURE_OPENAI")
-  ) {
-    modelConfig = {
-      ...modelConfig,
-      openaiApiType: modelConfig.openaiApiType ?? openaiApiTypeForParams,
-    };
-  }
+  const openaiApiTypeForParams = getSpanOpenAIApiType({
+    provider: spanProvider,
+    modelConfig,
+    parsedAttributes,
+  });
+  modelConfig = addOpenAIApiType({
+    modelConfig,
+    apiType: openaiApiTypeForParams,
+  });
 
   const {
     invocationParameters,
@@ -1094,35 +1184,17 @@ export function transformSpanAttributesToPlaygroundInstance(
   const spanToolChoice = getToolChoiceFromAttributes(parsedAttributes);
 
   // Merge invocation parameters into model config, if model config is present
-  modelConfig =
-    modelConfig != null
-      ? {
-          ...modelConfig,
-          // Store canonical response format directly on the model when present
-          ...(spanResponseFormat != null &&
-          responseFormatParsingErrors.length === 0
-            ? { responseFormat: spanResponseFormat }
-            : {}),
-          // The adapter's fromSpanInvocationParameters splits promoted fields
-          // before producing canonical provider config, so we no longer need a
-          // per-provider strip pass here.
-          invocationParameters,
-        }
-      : null;
+  modelConfig = mergeSpanInvocationConfig({
+    modelConfig,
+    invocationParameters,
+    responseFormat: spanResponseFormat,
+    responseFormatParsingErrors,
+  });
 
   const { tools, parsingErrors: toolsParsingErrors } =
     getToolsFromAttributes(parsedAttributes);
 
-  const messages = rawMessages?.map((message) => {
-    return {
-      ...message,
-      // If the message is a tool message, we need to normalize the content
-      content:
-        message.role === "tool"
-          ? formatContentAsString(message.content)
-          : message.content,
-    };
-  });
+  const messages = normalizeSpanMessages(rawMessages);
 
   // TODO(parker): add support for prompt template variables
   // https://github.com/Arize-ai/phoenix/issues/4886
@@ -1379,8 +1451,10 @@ export const createToolCallForProvider = (
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
+    case "ZAI":
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
@@ -1730,14 +1804,11 @@ export function toCanonicalToolDefinition(
   // OpenAI Chat Completions: { type: "function", function: { name, description?, parameters, strict? } }
   const openai = openAIChatCompletionsToolDefinitionSchema.safeParse(raw);
   if (openai.success) {
-    const fn = openai.data.function as Record<string, unknown>;
     return {
       name: openai.data.function.name,
       description: openai.data.function.description ?? null,
       parameters: canonicalParameters(openai.data.function.parameters),
-      // strict lives at the function level in the actual API but isn't in
-      // our looseObject schema — extract safely.
-      strict: typeof fn.strict === "boolean" ? fn.strict : null,
+      strict: openai.data.function.strict ?? null,
     };
   }
   // OpenAI Responses API: flat { type: "function", name, parameters, strict, description? }
@@ -1757,7 +1828,7 @@ export function toCanonicalToolDefinition(
       name: anthropic.data.name,
       description: anthropic.data.description ?? null,
       parameters: canonicalParameters(anthropic.data.input_schema),
-      strict: null,
+      strict: anthropic.data.strict ?? null,
     };
   }
   // AWS: { toolSpec: { name, description, inputSchema: { json } } }
@@ -1769,7 +1840,7 @@ export function toCanonicalToolDefinition(
       name: spec.name,
       description: spec.description ?? null,
       parameters: canonicalParameters(spec.inputSchema.json),
-      strict: null,
+      strict: spec.strict ?? null,
     };
   }
   // Gemini: { name, description?, parameters? | parameters_json_schema? }
@@ -1825,6 +1896,7 @@ export function getToolDefinitionDisplay(
         description: toolDefinition.description,
       }),
       input_schema: parametersSchemaWithObjectType(toolDefinition.parameters),
+      ...(toolDefinition.strict != null && { strict: toolDefinition.strict }),
     };
   }
   if (provider === "AWS") {
@@ -1837,6 +1909,7 @@ export function getToolDefinitionDisplay(
         inputSchema: {
           json: parametersSchemaWithObjectType(toolDefinition.parameters),
         },
+        ...(toolDefinition.strict != null && { strict: toolDefinition.strict }),
       },
     };
   }
@@ -1852,7 +1925,7 @@ export function getToolDefinitionDisplay(
     };
   }
   // OpenAI-compatible: OPENAI, AZURE_OPENAI, DEEPSEEK, XAI, OLLAMA, CEREBRAS,
-  // FIREWORKS, GROQ, MOONSHOT, PERPLEXITY, TOGETHER
+  // FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI
   return {
     type: "function",
     function: {

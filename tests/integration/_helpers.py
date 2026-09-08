@@ -2292,6 +2292,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "PATCH", "v1/prompts/fake-id-{}"),
     (422, "PATCH", "v1/datasets/fake-id-{}/splits/test-split"),
     # DELETE routes
+    (422, "DELETE", "v1/projects/fake-id-{}/traces"),
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
     (404, "DELETE", "v1/projects/{0}/annotation_configs/{0}"),
     (422, "DELETE", "v1/dataset_labels/fake-id-{}"),

@@ -29,9 +29,6 @@ function parseSearchUIInput(input: unknown): SearchUIInput | null {
  * (see {@link searchUIOperations}), so one call per conversation suffices —
  * the output says so explicitly to stop the model from re-searching with
  * reworded queries.
- *
- * RFC note: not yet listed in `toolRegistry.ts` — inert until the rollout
- * capability lands.
  */
 export const searchBrowserActionsTool = defineTool<SearchUIInput>({
   name: SEARCH_BROWSER_ACTIONS_TOOL_NAME,

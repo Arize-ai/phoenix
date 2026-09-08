@@ -41,6 +41,41 @@ export type LastSyncedSessionState = AgentSessionSyncState & {
  * messages. Refetching through Relay normalizes session metadata into every
  * mounted view as well as refreshing this chat runtime.
  */
+function isSameSessionTail({
+  lastSynced,
+  sessionId,
+  syncState,
+}: {
+  lastSynced: LastSyncedSessionState | null;
+  sessionId: string;
+  syncState: AgentSessionSyncState;
+}): boolean {
+  return (
+    lastSynced != null &&
+    lastSynced.sessionId === sessionId &&
+    lastSynced.updatedAt === syncState.updatedAt &&
+    lastSynced.lastMessageId === syncState.lastMessageId
+  );
+}
+
+function canSkipFullSessionFetch({
+  isTranscriptUnchanged,
+  wasBusyElsewhere,
+}: {
+  isTranscriptUnchanged: boolean;
+  wasBusyElsewhere: boolean;
+}): boolean {
+  return isTranscriptUnchanged && !wasBusyElsewhere;
+}
+
+function getFetchedAgentSession(
+  data: Awaited<ReturnType<typeof refetchAgentSession>>
+) {
+  return data?.agentSession.__typename === "AgentSession"
+    ? data.agentSession
+    : null;
+}
+
 export function useAgentSessionSync({
   persistedSessionId,
   chatInstance,
@@ -126,22 +161,21 @@ export function useAgentSessionSync({
         store.getState().isBusyElsewhereBySessionId[persistedSessionId] ??
         false;
       const lastSynced = lastSyncedSessionStateRef.current;
-      const isTranscriptUnchanged =
-        lastSynced != null &&
-        lastSynced.sessionId === persistedSessionId &&
-        lastSynced.updatedAt === syncState.updatedAt &&
-        lastSynced.lastMessageId === syncState.lastMessageId;
-      if (isTranscriptUnchanged && !wasBusyElsewhere) {
+      const isTranscriptUnchanged = isSameSessionTail({
+        lastSynced,
+        sessionId: persistedSessionId,
+        syncState,
+      });
+      if (
+        canSkipFullSessionFetch({ isTranscriptUnchanged, wasBusyElsewhere })
+      ) {
         return;
       }
       const data = await refetchAgentSession({
         environment: relayEnvironment,
         sessionId: persistedSessionId,
       });
-      const agentSession =
-        data?.agentSession.__typename === "AgentSession"
-          ? data.agentSession
-          : null;
+      const agentSession = getFetchedAgentSession(data);
       if (!agentSession) {
         return;
       }

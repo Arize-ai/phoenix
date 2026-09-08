@@ -97,6 +97,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 )
 from phoenix.server.api.types.GenerativeProvider import (
     GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING,
+    MINIMAX_MODEL_NAMES,
     GenerativeProviderKey,
 )
 from phoenix.utilities.json import jsonify
@@ -1369,6 +1370,17 @@ class MoonshotClient(OpenAICompatibleClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.MINIMAX,
+    model_names=[
+        PROVIDER_DEFAULT,
+        *MINIMAX_MODEL_NAMES,
+    ],
+)
+class MiniMaxClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.PERPLEXITY,
     model_names=[
         PROVIDER_DEFAULT,
@@ -1401,9 +1413,23 @@ class TogetherClient(OpenAICompatibleClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.ZAI,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "glm-4.6",
+        "glm-4.5",
+        "glm-4.5-air",
+    ],
+)
+class ZAIClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
+        "anthropic.claude-fable-5-1",
         "anthropic.claude-fable-5",
         "anthropic.claude-opus-5",
         "anthropic.claude-opus-4-8",
@@ -1616,13 +1642,20 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
                 )
                 if fn.description:
                     tool_spec["description"] = fn.description
+                if isinstance(fn.strict, bool):
+                    tool_spec["strict"] = fn.strict
                 tool_list.append(ToolTypeDef(toolSpec=tool_spec))
 
             tool_config = ToolConfigurationTypeDef(tools=tool_list)
 
+            # The Converse API has no disable-parallel-tool-use setting, so
+            # tools.disable_parallel_tool_calls cannot be honored here.
+            send_tools = True
             if tc := tools.tool_choice:
                 if tc.type == "none":
-                    pass
+                    # Converse has no "none" tool choice; withholding the
+                    # tools entirely is the only way to prevent tool calls.
+                    send_tools = False
                 elif tc.type == "zero_or_more":
                     tool_config["toolChoice"] = ToolChoiceTypeDef(auto={})
                 elif tc.type == "one_or_more":
@@ -1634,7 +1667,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
                 elif TYPE_CHECKING:
                     assert_never(tc.type)
 
-            request["toolConfig"] = tool_config
+            if send_tools:
+                request["toolConfig"] = tool_config
 
         if response_format:
             json_schema = JsonSchemaDefinitionTypeDef(
@@ -1929,6 +1963,7 @@ class OpenAIChatCompletionsClient(OpenAICompatibleClient):
 
 
 OPENAI_REASONING_MODELS = [
+    "gpt-6-astra",
     "gpt-5.6-sol",
     "gpt-5.6-terra",
     "gpt-5.6-luna",
@@ -2091,6 +2126,7 @@ _ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 # (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
 # surface; sending any of them returns a 400.
 ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
+    "claude-fable-5-1",
     "claude-fable-5",
     "claude-opus-5",
     "claude-opus-4-8",
@@ -2212,7 +2248,7 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                     params["tool_choice"] = choice_tool
                 else:
                     assert_never(tc.type)
-            if tools.disable_parallel_tool_calls:
+            elif tools.disable_parallel_tool_calls:
                 params["tool_choice"] = ToolChoiceAutoParam(
                     type="auto", disable_parallel_tool_use=True
                 )
@@ -2230,6 +2266,8 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                     )
                     if f.description:
                         t["description"] = f.description
+                    if isinstance(f.strict, bool):
+                        t["strict"] = f.strict
                     tool_list.append(t)
                 params["tools"] = tool_list
                 extra_headers = _anthropic_beta_headers_for_tools(tool_list)
@@ -2929,6 +2967,7 @@ class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
 
 
 GEMINI_3_MODELS = [
+    "gemini-3.8-flash",
     "gemini-3.7-flash",
     "gemini-3.6-flash",
     "gemini-3.5-flash",
@@ -3801,6 +3840,46 @@ async def _get_builtin_provider_client(
             provider=provider,
         )
 
+    elif provider_key == GenerativeProviderKey.MINIMAX:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="MINIMAX_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="MiniMax",
+        )
+        base_url = base_url or getenv("MINIMAX_BASE_URL") or "https://api.minimax.io/v1"
+
+        if not api_key:
+            if base_url == "https://api.minimax.io/v1":
+                raise BadRequest(
+                    "An API key is required for MiniMax models. "
+                    "Set the MINIMAX_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_minimax_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_minimax_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
     elif provider_key == GenerativeProviderKey.PERPLEXITY:
         try:
             from openai import AsyncOpenAI
@@ -3874,6 +3953,46 @@ async def _get_builtin_provider_client(
 
         client_factory = LLMClientFactory(
             create_together_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.ZAI:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="ZAI_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Z.ai",
+        )
+        base_url = base_url or getenv("ZAI_BASE_URL") or "https://api.z.ai/api/paas/v4"
+
+        if not api_key:
+            if base_url.startswith("https://api.z.ai/"):
+                raise BadRequest(
+                    "An API key is required for Z.ai models. "
+                    "Set the ZAI_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_zai_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_zai_client, openai_rate_limit_key(api_key, base_url)
         )
         return OpenAIChatCompletionsClient(
             client_factory=client_factory,

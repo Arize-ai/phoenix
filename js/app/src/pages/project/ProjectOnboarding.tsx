@@ -51,6 +51,134 @@ const languageTabCSS = css`
   gap: var(--global-dimension-size-100);
 `;
 
+type OnboardingIntegration = (typeof ONBOARDING_INTEGRATIONS)[number];
+
+function OnboardingPanelContent({
+  config,
+  language,
+  projectName,
+  generatedApiKey,
+  onApiKeyGenerated,
+}: {
+  config: OnboardingIntegration["configs"][OnboardingTab];
+  language: "Python" | "TypeScript";
+  projectName: string;
+  generatedApiKey: string | null;
+  onApiKeyGenerated: (value: string) => void;
+}) {
+  if (config == null) return null;
+  if (!hasSnippets(config)) {
+    return (
+      <DocsOnlyOnboardingView
+        docsHref={config.docsHref}
+        githubHref={config.githubHref}
+        generatedApiKey={generatedApiKey}
+        onApiKeyGenerated={onApiKeyGenerated}
+      />
+    );
+  }
+  return (
+    <OnboardingSteps
+      language={language}
+      packages={config.packages}
+      implementationCode={config.getImplementationCode({ projectName })}
+      docsHref={config.docsHref}
+      githubHref={config.githubHref}
+      generatedApiKey={generatedApiKey}
+      onApiKeyGenerated={onApiKeyGenerated}
+      extraEnvVars={config.envVars}
+    />
+  );
+}
+
+function OnboardingLanguageTabs({
+  integration,
+  effectiveTab,
+  setSelectedTab,
+  projectName,
+  generatedApiKey,
+  setGeneratedApiKey,
+}: {
+  integration: OnboardingIntegration;
+  effectiveTab: OnboardingTab;
+  setSelectedTab: (tab: OnboardingTab) => void;
+  projectName: string;
+  generatedApiKey: string | null;
+  setGeneratedApiKey: (key: string) => void;
+}) {
+  const config = integration.configs[effectiveTab];
+  return (
+    <Tabs
+      selectedKey={effectiveTab}
+      onSelectionChange={(key) => setSelectedTab(String(key) as OnboardingTab)}
+    >
+      <TabList>
+        {"Python" in integration.configs ? (
+          <Tab id="Python">
+            <span css={languageTabCSS}>
+              <PythonSVG />
+              Python
+            </span>
+          </Tab>
+        ) : null}
+        {"TypeScript" in integration.configs ? (
+          <Tab id="TypeScript">
+            <span css={languageTabCSS}>
+              <TypeScriptSVG />
+              TypeScript
+            </span>
+          </Tab>
+        ) : null}
+        {"Platform" in integration.configs ? (
+          <Tab id="Platform">
+            <span css={languageTabCSS}>
+              <Icon
+                svgKey="Server"
+                css={css`
+                  font-size: 16px;
+                `}
+              />
+              Platform
+            </span>
+          </Tab>
+        ) : null}
+      </TabList>
+      {"Python" in integration.configs ? (
+        <TabPanel id="Python">
+          <OnboardingPanelContent
+            config={config}
+            language="Python"
+            projectName={projectName}
+            generatedApiKey={generatedApiKey}
+            onApiKeyGenerated={setGeneratedApiKey}
+          />
+        </TabPanel>
+      ) : null}
+      {"TypeScript" in integration.configs ? (
+        <TabPanel id="TypeScript">
+          <OnboardingPanelContent
+            config={config}
+            language="TypeScript"
+            projectName={projectName}
+            generatedApiKey={generatedApiKey}
+            onApiKeyGenerated={setGeneratedApiKey}
+          />
+        </TabPanel>
+      ) : null}
+      {"Platform" in integration.configs && config && !hasSnippets(config) ? (
+        <TabPanel id="Platform">
+          <DocsOnlyOnboardingView
+            docsHref={config.docsHref}
+            githubHref={config.githubHref}
+            generatedApiKey={generatedApiKey}
+            onApiKeyGenerated={setGeneratedApiKey}
+          />
+        </TabPanel>
+      ) : null}
+    </Tabs>
+  );
+}
+
 export function ProjectOnboarding({ projectName }: { projectName: string }) {
   const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
   const { isStreaming } = useStreamState();
@@ -67,8 +195,6 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
   const effectiveTab: OnboardingTab = tabs.includes(selectedTab)
     ? selectedTab
     : tabs[0];
-  const config = integration.configs[effectiveTab];
-  const isDocsOnly = config != null && !hasSnippets(config);
 
   return (
     <div css={onboardingCSS}>
@@ -96,118 +222,14 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
               }
             }}
           />
-          <Tabs
-            selectedKey={effectiveTab}
-            onSelectionChange={(key) =>
-              setSelectedTab(String(key) as OnboardingTab)
-            }
-          >
-            <TabList>
-              {"Python" in integration.configs && (
-                <Tab id="Python">
-                  <span css={languageTabCSS}>
-                    <PythonSVG />
-                    Python
-                  </span>
-                </Tab>
-              )}
-              {"TypeScript" in integration.configs && (
-                <Tab id="TypeScript">
-                  <span css={languageTabCSS}>
-                    <TypeScriptSVG />
-                    TypeScript
-                  </span>
-                </Tab>
-              )}
-              {"Platform" in integration.configs && (
-                <Tab id="Platform">
-                  <span css={languageTabCSS}>
-                    <Icon
-                      svgKey="Server"
-                      css={css`
-                        font-size: 16px;
-                      `}
-                    />
-                    Platform
-                  </span>
-                </Tab>
-              )}
-            </TabList>
-            {"Python" in integration.configs && (
-              <TabPanel id="Python">
-                {isDocsOnly ? (
-                  <DocsOnlyOnboardingView
-                    docsHref={config.docsHref}
-                    githubHref={config.githubHref}
-                    generatedApiKey={generatedApiKey}
-                    onApiKeyGenerated={setGeneratedApiKey}
-                  />
-                ) : (
-                  <OnboardingSteps
-                    language="Python"
-                    packages={
-                      config && hasSnippets(config) ? config.packages : []
-                    }
-                    implementationCode={
-                      config && hasSnippets(config)
-                        ? config.getImplementationCode({ projectName })
-                        : ""
-                    }
-                    docsHref={config?.docsHref}
-                    githubHref={config?.githubHref}
-                    generatedApiKey={generatedApiKey}
-                    onApiKeyGenerated={setGeneratedApiKey}
-                    extraEnvVars={
-                      config && hasSnippets(config) ? config.envVars : undefined
-                    }
-                  />
-                )}
-              </TabPanel>
-            )}
-            {"TypeScript" in integration.configs && (
-              <TabPanel id="TypeScript">
-                {isDocsOnly ? (
-                  <DocsOnlyOnboardingView
-                    docsHref={config.docsHref}
-                    githubHref={config.githubHref}
-                    generatedApiKey={generatedApiKey}
-                    onApiKeyGenerated={setGeneratedApiKey}
-                  />
-                ) : (
-                  <OnboardingSteps
-                    language="TypeScript"
-                    packages={
-                      config && hasSnippets(config) ? config.packages : []
-                    }
-                    implementationCode={
-                      config && hasSnippets(config)
-                        ? config.getImplementationCode({ projectName })
-                        : ""
-                    }
-                    docsHref={config?.docsHref}
-                    githubHref={config?.githubHref}
-                    generatedApiKey={generatedApiKey}
-                    onApiKeyGenerated={setGeneratedApiKey}
-                    extraEnvVars={
-                      config && hasSnippets(config) ? config.envVars : undefined
-                    }
-                  />
-                )}
-              </TabPanel>
-            )}
-            {"Platform" in integration.configs &&
-              config &&
-              !hasSnippets(config) && (
-                <TabPanel id="Platform">
-                  <DocsOnlyOnboardingView
-                    docsHref={config.docsHref}
-                    githubHref={config.githubHref}
-                    generatedApiKey={generatedApiKey}
-                    onApiKeyGenerated={setGeneratedApiKey}
-                  />
-                </TabPanel>
-              )}
-          </Tabs>
+          <OnboardingLanguageTabs
+            integration={integration}
+            effectiveTab={effectiveTab}
+            setSelectedTab={setSelectedTab}
+            projectName={projectName}
+            generatedApiKey={generatedApiKey}
+            setGeneratedApiKey={setGeneratedApiKey}
+          />
         </Flex>
       </div>
     </div>

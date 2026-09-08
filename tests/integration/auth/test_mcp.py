@@ -154,7 +154,7 @@ class TestMcpResourceIndicator:
         )
         async with Client(transport) as mcp_client:
             tool_names = {tool.name for tool in await mcp_client.list_tools()}
-            assert "getProjects" in tool_names  # the default-visible tool group
+            assert "getProjects" in tool_names  # GET /v1/projects
             result = await mcp_client.call_tool("getProjects", {})
         # The tool call dispatched in-process to GET /v1/projects under the granted
         # user's identity; the database contains the "default" project.
@@ -361,12 +361,10 @@ class TestMcpToolAuthorization:
     Every ``/v1`` route is exposed as a tool, and a tool call dispatches in-process to
     ``/v1`` carrying the caller's authenticated principal (``_InternalIdentityDispatch``
     in ``mcp_server.py``). An admin-gated route (``Depends(require_admin)``) must
-    therefore still ``403`` a member reached through its tool. Progressive disclosure
-    hides the admin ``users`` group, but hiding is not authorization: any caller may
-    reveal it with ``enable_tool_group``, so ``require_admin`` on the dispatched
-    principal is the real backstop. A member receiving the user list here would be a
-    confused-deputy privilege escalation through ``/mcp`` — the audit's highest-ranked,
-    previously untested claim.
+    therefore still ``403`` a member reached through its tool: every caller is
+    advertised the whole surface, so ``require_admin`` on the dispatched principal is
+    the only backstop. A member receiving the user list here would be a
+    confused-deputy privilege escalation through ``/mcp``.
     """
 
     @pytest.mark.parametrize(
@@ -383,11 +381,6 @@ class TestMcpToolAuthorization:
     ) -> None:
         token = _mcp_token_for(_app, _get_user, role)
         async with Client(_mcp_transport(_app, token)) as mcp_client:
-            # Reveal the admin ``users`` group the way any caller can. This is a
-            # surface reveal, not an authorization grant — it only makes ``getUsers``
-            # callable so that any denial below must come from ``require_admin`` at
-            # the route, not from the tool being hidden.
-            await mcp_client.call_tool("enable_tool_group", {"group": "users"})
             # getUsers == GET /v1/users, gated by require_admin.
             result = await mcp_client.call_tool("getUsers", {}, raise_on_error=False)
 
@@ -426,7 +419,6 @@ class TestMcpToolAuthorization:
         """
         token = _mcp_token_for(_app, _get_user, role)
         async with Client(_mcp_transport(_app, token)) as mcp_client:
-            await mcp_client.call_tool("enable_tool_group", {"group": "annotation_configs"})
             # A fake id: a viewer is blocked before it is inspected; a member reaches
             # the id-format check and gets 422.
             result = await mcp_client.call_tool(

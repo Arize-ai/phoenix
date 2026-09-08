@@ -67,6 +67,7 @@ def test_render_displays_effective_assistant_configuration() -> None:
             force_tracing=False,
             web_access_enabled=True,
             server_bash_enabled=False,
+            github_enabled=False,
         ),
     )
 

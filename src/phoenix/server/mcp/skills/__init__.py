@@ -12,7 +12,7 @@ import yaml
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.tools.base import Tool
-from mcp.types import ToolAnnotations
+from mcp_types import ToolAnnotations
 from pydantic import Field
 
 from phoenix.server.agents.prompts.templating import get_template
@@ -35,7 +35,7 @@ _REFERENCES_DIR = "references"
 _SUMMARY_MAX_CHARS = 140
 
 _READ_ONLY = ToolAnnotations(
-    readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False
+    read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False
 )
 
 

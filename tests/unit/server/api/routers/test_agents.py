@@ -33,7 +33,7 @@ from phoenix.server.api.routers.agents import (
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import DbSessionFactory, UserId
-from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid
+from tests.unit._helpers import _agent_session_model_kwargs, _message_uuid, _user_role_id
 
 
 def _ephemeral_sweep_cutoff() -> datetime:
@@ -586,11 +586,8 @@ class TestLoadPhoenixUserEmail:
 
     async def test_loads_email_from_authenticated_user_row(self, db: DbSessionFactory) -> None:
         async with db() as session:
-            user_role = models.UserRole(name="MEMBER")
-            session.add(user_role)
-            await session.flush()
             user = models.User(
-                user_role_id=user_role.id,
+                user_role_id=await _user_role_id(session, "MEMBER"),
                 username="agent-test-user",
                 email="agent-test-user@example.com",
                 password_hash=b"hash",
@@ -610,11 +607,8 @@ class TestLoadPhoenixUserEmail:
 
     async def test_returns_none_when_user_row_has_no_email(self, db: DbSessionFactory) -> None:
         async with db() as session:
-            user_role = models.UserRole(name="MEMBER")
-            session.add(user_role)
-            await session.flush()
             user = models.User(
-                user_role_id=user_role.id,
+                user_role_id=await _user_role_id(session, "MEMBER"),
                 username="agent-test-user-no-email",
                 email=None,
                 password_hash=None,

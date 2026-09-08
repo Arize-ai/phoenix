@@ -65,8 +65,8 @@ def _tool_result() -> ToolResultBlockParam:
     }
 
 
-def _tool(name: Optional[str] = None) -> ToolParam:
-    return {
+def _tool(name: Optional[str] = None, strict: Optional[bool] = None) -> ToolParam:
+    tool: ToolParam = {
         "name": name or _str(),
         "description": _str(),
         "input_schema": {
@@ -79,6 +79,9 @@ def _tool(name: Optional[str] = None) -> ToolParam:
             "additionalProperties": False,
         },
     }
+    if strict is not None:
+        tool["strict"] = strict
+    return tool
 
 
 class TestMessageConversion:
@@ -102,7 +105,7 @@ class TestMessageConversion:
 class TestToolConversion:
     @pytest.mark.parametrize(
         "tools",
-        [[_tool() for _ in range(3)]],
+        [[_tool(), _tool(strict=True), _tool(strict=False)]],
     )
     def test_round_trip(self, tools: Iterable[ToolParam]) -> None:
         new_tools = list(_ToolConversion.to_anthropic(_ToolConversion.from_anthropic(tools)))

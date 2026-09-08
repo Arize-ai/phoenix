@@ -14,6 +14,10 @@ from phoenix.server.sandbox.sync import (
 )
 from phoenix.server.types import DbSessionFactory
 
+# These tests exercise seeding from an empty database, so they opt out of the
+# seeded template every other test's database comes from.
+pytestmark = pytest.mark.pristine_db
+
 
 class TestSyncLanguages:
     async def test_inserts_python_and_typescript(self, db: DbSessionFactory) -> None:

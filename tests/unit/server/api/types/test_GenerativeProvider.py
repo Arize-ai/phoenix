@@ -15,6 +15,9 @@ class TestGenerativeProvider:
         provider = GenerativeProvider._infer_model_provider_from_model_name("claude-v1")
         assert provider == GenerativeProviderKey.ANTHROPIC
 
+        provider = GenerativeProvider._infer_model_provider_from_model_name("MiniMax-M3")
+        assert provider == GenerativeProviderKey.MINIMAX
+
         provider = GenerativeProvider._infer_model_provider_from_model_name("unknown-model")
         assert provider is None
 
@@ -51,6 +54,12 @@ class TestGenerativeProvider:
         requirements = await provider.credential_requirements()
         assert len(requirements) == 1
         assert requirements[0].env_var_name == "ANTHROPIC_API_KEY"
+        assert requirements[0].is_required is True
+
+        provider = GenerativeProvider(name="MiniMax", key=GenerativeProviderKey.MINIMAX)
+        requirements = await provider.credential_requirements()
+        assert len(requirements) == 1
+        assert requirements[0].env_var_name == "MINIMAX_API_KEY"
         assert requirements[0].is_required is True
 
     async def test_credentials_set_for_providers(

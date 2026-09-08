@@ -67,8 +67,10 @@ def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
         or provider is ModelProvider.FIREWORKS
         or provider is ModelProvider.GROQ
         or provider is ModelProvider.MOONSHOT
+        or provider is ModelProvider.MINIMAX
         or provider is ModelProvider.PERPLEXITY
         or provider is ModelProvider.TOGETHER
+        or provider is ModelProvider.ZAI
     ):
         return "openai"
     assert_never(provider)

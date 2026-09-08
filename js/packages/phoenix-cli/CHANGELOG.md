@@ -1,5 +1,39 @@
 # @arizeai/phoenix-cli
 
+## 1.17.0
+
+### Minor Changes
+
+- 58b7017: Add Z.ai (GLM models) as a built-in OpenAI-compatible model provider (`ZAI`).
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
+## 1.16.5
+
+### Patch Changes
+
+- 3a836f7: recommend claude-fable-5-1 for PXI sessions
+
+## 1.16.4
+
+### Patch Changes
+
+- Updated dependencies [1cdff14]
+  - @arizeai/phoenix-client@7.7.1
+
+## 1.16.3
+
+### Patch Changes
+
+- Updated dependencies [37916d7]
+- Updated dependencies [c48e50e]
+- Updated dependencies [773c5e5]
+- Updated dependencies [b27561d]
+  - @arizeai/phoenix-client@7.7.0
+
 ## 1.16.2
 
 ### Patch Changes

@@ -30,7 +30,7 @@ from phoenix.server.mcp.sql.output import (
     ExecuteSqlSuccessEnvelope,
 )
 from phoenix.server.mcp.sql.teaching import describe_sql_schema
-from phoenix.server.mcp_server import _META_ANNOTATIONS, _META_TAG
+from phoenix.server.mcp_server import _META_ANNOTATIONS
 from phoenix.server.types import DbSessionFactory
 
 _ANALYTICS_TAG = "phoenix-analytics-sql"
@@ -97,9 +97,9 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         f"{BYTE_LIMIT} bytes per row; {MAX_RESPONSE_BYTES} per response; {backstop} deadline."
     )
     lines.append("-- Not snapshot-isolated: identical SQL may differ under concurrent ingestion.")
-    # Said once rather than on each of the ~25 places these appear. They behave
-    # as columns everywhere a column works, so the only thing worth knowing is
-    # that they are computed per row and therefore never indexed.
+    # Said once rather than on every table they appear in. They behave as columns
+    # everywhere a column works, so the only thing worth knowing is that they are
+    # computed per row and therefore never indexed.
     lines.append(
         "-- latency_ms and graphql_node_id are virtual: computed per row, not stored or "
         "indexed. Predicates on them evaluate their expression and cannot use a direct index. "
@@ -191,7 +191,7 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
     # returns reaches the model, so neither representation is charged for. It
     # matters for a client that surfaces each tool result directly, where the
     # document would otherwise arrive twice.
-    @mcp.tool(tags={_META_TAG, _ANALYTICS_TAG}, annotations=_META_ANNOTATIONS, output_schema=None)
+    @mcp.tool(tags={_ANALYTICS_TAG}, annotations=_META_ANNOTATIONS, output_schema=None)
     async def describeSqlSchema(
         area: Optional[str] = None,
         tables: Optional[list[str]] = None,
@@ -255,7 +255,7 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
     # string would put a JSON parse in front of every one of those steps to
     # save bytes that were never spent.
     @mcp.tool(
-        tags={_META_TAG, _ANALYTICS_TAG},
+        tags={_ANALYTICS_TAG},
         annotations=_META_ANNOTATIONS,
         output_schema=_EXECUTE_SQL_OUTPUT_SCHEMA,
     )

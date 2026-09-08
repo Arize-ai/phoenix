@@ -1,5 +1,6 @@
 import type { ChatStatus, ModelMessage } from "ai";
 import { streamText } from "ai";
+import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -40,6 +41,30 @@ function toModelMessages(messages: DirectChatMessage[]): ModelMessage[] {
  * (`{"error": {"message": ...}}`), so surface the provider's own words when
  * they're present rather than the SDK's generic status-code message.
  */
+function getResponseBodyErrorMessage(error: object): string | undefined {
+  if (!("responseBody" in error) || typeof error.responseBody !== "string") {
+    return undefined;
+  }
+  try {
+    const parsed: unknown = JSON.parse(error.responseBody);
+    if (parsed == null || typeof parsed !== "object" || !("error" in parsed)) {
+      return undefined;
+    }
+    const nestedError = parsed.error;
+    if (
+      nestedError == null ||
+      typeof nestedError !== "object" ||
+      !("message" in nestedError) ||
+      typeof nestedError.message !== "string"
+    ) {
+      return undefined;
+    }
+    return nestedError.message || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function getChatErrorMessage(error: unknown): string {
   // Retried failures arrive wrapped in a RetryError whose message buries the
   // real cause ("Failed after N attempts...") — unwrap to the last
@@ -53,34 +78,146 @@ function getChatErrorMessage(error: unknown): string {
   ) {
     return getChatErrorMessage(error.lastError);
   }
-  if (
-    error != null &&
-    typeof error === "object" &&
-    "responseBody" in error &&
-    typeof error.responseBody === "string"
-  ) {
-    try {
-      const parsed: unknown = JSON.parse(error.responseBody);
-      if (
-        parsed != null &&
-        typeof parsed === "object" &&
-        "error" in parsed &&
-        parsed.error != null &&
-        typeof parsed.error === "object" &&
-        "message" in parsed.error &&
-        typeof parsed.error.message === "string" &&
-        parsed.error.message !== ""
-      ) {
-        return parsed.error.message;
-      }
-    } catch {
-      // Not a JSON body — fall through to the error's own message.
-    }
+  if (error != null && typeof error === "object") {
+    const responseBodyMessage = getResponseBodyErrorMessage(error);
+    if (responseBodyMessage) return responseBodyMessage;
   }
   if (error instanceof Error && error.message) {
     return error.message;
   }
   return "Something went wrong while contacting the model.";
+}
+
+async function ensureBrowserModelReady({
+  selection,
+  controller,
+  ownsChatState,
+  setDownloadProgress,
+}: {
+  selection: ChatModelSelection;
+  controller: AbortController;
+  ownsChatState: () => boolean;
+  setDownloadProgress: Dispatch<SetStateAction<number | null>>;
+}): Promise<void> {
+  if (selection.kind !== "browser") return;
+  const availability = await getBrowserModelAvailability();
+  if (availability === "unsupported") {
+    throw new Error(
+      "This browser has no built-in AI model. Use Chrome or Edge, or choose a hosted model."
+    );
+  }
+  if (availability === "unavailable") {
+    throw new Error(
+      "The browser's built-in AI model is unavailable on this device. Choose a hosted model instead."
+    );
+  }
+  if (availability !== "needs-download" && availability !== "downloading") {
+    return;
+  }
+  setDownloadProgress(0);
+  try {
+    await downloadBrowserModel(
+      (fraction) => {
+        if (ownsChatState()) setDownloadProgress(fraction);
+      },
+      { signal: controller.signal }
+    );
+  } finally {
+    if (ownsChatState()) setDownloadProgress(null);
+  }
+}
+
+async function streamAssistantResponse({
+  history,
+  selection,
+  parameters,
+  controller,
+  setMessages,
+  setStatus,
+}: {
+  history: DirectChatMessage[];
+  selection: ChatModelSelection;
+  parameters: ChatParameters;
+  controller: AbortController;
+  setMessages: Dispatch<SetStateAction<DirectChatMessage[]>>;
+  setStatus: Dispatch<SetStateAction<ChatStatus>>;
+}) {
+  const chatModel = await createChatModel(selection);
+  let streamError: unknown = null;
+  const result = streamText({
+    model: chatModel,
+    messages: toModelMessages(history),
+    ...toChatCallSettings(parameters),
+    abortSignal: controller.signal,
+    maxRetries: 1,
+    onError: ({ error }) => {
+      streamError = error;
+    },
+  });
+  const assistantId = generateUUID();
+  let hasStartedStreaming = false;
+  let accumulated = "";
+  let flushHandle: number | null = null;
+  const flushContent = () => {
+    flushHandle = null;
+    setMessages((previous) =>
+      previous.map((message) =>
+        message.id === assistantId
+          ? { ...message, content: accumulated }
+          : message
+      )
+    );
+  };
+  for await (const delta of result.textStream) {
+    if (controller.signal.aborted) break;
+    accumulated += delta;
+    if (!hasStartedStreaming) {
+      hasStartedStreaming = true;
+      setStatus("streaming");
+      setMessages((previous) => [
+        ...previous,
+        { id: assistantId, role: "assistant", content: accumulated },
+      ]);
+    } else if (flushHandle === null) {
+      flushHandle = requestAnimationFrame(flushContent);
+    }
+  }
+  if (flushHandle !== null) {
+    cancelAnimationFrame(flushHandle);
+    flushContent();
+  }
+  if (streamError != null) throw streamError;
+  return result;
+}
+
+async function recordChatUsage({
+  result,
+  selection,
+  controller,
+  ownsChatState,
+  setUsage,
+}: {
+  result: Awaited<ReturnType<typeof streamAssistantResponse>>;
+  selection: ChatModelSelection;
+  controller: AbortController;
+  ownsChatState: () => boolean;
+  setUsage: Dispatch<SetStateAction<DirectChatUsage | null>>;
+}): Promise<void> {
+  if (controller.signal.aborted || selection.kind === "browser") return;
+  try {
+    const turnUsage = await result.totalUsage;
+    const prompt = turnUsage.inputTokens ?? 0;
+    const completion = turnUsage.outputTokens ?? 0;
+    const total = turnUsage.totalTokens ?? prompt + completion;
+    if (total <= 0 || !ownsChatState()) return;
+    setUsage((previous) => ({
+      total: (previous?.total ?? 0) + total,
+      prompt: (previous?.prompt ?? 0) + prompt,
+      completion: (previous?.completion ?? 0) + completion,
+    }));
+  } catch {
+    // Usage unavailable for this turn — the running totals stand.
+  }
 }
 
 /**
@@ -130,126 +267,36 @@ export function useDirectChat() {
     /** True while this run still owns the chat state — a newer run or a reset supersedes it. */
     const ownsChatState = () => abortControllerRef.current === controller;
     try {
-      if (selection.kind === "browser") {
-        const availability = await getBrowserModelAvailability();
-        if (availability === "unsupported") {
-          throw new Error(
-            "This browser has no built-in AI model. Use Chrome or Edge, or choose a hosted model."
-          );
-        }
-        if (availability === "unavailable") {
-          throw new Error(
-            "The browser's built-in AI model is unavailable on this device. Choose a hosted model instead."
-          );
-        }
-        if (
-          availability === "needs-download" ||
-          availability === "downloading"
-        ) {
-          setDownloadProgress(0);
-          try {
-            await downloadBrowserModel(
-              (fraction) => {
-                if (ownsChatState()) {
-                  setDownloadProgress(fraction);
-                }
-              },
-              { signal: controller.signal }
-            );
-          } finally {
-            if (ownsChatState()) {
-              setDownloadProgress(null);
-            }
-          }
-        }
-      }
+      await ensureBrowserModelReady({
+        selection,
+        controller,
+        ownsChatState,
+        setDownloadProgress,
+      });
       if (controller.signal.aborted) {
         // Stopped while the model was still downloading — stop() already
         // settled the status.
         return;
       }
-      const chatModel = await createChatModel(selection);
-      // streamText delivers request/stream failures to onError and ends the
-      // text stream quietly — without this capture a failed request would
-      // settle as an empty, error-free turn.
-      let streamError: unknown = null;
-      const result = streamText({
-        model: chatModel,
-        messages: toModelMessages(history),
-        ...toChatCallSettings(parameters),
-        abortSignal: controller.signal,
-        // One retry keeps transient blips invisible without leaving the user
-        // staring at "Thinking..." through the SDK's default three attempts
-        // when a provider is genuinely down.
-        maxRetries: 1,
-        onError: ({ error: caughtError }) => {
-          streamError = caughtError;
-        },
+      const result = await streamAssistantResponse({
+        history,
+        selection,
+        parameters,
+        controller,
+        setMessages,
+        setStatus,
       });
-      const assistantId = generateUUID();
-      let hasStartedStreaming = false;
-      // Fast providers push hundreds of deltas per second, and each delta
-      // arrives in its own microtask so React cannot batch them — flushing
-      // at most once per frame keeps the page responsive while looking
-      // identical. The final flush below guarantees completeness even when
-      // a hidden tab has paused animation frames.
-      let accumulated = "";
-      let flushHandle: number | null = null;
-      const flushContent = () => {
-        flushHandle = null;
-        const content = accumulated;
-        setMessages((previous) =>
-          previous.map((message) =>
-            message.id === assistantId ? { ...message, content } : message
-          )
-        );
-      };
-      for await (const delta of result.textStream) {
-        if (controller.signal.aborted) {
-          break;
-        }
-        accumulated += delta;
-        if (!hasStartedStreaming) {
-          hasStartedStreaming = true;
-          setStatus("streaming");
-          setMessages((previous) => [
-            ...previous,
-            { id: assistantId, role: "assistant", content: accumulated },
-          ]);
-        } else if (flushHandle === null) {
-          flushHandle = requestAnimationFrame(flushContent);
-        }
-      }
-      if (flushHandle !== null) {
-        cancelAnimationFrame(flushHandle);
-        flushContent();
-      }
-      if (streamError != null) {
-        throw streamError;
-      }
       // Browser AI is excluded: the Prompt API reports no real token counts,
       // so the adapter's synthesized numbers (notably completion tokens on
       // Gemini Nano) are estimates that can be badly wrong. Only accumulate
       // usage the provider actually measured.
-      if (!controller.signal.aborted && selection.kind !== "browser") {
-        // The stream ended normally, so the usage promise has settled. Not
-        // every provider reports usage — skip the turn when it doesn't.
-        try {
-          const turnUsage = await result.totalUsage;
-          const prompt = turnUsage.inputTokens ?? 0;
-          const completion = turnUsage.outputTokens ?? 0;
-          const total = turnUsage.totalTokens ?? prompt + completion;
-          if (total > 0 && ownsChatState()) {
-            setUsage((previous) => ({
-              total: (previous?.total ?? 0) + total,
-              prompt: (previous?.prompt ?? 0) + prompt,
-              completion: (previous?.completion ?? 0) + completion,
-            }));
-          }
-        } catch {
-          // Usage unavailable for this turn — the running totals stand.
-        }
-      }
+      await recordChatUsage({
+        result,
+        selection,
+        controller,
+        ownsChatState,
+        setUsage,
+      });
       if (ownsChatState()) {
         setStatus("ready");
       }

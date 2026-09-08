@@ -20,6 +20,7 @@ __all__ = [
     "TRACE_ROWID",
     "SPAN_ROWID",
     "TraceAggregate",
+    "apply_trace_scope",
     "cost_summary_by_trace",
     "error_count_by_trace",
     "num_spans_by_trace",
@@ -60,7 +61,7 @@ class TraceAggregate:
         stmt = self._base((self.group_key.label(TRACE_ROWID), *projected))
         if keys is not None:
             stmt = stmt.where(self.group_key.in_(keys))
-        stmt = _apply_scope(stmt, self.group_key, project_rowids, start_time, end_time)
+        stmt = apply_trace_scope(stmt, self.group_key, project_rowids, start_time, end_time)
         return stmt.group_by(self.group_key)
 
     def as_correlated_scalar(
@@ -74,7 +75,7 @@ class TraceAggregate:
         """Return one aggregate value correlated to ``trace_col``."""
         column = self.values[0] if value is None else self._value(value)
         stmt = self._base((column,)).where(self.group_key == trace_col)
-        stmt = _apply_scope(stmt, self.group_key, project_rowids, start_time, end_time)
+        stmt = apply_trace_scope(stmt, self.group_key, project_rowids, start_time, end_time)
         return stmt.scalar_subquery()
 
     def _value(self, name: str) -> KeyedColumnElement[Any]:
@@ -173,7 +174,9 @@ def representative_root_span_by_trace(
     ).where(root_predicate)
     if keys is not None:
         ranked = ranked.where(models.Span.trace_rowid.in_(keys))
-    ranked = _apply_scope(ranked, models.Span.trace_rowid, project_rowids, start_time, end_time)
+    ranked = apply_trace_scope(
+        ranked, models.Span.trace_rowid, project_rowids, start_time, end_time
+    )
     ranked_subquery = ranked.subquery()
     return select(
         ranked_subquery.c[TRACE_ROWID],
@@ -181,13 +184,19 @@ def representative_root_span_by_trace(
     ).where(ranked_subquery.c[_ROOT_SPAN_RANK] == 1)
 
 
-def _apply_scope(
+def apply_trace_scope(
     stmt: Select[Any],
     trace_key: Any,
     project_rowids: Optional[Collection[int]],
     start_time: Optional[Any],
     end_time: Optional[Any],
 ) -> Select[Any]:
+    """Bound a span-grain statement to the traces in ``project_rowids`` that start inside
+    ``[start_time, end_time)``, joining ``traces`` as ``trace_scope`` on ``trace_key``.
+
+    A no-op when no bound is given. Shared by the trace aggregates and the trace filter's
+    scan-lowered comprehension subqueries so both emit one scoping shape.
+    """
     if project_rowids is None and start_time is None and end_time is None:
         return stmt
     trace_scope = models.Trace.__table__.alias("trace_scope")

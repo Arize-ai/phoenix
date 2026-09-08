@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any, Literal, Optional
 
 from dateutil.parser import isoparse
@@ -11,6 +10,7 @@ from typing_extensions import Self
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import ExperimentRunAnnotationInsertEvent
 
@@ -34,8 +34,8 @@ class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
         description="The kind of annotator used for the evaluation"
     )
-    start_time: datetime = Field(description="The start time of the evaluation in ISO format")
-    end_time: datetime = Field(description="The end time of the evaluation in ISO format")
+    start_time: IsoDatetime = Field(description="The start time of the evaluation in ISO format")
+    end_time: IsoDatetime = Field(description="The end time of the evaluation in ISO format")
     result: Optional[ExperimentEvaluationResult] = Field(
         None, description="The result of the evaluation. Either result or error must be provided."
     )

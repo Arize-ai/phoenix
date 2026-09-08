@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ee1f38273069ead68d35f9ac3e16f94d>>
+ * @generated SignedSource<<f1a32bef8003146882492f3901c236e5>>
  * @lightSyntaxTransform
  */
 
@@ -18,6 +18,9 @@ export type authenticatedRootLoaderQuery$data = {
     readonly assistantProjectName: string;
     readonly collectorEndpoint: string | null;
     readonly forceTracing: boolean;
+    readonly githubEnabled: boolean;
+    readonly githubServerEnabled: boolean;
+    readonly githubWorkspaceTokenConfigured: boolean;
     readonly sessionRetentionMaxCountPerUser: number | null;
     readonly sessionRetentionMaxIdleDays: number | null;
     readonly webAccessEnabled: boolean;
@@ -77,6 +80,27 @@ var v0 = {
       "args": null,
       "kind": "ScalarField",
       "name": "assistantEnabled",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "githubServerEnabled",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "githubEnabled",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "githubWorkspaceTokenConfigured",
       "storageKey": null
     },
     {
@@ -321,16 +345,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3d9c3645535235ec8116ea14b07aa1b3",
+    "cacheID": "195a00bb64ba6274b5d664bdef962b34",
     "id": null,
     "metadata": {},
     "name": "authenticatedRootLoaderQuery",
     "operationKind": "query",
-    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  agentsConfig {\n    collectorEndpoint\n    assistantProjectName\n    forceTracing\n    webAccessEnabled\n    assistantEnabled\n    allowLocalTraces\n    allowRemoteExport\n    sessionRetentionMaxIdleDays\n    sessionRetentionMaxCountPerUser\n  }\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment AuthorizedApplicationsCardFragment on User {\n  id\n  oauth2Grants {\n    id\n    clientName\n    clientId\n    isFirstParty\n    scopes\n    createdAt\n    expiresAt\n    lastUsedAt\n  }\n}\n\nfragment ViewerAPIKeysListFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...ViewerAPIKeysListFragment\n    ...AuthorizedApplicationsCardFragment\n  }\n}\n"
+    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  agentsConfig {\n    collectorEndpoint\n    assistantProjectName\n    forceTracing\n    webAccessEnabled\n    assistantEnabled\n    githubServerEnabled\n    githubEnabled\n    githubWorkspaceTokenConfigured\n    allowLocalTraces\n    allowRemoteExport\n    sessionRetentionMaxIdleDays\n    sessionRetentionMaxCountPerUser\n  }\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment AuthorizedApplicationsCardFragment on User {\n  id\n  oauth2Grants {\n    id\n    clientName\n    clientId\n    isFirstParty\n    scopes\n    createdAt\n    expiresAt\n    lastUsedAt\n  }\n}\n\nfragment ViewerAPIKeysListFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...ViewerAPIKeysListFragment\n    ...AuthorizedApplicationsCardFragment\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "021b8df90e9367386a66586ad8dd17ca";
+(node as any).hash = "5a3509f57933b7bfdb0f10f8526117f3";
 
 export default node;

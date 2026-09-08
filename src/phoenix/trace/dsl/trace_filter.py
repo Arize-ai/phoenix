@@ -19,6 +19,7 @@ from phoenix.db.trace_aggregates import (
     TRACE_ROWID,
     VALUE,
     TraceAggregate,
+    apply_trace_scope,
     cost_summary_by_trace,
     error_count_by_trace,
     num_spans_by_trace,
@@ -515,6 +516,10 @@ _REDUCTION_FUNCTIONS: typing.Mapping[str, typing.Any] = MappingProxyType(
 def _comprehension_bindings(
     stmt: Select[typing.Any],
     specs: typing.Iterable[ComprehensionSpec],
+    candidate_trace_rowids: typing.Optional[typing.Collection[int]],
+    project_rowids: typing.Optional[typing.Sequence[int]],
+    start_time: typing.Optional[typing.Any],
+    end_time: typing.Optional[typing.Any],
     lowering: FilterLowering,
 ) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
     aliases = count()
@@ -654,21 +659,28 @@ def _comprehension_bindings(
             return func.coalesce(element_stmt.scalar_subquery(), 0)
         return element_stmt.scalar_subquery()
 
-    def build_scan(spec: ComprehensionSpec) -> typing.Any:
+    def build_scan(spec: ComprehensionSpec) -> Select[typing.Any]:
+        """The outermost reduction as one uncorrelated, grouped pass over the element table.
+
+        The caller LEFT JOINs the result on the trace rowid. Quantifiers never take this shape
+        (see the dispatch below), and nested comprehensions keep the correlated shape. The
+        candidate, project, and time bounds are a pruning hint: they are sound only when the
+        outer statement already selects the same trace universe.
+        """
         iterable, scope, element_globals, predicate = element_scope(spec, ())
         element_trace_key = trace_key(iterable, scope)
 
         def scan(*columns: typing.Any) -> Select[typing.Any]:
             element_stmt = apply_joins(select(*columns).select_from(scope.element), iterable, scope)
+            if candidate_trace_rowids is not None:
+                element_stmt = element_stmt.where(element_trace_key.in_(candidate_trace_rowids))
+            element_stmt = apply_trace_scope(
+                element_stmt, element_trace_key, project_rowids, start_time, end_time
+            )
             if spec.condition is not None:
                 element_stmt = element_stmt.where(eval(spec.condition, element_globals))
             return element_stmt
 
-        if spec.kind == "any":
-            return models.Trace.id.in_(scan(element_trace_key).where(predicate))
-        if spec.kind == "all":
-            # Every trace correlation key is non-null, so no nullable-key guard is needed.
-            return models.Trace.id.not_in(scan(element_trace_key).where(predicate.is_not(True)))
         value = func.count() if spec.kind == "len" else _REDUCTION_FUNCTIONS[spec.kind](predicate)
         return scan(element_trace_key.label(TRACE_ROWID), value.label(VALUE)).group_by(
             element_trace_key
@@ -681,11 +693,17 @@ def _comprehension_bindings(
             continue
         if lowering != "scan":
             raise ValueError(f"Unknown filter lowering: {lowering}")
-        lowered = build_scan(spec)
         if spec.kind in QUANTIFIER_NAMES:
-            bindings_map[spec.name] = lowered
+            # Quantifiers keep the correlated EXISTS / NOT EXISTS shape under both lowerings,
+            # which PostgreSQL decorrelates into semi- and anti-joins. The uncorrelated
+            # alternatives are `traces.id IN (SELECT trace_rowid …)` for `any` and
+            # `traces.id NOT IN (…)` for `all` and for a negated `any` — and PostgreSQL never
+            # plans an uncorrelated `NOT IN` as an anti-join: it hashes the set when the row
+            # *estimate* fits work_mem and otherwise re-scans it per outer row, past statement
+            # timeouts once the anti-set is large. Only reductions take the scan shape.
+            bindings_map[spec.name] = build(spec)
             continue
-        subquery = lowered.subquery()
+        subquery = build_scan(spec).subquery()
         stmt = stmt.outerjoin(subquery, models.Trace.id == subquery.c[TRACE_ROWID])
         column = subquery.c[VALUE]
         bindings_map[spec.name] = (
@@ -783,7 +801,11 @@ class TraceFilter:
         stmt, comprehension_bindings = _comprehension_bindings(
             stmt,
             self._comprehensions,
-            lowering,
+            candidate_trace_rowids=candidate_trace_rowids,
+            project_rowids=project_rowids,
+            start_time=start_time,
+            end_time=end_time,
+            lowering=lowering,
         )
         extra_bindings = {
             **self._literal_bindings,

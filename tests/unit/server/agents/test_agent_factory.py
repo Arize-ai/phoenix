@@ -20,13 +20,16 @@ from anthropic.types.beta import (
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from fastapi import FastAPI
 from opentelemetry.trace import NoOpTracerProvider
-from pydantic_ai import Agent, RunContext, UserError
+from pydantic import SecretStr
+from pydantic_ai import Agent, UserError
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.native_tools import WebFetchTool, WebSearchTool
 from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.toolsets import ApprovalRequiredToolset, FilteredToolset
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.db.types.data_stream_protocol import EditPermission
@@ -41,12 +44,14 @@ from phoenix.db.types.data_stream_protocol.ui_state_types import (
 )
 from phoenix.server.agents.agent_factory import build_agent as _build_agent
 from phoenix.server.agents.capabilities import (
-    MintlifyDocsMCPServer,
+    GitHubMCPCapability,
     build_anthropic_prompt_cache_capability,
 )
+from phoenix.server.agents.capabilities.github_mcp import GITHUB_WRITE_TOOLS
 from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
 from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
 from phoenix.server.agents.context import ResolvedContexts
+from phoenix.server.agents.github import GitHubMCPConfig
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
@@ -61,6 +66,7 @@ from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
 from phoenix.server.mcp_server import build_phoenix_mcp_server
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.types import DbSessionFactory
+from tests.unit.conftest import OfflineDocsMCPServer
 
 _DEFAULT_PROMPTS = AgentPrompts()
 
@@ -267,27 +273,9 @@ class TestPromptCacheCapabilityMounting:
         assert _DEFAULT_PROMPTS.base in _get_concatenated_text(cached_blocks)
 
 
-class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):
-    """``MintlifyDocsMCPServer`` with the MCP transport short-circuited.
-
-    Overrides ``get_tools`` to return an empty tool dict and the async
-    context-manager protocol to no-op, so the agent run never opens an
-    HTTP/SSE session to the real Mintlify endpoint.
-    """
-
-    async def get_tools(self, ctx: RunContext[Any]) -> dict[str, Any]:
-        return {}
-
-    async def __aenter__(self) -> "_OfflineDocsMCPToolset":
-        return self
-
-    async def __aexit__(self, *args: object) -> None:
-        return None
-
-
 @pytest.fixture
-def docs_mcp_server() -> _OfflineDocsMCPToolset:
-    return _OfflineDocsMCPToolset()
+def docs_mcp_server() -> OfflineDocsMCPServer:
+    return OfflineDocsMCPServer()
 
 
 @pytest.fixture
@@ -1032,7 +1020,7 @@ class TestDocsMCPToolset:
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
-        docs_mcp_server: _OfflineDocsMCPToolset,
+        docs_mcp_server: OfflineDocsMCPServer,
         headless: bool,
     ) -> None:
         agent = build_agent(
@@ -1253,3 +1241,73 @@ class TestWebAccessCapabilities:
         native_tool_types = self._get_native_tool_types(model_without_web_access)
         assert WebSearchTool not in native_tool_types
         assert WebFetchTool not in native_tool_types
+
+
+class TestGitHubMCPCapabilityRegistration:
+    """The GitHub capability registers only when a token was resolved, and its
+    write surface follows the same headless/edit-permission derivation as
+    GraphQL mutations."""
+
+    @staticmethod
+    def _github_config() -> GitHubMCPConfig:
+        return GitHubMCPConfig(
+            token=SecretStr("ghp_test"),
+            base_url="http://127.0.0.1:9/mcp/",
+        )
+
+    @staticmethod
+    def _write_tools_visible(capability: Any) -> bool:
+        toolset = capability.get_toolset()
+        filtered = toolset.wrapped if isinstance(toolset, ApprovalRequiredToolset) else toolset
+        assert isinstance(filtered, FilteredToolset)
+        return all(
+            filtered.filter_func(Mock(), ToolDefinition(name=name)) for name in GITHUB_WRITE_TOOLS
+        )
+
+    def test_absent_without_a_resolved_token(self, model: TestModel) -> None:
+        agent = build_agent(model=model)
+        assert _get_capabilities(agent, GitHubMCPCapability) == []
+
+    def test_browser_manual_gates_writes_behind_approval(self, model: TestModel) -> None:
+        agent = build_agent(model=model, github_mcp_config=self._github_config())
+        capability = _find_capability(agent, GitHubMCPCapability)
+        assert capability.get_instructions() == _DEFAULT_PROMPTS.github_tools
+        assert isinstance(capability.get_toolset(), ApprovalRequiredToolset)
+        assert self._write_tools_visible(capability)
+
+    def test_headless_manual_excludes_write_tools(self, model: TestModel) -> None:
+        agent = build_agent(
+            model=model,
+            headless=True,
+            github_mcp_config=self._github_config(),
+        )
+        capability = _find_capability(agent, GitHubMCPCapability)
+        assert isinstance(capability.get_toolset(), FilteredToolset)
+        assert not self._write_tools_visible(capability)
+
+    def test_bypass_allows_writes_without_approval(self, model: TestModel) -> None:
+        agent = build_agent(
+            model=model,
+            headless=True,
+            edit_permission="bypass",
+            github_mcp_config=self._github_config(),
+        )
+        capability = _find_capability(agent, GitHubMCPCapability)
+        assert isinstance(capability.get_toolset(), FilteredToolset)
+        assert self._write_tools_visible(capability)
+
+    def test_subagent_inherits_read_only_github_tools(self, model: TestModel) -> None:
+        agent = build_agent(
+            model=model,
+            enable_subagents=True,
+            github_mcp_config=self._github_config(),
+        )
+        call_subagent = _find_capability(agent, CallSubAgentCapability)
+        subagent = call_subagent.subagent.wrapped
+        matches = [
+            capability
+            for capability in _iter_capabilities(subagent.root_capability)
+            if isinstance(capability, GitHubMCPCapability)
+        ]
+        assert len(matches) == 1
+        assert not self._write_tools_visible(matches[0])

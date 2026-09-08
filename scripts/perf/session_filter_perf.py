@@ -124,10 +124,19 @@ def _skewed_num_traces(rng: random.Random) -> int:
     return rng.randint(20, 60)
 
 
-def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
+def seed(
+    engine: Engine,
+    n_sessions: int,
+    rng: random.Random,
+    *,
+    reset: bool = True,
+    project_name: str = "perf",
+    id_prefix: str = "",
+) -> dict[str, Any]:
     """Bulk-seed one project with ``n_sessions`` skewed sessions; return counts + rowids."""
-    models.Base.metadata.drop_all(engine)
-    models.Base.metadata.create_all(engine)
+    if reset:
+        models.Base.metadata.drop_all(engine)
+        models.Base.metadata.create_all(engine)
     trace_rows: list[dict[str, Any]] = []
     span_rows: list[dict[str, Any]] = []
     cost_rows: list[dict[str, Any]] = []
@@ -139,14 +148,14 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
             conn.exec_driver_sql("PRAGMA synchronous=OFF")
             conn.exec_driver_sql("PRAGMA journal_mode=MEMORY")
         project_id = conn.execute(
-            models.Project.__table__.insert().values(name="perf").returning(models.Project.id)
+            models.Project.__table__.insert().values(name=project_name).returning(models.Project.id)
         ).scalar_one()
 
         for _ in range(n_sessions):
             start = _EPOCH + timedelta(seconds=rng.randint(0, 10_000_000))
             session_rows.append(
                 {
-                    "session_id": f"s{rng.getrandbits(48):x}",
+                    "session_id": f"{id_prefix}s{rng.getrandbits(48):x}",
                     "project_id": project_id,
                     "start_time": start,
                     "end_time": start + timedelta(seconds=rng.randint(1, 600)),
@@ -177,7 +186,7 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
                 trace_start = base + timedelta(seconds=trace_index)
                 trace_rows.append(
                     {
-                        "trace_id": f"t{trace_counter:x}",
+                        "trace_id": f"{id_prefix}t{trace_counter:x}",
                         "project_rowid": project_id,
                         "project_session_rowid": session_rowid,
                         "start_time": trace_start,
@@ -213,7 +222,7 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
         annotated_span_ids: list[str] = []
         for trace_id, session_rowid in trace_ids:
             spans_in_trace = rng.randint(8, 16)
-            root_span_id = f"sp{span_counter:x}"
+            root_span_id = f"{id_prefix}sp{span_counter:x}"
             root_start = _EPOCH + timedelta(seconds=rng.randint(0, 10_000_000))
             model = rng.choice(_MODELS)
             attributes: dict[str, Any] = {"input": {"value": rng.choice(_INPUTS)}}
@@ -240,7 +249,7 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
                 else:
                     kind = "TOOL" if rng.random() < 0.5 else "LLM"
                 errored = session_rowid in erroring_sessions and rng.random() < 0.2
-                span_id = f"sp{span_counter:x}"
+                span_id = f"{id_prefix}sp{span_counter:x}"
                 span_rows.append(
                     _span_row(
                         span_id,
@@ -259,7 +268,9 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
         span_rowids = dict(
             conn.execute(
                 select(models.Span.span_id, models.Span.id).where(
-                    models.Span.trace_rowid.in_(select(models.Trace.id))
+                    models.Span.trace_rowid.in_(
+                        select(models.Trace.id).where(models.Trace.project_rowid == project_id)
+                    )
                 )
             ).all()
         )
@@ -280,7 +291,15 @@ def seed(engine: Engine, n_sessions: int, rng: random.Random) -> dict[str, Any]:
                 ],
             )
 
-        cost_ids = list(conn.execute(select(models.SpanCost.id)).scalars())
+        cost_ids = list(
+            conn.execute(
+                select(models.SpanCost.id).where(
+                    models.SpanCost.trace_rowid.in_(
+                        select(models.Trace.id).where(models.Trace.project_rowid == project_id)
+                    )
+                )
+            ).scalars()
+        )
         detail_rows = [
             {
                 "span_cost_id": cost_id,

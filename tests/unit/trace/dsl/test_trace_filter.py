@@ -150,6 +150,52 @@ async def _matched_rowids(
 
 
 @pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_scoped_trace_filter_agrees_with_reference_evaluator(
+    db: DbSessionFactory,
+    lowering: FilterLowering,
+) -> None:
+    """The candidate/project/time bounds are a pruning hint for the scan-lowered reduction
+    subqueries. They are sound only when the outer statement already selects the same trace
+    universe — which this test's outer statement does — and under that precondition both
+    lowerings must still agree with the reference evaluator on every differential condition."""
+    window_start = FIXTURE_TRACES[0].start_time
+    window_end = window_start + timedelta(minutes=2)
+    in_window = [f for f in FIXTURE_TRACES if window_start <= f.start_time < window_end]
+    assert 1 < len(in_window) < len(FIXTURE_TRACES)
+    # Drop one in-window trace from the candidates so every bound prunes something.
+    selected = in_window[:1] + in_window[2:]
+    async with db() as session:
+        project = await _add_project(session)
+        rowids = {
+            fixture.trace_id: (await _seed_reference_trace(session, project, fixture)).id
+            for fixture in FIXTURE_TRACES
+        }
+        candidates = [rowids[fixture.trace_id] for fixture in selected]
+        base_stmt = (
+            select(models.Trace.id)
+            .where(models.Trace.project_rowid == project.id)
+            .where(models.Trace.start_time >= window_start)
+            .where(models.Trace.start_time < window_end)
+            .where(models.Trace.id.in_(candidates))
+        )
+        for condition in DIFFERENTIAL_CONDITIONS:
+            stmt = TraceFilter(condition)(
+                base_stmt,
+                candidate_trace_rowids=candidates,
+                project_rowids=[project.id],
+                start_time=window_start,
+                end_time=window_end,
+                lowering=lowering,
+            )
+            stmt.compile(dialect=_SQLITE_DIALECT)
+            stmt.compile(dialect=_POSTGRESQL_DIALECT)
+            expected = {
+                rowids[fixture.trace_id] for fixture in selected if matches(condition, fixture)
+            }
+            assert set(await session.scalars(stmt)) == expected, condition
+
+
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
 async def test_trace_filter_agrees_with_reference_evaluator(
     db: DbSessionFactory,
     lowering: FilterLowering,
@@ -392,6 +438,65 @@ def test_scan_aggregate_subquery_is_scoped_to_candidates_project_and_time() -> N
     assert "trace_scope.project_rowid in" in sql
     assert "trace_scope.start_time >=" in sql
     assert "trace_scope.start_time <" in sql
+
+
+@pytest.mark.parametrize("dialect", [_SQLITE_DIALECT, _POSTGRESQL_DIALECT])
+@pytest.mark.parametrize(
+    "condition,shape",
+    [
+        ('all(s.status_code == "OK" for s in spans)', "not (exists (select 1"),
+        ('not any(s.status_code == "ERROR" for s in spans)', "not (exists (select 1"),
+        ('any(s.status_code == "ERROR" for s in spans)', "exists (select 1"),
+    ],
+)
+def test_trace_filter_quantifiers_keep_correlated_shape_under_scan_lowering(
+    dialect: Dialect,
+    condition: str,
+    shape: str,
+) -> None:
+    """No quantifier spelling reaches an uncorrelated `IN` / `NOT IN` anti-set under scan."""
+    sql = str(
+        TraceFilter(condition)(
+            select(models.Trace.id),
+            project_rowids=[7],
+            lowering="scan",
+        ).compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    assert shape in sql
+    assert "in (select" not in sql
+    assert "spans_0.trace_rowid = traces.id" in sql
+
+
+@pytest.mark.parametrize("dialect", [_SQLITE_DIALECT, _POSTGRESQL_DIALECT])
+def test_scan_comprehension_subqueries_are_scoped_to_candidates_project_and_time(
+    dialect: Dialect,
+) -> None:
+    start_time = FIXTURE_TRACES[0].start_time
+    sql = str(
+        TraceFilter(
+            'any(s.status_code == "ERROR" for s in spans) '
+            "and len([s for s in spans if s.span_kind == 'LLM']) > 0"
+        )(
+            select(models.Trace.id),
+            candidate_trace_rowids=[11, 12],
+            project_rowids=[7],
+            start_time=start_time,
+            end_time=start_time + timedelta(hours=1),
+            lowering="scan",
+        ).compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    # Only the `len` reduction takes the scan shape and carries the bounds; the quantifier
+    # stays a correlated probe against the trace's own spans.
+    assert sql.count("join traces as trace_scope") == 1
+    assert sql.count("trace_scope.project_rowid in (7)") == 1
+    assert sql.count("trace_scope.start_time >=") == 1
+    assert sql.count("trace_scope.start_time <") == 1
+    assert sql.count("trace_rowid in (11, 12)") == 1
+    assert "traces.id in (select" not in sql
+    assert "exists (select 1" in sql
+    assert "from spans as spans_0 where spans_0.trace_rowid = traces.id" in " ".join(sql.split())
 
 
 def test_trace_page_filter_uses_probe_lowering() -> None:

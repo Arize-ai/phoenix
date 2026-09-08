@@ -130,7 +130,7 @@ spans with `SpanQuery().where("parent_id is None")` — the `root_spans_only=Tru
 deprecated. Use `parent_span is None` instead if you also want orphans (spans whose parent is
 absent) counted as roots.
 For RAG systems, you often need child spans separately — retriever spans for
-DocumentRelevance and LLM spans for Faithfulness. Choose the right span level
+RetrievalRelevance and LLM spans for Faithfulness. Choose the right span level
 for your evaluation target.
 
 ## Assuming Span Output is Plain Text
@@ -239,6 +239,4 @@ source of truth is a supplied context such as retrieved documents, that is
 
 Labels are `hallucinated`/`grounded` and the score is **minimized** — `hallucinated` is
 `1.0`, `grounded` is `0.0`. Do not assume "1.0 = good"; read the returned `Score`'s
-`direction` before thresholding. Results are also not comparable with previously stored
-`hallucination` annotations that used `factual`/`hallucinated` labels — dashboards and
-thresholds built on those need migrating, not reinterpreting.
+`direction` before thresholding.

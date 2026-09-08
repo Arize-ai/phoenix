@@ -24,7 +24,7 @@ from phoenix.server.bearer_auth import (
     PhoenixUser,
     bind_principal,
 )
-from phoenix.server.mcp_server import _v1_group_sizes, build_phoenix_mcp_server
+from phoenix.server.mcp_server import build_phoenix_mcp_server
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.types import (
     AccessTokenAttributes,
@@ -71,11 +71,7 @@ def _phoenix_user(user_id: int = 1, role: UserRoleName = "MEMBER") -> PhoenixUse
 
 
 def _rest_app(seen: list[Any]) -> FastAPI:
-    """A stand-in for Phoenix's REST API that records who each call ran as.
-
-    Routes are tagged ``projects`` because that is the one group progressive
-    disclosure leaves visible, so a tool here is reachable without a reveal.
-    """
+    """A stand-in for Phoenix's REST API that records who each call ran as."""
     app = FastAPI()
 
     @app.get("/v1/whoami", tags=["projects"], summary="Report the calling principal.")
@@ -233,9 +229,10 @@ class TestOneToolsetEnteredFromSeveralTasks:
 class TestInMemoryTransportContract:
     """The transport behavior that fixes where the binding can live.
 
-    Context variables are captured at task creation, and the in-memory transport
-    serves calls from a task spawned at connect time. This is a property of the
-    pinned FastMCP range, not of Phoenix code.
+    A context variable is captured when the serving task is created. The
+    in-memory transport spawns that task per call, so a binding entered either
+    before connect or around the call reaches the tool. Phoenix binds before
+    connect, the placement that holds regardless of when the task is spawned.
     """
 
     @staticmethod
@@ -261,16 +258,20 @@ class TestInMemoryTransportContract:
 
         assert result.content[0].text == str(principal.identity)
 
-    async def test_binding_after_the_session_opens_is_not_visible_to_tools(self) -> None:
-        """A binding entered after connect reaches nothing, and raises nothing.
-        Should this stop holding, per-call binding becomes viable."""
+    async def test_binding_after_the_session_opens_is_also_visible_to_tools(self) -> None:
+        """A binding entered after connect reaches the tool as well.
+
+        Phoenix still binds at enter: one binding per agent run rather than one
+        per tool call.
+        """
         from fastmcp.client import Client
 
+        principal = _phoenix_user()
         async with Client(self._probe_server()) as client:
-            with bind_principal(_phoenix_user()):
+            with bind_principal(principal):
                 result = await client.call_tool("whoami", {})
 
-        assert result.content[0].text == "<none>"
+        assert result.content[0].text == str(principal.identity)
 
 
 class TestReadOnlySurface:
@@ -297,12 +298,6 @@ class TestReadOnlySurface:
             names = {tool.name for tool in await toolset.list_tools()}
 
         assert any("mutate" in name for name in names)
-
-    def test_group_sizes_count_only_the_operations_that_became_tools(self) -> None:
-        spec = _rest_app([]).openapi()
-
-        assert _v1_group_sizes(spec) == {"projects": 2}
-        assert _v1_group_sizes(spec, read_only=True) == {"projects": 1}
 
 
 class TestCodeMode:
@@ -376,52 +371,6 @@ class TestCodeMode:
         assert "mutate" not in catalog
 
 
-class TestToolGroupVisibility:
-    """Reveals are session state, and a session is one agent run."""
-
-    @staticmethod
-    def _two_group_app() -> FastAPI:
-        app = FastAPI()
-
-        @app.get("/v1/projects", tags=["projects"], summary="List projects.")
-        async def projects() -> list[str]:
-            return []
-
-        @app.get("/v1/spans", tags=["spans"], summary="List spans.")
-        async def spans() -> list[str]:
-            return []
-
-        return app
-
-    async def test_gated_groups_are_hidden_until_revealed(self) -> None:
-        mcp, _ = build_phoenix_mcp_server(
-            self._two_group_app(), code_mode=False, read_only=True, db=_unused_db()
-        )
-
-        async with PhoenixMCPToolset[None](mcp) as toolset:
-            before = {tool.name for tool in await toolset.list_tools()}
-            await toolset.direct_call_tool("enable_tool_group", {"group": "spans"})
-            after = {tool.name for tool in await toolset.list_tools()}
-
-        assert not any("spans" in name for name in before)
-        assert any("spans" in name for name in after)
-
-    async def test_a_reveal_does_not_leak_into_another_session(self) -> None:
-        """A reveal is confined to its session, so it widens no one else's
-        surface and does not carry into the next turn."""
-        mcp, _ = build_phoenix_mcp_server(
-            self._two_group_app(), code_mode=False, read_only=True, db=_unused_db()
-        )
-
-        async with PhoenixMCPToolset[None](mcp) as first:
-            await first.direct_call_tool("enable_tool_group", {"group": "spans"})
-
-        async with PhoenixMCPToolset[None](mcp) as second:
-            names = {tool.name for tool in await second.list_tools()}
-
-        assert not any("spans" in name for name in names)
-
-
 def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
     """Instructions that name a tool the surface lacks cost a failed call to
     discover, so they are pinned against the code-mode tool names."""
@@ -431,7 +380,6 @@ def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
 
     for tool in ("execute", "call_tool", "search", "get_schema", "tags"):
         assert tool in rendered
-    assert "enable_tool_group" not in rendered
     assert "read-only" in rendered.lower()
     assert "not through `call_tool` inside `execute`" in rendered
     assert 'detail="detailed"' in rendered
@@ -473,6 +421,7 @@ async def test_the_instructions_account_for_every_directly_named_catalog_tool() 
         assert name in rendered, f"{name} is reachable but the instructions never name it"
 
 
+@pytest.mark.real_agent_mcp_server
 class TestBoundPrincipalAgainstRealV1Auth:
     """The in-memory toolset must present a principal that real /v1 auth accepts.
 

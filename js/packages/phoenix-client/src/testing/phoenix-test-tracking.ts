@@ -220,6 +220,192 @@ function buildLinks(
   ];
 }
 
+function disableSuiteTracking({
+  suite,
+  error,
+}: {
+  suite: SuiteState;
+  error?: unknown;
+}): void {
+  suite.trackingDisabled = true;
+  if (error !== undefined) {
+    suite.setupError =
+      error instanceof Error ? error : new Error(String(error));
+  }
+  suite.tracer = createNoOpProvider().getTracer("no-op");
+  suite.evaluatorTracer = suite.tracer;
+}
+
+async function createSuiteDataset({
+  suite,
+  client,
+  datasetName,
+  description,
+}: {
+  suite: SuiteState;
+  client: PhoenixClient;
+  datasetName: string;
+  description: string;
+}): Promise<string | null> {
+  const examples = Array.from(suite.registeredExamples.values()).map(
+    (registered) => ({
+      id: registered.params.id ?? null,
+      input: registered.params.input,
+      output: registered.params.expected ?? {},
+      metadata: registered.params.metadata ?? {},
+      splits: registered.params.splits,
+    })
+  );
+  try {
+    const created = await createDataset({
+      client,
+      name: datasetName,
+      description,
+      examples,
+    });
+    return created.datasetId;
+  } catch (error) {
+    disableSuiteTracking({ suite, error });
+    return null;
+  }
+}
+
+async function resolveSuiteExampleIds({
+  suite,
+  client,
+  datasetId,
+}: {
+  suite: SuiteState;
+  client: PhoenixClient;
+  datasetId: string;
+}): Promise<void> {
+  try {
+    const { data: response } = await client.GET("/v1/datasets/{id}/examples", {
+      params: { path: { id: datasetId } },
+    });
+    const fetched = response?.data?.examples ?? [];
+    const idToTestName = new Map<string, string>();
+    const inputKeyToTestNames = new Map<string, string[]>();
+    for (const [testName, registered] of suite.registeredExamples.entries()) {
+      if (registered.params.id) {
+        idToTestName.set(registered.params.id, testName);
+      } else {
+        const key = stableKey(registered.params.input);
+        inputKeyToTestNames.set(key, [
+          ...(inputKeyToTestNames.get(key) ?? []),
+          testName,
+        ]);
+      }
+    }
+    for (const example of fetched) {
+      const testName = idToTestName.get(example.id);
+      if (testName) {
+        suite.exampleIdsByTest.set(testName, {
+          exampleId: example.id,
+          nodeId: example.node_id,
+        });
+        idToTestName.delete(example.id);
+        continue;
+      }
+      const queue = inputKeyToTestNames.get(stableKey(example.input));
+      const matchedTestName = queue?.shift();
+      if (matchedTestName) {
+        suite.exampleIdsByTest.set(matchedTestName, {
+          exampleId: example.id,
+          nodeId: example.node_id,
+        });
+      }
+    }
+  } catch {
+    // Runs can still be logged without resolved example IDs.
+  }
+}
+
+async function createSuiteExperiment({
+  suite,
+  client,
+  datasetId,
+  datasetName,
+  description,
+}: {
+  suite: SuiteState;
+  client: PhoenixClient;
+  datasetId: string;
+  datasetName: string;
+  description: string;
+}): Promise<boolean> {
+  const projectName = `${datasetName}-${new Date().toISOString()}`;
+  suite.projectName = projectName;
+  try {
+    const response = await client
+      .POST("/v1/datasets/{dataset_id}/experiments", {
+        params: { path: { dataset_id: datasetId } },
+        body: {
+          name: suite.config.datasetName ?? suite.name,
+          description,
+          metadata: { ...(suite.config.metadata ?? {}), ...envMetadata() },
+          project_name: projectName,
+          repetitions: Math.max(1, suite.maxRepetitions ?? 1),
+        },
+      })
+      .then((result) => result.data?.data);
+    if (!response) throw new Error("Failed to create experiment");
+    suite.experimentId = response.id;
+    suite.projectName = response.project_name ?? projectName;
+    return true;
+  } catch (error) {
+    disableSuiteTracking({ suite, error });
+    return false;
+  }
+}
+
+function setupSuiteTracer({
+  suite,
+  client,
+}: {
+  suite: SuiteState;
+  client: PhoenixClient;
+}): boolean {
+  const baseUrl = client.config.baseUrl;
+  if (!baseUrl) {
+    disableSuiteTracking({
+      suite,
+      error: new Error(
+        "Phoenix base URL not found. Set PHOENIX_ENDPOINT (or PHOENIX_COLLECTOR_ENDPOINT) or pass baseUrl on the client."
+      ),
+    });
+    return false;
+  }
+  maybeWarnHttpScheme(baseUrl, client.config.headers);
+  const projectName = suite.projectName;
+  if (!projectName) {
+    disableSuiteTracking({
+      suite,
+      error: new Error("Experiment project name is missing."),
+    });
+    return false;
+  }
+  try {
+    const provider = register({
+      projectName,
+      url: getTraceExportUrl(client.config),
+      headers: client.config.headers
+        ? toObjectHeaders(client.config.headers)
+        : undefined,
+      batch: false,
+      global: false,
+    });
+    suite.tracerProvider = provider;
+    suite.globalRegistration = attachGlobalTracerProvider(provider);
+    suite.tracer = provider.getTracer(projectName);
+    suite.evaluatorTracer = provider.getTracer(`${projectName}-evaluators`);
+    return true;
+  } catch (error) {
+    disableSuiteTracking({ suite, error });
+    return false;
+  }
+}
+
 /**
  * Initialize the suite: upload the dataset, create the experiment, and
  * register the OpenInference tracer.
@@ -245,147 +431,25 @@ export async function initializeSuite(suite: SuiteState): Promise<void> {
     suite.config.description ??
     `Phoenix test dataset auto-generated from ${suite.name}`;
 
-  const examples = Array.from(suite.registeredExamples.values()).map(
-    (registered) => ({
-      id: registered.params.id ?? null,
-      input: registered.params.input,
-      output: registered.params.expected ?? {},
-      metadata: registered.params.metadata ?? {},
-      splits: registered.params.splits,
-    })
-  );
-
-  let datasetId: string;
-  try {
-    const created = await createDataset({
-      client,
-      name: datasetName,
-      description,
-      examples,
-    });
-    datasetId = created.datasetId;
-  } catch (err) {
-    suite.trackingDisabled = true;
-    suite.setupError = err instanceof Error ? err : new Error(String(err));
-    suite.tracer = createNoOpProvider().getTracer("no-op");
-    suite.evaluatorTracer = suite.tracer;
-    return;
-  }
+  const datasetId = await createSuiteDataset({
+    suite,
+    client,
+    datasetName,
+    description,
+  });
+  if (!datasetId) return;
   suite.datasetId = datasetId;
-
-  // Map test names to server-side example ids by re-fetching the dataset.
-  // The server doesn't promise that the GET response order matches the
-  // upload order, so we match by user-supplied `id` first, then by
-  // `JSON.stringify(input)` deep-equality with FIFO-on-collision.
-  try {
-    const { data: response } = await client.GET("/v1/datasets/{id}/examples", {
-      params: { path: { id: datasetId } },
-    });
-    const fetched = response?.data?.examples ?? [];
-
-    const idToTestName = new Map<string, string>();
-    const inputKeyToTestNames = new Map<string, string[]>();
-    for (const [testName, registered] of suite.registeredExamples.entries()) {
-      if (registered.params.id) {
-        idToTestName.set(registered.params.id, testName);
-        continue;
-      }
-      const key = stableKey(registered.params.input);
-      const arr = inputKeyToTestNames.get(key) ?? [];
-      arr.push(testName);
-      inputKeyToTestNames.set(key, arr);
-    }
-
-    for (const ex of fetched) {
-      const byId = idToTestName.get(ex.id);
-      if (byId) {
-        suite.exampleIdsByTest.set(byId, {
-          exampleId: ex.id,
-          nodeId: ex.node_id,
-        });
-        idToTestName.delete(ex.id);
-        continue;
-      }
-      const queue = inputKeyToTestNames.get(stableKey(ex.input));
-      if (queue && queue.length) {
-        const testName = queue.shift() as string;
-        suite.exampleIdsByTest.set(testName, {
-          exampleId: ex.id,
-          nodeId: ex.node_id,
-        });
-      }
-    }
-  } catch {
-    // If we cannot resolve example ids, runs will be logged without one.
-  }
-
-  const projectName = `${datasetName}-${new Date().toISOString()}`;
-  suite.projectName = projectName;
-
-  try {
-    const experimentResponse = await client
-      .POST("/v1/datasets/{dataset_id}/experiments", {
-        params: { path: { dataset_id: datasetId } },
-        body: {
-          name: suite.config.datasetName ?? suite.name,
-          description,
-          metadata: { ...(suite.config.metadata ?? {}), ...envMetadata() },
-          project_name: projectName,
-          repetitions: Math.max(1, suite.maxRepetitions ?? 1),
-        },
-      })
-      .then((res) => res.data?.data);
-    if (!experimentResponse) {
-      throw new Error("Failed to create experiment");
-    }
-    suite.experimentId = experimentResponse.id;
-    suite.projectName = experimentResponse.project_name ?? projectName;
-  } catch (err) {
-    suite.trackingDisabled = true;
-    suite.setupError = err instanceof Error ? err : new Error(String(err));
-    suite.tracer = createNoOpProvider().getTracer("no-op");
-    suite.evaluatorTracer = suite.tracer;
-    return;
-  }
-
-  const baseUrl = client.config.baseUrl;
-  if (!baseUrl) {
-    suite.trackingDisabled = true;
-    suite.setupError = new Error(
-      "Phoenix base URL not found. Set PHOENIX_ENDPOINT (or PHOENIX_COLLECTOR_ENDPOINT) or pass baseUrl on the client."
-    );
-    suite.tracer = createNoOpProvider().getTracer("no-op");
-    suite.evaluatorTracer = suite.tracer;
-    return;
-  }
-
-  maybeWarnHttpScheme(baseUrl, client.config.headers);
-
-  let provider: NodeTracerProvider;
-  try {
-    provider = register({
-      projectName: suite.projectName,
-      url: getTraceExportUrl(client.config),
-      headers: client.config.headers
-        ? toObjectHeaders(client.config.headers)
-        : undefined,
-      batch: false,
-      global: false,
-    });
-    suite.tracerProvider = provider;
-    suite.globalRegistration = attachGlobalTracerProvider(provider);
-  } catch (err) {
-    suite.trackingDisabled = true;
-    suite.setupError = err instanceof Error ? err : new Error(String(err));
-    suite.tracer = createNoOpProvider().getTracer("no-op");
-    suite.evaluatorTracer = suite.tracer;
-    return;
-  }
-  suite.tracer = provider.getTracer(suite.projectName);
-  suite.evaluatorTracer = provider.getTracer(`${suite.projectName}-evaluators`);
-
-  if (suite.datasetId && suite.experimentId) {
-    suite.links = buildLinks(client, suite.datasetId, suite.experimentId);
+  await resolveSuiteExampleIds({ suite, client, datasetId });
+  const hasExperiment = await createSuiteExperiment({
+    suite,
+    client,
+    datasetId,
+    datasetName,
+    description,
+  });
+  if (!hasExperiment || !setupSuiteTracer({ suite, client })) return;
+  if (suite.experimentId) {
+    suite.links = buildLinks(client, datasetId, suite.experimentId);
   }
 }
 

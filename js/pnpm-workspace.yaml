@@ -51,6 +51,17 @@ minimumReleaseAgeExclude:
   - "@oxc-transform-react/binding-win32-arm64-msvc@0.145.0"
   - "@oxc-transform-react/binding-win32-ia32-msvc@0.145.0"
   - "@oxc-transform-react/binding-win32-x64-msvc@0.145.0"
+  # Vitest 5.0.0 and the @vitest/* packages it version-locks were all
+  # published together on September 3, 2026.
+  - "vitest@5.0.0"
+  - "@vitest/browser@5.0.0"
+  - "@vitest/browser-playwright@5.0.0"
+  - "@vitest/coverage-v8@5.0.0"
+  - "@vitest/mocker@5.0.0"
+  - "@vitest/pretty-format@5.0.0"
+  - "@vitest/spy@5.0.0"
+  - "@vitest/ui@5.0.0"
+  - "@vitest/utils@5.0.0"
 minimumReleaseAgeExcludePrune: true
 
 # @browser-ai/core imports @ai-sdk/provider at runtime without declaring it,

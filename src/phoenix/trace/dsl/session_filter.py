@@ -613,11 +613,10 @@ def _comprehension_bindings(
         return stmt.scalar_subquery()
 
     def build_scan(spec: ComprehensionSpec) -> typing.Any:
-        """The outermost comprehension as one uncorrelated pass over the element table.
+        """The outermost reduction as one uncorrelated, grouped pass over the element table.
 
-        `any` becomes a semi-join on the session rowid; reductions become a grouped subquery
-        the caller LEFT JOINs. `all` never takes this shape — see the dispatch below — and
-        nested comprehensions keep the correlated shape.
+        The caller LEFT JOINs the result on the session rowid. Quantifiers never take this
+        shape — see the dispatch below — and nested comprehensions keep the correlated shape.
         """
         iterable, element, element_globals, predicate = element_scope(spec)
         session_key = iterable.session_key(element)
@@ -639,8 +638,6 @@ def _comprehension_bindings(
                 stmt = stmt.where(eval(spec.condition, element_globals))
             return stmt
 
-        if spec.kind == "any":
-            return models.ProjectSession.id.in_(scan(session_key).where(predicate))
         value = func.count() if spec.kind == "len" else _REDUCTION_FUNCTIONS[spec.kind](predicate)
         return scan(session_key.label(SESSION_ROWID), value.label(VALUE)).group_by(session_key)
 
@@ -651,23 +648,25 @@ def _comprehension_bindings(
             continue
         if lowering != "scan":
             raise ValueError(f"Unknown filter lowering: {lowering}")
-        if spec.kind == "all":
-            # `all` keeps the correlated NOT EXISTS shape under both lowerings. The uncorrelated
-            # alternative — `id NOT IN (SELECT session_key … WHERE predicate IS NOT TRUE)` — puts
-            # every element that fails the test in the anti-set, which is most of the element
-            # table whenever the predicate is selective (i.e. whenever someone is actually
-            # filtering), and `NOT IN` over a set that size degrades past statement timeouts
-            # where the correlated form plans as a per-session anti-join probe. Measured on a
-            # 3M-span corpus: >90 s uncorrelated vs. under a second correlated. The correlated
-            # shape is also immune to the `NOT IN` NULL trap (a nullable session key never
-            # matches the correlation, where one NULL in a `NOT IN` set empties the result).
+        if spec.kind in QUANTIFIER_NAMES:
+            # Quantifiers keep the correlated EXISTS / NOT EXISTS shape under both lowerings.
+            # The uncorrelated alternatives are `id IN (SELECT session_key … WHERE predicate)`
+            # for `any` and `id NOT IN (…)` for `all` and for a negated `any`. The anti-set holds
+            # every element that fails (or, negated, passes) the test — most of the element table
+            # whenever the predicate is selective, i.e. whenever someone is actually filtering —
+            # and PostgreSQL never plans an uncorrelated `NOT IN` as an anti-join: it hashes the
+            # set when the row *estimate* fits work_mem and otherwise re-scans it per outer row.
+            # Measured: `all` on a 3M-span corpus >90 s uncorrelated vs. under a second
+            # correlated; `not any` on the session statistics path over 8.8M spans at the default
+            # work_mem >30 s (timeout) uncorrelated vs. 0.1–1.7 s correlated — the uncorrelated
+            # form finishes at all only when work_mem is large enough to hash the anti-set. The
+            # correlated shape is also immune to the `NOT IN` NULL
+            # trap: `traces.project_session_rowid` is nullable, so one session-less trace in the
+            # anti-set empties a `NOT IN` result, where a NULL key simply never matches the
+            # correlation.
             bindings_map[spec.name] = build(spec)
             continue
-        lowered = build_scan(spec)
-        if spec.kind in QUANTIFIER_NAMES:
-            bindings_map[spec.name] = lowered
-            continue
-        subquery = lowered.subquery()
+        subquery = build_scan(spec).subquery()
         stmt = stmt.outerjoin(subquery, models.ProjectSession.id == subquery.c[SESSION_ROWID])
         column = subquery.c[VALUE]
         # `max`/`min` over nothing is SQL NULL, which reads as missing and fails every comparison.

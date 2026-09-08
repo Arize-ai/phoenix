@@ -13,6 +13,7 @@ export type AgentPlaygroundModel = {
 
 export const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentBuiltInModelSelection[] =
   [
+    { provider: "ANTHROPIC", modelName: "claude-fable-5-1" },
     { provider: "ANTHROPIC", modelName: "claude-fable-5" },
     { provider: "ANTHROPIC", modelName: "claude-opus-5" },
     { provider: "ANTHROPIC", modelName: "claude-opus-4-8" },

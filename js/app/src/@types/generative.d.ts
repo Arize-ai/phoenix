@@ -12,8 +12,10 @@ declare type ModelProvider =
   | "FIREWORKS"
   | "GROQ"
   | "MOONSHOT"
+  | "MINIMAX"
   | "PERPLEXITY"
-  | "TOGETHER";
+  | "TOGETHER"
+  | "ZAI";
 
 /**
  * The role of a chat message

@@ -24,6 +24,9 @@ const agentsConfig = {
   forceTracing: false,
   webAccessEnabled: false,
   assistantEnabled: true,
+  githubServerEnabled: false,
+  githubEnabled: false,
+  githubWorkspaceTokenConfigured: false,
   allowLocalTraces: false,
   allowRemoteExport: false,
   sessionRetentionMaxIdleDays: 30,
@@ -66,6 +69,50 @@ describe("buildAgentChatRequestBody", () => {
     });
     expect(body.contexts?.[0]).not.toHaveProperty("editPermission");
     expect(body).not.toHaveProperty("system");
+  });
+
+  it("sends the personal GitHub token only while GitHub is enabled", () => {
+    const baseOptions = {
+      body: undefined,
+      id: "session-1",
+      messages: [userMessage],
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: true,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      permissions: { edits: "manual" as const },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin" as const,
+        provider: "OPENAI" as const,
+        modelName: "gpt-4o-mini",
+      },
+      integrationCredentials: { GITHUB_PERSONAL_ACCESS_TOKEN: "ghp_personal" },
+    };
+
+    const withGithubEnabled = buildAgentChatRequestBody({
+      ...baseOptions,
+      agentsConfig: { ...agentsConfig, githubEnabled: true },
+    });
+    expect(withGithubEnabled.credentials).toEqual([
+      { key: "GITHUB_PERSONAL_ACCESS_TOKEN", value: "ghp_personal" },
+    ]);
+
+    const withGithubDisabled = buildAgentChatRequestBody({
+      ...baseOptions,
+      agentsConfig,
+    });
+    expect(withGithubDisabled).not.toHaveProperty("credentials");
+
+    const withoutToken = buildAgentChatRequestBody({
+      ...baseOptions,
+      integrationCredentials: {},
+      agentsConfig: { ...agentsConfig, githubEnabled: true },
+    });
+    expect(withoutToken).not.toHaveProperty("credentials");
   });
 
   it("forwards the user's web access toggle as a context entry", () => {

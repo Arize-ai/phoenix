@@ -1,3 +1,232 @@
+const REGEX_PREFIX_CHARS = new Set([
+  "(",
+  ")",
+  ",",
+  "=",
+  ":",
+  "[",
+  "]",
+  "!",
+  "&",
+  "|",
+  "?",
+  "{",
+  "}",
+  "+",
+  "-",
+  "*",
+  "%",
+  "^",
+  "~",
+  "<",
+  ">",
+  ";",
+]);
+
+const REGEX_PREFIX_WORDS = new Set([
+  "return",
+  "typeof",
+  "case",
+  "throw",
+  "in",
+  "of",
+  "new",
+  "delete",
+  "void",
+  "do",
+  "else",
+  "yield",
+  "await",
+  "instanceof",
+]);
+
+type Frame =
+  | { mode: "code"; templateExprDepth: number | null }
+  | { mode: "template" };
+
+class NonCodeMasker {
+  private readonly chars: string[];
+  private readonly length: number;
+  private readonly stack: Frame[] = [{ mode: "code", templateExprDepth: null }];
+  private lastSignificant = "";
+  private index = 0;
+
+  constructor(source: string) {
+    this.chars = Array.from(source);
+    this.length = this.chars.length;
+  }
+
+  mask(): string {
+    while (this.index < this.length) {
+      const frame = this.stack[this.stack.length - 1];
+      if (frame.mode === "template") this.processTemplate();
+      else this.processCode(frame);
+    }
+    return this.chars.join("");
+  }
+
+  private maskAt(index: number): void {
+    if (this.chars[index] !== "\n") this.chars[index] = " ";
+  }
+
+  private maskRange(start: number, endExclusive: number): void {
+    for (
+      let rangeIndex = start;
+      rangeIndex < endExclusive && rangeIndex < this.length;
+      rangeIndex++
+    ) {
+      this.maskAt(rangeIndex);
+    }
+  }
+
+  private processTemplate(): void {
+    const char = this.chars[this.index];
+    if (char === "\\") {
+      this.maskRange(this.index, this.index + 2);
+      this.index += 2;
+      return;
+    }
+    if (char === "`") {
+      this.maskAt(this.index);
+      this.stack.pop();
+      this.index++;
+      this.lastSignificant = "`";
+      return;
+    }
+    if (char === "$" && this.chars[this.index + 1] === "{") {
+      this.maskRange(this.index, this.index + 2);
+      this.stack.push({ mode: "code", templateExprDepth: 0 });
+      this.index += 2;
+      this.lastSignificant = "(";
+      return;
+    }
+    this.maskAt(this.index);
+    this.index++;
+  }
+
+  private processCode(frame: Extract<Frame, { mode: "code" }>): void {
+    const char = this.chars[this.index];
+    const pair = char + (this.chars[this.index + 1] ?? "");
+    if (pair === "//") return this.maskLineComment();
+    if (pair === "/*") return this.maskBlockComment();
+    if (char === "'" || char === '"') return this.maskQuotedString(char);
+    if (char === "`") return this.openTemplate();
+    if (char === "/") return this.processSlash();
+    if (this.processTemplateExpressionBrace(frame, char)) return;
+    if (/[A-Za-z0-9_$]/.test(char)) return this.processWord();
+    if (!/\s/.test(char)) this.lastSignificant = char;
+    this.index++;
+  }
+
+  private maskLineComment(): void {
+    let end = this.index;
+    while (end < this.length && this.chars[end] !== "\n") end++;
+    this.maskRange(this.index, end);
+    this.index = end;
+  }
+
+  private maskBlockComment(): void {
+    let end = this.index + 2;
+    while (
+      end < this.length &&
+      !(this.chars[end] === "*" && this.chars[end + 1] === "/")
+    ) {
+      end++;
+    }
+    end = Math.min(end + 2, this.length);
+    this.maskRange(this.index, end);
+    this.index = end;
+  }
+
+  private maskQuotedString(quote: string): void {
+    let end = this.index + 1;
+    while (
+      end < this.length &&
+      this.chars[end] !== quote &&
+      this.chars[end] !== "\n"
+    ) {
+      end += this.chars[end] === "\\" ? 2 : 1;
+    }
+    end = Math.min(end + 1, this.length);
+    this.maskRange(this.index, end);
+    this.index = end;
+    this.lastSignificant = quote;
+  }
+
+  private openTemplate(): void {
+    this.maskAt(this.index);
+    this.stack.push({ mode: "template" });
+    this.index++;
+  }
+
+  private processSlash(): void {
+    const next = this.chars[this.index + 1];
+    if (next === "/" || next === "*") {
+      this.lastSignificant = "/";
+      this.index++;
+      return;
+    }
+    const opensRegex =
+      this.lastSignificant === "" ||
+      REGEX_PREFIX_CHARS.has(this.lastSignificant) ||
+      REGEX_PREFIX_WORDS.has(this.lastSignificant);
+    if (opensRegex) this.maskRegexLiteral();
+    else {
+      this.lastSignificant = "/";
+      this.index++;
+    }
+  }
+
+  private maskRegexLiteral(): void {
+    let end = this.index + 1;
+    let isInCharacterClass = false;
+    while (end < this.length && this.chars[end] !== "\n") {
+      const char = this.chars[end];
+      if (char === "\\") {
+        end += 2;
+        continue;
+      }
+      if (char === "[") isInCharacterClass = true;
+      else if (char === "]") isInCharacterClass = false;
+      else if (char === "/" && !isInCharacterClass) break;
+      end++;
+    }
+    end = Math.min(end + 1, this.length);
+    while (end < this.length && /[a-z]/.test(this.chars[end])) end++;
+    this.maskRange(this.index, end);
+    this.index = end;
+    this.lastSignificant = "/";
+  }
+
+  private processTemplateExpressionBrace(
+    frame: Extract<Frame, { mode: "code" }>,
+    char: string
+  ): boolean {
+    if (frame.templateExprDepth == null) return false;
+    if (char === "{") {
+      frame.templateExprDepth++;
+      return false;
+    }
+    if (char !== "}") return false;
+    if (frame.templateExprDepth > 0) {
+      frame.templateExprDepth--;
+      return false;
+    }
+    this.maskAt(this.index);
+    this.stack.pop();
+    this.index++;
+    this.lastSignificant = "`";
+    return true;
+  }
+
+  private processWord(): void {
+    let end = this.index;
+    while (end < this.length && /[A-Za-z0-9_$]/.test(this.chars[end])) end++;
+    this.lastSignificant = this.chars.slice(this.index, end).join("");
+    this.index = end;
+  }
+}
+
 /**
  * Mask comments, string literals, and template-literal text with spaces so
  * that source scanning sees executable tokens only. Regex literals are masked
@@ -9,197 +238,5 @@
  * masked text line up with the original source.
  */
 export function maskNonCode(source: string): string {
-  const chars = Array.from(source);
-  const length = chars.length;
-  const maskAt = (index: number) => {
-    if (chars[index] !== "\n") {
-      chars[index] = " ";
-    }
-  };
-  const maskRange = (start: number, endExclusive: number) => {
-    for (let j = start; j < endExclusive && j < length; j++) {
-      maskAt(j);
-    }
-  };
-  // Chars that cannot end an expression — a `/` after one of these (or at the
-  // start) opens a regex literal rather than dividing.
-  const REGEX_PREFIX_CHARS = new Set([
-    "(",
-    ")",
-    ",",
-    "=",
-    ":",
-    "[",
-    "]",
-    "!",
-    "&",
-    "|",
-    "?",
-    "{",
-    "}",
-    "+",
-    "-",
-    "*",
-    "%",
-    "^",
-    "~",
-    "<",
-    ">",
-    ";",
-  ]);
-  const REGEX_PREFIX_WORDS = new Set([
-    "return",
-    "typeof",
-    "case",
-    "throw",
-    "in",
-    "of",
-    "new",
-    "delete",
-    "void",
-    "do",
-    "else",
-    "yield",
-    "await",
-    "instanceof",
-  ]);
-  // Stack of lexical modes. "code" frames nested inside `${...}` track their
-  // own brace depth so a `}` at depth 0 closes the interpolation.
-  type Frame =
-    | { mode: "code"; templateExprDepth: number | null }
-    | { mode: "template" };
-  const stack: Frame[] = [{ mode: "code", templateExprDepth: null }];
-  let lastSignificant = ""; // last unmasked char or word, for regex detection
-  let i = 0;
-  while (i < length) {
-    const frame = stack[stack.length - 1];
-    const c = chars[i];
-    if (frame.mode === "template") {
-      if (c === "\\") {
-        maskRange(i, i + 2);
-        i += 2;
-        continue;
-      }
-      if (c === "`") {
-        maskAt(i);
-        stack.pop();
-        i++;
-        lastSignificant = "`";
-        continue;
-      }
-      if (c === "$" && chars[i + 1] === "{") {
-        maskRange(i, i + 2);
-        stack.push({ mode: "code", templateExprDepth: 0 });
-        i += 2;
-        lastSignificant = "(";
-        continue;
-      }
-      maskAt(i);
-      i++;
-      continue;
-    }
-    // code mode
-    const two = c + (chars[i + 1] ?? "");
-    if (two === "//") {
-      let j = i;
-      while (j < length && chars[j] !== "\n") {
-        j++;
-      }
-      maskRange(i, j);
-      i = j;
-      continue;
-    }
-    if (two === "/*") {
-      let j = i + 2;
-      while (j < length && !(chars[j] === "*" && chars[j + 1] === "/")) {
-        j++;
-      }
-      j = Math.min(j + 2, length);
-      maskRange(i, j);
-      i = j;
-      continue;
-    }
-    if (c === "'" || c === '"') {
-      const quote = c;
-      let j = i + 1;
-      while (j < length && chars[j] !== quote && chars[j] !== "\n") {
-        j += chars[j] === "\\" ? 2 : 1;
-      }
-      j = Math.min(j + 1, length);
-      maskRange(i, j);
-      i = j;
-      lastSignificant = quote;
-      continue;
-    }
-    if (c === "`") {
-      maskAt(i);
-      stack.push({ mode: "template" });
-      i++;
-      continue;
-    }
-    if (c === "/" && chars[i + 1] !== "/" && chars[i + 1] !== "*") {
-      const opensRegex =
-        lastSignificant === "" ||
-        REGEX_PREFIX_CHARS.has(lastSignificant) ||
-        REGEX_PREFIX_WORDS.has(lastSignificant);
-      if (opensRegex) {
-        // mask through the closing unescaped `/`, honoring [...] classes
-        let j = i + 1;
-        let inClass = false;
-        while (j < length && chars[j] !== "\n") {
-          if (chars[j] === "\\") {
-            j += 2;
-            continue;
-          }
-          if (chars[j] === "[") {
-            inClass = true;
-          } else if (chars[j] === "]") {
-            inClass = false;
-          } else if (chars[j] === "/" && !inClass) {
-            break;
-          }
-          j++;
-        }
-        j = Math.min(j + 1, length); // closing slash
-        while (j < length && /[a-z]/.test(chars[j])) {
-          j++; // flags
-        }
-        maskRange(i, j);
-        i = j;
-        lastSignificant = "/";
-        continue;
-      }
-      lastSignificant = "/";
-      i++;
-      continue;
-    }
-    if (frame.templateExprDepth != null) {
-      if (c === "{") {
-        frame.templateExprDepth++;
-      } else if (c === "}") {
-        if (frame.templateExprDepth === 0) {
-          maskAt(i);
-          stack.pop();
-          i++;
-          lastSignificant = "`";
-          continue;
-        }
-        frame.templateExprDepth--;
-      }
-    }
-    if (/[A-Za-z0-9_$]/.test(c)) {
-      let j = i;
-      while (j < length && /[A-Za-z0-9_$]/.test(chars[j])) {
-        j++;
-      }
-      lastSignificant = chars.slice(i, j).join("");
-      i = j;
-      continue;
-    }
-    if (!/\s/.test(c)) {
-      lastSignificant = c;
-    }
-    i++;
-  }
-  return chars.join("");
+  return new NonCodeMasker(source).mask();
 }

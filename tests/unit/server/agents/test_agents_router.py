@@ -3191,6 +3191,45 @@ async def test_chat_endpoint_rejects_regenerate_requests(
     assert response.status_code == 422
 
 
+@pytest.mark.real_agent_mcp_server
+async def test_chat_turn_hands_the_agent_the_phoenix_mcp_server(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The route passes the server ``create_app`` wires to the agent, which the
+    suite-wide stub leaves out of every other test here. The agent sees its
+    code-mode and skill tools and carries its instructions."""
+    session_id = "33333333-3333-4333-8333-333333333333"
+    agent_session_id = await _create_agent_session_row(db)
+    seen: dict[str, Any] = {}
+
+    async def stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        seen["tools"] = {tool.name for tool in agent_info.function_tools}
+        seen["instructions"] = agent_info.instructions or ""
+        yield "done"
+
+    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[ToolCallPart(tool_name="summary", args={"summary": "title"})])
+
+    _mock_turn_models(
+        monkeypatch, FunctionModel(function=function, stream_function=stream_function)
+    )
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("first question")),
+    )
+
+    assert response.status_code == 200
+    assert {"execute", "search", "get_schema", "tags", "list_tools"} <= seen["tools"]
+    assert {"load_skill", "load_skill_reference"} <= seen["tools"]
+    assert "<name>phoenix-graphql</name>" in seen["instructions"]
+
+
 async def test_generated_session_title_is_limited(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,

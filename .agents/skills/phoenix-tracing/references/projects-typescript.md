@@ -80,6 +80,56 @@ const agentProjects = await getProjects({ nameContains: "agent" });
 `getProjects` accepts `client` alongside `nameContains` (it extends `ClientFn`),
 so a client built with an explicit endpoint or headers can be threaded through.
 
+## Assigning a Retention Policy
+
+`setProjectRetentionPolicy` points a project at an existing trace retention
+policy, or resets it to the default. It only changes the assignment — it does
+not create, read, update, or delete policies, so the policy must already exist
+and you need its GlobalID in hand.
+
+```typescript
+import { setProjectRetentionPolicy } from "@arizeai/phoenix-client/projects";
+
+// Assign an existing policy
+await setProjectRetentionPolicy({
+  projectName: "support-bot",
+  policyId: "UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI=",
+});
+
+// Reset to the default policy
+await setProjectRetentionPolicy({
+  projectId: "UHJvamVjdDox",
+  policyId: null,
+});
+```
+
+The project is identified the same way as elsewhere in the client — pass
+`projectName`, `projectId`, or `project` (a name or GlobalID). Passing
+`policyId: null` is how you reset to the default; leaving `policyId` out
+entirely is a type error. The call returns the project's resulting assignment.
+
+## Moving Traces Between Projects
+
+`transferTraces` re-parents traces into another project. It is a move, not a
+copy — after the call the traces no longer appear in their original project.
+
+```typescript
+import { transferTraces } from "@arizeai/phoenix-client/traces";
+
+const result = await transferTraces({
+  traceIdentifiers: ["8f3a...", "VHJhY2U6Mg=="],
+  destinationProjectIdentifier: "production",
+});
+
+console.log(result.transferredTraceCount);
+console.log(result.destinationProjectId);
+```
+
+`traceIdentifiers` accepts Trace GlobalIDs or raw OpenTelemetry trace IDs, and
+every trace in the batch must currently live in the same source project — a
+mixed batch fails rather than partially moving. An empty array throws
+`RangeError` before any request is made. Requires Phoenix server >= 20.4.0.
+
 ## Via HTTP Header (OTEL Collector / config-based tools)
 
 If you cannot set resource attributes in code (e.g. when using an OTEL Collector or another configuration-driven pipeline), set the `x-project-name` HTTP header on OTLP HTTP exports. The header takes precedence over the `openinference.project.name` resource attribute; every span in the request is routed to that project.

@@ -38,6 +38,8 @@ from phoenix.client.harbor._model import (
     TaskRecord,
     TrialSlot,
 )
+from phoenix.client.harbor._recorder import PhoenixRecorder
+from phoenix.client.harbor._traces import HarborTrace
 
 from .test_recorder import FakeClient, FakeDataset, FakeDatasets, FakeExperiments, example_row
 
@@ -188,6 +190,7 @@ class TestConfiguration:
         monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "https://phoenix.example")
         plugin = PhoenixJobPlugin()
         assert plugin.dataset is None
+        assert plugin.trace_mode == "atif"
         assert plugin.experiment_name is None
         assert plugin.experiment_name_template == DEFAULT_EXPERIMENT_NAME_TEMPLATE
 
@@ -211,9 +214,13 @@ class TestConfiguration:
         with pytest.raises(ValueError, match="'agent'"):
             PhoenixJobPlugin(experiment_name_template="{agent}")
 
-    @pytest.mark.parametrize("trace_mode", ["atif", "otlp", "otel"])
+    @pytest.mark.parametrize("trace_mode", ["atif", None])
+    def test_supported_trace_modes(self, trace_mode: str | None) -> None:
+        assert PhoenixJobPlugin(trace_mode=cast(Any, trace_mode)).trace_mode == trace_mode
+
+    @pytest.mark.parametrize("trace_mode", ["none", "otlp", ""])
     def test_unsupported_trace_mode_is_rejected_at_construction(self, trace_mode: str) -> None:
-        with pytest.raises(ValueError, match="Only trace_mode='none' is available"):
+        with pytest.raises(ValueError, match="Use one of 'atif', None"):
             PhoenixJobPlugin(trace_mode=cast(Any, trace_mode))
 
     def test_explicit_endpoint_overrides_the_environment(
@@ -354,6 +361,74 @@ class TestJobStart:
         assert [evaluation["name"] for evaluation in wired.experiments.logged_evaluations] == [
             "infra_ok"
         ]
+
+    async def test_none_mode_does_not_build_or_upload_a_trace(
+        self, monkeypatch: pytest.MonkeyPatch, wired: FakeClient
+    ) -> None:
+        def fail_if_called(**kwargs: Any) -> None:
+            del kwargs
+            raise AssertionError("trace builder called")
+
+        monkeypatch.setattr("phoenix.client.harbor._plugin.build_harbor_trace", fail_if_called)
+        plugin = PhoenixJobPlugin(trace_mode=None)
+        job = FakeJob()
+        await plugin.on_job_start(job)
+
+        await require_hook(job.ended_hook)(hook_event(trial_result()))
+
+        assert len(wired.experiments.logged_runs) == 1
+
+    async def test_atif_mode_confirms_trace_before_linking_run(
+        self, monkeypatch: pytest.MonkeyPatch, wired: FakeClient
+    ) -> None:
+        trace = HarborTrace(trace_id="a" * 32, spans=(), source_paths=())
+        calls: list[str] = []
+
+        def build_trace(**kwargs: Any) -> HarborTrace:
+            del kwargs
+            calls.append("build")
+            return trace
+
+        async def confirm_trace(
+            self: PhoenixRecorder, *, experiment: Any, trace: HarborTrace
+        ) -> str:
+            del self, experiment
+            calls.append("confirm")
+            return trace.trace_id
+
+        monkeypatch.setattr("phoenix.client.harbor._plugin.build_harbor_trace", build_trace)
+        monkeypatch.setattr(PhoenixRecorder, "confirm_trace", confirm_trace)
+        plugin = PhoenixJobPlugin()
+        job = FakeJob()
+        await plugin.on_job_start(job)
+
+        await require_hook(job.ended_hook)(hook_event(trial_result()))
+
+        assert calls == ["build", "confirm"]
+        assert wired.experiments.logged_runs[0]["trace_id"] == "a" * 32
+        assert [item["name"] for item in wired.experiments.logged_evaluations] == ["infra_ok"]
+
+    async def test_atif_failure_still_records_run_and_evaluations(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        wired: FakeClient,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        def fail(**kwargs: Any) -> None:
+            del kwargs
+            raise ValueError("broken trajectory")
+
+        monkeypatch.setattr("phoenix.client.harbor._plugin.build_harbor_trace", fail)
+        plugin = PhoenixJobPlugin(trace_mode="atif")
+        job = FakeJob()
+        await plugin.on_job_start(job)
+
+        await require_hook(job.ended_hook)(hook_event(trial_result()))
+
+        assert len(wired.experiments.logged_runs) == 1
+        assert wired.experiments.logged_runs[0]["trace_id"] is None
+        assert [item["name"] for item in wired.experiments.logged_evaluations] == ["infra_ok"]
+        assert "broken trajectory" in caplog.text
 
     async def test_multi_step_strategy_reaches_trial_reward_metadata(
         self,

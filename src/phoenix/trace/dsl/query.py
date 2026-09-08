@@ -13,7 +13,7 @@ import pandas as pd
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, or_, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from typing_extensions import assert_never
 
 from phoenix.config import DEFAULT_PROJECT_NAME
@@ -612,9 +612,12 @@ class SpanQuery(_HasTmpSuffix):
             # (a span whose parent_id references a span that doesn't exist in the database)
             if orphan_span_as_root_span:
                 # Include both types of root spans:
-                parent_spans = select(models.Span.span_id).alias("parent_spans")
+                parent_spans = aliased(models.Span, name="parent_spans")
                 stmt = stmt.where(
-                    ~select(1).where(models.Span.parent_id == parent_spans.c.span_id).exists(),
+                    ~select(1)
+                    .where(models.Span.parent_id == parent_spans.span_id)
+                    .correlate(models.Span)
+                    .exists(),
                     # Note: We avoid using an OR clause with Span.parent_id.is_(None) here
                     # because it significantly degraded PostgreSQL performance (>10x worse)
                     # during testing.
@@ -849,13 +852,14 @@ def _get_spans_dataframe(
         # (a span whose parent_id references a span that doesn't exist in the database)
         if orphan_span_as_root_span:
             # Include both types of root spans
-            parent_spans = select(models.Span.span_id).alias("parent_spans")
+            parent_spans = aliased(models.Span, name="parent_spans")
             candidate_spans = stmt.cte("candidate_spans")
             stmt = select(candidate_spans).where(
                 or_(
                     candidate_spans.c.parent_id.is_(None),
                     ~select(1)
-                    .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
+                    .where(candidate_spans.c.parent_id == parent_spans.span_id)
+                    .correlate(candidate_spans)
                     .exists(),
                 ),
             )

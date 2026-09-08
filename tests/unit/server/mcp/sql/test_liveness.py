@@ -28,7 +28,7 @@ from sqlalchemy import text
 from phoenix.server.mcp.sql.errors import AnalyticsSqlError
 from phoenix.server.mcp.sql.execute import (
     ExecuteParams,
-    ExecutionSemaphore,
+    StatementAdmissionController,
     execute_analytics_sql,
 )
 from phoenix.server.mcp.sql.teaching import describe_sql_schema
@@ -428,24 +428,24 @@ async def test_queue_slot_is_returned_when_a_waiter_is_cancelled() -> None:
     """A client disconnecting while queued must not consume capacity forever.
 
     Acquisition happens before the caller's try/finally, so a cancellation while
-    waiting on the semaphore unwinds through code that would otherwise never
+    waiting on the controller unwinds through code that would otherwise never
     decrement the counter. Enough of those and every later request is refused as
     QUEUE_FULL until the process restarts -- a denial of service reachable by
     doing nothing but disconnecting.
     """
     import asyncio
 
-    from phoenix.server.mcp.sql.execute import ExecutionSemaphore
+    from phoenix.server.mcp.sql.execute import StatementAdmissionController
 
-    semaphore = ExecutionSemaphore()
-    await semaphore.acquire("sqlite")
-    waiters = [asyncio.create_task(semaphore.acquire("sqlite")) for _ in range(3)]
+    controller = StatementAdmissionController("sqlite")
+    await controller.acquire()
+    waiters = [asyncio.create_task(controller.acquire()) for _ in range(3)]
     await asyncio.sleep(0.05)
     for waiter in waiters:
         waiter.cancel()
     await asyncio.gather(*waiters, return_exceptions=True)
 
-    assert semaphore._waiting["sqlite"] == 0
+    assert controller._waiting == 0
 
 
 async def test_queue_slot_is_returned_when_a_waiter_is_cancelled_twice() -> None:
@@ -463,25 +463,25 @@ async def test_queue_slot_is_returned_when_a_waiter_is_cancelled_twice() -> None
     """
     import asyncio
 
-    from phoenix.server.mcp.sql.execute import ExecutionSemaphore
+    from phoenix.server.mcp.sql.execute import StatementAdmissionController
 
-    semaphore = ExecutionSemaphore()
-    await semaphore.acquire("sqlite")
-    waiter = asyncio.create_task(semaphore.acquire("sqlite"))
+    controller = StatementAdmissionController("sqlite")
+    await controller.acquire()
+    waiter = asyncio.create_task(controller.acquire())
     await asyncio.sleep(0.05)
-    assert semaphore._waiting["sqlite"] == 1
+    assert controller._waiting == 1
 
     # Hold the guard so anything taking it inside the unwind has to wait, then
     # cancel a second time while it is waiting.
-    await semaphore._guard.acquire()
+    await controller._guard.acquire()
     waiter.cancel()
     await asyncio.sleep(0.05)
     waiter.cancel()
     await asyncio.sleep(0.05)
-    semaphore._guard.release()
+    controller._guard.release()
     await asyncio.gather(waiter, return_exceptions=True)
 
-    assert semaphore._waiting["sqlite"] == 0
+    assert controller._waiting == 0
 
 
 async def test_row_limit_is_clamped(
@@ -769,8 +769,8 @@ async def test_cancelling_a_query_stops_the_worker(
     from phoenix.server.mcp.sql import execute as execute_module
 
     db, db_path = analytics_sqlite_db
-    semaphore = ExecutionSemaphore()
-    monkeypatch.setattr(execute_module, "EXECUTION_SEMAPHORE", semaphore)
+    controller = StatementAdmissionController("sqlite")
+    db.analytics_sql_admission = controller
     statement_started = threading.Event()
     close_started = threading.Event()
     allow_close = threading.Event()
@@ -850,9 +850,9 @@ async def test_cancelling_a_query_stops_the_worker(
 
         # Hold cleanup briefly so this assertion cannot race the worker's done
         # callback. The timeout and finally prevent a test failure from
-        # stranding a worker thread or its semaphore permit.
+        # stranding a worker thread or its admission permit.
         await wait_for_event(close_started)
-        assert semaphore._locks["sqlite"].locked()
+        assert controller._permits.locked()
     finally:
         allow_close.set()
         if not task.done():
