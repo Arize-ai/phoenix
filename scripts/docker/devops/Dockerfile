@@ -1,7 +1,7 @@
 # 3-stage build with frontend assets for production mode (no-vite)
 # This Dockerfile is used when vite-dev service is disabled
 ARG PYTHON_VERSION=3.13
-ARG NODE_VERSION=22
+ARG NODE_VERSION=24
 
 # Stage 1: Frontend Builder
 FROM node:${NODE_VERSION}-slim AS frontend-builder

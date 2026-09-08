@@ -537,7 +537,7 @@ jobs:
           package_json_file: js/package.json
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0  # zizmor: ignore[cache-poisoning]
         with:
-          node-version: 22
+          node-version: 24
       - name: Build frontend
         working-directory: ./js
         run: pnpm install --frozen-lockfile && pnpm --filter 'phoenix-ui...' run build
