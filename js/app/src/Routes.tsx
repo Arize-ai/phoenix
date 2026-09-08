@@ -25,6 +25,9 @@ import {
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
+import { projectEvaluatorCompareLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
+import { ProjectEvaluatorComparePage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorComparePage";
 import type { ProjectEvaluatorDetailsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorDetailsPage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
@@ -666,6 +669,22 @@ export const appRouteObjects = createRoutesFromElements(
                 },
               }}
             >
+              <Route
+                path="compare"
+                element={<ProjectEvaluatorComparePage />}
+                loader={projectEvaluatorCompareLoader}
+                handle={{
+                  crumb: (data: ProjectEvaluatorCompareLoaderData) =>
+                    data?.evaluatorAName && data?.evaluatorBName
+                      ? `${data.evaluatorAName} vs ${data.evaluatorBName}`
+                      : "compare",
+                  agentRoute: {
+                    label: "Compare Project Evaluators",
+                    description:
+                      "Compare two project evaluators over the telemetry both evaluated, including agreement, coverage, side-by-side summaries, and label overlap. Search params a and b are ProjectEvaluator Relay node IDs.",
+                  },
+                }}
+              />
               <Route
                 id={PROJECT_EVALUATOR_DETAILS_ROUTE_ID}
                 path=":projectEvaluatorId"
