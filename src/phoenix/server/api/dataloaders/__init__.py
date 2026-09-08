@@ -10,7 +10,10 @@ from phoenix.server.types import DbSessionFactory
 
 from .agent_session_message_text import AgentSessionMessageTextDataLoader
 from .annotation_configs_by_project import AnnotationConfigsByProjectDataLoader
-from .annotation_mean_score_time_series import AnnotationMeanScoreTimeSeriesDataLoader
+from .annotation_mean_score_time_series import (
+    AnnotationMeanScoreTimeSeriesCache,
+    AnnotationMeanScoreTimeSeriesDataLoader,
+)
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_repeated_run_group_latency import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
@@ -137,6 +140,9 @@ class CacheForDataLoaders:
     )
     annotation_summary: AnnotationSummaryCache = field(
         default_factory=AnnotationSummaryCache,
+    )
+    annotation_mean_score_time_series: AnnotationMeanScoreTimeSeriesCache = field(
+        default_factory=AnnotationMeanScoreTimeSeriesCache,
     )
     latency_ms_quantile: LatencyMsQuantileCache = field(
         default_factory=LatencyMsQuantileCache,
@@ -316,7 +322,14 @@ def build_data_loaders(
         agent_session_first_inputs=AgentSessionMessageTextDataLoader(db, "first_input"),
         agent_session_latest_outputs=AgentSessionMessageTextDataLoader(db, "latest_output"),
         annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
-        annotation_mean_score_time_series=AnnotationMeanScoreTimeSeriesDataLoader(db),
+        annotation_mean_score_time_series=AnnotationMeanScoreTimeSeriesDataLoader(
+            db,
+            cache_map=(
+                cache_for_dataloaders.annotation_mean_score_time_series
+                if cache_for_dataloaders
+                else None
+            ),
+        ),
         average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
             db
         ),

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d251e62f1ab7519286b618826c458151>>
+ * @generated SignedSource<<8e97dc69ffdf197a360a8e8388ef769c>>
  * @lightSyntaxTransform
  */
 
@@ -15,13 +15,13 @@ export type ProjectEvaluatorFilter = {
   col: ProjectEvaluatorFilterColumn;
   value: string;
 };
-export type TimeBinConfig = {
-  scale?: TimeBinScale;
-  utcOffsetMinutes?: number;
-};
 export type TimeRange = {
   end?: string | null;
   start?: string | null;
+};
+export type TimeBinConfig = {
+  scale?: TimeBinScale;
+  utcOffsetMinutes?: number;
 };
 export type ProjectEvaluatorsTablePaginationQuery$variables = {
   after?: string | null;
@@ -29,6 +29,7 @@ export type ProjectEvaluatorsTablePaginationQuery$variables = {
   first?: number | null;
   id: string;
   includeMeanScore: boolean;
+  scorePreviousTimeRange: TimeRange;
   scoreTimeBinConfig: TimeBinConfig;
   scoreTimeRange: TimeRange;
   timeRange: TimeRange;
@@ -72,103 +73,108 @@ v4 = {
 v5 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "scoreTimeBinConfig"
+  "name": "scorePreviousTimeRange"
 },
 v6 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "scoreTimeRange"
+  "name": "scoreTimeBinConfig"
 },
 v7 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "scoreTimeRange"
+},
+v8 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v8 = [
+v9 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v9 = {
+v10 = {
   "kind": "Variable",
   "name": "after",
   "variableName": "after"
 },
-v10 = {
+v11 = {
   "kind": "Variable",
   "name": "filter",
   "variableName": "filter"
 },
-v11 = {
+v12 = {
   "kind": "Variable",
   "name": "first",
   "variableName": "first"
 },
-v12 = {
+v13 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v15 = [
-  (v9/*:: as any*/),
+v16 = [
   (v10/*:: as any*/),
-  (v11/*:: as any*/)
+  (v11/*:: as any*/),
+  (v12/*:: as any*/)
 ],
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v19 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v20 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v21 = [
-  (v12/*:: as any*/)
-],
 v22 = [
+  (v13/*:: as any*/)
+],
+v23 = [
   {
     "alias": null,
     "args": null,
@@ -177,14 +183,14 @@ v22 = [
     "storageKey": null
   }
 ],
-v23 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "meanScore",
   "storageKey": null
 },
-v24 = {
+v25 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -201,7 +207,8 @@ return {
       (v4/*:: as any*/),
       (v5/*:: as any*/),
       (v6/*:: as any*/),
-      (v7/*:: as any*/)
+      (v7/*:: as any*/),
+      (v8/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -209,7 +216,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v8/*:: as any*/),
+        "args": (v9/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -217,13 +224,18 @@ return {
         "selections": [
           {
             "args": [
-              (v9/*:: as any*/),
               (v10/*:: as any*/),
               (v11/*:: as any*/),
+              (v12/*:: as any*/),
               {
                 "kind": "Variable",
                 "name": "includeMeanScore",
                 "variableName": "includeMeanScore"
+              },
+              {
+                "kind": "Variable",
+                "name": "scorePreviousTimeRange",
+                "variableName": "scorePreviousTimeRange"
               },
               {
                 "kind": "Variable",
@@ -235,7 +247,7 @@ return {
                 "name": "scoreTimeRange",
                 "variableName": "scoreTimeRange"
               },
-              (v12/*:: as any*/)
+              (v13/*:: as any*/)
             ],
             "kind": "FragmentSpread",
             "name": "ProjectEvaluatorsTable_project"
@@ -257,6 +269,7 @@ return {
       (v5/*:: as any*/),
       (v6/*:: as any*/),
       (v7/*:: as any*/),
+      (v8/*:: as any*/),
       (v3/*:: as any*/)
     ],
     "kind": "Operation",
@@ -264,20 +277,20 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v8/*:: as any*/),
+        "args": (v9/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v13/*:: as any*/),
           (v14/*:: as any*/),
+          (v15/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": (v15/*:: as any*/),
+                "args": (v16/*:: as any*/),
                 "concreteType": "ProjectEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "evaluators",
@@ -299,8 +312,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v14/*:: as any*/),
-                          (v16/*:: as any*/),
+                          (v15/*:: as any*/),
+                          (v17/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -404,7 +417,7 @@ return {
                             "name": "evaluator",
                             "plural": false,
                             "selections": [
-                              (v13/*:: as any*/),
+                              (v14/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -420,11 +433,11 @@ return {
                                 "name": "outputConfigs",
                                 "plural": true,
                                 "selections": [
-                                  (v13/*:: as any*/),
+                                  (v14/*:: as any*/),
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v16/*:: as any*/),
+                                      (v17/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -439,7 +452,7 @@ return {
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v17/*:: as any*/),
+                                      (v18/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -448,7 +461,7 @@ return {
                                         "name": "values",
                                         "plural": true,
                                         "selections": [
-                                          (v18/*:: as any*/),
+                                          (v19/*:: as any*/),
                                           {
                                             "alias": null,
                                             "args": null,
@@ -466,9 +479,9 @@ return {
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v17/*:: as any*/),
-                                      (v19/*:: as any*/),
-                                      (v20/*:: as any*/)
+                                      (v18/*:: as any*/),
+                                      (v20/*:: as any*/),
+                                      (v21/*:: as any*/)
                                     ],
                                     "type": "ContinuousAnnotationConfig",
                                     "abstractKey": null
@@ -476,7 +489,7 @@ return {
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v17/*:: as any*/),
+                                      (v18/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -484,8 +497,8 @@ return {
                                         "name": "threshold",
                                         "storageKey": null
                                       },
-                                      (v19/*:: as any*/),
-                                      (v20/*:: as any*/)
+                                      (v20/*:: as any*/),
+                                      (v21/*:: as any*/)
                                     ],
                                     "type": "FreeformAnnotationConfig",
                                     "abstractKey": null
@@ -493,7 +506,7 @@ return {
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v14/*:: as any*/)
+                                      (v15/*:: as any*/)
                                     ],
                                     "type": "Node",
                                     "abstractKey": "__isNode"
@@ -512,8 +525,8 @@ return {
                                     "name": "prompt",
                                     "plural": false,
                                     "selections": [
-                                      (v14/*:: as any*/),
-                                      (v16/*:: as any*/)
+                                      (v15/*:: as any*/),
+                                      (v17/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   },
@@ -525,8 +538,8 @@ return {
                                     "name": "promptVersionTag",
                                     "plural": false,
                                     "selections": [
-                                      (v16/*:: as any*/),
-                                      (v14/*:: as any*/)
+                                      (v17/*:: as any*/),
+                                      (v15/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   },
@@ -552,7 +565,7 @@ return {
                                         "name": "modelProvider",
                                         "storageKey": null
                                       },
-                                      (v14/*:: as any*/)
+                                      (v15/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -578,8 +591,8 @@ return {
                                     "name": "sandboxConfig",
                                     "plural": false,
                                     "selections": [
-                                      (v14/*:: as any*/),
-                                      (v16/*:: as any*/),
+                                      (v15/*:: as any*/),
+                                      (v17/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -595,7 +608,7 @@ return {
                                             "name": "backendType",
                                             "storageKey": null
                                           },
-                                          (v14/*:: as any*/)
+                                          (v15/*:: as any*/)
                                         ],
                                         "storageKey": null
                                       }
@@ -606,7 +619,7 @@ return {
                                 "type": "CodeEvaluator",
                                 "abstractKey": null
                               },
-                              (v14/*:: as any*/)
+                              (v15/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -618,17 +631,17 @@ return {
                             "name": "traceProject",
                             "plural": false,
                             "selections": [
-                              (v14/*:: as any*/),
+                              (v15/*:: as any*/),
                               {
                                 "alias": null,
-                                "args": (v21/*:: as any*/),
+                                "args": (v22/*:: as any*/),
                                 "kind": "ScalarField",
                                 "name": "traceCount",
                                 "storageKey": null
                               },
                               {
                                 "alias": null,
-                                "args": (v21/*:: as any*/),
+                                "args": (v22/*:: as any*/),
                                 "concreteType": "SpanCostSummary",
                                 "kind": "LinkedField",
                                 "name": "costSummary",
@@ -641,7 +654,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "total",
                                     "plural": false,
-                                    "selections": (v22/*:: as any*/),
+                                    "selections": (v23/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -651,7 +664,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "prompt",
                                     "plural": false,
-                                    "selections": (v22/*:: as any*/),
+                                    "selections": (v23/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -661,7 +674,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "completion",
                                     "plural": false,
-                                    "selections": (v22/*:: as any*/),
+                                    "selections": (v23/*:: as any*/),
                                     "storageKey": null
                                   }
                                 ],
@@ -678,6 +691,11 @@ return {
                               {
                                 "alias": null,
                                 "args": [
+                                  {
+                                    "kind": "Variable",
+                                    "name": "previousTimeRange",
+                                    "variableName": "scorePreviousTimeRange"
+                                  },
                                   {
                                     "kind": "Variable",
                                     "name": "timeBinConfig",
@@ -709,8 +727,8 @@ return {
                                     "name": "summary",
                                     "plural": false,
                                     "selections": [
-                                      (v23/*:: as any*/),
                                       (v24/*:: as any*/),
+                                      (v25/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -733,7 +751,7 @@ return {
                                         "name": "labelFractions",
                                         "plural": true,
                                         "selections": [
-                                          (v18/*:: as any*/),
+                                          (v19/*:: as any*/),
                                           {
                                             "alias": null,
                                             "args": null,
@@ -755,7 +773,7 @@ return {
                                     "name": "previousSummary",
                                     "plural": false,
                                     "selections": [
-                                      (v23/*:: as any*/)
+                                      (v24/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   },
@@ -774,8 +792,8 @@ return {
                                         "name": "timestamp",
                                         "storageKey": null
                                       },
-                                      (v23/*:: as any*/),
-                                      (v24/*:: as any*/)
+                                      (v24/*:: as any*/),
+                                      (v25/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -784,7 +802,7 @@ return {
                               }
                             ]
                           },
-                          (v13/*:: as any*/)
+                          (v14/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -828,7 +846,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v15/*:: as any*/),
+                "args": (v16/*:: as any*/),
                 "filters": [
                   "filter"
                 ],
@@ -847,16 +865,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "59ab8fb5d25ef66ad3052c26c40d7f23",
+    "cacheID": "a1c9c21c6abf8d79b8d0648757ba6883",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsTablePaginationQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $filter: ProjectEvaluatorFilter = null\n  $first: Int = 30\n  $includeMeanScore: Boolean!\n  $scoreTimeBinConfig: TimeBinConfig!\n  $scoreTimeRange: TimeRange!\n  $timeRange: TimeRange!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_1TlaaZ\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_costs_3E0ZE6 on ProjectEvaluator {\n  traceProject {\n    id\n    traceCount(timeRange: $timeRange)\n    costSummary(timeRange: $timeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_1TlaaZ on Project {\n  evaluators(first: $first, after: $after, filter: $filter) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        ...ProjectEvaluatorsTable_costs_3E0ZE6\n        ...ProjectEvaluatorsTable_scores_3clT2T\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  schedulabilityStatus\n  enabled\n  updatedAt\n  schedulabilityReason\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n  }\n  evaluator {\n    __typename\n    kind\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_scores_3clT2T on ProjectEvaluator {\n  annotationScoreMetrics(timeRange: $scoreTimeRange, timeBinConfig: $scoreTimeBinConfig) @include(if: $includeMeanScore) {\n    annotationName\n    summary {\n      meanScore\n      count\n      scoreCount\n      labelCount\n      labelFractions {\n        label\n        fraction\n      }\n    }\n    previousSummary {\n      meanScore\n    }\n    series {\n      timestamp\n      meanScore\n      count\n    }\n  }\n}\n"
+    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $filter: ProjectEvaluatorFilter = null\n  $first: Int = 30\n  $includeMeanScore: Boolean!\n  $scorePreviousTimeRange: TimeRange!\n  $scoreTimeBinConfig: TimeBinConfig!\n  $scoreTimeRange: TimeRange!\n  $timeRange: TimeRange!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_3PAQ0g\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_costs_3E0ZE6 on ProjectEvaluator {\n  traceProject {\n    id\n    traceCount(timeRange: $timeRange)\n    costSummary(timeRange: $timeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_3PAQ0g on Project {\n  evaluators(first: $first, after: $after, filter: $filter) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        ...ProjectEvaluatorsTable_costs_3E0ZE6\n        ...ProjectEvaluatorsTable_scores_1qAmj3\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  schedulabilityStatus\n  enabled\n  updatedAt\n  schedulabilityReason\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n  }\n  evaluator {\n    __typename\n    kind\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_scores_1qAmj3 on ProjectEvaluator {\n  annotationScoreMetrics(timeRange: $scoreTimeRange, previousTimeRange: $scorePreviousTimeRange, timeBinConfig: $scoreTimeBinConfig) @include(if: $includeMeanScore) {\n    annotationName\n    summary {\n      meanScore\n      count\n      scoreCount\n      labelCount\n      labelFractions {\n        label\n        fraction\n      }\n    }\n    previousSummary {\n      meanScore\n    }\n    series {\n      timestamp\n      meanScore\n      count\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9da07562d1eee40e3d6d2471a3630ed9";
+(node as any).hash = "927402af67eed497b895297f1a6b88c1";
 
 export default node;
