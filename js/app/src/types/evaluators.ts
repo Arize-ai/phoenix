@@ -153,7 +153,8 @@ export type SandboxBackendType =
   | "VERCEL"
   | "DENO"
   | "MODAL"
-  | "MONTY";
+  | "MONTY"
+  | "TENKI";
 
 /**
  * The source data for evaluator input mappings.

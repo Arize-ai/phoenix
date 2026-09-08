@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2ab82b3796825c4c0be9ec1f2c18b1a8>>
+ * @generated SignedSource<<65e97bcb298b02bf7e12c1b4cff395d0>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,7 @@ export type InternetAccessChoice = "ALLOW" | "DENY";
 export type InternetAccessMode = "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "TENKI" | "VERCEL" | "WASM";
 export type SandboxHostingType = "HOSTED" | "LOCAL";
 export type SandboxLanguageDialect = "FULL" | "RESTRICTED";
 import { FragmentRefs } from "relay-runtime";

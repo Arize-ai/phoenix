@@ -6,7 +6,7 @@ description: Set up the sandbox providers that run code evaluators on your self-
 Phoenix runs code evaluators (and other LLM-driven workloads that need to execute code) inside sandboxes. This page tells you which sandbox providers are ready to use in the official `arizephoenix/phoenix` container, what extra setup the others need, and how to read the status badges shown on **Settings → Sandboxes**.
 
 <Warning>
-**Local sandboxes (Deno, WebAssembly) are for simple code evaluation only.** Environment variables, network access, and third-party dependencies are supported **only** in hosted sandboxes (E2B, Daytona, Vercel, Modal).
+**Local sandboxes (Deno, WebAssembly) are for simple code evaluation only.** Environment variables, network access, and third-party dependencies are supported **only** in hosted sandboxes (E2B, Daytona, Vercel, Modal, Tenki).
 </Warning>
 
 ## Reading the status on Settings → Sandboxes
@@ -25,7 +25,7 @@ If you deploy the official `arizephoenix/phoenix` container, these providers are
 
 - **Deno (local)** — runs TypeScript inside Phoenix. The Deno binary is bundled in the container.
 - **WebAssembly (local)** — runs Python inside Phoenix using a WebAssembly Python interpreter. The interpreter is bundled in the container.
-- **Hosted providers (E2B, Modal, Daytona, Vercel)** — the integration code ships inside the container, so you only need to add your credentials before each becomes **Available**.
+- **Hosted providers (E2B, Modal, Daytona, Vercel, Tenki)** — the integration code ships inside the container, so you only need to add your credentials before each becomes **Available**.
 
 If you're not using the official container — for example, you installed Phoenix with `pip install arize-phoenix` on your own host, or you're building a custom image — you'll need to install the runtime tooling for local sandboxes and the relevant Phoenix extras for hosted ones. See [Non-container deployments](#non-container-deployments) below.
 
@@ -74,16 +74,17 @@ Once `PHOENIX_WASM_BINARY_PATH` is set, Phoenix will only use that file. If the 
 
 ### Hosted providers
 
-Each hosted provider ships as a separate Phoenix extra and has its own credentials. The official `arizephoenix/phoenix` container already includes all four extras — you only need to install one of these when you're running on a custom image or a plain `pip install arize-phoenix`:
+Each hosted provider ships as a separate Phoenix extra and has its own credentials. The official `arizephoenix/phoenix` container already includes all five extras — you only need to install one of these when you're running on a custom image or a plain `pip install arize-phoenix`:
 
 ```bash
 pip install 'arize-phoenix[e2b]'      # E2B
 pip install 'arize-phoenix[modal]'    # Modal
 pip install 'arize-phoenix[daytona]'  # Daytona
 pip install 'arize-phoenix[vercel]'   # Vercel Sandbox (Python and TypeScript)
+pip install 'arize-phoenix[tenki]'    # Tenki Cloud
 ```
 
-Add the credentials each hosted provider needs — for example, `E2B_API_KEY`, `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, or the Vercel token / project / team triple. You can either set them as environment variables on the Phoenix server or paste them directly into the provider's row in **Settings → Sandboxes**. The full list of credential variables for each provider is in the [compatibility matrix](#compatibility-matrix) below.
+Add the credentials each hosted provider needs — for example, `E2B_API_KEY`, `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, the Vercel token / project / team triple, or `TENKI_API_KEY`. You can either set them as environment variables on the Phoenix server or paste them directly into the provider's row in **Settings → Sandboxes**. The full list of credential variables for each provider is in the [compatibility matrix](#compatibility-matrix) below.
 
 ## Restricting which providers are allowed
 
@@ -91,7 +92,7 @@ To restrict which sandbox providers your deployment can use, set the `PHOENIX_AL
 
 - **Leave it unset** to allow every supported provider (the default).
 - **Set it to `NONE`** to disable every sandbox provider.
-- **Set it to one or more provider names** to allow only those. Valid names are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, and `MODAL` (lowercase works too — the variable is case-insensitive). An unknown name will stop Phoenix from starting so a typo can't silently disable a provider.
+- **Set it to one or more provider names** to allow only those. Valid names are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`, and `TENKI` (lowercase works too — the variable is case-insensitive). An unknown name will stop Phoenix from starting so a typo can't silently disable a provider.
 
 ```bash
 export PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO   # allow local sandboxes only
@@ -121,6 +122,7 @@ The container-ready column reflects the post-install state of the `arizephoenix/
 | **Daytona** (`DAYTONA`) | Python, TypeScript | Ready with credentials — already in container | `pip install 'arize-phoenix[daytona]'` | `DAYTONA_API_KEY` | Daytona cloud |
 | **Vercel Sandbox** (`VERCEL`) | Python, TypeScript | Ready with credentials — already in container | `pip install 'arize-phoenix[vercel]'` | `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` + `VERCEL_TEAM_ID` ([auth docs](https://vercel.com/docs/vercel-sandbox/concepts/authentication)) | Vercel cloud |
 | **Modal** (`MODAL`) | Python | Ready with credentials — already in container | `pip install 'arize-phoenix[modal]'` | `MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` | Modal cloud |
+| **Tenki** (`TENKI`) | Python | Ready with credentials — already in container | `pip install 'arize-phoenix[tenki]'` | `TENKI_API_KEY` | Tenki Cloud (microVM) |
 
 <Info>
 "Container-ready" means the necessary code or binary is already inside the official `arizephoenix/phoenix` image. For hosted providers you still need to enter credentials before the status changes from **Missing credentials** to **Available**. The two local providers (Deno and WebAssembly) become **Available** the moment the container starts.

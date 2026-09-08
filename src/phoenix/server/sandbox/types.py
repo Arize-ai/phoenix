@@ -265,6 +265,19 @@ class ModalConfig(
     language: Literal["PYTHON"] = "PYTHON"
 
 
+class TenkiConfig(
+    _Config,
+    SupportsEnvVars,
+    SupportsInternetAccess,
+    SupportsDependencies,
+    _RuntimePackageInstallation,
+):
+    # Tenki runs on stock guest images and installs deps at runtime via pip
+    # inside the sandbox (like E2B/Daytona), so compose _RuntimePackageInstallation.
+    backend_type: Literal["TENKI"] = "TENKI"
+    language: Literal["PYTHON"] = "PYTHON"
+
+
 SandboxConfigModel: TypeAlias = Annotated[
     Union[
         E2BConfig,
@@ -274,6 +287,7 @@ SandboxConfigModel: TypeAlias = Annotated[
         WASMConfig,
         MontyConfig,
         ModalConfig,
+        TenkiConfig,
     ],
     Field(discriminator="backend_type"),
 ]
@@ -375,6 +389,26 @@ class E2BDeployment(_BaseModel):
         return self
 
 
+class TenkiDeployment(_BaseModel):
+    """Tenki self-hosted / dedicated routing."""
+
+    backend_type: Literal["TENKI"] = "TENKI"
+    api_url: Optional[str] = Field(
+        default=None,
+        title="Tenki API URL",
+        description=(
+            "Tenki API endpoint URL for self-hosted or dedicated deployments. Leave empty "
+            "to fall back to the ``TENKI_API_ENDPOINT`` process env var, or Tenki's hosted "
+            "SaaS (``https://api.tenki.cloud``) if unset."
+        ),
+    )
+
+    @field_validator("api_url", mode="after")
+    @classmethod
+    def _check_api_url(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_url_scheme(v)
+
+
 class VercelDeployment(NoDeployment):
     """Vercel has no public routing kwargs on AsyncSandbox.create today."""
 
@@ -409,6 +443,7 @@ SandboxDeploymentModel: TypeAlias = Annotated[
     Union[
         DaytonaDeployment,
         E2BDeployment,
+        TenkiDeployment,
         VercelDeployment,
         ModalDeployment,
         WASMDeployment,
@@ -438,6 +473,13 @@ class DaytonaCredentials(_BaseModel):
     DAYTONA_API_KEY: SecretStr = Field(
         title="Daytona API Key",
         description="API key for the Daytona sandbox service.",
+    )
+
+
+class TenkiCredentials(_BaseModel):
+    TENKI_API_KEY: SecretStr = Field(
+        title="Tenki API Key",
+        description="API key (``tk_...``) for the Tenki Cloud service.",
     )
 
 

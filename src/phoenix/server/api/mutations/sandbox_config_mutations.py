@@ -40,6 +40,8 @@ from phoenix.server.sandbox.types import (
     MontyConfig,
     SandboxConfigModel,
     SandboxDeploymentModel,
+    TenkiConfig,
+    TenkiDeployment,
     UnsupportedOperation,
     VercelConfig,
     WASMConfig,
@@ -192,6 +194,27 @@ class ModalConfigInput:
         return ModalConfig.model_validate(fields)
 
 
+@strawberry.input
+class TenkiConfigInput:
+    language: Language = Language.PYTHON
+    env_vars: list[EnvVarInput] = strawberry.field(default_factory=list)
+    internet_access: Optional[InternetAccessInput] = None
+    dependencies: Optional[DependenciesInput] = None
+
+    def __post_init__(self) -> None:
+        _names_are_unique(self.env_vars)
+
+    def to_orm(self) -> TenkiConfig:
+        fields: dict[str, Any] = {"language": self.language.to_orm()}
+        if self.env_vars:
+            fields["env_vars"] = {ev.name: ev.to_orm() for ev in self.env_vars}
+        if self.internet_access is not None:
+            fields["internet_access"] = self.internet_access.to_orm()
+        if self.dependencies is not None:
+            fields["dependencies"] = self.dependencies.to_orm()
+        return TenkiConfig.model_validate(fields)
+
+
 @strawberry.input(one_of=True)
 class SandboxConfigVariantInput:
     """Config payload, discriminated by provider kind. Exactly one variant must be set."""
@@ -203,6 +226,7 @@ class SandboxConfigVariantInput:
     wasm: Optional[WASMConfigInput] = strawberry.UNSET
     modal: Optional[ModalConfigInput] = strawberry.UNSET
     monty: Optional[MontyConfigInput] = strawberry.UNSET
+    tenki: Optional[TenkiConfigInput] = strawberry.UNSET
 
     def to_orm(self) -> SandboxConfigModel:
         if self.e2b is not None and self.e2b is not strawberry.UNSET:
@@ -219,6 +243,8 @@ class SandboxConfigVariantInput:
             return self.modal.to_orm()
         if self.monty is not None and self.monty is not strawberry.UNSET:
             return self.monty.to_orm()
+        if self.tenki is not None and self.tenki is not strawberry.UNSET:
+            return self.tenki.to_orm()
         raise BadRequest("config: exactly one provider variant must be set")
 
 
@@ -240,6 +266,14 @@ class E2BDeploymentInput:
         return E2BDeployment.model_validate({"domain": self.domain, "api_url": self.api_url})
 
 
+@strawberry.input
+class TenkiDeploymentInput:
+    api_url: Optional[str] = None
+
+    def to_orm(self) -> TenkiDeployment:
+        return TenkiDeployment.model_validate({"api_url": self.api_url})
+
+
 @strawberry.input(one_of=True)
 class SandboxDeploymentVariantInput:
     """Deployment payload, discriminated by provider kind. Exactly one variant must be set.
@@ -250,12 +284,15 @@ class SandboxDeploymentVariantInput:
 
     daytona: Optional[DaytonaDeploymentInput] = strawberry.UNSET
     e2b: Optional[E2BDeploymentInput] = strawberry.UNSET
+    tenki: Optional[TenkiDeploymentInput] = strawberry.UNSET
 
     def to_orm(self) -> SandboxDeploymentModel:
         if self.daytona is not None and self.daytona is not strawberry.UNSET:
             return self.daytona.to_orm()
         if self.e2b is not None and self.e2b is not strawberry.UNSET:
             return self.e2b.to_orm()
+        if self.tenki is not None and self.tenki is not strawberry.UNSET:
+            return self.tenki.to_orm()
         raise BadRequest("deployment: exactly one provider variant must be set")
 
 
