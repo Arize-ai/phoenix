@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 import pandas as pd
 from sqlalchemy import func, select
@@ -54,3 +54,59 @@ async def test_token_counts(
     ]
     actual = await TokenCountDataLoader(db)._load_fn(keys)
     assert actual == expected
+
+
+async def test_token_counts_does_not_double_count_nested_llm_spans(
+    db: DbSessionFactory,
+) -> None:
+    start_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
+    async with db() as session:
+        project = models.Project(name="nested-llm")
+        session.add(project)
+        await session.flush()
+        trace = models.Trace(
+            trace_id="nested-llm-trace",
+            project_rowid=project.id,
+            start_time=start_time,
+            end_time=start_time,
+        )
+        session.add(trace)
+        await session.flush()
+
+        def _llm_span(
+            span_id: str,
+            parent_id: Optional[str],
+            prompt_count: int,
+            completion_count: int,
+        ) -> models.Span:
+            return models.Span(
+                trace_rowid=trace.id,
+                span_id=span_id,
+                parent_id=parent_id,
+                name=span_id,
+                span_kind="LLM",
+                start_time=start_time,
+                end_time=start_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+                llm_token_count_prompt=prompt_count,
+                llm_token_count_completion=completion_count,
+            )
+
+        leaf_prompt_count = 100
+        leaf_completion_count = 50
+        session.add(_llm_span("wrapper", None, leaf_prompt_count, leaf_completion_count))
+        session.add(_llm_span("leaf", "wrapper", leaf_prompt_count, leaf_completion_count))
+        await session.flush()
+
+    keys: list[Key] = [(kind, project.id, None, None) for kind in ("prompt", "completion", "total")]
+    assert await TokenCountDataLoader(db)._load_fn(keys) == [
+        leaf_prompt_count,
+        leaf_completion_count,
+        leaf_prompt_count + leaf_completion_count,
+    ]
