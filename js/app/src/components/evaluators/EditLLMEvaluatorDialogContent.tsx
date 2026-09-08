@@ -18,7 +18,7 @@ export const EditLLMEvaluatorDialogContent = ({
   submitHint,
   mode,
   error,
-  evaluatorNodeId,
+  llmEvaluatorNodeId,
   title,
   formLeftPanel,
   formRightPanel,
@@ -30,7 +30,8 @@ export const EditLLMEvaluatorDialogContent = ({
   submitHint?: ReactNode;
   mode: "create" | "update";
   error?: string;
-  evaluatorNodeId?: string | null;
+  /** Relay node ID of the underlying LLM evaluator, not an association wrapper. */
+  llmEvaluatorNodeId?: string | null;
   title?: string;
   formLeftPanel?: ReactNode;
   /**
@@ -44,9 +45,9 @@ export const EditLLMEvaluatorDialogContent = ({
     useMemo(
       () => ({
         type: "llm_evaluator" as const,
-        evaluatorNodeId: evaluatorNodeId ?? null,
+        evaluatorNodeId: llmEvaluatorNodeId ?? null,
       }),
-      [evaluatorNodeId]
+      [llmEvaluatorNodeId]
     )
   );
 
@@ -70,7 +71,7 @@ export const EditLLMEvaluatorDialogContent = ({
 
   useLlmEvaluatorDraftRegistration({
     mode,
-    evaluatorNodeId,
+    llmEvaluatorNodeId,
     handleSubmitRef,
   });
   return (
