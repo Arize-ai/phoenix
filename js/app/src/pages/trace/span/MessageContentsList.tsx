@@ -95,6 +95,28 @@ function segmentMessageContents(
 }
 
 /**
+ * The disclosure id of the reasoning row rendered for the segment at `index`.
+ */
+function reasoningDisclosureId(index: number): string {
+  return `reasoning-${index}`;
+}
+
+/**
+ * The disclosure ids of the reasoning rows `MessageContentsList` renders for
+ * these contents, for the disclosure group that decides which rows start open.
+ * Accepts whatever the instrumentation emitted, since the card computes this
+ * outside the error boundary that guards the rendered contents.
+ */
+export function getReasoningDisclosureIds(messageContents: unknown): string[] {
+  if (!Array.isArray(messageContents)) {
+    return [];
+  }
+  return segmentMessageContents(messageContents).flatMap((segment, idx) =>
+    segment.kind === "reasoning" ? [reasoningDisclosureId(idx)] : []
+  );
+}
+
+/**
  * A list of message contents. Used for multi-modal models and for the
  * reasoning a thinking model produced before its answer.
  *
@@ -111,7 +133,7 @@ export function MessageContentsList({
     segment.kind === "reasoning" ? (
       <ReasoningMessageContent
         key={idx}
-        id={`reasoning-${idx}`}
+        id={reasoningDisclosureId(idx)}
         content={segment.content.message_content}
       />
     ) : (

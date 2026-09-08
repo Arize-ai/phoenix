@@ -66,7 +66,7 @@ const reasoningMessageContentCSS = css`
 /**
  * What a provider sends in place of reasoning text, in the order a part is
  * checked: OpenAI encrypts it, Anthropic redacts it, Gemini may attach only a
- * thought signature. The label names the kind in the collapsed row; the
+ * thought signature. The label names the kind in the closed row; the
  * description says why there is nothing to read once the row is open.
  */
 const OPAQUE_REASONING_KINDS = [
@@ -100,11 +100,11 @@ function getOpaqueReasoningKind(content: MessageContentAttributes) {
 
 /**
  * A reasoning (thinking) part of a message, set apart from the answer the
- * model went on to give. It renders as a collapsed row flush with the message
- * card, in the same shape as the card's tool call rows: rendered inside the
- * card's disclosure group it draws no dividers of its own, and the group rules
- * it off from the answer that follows. The row quotes the first line of the
- * thinking while closed; opening it renders the summary as markdown. When the
+ * model went on to give. It renders as a row flush with the message card, in
+ * the same shape as the card's tool call rows: rendered inside the card's
+ * disclosure group it draws no dividers of its own, and the group rules it off
+ * from the answer that follows. The row opens with the summary rendered as
+ * markdown, and quotes the summary's first line once closed. When the
  * provider returned only an opaque payload — OpenAI's encrypted reasoning,
  * Anthropic's redacted thinking — the row still appears so the reader can
  * tell the model reasoned, and says why there is nothing to read.
@@ -134,8 +134,6 @@ export function ReasoningMessageContent({
       id={disclosureId}
       className="reasoning-message-content"
       css={reasoningMessageContentCSS}
-      data-testid="reasoning-message-content"
-      defaultExpanded={false}
     >
       <DisclosureTrigger arrowPosition="start" justifyContent="space-between">
         <Flex

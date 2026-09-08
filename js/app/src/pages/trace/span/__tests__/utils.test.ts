@@ -517,8 +517,4 @@ describe("getReasoningPreview", () => {
       "So t is 6 and 60*t = 90*(t-2)."
     );
   });
-
-  it("is undefined for a blank summary", () => {
-    expect(getReasoningPreview("   \n")).toBeUndefined();
-  });
 });

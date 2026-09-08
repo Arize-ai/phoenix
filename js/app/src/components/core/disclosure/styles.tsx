@@ -68,8 +68,12 @@ export const disclosureCSS = css`
       outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
       outline-offset: calc(-1 * var(--focus-ring-thickness));
     }
+    // only the hover tint animates. Animating every property would also
+    // animate the rule under the trigger as it toggles between none and a
+    // colored line, and a border with no color of its own is the text color,
+    // so the line would sweep in from white
     &:not([disabled]) {
-      transition: all 0.2s ease-in-out;
+      transition: background-color 0.2s ease-in-out;
     }
     &[disabled] {
       cursor: default;

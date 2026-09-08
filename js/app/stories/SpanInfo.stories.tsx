@@ -132,7 +132,7 @@ export const LLMMultiModal: Story = {
  * A reasoning model traced through the OpenAI Responses API. The output opens
  * with a reasoning row the provider returned encrypted; the replayed
  * assistant turn in the input carries a reasoning row with a readable
- * summary. Both start collapsed above the answer, and the message cards'
+ * summary. Both start open above the answer, and the message cards'
  * collapsed previews quote the answer rather than the thinking.
  */
 export const LLMReasoning: Story = {
