@@ -63,17 +63,11 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
         db: [sqlite, postgresql]
-        py: ["3.10", "3.13", "3.14"]
+        py: ["3.10", "3.14"]
         os: [windows-latest, macos-latest, ubuntu-latest]
         exclude:
           - os: windows-latest
             db: postgresql
-          - os: windows-latest
-            py: "3.14"  # sqlean.py has no Windows wheels for 3.14
-          - os: macos-latest
-            py: "3.13"
-          - os: ubuntu-latest
-            py: "3.13"
           - os: macos-latest
             db: postgresql
           - os: ubuntu-latest
@@ -133,15 +127,11 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
         db: [sqlite, postgresql]
-        py: ["3.10", "3.13", "3.14"]
+        py: ["3.10", "3.14"]
         os: [windows-latest, ubuntu-latest]
         exclude:
           - os: windows-latest
             db: postgresql
-          - os: windows-latest
-            py: "3.14"  # sqlean.py has no Windows wheels for 3.14
-          - os: ubuntu-latest
-            py: "3.13"
           - os: ubuntu-latest
             py: "3.10"
             db: sqlite
@@ -187,7 +177,7 @@ jobs:
           version-file: "pyproject.toml"
       - name: Run integration tests
         timeout-minutes: 30
-        run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4
+        run: uvx tox run -e integration_tests -- -ra --durations=20 --reruns 5 --timeout 360 -n 4
 
   phoenix-client-non-linux:
     name: Phoenix Client (${{ matrix.branch }}, ${{ matrix.os }}, ${{ matrix.py }})
