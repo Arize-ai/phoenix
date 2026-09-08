@@ -40,11 +40,12 @@ import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/play
  */
 export const useLlmEvaluatorDraftRegistration = ({
   mode,
-  evaluatorNodeId,
+  llmEvaluatorNodeId,
   handleSubmitRef,
 }: {
   mode: "create" | "update";
-  evaluatorNodeId?: string | null;
+  /** Relay node ID of the underlying LLM evaluator, not an association wrapper. */
+  llmEvaluatorNodeId?: string | null;
   handleSubmitRef: RefObject<() => Promise<EvaluatorSubmitResult>>;
 }) => {
   const store = useEvaluatorStoreInstance();
@@ -73,7 +74,7 @@ export const useLlmEvaluatorDraftRegistration = ({
       );
       return {
         mode: mode === "create" ? "create" : "edit",
-        evaluatorNodeId: evaluatorNodeId ?? null,
+        evaluatorNodeId: llmEvaluatorNodeId ?? null,
         name: state.evaluator.name || state.evaluator.globalName,
         description: state.evaluator.description,
         inputMapping: state.evaluator.inputMapping,
@@ -207,7 +208,7 @@ export const useLlmEvaluatorDraftRegistration = ({
     playgroundStore,
     instanceId,
     mode,
-    evaluatorNodeId,
+    llmEvaluatorNodeId,
     handleSubmitRef,
   ]);
 };
