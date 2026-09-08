@@ -80,6 +80,7 @@ import {
   type ProjectEvaluatorSelection,
   toRowSelectionState,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
+import { ProjectEvaluatorSelectionToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSelectionToolbar";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
 import {
@@ -884,6 +885,12 @@ export function ProjectEvaluatorsTable({
           </table>
         </ColumnOrderingProvider>
       </EvaluatorScoreWindowProvider>
+      {Object.keys(selection).length > 0 ? (
+        <ProjectEvaluatorSelectionToolbar
+          selection={selection}
+          onClearSelection={() => onSelectionChange({})}
+        />
+      ) : null}
       {hasNext ? (
         <View padding="size-100">
           <Flex justifyContent="center">
