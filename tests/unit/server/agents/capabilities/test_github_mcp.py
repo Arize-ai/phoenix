@@ -148,12 +148,6 @@ class TestErrorSanitization:
 
     @pytest.mark.parametrize("status_code", [401, 403])
     async def test_authorization_failure_is_terminal_not_retryable(self, status_code: int) -> None:
-        """An auth failure must not come back as a retry prompt.
-
-        The turn's token is bound when the toolset is built, so retrying re-sends
-        the same credential; the assistant previously reissued identical
-        `issue_write` calls after a 403 instead of telling the user to fix the token.
-        """
         with pytest.raises(ToolFailed) as exc_info:
             await _call_tool_with_sanitized_errors(
                 Mock(), self._failing_call(status_code), "issue_write", {}
@@ -162,7 +156,6 @@ class TestErrorSanitization:
         assert _TOKEN not in message
         assert str(status_code) in message
         assert "not authorized" in message
-        # ToolFailed is not a ModelRetry, so the retry budget is untouched.
         assert not isinstance(exc_info.value, ModelRetry)
 
     async def test_transport_error_reduces_to_class_name(self) -> None:

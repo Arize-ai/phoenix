@@ -36,9 +36,6 @@ logger = logging.getLogger(__name__)
 # entry points; writes are approval-gated below.
 GITHUB_READ_TOOLS = frozenset({"issue_read", "list_issues", "search_issues"})
 GITHUB_WRITE_TOOLS = frozenset({"issue_write"})
-
-# Authorization failures the turn cannot resolve on its own: the token is bound
-# when the toolset is built, so a retry re-sends the same credential.
 _NON_RETRYABLE_STATUS_CODES = frozenset({401, 403})
 GITHUB_TOOL_ALLOWLIST = GITHUB_READ_TOOLS | GITHUB_WRITE_TOOLS
 
@@ -116,12 +113,6 @@ async def _call_tool_with_sanitized_errors(
 
     Raw httpx/MCP transport exception text can embed request headers — and so
     the bearer token — which must never reach the model or a tool span.
-
-    Authorization failures are terminal rather than retryable: the turn's token
-    is fixed when the toolset is built, so repeating the call re-sends the same
-    credential and fails identically. `ToolFailed` reports the failure to the
-    model without a retry prompt and without consuming the retry budget, so the
-    model relays it to the user instead of reissuing the request.
     """
     try:
         return await call_tool(name, args)
@@ -132,9 +123,8 @@ async def _call_tool_with_sanitized_errors(
         if status_code in _NON_RETRYABLE_STATUS_CODES:
             raise ToolFailed(
                 f"GitHub MCP request failed with HTTP {status_code}: the credential in "
-                "use is not authorized for this operation. Tell the user to check that "
-                "their GitHub token is valid and has the required scope and repository "
-                "access, and do not retry until they confirm it changed."
+                "use is not authorized for this operation. The user may need to check that "
+                "their GitHub token is valid and has the required scope and repository access."
             ) from None
         raise ModelRetry(f"GitHub MCP request failed with HTTP {status_code}") from None
     except httpx.HTTPError as exc:
