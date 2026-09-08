@@ -663,6 +663,7 @@ type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPaylo
 
 input ChatPromptVersionInput {
   description: String = null
+  metadata: JSON
   templateFormat: PromptTemplateFormat!
   template: PromptChatTemplateInput!
   invocationParameters: PromptInvocationParametersInput!
