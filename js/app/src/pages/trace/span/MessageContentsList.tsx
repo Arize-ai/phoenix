@@ -80,8 +80,20 @@ function segmentMessageContents(
 ): MessageContentsSegment[] {
   const segments: MessageContentsSegment[] = [];
   for (const content of messageContents) {
+    const messageContent = content?.message_content;
     if (isReasoningMessageContent(content)) {
       segments.push({ kind: "reasoning", content });
+      continue;
+    }
+    // Empty text parts must not create a padded media row. Keep image parts
+    // even when they have no text, and leave opaque reasoning rows above intact.
+    const hasText =
+      messageContent?.text != null &&
+      formatContentAsString(messageContent.text, {
+        unquotePlainString: true,
+      }).trim().length > 0;
+    const hasImage = Boolean(messageContent?.image?.image?.url);
+    if (!hasText && !hasImage) {
       continue;
     }
     const last = segments[segments.length - 1];
