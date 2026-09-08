@@ -1667,63 +1667,26 @@
     "dark": "/docs/logo/dark.png"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "",
-        "href": "https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g",
-        "title": "Community Slack",
-        "icon": "users"
-      },
-      {
-        "label": "",
-        "href": "https://arize.com/blog/?cat=phoenix",
-        "title": "Blog",
-        "icon": "newspaper"
-      },
-      {
-        "label": "",
-        "href": "https://x.com/ArizePhoenix",
-        "title": "X",
-        "icon": {
-          "name": "x-twitter",
-          "library": "fontawesome",
-          "style": "brands"
-        }
-      },
-      {
-        "label": "",
-        "href": "https://bsky.app/profile/arize-phoenix.bsky.social",
-        "title": "Bluesky",
-        "icon": {
-          "name": "bluesky",
-          "library": "fontawesome",
-          "style": "brands"
-        }
-      },
-      {
-        "label": "",
-        "href": "https://www.linkedin.com/showcase/113218220",
-        "title": "LinkedIn",
-        "icon": {
-          "name": "linkedin",
-          "library": "fontawesome",
-          "style": "brands"
-        }
-      },
-      {
-        "label": "",
-        "href": "https://github.com/Arize-ai/phoenix",
-        "title": "GitHub",
-        "icon": {
-          "name": "github",
-          "library": "fontawesome",
-          "style": "brands"
-        }
-      }
-    ]
+    "links": []
   },
   "footer": {
+    "socials": {
+      "slack": "https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g",
+      "x": "https://x.com/ArizePhoenix",
+      "bluesky": "https://bsky.app/profile/arize-phoenix.bsky.social",
+      "linkedin": "https://www.linkedin.com/showcase/113218220",
+      "github": "https://github.com/Arize-ai/phoenix"
+    },
     "links": [
+      {
+        "label": "Resources",
+        "items": [
+          {
+            "label": "Blog",
+            "href": "https://arize.com/blog/?cat=phoenix"
+          }
+        ]
+      },
       {
         "label": "Languages",
         "items": [
