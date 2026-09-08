@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 7.9.0
+
+### Minor Changes
+
+- bf047af: Add Meta (Muse Spark models) as a built-in OpenAI-compatible model provider (`META`).
+
 ## 7.8.0
 
 ### Minor Changes
