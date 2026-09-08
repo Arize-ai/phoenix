@@ -29,7 +29,7 @@ ARG BASE_IMAGE=gcr.io/distroless/python3-debian13:nonroot
 ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.12.7-python3.13-trixie-slim
 
 # This Dockerfile is a multi-stage build. The first stage builds the frontend.
-FROM node:22-slim AS frontend-builder
+FROM node:24-slim AS frontend-builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV PHOENIX_ENABLE_SOURCE_MAP=True
