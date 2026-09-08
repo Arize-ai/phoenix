@@ -126,8 +126,6 @@ function ProjectEvaluatorsPageContent({
         <ProjectEvaluatorsToolbar
           filter={filter}
           onFilterChange={onFilterChange}
-          selection={selection}
-          onClearSelection={() => onSelectionChange({})}
         />
       )}
       <ProjectEvaluatorsTable

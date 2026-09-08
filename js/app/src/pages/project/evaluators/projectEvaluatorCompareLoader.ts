@@ -12,9 +12,24 @@ import type { projectEvaluatorCompareLoaderQuery } from "./__generated__/project
 
 export const projectEvaluatorCompareLoaderGQL = graphql`
   query projectEvaluatorCompareLoaderQuery(
+    $projectId: ID!
     $evaluatorAId: ID!
     $evaluatorBId: ID!
   ) {
+    project: node(id: $projectId) {
+      __typename
+      ... on Project {
+        evaluators(first: 100) {
+          edges {
+            evaluator: node {
+              id
+              name
+              evaluationTarget
+            }
+          }
+        }
+      }
+    }
     evaluatorA: node(id: $evaluatorAId) {
       __typename
       ... on ProjectEvaluator {
@@ -83,7 +98,11 @@ export async function projectEvaluatorCompareLoader({
     return invalid("same");
   }
 
-  const variables = { evaluatorAId, evaluatorBId };
+  const variables = {
+    projectId: params.projectId,
+    evaluatorAId,
+    evaluatorBId,
+  };
   let data: projectEvaluatorCompareLoaderQuery["response"] | undefined;
   try {
     data = await fetchQuery<projectEvaluatorCompareLoaderQuery>(
