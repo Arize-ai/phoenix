@@ -295,6 +295,9 @@ def run(args: Namespace) -> None:
     agents_env = AgentsEnvConfig.from_env()
     # Dev tooling ports set by the frontend dev scripts (e.g. `pnpm dev:server`)
     vite_port = os.getenv("VITE_PORT") or (str(args.dev_vite_port) if args.dev else None)
+    dev_vite_url = os.getenv("PHOENIX_DEV_VITE_URL") or (
+        f"http://localhost:{vite_port}" if vite_port else None
+    )
     debugpy_port = os.getenv("DEBUGPY_PORT")
     boot_message = BootMessage(
         version=phoenix_version,
@@ -338,7 +341,7 @@ def run(args: Namespace) -> None:
         telemetry_enabled=get_env_telemetry_enabled(),
         dev_mode=args.dev,
         debug_logging=args.debug,
-        dev_vite_url=f"http://localhost:{vite_port}" if vite_port else None,
+        dev_vite_url=dev_vite_url,
         debugpy_url=f"localhost:{debugpy_port}" if debugpy_port else None,
     )
 
@@ -381,6 +384,7 @@ def run(args: Namespace) -> None:
         debug=args.debug,
         dev=args.dev,
         dev_vite_port=args.dev_vite_port,
+        dev_vite_url=dev_vite_url,
         serve_ui=not args.no_ui,
         read_only=read_only,
         grpc_port=grpc_port,

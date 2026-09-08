@@ -1,0 +1,8 @@
+procs:
+  api:
+    shell: "../../scripts/dev-process.sh api"
+    stop: { cmd: "pnpm exec portless run --name phoenix --force true" }
+
+  frontend:
+    shell: "../../scripts/dev-process.sh frontend"
+    stop: { cmd: "pnpm exec portless run --name phoenix-vite --force true" }
