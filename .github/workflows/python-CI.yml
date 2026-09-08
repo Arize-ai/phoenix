@@ -35,23 +35,29 @@ jobs:
         py: ["3.10", "3.14"]
         scenario: [full, mcp-only, no-mcp]
         include:
+          # Test paths are given from the repository root: tox rewrites a
+          # posarg that exists relative to its own working directory into a
+          # path relative to changedir, so "." would become the repository
+          # root and pytest would collect every package's tests. --ignore is
+          # an option value, which tox leaves alone, so it is relative to
+          # tests/integration.
           # The nightly's invocation plus a per-test kill (pytest-timeout,
           # thread method on Windows) and a non-fatal all-threads dump 60s
           # before it, so the first hung test names itself and shows where it
           # is blocked.
           - scenario: full
-            args: ". -ra --reruns 5 -n 4 -v --durations=20 --timeout 180 -o faulthandler_timeout=120"
+            args: "tests/integration -ra --reruns 5 -n 4 -v --durations=20 --timeout 180 -o faulthandler_timeout=120"
             tee: "0"
           # The MCP tests alone, in file order, on one worker: every client
           # session lands on the same server process, which is the shape of the
           # upstream Windows deadlock (PrefectHQ/fastmcp#4192). Server output is
           # teed to the job log so the last request before a stall is visible.
           - scenario: mcp-only
-            args: "auth/test_mcp.py -ra -n 1 -p no:randomly -v --timeout 180 -o faulthandler_timeout=120"
+            args: "tests/integration/auth/test_mcp.py -ra -n 1 -p no:randomly -v --timeout 180 -o faulthandler_timeout=120"
             tee: "1"
           # Everything except the MCP tests: passes iff the hang lives there.
           - scenario: no-mcp
-            args: ". -ra --reruns 5 -n 4 -v --durations=20 --timeout 180 -o faulthandler_timeout=120 --ignore=auth/test_mcp.py"
+            args: "tests/integration -ra --reruns 5 -n 4 -v --durations=20 --timeout 180 -o faulthandler_timeout=120 --ignore=auth/test_mcp.py"
             tee: "0"
     env:
       CI_TEST_DB_BACKEND: sqlite
