@@ -1,3 +1,5 @@
+import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
+
 export const COMPACTION_PLACEHOLDER_TOKEN_THRESHOLD = 100_000;
 
 const DEFAULT_PLACEHOLDER = "Send a message";
@@ -8,13 +10,7 @@ const DEBUG_PROJECT_PLACEHOLDER = "Try /debug-trace to find failure patterns";
 const PLAYGROUND_PLACEHOLDER = "Try /playground to improve this prompt";
 const EVALUATOR_PLACEHOLDER = "Try /evaluators to refine this evaluator";
 
-export type AgentChatSuggestionContext =
-  | "span"
-  | "trace"
-  | "evaluator"
-  | "playground"
-  | "project"
-  | null;
+export type AgentChatSuggestionContext = AgentContext["type"] | null;
 
 /**
  * Select the most relevant teaching placeholder for the PXI composer.
@@ -61,7 +57,8 @@ export function getAgentChatPlaceholder({
       return availableSkillNames.has("playground")
         ? PLAYGROUND_PLACEHOLDER
         : DEFAULT_PLACEHOLDER;
-    case "evaluator":
+    case "code_evaluator":
+    case "llm_evaluator":
       return availableSkillNames.has("evaluators")
         ? EVALUATOR_PLACEHOLDER
         : DEFAULT_PLACEHOLDER;

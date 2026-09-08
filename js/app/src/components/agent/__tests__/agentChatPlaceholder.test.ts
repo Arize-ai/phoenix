@@ -78,16 +78,19 @@ describe("getAgentChatPlaceholder", () => {
     ).toBe("Try /playground to improve this prompt");
   });
 
-  it("suggests evaluators for an active evaluator editor", () => {
-    expect(
-      getAgentChatPlaceholder({
-        hasMessages: true,
-        promptTokenCount: null,
-        suggestionContext: "evaluator",
-        availableSkillNames,
-      })
-    ).toBe("Try /evaluators to refine this evaluator");
-  });
+  it.each(["code_evaluator", "llm_evaluator"] as const)(
+    "suggests evaluators for an active %s editor",
+    (suggestionContext) => {
+      expect(
+        getAgentChatPlaceholder({
+          hasMessages: true,
+          promptTokenCount: null,
+          suggestionContext,
+          availableSkillNames,
+        })
+      ).toBe("Try /evaluators to refine this evaluator");
+    }
+  );
 
   it("does not suggest an unavailable skill", () => {
     expect(

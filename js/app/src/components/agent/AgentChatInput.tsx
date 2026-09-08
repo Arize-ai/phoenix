@@ -93,8 +93,11 @@ function selectSuggestionContext(
   if (contextTypes.has("trace")) {
     return "trace";
   }
-  if (contextTypes.has("code_evaluator") || contextTypes.has("llm_evaluator")) {
-    return "evaluator";
+  if (contextTypes.has("code_evaluator")) {
+    return "code_evaluator";
+  }
+  if (contextTypes.has("llm_evaluator")) {
+    return "llm_evaluator";
   }
   if (contextTypes.has("playground")) {
     return "playground";
