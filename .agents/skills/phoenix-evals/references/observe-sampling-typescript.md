@@ -113,7 +113,28 @@ const { traces: recentTraces } = await getTraces({
   limit: 50,
   includeSpans: true,
 });
+
+// Server-side error and latency filters (requires Phoenix server >= 20.8.0)
+const { traces: slowFailures } = await getTraces({
+  project: { projectName: "my-project" },
+  error: true, // only traces containing at least one errored span
+  minLatencyMs: 1000, // inclusive lower bound, milliseconds
+  limit: 50,
+});
+
+// The clean, slow traces — the ones that are wrong without crashing
+const { traces: quietAndSlow } = await getTraces({
+  project: { projectName: "my-project" },
+  error: false, // only traces with no errored spans
+  minLatencyMs: 5000,
+  maxLatencyMs: 30000, // inclusive upper bound
+  limit: 50,
+});
 ```
+
+`error: false` is a filter in its own right, not "unfiltered" — omit `error` to
+get every trace. Negative bounds, and a `minLatencyMs` above `maxLatencyMs`,
+throw client-side instead of returning an empty page.
 
 ## Building a Review Queue
 
