@@ -339,11 +339,11 @@ class TestTraceNoteMutations:
             {
                 "input": [
                     {
-                        "id": str(GlobalID("Trace", str(_trace_data.id))),
+                        "target": {"id": str(GlobalID("Trace", str(_trace_data.id)))},
                         "note": " node note ",
                     },
                     {
-                        "id": _trace_data.trace_id,
+                        "target": {"otelId": _trace_data.trace_id},
                         "note": "OTel note",
                         "identifier": " coding ",
                     },
@@ -386,11 +386,11 @@ class TestTraceNoteMutations:
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"id": node_id, "note": "draft", "identifier": "coding"},
-                    {"id": external_id, "note": "anonymous first"},
-                    {"id": external_id, "note": "other", "identifier": "other"},
-                    {"id": external_id, "note": "final", "identifier": " coding "},
-                    {"id": node_id, "note": "anonymous second", "identifier": "  "},
+                    {"target": {"id": node_id}, "note": "draft", "identifier": "coding"},
+                    {"target": {"otelId": external_id}, "note": "anonymous first"},
+                    {"target": {"otelId": external_id}, "note": "other", "identifier": "other"},
+                    {"target": {"otelId": external_id}, "note": "final", "identifier": " coding "},
+                    {"target": {"id": node_id}, "note": "anonymous second", "identifier": "  "},
                 ]
             },
         )
@@ -416,19 +416,35 @@ class TestTraceNoteMutations:
     ) -> None:
         first = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": _trace_data.trace_id, "note": "first"}]},
+            {"input": [{"target": {"otelId": _trace_data.trace_id}, "note": "first"}]},
         )
         second = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": _trace_data.trace_id, "note": "second"}]},
+            {"input": [{"target": {"otelId": _trace_data.trace_id}, "note": "second"}]},
         )
         upserted_first = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": _trace_data.trace_id, "note": "draft", "identifier": "coding"}]},
+            {
+                "input": [
+                    {
+                        "target": {"otelId": _trace_data.trace_id},
+                        "note": "draft",
+                        "identifier": "coding",
+                    }
+                ]
+            },
         )
         upserted_second = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": _trace_data.trace_id, "note": "final", "identifier": "coding"}]},
+            {
+                "input": [
+                    {
+                        "target": {"otelId": _trace_data.trace_id},
+                        "note": "final",
+                        "identifier": "coding",
+                    }
+                ]
+            },
         )
 
         for result in (first, second, upserted_first, upserted_second):
@@ -461,14 +477,16 @@ class TestTraceNoteMutations:
         assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
 
     @pytest.mark.parametrize(
-        "note_id, expected_message",
+        "target, expected_message",
         [
-            pytest.param("missing-trace", "Could not find traces", id="missing-otel-id"),
             pytest.param(
-                str(GlobalID("Trace", "404")), "Could not find traces", id="missing-node-id"
+                {"otelId": "missing-trace"}, "Could not find traces", id="missing-otel-id"
             ),
             pytest.param(
-                str(GlobalID("Span", "1")),
+                {"id": str(GlobalID("Trace", "404"))}, "Could not find traces", id="missing-node-id"
+            ),
+            pytest.param(
+                {"id": str(GlobalID("Span", "1"))},
                 "instead corresponds to a node of type: Span",
                 id="wrong-node-type",
             ),
@@ -478,12 +496,12 @@ class TestTraceNoteMutations:
         self,
         _trace_data: models.Trace,
         gql_client: AsyncGraphQLClient,
-        note_id: str,
+        target: dict[str, str],
         expected_message: str,
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": note_id, "note": "review"}]},
+            {"input": [{"target": target, "note": "review"}]},
         )
 
         assert result.data is None
@@ -497,7 +515,7 @@ class TestTraceNoteMutations:
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": _trace_data.trace_id, "note": " \t "}]},
+            {"input": [{"target": {"otelId": _trace_data.trace_id}, "note": " \t "}]},
         )
 
         assert result.data is None
@@ -512,7 +530,11 @@ class TestTraceNoteMutations:
     ) -> None:
         note_result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": _trace_data.trace_id, "note": "keep until valid delete"}]},
+            {
+                "input": [
+                    {"target": {"otelId": _trace_data.trace_id}, "note": "keep until valid delete"}
+                ]
+            },
         )
         assert note_result.data is not None
         assert not note_result.errors
@@ -583,7 +605,7 @@ class TestTraceNoteMutations:
     ) -> None:
         note_result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": _trace_data.trace_id, "note": "protected"}]},
+            {"input": [{"target": {"otelId": _trace_data.trace_id}, "note": "protected"}]},
         )
         assert note_result.data is not None
         assert not note_result.errors

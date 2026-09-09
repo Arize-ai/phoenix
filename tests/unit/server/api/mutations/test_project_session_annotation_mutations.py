@@ -1046,11 +1046,13 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "id": str(GlobalID("ProjectSession", str(project_session_data.id))),
+                        "target": {
+                            "id": str(GlobalID("ProjectSession", str(project_session_data.id)))
+                        },
                         "note": " node note ",
                     },
                     {
-                        "id": project_session_data.session_id,
+                        "target": {"sessionId": project_session_data.session_id},
                         "note": "session note",
                         "identifier": " coding ",
                     },
@@ -1095,11 +1097,15 @@ class TestProjectSessionNoteMutations:
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"id": node_id, "note": "draft", "identifier": "coding"},
-                    {"id": external_id, "note": "anonymous first"},
-                    {"id": external_id, "note": "other", "identifier": "other"},
-                    {"id": external_id, "note": "final", "identifier": " coding "},
-                    {"id": node_id, "note": "anonymous second", "identifier": "  "},
+                    {"target": {"id": node_id}, "note": "draft", "identifier": "coding"},
+                    {"target": {"sessionId": external_id}, "note": "anonymous first"},
+                    {"target": {"sessionId": external_id}, "note": "other", "identifier": "other"},
+                    {
+                        "target": {"sessionId": external_id},
+                        "note": "final",
+                        "identifier": " coding ",
+                    },
+                    {"target": {"id": node_id}, "note": "anonymous second", "identifier": "  "},
                 ]
             },
         )
@@ -1125,18 +1131,26 @@ class TestProjectSessionNoteMutations:
     ) -> None:
         first = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": project_session_data.session_id, "note": "first"}]},
+            {
+                "input": [
+                    {"target": {"sessionId": project_session_data.session_id}, "note": "first"}
+                ]
+            },
         )
         second = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": project_session_data.session_id, "note": "second"}]},
+            {
+                "input": [
+                    {"target": {"sessionId": project_session_data.session_id}, "note": "second"}
+                ]
+            },
         )
         upserted_first = await gql_client.execute(
             self._CREATE_NOTES,
             {
                 "input": [
                     {
-                        "id": project_session_data.session_id,
+                        "target": {"sessionId": project_session_data.session_id},
                         "note": "draft",
                         "identifier": "coding",
                     }
@@ -1148,7 +1162,7 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "id": project_session_data.session_id,
+                        "target": {"sessionId": project_session_data.session_id},
                         "note": "final",
                         "identifier": "coding",
                     }
@@ -1192,16 +1206,18 @@ class TestProjectSessionNoteMutations:
         assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
 
     @pytest.mark.parametrize(
-        "note_id, expected_message",
+        "target, expected_message",
         [
-            pytest.param("missing-session", "Could not find project sessions", id="missing-id"),
             pytest.param(
-                str(GlobalID("ProjectSession", "404")),
+                {"sessionId": "missing-session"}, "Could not find project sessions", id="missing-id"
+            ),
+            pytest.param(
+                {"id": str(GlobalID("ProjectSession", "404"))},
                 "Could not find project sessions",
                 id="missing-node-id",
             ),
             pytest.param(
-                str(GlobalID("Trace", "1")),
+                {"id": str(GlobalID("Trace", "1"))},
                 "instead corresponds to a node of type: Trace",
                 id="wrong-node-type",
             ),
@@ -1211,12 +1227,12 @@ class TestProjectSessionNoteMutations:
         self,
         project_session_data: models.ProjectSession,
         gql_client: AsyncGraphQLClient,
-        note_id: str,
+        target: dict[str, str],
         expected_message: str,
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": note_id, "note": "review"}]},
+            {"input": [{"target": target, "note": "review"}]},
         )
 
         assert result.data is None
@@ -1230,7 +1246,7 @@ class TestProjectSessionNoteMutations:
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": project_session_data.session_id, "note": " \t "}]},
+            {"input": [{"target": {"sessionId": project_session_data.session_id}, "note": " \t "}]},
         )
 
         assert result.data is None
@@ -1245,7 +1261,14 @@ class TestProjectSessionNoteMutations:
     ) -> None:
         note_result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": project_session_data.session_id, "note": "keep until valid delete"}]},
+            {
+                "input": [
+                    {
+                        "target": {"sessionId": project_session_data.session_id},
+                        "note": "keep until valid delete",
+                    }
+                ]
+            },
         )
         assert note_result.data is not None
         assert not note_result.errors
@@ -1348,7 +1371,11 @@ class TestProjectSessionNoteMutations:
 
         note_result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": project_session_data.session_id, "note": "protected"}]},
+            {
+                "input": [
+                    {"target": {"sessionId": project_session_data.session_id}, "note": "protected"}
+                ]
+            },
         )
         assert note_result.data is not None
         assert not note_result.errors

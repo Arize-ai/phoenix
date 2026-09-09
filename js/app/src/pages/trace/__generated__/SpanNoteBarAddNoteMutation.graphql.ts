@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<488f03ed562fa3d65902044e7c784514>>
+ * @generated SignedSource<<ad0a740fa7ccd748278f9f95149f3cd2>>
  * @lightSyntaxTransform
  */
 
@@ -9,9 +9,16 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type CreateSpanNoteInput = {
-  id: string;
   identifier?: string | null;
   note: string;
+  target: SpanIdentifierInput;
+};
+export type SpanIdentifierInput = {
+  id: string;
+  otelId?: never;
+} | {
+  id?: never;
+  otelId: string;
 };
 export type SpanNoteBarAddNoteMutation$variables = {
   input: ReadonlyArray<CreateSpanNoteInput>;
