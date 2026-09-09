@@ -986,7 +986,7 @@ input CreateProjectSessionAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON!
-  source: AnnotationSource! = APP
+  source: AnnotationSource!
   identifier: String
 }
 
@@ -994,6 +994,7 @@ input CreateProjectSessionNoteInput {
   target: ProjectSessionIdentifierInput!
   note: String!
   annotatorKind: AnnotatorKind!
+  source: AnnotationSource!
   identifier: String
 }
 
@@ -1044,6 +1045,7 @@ input CreateSpanNoteInput {
   target: SpanIdentifierInput!
   note: String!
   annotatorKind: AnnotatorKind!
+  source: AnnotationSource!
   identifier: String
 }
 
@@ -1069,6 +1071,7 @@ input CreateTraceNoteInput {
   target: TraceIdentifierInput!
   note: String!
   annotatorKind: AnnotatorKind!
+  source: AnnotationSource!
   identifier: String
 }
 
@@ -4999,7 +5002,7 @@ input UpdateAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON!
-  source: AnnotationSource! = APP
+  source: AnnotationSource!
 }
 
 input UpdateDatasetBuiltinEvaluatorInput {

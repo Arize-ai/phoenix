@@ -18,7 +18,7 @@ class CreateProjectSessionAnnotationInput:
     score: Optional[float] = None
     explanation: Optional[str] = None
     metadata: JSON
-    source: AnnotationSource = AnnotationSource.APP
+    source: AnnotationSource
     identifier: Optional[str] = strawberry.UNSET
 
     def __post_init__(self) -> None:
