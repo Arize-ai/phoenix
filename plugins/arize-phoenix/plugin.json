@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "arize-phoenix",
   "version": "0.1.0+codex.20260909221629",
-  "description": "Connect coding agents to Phoenix observability, evaluations, and tracing workflows.",
+  "description": "Investigate and manage traces, datasets, experiments, prompts, and annotations in Phoenix.",
   "author": {
     "name": "Arize AI",
     "email": "oss@arize.com",
@@ -22,8 +22,8 @@
     "com.openai": {
       "interface": {
         "displayName": "Arize Phoenix",
-        "shortDescription": "Observe, evaluate, and debug AI applications.",
-        "longDescription": "Connect Codex to Phoenix traces, datasets, experiments, and evaluations through the Phoenix MCP server.",
+        "shortDescription": "Debug AI applications with Phoenix data.",
+        "longDescription": "Investigate failures, inspect traces and sessions, compare experiments, and manage datasets, prompts, and annotations in your Phoenix instance.",
         "developerName": "Arize AI",
         "category": "Developer Tools",
         "capabilities": [
@@ -32,9 +32,9 @@
         ],
         "websiteURL": "https://arize.com/phoenix/",
         "defaultPrompt": [
-          "Analyze my Phoenix traces and find the root cause.",
-          "Help me build an evaluator for this AI application.",
-          "Instrument this application with Phoenix tracing."
+          "Find failed traces from the last 24 hours and summarize the most common errors.",
+          "Compare my two latest experiments on evaluation scores, latency, and cost.",
+          "Show me the slowest LLM spans in my project and identify likely bottlenecks."
         ],
         "brandColor": "#F14B5A",
         "logo": "./assets/logo.svg"
