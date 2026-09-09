@@ -66,3 +66,10 @@ MCP registration, so CLI conditions cannot inherit an MCP server. Network defaul
 are closed. This staging command does not configure a runnable trial: trusted
 truth/audit transfer and condition access must be attached by the pending runner.
 The verifier emits no authoritative reward without trusted evidence.
+
+`make mcp-matrix ARGS='--tasks /private/tasks --output /private/jobs --target http://target:6006'`
+serializes four Harbor jobs plus separate plugin kwargs. Use the native plugin
+flag `--plugin arize-phoenix` when the runner is completed; Harbor ignores the old
+YAML `plugins` field. The JSON artifacts contain no credentials and do not launch
+anything. This layer still needs condition-specific images and trusted lifecycle
+integration before these configurations can become valid benchmark trials.

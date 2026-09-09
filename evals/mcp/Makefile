@@ -43,3 +43,7 @@ mcp-isolation-probe:
 .PHONY: mcp-stage-task
 mcp-stage-task:
 	$(MCP_PYTHON) $(MCP_DIR)/stage_task.py $(ARGS)
+
+.PHONY: mcp-matrix
+mcp-matrix:
+	$(MCP_PYTHON) $(MCP_DIR)/matrix.py $(ARGS)
