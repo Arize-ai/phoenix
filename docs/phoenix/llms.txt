@@ -131,6 +131,7 @@
 - [Faithfulness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/faithfulness): Evaluate whether LLM responses are faithful to the provided context
 - [Hallucination](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/hallucination): Detect claims unsupported by the conversation, including fabricated tool results
 - [Matches Regex](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/matches-regex): Evaluate if output matches a regular expression pattern
+- [PII Detection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/pii-detection): Screen conversation text for personally identifiable information and list each finding
 - [Precision / Recall / F-Score](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore): Compute precision, recall, and F-beta scores for classification tasks
 - [Refusal](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/refusal): Detect when an LLM refuses or declines to answer a user query
 - [Retrieval Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance): Score whether retrieved context — RAG, tool, MCP, or web search — is relevant to the request
@@ -495,11 +496,13 @@
 - [Phoenix Client Document Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/document-annotations): Log document-level annotations for RAG evaluation via @arizeai/phoenix-client
 - [Phoenix Client Experiments (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments): Run experiments via @arizeai/phoenix-client
 - [Phoenix Client Prompts (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts): Manage prompts via @arizeai/phoenix-client
+- [Phoenix Client Projects (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/projects): List projects and assign trace retention policies via @arizeai/phoenix-client
 - [Phoenix Client Session Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/session-annotations): Log session-level annotations for conversation evaluation via @arizeai/phoenix-client
 - [Phoenix Client Sessions (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions): Work with sessions via @arizeai/phoenix-client
 - [Phoenix Client Span Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/span-annotations): Log and retrieve span-level annotations via @arizeai/phoenix-client
 - [Phoenix Client Spans (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/spans): Search and manage spans via @arizeai/phoenix-client
 - [Phoenix Client Traces (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/traces): Retrieve traces via @arizeai/phoenix-client
+- [Phoenix Client Users (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/users): Identify the user behind the current credentials via @arizeai/phoenix-client
 - [CI Eval Tests (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals): Run dataset-backed Phoenix evaluations as Vitest or Jest tests via @arizeai/phoenix-client
 - [CI Eval Test Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations): Record annotations and evaluator results on experiment runs via @arizeai/phoenix-client
 - [CI Eval Tests: Vitest (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest): Wire @arizeai/phoenix-client/vitest into a Vitest project
@@ -840,6 +843,8 @@
 - [08.11.2026: Persistent Agent Sessions](https://arize.com/docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions): Agent conversations persist server-side — browse, restore, rewind, branch, and compact them from the browser or the pxi terminal client
 - [08.12.2026: Session Filter Expressions, REST API Expansion, and Endpoint Configuration](https://arize.com/docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config): Filter sessions with a full expression language, manage dataset splits and experiment tags over REST, transfer traces between projects, and point every SDK at PHOENIX_ENDPOINT
 - [08.17.2026: Trace Filter Expressions and Analytics SQL](https://arize.com/docs/phoenix/release-notes/08-2026/08-17-2026-trace-filters-and-analytics-sql): Filter the traces table with a full expression language and query Phoenix with read-only SQL over MCP
+- [08.25.2026: Smarter PXI Workflows and Retrieval Evaluation](https://arize.com/docs/phoenix/release-notes/08-2026/08-25-2026-pxi-browser-actions-and-retrieval-relevance): Run approval-gated multi-step PXI workflows across the UI and score retrievals from any source
+- [09.01.2026: GitHub Issues from PXI, PII Detection, and Client Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates): File GitHub issues from PXI, screen conversations for PII, and create prompt versions over REST
 
 ### 2025
 
