@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f4542454a7cda1de7ba57f507f31f16e>>
+ * @generated SignedSource<<90a95af13825c17d3581ee2baa003b5f>>
  * @lightSyntaxTransform
  */
 
@@ -302,6 +302,13 @@ return {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "failedCount",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "droppedCount",
                           "storageKey": null
                         }
                       ],
