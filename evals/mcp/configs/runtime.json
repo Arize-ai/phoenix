@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "phoenix_revision": "e2e514329b5b93c912d6d2e8cea478e96211b115",
+  "harbor_version": "0.22.0",
+  "python_version": "3.13",
+  "client_version": "3.4.0",
+  "evals_version": "3.6.0",
+  "trace_mode": "atif",
+  "backend": "docker",
+  "concurrency": 1,
+  "models": {"claude-code": "opus-5", "codex": "gpt-5.6"},
+  "results_endpoint": "http://localhost:6006"
+}

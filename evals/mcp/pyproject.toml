@@ -1,0 +1,26 @@
+[project]
+name = "phoenix-mcp-benchmark"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "harbor==0.22.0",
+  "arize-phoenix-client[harbor]==3.4.0",
+  "arize-phoenix-evals==3.6.0",
+  "datasets==4.8.5",
+  "pytest==8.4.2",
+  "pytest-asyncio==1.2.0",
+  "respx==0.22.0",
+  "ruff==0.12.12",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]

@@ -557,3 +557,5 @@ clean-all: clean ## Clean everything including node_modules
 	@find $(JS_DIR) -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
 	@rm -rf .venv
 	@echo -e "$(GREEN)✓ Done$(NC)"
+
+include evals/mcp/Makefile
