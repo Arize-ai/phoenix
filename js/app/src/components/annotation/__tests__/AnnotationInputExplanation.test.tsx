@@ -3,8 +3,8 @@ import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { userEvent } from "storybook/test";
 
-import type { Annotation } from "../types";
 import { AnnotationInputExplanation } from "../AnnotationInputExplanation";
+import type { Annotation } from "../types";
 
 const annotation: Annotation = {
   id: "ann-1",
@@ -67,7 +67,8 @@ describe("AnnotationInputExplanation", () => {
       "EMOTION_STYLES:",
       document.querySelectorAll("style[data-emotion]").length
     );
-    const hasPosition = style.includes("position") || className.includes("css-");
+    const hasPosition =
+      style.includes("position") || className.includes("css-");
     expect(hasPosition).toBe(true);
   });
 });

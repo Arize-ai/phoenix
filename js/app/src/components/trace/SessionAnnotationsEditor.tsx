@@ -652,9 +652,7 @@ function SessionAnnotationsList(props: {
       )}
       {!!annotationConfigsLength && (
         <FocusScope>
-          <FocusHotkey
-            hotkey={EDIT_ANNOTATION_HOTKEY}
-                      />
+          <FocusHotkey hotkey={EDIT_ANNOTATION_HOTKEY} />
           {annotationConfigs?.map((annotationConfig, idx) => {
             const annotation = annotations.find(
               (annotation) => annotation.name === annotationConfig.config.name
