@@ -328,8 +328,10 @@ class TestTraceNoteMutations:
     }
     """
 
+    @pytest.mark.parametrize("annotator_kind", ["HUMAN", "LLM", "CODE"])
     async def test_create_by_node_and_otel_id_preserves_note_semantics(
         self,
+        annotator_kind: str,
         _trace_data: models.Trace,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -340,10 +342,12 @@ class TestTraceNoteMutations:
                 "input": [
                     {
                         "target": {"id": str(GlobalID("Trace", str(_trace_data.id)))},
+                        "annotatorKind": annotator_kind,
                         "note": " node note ",
                     },
                     {
                         "target": {"otelId": _trace_data.trace_id},
+                        "annotatorKind": annotator_kind,
                         "note": "OTel note",
                         "identifier": " coding ",
                     },
@@ -358,7 +362,7 @@ class TestTraceNoteMutations:
         assert all(note["name"] == "note" for note in notes)
         assert all(note["label"] is None for note in notes)
         assert all(note["score"] is None for note in notes)
-        assert all(note["annotatorKind"] == "HUMAN" for note in notes)
+        assert all(note["annotatorKind"] == annotator_kind for note in notes)
         assert all(note["metadata"] == {} for note in notes)
         assert all(note["source"] == "APP" for note in notes)
         assert notes[0]["identifier"].startswith("px-trace-note:")
@@ -373,6 +377,7 @@ class TestTraceNoteMutations:
         assert len(stored_notes) == 2
         assert all(note.trace_rowid == _trace_data.id for note in stored_notes)
         assert all(note.user_id is None for note in stored_notes)
+        assert all(note.annotator_kind == annotator_kind for note in stored_notes)
 
     async def test_batch_preserves_order_and_returns_final_state_for_duplicate_keys(
         self,
@@ -386,11 +391,35 @@ class TestTraceNoteMutations:
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": {"id": node_id}, "note": "draft", "identifier": "coding"},
-                    {"target": {"otelId": external_id}, "note": "anonymous first"},
-                    {"target": {"otelId": external_id}, "note": "other", "identifier": "other"},
-                    {"target": {"otelId": external_id}, "note": "final", "identifier": " coding "},
-                    {"target": {"id": node_id}, "note": "anonymous second", "identifier": "  "},
+                    {
+                        "target": {"id": node_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "draft",
+                        "identifier": "coding",
+                    },
+                    {
+                        "target": {"otelId": external_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "anonymous first",
+                    },
+                    {
+                        "target": {"otelId": external_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "other",
+                        "identifier": "other",
+                    },
+                    {
+                        "target": {"otelId": external_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "final",
+                        "identifier": " coding ",
+                    },
+                    {
+                        "target": {"id": node_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "anonymous second",
+                        "identifier": "  ",
+                    },
                 ]
             },
         )
@@ -416,11 +445,27 @@ class TestTraceNoteMutations:
     ) -> None:
         first = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": {"otelId": _trace_data.trace_id}, "note": "first"}]},
+            {
+                "input": [
+                    {
+                        "target": {"otelId": _trace_data.trace_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "first",
+                    }
+                ]
+            },
         )
         second = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": {"otelId": _trace_data.trace_id}, "note": "second"}]},
+            {
+                "input": [
+                    {
+                        "target": {"otelId": _trace_data.trace_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "second",
+                    }
+                ]
+            },
         )
         upserted_first = await gql_client.execute(
             self._CREATE_NOTES,
@@ -428,6 +473,7 @@ class TestTraceNoteMutations:
                 "input": [
                     {
                         "target": {"otelId": _trace_data.trace_id},
+                        "annotatorKind": "HUMAN",
                         "note": "draft",
                         "identifier": "coding",
                     }
@@ -440,6 +486,7 @@ class TestTraceNoteMutations:
                 "input": [
                     {
                         "target": {"otelId": _trace_data.trace_id},
+                        "annotatorKind": "LLM",
                         "note": "final",
                         "identifier": "coding",
                     }
@@ -475,6 +522,7 @@ class TestTraceNoteMutations:
             )
         assert len(notes) == 3
         assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
+        assert [note.annotator_kind for note in notes if note.identifier == "coding"] == ["LLM"]
 
     @pytest.mark.parametrize(
         "target, expected_message",
@@ -501,7 +549,7 @@ class TestTraceNoteMutations:
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": target, "note": "review"}]},
+            {"input": [{"target": target, "annotatorKind": "HUMAN", "note": "review"}]},
         )
 
         assert result.data is None
@@ -515,7 +563,15 @@ class TestTraceNoteMutations:
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": {"otelId": _trace_data.trace_id}, "note": " \t "}]},
+            {
+                "input": [
+                    {
+                        "target": {"otelId": _trace_data.trace_id},
+                        "annotatorKind": "HUMAN",
+                        "note": " \t ",
+                    }
+                ]
+            },
         )
 
         assert result.data is None
@@ -532,7 +588,11 @@ class TestTraceNoteMutations:
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": {"otelId": _trace_data.trace_id}, "note": "keep until valid delete"}
+                    {
+                        "target": {"otelId": _trace_data.trace_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "keep until valid delete",
+                    }
                 ]
             },
         )
@@ -605,7 +665,15 @@ class TestTraceNoteMutations:
     ) -> None:
         note_result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": {"otelId": _trace_data.trace_id}, "note": "protected"}]},
+            {
+                "input": [
+                    {
+                        "target": {"otelId": _trace_data.trace_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "protected",
+                    }
+                ]
+            },
         )
         assert note_result.data is not None
         assert not note_result.errors
