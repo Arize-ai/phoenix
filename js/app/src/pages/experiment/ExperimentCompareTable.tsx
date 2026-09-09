@@ -165,6 +165,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               comparison: node {
                 example {
                   id
+                  externalId
                   revision {
                     input
                     referenceOutput: output
@@ -355,7 +356,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         enableSorting: false,
         cell: ({ row }) => (
           <ExperimentInputCell
-            exampleId={row.original.example.id}
+            exampleId={
+              row.original.example.externalId ?? row.original.example.id
+            }
             value={row.original.input}
             height={cellContentHeight}
             onExpand={() => {
@@ -708,6 +711,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 datasetVersionId={baseExperiment.datasetVersion.id}
                 selectedExampleIndex={selectedExampleIndex}
                 selectedExampleId={exampleIds[selectedExampleIndex]}
+                selectedExampleExternalId={
+                  tableData[selectedExampleIndex].example.externalId
+                }
                 baseExperimentId={baseExperimentId}
                 compareExperimentIds={compareExperimentIds}
                 exampleIds={exampleIds}
