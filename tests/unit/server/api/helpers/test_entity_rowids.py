@@ -13,8 +13,9 @@ from phoenix.server.api.helpers.entity_rowids import (
     resolve_trace_rowids,
 )
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
-Resolver = Callable[[AsyncSession, Sequence[str]], Awaitable[list[int]]]
+Resolver = Callable[[AsyncSession, Sequence[GlobalID | str]], Awaitable[list[int]]]
 
 
 @pytest.fixture
@@ -79,7 +80,11 @@ async def test_resolve_span_rowids_preserves_mixed_input_order(
     note_targets: tuple[list[models.ProjectSession], list[models.Trace], list[models.Span]],
 ) -> None:
     _, _, spans = note_targets
-    refs = [str(GlobalID("Span", str(spans[1].id))), spans[0].span_id, spans[0].span_id]
+    refs: list[GlobalID | str] = [
+        GlobalID("Span", str(spans[1].id)),
+        spans[0].span_id,
+        spans[0].span_id,
+    ]
 
     async with db() as session:
         rowids = await resolve_span_rowids(session, refs)
@@ -92,7 +97,7 @@ async def test_resolve_trace_rowids_preserves_mixed_input_order(
     note_targets: tuple[list[models.ProjectSession], list[models.Trace], list[models.Span]],
 ) -> None:
     _, traces, _ = note_targets
-    refs = [traces[1].trace_id, str(GlobalID("Trace", str(traces[0].id)))]
+    refs: list[GlobalID | str] = [traces[1].trace_id, GlobalID("Trace", str(traces[0].id))]
 
     async with db() as session:
         rowids = await resolve_trace_rowids(session, refs)
@@ -105,8 +110,8 @@ async def test_resolve_project_session_rowids_preserves_mixed_input_order(
     note_targets: tuple[list[models.ProjectSession], list[models.Trace], list[models.Span]],
 ) -> None:
     project_sessions, _, _ = note_targets
-    refs = [
-        str(GlobalID("ProjectSession", str(project_sessions[1].id))),
+    refs: list[GlobalID | str] = [
+        GlobalID("ProjectSession", str(project_sessions[1].id)),
         project_sessions[0].session_id,
     ]
 
@@ -150,8 +155,103 @@ async def test_resolve_rowids_rejects_global_id_of_wrong_type(
     resolver: Resolver,
     wrong_type: str,
 ) -> None:
-    ref = str(GlobalID(wrong_type, "1"))
+    ref = GlobalID(wrong_type, "1")
 
     with pytest.raises(BadRequest, match="instead corresponds to a node of type"):
         async with db() as session:
             await resolver(session, [ref])
+
+
+@pytest.mark.parametrize(
+    "mutation_name, input_type, external_field",
+    [
+        ("createSpanNotes", "CreateSpanNoteInput", "otelId"),
+        ("createTraceNotes", "CreateTraceNoteInput", "otelId"),
+        ("createProjectSessionNotes", "CreateProjectSessionNoteInput", "sessionId"),
+    ],
+)
+@pytest.mark.parametrize(
+    "invalid_target, expected_error",
+    [
+        ("empty", "OneOf"),
+        ("both", "OneOf"),
+        ("null-id", "must be non-null"),
+        ("null-external", "must be non-null"),
+    ],
+)
+async def test_note_target_requires_exactly_one_non_null_identifier(
+    gql_client: AsyncGraphQLClient,
+    mutation_name: str,
+    input_type: str,
+    external_field: str,
+    invalid_target: str,
+    expected_error: str,
+) -> None:
+    targets = {
+        "empty": {},
+        "both": {"id": str(GlobalID("Span", "1")), external_field: "external-id"},
+        "null-id": {"id": None},
+        "null-external": {external_field: None},
+    }
+    result = await gql_client.execute(
+        f"""
+        mutation CreateNotes($input: [{input_type}!]!) {{
+          {mutation_name}(input: $input) {{ __typename }}
+        }}
+        """,
+        {"input": [{"target": targets[invalid_target], "note": "review"}]},
+    )
+
+    assert result.data is None
+    assert result.errors
+    assert any(expected_error in error.message for error in result.errors)
+
+
+@pytest.mark.parametrize("raw_id_kind", ["session-node-id", "other-node-id", "whitespace"])
+async def test_session_note_target_preserves_literal_session_id(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    note_targets: tuple[list[models.ProjectSession], list[models.Trace], list[models.Span]],
+    raw_id_kind: str,
+) -> None:
+    project_sessions, _, _ = note_targets
+    first, second = project_sessions
+    raw_id = {
+        "session-node-id": str(GlobalID("ProjectSession", str(first.id))),
+        "other-node-id": str(GlobalID("Trace", "1")),
+        "whitespace": " session with spaces ",
+    }[raw_id_kind]
+    async with db() as session:
+        stored_session = await session.get(models.ProjectSession, second.id)
+        assert stored_session is not None
+        stored_session.session_id = raw_id
+
+    result = await gql_client.execute(
+        """
+        mutation CreateNotes($input: [CreateProjectSessionNoteInput!]!) {
+          createProjectSessionNotes(input: $input) {
+            projectSessionAnnotations { id }
+          }
+        }
+        """,
+        {
+            "input": [
+                {"target": {"sessionId": raw_id}, "note": "raw session"},
+                {
+                    "target": {"id": str(GlobalID("ProjectSession", str(first.id)))},
+                    "note": "node session",
+                },
+            ]
+        },
+    )
+
+    assert result.data is not None
+    assert not result.errors
+    notes = result.data["createProjectSessionNotes"]["projectSessionAnnotations"]
+    async with db() as session:
+        for note, expected_rowid in zip(notes, [second.id, first.id]):
+            stored_note = await session.get(
+                models.ProjectSessionAnnotation, int(GlobalID.from_id(note["id"]).node_id)
+            )
+            assert stored_note is not None
+            assert stored_note.project_session_id == expected_rowid

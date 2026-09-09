@@ -149,7 +149,7 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
     setNoteText("");
     addNote({
       variables: {
-        input: [{ id: spanNodeId, note }],
+        input: [{ target: { id: spanNodeId }, note }],
         spanNodeId,
       },
       onError: (error) => {

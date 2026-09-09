@@ -991,8 +991,7 @@ input CreateProjectSessionAnnotationInput {
 }
 
 input CreateProjectSessionNoteInput {
-  """The session's Relay node ID or raw session ID."""
-  id: ID!
+  target: ProjectSessionIdentifierInput!
   note: String!
   identifier: String
 }
@@ -1041,8 +1040,7 @@ input CreateSpanAnnotationInput {
 }
 
 input CreateSpanNoteInput {
-  """The span's Relay node ID or OpenTelemetry span ID."""
-  id: ID!
+  target: SpanIdentifierInput!
   note: String!
   identifier: String
 }
@@ -1066,8 +1064,7 @@ input CreateTraceAnnotationInput {
 }
 
 input CreateTraceNoteInput {
-  """The trace's Relay node ID or OpenTelemetry trace ID."""
-  id: ID!
+  target: TraceIdentifierInput!
   note: String!
   identifier: String
 }
@@ -3333,6 +3330,14 @@ type ProjectSessionEdge {
   node: ProjectSession!
 }
 
+input ProjectSessionIdentifierInput @oneOf {
+  """The session's Phoenix Relay node ID."""
+  id: ID
+
+  """The raw session.id value supplied by the application, matched exactly."""
+  sessionId: String
+}
+
 """The sort key and direction for ProjectSession connections."""
 input ProjectSessionSort {
   col: ProjectSessionColumn
@@ -4530,6 +4535,14 @@ type SpanIOValue {
   value: String!
 }
 
+input SpanIdentifierInput @oneOf {
+  """The span's Phoenix Relay node ID."""
+  id: ID
+
+  """The span's OpenTelemetry span ID, matched exactly."""
+  otelId: String
+}
+
 enum SpanKind {
   chain
   tool
@@ -4869,6 +4882,14 @@ type TraceEdge {
 
   """The item at the end of the edge"""
   node: Trace!
+}
+
+input TraceIdentifierInput @oneOf {
+  """The trace's Phoenix Relay node ID."""
+  id: ID
+
+  """The trace's OpenTelemetry trace ID, matched exactly."""
+  otelId: String
 }
 
 type TraceLatencyMsPercentileTimeSeriesDataPoint {

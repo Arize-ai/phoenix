@@ -158,7 +158,7 @@ class TraceAnnotationMutationMixin:
 
         async with info.context.db() as session:
             trace_rowids = await resolve_trace_rowids(
-                session, [str(note_input.id) for note_input in input]
+                session, [note_input.target.reference for note_input in input]
             )
             records: list[dict[str, Any]] = [
                 {
