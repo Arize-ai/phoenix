@@ -173,3 +173,21 @@ If however you run a prompt over dataset examples, the outputs and spans from yo
 <Frame caption="If you run over a dataset, the output and traces is tracked as a dataset experiment">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/93a48c27-image.jpeg" />
 </Frame>
+
+
+## Comparing evaluators
+
+Select **Evaluators** at the top of the playground to test LLM and code evaluators against a shared dataset sample. You can also open an evaluator in the playground from the evaluators table or a dataset evaluator's actions.
+
+1. Select a dataset and optional split. Use **Run settings** to choose a sample size from 1 to 500 examples (default: 20).
+2. In slot A, load an existing evaluator or start a new LLM or code evaluator. Configure its **Prompt** or **Code**, **Input mapping**, and **Output** tabs. Code evaluators require a configured sandbox.
+3. Click **Compare** to add slot B. Each slot can use a different evaluator type. Select one categorical output per slot and use the same label set for comparison.
+4. Click **Run**, or run a slot independently. Inspect labels, explanations, and row errors in the results table.
+5. Set an **Expected label** for examples you review, or click **Accept A** to accept A's prediction. Edit the evaluator and rerun the sample to check agreement.
+6. Give the evaluator a new name in **Output**, then click **Save as new** to save a copy attached to the selected dataset.
+
+In evaluator mode, dataset `output` is the response being judged. The `reference` context starts empty. Use **Input mapping** to point evaluator variables at a separate reference field when needed. Saved calibration labels are excluded from the evaluator's metadata context.
+
+**B vs A** measures exact label agreement with A as the baseline. Each slot also reports agreement with your expected labels. Errors and missing predictions count as non-agreements. These percentages describe the selected sample.
+
+Expected labels are saved on dataset examples, keyed by the selected output name, and shared across evaluators that use that name. Editing an example's input, output, or other metadata invalidates its previous review. Drafts and run results are temporary; save evaluator copies before leaving. **Stop** stops scheduling new requests, but requests already running may finish.

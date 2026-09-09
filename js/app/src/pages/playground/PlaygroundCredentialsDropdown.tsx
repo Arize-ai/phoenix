@@ -33,6 +33,10 @@ import {
 
 import type { PlaygroundCredentialsDropdownQuery } from "./__generated__/PlaygroundCredentialsDropdownQuery.graphql";
 
+/**
+ * The API Keys dropdown for the prompt playground, showing credential fields
+ * for the providers its instances use.
+ */
 export function PlaygroundCredentialsDropdown() {
   const currentProviders = usePlaygroundContext((state) =>
     Array.from(
@@ -42,7 +46,24 @@ export function PlaygroundCredentialsDropdown() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+  return (
+    <CredentialsDropdown providers={currentProviders} isDisabled={isRunning} />
+  );
+}
 
+/**
+ * The API Keys dropdown itself. Credentials are stored globally, so any
+ * surface that knows which providers are in play can render this — including
+ * pages that host several playground stores at once.
+ */
+export function CredentialsDropdown({
+  providers: currentProviders,
+  isDisabled = false,
+}: {
+  providers: ModelProvider[];
+  /** Locks the keys while a run that depends on them is in flight. */
+  isDisabled?: boolean;
+}) {
   const [credentialView, setCredentialView] = useState<"local" | "server">(
     "local"
   );
@@ -58,7 +79,7 @@ export function PlaygroundCredentialsDropdown() {
       <DialogTrigger>
         <Button
           size="S"
-          isDisabled={isRunning}
+          isDisabled={isDisabled}
           leadingVisual={<Icon svg={<Icons.Key />} />}
         >
           API Keys
@@ -100,7 +121,10 @@ export function PlaygroundCredentialsDropdown() {
                     </SegmentedControl>
                   </Flex>
                   {credentialView === "local" ? (
-                    <LocalCredentialsView providers={currentProviders} />
+                    <LocalCredentialsView
+                      providers={currentProviders}
+                      isDisabled={isDisabled}
+                    />
                   ) : (
                     <Suspense fallback={<ServerCredentialsSkeleton />}>
                       <ServerCredentialsView providers={currentProviders} />
@@ -152,7 +176,13 @@ function ServerCredentialsSkeleton() {
   );
 }
 
-function LocalCredentialsView({ providers }: { providers: ModelProvider[] }) {
+function LocalCredentialsView({
+  providers,
+  isDisabled,
+}: {
+  providers: ModelProvider[];
+  isDisabled: boolean;
+}) {
   return (
     <>
       <View paddingY="size-50">
@@ -178,7 +208,10 @@ function LocalCredentialsView({ providers }: { providers: ModelProvider[] }) {
                 </Heading>
               </Flex>
               <View paddingBottom="size-100" paddingTop="size-100">
-                <ProviderCredentials provider={provider} />
+                <ProviderCredentials
+                  provider={provider}
+                  isDisabled={isDisabled}
+                />
               </View>
             </View>
           );
@@ -286,13 +319,16 @@ function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
   );
 }
 
-function ProviderCredentials({ provider }: { provider: ModelProvider }) {
+function ProviderCredentials({
+  provider,
+  isDisabled,
+}: {
+  provider: ModelProvider;
+  isDisabled: boolean;
+}) {
   const setCredential = useCredentialsContext((state) => state.setCredential);
   const credentialsConfig = ProviderToCredentialsConfigMap[provider];
   const credentials = useCredentialsContext((state) => state[provider]);
-  const isRunning = usePlaygroundContext((state) =>
-    state.instances.some((instance) => instance.activeRunId != null)
-  );
   return (
     <View>
       {credentialsConfig.map((credentialConfig) => (
@@ -308,7 +344,7 @@ function ProviderCredentials({ provider }: { provider: ModelProvider }) {
             });
           }}
           value={credentials?.[credentialConfig.envVarName] ?? ""}
-          isDisabled={isRunning}
+          isDisabled={isDisabled}
         >
           <Label>{credentialConfig.envVarName}</Label>
           <CredentialInput />

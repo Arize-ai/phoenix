@@ -21,6 +21,10 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_metadata,
     get_dataset_example_output,
 )
+from phoenix.server.api.helpers.evaluator_calibration import (
+    CALIBRATION_METADATA_KEY,
+    calibration_source_hash,
+)
 from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
@@ -31,8 +35,12 @@ from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
     PatchDatasetExamplesInput,
 )
 from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
+from phoenix.server.api.input_types.SetDatasetExampleCalibrationLabelInput import (
+    SetDatasetExampleCalibrationLabelInput,
+)
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
@@ -44,6 +52,13 @@ _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
 @strawberry.type
 class DatasetMutationPayload:
     dataset: Dataset
+
+
+@strawberry.type
+class DatasetExampleCalibrationLabelPayload:
+    dataset: Dataset
+    example: DatasetExample
+    revision: DatasetExampleRevision
 
 
 @strawberry.type
@@ -499,6 +514,90 @@ class DatasetMutationMixin:
             )
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def set_dataset_example_calibration_label(
+        self,
+        info: Info[Context, None],
+        input: SetDatasetExampleCalibrationLabelInput,
+    ) -> DatasetExampleCalibrationLabelPayload:
+        dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
+        example_id = from_global_id_with_expected_type(input.example_id, DatasetExample.__name__)
+        expected_revision_id = from_global_id_with_expected_type(
+            input.expected_revision_id, DatasetExampleRevision.__name__
+        )
+        async with info.context.db() as session:
+            # A write lock serializes calibration updates on both SQLite and PostgreSQL.
+            example = await session.scalar(
+                update(models.DatasetExample)
+                .where(
+                    models.DatasetExample.id == example_id,
+                    models.DatasetExample.dataset_id == dataset_id,
+                )
+                .values(dataset_id=models.DatasetExample.dataset_id)
+                .returning(models.DatasetExample)
+            )
+            if example is None:
+                raise NotFound("Example not found in the selected dataset.")
+            revision = await session.scalar(
+                select(models.DatasetExampleRevision)
+                .where(models.DatasetExampleRevision.dataset_example_id == example_id)
+                .order_by(models.DatasetExampleRevision.id.desc())
+                .limit(1)
+            )
+            if revision is None or revision.revision_kind == "DELETE":
+                raise NotFound("Example not found.")
+            if revision.id != expected_revision_id:
+                raise Conflict("This example has changed. Reload it before saving a label.")
+            metadata = dict(revision.metadata_)
+            calibration = metadata.get(CALIBRATION_METADATA_KEY, {})
+            if not isinstance(calibration, dict) or calibration.get("schemaVersion", 1) != 1:
+                raise BadRequest("Unsupported calibration metadata format.")
+            labels = calibration.get("labels", {})
+            if not isinstance(labels, dict):
+                raise BadRequest("Unsupported calibration labels format.")
+            labels = dict(labels)
+            if input.label is None:
+                labels.pop(input.annotation_name, None)
+            else:
+                labels[input.annotation_name] = {
+                    "label": input.label,
+                    "sourceHash": calibration_source_hash(
+                        revision.input, revision.output, revision.metadata_
+                    ),
+                    "sourceRevisionId": str(input.expected_revision_id),
+                    "annotatorKind": "HUMAN",
+                    "userId": info.context.user_id,
+                }
+            metadata[CALIBRATION_METADATA_KEY] = {
+                **calibration,
+                "schemaVersion": 1,
+                "labels": labels,
+            }
+            version = models.DatasetVersion(
+                dataset_id=dataset_id,
+                description="Update evaluator calibration label",
+                metadata_={},
+                user_id=info.context.user_id,
+            )
+            session.add(version)
+            await session.flush()
+            updated_revision = models.DatasetExampleRevision(
+                dataset_example_id=example_id,
+                dataset_version_id=version.id,
+                input=revision.input,
+                output=revision.output,
+                metadata_=metadata,
+                revision_kind="PATCH",
+            )
+            session.add(updated_revision)
+            await session.flush()
+        info.context.event_queue.put(DatasetInsertEvent((dataset_id,)))
+        return DatasetExampleCalibrationLabelPayload(
+            dataset=Dataset(id=dataset_id),
+            example=DatasetExample(id=example_id, db_record=example, version_id=version.id),
+            revision=DatasetExampleRevision.from_orm_revision(updated_revision),
+        )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def delete_dataset_examples(

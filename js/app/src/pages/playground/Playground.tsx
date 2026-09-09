@@ -137,6 +137,7 @@ import {
 } from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
 import { PlaygroundInput } from "./PlaygroundInput";
+import { PlaygroundModeSelect } from "./PlaygroundModeSelect";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
@@ -208,6 +209,7 @@ export function Playground(
         <View borderBottomColor="default" borderBottomWidth="thin">
           <PageHeader
             title="Playground"
+            subTitle={<PlaygroundModeSelect />}
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 <PlaygroundCredentialsDropdown />

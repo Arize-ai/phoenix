@@ -928,7 +928,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Playground",
               description:
-                "Experiment in the prompt playground with prompts, models, variables, and prompt runs. Supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                "Experiment with prompts or compare LLM and code evaluators on a dataset. Evaluator mode supports mode=evaluators, compare=true, evaluatorA/evaluatorB or datasetEvaluatorA/datasetEvaluatorB, datasetId, splitId, sampleSize, and reviewFilter. Prompt mode supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
             },
             navigation: {
               section: "Pages",
@@ -946,7 +946,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Playground",
                 description:
-                  "Experiment in the prompt playground with prompts, models, variables, and prompt runs. Supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                  "Experiment with prompts or compare LLM and code evaluators on a dataset. Evaluator mode supports mode=evaluators, compare=true, evaluatorA/evaluatorB or datasetEvaluatorA/datasetEvaluatorB, datasetId, splitId, sampleSize, and reviewFilter. Prompt mode supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
               },
             }}
           />
