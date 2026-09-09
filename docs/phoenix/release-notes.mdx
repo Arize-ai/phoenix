@@ -13,6 +13,19 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize/user-interview).
 </Info>
 
+<ReleaseUpdate label="09.08.2026" href="/docs/phoenix/release-notes/09-2026/09-08-2026-trace-filters-model-providers-and-harbor" title="Trace Filters, New Model Providers, and Harbor Recording">
+**Available in arize-phoenix 20.9.0+, arize-phoenix-client 3.5.0+ (Python), @arizeai/phoenix-client 7.10.0+ (TypeScript)**
+
+Ask for the slow failures and get only those. Three new model providers, a REST route for clearing a project's traces, and Harbor jobs recorded as Phoenix experiments.
+
+- **Error and latency trace filters** — `error`, `min_latency_ms`, and `max_latency_ms` on the trace list endpoint and both SDKs
+- **Delete traces from a project** — `DELETE /v1/projects/{project_identifier}/traces` over a required time window, keeping the project
+- **Z.ai, MiniMax, and Meta** built in, plus `gemini-3.8-flash` and `gpt-6-astra`
+- **Harbor plugin** — jobs become datasets and experiments, rewards become evaluations, trajectories become traces
+- **Assistant settings** reorganized into five linkable tabs
+- **MCP server on FastMCP 4** and the stateless protocol
+</ReleaseUpdate>
+
 <ReleaseUpdate label="09.01.2026" href="/docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates" title="GitHub Issues from PXI, PII Detection, and Client Updates">
 **Available in arize-phoenix 20.5.0+, arize-phoenix-evals 3.6.0+ (Python), @arizeai/phoenix-evals 2.4.0+ and @arizeai/phoenix-client 7.7.1+ (TypeScript)**
 

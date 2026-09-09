@@ -1383,6 +1383,7 @@
           {
             "group": "09.2026",
             "pages": [
+              "docs/phoenix/release-notes/09-2026/09-08-2026-trace-filters-model-providers-and-harbor",
               "docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates"
             ]
           },
