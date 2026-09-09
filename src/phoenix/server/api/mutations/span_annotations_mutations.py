@@ -21,7 +21,6 @@ from phoenix.server.api.input_types.NoteInputs import CreateSpanNoteInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
-from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation
 from phoenix.server.dml_event import SpanAnnotationDeleteEvent, SpanAnnotationInsertEvent
@@ -186,7 +185,7 @@ class SpanAnnotationMutationMixin:
                     "label": None,
                     "score": None,
                     "explanation": note_input.note,
-                    "annotator_kind": AnnotatorKind.HUMAN.value,
+                    "annotator_kind": note_input.annotator_kind.value,
                     "metadata_": {},
                     "identifier": (
                         note_input.identifier

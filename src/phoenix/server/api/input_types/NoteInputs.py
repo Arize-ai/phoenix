@@ -9,6 +9,7 @@ from phoenix.server.api.input_types.EntityIdentifierInput import (
     SpanIdentifierInput,
     TraceIdentifierInput,
 )
+from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
 
 def _trim_note(note: str) -> str:
@@ -28,6 +29,7 @@ def _trim_identifier(identifier: Optional[str]) -> Optional[str]:
 class CreateSpanNoteInput:
     target: SpanIdentifierInput
     note: str
+    annotator_kind: AnnotatorKind
     identifier: Optional[str] = UNSET
 
     def __post_init__(self) -> None:
@@ -39,6 +41,7 @@ class CreateSpanNoteInput:
 class CreateTraceNoteInput:
     target: TraceIdentifierInput
     note: str
+    annotator_kind: AnnotatorKind
     identifier: Optional[str] = UNSET
 
     def __post_init__(self) -> None:
@@ -50,6 +53,7 @@ class CreateTraceNoteInput:
 class CreateProjectSessionNoteInput:
     target: ProjectSessionIdentifierInput
     note: str
+    annotator_kind: AnnotatorKind
     identifier: Optional[str] = UNSET
 
     def __post_init__(self) -> None:

@@ -981,7 +981,7 @@ input CreateProjectInput {
 input CreateProjectSessionAnnotationInput {
   projectSessionId: ID!
   name: String!
-  annotatorKind: AnnotatorKind! = HUMAN
+  annotatorKind: AnnotatorKind!
   label: String = null
   score: Float = null
   explanation: String = null
@@ -993,6 +993,7 @@ input CreateProjectSessionAnnotationInput {
 input CreateProjectSessionNoteInput {
   target: ProjectSessionIdentifierInput!
   note: String!
+  annotatorKind: AnnotatorKind!
   identifier: String
 }
 
@@ -1042,6 +1043,7 @@ input CreateSpanAnnotationInput {
 input CreateSpanNoteInput {
   target: SpanIdentifierInput!
   note: String!
+  annotatorKind: AnnotatorKind!
   identifier: String
 }
 
@@ -1066,6 +1068,7 @@ input CreateTraceAnnotationInput {
 input CreateTraceNoteInput {
   target: TraceIdentifierInput!
   note: String!
+  annotatorKind: AnnotatorKind!
   identifier: String
 }
 
@@ -4991,7 +4994,7 @@ type UpdateAnnotationConfigPayload {
 input UpdateAnnotationInput {
   id: ID!
   name: String!
-  annotatorKind: AnnotatorKind! = HUMAN
+  annotatorKind: AnnotatorKind!
   label: String = null
   score: Float = null
   explanation: String = null
