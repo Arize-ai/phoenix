@@ -44,6 +44,7 @@ type Session = {
   grpcPort: number;
   startedAt: string;
   databaseClonedAt: string | null;
+  routes: { api: string; frontend: string };
 };
 
 function run({
@@ -115,7 +116,11 @@ const getDatabasePath = (id: string) =>
 
 async function readSession(id: string): Promise<Session | null> {
   try {
-    return JSON.parse(await readFile(getSessionPath(id), "utf8")) as Session;
+    const session = JSON.parse(
+      await readFile(getSessionPath(id), "utf8")
+    ) as Session;
+    session.routes ??= getRoutes(session.id);
+    return session;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;
@@ -187,6 +192,7 @@ async function selectSession(selector?: string): Promise<Session> {
     (session) =>
       session.id.startsWith(selector) ||
       session.branch === selector ||
+      Object.values(session.routes).includes(selector) ||
       session.worktreePath === resolve(selector)
   );
   if (matches.length !== 1) {
@@ -216,17 +222,14 @@ async function getFreePort(): Promise<number> {
   return port;
 }
 
-function getPortlessUrl({
-  name,
-  worktreePath,
-}: {
-  name: string;
-  worktreePath: string;
-}): string {
+function getRoutes(id: string): Session["routes"] {
+  return { api: `phoenix-${id}`, frontend: `phoenix-vite-${id}` };
+}
+
+function getPortlessUrl(name: string): string {
   return run({
     command: PORTLESS,
-    arguments_: ["get", name],
-    cwd: worktreePath,
+    arguments_: ["get", name, "--no-worktree"],
   });
 }
 
@@ -243,21 +246,16 @@ function isReady(url: string): boolean {
 
 function hasReachableService(session: Session): boolean {
   return (
-    isReady(
-      `${getPortlessUrl({ name: "phoenix", worktreePath: session.worktreePath })}/healthz`
-    ) ||
-    isReady(
-      `${getPortlessUrl({ name: "phoenix-vite", worktreePath: session.worktreePath })}/@vite/client`
-    )
+    isReady(`${getPortlessUrl(session.routes.api)}/healthz`) ||
+    isReady(`${getPortlessUrl(session.routes.frontend)}/@vite/client`)
   );
 }
 
 function stopPortlessServices(session: Session): void {
-  for (const name of ["phoenix", "phoenix-vite"]) {
+  for (const name of Object.values(session.routes)) {
     run({
       command: PORTLESS,
-      arguments_: ["run", "--name", name, "--force", "true"],
-      cwd: session.worktreePath,
+      arguments_: ["--name", name, "--force", "true"],
     });
   }
 }
@@ -374,14 +372,8 @@ async function prepareSession(session: Session): Promise<boolean> {
     primaryRoot,
     targetPath: getDatabasePath(session.id),
   });
-  const appUrl = getPortlessUrl({
-    name: "phoenix",
-    worktreePath: session.worktreePath,
-  });
-  const viteUrl = getPortlessUrl({
-    name: "phoenix-vite",
-    worktreePath: session.worktreePath,
-  });
+  const appUrl = getPortlessUrl(session.routes.api);
+  const viteUrl = getPortlessUrl(session.routes.frontend);
   const environment = [
     `test ! -f ${quoteShell(primaryEnvironment)} || source ${quoteShell(primaryEnvironment)}`,
     `test ! -f ${quoteShell(join(APP_ROOT, ".env"))} || source ${quoteShell(join(APP_ROOT, ".env"))}`,
@@ -412,10 +404,11 @@ async function startSession(): Promise<number> {
   const existing = await readSession(identity.id);
   if (existing && (isRunning(existing) || hasReachableService(existing)))
     throw new Error(
-      `This worktree is already running at ${getPortlessUrl({ name: "phoenix", worktreePath: identity.worktreePath })}`
+      `This worktree is already running at ${getPortlessUrl(existing.routes.api)}`
     );
   const session: Session = {
     ...identity,
+    routes: getRoutes(identity.id),
     pid: process.pid,
     controlPort: await getFreePort(),
     grpcPort: await getFreePort(),
@@ -430,10 +423,7 @@ async function startSession(): Promise<number> {
       : session.databaseClonedAt,
   };
   await writeSession(activeSession);
-  const url = getPortlessUrl({
-    name: "phoenix",
-    worktreePath: session.worktreePath,
-  });
+  const url = getPortlessUrl(session.routes.api);
   console.log(`\nPhoenix dev session ${session.id}`);
   console.log(`  app       ${url}`);
   console.log(`  data      ${getDataDirectory(session.id)}`);
@@ -455,6 +445,8 @@ async function startSession(): Promise<number> {
       env: {
         ...process.env,
         PHOENIX_DEV_ENV_FILE: getEnvironmentPath(session.id),
+        PHOENIX_DEV_API_NAME: session.routes.api,
+        PHOENIX_DEV_FRONTEND_NAME: session.routes.frontend,
       },
       stdio: "inherit",
     }
@@ -520,21 +512,15 @@ async function listSessions(): Promise<void> {
     });
     const database = databaseAge ? `db ${databaseAge.label}` : "no db clone";
     console.log(
-      `${session.id}  ${status.padEnd(8)}  ${database.padEnd(11)}  ${session.branch}  ${getPortlessUrl({ name: "phoenix", worktreePath: session.worktreePath })}`
+      `${session.id}  ${status.padEnd(8)}  ${database.padEnd(11)}  ${session.branch}  ${getPortlessUrl(session.routes.api)}`
     );
   }
 }
 
 async function printStatus(selector?: string): Promise<void> {
   const session = await selectSession(selector);
-  const appUrl = getPortlessUrl({
-    name: "phoenix",
-    worktreePath: session.worktreePath,
-  });
-  const viteUrl = getPortlessUrl({
-    name: "phoenix-vite",
-    worktreePath: session.worktreePath,
-  });
+  const appUrl = getPortlessUrl(session.routes.api);
+  const viteUrl = getPortlessUrl(session.routes.frontend);
   const isApiReady = isReady(`${appUrl}/healthz`);
   const isFrontendReady = isReady(`${viteUrl}/@vite/client`);
   const databaseAge = getDatabaseAge({
@@ -627,24 +613,14 @@ async function runCommand(): Promise<number> {
       break;
     case "url": {
       const session = await selectSession(arguments_[0]);
-      console.log(
-        getPortlessUrl({
-          name: "phoenix",
-          worktreePath: session.worktreePath,
-        })
-      );
+      console.log(getPortlessUrl(session.routes.api));
       break;
     }
     case "open": {
       const session = await selectSession(arguments_[0]);
       run({
         command: "open",
-        arguments_: [
-          getPortlessUrl({
-            name: "phoenix",
-            worktreePath: session.worktreePath,
-          }),
-        ],
+        arguments_: [getPortlessUrl(session.routes.api)],
       });
       break;
     }
