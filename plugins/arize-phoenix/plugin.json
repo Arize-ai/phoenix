@@ -32,9 +32,9 @@
         ],
         "websiteURL": "https://arize.com/phoenix/",
         "defaultPrompt": [
-          "Find agent traces with errors in the last 24 hours and group them by exception type.",
-          "Walk through a failed agent session and identify where the behavior first went wrong.",
-          "Find the slowest agent traces in my project and break down where they spend their time."
+          "Group recent agent trace errors by exception.",
+          "Find where a failed agent session first went wrong.",
+          "Show where my slowest agent traces spend time."
         ],
         "brandColor": "#F14B5A",
         "logo": "./assets/logo.svg"
