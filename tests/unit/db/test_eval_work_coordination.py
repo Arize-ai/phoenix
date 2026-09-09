@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from importlib import import_module
 from secrets import token_hex
 
 import pytest
@@ -7,7 +8,7 @@ from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 from sqlalchemy.orm import selectinload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 
-from phoenix.db import models
+from phoenix.db import eval_work, models
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
@@ -407,3 +408,24 @@ async def test_eval_work_cursor_rejects_unknown_evaluation_target(db: DbSessionF
                 )
             )
             await session.flush()
+
+
+def test_migration_status_predicates_match_the_code_that_reads_them() -> None:
+    """The migration spells its status sets as literals so a later edit to eval_work
+    cannot rewrite what it applied. This is the other half of that bargain: when the
+    code's sets change, this fails, and the answer is a new migration, not an edit."""
+    migration = import_module(
+        "phoenix.db.migrations.versions.a7f1c3e9d2b4_add_online_eval_coordination"
+    )
+    assert migration._EVAL_WORK_STATUS_CHECK == eval_work.eval_work_status_check()
+    assert migration._EVAL_SESSION_WORK_STATUS_CHECK == eval_work.eval_session_work_status_check()
+    assert migration._LIVE_EVAL_WORK_PREDICATE == eval_work.live_eval_work_index_predicate()
+    assert (
+        migration._LIVE_EVAL_SESSION_WORK_PREDICATE
+        == eval_work.live_eval_session_work_index_predicate()
+    )
+    assert migration._TERMINAL_EVAL_WORK_PREDICATE == eval_work.terminal_eval_work_index_predicate()
+    assert (
+        migration._TERMINAL_EVAL_SESSION_WORK_PREDICATE
+        == eval_work.terminal_eval_session_work_index_predicate()
+    )

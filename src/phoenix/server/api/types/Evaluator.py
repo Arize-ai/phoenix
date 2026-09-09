@@ -90,22 +90,46 @@ class ProjectEvaluatorSchedulabilityStatus(Enum):
     NOT_SCHEDULABLE = "NOT_SCHEDULABLE"
 
 
-@strawberry.enum
+@strawberry.enum(
+    description=(
+        "The state of a project evaluator's scheduled work: whether evaluation runs are "
+        "completing. It says nothing about what those runs scored."
+    )
+)
 class ProjectEvaluatorRunStatus(Enum):
-    NEVER_RUN = "NEVER_RUN"
-    QUEUED = "QUEUED"
-    HEALTHY = "HEALTHY"
-    FAILING = "FAILING"
+    NEVER_RUN = strawberry.enum_value(
+        "NEVER_RUN",
+        description="No evaluation has completed or is waiting within the retention window.",
+    )
+    QUEUED = strawberry.enum_value(
+        "QUEUED",
+        description="Evaluations are waiting to run and none has completed yet.",
+    )
+    RUNNING = strawberry.enum_value(
+        "RUNNING",
+        description="Evaluation runs are completing and writing annotations.",
+    )
+    ERROR = strawberry.enum_value(
+        "ERROR",
+        description="The most recent evaluation run failed and will not be retried.",
+    )
 
 
 @strawberry.type(
     description=(
-        "How a project evaluator is doing, derived from the evaluations it has produced "
-        "within the online evaluation retention window."
+        "The state of a project evaluator's scheduled work, derived from the evaluations "
+        "it has produced within the online evaluation retention window. It describes "
+        "whether runs are completing, not what they scored."
     )
 )
 class ProjectEvaluatorRunSummary:
-    status: ProjectEvaluatorRunStatus
+    status: ProjectEvaluatorRunStatus = strawberry.field(
+        description=(
+            "ERROR when the newest completed run was given up on, RUNNING when it produced "
+            "an annotation, QUEUED when work is waiting but none has completed, NEVER_RUN "
+            "otherwise."
+        )
+    )
     last_run_at: Optional[datetime] = strawberry.field(
         description="When this evaluator last finished an evaluation, or null if it never has."
     )
@@ -114,6 +138,12 @@ class ProjectEvaluatorRunSummary:
     )
     evaluated_count: int = strawberry.field(description="Evaluations that produced an annotation.")
     failed_count: int = strawberry.field(description="Evaluations that were given up on.")
+    dropped_count: int = strawberry.field(
+        description=(
+            "Evaluations shed from the backlog before they ran, to keep up under load. "
+            "They are not failures and do not affect the status."
+        )
+    )
     last_error: Optional[str] = strawberry.field(
         description="The most recent evaluation error, or null if none was recorded."
     )
@@ -124,9 +154,9 @@ def _project_evaluator_run_summary(counts: ProjectEvaluatorRunCounts) -> Project
     if last_failed_at is not None and (
         last_evaluated_at is None or last_failed_at >= last_evaluated_at
     ):
-        status = ProjectEvaluatorRunStatus.FAILING
+        status = ProjectEvaluatorRunStatus.ERROR
     elif counts.evaluated:
-        status = ProjectEvaluatorRunStatus.HEALTHY
+        status = ProjectEvaluatorRunStatus.RUNNING
     elif counts.queued:
         status = ProjectEvaluatorRunStatus.QUEUED
     else:
@@ -137,6 +167,7 @@ def _project_evaluator_run_summary(counts: ProjectEvaluatorRunCounts) -> Project
         queued_count=counts.queued,
         evaluated_count=counts.evaluated,
         failed_count=counts.failed,
+        dropped_count=counts.dropped,
         last_error=counts.last_error,
     )
 
