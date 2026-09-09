@@ -33,4 +33,3 @@ records. The shared Phoenix database is never disposable benchmark state.
 
 Private wheels, downloaded TRAIL data, logs, and trajectories belong under ignored
 `.runtime/` or `.private/`. Do not publish TRAIL payloads or populated images.
-See the [execution plan](../../internal_docs/specs/phoenix-mcp-harbor-benchmark.md).
