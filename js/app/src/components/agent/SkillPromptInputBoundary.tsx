@@ -4,7 +4,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import type { PromptCommand } from "@phoenix/agent/slashCommands/promptCommands";
 import { PromptInputTextarea } from "@phoenix/components/ai/prompt-input";
 
-import { SkillPromptInput } from "./SkillPromptInput";
+import { PROMPT_MAX_ROWS, SkillPromptInput } from "./SkillPromptInput";
 import {
   useAvailableAgentSkills,
   type AvailableAgentSkill,
@@ -70,7 +70,11 @@ export function SkillPromptInputBoundary({
   menuPortalTarget,
 }: SkillPromptInputBoundaryProps) {
   const fallback = (
-    <PromptInputTextarea ref={textareaRef} placeholder={placeholder} />
+    <PromptInputTextarea
+      ref={textareaRef}
+      placeholder={placeholder}
+      maxRows={PROMPT_MAX_ROWS}
+    />
   );
   return (
     <ErrorBoundary fallback={fallback}>
