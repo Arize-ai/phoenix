@@ -1,0 +1,41 @@
+{
+  "name": "arize-phoenix",
+  "version": "0.1.0+codex.20260909221629",
+  "description": "Connect coding agents to Phoenix observability, evaluations, and tracing workflows.",
+  "author": {
+    "name": "Arize AI",
+    "email": "oss@arize.com",
+    "url": "https://arize.com"
+  },
+  "homepage": "https://arize.com/docs/phoenix",
+  "repository": "https://github.com/Arize-ai/phoenix",
+  "license": "Elastic-2.0",
+  "keywords": [
+    "phoenix",
+    "ai-observability",
+    "evaluations",
+    "llm-tracing",
+    "openinference"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Arize Phoenix",
+    "shortDescription": "Observe, evaluate, and debug AI applications.",
+    "longDescription": "Connect Codex to Phoenix traces, datasets, experiments, and evaluations, with reusable skills for Phoenix CLI, evaluations, and OpenInference tracing workflows.",
+    "developerName": "Arize AI",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://phoenix.arize.com",
+    "defaultPrompt": [
+      "Analyze my Phoenix traces and find the root cause.",
+      "Help me build an evaluator for this AI application.",
+      "Instrument this application with Phoenix tracing."
+    ],
+    "brandColor": "#F14B5A",
+    "logo": "./assets/logo.svg"
+  },
+  "mcpServers": "./.mcp.json"
+}

@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+phoenix_endpoint=${PHOENIX_ENDPOINT:-http://localhost:6006}
+phoenix_endpoint=${phoenix_endpoint%/}
+
+case "$phoenix_endpoint" in
+  */mcp) phoenix_mcp_url=$phoenix_endpoint ;;
+  *) phoenix_mcp_url=$phoenix_endpoint/mcp ;;
+esac
+
+exec npx --yes mcp-remote "$phoenix_mcp_url"

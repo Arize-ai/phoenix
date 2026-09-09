@@ -1,0 +1,20 @@
+{
+  "name": "arize-phoenix",
+  "interface": {
+    "displayName": "Arize Phoenix"
+  },
+  "plugins": [
+    {
+      "name": "arize-phoenix",
+      "source": {
+        "source": "local",
+        "path": "./plugins/arize-phoenix"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
