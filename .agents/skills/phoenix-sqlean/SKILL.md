@@ -136,8 +136,8 @@ sqlean moves its own pin.
   publish passes the release tag. Callers pass nothing else.
 - **`test-sources` resolves against cibuildwheel's working directory, not `package-dir`** — hence
   the build legs unpack the sources at the workspace root.
-- Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. Until release-please
-  creates it, `sqlean-release` skips and nothing builds.
+- Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. If it is missing,
+  `sqlean-release` fails.
 - **sqlean publishes until PyPI holds every distribution, not just the version.** The generic
   "version on PyPI" gate in `list-python-packages` skips sqlean; `sqlean-release` runs on every
   release and runs `check-wheelhouse.py --missing-only` on PyPI's file list for that version. A
