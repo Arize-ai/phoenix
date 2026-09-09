@@ -1,0 +1,280 @@
+---
+title: "09.08.2026: Trace Filters, New Model Providers, and Harbor Recording"
+description: "Filter traces by error status and latency from the API and both SDKs, delete a project's traces over REST, run Z.ai, MiniMax, and Meta models in the playground and PXI, and record Harbor jobs as Phoenix experiments with full trajectory traces."
+---
+
+Finding the slow failures used to mean pulling a page of traces and filtering them in your own
+code. Three new query parameters do it server-side now, and both SDKs pass them through. Alongside
+that, Z.ai, MiniMax, and Meta join the built-in model providers, a REST route clears traces out of a
+project without deleting it, and a Harbor plugin turns an agent job into a Phoenix experiment with
+trajectory traces attached.
+
+# Filter Traces by Error Status and Latency
+
+September 3 – 8, 2026
+
+**Available in arize-phoenix 20.8.0+ (server), arize-phoenix-client 3.5.0+ (Python), and @arizeai/phoenix-client 7.10.0+ (TypeScript)**
+
+`GET /v1/projects/{project_identifier}/traces` takes `error`, `min_latency_ms`, and
+`max_latency_ms`. Combine them to ask the question you actually have — "which traces errored and
+took more than a second?" — and get back only those, paginated as usual.
+
+- **`error` cuts both ways.** `true` returns traces with at least one span whose status is `ERROR`,
+  matching the error indicator in the UI. `false` returns only clean traces, which is the filter you
+  want when you are sampling healthy behavior for a dataset.
+- **Latency bounds are inclusive** and apply to the trace, not its spans.
+- **The SDKs fail fast.** Both clients check the server version before sending, so an older Phoenix
+  reports an upgrade requirement instead of ignoring the unknown parameters and quietly handing back
+  unfiltered traces. Negative or inverted bounds raise client-side, so `min_latency_ms=2000` with
+  `max_latency_ms=1000` tells you it is impossible rather than returning an empty page.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+slow_failures = client.traces.get_traces(
+    project_identifier="my-project",
+    error=True,
+    min_latency_ms=1000,
+    limit=50,
+)
+print(len(slow_failures))
+```
+
+```typescript
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+const slowFailures = await getTraces({
+  project: { projectName: "my-project" },
+  error: true,
+  minLatencyMs: 1000,
+  limit: 50,
+});
+console.log(slowFailures.traces.length);
+```
+
+<CardGroup cols={2}>
+  <Card title="Filter Expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    Filter spans, traces, and sessions with the query DSL
+  </Card>
+  <Card title="List Traces for a Project" icon="code" href="/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/list-traces-for-a-project">
+    The full set of query parameters
+  </Card>
+</CardGroup>
+
+# Delete Traces from a Project over REST
+
+September 2, 2026
+
+**Available in arize-phoenix 20.6.0+**
+
+`DELETE /v1/projects/{project_identifier}/traces` removes traces from a project while keeping the
+project and its configuration, so ingestion continues against the same project afterward. That is
+the difference from `DELETE /v1/projects/{project_identifier}`, which removes the project outright.
+
+- **The time window is required.** `start_time` and `end_time` bound the deletion as
+  `[start_time, end_time)`, so only traces that started inside the interval go. There is no way to
+  ask for "everything" by omission — you name the range you mean.
+- **Spans and orphaned sessions go with them.** Spans cascade, and project sessions left with no
+  remaining traces are deleted too. Sessions that still have traces outside the window survive.
+- **Naive datetimes are read as UTC.**
+
+```bash
+curl -X DELETE \
+  "$PHOENIX_ENDPOINT/v1/projects/my-project/traces?start_time=2026-08-01T00:00:00Z&end_time=2026-09-01T00:00:00Z" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+```
+
+<CardGroup cols={2}>
+  <Card title="Delete Traces from a Project" icon="trash" href="/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-traces-from-a-project">
+    Endpoint reference
+  </Card>
+  <Card title="Data Retention" icon="clock-rotate-left" href="/docs/phoenix/settings/data-retention">
+    Expire traces on a schedule instead
+  </Card>
+</CardGroup>
+
+# Z.ai, MiniMax, and Meta as Built-In Providers
+
+September 2 – 8, 2026
+
+**Available in arize-phoenix 20.6.0+ (Z.ai), 20.8.0+ (MiniMax), and 20.9.0+ (Meta); provider constants in @arizeai/phoenix-client 7.8.0+ and @arizeai/phoenix-cli 1.17.0+**
+
+Three providers you previously had to wire up as custom OpenAI-compatible endpoints are now
+built in. Pick them from the model menu in the playground, save them on prompts, and use them for
+PXI sessions — each one resolves its credential from the environment or from Phoenix secrets like
+every other built-in provider.
+
+| Provider | Models | Credential | Base URL override |
+|----------|--------|------------|-------------------|
+| Z.ai | `glm-4.6`, `glm-4.5`, `glm-4.5-air` | `ZAI_API_KEY` | `ZAI_BASE_URL` |
+| MiniMax | `MiniMax-M3`, `MiniMax-M2.7` | `MINIMAX_API_KEY` | `MINIMAX_BASE_URL` |
+| Meta | `muse-spark-1.3`, `muse-spark-1.3-contributor`, `muse-spark-1.2`, `muse-spark-1.2-contributor`, `muse-spark-1.1` | `META_API_KEY` | `META_BASE_URL` |
+
+- **Token prices ship with them**, so cost tracking works on these models without any manual
+  pricing setup.
+- **Self-hosted deployments can gate them.** Add or omit `ZAI`, `MINIMAX`, and `META` in
+  `PHOENIX_ALLOWED_PROVIDERS` to control which providers appear at all.
+- **Two new models on existing providers**: `gemini-3.8-flash` on Google (20.6.0+) and
+  `gpt-6-astra` on OpenAI (20.8.0+), the latter with reasoning controls and pricing wired in.
+
+```bash
+export ZAI_API_KEY="..."
+export MINIMAX_API_KEY="..."
+export META_API_KEY="..."
+```
+
+<CardGroup cols={2}>
+  <Card title="Prompt Playground" icon="flask" href="/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground">
+    Compare models side by side
+  </Card>
+  <Card title="Custom AI Providers" icon="plug" href="/docs/phoenix/settings/custom-ai-providers">
+    Point a provider at your own gateway
+  </Card>
+</CardGroup>
+
+# Record Harbor Jobs as Phoenix Experiments
+
+September 3 – 8, 2026
+
+**Available in arize-phoenix-client 3.4.0+, with trajectory traces in 3.5.0+**
+
+If you evaluate agents with Harbor, the Phoenix client now ships a job plugin. Select it on a Harbor
+run and the job lands in Phoenix as a dataset, one experiment per resolved agent configuration, a
+run per trial, and verifier rewards as evaluations — so a Terminal-Bench sweep is comparable in the
+same UI you use for every other experiment.
+
+- **Rewards become scores.** Each verifier reward is recorded as a named evaluation on its run, so
+  per-task pass rates and reward distributions show up in experiment comparison.
+- **Trajectories become traces.** With `trace_mode="atif"` (the default) the plugin converts the
+  saved Harbor trajectory into a Phoenix trace, one chain span per operational step with readable
+  action names, and links it to the run. Context-management steps appear as their own compaction
+  spans, and each trial gets its own session.
+- **Tracing never changes a score.** If trace conversion or upload fails, the plugin warns and
+  leaves the run untraced — the run's scores and error status are unaffected. Pass
+  `trace_mode=null` on the Harbor command line to turn tracing off entirely.
+- **Experiment names are yours to shape.** `experiment_name_template` accepts fields like
+  `{job.name}`, `{agent.name}`, `{agent.model}`, and `{agent.short_digest}`; the default is
+  `{job.name} · {agent.name} · {agent.model}`. `EXPERIMENT_NAME_TEMPLATE_FIELDS` publishes the full
+  set.
+- **Resuming is idempotent**, so a re-run tops up the same experiment rather than duplicating it.
+
+The plugin registers under the name `arize-phoenix`, so a Harbor run picks it up directly:
+
+```bash
+harbor run \
+  -d terminal-bench/terminal-bench-2-1 \
+  -a terminus-2 \
+  -m openai/gpt-5-mini \
+  --plugin arize-phoenix \
+  --plugin-kwarg endpoint=http://localhost:6006 \
+  --plugin-kwarg trace_mode=atif
+```
+
+Configure it in Python when you want the template or dataset name under version control:
+
+```python
+from phoenix.client.harbor import PhoenixJobPlugin
+
+plugin = PhoenixJobPlugin(
+    dataset="terminal-bench",
+    experiment_name_template="{job.name} · {agent.model}",
+    trace_mode="atif",
+)
+```
+
+The plugin lives behind the client's `harbor` extra and requires Harbor 0.21.0+ on Python 3.12+.
+Endpoint and API key fall back to `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY`.
+
+<CardGroup cols={2}>
+  <Card title="Importing ATIF Trajectories" icon="file-import" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories">
+    The trajectory format the plugin emits
+  </Card>
+  <Card title="Run Experiments" icon="flask" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments">
+    Compare experiments in Phoenix
+  </Card>
+</CardGroup>
+
+# Assistant Settings, Organized by Topic
+
+September 2, 2026
+
+**Available in arize-phoenix 20.6.0+**
+
+The assistant settings page was one long scroll. It is now five tabs — **General**, **Tools**,
+**Permissions**, **Tracing & privacy**, and **Chats & data** — each with its own URL under
+`/settings/agents`, so you can link a teammate straight to the setting you are talking about. An
+overview lists what lives where. Settings that only configure capabilities your deployment has
+turned off stay hidden rather than showing as switches that do nothing.
+
+<CardGroup cols={2}>
+  <Card title="PXI" icon="robot" href="/docs/phoenix/pxi">
+    Configure the AI engineering agent built into Phoenix
+  </Card>
+</CardGroup>
+
+# MCP Server on FastMCP 4
+
+September 3, 2026
+
+**Available in arize-phoenix 20.7.0+**
+
+Phoenix's mounted MCP server at `/mcp` moves to FastMCP 4 and the stateless protocol. For clients
+using the default code-mode surface — discovery tools plus a sandboxed `execute` — nothing changes,
+and dropping per-session state removes a class of reconnect problems.
+
+- **Progressive disclosure is gone.** The `list_tool_groups` and `enable_tool_group` tools no longer
+  exist. With `PHOENIX_ENABLE_MCP_CODE_MODE=false`, every `/v1` operation is advertised as its own
+  tool instead of being revealed group by group. Code mode remains the default and is the
+  recommended surface at this API's size.
+- **Analytics SQL errors read properly.** The analytics SQL tools raise a real exception now, so a
+  bad query comes back as a message you can act on rather than an opaque failure.
+
+<CardGroup cols={2}>
+  <Card title="Remote MCP Server" icon="plug" href="/docs/phoenix/integrations/remote-mcp">
+    Connect an MCP client to Phoenix
+  </Card>
+</CardGroup>
+
+# PXI Suggests Slash Commands
+
+September 8, 2026
+
+**Available in arize-phoenix 20.9.0+**
+
+The PXI chat input now suggests a slash command that fits what you have in context. Open a chat with
+a span attached and the placeholder points at the command for that situation, so the commands are
+discoverable without reading a reference first.
+
+# Additional Improvements
+
+September 2 – 8, 2026
+
+**Available in arize-phoenix 20.6.0+ and arize-phoenix-client 3.5.0+**
+
+- **Project token totals stop double-counting.** Some agent frameworks emit an LLM-kind span
+  wrapping an LLM-kind child, and both rows carried the same token counts, so the project dashboard
+  could report twice the real total. Only leaf LLM spans count now, which brings the headline number
+  in line with the per-trace detail.
+- **Metadata cells filter the table you are on.** Clicking a metadata value in the traces table
+  appends the condition to the traces filter instead of the span filter.
+- **Faster filtered trace and session queries.** Trace and session filter lowering correlates every
+  quantifier instead of emitting an uncorrelated `NOT IN`, which on PostgreSQL was the difference
+  between an index probe and a statement timeout on session-filtered statistics.
+- **Annotation uploads validate every ID column.** For multi-ID configurations such as document
+  annotations, an invalid `document_position` passed validation and failed later with a confusing
+  error. Every configured ID column is type-checked up front.
+- **PXI stops retrying doomed GitHub calls.** A `401` or `403` from GitHub is now terminal: PXI
+  reports that the token needs its scope or repository access checked instead of re-sending the same
+  credential and failing identically.
+- **Experiments no longer finish early.** A dispatched work item counts as in-flight from the moment
+  it leaves the queue, closing a window where an experiment could be marked complete with an example
+  still unprocessed.
+- **Question counts hold steady while a PXI question streams in**, instead of falling back to
+  "Question pending" mid-stream.
+- **Tool definitions carry their names.** PXI's own LLM spans record the tool name and description
+  on tool schemas, so its traces are readable in the span detail view.
+- **Fresh token prices**, including MiniMax rates synced from LiteLLM.
+- **The client's env-file permission check is platform-aware**, so POSIX ownership checks no longer
+  run where they do not apply.
