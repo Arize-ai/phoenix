@@ -61,6 +61,7 @@ import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import { ExampleDetailsLink } from "@phoenix/pages/example/ExampleDetailsLink";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -525,7 +526,11 @@ export function ExperimentCompareListPage({
         const exampleId = getValue() as string;
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
-            <TextOverflow>{row.original.externalId ?? exampleId}</TextOverflow>
+            <ExampleDetailsLink
+              exampleId={exampleId}
+              externalId={row.original.externalId}
+              datasetVersionId={baseExperiment?.datasetVersion?.id}
+            />
             <TooltipTrigger>
               <IconButton
                 size="S"
@@ -1136,6 +1141,7 @@ export function ExperimentCompareListPage({
     annotationConfigsByName,
     annotationSummaries,
     baseExperimentColor,
+    baseExperiment.datasetVersion.id,
     columnHelper,
     experiments,
     getExperimentColor,

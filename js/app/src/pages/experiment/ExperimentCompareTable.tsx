@@ -54,6 +54,7 @@ import { CellTop, PaddedCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
+import { ExampleDetailsLink } from "@phoenix/pages/example/ExampleDetailsLink";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
@@ -357,7 +358,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         cell: ({ row }) => (
           <ExperimentInputCell
             exampleId={
-              row.original.example.externalId ?? row.original.example.id
+              <ExampleDetailsLink
+                exampleId={row.original.example.id}
+                externalId={row.original.example.externalId}
+                datasetVersionId={baseExperiment?.datasetVersion?.id}
+              />
             }
             value={row.original.input}
             height={cellContentHeight}

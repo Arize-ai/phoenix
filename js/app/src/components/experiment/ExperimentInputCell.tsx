@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import {
   ExpandableContent,
@@ -25,7 +26,7 @@ export interface ExperimentInputCellProps {
   /**
    * The example ID to display
    */
-  exampleId: string;
+  exampleId: ReactNode;
   /**
    * The input value to render in the cell
    */
@@ -74,7 +75,9 @@ export function ExperimentInputCell({
           css={css`
             white-space: nowrap;
           `}
-        >{`example ${exampleId}`}</Text>
+        >
+          example {exampleId}
+        </Text>
       </CellTop>
       <ExpandableContent height={height}>
         <div css={contentCSS}>
