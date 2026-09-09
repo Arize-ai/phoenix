@@ -6,14 +6,14 @@ source "${PHOENIX_DEV_ENV_FILE:?}"
 
 case "${1:-}" in
   api)
-    exec pnpm exec portless run --name phoenix bash -c '
+    exec pnpm exec portless --name "${PHOENIX_DEV_API_NAME:?}" bash -c '
       export PHOENIX_PORT="$PORT"
       export PHOENIX_ALLOWED_ORIGINS="${PHOENIX_ALLOWED_ORIGINS:+$PHOENIX_ALLOWED_ORIGINS,}$PORTLESS_URL"
       exec uv run python -Xfrozen_modules=off -m phoenix.server.main serve --dev --debug
     '
     ;;
   frontend)
-    exec pnpm exec portless run --name phoenix-vite bash -c '
+    exec pnpm exec portless --name "${PHOENIX_DEV_FRONTEND_NAME:?}" bash -c '
       export VITE_PORT="$PORT" VITE_HOST="$HOST"
       pnpm run build:static
       pnpm run build:relay

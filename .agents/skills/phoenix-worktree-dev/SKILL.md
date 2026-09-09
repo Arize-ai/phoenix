@@ -1,97 +1,50 @@
 ---
 name: phoenix-worktree-dev
-description: Use whenever Codex operates in a Phoenix git worktree. Explains the optional managed development-session tooling for running, inspecting, restarting, sharing, screenshotting, and cleaning up isolated Phoenix instances. Do not use for a primary checkout unless the user asks for worktree session tooling.
+description: Start and manage isolated Phoenix development instances in git worktrees when a task needs a live server, browser verification, or instance lifecycle management.
 metadata:
   internal: true
 ---
 
 # Phoenix Worktree Development
 
-This skill owns worktree-specific development workflow decisions. General
-Phoenix skills should stay independent of how the server is launched.
-
-Do not start a server only because the checkout is a worktree. Use a managed
-session when the task benefits from a live full-stack instance, concurrent
-servers, browser verification, screenshots, or a URL the user can open. Honor
-an explicit user choice or a suitable server that is already running.
-
-## Managed Sessions
-
-Start an isolated full-stack session in a long-running terminal:
+Honor the user's chosen workflow or a suitable instance that is already running.
+Start an isolated development instance in an attached, long-running terminal:
 
 ```bash
 make dev-session
 ```
 
-Portless allocates the HTTP and Vite ports and exposes stable HTTPS names.
-The session allocates its remaining service ports. On first start, it snapshots
-the primary checkout's `js/app/.env` and makes a private online copy of its
-SQLite database. The worktree `.env` is an overlay, while session-owned ports,
-URLs, and writable paths remain isolated.
+First startup copies primary configuration and SQLite data into private state.
+For screenshots, use an empty database unless representative data is needed:
+`PHOENIX_DEV_SEED_DATABASE=false make dev-session` skips cloning on first start;
+it does not clear data retained by an existing development instance.
 
-Use `PHOENIX_DEV_SEED_DATABASE=false make dev-session` when existing data is not
-needed, especially for screenshots that must not expose developer data. Use
-`PHOENIX_DEV_DATABASE_SOURCE=/path/to/phoenix.db make dev-session` to select a
-different SQLite source. Never point a managed session directly at the primary
-database.
-
-## Follow-up Changes
-
-Vite handles ordinary frontend hot reload. Restart the API after Python or
-runtime schema changes; restart both processes when environment or shared build
-state changed:
-
-```bash
-make dev-sessions ARGS="restart api"
-make dev-sessions ARGS="restart frontend"
-make dev-sessions ARGS="restart all"
-```
-
-These commands retain the session URL and private data.
-
-## Browser Verification and Screenshots
-
-Resolve the current worktree URL instead of assuming port 6006:
+Resolve the current development instance URL for browser verification:
 
 ```bash
 PHOENIX_URL="$(make --silent dev-sessions ARGS=url)"
 ```
 
-Use this URL with `agent-browser`. For PR screenshots, also follow the
-`phoenix-pr-screenshot` skill. Use an empty session database unless the requested
-image depends on representative primary data.
+Use this URL with `agent-browser`; for PR screenshots, follow
+`phoenix-pr-screenshot`. Vite handles frontend hot reload. After Python or runtime
+schema changes, run `make dev-sessions ARGS="restart api"`. Restart `all` when
+environment or shared build state changes. Restarting retains the URL and data.
 
-## Hand Off a Running Instance
-
-If leaving the instance active helps the user review the work, run:
+Before handing off a running development instance, check readiness:
 
 ```bash
 make dev-sessions ARGS="status"
 ```
 
-Only describe the instance as available when both API and frontend report
-`ready`. Give the user the clickable app URL and
-`make dev-sessions ARGS="stop"`. Stop the session instead when it was used only
-for internal verification and no follow-up access is useful.
+Only report it as available when API and frontend both show `ready`. Give the
+user the clickable URL and `make dev-sessions ARGS="stop"`. Stop instances used
+only for internal verification when follow-up access would not be useful.
 
-## Manage Several Worktrees
+Stopping retains configuration and data; cleaning deletes them. Surface the
+seven-day clone-age suggestion when reporting status or discussing cleanup.
+Clean within the user's authorized scope; clone age alone does not authorize
+deletion or require a new confirmation when cleanup is already authorized.
 
-The control plane works from any Phoenix worktree. A selector can be a session
-ID, branch, or worktree path; omission selects the current worktree.
-
-```bash
-make dev-sessions
-make dev-sessions ARGS="status <session>"
-make dev-sessions ARGS="open <session>"
-make dev-sessions ARGS="stop <session>"
-make dev-sessions ARGS="stop --all"
-make dev-sessions ARGS="prune"
-make dev-sessions ARGS="clean <stopped-session>"
-make dev-sessions ARGS="doctor"
-```
-
-`stop` preserves the session environment and data. `clean` removes them, so the
-next start takes a fresh snapshot. Session listings and status output show the
-age of each private database clone. Treat clones older than seven days as a
-cleanup prompt, not permission to delete data: tell the user about the retained
-clone and clean it only when they confirm it is no longer needed.
+See [the command reference](../../../DEVELOPMENT.md#optional-worktree-development-sessions)
+for managing multiple development instances, selectors, alternate database
+sources, `open`, `prune`, `clean`, and `doctor`.

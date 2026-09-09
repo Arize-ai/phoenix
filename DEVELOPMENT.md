@@ -111,7 +111,7 @@ Check out the `README.md` file in the `js/app` directory for more information on
 
 Phoenix also provides `make dev-session` for developers who run concurrent
 worktrees. Each worktree receives its own Phoenix database and service ports,
-plus stable HTTPS names through
+plus stable HTTPS names derived from the worktree ID through
 [Portless](https://portless.sh/). The command stays attached so `Ctrl+C`
 performs a graceful shutdown. The fixed-port `make dev` and `pnpm --dir js/app
 dev` commands remain available.
@@ -141,6 +141,11 @@ SQLite database with SQLite's online backup API. The current worktree's `.env`
 is then applied as an optional overlay. Session-owned ports, URLs, and writable
 paths always replace inherited values, so the session cannot write to the
 primary database or another worktree's database.
+
+Service names are saved with each development instance. URLs remain stable
+when a detached worktree gains a branch or a branch is renamed. From another
+checkout, you can still inspect, stop, and clean an instance after its worktree
+directory has been deleted.
 
 `stop` preserves the environment snapshot and database for the next start.
 `clean` removes them, so the next start takes a fresh snapshot. Set
