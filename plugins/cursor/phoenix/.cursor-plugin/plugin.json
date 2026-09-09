@@ -1,0 +1,34 @@
+{
+  "name": "arize-phoenix",
+  "displayName": "Arize Phoenix",
+  "version": "0.1.0",
+  "description": "Connect Cursor to your Phoenix instance and teach the agent how to debug traces, run evals, and instrument with OpenInference.",
+  "author": {
+    "name": "Arize AI",
+    "email": "oss@arize.com"
+  },
+  "homepage": "https://arize.com/docs/phoenix",
+  "repository": "https://github.com/Arize-ai/phoenix",
+  "license": "Apache-2.0",
+  "keywords": [
+    "phoenix",
+    "arize",
+    "observability",
+    "tracing",
+    "evals",
+    "mcp",
+    "llm"
+  ],
+  "logo": "https://raw.githubusercontent.com/Arize-ai/phoenix-assets/refs/heads/main/logos/Phoenix/phoenix.svg",
+  "variables": {
+    "type": "object",
+    "properties": {
+      "PHOENIX_MCP_URL": {
+        "type": "string",
+        "title": "Phoenix MCP URL",
+        "description": "Streamable HTTP endpoint for your Phoenix instance. Leave the default for local Phoenix. For self-hosted Phoenix, use https://your-phoenix.example.com/mcp. Cursor authenticates with OAuth on first use.",
+        "default": "http://localhost:6006/mcp"
+      }
+    }
+  }
+}
