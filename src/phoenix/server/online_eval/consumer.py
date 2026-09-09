@@ -340,6 +340,7 @@ class OnlineEvalConsumer(DaemonTask):
                         work_unit_id=unit.work_unit_id,
                         claimed_by=self._consumer_id,
                         error=error,
+                        status=hydrated.terminal_status,
                     ),
                 )
                 if not expired:
