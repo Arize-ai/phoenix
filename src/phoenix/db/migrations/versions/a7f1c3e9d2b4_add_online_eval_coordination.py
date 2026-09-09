@@ -14,7 +14,22 @@ from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
-from phoenix.db.eval_work import live_eval_session_work_index_predicate
+_EVAL_WORK_STATUS_CHECK = (
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', "
+    "'DROPPED')"
+)
+_EVAL_SESSION_WORK_STATUS_CHECK = (
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', "
+    "'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
+)
+_LIVE_EVAL_WORK_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
+_LIVE_EVAL_SESSION_WORK_PREDICATE = (
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'FILTERED_OUT', 'SAMPLED_OUT')"
+)
+_TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'DROPPED')"
+_TERMINAL_EVAL_SESSION_WORK_PREDICATE = (
+    "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'CONTENT_LOST')"
+)
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -76,11 +91,7 @@ def _create_session_work_units_table() -> None:
         sa.Column(
             "status",
             sa.String(),
-            sa.CheckConstraint(
-                "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED', "
-                "'FILTERED_OUT', 'SAMPLED_OUT')",
-                name="valid_eval_work_status",
-            ),
+            sa.CheckConstraint(_EVAL_SESSION_WORK_STATUS_CHECK, name="valid_eval_work_status"),
             nullable=False,
             server_default="PENDING",
         ),
@@ -107,34 +118,27 @@ def _create_session_work_units_table() -> None:
         "eval_session_work_units",
         ["project_session_rowid", "evaluator_id", "config_fingerprint"],
         unique=True,
-        postgresql_where=sa.text(live_eval_session_work_index_predicate()),
-        sqlite_where=sa.text(live_eval_session_work_index_predicate()),
+        postgresql_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
     )
     op.create_index(
         "ix_eval_session_work_units_claimable",
         "eval_session_work_units",
         ["status", "id"],
-        postgresql_where=sa.text("status IN ('PENDING', 'RUNNING', 'ERROR')"),
-        sqlite_where=sa.text("status IN ('PENDING', 'RUNNING', 'ERROR')"),
+        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
     )
     op.create_index(
         "ix_eval_session_work_units_terminal",
         "eval_session_work_units",
         ["updated_at"],
-        postgresql_where=sa.text("status IN ('DONE', 'EXPIRED')"),
-        sqlite_where=sa.text("status IN ('DONE', 'EXPIRED')"),
+        postgresql_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
+        sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
     )
     op.create_index(
         "ix_eval_session_work_units_terminal_watermark",
         "eval_session_work_units",
         ["project_session_rowid", "evaluator_id", "config_fingerprint"],
-    )
-    op.create_index(
-        "ix_eval_session_work_units_error_attempts",
-        "eval_session_work_units",
-        ["attempts"],
-        postgresql_where=sa.text("status = 'ERROR'"),
-        sqlite_where=sa.text("status = 'ERROR'"),
     )
     op.create_index(
         "ix_eval_session_work_units_evaluator_id",
@@ -356,10 +360,7 @@ def upgrade() -> None:
         sa.Column(
             "status",
             sa.String(),
-            sa.CheckConstraint(
-                "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
-                name="valid_eval_work_status",
-            ),
+            sa.CheckConstraint(_EVAL_WORK_STATUS_CHECK, name="valid_eval_work_status"),
             nullable=False,
             server_default="PENDING",
         ),
@@ -386,22 +387,15 @@ def upgrade() -> None:
         "ix_eval_work_units_claimable",
         "eval_work_units",
         ["status", "id"],
-        postgresql_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
-        sqlite_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
+        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
     )
     op.create_index(
         "ix_eval_work_units_terminal",
         "eval_work_units",
         ["updated_at"],
-        postgresql_where=sa.text("status IN ('DONE', 'EXPIRED')"),
-        sqlite_where=sa.text("status IN ('DONE', 'EXPIRED')"),
-    )
-    op.create_index(
-        "ix_eval_work_units_error_attempts",
-        "eval_work_units",
-        ["attempts"],
-        postgresql_where=sa.text("status = 'ERROR'"),
-        sqlite_where=sa.text("status = 'ERROR'"),
+        postgresql_where=sa.text(_TERMINAL_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_TERMINAL_EVAL_WORK_PREDICATE),
     )
     op.create_index(
         "ix_eval_work_units_evaluator_id",
@@ -421,7 +415,6 @@ def downgrade() -> None:
         "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
     )
     op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
-    op.drop_index("ix_eval_session_work_units_error_attempts", table_name="eval_session_work_units")
     op.drop_index(
         "ix_eval_session_work_units_terminal_watermark",
         table_name="eval_session_work_units",
@@ -432,7 +425,6 @@ def downgrade() -> None:
 
     op.drop_index("ix_eval_work_units_project_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_error_attempts", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
     op.drop_table("eval_work_units")

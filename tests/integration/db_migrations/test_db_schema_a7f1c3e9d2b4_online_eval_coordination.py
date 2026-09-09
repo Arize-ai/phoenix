@@ -267,7 +267,6 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_work_units_claimable",
             "ix_eval_work_units_evaluator_id",
             "ix_eval_work_units_project_evaluator_id",
-            "ix_eval_work_units_error_attempts",
             "ix_eval_work_units_terminal",
         }
         constraint_names = {
@@ -310,7 +309,6 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_session_work_units_claimable",
             "ix_eval_session_work_units_evaluator_id",
             "ix_eval_session_work_units_project_evaluator_id",
-            "ix_eval_session_work_units_error_attempts",
             "ix_eval_session_work_units_terminal",
             "ix_eval_session_work_units_terminal_watermark",
             "uq_eval_session_work_units_live_key",
