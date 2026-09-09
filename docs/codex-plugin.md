@@ -1,8 +1,8 @@
-# Phoenix Codex plugin
+# Arize Phoenix Plugin
 
-This repository contains an installable Codex plugin under
-`plugins/arize-phoenix`. It bundles the configurable Phoenix MCP connection and
-the three public Phoenix agent skills: CLI, evaluations, and tracing.
+The Arize Phoenix Plugin is available under `plugins/arize-phoenix`. It bundles
+the configurable Phoenix MCP connection and the three public Phoenix agent
+skills: CLI, evaluations, and tracing.
 
 ## Install from the marketplace
 
