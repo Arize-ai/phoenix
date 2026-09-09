@@ -57,6 +57,7 @@ from phoenix.server.bearer_auth import (
     token_audience_permits,
 )
 from phoenix.server.mcp.skills import (
+    SKILL_TOOL_NAMES,
     SKILL_TOOLS_TAG,
     get_skill_instructions,
     load_skills,
@@ -269,6 +270,10 @@ class _CodeModeWithDirectSkillTools(CodeMode):
     https://github.com/PrefectHQ/fastmcp/issues/4925.
     """
 
+    def __init__(self, *, skill_tool_names: Sequence[str], **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._skill_tool_names = skill_tool_names
+
     async def transform_tools(self, tools: "Sequence[Tool]") -> "Sequence[Tool]":
         """The ``tools/list`` response."""
         direct = [tool for tool in tools if SKILL_TOOLS_TAG in tool.tags]
@@ -281,9 +286,24 @@ class _CodeModeWithDirectSkillTools(CodeMode):
         catalog = await super().get_tool_catalog(ctx, run_middleware=run_middleware)
         return [tool for tool in catalog if SKILL_TOOLS_TAG not in tool.tags]
 
+    def _build_execute_description(self) -> str:
+        """Upstream's ``execute`` description, plus the direct tools ``call_tool`` cannot reach."""
+        discovery_tool_names = [tool.name for tool in self._build_discovery_tools()]
+        direct_tools = ", ".join(
+            f"`{name}`" for name in (*discovery_tool_names, *self._skill_tool_names)
+        )
+        return (
+            f"{super()._build_execute_description()}\n"
+            "`call_tool` can only invoke the tools `search` and `list_tools` describe. "
+            f"It cannot invoke the direct tools {direct_tools}; call those as MCP tools."
+        )
+
 
 def _build_code_mode(
-    runtime: "MontyRuntime", consumer: "MontyConsumer"
+    runtime: "MontyRuntime",
+    consumer: "MontyConsumer",
+    *,
+    skill_tool_names: Sequence[str] = (),
 ) -> tuple[CodeMode, MontyPoolSandboxProvider]:
     """Code-mode tool surface: discovery meta-tools plus a sandboxed ``execute``.
 
@@ -314,6 +334,7 @@ def _build_code_mode(
                 _read_only(ListTools()),
             ],
             sandbox_provider=sandbox_provider,
+            skill_tool_names=skill_tool_names,
         ),
         sandbox_provider,
     )
@@ -480,7 +501,11 @@ def build_phoenix_mcp_server(
         # Replaces the tool surface wholesale: clients see the discovery tools and
         # ``execute``, never the per-endpoint tools.
         assert monty_runtime is not None
-        transform, sandbox_provider = _build_code_mode(monty_runtime, monty_consumer)
+        transform, sandbox_provider = _build_code_mode(
+            monty_runtime,
+            monty_consumer,
+            skill_tool_names=SKILL_TOOL_NAMES if skills else (),
+        )
         mcp.add_transform(transform)
     # Registered for every consumer, and after the code-mode transform: the
     # catalog resolves lazily, so these reach `call_tool` there and `tools/list`
