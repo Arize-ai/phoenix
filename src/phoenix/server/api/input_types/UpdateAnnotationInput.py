@@ -18,7 +18,7 @@ class UpdateAnnotationInput:
     score: Optional[float] = None
     explanation: Optional[str] = None
     metadata: JSON
-    source: AnnotationSource = AnnotationSource.APP
+    source: AnnotationSource
 
     def __post_init__(self) -> None:
         self.name = self.name.strip()

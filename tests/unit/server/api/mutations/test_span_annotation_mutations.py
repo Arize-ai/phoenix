@@ -291,6 +291,7 @@ class TestSpanAnnotationMutations:
                     {
                         "target": {"id": missing_span_gid},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "Needs review",
                     }
                 ]
@@ -323,6 +324,7 @@ class TestSpanAnnotationMutations:
                     {
                         "target": {"id": str(GlobalID("Span", "1"))},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "Needs review",
                     }
                 ]
@@ -383,8 +385,10 @@ class TestSpanNoteMutations:
     """
 
     @pytest.mark.parametrize("annotator_kind", ["HUMAN", "LLM", "CODE"])
+    @pytest.mark.parametrize("source", ["APP", "API"])
     async def test_create_by_node_and_otel_id_preserves_note_semantics(
         self,
+        source: str,
         annotator_kind: str,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -408,11 +412,13 @@ class TestSpanNoteMutations:
                     {
                         "target": {"id": str(GlobalID("Span", str(first_span.id)))},
                         "annotatorKind": annotator_kind,
+                        "source": source,
                         "note": " node note ",
                     },
                     {
                         "target": {"otelId": "span2"},
                         "annotatorKind": annotator_kind,
+                        "source": source,
                         "note": "OTel note",
                         "identifier": " coding ",
                     },
@@ -429,7 +435,7 @@ class TestSpanNoteMutations:
         assert all(note["score"] is None for note in notes)
         assert all(note["annotatorKind"] == annotator_kind for note in notes)
         assert all(note["metadata"] == {} for note in notes)
-        assert all(note["source"] == "APP" for note in notes)
+        assert all(note["source"] == source for note in notes)
         assert notes[0]["identifier"].startswith("px-span-note:")
         assert notes[1]["identifier"] == "coding"
 
@@ -443,6 +449,7 @@ class TestSpanNoteMutations:
             )
         assert [note.span_rowid for note in stored_notes] == [first_span.id, second_span.id]
         assert all(note.user_id is None for note in stored_notes)
+        assert all(note.source == source for note in stored_notes)
         assert all(note.annotator_kind == annotator_kind for note in stored_notes)
 
     async def test_batch_preserves_order_and_returns_final_state_for_duplicate_keys(
@@ -462,29 +469,34 @@ class TestSpanNoteMutations:
                     {
                         "target": {"id": node_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "draft",
                         "identifier": "coding",
                     },
                     {
                         "target": {"otelId": external_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "anonymous first",
                     },
                     {
                         "target": {"otelId": external_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "other",
                         "identifier": "other",
                     },
                     {
                         "target": {"otelId": external_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "final",
                         "identifier": " coding ",
                     },
                     {
                         "target": {"id": node_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "anonymous second",
                         "identifier": "  ",
                     },
@@ -512,13 +524,27 @@ class TestSpanNoteMutations:
     ) -> None:
         first = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": {"otelId": "span1"}, "annotatorKind": "HUMAN", "note": "first"}]},
+            {
+                "input": [
+                    {
+                        "target": {"otelId": "span1"},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "first",
+                    }
+                ]
+            },
         )
         second = await gql_client.execute(
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": {"otelId": "span1"}, "annotatorKind": "HUMAN", "note": "second"}
+                    {
+                        "target": {"otelId": "span1"},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "second",
+                    }
                 ]
             },
         )
@@ -529,6 +555,7 @@ class TestSpanNoteMutations:
                     {
                         "target": {"otelId": "span1"},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "draft",
                         "identifier": "coding",
                     }
@@ -542,6 +569,7 @@ class TestSpanNoteMutations:
                     {
                         "target": {"otelId": "span1"},
                         "annotatorKind": "LLM",
+                        "source": "API",
                         "note": "final",
                         "identifier": "coding",
                     }
@@ -577,6 +605,7 @@ class TestSpanNoteMutations:
         assert len(notes) == 3
         assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
         assert [note.annotator_kind for note in notes if note.identifier == "coding"] == ["LLM"]
+        assert [note.source for note in notes if note.identifier == "coding"] == ["API"]
 
     @pytest.mark.parametrize(
         "target, expected_message",
@@ -600,7 +629,11 @@ class TestSpanNoteMutations:
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": target, "annotatorKind": "HUMAN", "note": "review"}]},
+            {
+                "input": [
+                    {"target": target, "annotatorKind": "HUMAN", "source": "APP", "note": "review"}
+                ]
+            },
         )
 
         assert result.data is None
@@ -613,7 +646,16 @@ class TestSpanNoteMutations:
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": {"otelId": "span1"}, "annotatorKind": "HUMAN", "note": "  \n "}]},
+            {
+                "input": [
+                    {
+                        "target": {"otelId": "span1"},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "  \n ",
+                    }
+                ]
+            },
         )
 
         assert result.data is None
@@ -632,6 +674,7 @@ class TestSpanNoteMutations:
                     {
                         "target": {"otelId": "span1"},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "keep until valid delete",
                     }
                 ]
@@ -704,7 +747,12 @@ class TestSpanNoteMutations:
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": {"otelId": "span1"}, "annotatorKind": "HUMAN", "note": "protected"}
+                    {
+                        "target": {"otelId": "span1"},
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "protected",
+                    }
                 ]
             },
         )

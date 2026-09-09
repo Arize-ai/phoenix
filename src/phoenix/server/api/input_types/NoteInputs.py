@@ -9,6 +9,7 @@ from phoenix.server.api.input_types.EntityIdentifierInput import (
     SpanIdentifierInput,
     TraceIdentifierInput,
 )
+from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
 
@@ -30,6 +31,7 @@ class CreateSpanNoteInput:
     target: SpanIdentifierInput
     note: str
     annotator_kind: AnnotatorKind
+    source: AnnotationSource
     identifier: Optional[str] = UNSET
 
     def __post_init__(self) -> None:
@@ -42,6 +44,7 @@ class CreateTraceNoteInput:
     target: TraceIdentifierInput
     note: str
     annotator_kind: AnnotatorKind
+    source: AnnotationSource
     identifier: Optional[str] = UNSET
 
     def __post_init__(self) -> None:
@@ -54,6 +57,7 @@ class CreateProjectSessionNoteInput:
     target: ProjectSessionIdentifierInput
     note: str
     annotator_kind: AnnotatorKind
+    source: AnnotationSource
     identifier: Optional[str] = UNSET
 
     def __post_init__(self) -> None:

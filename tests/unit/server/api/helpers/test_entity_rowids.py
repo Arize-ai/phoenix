@@ -24,17 +24,17 @@ Resolver = Callable[[AsyncSession, Sequence[GlobalID | str]], Awaitable[list[int
         (
             "createSpanNotes",
             "[CreateSpanNoteInput!]!",
-            [{"target": {"otelId": "span"}, "note": "review"}],
+            [{"target": {"otelId": "span"}, "source": "APP", "note": "review"}],
         ),
         (
             "createTraceNotes",
             "[CreateTraceNoteInput!]!",
-            [{"target": {"otelId": "trace"}, "note": "review"}],
+            [{"target": {"otelId": "trace"}, "source": "APP", "note": "review"}],
         ),
         (
             "createProjectSessionNotes",
             "[CreateProjectSessionNoteInput!]!",
-            [{"target": {"sessionId": "session"}, "note": "review"}],
+            [{"target": {"sessionId": "session"}, "source": "APP", "note": "review"}],
         ),
         (
             "createProjectSessionAnnotations",
@@ -58,26 +58,37 @@ Resolver = Callable[[AsyncSession, Sequence[GlobalID | str]], Awaitable[list[int
         ),
     ],
 )
-async def test_annotation_mutations_require_annotator_kind(
+@pytest.mark.parametrize(
+    "required_field, graphql_type",
+    [("annotatorKind", "AnnotatorKind"), ("source", "AnnotationSource")],
+)
+async def test_annotation_mutations_require_explicit_provenance(
     gql_client: AsyncGraphQLClient,
     caplog: pytest.LogCaptureFixture,
     mutation_name: str,
     input_type: str,
-    input_value: object,
+    input_value: dict[str, object] | list[dict[str, object]],
+    required_field: str,
+    graphql_type: str,
 ) -> None:
+    inputs = input_value if isinstance(input_value, list) else [input_value]
+    complete_inputs = [{**value, "annotatorKind": "HUMAN", "source": "APP"} for value in inputs]
+    for value in complete_inputs:
+        value.pop(required_field)
     result = await gql_client.execute(
         f"""
         mutation Annotate($input: {input_type}) {{
           {mutation_name}(input: $input) {{ __typename }}
         }}
         """,
-        {"input": input_value},
+        {"input": complete_inputs if isinstance(input_value, list) else complete_inputs[0]},
     )
 
     assert result.data is None
     assert result.errors
     assert (
-        "Field 'annotatorKind' of required type 'AnnotatorKind!' was not provided." in caplog.text
+        f"Field '{required_field}' of required type '{graphql_type}!' was not provided."
+        in caplog.text
     )
 
 
@@ -264,7 +275,12 @@ async def test_note_target_requires_exactly_one_non_null_identifier(
         """,
         {
             "input": [
-                {"target": targets[invalid_target], "annotatorKind": "HUMAN", "note": "review"}
+                {
+                    "target": targets[invalid_target],
+                    "annotatorKind": "HUMAN",
+                    "source": "APP",
+                    "note": "review",
+                }
             ]
         },
     )
@@ -303,10 +319,16 @@ async def test_session_note_target_preserves_literal_session_id(
         """,
         {
             "input": [
-                {"target": {"sessionId": raw_id}, "annotatorKind": "HUMAN", "note": "raw session"},
+                {
+                    "target": {"sessionId": raw_id},
+                    "annotatorKind": "HUMAN",
+                    "source": "APP",
+                    "note": "raw session",
+                },
                 {
                     "target": {"id": str(GlobalID("ProjectSession", str(first.id)))},
                     "annotatorKind": "HUMAN",
+                    "source": "APP",
                     "note": "node session",
                 },
             ]

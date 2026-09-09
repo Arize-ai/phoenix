@@ -129,7 +129,7 @@ class ProjectSessionAnnotationMutationMixin:
                         if isinstance(note_input.identifier, str)
                         else get_note_identifier("px-session-note")
                     ),
-                    "source": AnnotationSource.APP.value,
+                    "source": note_input.source.value,
                     "user_id": user_id,
                 }
                 for project_session_rowid, note_input in zip(project_session_rowids, input)

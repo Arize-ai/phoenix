@@ -192,7 +192,7 @@ class SpanAnnotationMutationMixin:
                         if isinstance(note_input.identifier, str)
                         else get_note_identifier("px-span-note")
                     ),
-                    "source": AnnotationSource.APP.value,
+                    "source": note_input.source.value,
                     "user_id": user_id,
                 }
                 for span_rowid, note_input in zip(span_rowids, input)
