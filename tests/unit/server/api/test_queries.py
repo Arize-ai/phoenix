@@ -2820,8 +2820,7 @@ async def test_available_agent_skills_returns_the_whole_catalog(
     # that can narrow this list, because `load_skill` will load any of them from
     # any page.
     assert names == [
-        "phoenix-axial-coding",
-        "phoenix-open-coding",
+        "phoenix-error-analysis",
         "datasets",
         "evaluators",
         "experiments",

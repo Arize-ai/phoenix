@@ -1,15 +1,10 @@
 {
   "version": 1,
   "skills": {
-    "phoenix-axial-coding": {
-      "source": "../../../../.agents/skills/phoenix-axial-coding",
+    "phoenix-error-analysis": {
+      "source": "../../../../.agents/skills/phoenix-error-analysis",
       "sourceType": "local",
-      "computedHash": "4f268bd463e87c367dea9e7568c65ee10d55aa44e587f4e40887f9e3ee59bf60"
-    },
-    "phoenix-open-coding": {
-      "source": "../../../../.agents/skills/phoenix-open-coding",
-      "sourceType": "local",
-      "computedHash": "7cc867e8ece375848f3faca16157fec6523b6a76489096a83d7d8b2583bd4c64"
+      "computedHash": "ed9a2553ab0c4fd6511ada566253e5de4a2b481ae6c4f3c333578a9f670e3c3a"
     }
   }
 }
