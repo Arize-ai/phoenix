@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "phoenix": {
+      "command": "./scripts/phoenix-mcp"
+    }
+  }
+}
