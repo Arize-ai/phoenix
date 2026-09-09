@@ -55,6 +55,22 @@ parts of the same message. Code that reads message text should filter on
 `message_content.type` rather than concatenating every part, or reasoning text
 will be mixed into the visible answer.
 
+A `reasoning` part carries the provider's replay payload alongside the summary,
+under the same `message_content` prefix:
+
+- `.id` — the provider's own identifier for the part (an OpenAI Responses
+  reasoning item id, for example), which has to be echoed back on replay
+- `.signature` — an opaque vendor signature captured verbatim (an Anthropic
+  thinking signature, a Gemini `thoughtSignature`)
+- `.data` — opaque vendor data captured verbatim (Anthropic
+  `redacted_thinking.data`)
+- `.encrypted_content` — OpenAI encrypted reasoning captured verbatim
+
+Only `.text` is human-readable, and it is optional: OpenAI returns reasoning
+encrypted unless a summary was requested, so a `reasoning` part can arrive with
+nothing but `.id` and `.encrypted_content`. Treat a missing `.text` as "the
+provider withheld the summary", not as an empty thought.
+
 ## Example: Basic LLM Call
 
 ```json
