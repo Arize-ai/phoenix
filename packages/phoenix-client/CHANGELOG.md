@@ -1,5 +1,59 @@
 # Changelog
 
+## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.5.0...arize-phoenix-client-v3.4.0) (2026-09-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** GET /v1/model_providers no longer returns custom providers or a `next_cursor`, and built-in entries expose `provider` rather than `kind` + `provider_key`. Custom providers move to GET /v1/custom_model_providers. The endpoint is unreleased, so no published client is affected.
+* agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143))
+* **client:** replace google-generativeai formatter with google-genai ([#15085](https://github.com/Arize-ai/phoenix/issues/15085))
+
+### Features
+
+* add MiniMax provider integration ([#14310](https://github.com/Arize-ai/phoenix/issues/14310)) ([7e01ce7](https://github.com/Arize-ai/phoenix/commit/7e01ce703b3830447ebdf641ccbb95089778e810))
+* agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143)) ([986f6a6](https://github.com/Arize-ai/phoenix/commit/986f6a6fdaeda70d83e2d91f150f9b01d9b8406f))
+* **agents:** PXI tool to file GitHub issues with a user-supplied token ([#15780](https://github.com/Arize-ai/phoenix/issues/15780)) ([e3b3dd5](https://github.com/Arize-ai/phoenix/commit/e3b3dd55ae45db7e73329b8ad33331af7fc26389))
+* **api:** add REST endpoints for setting tags on experiments ([#15237](https://github.com/Arize-ai/phoenix/issues/15237)) ([c892873](https://github.com/Arize-ai/phoenix/commit/c8928738d8a9cd70875e01852306de7060febf5d))
+* **app:** add Z.ai as a built-in GLM model provider ([#15857](https://github.com/Arize-ai/phoenix/issues/15857)) ([58b7017](https://github.com/Arize-ai/phoenix/commit/58b7017284e2f7b4391397ce2080cb67a23e066c))
+* **client:** add ATIF tracing to Harbor plugin ([#15715](https://github.com/Arize-ai/phoenix/issues/15715)) ([30dccec](https://github.com/Arize-ai/phoenix/commit/30dccec0744d55612366aa3d444eb7dc12f7831b))
+* **client:** add error and latency filters to get_traces in python and typescript clients ([c839254](https://github.com/Arize-ai/phoenix/commit/c83925478204259eca8e6709fd8c1a3c20f2f7e1))
+* **client:** add prompt deletion ([#15736](https://github.com/Arize-ai/phoenix/issues/15736)) ([5610755](https://github.com/Arize-ai/phoenix/commit/5610755353a1c05a90868232de22995942653085))
+* **client:** record Harbor jobs in Phoenix ([#15547](https://github.com/Arize-ai/phoenix/issues/15547)) ([f7c6cb3](https://github.com/Arize-ai/phoenix/commit/f7c6cb3bee3b3d4447ac649aa54022ce2d157a70))
+* **client:** record Harbor rewards as Phoenix evaluations ([#15600](https://github.com/Arize-ai/phoenix/issues/15600)) ([822d7cb](https://github.com/Arize-ai/phoenix/commit/822d7cbb6ee605e4aaf663410f801f6949e15298))
+* **client:** replace google-generativeai formatter with google-genai ([#15085](https://github.com/Arize-ai/phoenix/issues/15085)) ([5cf9829](https://github.com/Arize-ai/phoenix/commit/5cf9829c4398d784c004c9c976cd7b6739f2aa99))
+* **client:** support updating prompt description and metadata ([#15191](https://github.com/Arize-ai/phoenix/issues/15191)) ([90729f3](https://github.com/Arize-ai/phoenix/commit/90729f3f51f25f50fbd920d2117d0eee4c85db8e))
+* **prompts:** add REST prompt version creation ([#13846](https://github.com/Arize-ai/phoenix/issues/13846)) ([dbf15e9](https://github.com/Arize-ai/phoenix/commit/dbf15e93922bb62c99cce56e6bfe94e8e5590701))
+* **pxi:** enable phoenix-gql mutations by default with approval in manual mode ([#15415](https://github.com/Arize-ai/phoenix/issues/15415)) ([391d0dd](https://github.com/Arize-ai/phoenix/commit/391d0ddaa6aa2ec9bdda152ec6dd16ea585abb87))
+* **server:** add GET /model_providers REST endpoint ([#15561](https://github.com/Arize-ai/phoenix/issues/15561)) ([59c247a](https://github.com/Arize-ai/phoenix/commit/59c247a19f868f157da511b1feca0338adef28e3))
+* **server:** add PATCH /projects/{project_identifier}/retention ([#15410](https://github.com/Arize-ai/phoenix/issues/15410)) ([8ffd938](https://github.com/Arize-ai/phoenix/commit/8ffd9389946a3a7a54f476f17fc3b20efa3260d3))
+* **server:** add POST /traces/transfer ([#15363](https://github.com/Arize-ai/phoenix/issues/15363)) ([5c38cc7](https://github.com/Arize-ai/phoenix/commit/5c38cc7ff2398569da3bbb23aa9a384ad73a0134))
+
+
+### Bug Fixes
+
+* **annotations:** validate all configured ID columns, not just the first ([#15877](https://github.com/Arize-ai/phoenix/issues/15877)) ([7654185](https://github.com/Arize-ai/phoenix/commit/76541854a8936bf95ffb3ed959085d4f6a92a53b))
+* **atif:** link system subagents to emitted parent spans ([#15585](https://github.com/Arize-ai/phoenix/issues/15585)) ([22ee343](https://github.com/Arize-ai/phoenix/commit/22ee34342f2264c1f9fa5053464dfdc36843d9e4))
+* **client:** narrow the env-file ownership check on sys.platform ([#15927](https://github.com/Arize-ai/phoenix/issues/15927)) ([96e8805](https://github.com/Arize-ai/phoenix/commit/96e88059c3aa2d936b56435440f5f5e99a346b70))
+* **playground:** preserve tool choice and strict setting for Anthropic and Bedrock ([#15683](https://github.com/Arize-ai/phoenix/issues/15683)) ([5464de4](https://github.com/Arize-ai/phoenix/commit/5464de456a5488f461e1f9316c90ec1a0f35a286))
+* upgrade to anthropic SDK v1 ([#15588](https://github.com/Arize-ai/phoenix/issues/15588)) ([b28cf94](https://github.com/Arize-ai/phoenix/commit/b28cf94fcd37afeacfd059b4a01e7ad38327e483))
+
+
+### Performance Improvements
+
+* **agents:** make the system prompt static and move UI state onto the turn ([#15541](https://github.com/Arize-ai/phoenix/issues/15541)) ([31fafc5](https://github.com/Arize-ai/phoenix/commit/31fafc5fee359b038fcd75c515584a40fcfa2ea8))
+
+
+### Documentation
+
+* **phoenix-client:** create_dataset docstring documented dataset_name, param is name ([#15950](https://github.com/Arize-ai/phoenix/issues/15950)) ([397088a](https://github.com/Arize-ai/phoenix/commit/397088a263e0d999c3912cd85adc05166cbf69a2))
+
+
+### Miscellaneous Chores
+
+* release arize-phoenix-client 3.1.0 ([#15348](https://github.com/Arize-ai/phoenix/issues/15348)) ([85e0855](https://github.com/Arize-ai/phoenix/commit/85e0855c7120d2894653b802b42a74c073dc77cc))
+* release arize-phoenix-client 3.4.0 ([f8561dc](https://github.com/Arize-ai/phoenix/commit/f8561dc165fb83acd58abd33642d1e12e1b71ef2))
+
 ## [3.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.4.0...arize-phoenix-client-v3.5.0) (2026-09-08)
 
 
