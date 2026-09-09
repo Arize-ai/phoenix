@@ -45,6 +45,10 @@ def build() -> None:
         )
         (wheel,) = output.glob("*.whl")
         wheels.append(wheel)
+    pins = json.loads((HERE / "configs/wheels.json").read_text())
+    for wheel in wheels:
+        if hashlib.sha256(wheel.read_bytes()).hexdigest() != pins.get(wheel.name):
+            raise ValueError("Built wheel differs from reviewed SHA256 pin")
     manifest = {
         "phoenix_revision": revision,
         "wheels": [

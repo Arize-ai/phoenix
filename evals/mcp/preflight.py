@@ -18,6 +18,11 @@ def credential_status(environment: Mapping[str, str]) -> dict[str, bool]:
     return {key: bool(environment.get(key)) for key in PROVIDER_KEYS.values()}
 
 
+def installed_from_pin(record: dict, wheel_uri: str) -> bool:
+    # uv records a local wheel URL without archive hashes; verify the file separately.
+    return record.get("url") == wheel_uri
+
+
 def check_runtime() -> list[str]:
     failures = []
     if importlib.metadata.version("harbor") != CONFIG["harbor_version"]:
@@ -28,13 +33,18 @@ def check_runtime() -> list[str]:
     manifest = json.loads(build.read_text())
     if manifest["phoenix_revision"] != CONFIG["phoenix_revision"]:
         failures.append("Wheel source revision differs from runtime.json")
+    pins = json.loads((HERE / "configs/wheels.json").read_text())
     for artifact in manifest["wheels"]:
         path = HERE / artifact["path"]
         matches = path.is_file() and (
             hashlib.sha256(path.read_bytes()).hexdigest() == artifact["sha256"]
         )
-        if not matches:
+        if not matches or pins.get(path.name) != artifact["sha256"]:
             failures.append("Wheel missing or checksum mismatch")
+        package = path.name.split("-", 1)[0].replace("_", "-")
+        installed = importlib.metadata.distribution(package).read_text("direct_url.json")
+        if not installed or not installed_from_pin(json.loads(installed), path.resolve().as_uri()):
+            failures.append(f"{package} is not installed from the pinned wheel")
     return failures
 
 

@@ -30,3 +30,12 @@ def test_completeness_schema_and_atif_plugin_available():
 
     assert PhoenixJobPlugin is not None
     assert set(CompletenessEvaluator.CompletenessInputSchema.model_fields) == {"conversation"}
+
+
+def test_registry_or_different_wheel_install_cannot_pass_provenance():
+    from preflight import installed_from_pin
+
+    expected = "file:///private/runtime/client.whl"
+    assert not installed_from_pin({}, expected)
+    assert not installed_from_pin({"url": "file:///different/client.whl"}, expected)
+    assert installed_from_pin({"url": expected}, expected)
