@@ -1,9 +1,11 @@
 {
   "mcpServers": {
     "phoenix": {
-      "url": "${PHOENIX_MCP_URL}"
+      "type": "http",
+      "url": "${PHOENIX_ENDPOINT}/mcp"
     },
     "phoenix-docs": {
+      "type": "http",
       "url": "https://arizeai-433a7140.mintlify.app/mcp"
     }
   }

@@ -10,7 +10,7 @@ This directory contains [skills](https://docs.anthropic.com/en/docs/claude-code/
 | [phoenix-evals](phoenix-evals/) | Build and run evaluators for AI/LLM applications using Phoenix. Code first, LLM for nuance, validate against humans. |
 | [phoenix-tracing](phoenix-tracing/) | OpenInference semantic conventions and instrumentation for tracing LLM applications with Phoenix. Covers setup, span types, and production deployment. |
 
-The Cursor plugin at [`plugins/cursor/phoenix`](../../plugins/cursor/phoenix) mounts these three skills via symlink. Keep the directories here; do not duplicate them in the plugin.
+The [Cursor plugin](../../.cursor-plugin/README.md) ships these three skills by listing their paths in `.cursor-plugin/plugin.json`. If you rename or move one, update that list.
 
 ## Internal Skills
 
