@@ -286,7 +286,7 @@
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/completeness</loc>
-    <lastmod>2026-08-26T00:00:00+00:00</lastmod>
+    <lastmod>2026-09-09T22:36:38+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/conciseness</loc>
@@ -419,6 +419,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation</loc>
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/harbor</loc>
+    <lastmod>2026-09-09T22:36:38+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/integrations/pytest</loc>
