@@ -286,7 +286,7 @@ class TestSpanAnnotationMutations:
         missing_span_gid = str(GlobalID("Span", "104"))
         response = await gql_client.execute(
             mutation,
-            {"input": [{"id": missing_span_gid, "note": "Needs review"}]},
+            {"input": [{"target": {"id": missing_span_gid}, "note": "Needs review"}]},
         )
         assert response.data is None
         assert response.errors
@@ -310,7 +310,7 @@ class TestSpanAnnotationMutations:
         """
         response = await gql_client.execute(
             mutation,
-            {"input": [{"id": str(GlobalID("Span", "1")), "note": "Needs review"}]},
+            {"input": [{"target": {"id": str(GlobalID("Span", "1"))}, "note": "Needs review"}]},
         )
 
         assert response.data is not None
@@ -388,10 +388,10 @@ class TestSpanNoteMutations:
             {
                 "input": [
                     {
-                        "id": str(GlobalID("Span", str(first_span.id))),
+                        "target": {"id": str(GlobalID("Span", str(first_span.id)))},
                         "note": " node note ",
                     },
-                    {"id": "span2", "note": "OTel note", "identifier": " coding "},
+                    {"target": {"otelId": "span2"}, "note": "OTel note", "identifier": " coding "},
                 ]
             },
         )
@@ -434,11 +434,11 @@ class TestSpanNoteMutations:
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"id": node_id, "note": "draft", "identifier": "coding"},
-                    {"id": external_id, "note": "anonymous first"},
-                    {"id": external_id, "note": "other", "identifier": "other"},
-                    {"id": external_id, "note": "final", "identifier": " coding "},
-                    {"id": node_id, "note": "anonymous second", "identifier": "  "},
+                    {"target": {"id": node_id}, "note": "draft", "identifier": "coding"},
+                    {"target": {"otelId": external_id}, "note": "anonymous first"},
+                    {"target": {"otelId": external_id}, "note": "other", "identifier": "other"},
+                    {"target": {"otelId": external_id}, "note": "final", "identifier": " coding "},
+                    {"target": {"id": node_id}, "note": "anonymous second", "identifier": "  "},
                 ]
             },
         )
@@ -463,19 +463,19 @@ class TestSpanNoteMutations:
     ) -> None:
         first = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": "span1", "note": "first"}]},
+            {"input": [{"target": {"otelId": "span1"}, "note": "first"}]},
         )
         second = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": "span1", "note": "second"}]},
+            {"input": [{"target": {"otelId": "span1"}, "note": "second"}]},
         )
         upserted_first = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": "span1", "note": "draft", "identifier": "coding"}]},
+            {"input": [{"target": {"otelId": "span1"}, "note": "draft", "identifier": "coding"}]},
         )
         upserted_second = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": "span1", "note": "final", "identifier": "coding"}]},
+            {"input": [{"target": {"otelId": "span1"}, "note": "final", "identifier": "coding"}]},
         )
 
         for result in (first, second, upserted_first, upserted_second):
@@ -507,14 +507,14 @@ class TestSpanNoteMutations:
         assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
 
     @pytest.mark.parametrize(
-        "note_id, expected_message",
+        "target, expected_message",
         [
-            pytest.param("missing-span", "Could not find spans", id="missing-otel-id"),
+            pytest.param({"otelId": "missing-span"}, "Could not find spans", id="missing-otel-id"),
             pytest.param(
-                str(GlobalID("Span", "404")), "Could not find spans", id="missing-node-id"
+                {"id": str(GlobalID("Span", "404"))}, "Could not find spans", id="missing-node-id"
             ),
             pytest.param(
-                str(GlobalID("Trace", "1")),
+                {"id": str(GlobalID("Trace", "1"))},
                 "instead corresponds to a node of type: Trace",
                 id="wrong-node-type",
             ),
@@ -523,12 +523,12 @@ class TestSpanNoteMutations:
     async def test_create_rejects_invalid_target(
         self,
         gql_client: AsyncGraphQLClient,
-        note_id: str,
+        target: dict[str, str],
         expected_message: str,
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": note_id, "note": "review"}]},
+            {"input": [{"target": target, "note": "review"}]},
         )
 
         assert result.data is None
@@ -541,7 +541,7 @@ class TestSpanNoteMutations:
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": "span1", "note": "  \n "}]},
+            {"input": [{"target": {"otelId": "span1"}, "note": "  \n "}]},
         )
 
         assert result.data is None
@@ -555,7 +555,7 @@ class TestSpanNoteMutations:
     ) -> None:
         note_result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": "span1", "note": "keep until valid delete"}]},
+            {"input": [{"target": {"otelId": "span1"}, "note": "keep until valid delete"}]},
         )
         assert note_result.data is not None
         assert not note_result.errors
@@ -622,7 +622,7 @@ class TestSpanNoteMutations:
     ) -> None:
         note_result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"id": "span1", "note": "protected"}]},
+            {"input": [{"target": {"otelId": "span1"}, "note": "protected"}]},
         )
         assert note_result.data is not None
         assert not note_result.errors

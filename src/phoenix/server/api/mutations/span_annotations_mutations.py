@@ -175,7 +175,7 @@ class SpanAnnotationMutationMixin:
 
         user_id = info.context.user_id
 
-        refs = [str(note_input.id) for note_input in input]
+        refs = [note_input.target.reference for note_input in input]
 
         async with info.context.db() as session:
             span_rowids = await resolve_span_rowids(session, refs)

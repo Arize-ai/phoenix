@@ -114,7 +114,7 @@ class ProjectSessionAnnotationMutationMixin:
 
         async with info.context.db() as session:
             project_session_rowids = await resolve_project_session_rowids(
-                session, [str(note_input.id) for note_input in input]
+                session, [note_input.target.reference for note_input in input]
             )
             records: list[dict[str, Any]] = [
                 {

@@ -1,9 +1,14 @@
 from typing import Optional
 
 import strawberry
-from strawberry import ID, UNSET
+from strawberry import UNSET
 
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.input_types.EntityIdentifierInput import (
+    ProjectSessionIdentifierInput,
+    SpanIdentifierInput,
+    TraceIdentifierInput,
+)
 
 
 def _trim_note(note: str) -> str:
@@ -21,35 +26,32 @@ def _trim_identifier(identifier: Optional[str]) -> Optional[str]:
 
 @strawberry.input
 class CreateSpanNoteInput:
-    id: ID = strawberry.field(description="The span's Relay node ID or OpenTelemetry span ID.")
+    target: SpanIdentifierInput
     note: str
     identifier: Optional[str] = UNSET
 
     def __post_init__(self) -> None:
-        self.id = ID(str(self.id).strip())
         self.note = _trim_note(self.note)
         self.identifier = _trim_identifier(self.identifier)
 
 
 @strawberry.input
 class CreateTraceNoteInput:
-    id: ID = strawberry.field(description="The trace's Relay node ID or OpenTelemetry trace ID.")
+    target: TraceIdentifierInput
     note: str
     identifier: Optional[str] = UNSET
 
     def __post_init__(self) -> None:
-        self.id = ID(str(self.id).strip())
         self.note = _trim_note(self.note)
         self.identifier = _trim_identifier(self.identifier)
 
 
 @strawberry.input
 class CreateProjectSessionNoteInput:
-    id: ID = strawberry.field(description="The session's Relay node ID or raw session ID.")
+    target: ProjectSessionIdentifierInput
     note: str
     identifier: Optional[str] = UNSET
 
     def __post_init__(self) -> None:
-        self.id = ID(str(self.id).strip())
         self.note = _trim_note(self.note)
         self.identifier = _trim_identifier(self.identifier)

@@ -5,14 +5,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from strawberry.relay import GlobalID
-from strawberry.relay.types import GlobalIDValueError
 
 from phoenix.db import models
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
-async def resolve_span_rowids(session: AsyncSession, refs: Sequence[str]) -> list[int]:
+async def resolve_span_rowids(session: AsyncSession, refs: Sequence[GlobalID | str]) -> list[int]:
     return await _resolve_rowids(
         session,
         refs,
@@ -23,7 +22,7 @@ async def resolve_span_rowids(session: AsyncSession, refs: Sequence[str]) -> lis
     )
 
 
-async def resolve_trace_rowids(session: AsyncSession, refs: Sequence[str]) -> list[int]:
+async def resolve_trace_rowids(session: AsyncSession, refs: Sequence[GlobalID | str]) -> list[int]:
     return await _resolve_rowids(
         session,
         refs,
@@ -34,7 +33,9 @@ async def resolve_trace_rowids(session: AsyncSession, refs: Sequence[str]) -> li
     )
 
 
-async def resolve_project_session_rowids(session: AsyncSession, refs: Sequence[str]) -> list[int]:
+async def resolve_project_session_rowids(
+    session: AsyncSession, refs: Sequence[GlobalID | str]
+) -> list[int]:
     return await _resolve_rowids(
         session,
         refs,
@@ -47,7 +48,7 @@ async def resolve_project_session_rowids(session: AsyncSession, refs: Sequence[s
 
 async def _resolve_rowids(
     session: AsyncSession,
-    refs: Sequence[str],
+    refs: Sequence[GlobalID | str],
     *,
     expected_type: str,
     rowid_column: InstrumentedAttribute[int],
@@ -59,13 +60,11 @@ async def _resolve_rowids(
     external_id_indexes: dict[str, list[int]] = {}
 
     for index, ref in enumerate(refs):
-        try:
-            global_id = GlobalID.from_id(ref)
-        except GlobalIDValueError:
+        if isinstance(ref, str):
             external_id_indexes.setdefault(ref, []).append(index)
             continue
         try:
-            rowid = from_global_id_with_expected_type(global_id, expected_type)
+            rowid = from_global_id_with_expected_type(ref, expected_type)
         except ValueError as error:
             raise BadRequest(f"Invalid {expected_type} ID: {ref}. {error}") from error
         node_indexes.setdefault(rowid, []).append(index)
@@ -88,7 +87,7 @@ async def _resolve_rowids(
             for index in external_id_indexes[external_id]:
                 resolved_rowids[index] = rowid
 
-    missing_refs = [ref for ref, rowid in zip(refs, resolved_rowids) if rowid is None]
+    missing_refs = [str(ref) for ref, rowid in zip(refs, resolved_rowids) if rowid is None]
     if missing_refs:
         raise NotFound(f"Could not find {entity_name} with IDs: {missing_refs}")
     return cast(list[int], resolved_rowids)
