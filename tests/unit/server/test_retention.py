@@ -1,4 +1,5 @@
-from asyncio import Event, sleep
+from asyncio import Event, wait_for
+from asyncio import TimeoutError as AsyncTimeoutError
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any, AsyncIterator
@@ -22,14 +23,55 @@ from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.types import DbSessionFactory
 
 
+class _SweeperController:
+    """Drives the TraceDataSweeper one sweep at a time in place of its hourly sleep.
+
+    The sweeper parks in ``park`` where it would otherwise sleep. ``sweep`` releases it once
+    and returns when it has parked again, which is after that sweep has run to completion,
+    so a test never has to guess how long a sweep takes. Supports one caller at a time.
+    """
+
+    def __init__(self) -> None:
+        self._release = Event()
+        self._parked = Event()
+
+    async def park(self, *_: Any, **__: Any) -> None:
+        self._parked.set()
+        await self._release.wait()
+        self._release.clear()
+
+    async def sweep(self, timeout: float = 30.0) -> None:
+        await self._parked_within(timeout, "the sweeper never parked")
+        self._parked.clear()
+        self._release.set()
+        await self._parked_within(timeout, "the sweep did not finish")
+
+    async def _parked_within(self, timeout: float, failure: str) -> None:
+        try:
+            await wait_for(self._parked.wait(), timeout)
+        except AsyncTimeoutError:
+            pytest.fail(f"{failure} within {timeout:.0f}s")
+
+
 class TestTraceDataSweeper:
+    @pytest.fixture(autouse=True)
+    async def sweeper_trigger(self) -> AsyncIterator[_SweeperController]:
+        """Patch sleep before app startup for every test in this class.
+
+        Autouse ensures the patch precedes ``asgi_app`` regardless of test parameter order.
+        Each test gets a fresh controller, and app teardown runs before the patch is removed.
+        """
+        controller = _SweeperController()
+        with patch.object(TraceDataSweeper, "_sleep_until_next_hour", controller.park):
+            yield controller
+
     @pytest.mark.parametrize("use_default_policy", [True, False])
     async def test_max_count_rule(
         self,
         use_default_policy: bool,
-        sweeper_trigger: Event,
         db: DbSessionFactory,
         asgi_app: ASGIApp,
+        sweeper_trigger: _SweeperController,
     ) -> None:
         """Test that TraceDataSweeper correctly enforces trace retention policies.
 
@@ -130,9 +172,7 @@ class TestTraceDataSweeper:
                     project_expected_trace_ids[project_id] = expected_trace_ids
 
             # Execute sweeper
-            sweeper_trigger.set()
-            wait_time = 1.0
-            await sleep(wait_time)  # Allow time for processing
+            await sweeper_trigger.sweep()
 
             # Verify final state for each project
             async with db() as session:
@@ -158,9 +198,9 @@ class TestTraceDataSweeper:
     async def test_max_days_rule(
         self,
         use_default_policy: bool,
-        sweeper_trigger: Event,
         db: DbSessionFactory,
         asgi_app: ASGIApp,
+        sweeper_trigger: _SweeperController,
     ) -> None:
         """Test that TraceDataSweeper correctly enforces time-based retention policies.
 
@@ -254,9 +294,7 @@ class TestTraceDataSweeper:
                 )
 
         # Execute sweeper
-        sweeper_trigger.set()
-        wait_time = 1.0
-        await sleep(wait_time)  # Allow time for processing
+        await sweeper_trigger.sweep()
 
         # Verify final state for each project
         async with db() as session:
@@ -280,9 +318,9 @@ class TestTraceDataSweeper:
     async def test_max_days_or_count_rule(
         self,
         use_default_policy: bool,
-        sweeper_trigger: Event,
         db: DbSessionFactory,
         asgi_app: ASGIApp,
+        sweeper_trigger: _SweeperController,
     ) -> None:
         """Test that TraceDataSweeper correctly enforces OR-based retention policies.
 
@@ -410,9 +448,7 @@ class TestTraceDataSweeper:
                 )
 
         # Execute sweeper
-        sweeper_trigger.set()
-        wait_time = 1.0
-        await sleep(wait_time)  # Allow time for processing
+        await sweeper_trigger.sweep()
 
         # Verify final state for each project
         async with db() as session:
@@ -431,23 +467,6 @@ class TestTraceDataSweeper:
                     f"Project {project_id} ({test_case['description']}): "
                     f"trace IDs mismatch: expected {expected_trace_ids}, got {remaining_trace_ids}"
                 )
-
-
-@pytest.fixture
-async def sweeper_trigger() -> AsyncIterator[Event]:
-    """Control when the TraceDataSweeper runs by patching its sleep method.
-
-    Returns an event that can be set to trigger the sweeper's next run.
-    The sweeper will wait for this event instead of sleeping until the next hour.
-    """
-    event = Event()
-
-    async def wait_for_event(*_: Any, **__: Any) -> None:
-        await event.wait()
-        event.clear()
-
-    with patch.object(TraceDataSweeper, "_sleep_until_next_hour", wait_for_event):
-        yield event
 
 
 class TestOrphanSessionSweep:
