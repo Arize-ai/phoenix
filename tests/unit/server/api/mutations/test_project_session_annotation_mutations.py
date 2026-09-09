@@ -3,6 +3,7 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
@@ -1006,3 +1007,386 @@ class TestProjectSessionAnnotationMutations:
         # Verify error message is meaningful and not an unexpected system error
         error_message = str(wrong_gid_type_response.errors[0].message).lower()
         assert "unexpected" not in error_message
+
+
+class TestProjectSessionNoteMutations:
+    _CREATE_NOTES = """
+    mutation CreateProjectSessionNotes($input: [CreateProjectSessionNoteInput!]!) {
+      createProjectSessionNotes(input: $input) {
+        projectSessionAnnotations {
+          id
+          name
+          label
+          score
+          explanation
+          annotatorKind
+          metadata
+          identifier
+          source
+        }
+      }
+    }
+    """
+    _DELETE_NOTES = """
+    mutation DeleteProjectSessionNotes($input: DeleteAnnotationsInput!) {
+      deleteProjectSessionNotes(input: $input) {
+        projectSessionAnnotations { id name }
+      }
+    }
+    """
+
+    async def test_create_by_node_and_session_id_preserves_note_semantics(
+        self,
+        project_session_data: models.ProjectSession,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "id": str(GlobalID("ProjectSession", str(project_session_data.id))),
+                        "note": " node note ",
+                    },
+                    {
+                        "id": project_session_data.session_id,
+                        "note": "session note",
+                        "identifier": " coding ",
+                    },
+                ]
+            },
+        )
+
+        assert result.data is not None
+        assert not result.errors
+        notes = result.data["createProjectSessionNotes"]["projectSessionAnnotations"]
+        assert [note["explanation"] for note in notes] == ["node note", "session note"]
+        assert all(note["name"] == "note" for note in notes)
+        assert all(note["label"] is None for note in notes)
+        assert all(note["score"] is None for note in notes)
+        assert all(note["annotatorKind"] == "HUMAN" for note in notes)
+        assert all(note["metadata"] == {} for note in notes)
+        assert all(note["source"] == "APP" for note in notes)
+        assert notes[0]["identifier"].startswith("px-session-note:")
+        assert notes[1]["identifier"] == "coding"
+
+        async with db() as session:
+            stored_notes = list(
+                await session.scalars(
+                    select(models.ProjectSessionAnnotation).where(
+                        models.ProjectSessionAnnotation.name == "note"
+                    )
+                )
+            )
+        assert len(stored_notes) == 2
+        assert all(note.project_session_id == project_session_data.id for note in stored_notes)
+        assert all(note.user_id is None for note in stored_notes)
+
+    async def test_create_accumulates_without_identifier_and_upserts_with_identifier(
+        self,
+        project_session_data: models.ProjectSession,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        first = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": project_session_data.session_id, "note": "first"}]},
+        )
+        second = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": project_session_data.session_id, "note": "second"}]},
+        )
+        upserted_first = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "id": project_session_data.session_id,
+                        "note": "draft",
+                        "identifier": "coding",
+                    }
+                ]
+            },
+        )
+        upserted_second = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "id": project_session_data.session_id,
+                        "note": "final",
+                        "identifier": "coding",
+                    }
+                ]
+            },
+        )
+
+        for result in (first, second, upserted_first, upserted_second):
+            assert result.data is not None
+            assert not result.errors
+        assert first.data is not None
+        assert second.data is not None
+        assert upserted_first.data is not None
+        assert upserted_second.data is not None
+        assert (
+            first.data["createProjectSessionNotes"]["projectSessionAnnotations"][0]["id"]
+            != second.data["createProjectSessionNotes"]["projectSessionAnnotations"][0]["id"]
+        )
+        assert (
+            upserted_first.data["createProjectSessionNotes"]["projectSessionAnnotations"][0]["id"]
+            == upserted_second.data["createProjectSessionNotes"]["projectSessionAnnotations"][0][
+                "id"
+            ]
+        )
+        assert (
+            upserted_second.data["createProjectSessionNotes"]["projectSessionAnnotations"][0][
+                "explanation"
+            ]
+            == "final"
+        )
+
+        async with db() as session:
+            notes = list(
+                await session.scalars(
+                    select(models.ProjectSessionAnnotation).where(
+                        models.ProjectSessionAnnotation.name == "note"
+                    )
+                )
+            )
+        assert len(notes) == 3
+        assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
+
+    @pytest.mark.parametrize(
+        "note_id, expected_message",
+        [
+            pytest.param("missing-session", "Could not find project sessions", id="missing-id"),
+            pytest.param(
+                str(GlobalID("ProjectSession", "404")),
+                "Could not find project sessions",
+                id="missing-node-id",
+            ),
+            pytest.param(
+                str(GlobalID("Trace", "1")),
+                "instead corresponds to a node of type: Trace",
+                id="wrong-node-type",
+            ),
+        ],
+    )
+    async def test_create_rejects_invalid_target(
+        self,
+        project_session_data: models.ProjectSession,
+        gql_client: AsyncGraphQLClient,
+        note_id: str,
+        expected_message: str,
+    ) -> None:
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": note_id, "note": "review"}]},
+        )
+
+        assert result.data is None
+        assert result.errors
+        assert expected_message in result.errors[0].message
+
+    async def test_create_rejects_blank_note(
+        self,
+        project_session_data: models.ProjectSession,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": project_session_data.session_id, "note": " \t "}]},
+        )
+
+        assert result.data is None
+        assert result.errors
+        assert result.errors[0].message == "Note cannot be empty."
+
+    async def test_delete_is_note_scoped_and_rolls_back_partial_failure(
+        self,
+        project_session_data: models.ProjectSession,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        note_result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": project_session_data.session_id, "note": "keep until valid delete"}]},
+        )
+        assert note_result.data is not None
+        assert not note_result.errors
+        note_id = note_result.data["createProjectSessionNotes"]["projectSessionAnnotations"][0][
+            "id"
+        ]
+
+        structured_result = await gql_client.execute(
+            TestProjectSessionAnnotationMutations.QUERY,
+            {
+                "input": {
+                    "projectSessionId": str(
+                        GlobalID("ProjectSession", str(project_session_data.id))
+                    ),
+                    "name": "quality",
+                    "label": "good",
+                    "annotatorKind": "HUMAN",
+                    "metadata": {},
+                    "source": "APP",
+                }
+            },
+            operation_name="CreateProjectSessionAnnotations",
+        )
+        assert structured_result.data is not None
+        assert not structured_result.errors
+        structured_id = structured_result.data["createProjectSessionAnnotations"][
+            "projectSessionAnnotation"
+        ]["id"]
+
+        mixed_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [note_id, structured_id]}},
+        )
+        assert mixed_delete.data is None
+        assert mixed_delete.errors
+        assert (
+            "Use the deleteProjectSessionAnnotation mutation instead."
+            in mixed_delete.errors[0].message
+        )
+
+        duplicate_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [note_id, note_id]}},
+        )
+        assert duplicate_delete.data is None
+        assert duplicate_delete.errors
+        assert "Duplicate session annotation ID" in duplicate_delete.errors[0].message
+
+        missing_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [str(GlobalID("ProjectSessionAnnotation", "999999"))]}},
+        )
+        assert missing_delete.data is None
+        assert missing_delete.errors
+        assert "Could not find session annotations" in missing_delete.errors[0].message
+
+        async with db() as session:
+            stored_note_id = int(GlobalID.from_id(note_id).node_id)
+            assert await session.get(models.ProjectSessionAnnotation, stored_note_id) is not None
+
+        successful_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [note_id]}},
+        )
+        assert successful_delete.data is not None
+        assert not successful_delete.errors
+        assert (
+            successful_delete.data["deleteProjectSessionNotes"]["projectSessionAnnotations"][0][
+                "id"
+            ]
+            == note_id
+        )
+
+    async def test_generic_mutations_refuse_notes(
+        self,
+        project_session_data: models.ProjectSession,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        generic_create = await gql_client.execute(
+            TestProjectSessionAnnotationMutations.QUERY,
+            {
+                "input": {
+                    "projectSessionId": str(
+                        GlobalID("ProjectSession", str(project_session_data.id))
+                    ),
+                    "name": "note",
+                    "explanation": "blocked",
+                    "annotatorKind": "HUMAN",
+                    "metadata": {},
+                    "source": "APP",
+                }
+            },
+            operation_name="CreateProjectSessionAnnotations",
+        )
+        assert generic_create.data is None
+        assert generic_create.errors
+        assert generic_create.errors[0].message.endswith(
+            "createProjectSessionNotes mutation instead."
+        )
+
+        note_result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": project_session_data.session_id, "note": "protected"}]},
+        )
+        assert note_result.data is not None
+        assert not note_result.errors
+        note_id = note_result.data["createProjectSessionNotes"]["projectSessionAnnotations"][0][
+            "id"
+        ]
+
+        update_note = await gql_client.execute(
+            TestProjectSessionAnnotationMutations.QUERY,
+            {
+                "input": {
+                    "id": note_id,
+                    "name": "renamed",
+                    "explanation": "changed",
+                    "annotatorKind": "HUMAN",
+                    "metadata": {},
+                    "source": "APP",
+                }
+            },
+            operation_name="UpdateProjectSessionAnnotations",
+        )
+        assert update_note.data is None
+        assert update_note.errors
+        assert update_note.errors[0].message.endswith("createProjectSessionNotes mutation instead.")
+
+        generic_delete = await gql_client.execute(
+            TestProjectSessionAnnotationMutations.QUERY,
+            {"id": note_id},
+            operation_name="DeleteProjectSessionAnnotation",
+        )
+        assert generic_delete.data is None
+        assert generic_delete.errors
+        assert generic_delete.errors[0].message.endswith(
+            "deleteProjectSessionNotes mutation instead."
+        )
+
+        structured_result = await gql_client.execute(
+            TestProjectSessionAnnotationMutations.QUERY,
+            {
+                "input": {
+                    "projectSessionId": str(
+                        GlobalID("ProjectSession", str(project_session_data.id))
+                    ),
+                    "name": "quality",
+                    "label": "good",
+                    "annotatorKind": "HUMAN",
+                    "metadata": {},
+                    "source": "APP",
+                }
+            },
+            operation_name="CreateProjectSessionAnnotations",
+        )
+        assert structured_result.data is not None
+        structured_id = structured_result.data["createProjectSessionAnnotations"][
+            "projectSessionAnnotation"
+        ]["id"]
+        rename_to_note = await gql_client.execute(
+            TestProjectSessionAnnotationMutations.QUERY,
+            {
+                "input": {
+                    "id": structured_id,
+                    "name": "note",
+                    "label": "good",
+                    "annotatorKind": "HUMAN",
+                    "metadata": {},
+                    "source": "APP",
+                }
+            },
+            operation_name="UpdateProjectSessionAnnotations",
+        )
+        assert rename_to_note.data is None
+        assert rename_to_note.errors
+        assert rename_to_note.errors[0].message.endswith(
+            "createProjectSessionNotes mutation instead."
+        )

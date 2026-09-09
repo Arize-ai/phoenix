@@ -3,6 +3,7 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
@@ -252,10 +253,9 @@ class TestTraceAnnotationMutations:
 
         assert response.data is None
         assert response.errors
-        assert (
-            "The name 'note' is reserved for trace and span notes. "
-            "Use POST /v1/trace_notes instead."
-        ) in response.errors[0].message
+        assert response.errors[0].message == (
+            "The name 'note' is reserved for notes. Use the createTraceNotes mutation instead."
+        )
 
     async def test_create_trace_annotations_on_missing_trace_returns_not_found(
         self,
@@ -286,3 +286,315 @@ class TestTraceAnnotationMutations:
         assert (
             f"Could not find traces with IDs: ['{missing_trace_gid}']" in response.errors[0].message
         )
+
+
+class TestTraceNoteMutations:
+    _CREATE_NOTES = """
+    mutation CreateTraceNotes($input: [CreateTraceNoteInput!]!) {
+      createTraceNotes(input: $input) {
+        traceAnnotations {
+          id
+          name
+          label
+          score
+          explanation
+          annotatorKind
+          metadata
+          identifier
+          source
+        }
+      }
+    }
+    """
+    _DELETE_NOTES = """
+    mutation DeleteTraceNotes($input: DeleteAnnotationsInput!) {
+      deleteTraceNotes(input: $input) {
+        traceAnnotations { id name }
+      }
+    }
+    """
+    _PATCH_ANNOTATIONS = """
+    mutation PatchTraceAnnotations($input: [PatchAnnotationInput!]!) {
+      patchTraceAnnotations(input: $input) {
+        traceAnnotations { id name explanation }
+      }
+    }
+    """
+    _DELETE_ANNOTATIONS = """
+    mutation DeleteTraceAnnotations($input: DeleteAnnotationsInput!) {
+      deleteTraceAnnotations(input: $input) {
+        traceAnnotations { id name }
+      }
+    }
+    """
+
+    async def test_create_by_node_and_otel_id_preserves_note_semantics(
+        self,
+        _trace_data: models.Trace,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {
+                        "id": str(GlobalID("Trace", str(_trace_data.id))),
+                        "note": " node note ",
+                    },
+                    {
+                        "id": _trace_data.trace_id,
+                        "note": "OTel note",
+                        "identifier": " coding ",
+                    },
+                ]
+            },
+        )
+
+        assert result.data is not None
+        assert not result.errors
+        notes = result.data["createTraceNotes"]["traceAnnotations"]
+        assert [note["explanation"] for note in notes] == ["node note", "OTel note"]
+        assert all(note["name"] == "note" for note in notes)
+        assert all(note["label"] is None for note in notes)
+        assert all(note["score"] is None for note in notes)
+        assert all(note["annotatorKind"] == "HUMAN" for note in notes)
+        assert all(note["metadata"] == {} for note in notes)
+        assert all(note["source"] == "APP" for note in notes)
+        assert notes[0]["identifier"].startswith("px-trace-note:")
+        assert notes[1]["identifier"] == "coding"
+
+        async with db() as session:
+            stored_notes = list(
+                await session.scalars(
+                    select(models.TraceAnnotation).where(models.TraceAnnotation.name == "note")
+                )
+            )
+        assert len(stored_notes) == 2
+        assert all(note.trace_rowid == _trace_data.id for note in stored_notes)
+        assert all(note.user_id is None for note in stored_notes)
+
+    async def test_create_accumulates_without_identifier_and_upserts_with_identifier(
+        self,
+        _trace_data: models.Trace,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        first = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": _trace_data.trace_id, "note": "first"}]},
+        )
+        second = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": _trace_data.trace_id, "note": "second"}]},
+        )
+        upserted_first = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": _trace_data.trace_id, "note": "draft", "identifier": "coding"}]},
+        )
+        upserted_second = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": _trace_data.trace_id, "note": "final", "identifier": "coding"}]},
+        )
+
+        for result in (first, second, upserted_first, upserted_second):
+            assert result.data is not None
+            assert not result.errors
+        assert first.data is not None
+        assert second.data is not None
+        assert upserted_first.data is not None
+        assert upserted_second.data is not None
+        assert (
+            first.data["createTraceNotes"]["traceAnnotations"][0]["id"]
+            != second.data["createTraceNotes"]["traceAnnotations"][0]["id"]
+        )
+        assert (
+            upserted_first.data["createTraceNotes"]["traceAnnotations"][0]["id"]
+            == upserted_second.data["createTraceNotes"]["traceAnnotations"][0]["id"]
+        )
+        assert (
+            upserted_second.data["createTraceNotes"]["traceAnnotations"][0]["explanation"]
+            == "final"
+        )
+
+        async with db() as session:
+            notes = list(
+                await session.scalars(
+                    select(models.TraceAnnotation).where(models.TraceAnnotation.name == "note")
+                )
+            )
+        assert len(notes) == 3
+        assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
+
+    @pytest.mark.parametrize(
+        "note_id, expected_message",
+        [
+            pytest.param("missing-trace", "Could not find traces", id="missing-otel-id"),
+            pytest.param(
+                str(GlobalID("Trace", "404")), "Could not find traces", id="missing-node-id"
+            ),
+            pytest.param(
+                str(GlobalID("Span", "1")),
+                "instead corresponds to a node of type: Span",
+                id="wrong-node-type",
+            ),
+        ],
+    )
+    async def test_create_rejects_invalid_target(
+        self,
+        _trace_data: models.Trace,
+        gql_client: AsyncGraphQLClient,
+        note_id: str,
+        expected_message: str,
+    ) -> None:
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": note_id, "note": "review"}]},
+        )
+
+        assert result.data is None
+        assert result.errors
+        assert expected_message in result.errors[0].message
+
+    async def test_create_rejects_blank_note(
+        self,
+        _trace_data: models.Trace,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": _trace_data.trace_id, "note": " \t "}]},
+        )
+
+        assert result.data is None
+        assert result.errors
+        assert result.errors[0].message == "Note cannot be empty."
+
+    async def test_delete_is_note_scoped_and_rolls_back_partial_failure(
+        self,
+        _trace_data: models.Trace,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        note_result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": _trace_data.trace_id, "note": "keep until valid delete"}]},
+        )
+        assert note_result.data is not None
+        assert not note_result.errors
+        note_id = note_result.data["createTraceNotes"]["traceAnnotations"][0]["id"]
+
+        structured_result = await gql_client.execute(
+            TestTraceAnnotationMutations.QUERY,
+            {
+                "input": [
+                    {
+                        "traceId": str(GlobalID("Trace", str(_trace_data.id))),
+                        "name": "quality",
+                        "label": "good",
+                        "annotatorKind": "HUMAN",
+                        "metadata": {},
+                        "source": "APP",
+                    }
+                ]
+            },
+            operation_name="CreateTraceAnnotations",
+        )
+        assert structured_result.data is not None
+        assert not structured_result.errors
+        structured_id = structured_result.data["createTraceAnnotations"]["traceAnnotations"][0][
+            "id"
+        ]
+
+        mixed_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [note_id, structured_id]}},
+        )
+        assert mixed_delete.data is None
+        assert mixed_delete.errors
+        assert "Use the deleteTraceAnnotations mutation instead." in mixed_delete.errors[0].message
+
+        duplicate_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [note_id, note_id]}},
+        )
+        assert duplicate_delete.data is None
+        assert duplicate_delete.errors
+        assert "Duplicate trace annotation ID" in duplicate_delete.errors[0].message
+
+        missing_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [str(GlobalID("TraceAnnotation", "999999"))]}},
+        )
+        assert missing_delete.data is None
+        assert missing_delete.errors
+        assert "Could not find trace annotations" in missing_delete.errors[0].message
+
+        async with db() as session:
+            stored_note_id = int(GlobalID.from_id(note_id).node_id)
+            assert await session.get(models.TraceAnnotation, stored_note_id) is not None
+
+        successful_delete = await gql_client.execute(
+            self._DELETE_NOTES,
+            {"input": {"annotationIds": [note_id]}},
+        )
+        assert successful_delete.data is not None
+        assert not successful_delete.errors
+        assert successful_delete.data["deleteTraceNotes"]["traceAnnotations"][0]["id"] == note_id
+
+    async def test_generic_patch_and_delete_refuse_notes(
+        self,
+        _trace_data: models.Trace,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        note_result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {"input": [{"id": _trace_data.trace_id, "note": "protected"}]},
+        )
+        assert note_result.data is not None
+        assert not note_result.errors
+        note_id = note_result.data["createTraceNotes"]["traceAnnotations"][0]["id"]
+
+        patch_note = await gql_client.execute(
+            self._PATCH_ANNOTATIONS,
+            {"input": [{"annotationId": note_id, "explanation": "changed"}]},
+        )
+        assert patch_note.data is None
+        assert patch_note.errors
+        assert patch_note.errors[0].message.endswith("createTraceNotes mutation instead.")
+
+        generic_delete = await gql_client.execute(
+            self._DELETE_ANNOTATIONS,
+            {"input": {"annotationIds": [note_id]}},
+        )
+        assert generic_delete.data is None
+        assert generic_delete.errors
+        assert generic_delete.errors[0].message.endswith("deleteTraceNotes mutation instead.")
+
+        structured_result = await gql_client.execute(
+            TestTraceAnnotationMutations.QUERY,
+            {
+                "input": [
+                    {
+                        "traceId": str(GlobalID("Trace", str(_trace_data.id))),
+                        "name": "quality",
+                        "label": "good",
+                        "annotatorKind": "HUMAN",
+                        "metadata": {},
+                        "source": "APP",
+                    }
+                ]
+            },
+            operation_name="CreateTraceAnnotations",
+        )
+        assert structured_result.data is not None
+        structured_id = structured_result.data["createTraceAnnotations"]["traceAnnotations"][0][
+            "id"
+        ]
+        rename_to_note = await gql_client.execute(
+            self._PATCH_ANNOTATIONS,
+            {"input": [{"annotationId": structured_id, "name": "note"}]},
+        )
+        assert rename_to_note.data is None
+        assert rename_to_note.errors
+        assert rename_to_note.errors[0].message.endswith("createTraceNotes mutation instead.")
