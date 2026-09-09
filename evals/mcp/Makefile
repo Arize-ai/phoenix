@@ -39,3 +39,7 @@ mcp-fixture:
 .PHONY: mcp-isolation-probe
 mcp-isolation-probe:
 	$(MCP_PYTHON) $(MCP_DIR)/isolation.py --docker-probe
+
+.PHONY: mcp-stage-task
+mcp-stage-task:
+	$(MCP_PYTHON) $(MCP_DIR)/stage_task.py $(ARGS)

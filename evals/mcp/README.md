@@ -54,3 +54,15 @@ It does not create Phoenix state or make model calls. A passing probe is only a
 prerequisite: actual egress, web-tool, repository, grader, reward, and shutdown
 probes must pass for each installed agent condition before execution is enabled.
 The current Docker Desktop kernel lacks `CONFIG_NFT_FIB_INET`, so this gate fails.
+
+Task staging requires a prepared manifest and reviewed runtime image digests:
+
+```sh
+make mcp-stage-task ARGS='--manifest /private/manifest.json --output /private/tasks --agent-image registry/agent@sha256:DIGEST --verifier-image registry/python@sha256:DIGEST'
+```
+
+Replace `DIGEST` with actual 64-character image hashes. The canonical task has no
+MCP registration, so CLI conditions cannot inherit an MCP server. Network defaults
+are closed. This staging command does not configure a runnable trial: trusted
+truth/audit transfer and condition access must be attached by the pending runner.
+The verifier emits no authoritative reward without trusted evidence.
