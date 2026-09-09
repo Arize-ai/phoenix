@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import { useState } from "react";
 import { GridListSection } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
+import { useNavigate } from "react-router";
 
 import {
   Button,
@@ -65,6 +66,7 @@ export function PlaygroundEvaluatorSelect(
     editingEvaluator,
     onEditingEvaluatorChange,
   } = props;
+  const navigate = useNavigate();
 
   const data = useFragment<PlaygroundEvaluatorSelect_query$key>(
     graphql`
@@ -136,6 +138,16 @@ export function PlaygroundEvaluatorSelect(
                     <EvaluatorSelectMenuItem
                       key={evaluator.id}
                       evaluator={evaluator}
+                      onOpenPlayground={
+                        evaluator.isBuiltIn
+                          ? undefined
+                          : () => {
+                              setEvaluatorMenuOpen(false);
+                              void navigate(
+                                `/playground?${new URLSearchParams({ mode: "evaluators", datasetId, datasetEvaluatorA: evaluator.id })}`
+                              );
+                            }
+                      }
                       isSelected={selectedIds?.includes(evaluator.id) ?? false}
                       onEdit={() =>
                         onEdit({

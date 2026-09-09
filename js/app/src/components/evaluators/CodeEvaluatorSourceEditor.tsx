@@ -39,7 +39,9 @@ export const CodeEvaluatorSourceEditor = ({
   language,
   sourceCode,
   onChange,
+  hideDescription = false,
 }: {
+  hideDescription?: boolean;
   language: CodeEvaluatorLanguage;
   sourceCode: string;
   onChange: (value: string) => void;
@@ -89,9 +91,11 @@ export const CodeEvaluatorSourceEditor = ({
         gap="size-200"
         flex="none"
       >
-        <Text color="text-500" size="XS">
-          {descriptionText}
-        </Text>
+        {hideDescription ? null : (
+          <Text color="text-500" size="XS">
+            {descriptionText}
+          </Text>
+        )}
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
           <MenuTrigger>
             <Button

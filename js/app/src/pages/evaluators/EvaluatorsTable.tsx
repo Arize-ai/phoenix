@@ -24,11 +24,21 @@ import React, {
 import { graphql, readInlineData } from "react-relay";
 import { Link, useNavigate } from "react-router";
 
-import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  LinkButton,
+  Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { ProjectToken } from "@phoenix/components/project";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -107,6 +117,9 @@ const readRow = (row: EvaluatorsTable_row$key) => {
         }
         datasetEvaluators {
           id
+          evaluator {
+            kind
+          }
           name
           description
           updatedAt
@@ -471,6 +484,41 @@ export const EvaluatorsTable = ({
         accessorFn: (row) => row.data.updatedAt,
         size: 160,
         cell: TimestampCell,
+      },
+      {
+        id: "playground",
+        header: "",
+        size: 64,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const kind =
+            row.original.rowType === "evaluator"
+              ? row.original.data.kind
+              : row.original.data.evaluator.kind;
+          if (kind === "BUILTIN") return null;
+          const params = new URLSearchParams({ mode: "evaluators" });
+          if (row.original.rowType === "datasetEvaluator") {
+            params.set("datasetId", row.original.data.dataset.id);
+            params.set("datasetEvaluatorA", row.original.data.id);
+          } else params.set("evaluatorA", row.original.data.id);
+          return (
+            <StopPropagation>
+              <TooltipTrigger>
+                <LinkButton
+                  size="S"
+                  variant="quiet"
+                  aria-label="Open in evaluator playground"
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                  to={`/playground?${params}`}
+                />
+                <Tooltip>
+                  <TooltipArrow />
+                  Open in evaluator playground
+                </Tooltip>
+              </TooltipTrigger>
+            </StopPropagation>
+          );
+        },
       },
     ];
     return cols;
