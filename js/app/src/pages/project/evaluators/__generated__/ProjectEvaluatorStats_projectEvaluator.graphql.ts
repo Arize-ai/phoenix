@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ec16a1660b9d692641d8dd6337607bf2>>
+ * @generated SignedSource<<e9dc0433c061c9edaf3eb7e49e6176f6>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
+export type ProjectEvaluatorRunStatus = "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
 export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TRACE_TARGET_UNSUPPORTED";
 export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
 import { FragmentRefs } from "relay-runtime";
@@ -24,6 +24,7 @@ export type ProjectEvaluatorStats_projectEvaluator$data = {
     readonly id: string;
   };
   readonly runSummary: {
+    readonly droppedCount: number;
     readonly evaluatedCount: number;
     readonly failedCount: number;
     readonly lastError: string | null;
@@ -155,6 +156,13 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
+          "name": "droppedCount",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
           "name": "lastError",
           "storageKey": null
         }
@@ -190,6 +198,6 @@ return {
 };
 })();
 
-(node as any).hash = "561b2258c8a7fdd10968eaa94f9d1fdc";
+(node as any).hash = "c3fdc9accab5e671bda4d192a270c76b";
 
 export default node;
