@@ -1,8 +1,7 @@
 # Arize Phoenix Plugin
 
 The Arize Phoenix Plugin is available under `plugins/arize-phoenix`. It bundles
-the configurable Phoenix MCP connection and the three public Phoenix agent
-skills: CLI, evaluations, and tracing.
+a configurable connection to the Phoenix MCP server.
 
 ## Install from the marketplace
 
@@ -13,8 +12,7 @@ codex plugin marketplace add Arize-ai/phoenix
 codex plugin add arize-phoenix@arize-phoenix
 ```
 
-Start a new Codex task after installation so the skills and MCP tools are
-loaded.
+Start a new Codex task after installation so the MCP tools are loaded.
 
 ## Configure the Phoenix endpoint
 
@@ -39,6 +37,5 @@ Alternatively, register a per-user endpoint directly with the Phoenix CLI:
 px setup mcp --agent codex --endpoint https://your-phoenix.example.com
 ```
 
-The CLI appends `/mcp`, registers the endpoint in the user's Codex
-configuration, and leaves the bundled Phoenix skills available from this
-plugin.
+The CLI appends `/mcp` and registers the endpoint in the user's Codex
+configuration.
