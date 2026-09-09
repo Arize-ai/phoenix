@@ -5585,6 +5585,40 @@
       ]
     },
     {
+      "name": "us-gov.openai.gpt-oss-120b-1:0",
+      "name_pattern": "us-gov\\.openai\\.gpt-oss-120b-1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 7.2e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.openai.gpt-oss-20b-1:0",
+      "name_pattern": "us-gov\\.openai\\.gpt-oss-20b-1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.4e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.6e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "us.openai.gpt-5.6-luna",
       "name_pattern": "us\\.openai\\.gpt-5\\.6-luna",
       "source": "litellm",
