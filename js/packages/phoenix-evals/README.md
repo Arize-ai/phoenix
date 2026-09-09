@@ -100,7 +100,7 @@ All pre-built evaluators are available from the `@arizeai/phoenix-evals/llm` mod
 | Faithfulness           | `createFaithfulnessEvaluator`         | Detects hallucinations — checks if the output is grounded in the provided context |
 | Conciseness            | `createConcisenessEvaluator`          | Evaluates whether the response is appropriately concise                           |
 | Correctness            | `createCorrectnessEvaluator`          | Checks if the output is factually correct given the input                         |
-| Document Relevance     | `createDocumentRelevanceEvaluator`    | Measures how relevant a retrieved document is to the query                        |
+| Retrieval Relevance    | `createRetrievalRelevanceEvaluator`   | Measures how relevant retrieved information is to a request                       |
 | Refusal                | `createRefusalEvaluator`              | Detects whether the model refused to answer                                       |
 | Tool Invocation        | `createToolInvocationEvaluator`       | Evaluates whether the correct tool was invoked with the right arguments           |
 | Tool Selection         | `createToolSelectionEvaluator`        | Checks whether the right tool was selected for the task                           |
@@ -112,7 +112,7 @@ import {
   createFaithfulnessEvaluator,
   createConcisenessEvaluator,
   createCorrectnessEvaluator,
-  createDocumentRelevanceEvaluator,
+  createRetrievalRelevanceEvaluator,
   createRefusalEvaluator,
 } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
@@ -138,11 +138,11 @@ const correctnessResult = await correctnessEvaluator.evaluate({
 console.log(correctnessResult);
 // Output: { label: "correct", score: 1, explanation: "..." }
 
-// Document Relevance: checks if a retrieved document is relevant to the query
-const relevanceEvaluator = createDocumentRelevanceEvaluator({ model });
+// Retrieval Relevance: checks if retrieved information is relevant to the request
+const relevanceEvaluator = createRetrievalRelevanceEvaluator({ model });
 const relevanceResult = await relevanceEvaluator.evaluate({
   input: "What is the capital of France?",
-  documentText: "Paris is the capital of France and a major European city.",
+  context: "Paris is the capital of France and a major European city.",
 });
 console.log(relevanceResult);
 // Output: { label: "relevant", score: 1, explanation: "..." }

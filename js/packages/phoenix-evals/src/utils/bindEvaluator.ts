@@ -204,14 +204,13 @@ export type BindingContext<RecordType extends Record<string, unknown>> = {
  *   }
  * );
  *
- * // Document relevancy evaluator (if it exists)
+ * // Retrieval relevance evaluator
  * const relevancyEvaluator = bindEvaluator<EvaluationData>(
- *   createDocumentRelevanceEvaluator({ model: openai("gpt-4") }),
+ *   createRetrievalRelevanceEvaluator<EvaluationData>({ model: openai("gpt-4") }),
  *   {
  *     inputMapping: {
- *       query: "userQuery",
- *       document: "systemContext",
- *       output: "modelOutput",
+ *       input: "userQuery",
+ *       context: "systemContext",
  *     },
  *   }
  * );
