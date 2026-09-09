@@ -117,7 +117,7 @@ describe("useProjectEvaluatorPaths", () => {
       "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=RESPONSE_QUALITY&template=Correctness&proof=preserved"
     );
     expect(output?.getAttribute("data-compare")).toBe(
-      "/projects/project-1/evaluators/compare?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved&a=ProjectEvaluator%3Aa%2Fsource&b=ProjectEvaluator%3Ab%2Fsource"
+      "/projects/project-1/evaluators/compare?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved&evaluatorId=ProjectEvaluator%3Aa%2Fsource&evaluatorId=ProjectEvaluator%3Ab%2Fsource"
     );
   });
 
@@ -126,7 +126,7 @@ describe("useProjectEvaluatorPaths", () => {
       root.render(
         <MemoryRouter
           initialEntries={[
-            "/projects/project-1/evaluators/compare?timeRangeKey=7d&a=old-a&b=old-b",
+            "/projects/project-1/evaluators/compare?timeRangeKey=7d&evaluatorId=old-a&evaluatorId=old-b",
           ]}
         >
           <Routes>
@@ -144,7 +144,7 @@ describe("useProjectEvaluatorPaths", () => {
       "/projects/project-1/evaluators/new/llm?timeRangeKey=7d"
     );
     expect(output?.getAttribute("data-compare")).toContain(
-      "?timeRangeKey=7d&a=ProjectEvaluator%3Aa%2Fsource&b=ProjectEvaluator%3Ab%2Fsource"
+      "?timeRangeKey=7d&evaluatorId=ProjectEvaluator%3Aa%2Fsource&evaluatorId=ProjectEvaluator%3Ab%2Fsource"
     );
   });
 });

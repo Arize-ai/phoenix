@@ -3,8 +3,7 @@ import { useLocation } from "react-router";
 
 import {
   PROJECT_EVALUATOR_CATEGORY_PARAM,
-  PROJECT_EVALUATOR_COMPARE_A_PARAM,
-  PROJECT_EVALUATOR_COMPARE_B_PARAM,
+  PROJECT_EVALUATOR_COMPARE_PARAM,
   PROJECT_EVALUATOR_PARAM,
   PROJECT_EVALUATOR_TEMPLATE_PARAM,
 } from "@phoenix/constants/searchParams";
@@ -56,8 +55,7 @@ export function useProjectEvaluatorPaths() {
     const list = projectEvaluatorsPath(rootPath);
     const gallery = projectEvaluatorGalleryPath(rootPath);
     const searchWithoutComparison = withSearchParams(search, (searchParams) => {
-      searchParams.delete(PROJECT_EVALUATOR_COMPARE_A_PARAM);
-      searchParams.delete(PROJECT_EVALUATOR_COMPARE_B_PARAM);
+      searchParams.delete(PROJECT_EVALUATOR_COMPARE_PARAM);
     });
     const withCurrentSearch = (path: string) =>
       `${path}${searchWithoutComparison}`;
@@ -93,8 +91,8 @@ export function useProjectEvaluatorPaths() {
           searchWithoutComparison,
           (searchParams) => {
             searchParams.delete(PROJECT_EVALUATOR_PARAM);
-            searchParams.set(PROJECT_EVALUATOR_COMPARE_A_PARAM, a);
-            searchParams.set(PROJECT_EVALUATOR_COMPARE_B_PARAM, b);
+            searchParams.append(PROJECT_EVALUATOR_COMPARE_PARAM, a);
+            searchParams.append(PROJECT_EVALUATOR_COMPARE_PARAM, b);
           }
         )}`,
       gallery: `${gallery}${defaultGallerySearch}`,

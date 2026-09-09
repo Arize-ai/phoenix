@@ -100,6 +100,16 @@ function ProjectEvaluatorComparePageLoaded({
               evaluator.evaluationTarget === evaluatorA.evaluationTarget
           )
       : [evaluatorA, evaluatorB];
+  const evaluatorAOptimizationDirection =
+    evaluatorA.evaluator.outputConfigs[0]?.optimizationDirection ?? null;
+  const evaluatorBOptimizationDirection =
+    evaluatorB.evaluator.outputConfigs[0]?.optimizationDirection ?? null;
+  const comparisonKey = [
+    evaluatorA.id,
+    evaluatorB.id,
+    timeRange.start.toISOString(),
+    timeRange.end.toISOString(),
+  ].join(":");
 
   return (
     <main css={mainCSS}>
@@ -148,7 +158,10 @@ function ProjectEvaluatorComparePageLoaded({
       <View overflow="auto" height="100%">
         <View padding="size-200">
           <div css={contentCSS}>
-            <ErrorBoundary fallback={ProjectEvaluatorCompareErrorFallback}>
+            <ErrorBoundary
+              key={comparisonKey}
+              fallback={ProjectEvaluatorCompareErrorFallback}
+            >
               <Suspense fallback={<Loading />}>
                 <ProjectEvaluatorCompareContent
                   projectId={projectId}
@@ -156,6 +169,12 @@ function ProjectEvaluatorComparePageLoaded({
                   evaluatorBId={evaluatorB.id}
                   evaluatorAName={evaluatorA.name}
                   evaluatorBName={evaluatorB.name}
+                  evaluatorAOptimizationDirection={
+                    evaluatorAOptimizationDirection
+                  }
+                  evaluatorBOptimizationDirection={
+                    evaluatorBOptimizationDirection
+                  }
                   timeRange={timeRange}
                 />
               </Suspense>

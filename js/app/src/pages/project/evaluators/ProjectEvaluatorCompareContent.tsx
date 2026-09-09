@@ -8,6 +8,7 @@ import type { ProjectEvaluatorCompareContentQuery } from "@phoenix/pages/project
 import { ProjectEvaluatorCompareMatrix } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareMatrix";
 import { ProjectEvaluatorCompareStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareStats";
 import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 import { formatInt } from "@phoenix/utils/numberFormatUtils";
 
 const comparisonPanelsCSS = css`
@@ -22,6 +23,8 @@ export function ProjectEvaluatorCompareContent({
   evaluatorBId,
   evaluatorAName,
   evaluatorBName,
+  evaluatorAOptimizationDirection,
+  evaluatorBOptimizationDirection,
   timeRange,
 }: {
   projectId: string;
@@ -29,6 +32,8 @@ export function ProjectEvaluatorCompareContent({
   evaluatorBId: string;
   evaluatorAName: string;
   evaluatorBName: string;
+  evaluatorAOptimizationDirection: EvaluatorOptimizationDirection | null;
+  evaluatorBOptimizationDirection: EvaluatorOptimizationDirection | null;
   timeRange: TimeRange;
 }) {
   const data = useLazyLoadQuery<ProjectEvaluatorCompareContentQuery>(
@@ -82,11 +87,11 @@ export function ProjectEvaluatorCompareContent({
       <View paddingTop="size-1000">
         <Flex direction="column" alignItems="center" gap="size-100">
           <Empty
-            message={`No ${targetPlural} evaluated by both evaluators in this time range`}
+            message={`No ${targetPlural} evaluated by both ${evaluatorAName} and ${evaluatorBName} in this time range`}
           />
           <Text size="S" color="text-700">
-            Only A: {formatInt(coverage.onlyA)} · Only B:{" "}
-            {formatInt(coverage.onlyB)} · Total in range:{" "}
+            {evaluatorAName} only: {formatInt(coverage.onlyA)} ·{" "}
+            {evaluatorBName} only: {formatInt(coverage.onlyB)} · Total in range:{" "}
             {formatInt(coverage.totalInRange)}
           </Text>
         </Flex>
@@ -106,6 +111,8 @@ export function ProjectEvaluatorCompareContent({
           comparisonRef={comparison}
           evaluatorAName={evaluatorAName}
           evaluatorBName={evaluatorBName}
+          evaluatorAOptimizationDirection={evaluatorAOptimizationDirection}
+          evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
         />
         <Card title="TODO: score distributions" />
       </div>

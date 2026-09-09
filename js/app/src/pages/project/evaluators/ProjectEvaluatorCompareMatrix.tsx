@@ -5,18 +5,22 @@ import { ConfusionMatrix } from "@phoenix/components/chart";
 import type { ProjectEvaluatorCompareMatrix_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareMatrix_comparison.graphql";
 import {
   formatMatrixSubtitle,
-  getPositiveLabel,
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
+import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 
 export function ProjectEvaluatorCompareMatrix({
   comparisonRef,
   evaluatorAName,
   evaluatorBName,
+  evaluatorAOptimizationDirection,
+  evaluatorBOptimizationDirection,
 }: {
   comparisonRef: ProjectEvaluatorCompareMatrix_comparison$key;
   evaluatorAName: string;
   evaluatorBName: string;
+  evaluatorAOptimizationDirection: EvaluatorOptimizationDirection | null;
+  evaluatorBOptimizationDirection: EvaluatorOptimizationDirection | null;
 }) {
   const comparison = useFragment(
     graphql`
@@ -49,6 +53,8 @@ export function ProjectEvaluatorCompareMatrix({
         evaluatedByBoth: comparison.coverage.evaluatedByBoth,
         thresholdA: comparison.sideA.threshold,
         thresholdB: comparison.sideB.threshold,
+        optimizationDirectionA: evaluatorAOptimizationDirection,
+        optimizationDirectionB: evaluatorBOptimizationDirection,
       })}
     >
       <View padding="size-200">
@@ -66,7 +72,6 @@ export function ProjectEvaluatorCompareMatrix({
           showTotals
           showPercentage
           legendLabel={`${comparison.evaluationTarget.toLowerCase()} count · log scale`}
-          positiveLabel={getPositiveLabel(labelsA, labelsB)}
         />
       </View>
     </Card>

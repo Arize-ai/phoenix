@@ -3,11 +3,8 @@ import {
   formatEvaluationTargetPlural,
   type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 import { formatInt } from "@phoenix/utils/numberFormatUtils";
-
-export const FLAGGED_LABEL = "flagged";
-export const NOT_FLAGGED_LABEL = "not flagged";
-export const OTHER_LABEL = "other";
 
 export const EVALUATOR_COMPARE_COLORS = {
   a: "var(--global-color-blue-700)",
@@ -45,32 +42,26 @@ export function getKappaGloss(kappa: number | null): string | null {
   return "almost perfect";
 }
 
-const isBinaryFlagPair = (labels: readonly string[]) =>
-  labels.length === 2 &&
-  labels.includes(FLAGGED_LABEL) &&
-  labels.includes(NOT_FLAGGED_LABEL);
-
-export function getPositiveLabel(
-  labelsA: readonly string[],
-  labelsB: readonly string[]
-): string | undefined {
-  return isBinaryFlagPair(labelsA) && isBinaryFlagPair(labelsB)
-    ? FLAGGED_LABEL
-    : undefined;
-}
-
 const formatThreshold = (threshold: number) => `${threshold}`;
+
+const getFlaggedThresholdOperator = (
+  optimizationDirection: EvaluatorOptimizationDirection | null
+) => (optimizationDirection === "MAXIMIZE" ? "≤" : "≥");
 
 export function formatMatrixSubtitle({
   target,
   evaluatedByBoth,
   thresholdA,
   thresholdB,
+  optimizationDirectionA,
+  optimizationDirectionB,
 }: {
   target: ProjectEvaluatorTarget;
   evaluatedByBoth: number;
   thresholdA: number | null;
   thresholdB: number | null;
+  optimizationDirectionA: EvaluatorOptimizationDirection | null;
+  optimizationDirectionB: EvaluatorOptimizationDirection | null;
 }): string {
   const scope = `${formatInt(evaluatedByBoth)} ${formatEvaluationTargetPlural(
     target
@@ -78,16 +69,22 @@ export function formatMatrixSubtitle({
   if (thresholdA == null && thresholdB == null) {
     return scope;
   }
-  if (thresholdA != null && thresholdA === thresholdB) {
-    return `${scope} · flagged at score ≥ ${formatThreshold(thresholdA)}`;
+  const operatorA = getFlaggedThresholdOperator(optimizationDirectionA);
+  const operatorB = getFlaggedThresholdOperator(optimizationDirectionB);
+  if (
+    thresholdA != null &&
+    thresholdA === thresholdB &&
+    operatorA === operatorB
+  ) {
+    return `${scope} · flagged at score ${operatorA} ${formatThreshold(thresholdA)}`;
   }
   const thresholds = [
     thresholdA == null
       ? null
-      : `A flagged at score ≥ ${formatThreshold(thresholdA)}`,
+      : `A flagged at score ${operatorA} ${formatThreshold(thresholdA)}`,
     thresholdB == null
       ? null
-      : `B flagged at score ≥ ${formatThreshold(thresholdB)}`,
+      : `B flagged at score ${operatorB} ${formatThreshold(thresholdB)}`,
   ].filter((value): value is string => value != null);
   return `${scope} · ${thresholds.join(" · ")}`;
 }
