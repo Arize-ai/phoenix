@@ -266,6 +266,7 @@ export type ProjectEvaluatorRunSummary = {
   queuedCount: number;
   evaluatedCount: number;
   failedCount: number;
+  droppedCount: number;
 };
 
 export type ProjectEvaluatorStatus = {
@@ -307,17 +308,19 @@ export function getProjectEvaluatorStatus({
           variant: "warning" as const,
           explanation: getSchedulabilityExplanation(schedulabilityReason),
         }
-      : runSummary.status === "FAILING"
+      : runSummary.status === "ERROR"
         ? {
-            label: "Failing",
+            label: "Error",
             variant: "danger" as const,
-            explanation: "The most recent evaluation failed.",
+            explanation:
+              "The most recent evaluation run failed and will not be retried.",
           }
-        : runSummary.status === "HEALTHY"
+        : runSummary.status === "RUNNING"
           ? {
-              label: "Healthy",
+              label: "Running",
               variant: "success" as const,
-              explanation: "Evaluations are running and producing annotations.",
+              explanation:
+                "Evaluation runs are completing and writing annotations.",
             }
           : runSummary.status === "QUEUED"
             ? {
@@ -350,6 +353,7 @@ export function formatProjectEvaluatorRunCounts(
     [
       [runSummary.evaluatedCount, "evaluated"],
       [runSummary.failedCount, "failed"],
+      [runSummary.droppedCount, "dropped"],
       [runSummary.queuedCount, "queued"],
     ] as const
   )
