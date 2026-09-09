@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<64e048f7ef9dc85978a1cbd79a55857f>>
+ * @generated SignedSource<<0be6133192ab12f77274a8d4e76df21f>>
  * @lightSyntaxTransform
  */
 
@@ -20,7 +20,7 @@ export type CreateProjectSessionAnnotationInput = {
   name: string;
   projectSessionId: string;
   score?: number | null;
-  source?: AnnotationSource;
+  source: AnnotationSource;
 };
 export type SessionAnnotationsEditorCreateAnnotationMutation$variables = {
   input: CreateProjectSessionAnnotationInput;

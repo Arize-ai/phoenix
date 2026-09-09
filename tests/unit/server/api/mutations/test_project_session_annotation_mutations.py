@@ -519,6 +519,7 @@ class TestProjectSessionAnnotationMutations:
         # Use the basic annotation we created
         patch_input = {
             "input": {
+                "source": "APP",
                 "annotatorKind": "HUMAN",
                 "id": created_basic_annotation["id"],
                 "name": "test_annotation_renamed",
@@ -544,6 +545,7 @@ class TestProjectSessionAnnotationMutations:
         # B2. Update nonexistent annotation should error
         nonexistent_patch_input = {
             "input": {
+                "source": "APP",
                 "annotatorKind": "HUMAN",
                 "id": str(GlobalID("ProjectSessionAnnotation", "999999")),
                 "name": "should_fail",
@@ -564,6 +566,7 @@ class TestProjectSessionAnnotationMutations:
         # B3. Update with wrong type GID should error
         invalid_gid_patch_input = {
             "input": {
+                "source": "APP",
                 "annotatorKind": "HUMAN",
                 "id": str(GlobalID("Span", "999")),
                 "name": "should_fail",
@@ -584,6 +587,7 @@ class TestProjectSessionAnnotationMutations:
         # B4. Update score from non-null to null (with label to satisfy validation)
         score_to_null_input = {
             "input": {
+                "source": "APP",
                 "annotatorKind": "HUMAN",
                 "id": created_omitted_identifier_annotation[
                     "id"
@@ -627,6 +631,7 @@ class TestProjectSessionAnnotationMutations:
         # B5. Update with score=null, label=null, explanation="" should fail validation
         invalid_all_null_input: dict[str, Any] = {
             "input": {
+                "source": "APP",
                 "annotatorKind": "HUMAN",
                 "id": created_basic_annotation["id"],
                 "name": "should_fail_validation",
@@ -651,6 +656,7 @@ class TestProjectSessionAnnotationMutations:
         # Fields not provided in the input are reset to their default values (null)
         score_only_input = {
             "input": {
+                "source": "APP",
                 "annotatorKind": "HUMAN",
                 "id": created_first_metadata_annotation["id"],  # Use annotation with score=0.1
                 "name": created_first_metadata_annotation["name"],  # Keep same name
@@ -678,6 +684,7 @@ class TestProjectSessionAnnotationMutations:
         # B7. Test individual field update: label only
         label_only_input = {
             "input": {
+                "source": "APP",
                 "annotatorKind": "HUMAN",
                 "id": created_second_metadata_annotation["id"],  # Use annotation with label="B"
                 "name": created_second_metadata_annotation["name"],  # Keep same name
@@ -705,6 +712,7 @@ class TestProjectSessionAnnotationMutations:
         # B8. Test individual field update: explanation only
         explanation_only_input = {
             "input": {
+                "source": "APP",
                 "annotatorKind": "HUMAN",
                 "id": created_basic_annotation["id"],  # Use basic annotation
                 "name": "explanation_only_test",  # Change name too
@@ -734,6 +742,7 @@ class TestProjectSessionAnnotationMutations:
         # B9. Test setting field to null: label from non-null to null
         label_to_null_input = {
             "input": {
+                "source": "APP",
                 "annotatorKind": "HUMAN",
                 "id": updated_label_annotation["id"],  # Use annotation that has label
                 "name": "label_set_to_null",
@@ -760,6 +769,7 @@ class TestProjectSessionAnnotationMutations:
         # B10. Test setting field to null: explanation from non-null to null
         explanation_to_null_input = {
             "input": {
+                "source": "APP",
                 "annotatorKind": "HUMAN",
                 "id": updated_explanation_annotation["id"],  # Use annotation that has explanation
                 "name": "explanation_set_to_null",
@@ -786,6 +796,7 @@ class TestProjectSessionAnnotationMutations:
         # B11. Test enum field update: annotatorKind (HUMAN → LLM)
         annotator_kind_input = {
             "input": {
+                "source": "APP",
                 "id": created_basic_annotation["id"],
                 "name": "annotator_kind_test",
                 "annotatorKind": "LLM",  # Change from HUMAN to LLM
@@ -839,6 +850,7 @@ class TestProjectSessionAnnotationMutations:
         # B13. Test CODE annotatorKind (complete enum coverage)
         code_annotator_input = {
             "input": {
+                "source": "APP",
                 "id": updated_source_annotation["id"],
                 "name": "code_annotator_test",
                 "annotatorKind": "CODE",  # Test the third enum value
@@ -1047,8 +1059,10 @@ class TestProjectSessionNoteMutations:
     """
 
     @pytest.mark.parametrize("annotator_kind", ["HUMAN", "LLM", "CODE"])
+    @pytest.mark.parametrize("source", ["APP", "API"])
     async def test_create_by_node_and_session_id_preserves_note_semantics(
         self,
+        source: str,
         annotator_kind: str,
         project_session_data: models.ProjectSession,
         db: DbSessionFactory,
@@ -1063,11 +1077,13 @@ class TestProjectSessionNoteMutations:
                             "id": str(GlobalID("ProjectSession", str(project_session_data.id)))
                         },
                         "annotatorKind": annotator_kind,
+                        "source": source,
                         "note": " node note ",
                     },
                     {
                         "target": {"sessionId": project_session_data.session_id},
                         "annotatorKind": annotator_kind,
+                        "source": source,
                         "note": "session note",
                         "identifier": " coding ",
                     },
@@ -1084,7 +1100,7 @@ class TestProjectSessionNoteMutations:
         assert all(note["score"] is None for note in notes)
         assert all(note["annotatorKind"] == annotator_kind for note in notes)
         assert all(note["metadata"] == {} for note in notes)
-        assert all(note["source"] == "APP" for note in notes)
+        assert all(note["source"] == source for note in notes)
         assert notes[0]["identifier"].startswith("px-session-note:")
         assert notes[1]["identifier"] == "coding"
 
@@ -1099,6 +1115,7 @@ class TestProjectSessionNoteMutations:
         assert len(stored_notes) == 2
         assert all(note.project_session_id == project_session_data.id for note in stored_notes)
         assert all(note.user_id is None for note in stored_notes)
+        assert all(note.source == source for note in stored_notes)
         assert all(note.annotator_kind == annotator_kind for note in stored_notes)
 
     async def test_batch_preserves_order_and_returns_final_state_for_duplicate_keys(
@@ -1116,29 +1133,34 @@ class TestProjectSessionNoteMutations:
                     {
                         "target": {"id": node_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "draft",
                         "identifier": "coding",
                     },
                     {
                         "target": {"sessionId": external_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "anonymous first",
                     },
                     {
                         "target": {"sessionId": external_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "other",
                         "identifier": "other",
                     },
                     {
                         "target": {"sessionId": external_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "final",
                         "identifier": " coding ",
                     },
                     {
                         "target": {"id": node_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "anonymous second",
                         "identifier": "  ",
                     },
@@ -1172,6 +1194,7 @@ class TestProjectSessionNoteMutations:
                     {
                         "target": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "first",
                     }
                 ]
@@ -1184,6 +1207,7 @@ class TestProjectSessionNoteMutations:
                     {
                         "target": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "second",
                     }
                 ]
@@ -1196,6 +1220,7 @@ class TestProjectSessionNoteMutations:
                     {
                         "target": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "draft",
                         "identifier": "coding",
                     }
@@ -1209,6 +1234,7 @@ class TestProjectSessionNoteMutations:
                     {
                         "target": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "LLM",
+                        "source": "API",
                         "note": "final",
                         "identifier": "coding",
                     }
@@ -1251,6 +1277,7 @@ class TestProjectSessionNoteMutations:
         assert len(notes) == 3
         assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
         assert [note.annotator_kind for note in notes if note.identifier == "coding"] == ["LLM"]
+        assert [note.source for note in notes if note.identifier == "coding"] == ["API"]
 
     @pytest.mark.parametrize(
         "target, expected_message",
@@ -1279,7 +1306,11 @@ class TestProjectSessionNoteMutations:
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": target, "annotatorKind": "HUMAN", "note": "review"}]},
+            {
+                "input": [
+                    {"target": target, "annotatorKind": "HUMAN", "source": "APP", "note": "review"}
+                ]
+            },
         )
 
         assert result.data is None
@@ -1298,6 +1329,7 @@ class TestProjectSessionNoteMutations:
                     {
                         "target": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": " \t ",
                     }
                 ]
@@ -1321,6 +1353,7 @@ class TestProjectSessionNoteMutations:
                     {
                         "target": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "keep until valid delete",
                     }
                 ]
@@ -1432,6 +1465,7 @@ class TestProjectSessionNoteMutations:
                     {
                         "target": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
+                        "source": "APP",
                         "note": "protected",
                     }
                 ]
