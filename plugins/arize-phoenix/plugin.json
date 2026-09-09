@@ -13,6 +13,7 @@
   "license": "Elastic-2.0",
   "keywords": [
     "phoenix",
+    "agents",
     "ai-observability",
     "evaluations",
     "llm-tracing",
