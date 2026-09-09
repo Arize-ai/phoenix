@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import type { FocusManagerOptions } from "react-aria";
 import { FocusScope } from "react-aria";
 import {
   graphql,
@@ -333,6 +334,10 @@ function AnnotationList(props: AnnotationListProps) {
 /**
  * Exclude the explanation button from being focused via the focus manager
  */
+const excludeExplanationButton: FocusManagerOptions["accept"] = (node) => {
+  return !node.matches("button.annotation-input-explanation");
+};
+
 function SessionAnnotationsList(props: {
   sessionId: string;
   projectId: string;
@@ -652,7 +657,10 @@ function SessionAnnotationsList(props: {
       )}
       {!!annotationConfigsLength && (
         <FocusScope>
-          <FocusHotkey hotkey={EDIT_ANNOTATION_HOTKEY} />
+          <FocusHotkey
+            hotkey={EDIT_ANNOTATION_HOTKEY}
+            accept={excludeExplanationButton}
+          />
           {annotationConfigs?.map((annotationConfig, idx) => {
             const annotation = annotations.find(
               (annotation) => annotation.name === annotationConfig.config.name

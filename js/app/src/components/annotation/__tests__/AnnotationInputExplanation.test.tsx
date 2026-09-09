@@ -28,47 +28,64 @@ describe("AnnotationInputExplanation", () => {
     container.remove();
   });
 
-  const renderExplanation = (current: Annotation = annotation) => {
+  const renderExplanation = (
+    currentAnnotation: Annotation | null = annotation
+  ) => {
     act(() => {
-      root.render(<AnnotationInputExplanation annotation={current} />);
+      root.render(
+        <>
+          <AnnotationInputExplanation
+            annotation={currentAnnotation ?? undefined}
+          />
+          <button type="button" aria-label="Following control">
+            Following control
+          </button>
+        </>
+      );
     });
-    return container.querySelector<HTMLButtonElement>(
-      "button.annotation-input-explanation"
-    );
+    return {
+      explanationButton: container.querySelector<HTMLButtonElement>(
+        "button.annotation-input-explanation"
+      ),
+      followingButton: container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Following control"]'
+      ),
+    };
   };
 
-  it("is reachable via keyboard navigation", () => {
-    const button = renderExplanation();
-    expect(button).not.toBeNull();
-    expect(button?.getAttribute("tabindex")).not.toBe("-1");
+  it("includes an enabled explanation button in sequential keyboard navigation", async () => {
+    const user = userEvent.setup();
+    const { explanationButton } = renderExplanation();
+
+    await act(async () => user.tab());
+
+    expect(document.activeElement).toBe(explanationButton);
   });
 
-  it("opens the explanation popover when clicked", async () => {
+  it("skips a disabled explanation button during sequential keyboard navigation", async () => {
     const user = userEvent.setup();
-    const button = renderExplanation();
-    expect(button).not.toBeNull();
+    const { explanationButton, followingButton } = renderExplanation(null);
 
-    await user.click(button as HTMLButtonElement);
+    expect(explanationButton?.disabled).toBe(true);
+
+    await act(async () => user.tab());
+
+    expect(document.activeElement).toBe(followingButton);
+  });
+
+  it("opens the explanation popover with Enter and focuses its input", async () => {
+    const user = userEvent.setup();
+    const { explanationButton } = renderExplanation();
+
+    await act(async () => user.tab());
+    expect(document.activeElement).toBe(explanationButton);
+
+    await act(async () => user.keyboard("{Enter}"));
 
     const input = document.querySelector<HTMLInputElement>(
       'input[name="helpfulness.explanation"]'
     );
     expect(input).not.toBeNull();
-  });
-
-  it("applies its overlay geometry so the control sits beside the field", () => {
-    const button = renderExplanation();
-    const style = button?.getAttribute("style") ?? "";
-    const className = button?.className ?? "";
-    // eslint-disable-next-line no-console
-    console.log("BUTTON_CLASS:", className);
-    // eslint-disable-next-line no-console
-    console.log(
-      "EMOTION_STYLES:",
-      document.querySelectorAll("style[data-emotion]").length
-    );
-    const hasPosition =
-      style.includes("position") || className.includes("css-");
-    expect(hasPosition).toBe(true);
+    expect(document.activeElement).toBe(input);
   });
 });
