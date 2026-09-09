@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eb66dd1ec15f4e4861bfc2c6ce53e0c2>>
+ * @generated SignedSource<<de08da606dfe885b3a4a9a2a69a9b471>>
  * @lightSyntaxTransform
  */
 
@@ -9,6 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type projectEvaluatorCompareLoaderQuery$variables = {
   evaluatorAId: string;
   evaluatorBId: string;
@@ -18,6 +19,11 @@ export type projectEvaluatorCompareLoaderQuery$data = {
   readonly evaluatorA: {
     readonly __typename: "ProjectEvaluator";
     readonly evaluationTarget: EvaluationTarget;
+    readonly evaluator: {
+      readonly outputConfigs: ReadonlyArray<{
+        readonly optimizationDirection?: OptimizationDirection;
+      }>;
+    };
     readonly id: string;
     readonly name: string;
     readonly project: {
@@ -31,6 +37,11 @@ export type projectEvaluatorCompareLoaderQuery$data = {
   readonly evaluatorB: {
     readonly __typename: "ProjectEvaluator";
     readonly evaluationTarget: EvaluationTarget;
+    readonly evaluator: {
+      readonly outputConfigs: ReadonlyArray<{
+        readonly optimizationDirection?: OptimizationDirection;
+      }>;
+    };
     readonly id: string;
     readonly name: string;
     readonly project: {
@@ -170,19 +181,47 @@ v9 = [
     "variableName": "evaluatorAId"
   }
 ],
-v10 = {
+v10 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "optimizationDirection",
+    "storageKey": null
+  }
+],
+v11 = {
+  "kind": "InlineFragment",
+  "selections": (v10/*:: as any*/),
+  "type": "CategoricalAnnotationConfig",
+  "abstractKey": null
+},
+v12 = {
+  "kind": "InlineFragment",
+  "selections": (v10/*:: as any*/),
+  "type": "ContinuousAnnotationConfig",
+  "abstractKey": null
+},
+v13 = {
+  "kind": "InlineFragment",
+  "selections": (v10/*:: as any*/),
+  "type": "FreeformAnnotationConfig",
+  "abstractKey": null
+},
+v14 = [
+  (v5/*:: as any*/)
+],
+v15 = {
   "alias": null,
   "args": null,
   "concreteType": "Project",
   "kind": "LinkedField",
   "name": "project",
   "plural": false,
-  "selections": [
-    (v5/*:: as any*/)
-  ],
+  "selections": (v14/*:: as any*/),
   "storageKey": null
 },
-v11 = [
+v16 = [
   (v4/*:: as any*/),
   {
     "kind": "InlineFragment",
@@ -190,20 +229,45 @@ v11 = [
       (v5/*:: as any*/),
       (v6/*:: as any*/),
       (v7/*:: as any*/),
-      (v10/*:: as any*/)
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "evaluator",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": null,
+            "kind": "LinkedField",
+            "name": "outputConfigs",
+            "plural": true,
+            "selections": [
+              (v11/*:: as any*/),
+              (v12/*:: as any*/),
+              (v13/*:: as any*/)
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      (v15/*:: as any*/)
     ],
     "type": "ProjectEvaluator",
     "abstractKey": null
   }
 ],
-v12 = [
+v17 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "evaluatorBId"
   }
 ],
-v13 = [
+v18 = [
   (v4/*:: as any*/),
   (v5/*:: as any*/),
   {
@@ -211,7 +275,41 @@ v13 = [
     "selections": [
       (v6/*:: as any*/),
       (v7/*:: as any*/),
-      (v10/*:: as any*/)
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "evaluator",
+        "plural": false,
+        "selections": [
+          (v4/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": null,
+            "kind": "LinkedField",
+            "name": "outputConfigs",
+            "plural": true,
+            "selections": [
+              (v4/*:: as any*/),
+              (v11/*:: as any*/),
+              (v12/*:: as any*/),
+              (v13/*:: as any*/),
+              {
+                "kind": "InlineFragment",
+                "selections": (v14/*:: as any*/),
+                "type": "Node",
+                "abstractKey": "__isNode"
+              }
+            ],
+            "storageKey": null
+          },
+          (v5/*:: as any*/)
+        ],
+        "storageKey": null
+      },
+      (v15/*:: as any*/)
     ],
     "type": "ProjectEvaluator",
     "abstractKey": null
@@ -248,17 +346,17 @@ return {
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": (v11/*:: as any*/),
+        "selections": (v16/*:: as any*/),
         "storageKey": null
       },
       {
         "alias": "evaluatorB",
-        "args": (v12/*:: as any*/),
+        "args": (v17/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": (v11/*:: as any*/),
+        "selections": (v16/*:: as any*/),
         "storageKey": null
       }
     ],
@@ -296,32 +394,32 @@ return {
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": (v13/*:: as any*/),
+        "selections": (v18/*:: as any*/),
         "storageKey": null
       },
       {
         "alias": "evaluatorB",
-        "args": (v12/*:: as any*/),
+        "args": (v17/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": (v13/*:: as any*/),
+        "selections": (v18/*:: as any*/),
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "563f6ad1886d0addd21b38c2dcc526cf",
+    "cacheID": "9b77bdb88a9a767f2a4e3421c248b65b",
     "id": null,
     "metadata": {},
     "name": "projectEvaluatorCompareLoaderQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorCompareLoaderQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 100) {\n        edges {\n          evaluator: node {\n            id\n            name\n            evaluationTarget\n          }\n        }\n      }\n    }\n    id\n  }\n  evaluatorA: node(id: $evaluatorAId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      evaluationTarget\n      project {\n        id\n      }\n    }\n    id\n  }\n  evaluatorB: node(id: $evaluatorBId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      evaluationTarget\n      project {\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query projectEvaluatorCompareLoaderQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 100) {\n        edges {\n          evaluator: node {\n            id\n            name\n            evaluationTarget\n          }\n        }\n      }\n    }\n    id\n  }\n  evaluatorA: node(id: $evaluatorAId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      evaluationTarget\n      evaluator {\n        __typename\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            optimizationDirection\n          }\n          ... on ContinuousAnnotationConfig {\n            optimizationDirection\n          }\n          ... on FreeformAnnotationConfig {\n            optimizationDirection\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n      project {\n        id\n      }\n    }\n    id\n  }\n  evaluatorB: node(id: $evaluatorBId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      evaluationTarget\n      evaluator {\n        __typename\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            optimizationDirection\n          }\n          ... on ContinuousAnnotationConfig {\n            optimizationDirection\n          }\n          ... on FreeformAnnotationConfig {\n            optimizationDirection\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n      project {\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0a11cbfced34e92e040a82d14864ac65";
+(node as any).hash = "7630d54280f3312138d254056319194a";
 
 export default node;
