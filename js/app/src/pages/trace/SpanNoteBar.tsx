@@ -112,10 +112,10 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
   const [addNote, isAddingNote] = useMutation<SpanNoteBarAddNoteMutation>(
     graphql`
       mutation SpanNoteBarAddNoteMutation(
-        $input: CreateSpanNoteInput!
+        $input: [CreateSpanNoteInput!]!
         $spanNodeId: ID!
       ) {
-        createSpanNote(annotationInput: $input) {
+        createSpanNotes(input: $input) {
           query {
             node(id: $spanNodeId) {
               ... on Span {
@@ -149,10 +149,7 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
     setNoteText("");
     addNote({
       variables: {
-        input: {
-          note,
-          spanId: spanNodeId,
-        },
+        input: [{ id: spanNodeId, note }],
         spanNodeId,
       },
       onError: (error) => {

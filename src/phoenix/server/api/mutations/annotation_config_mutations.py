@@ -23,6 +23,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.annotations import ANNOTATION_CONFIG_NOTE_ERROR, NOTE_NAME
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
     CategoricalAnnotationConfigInput,
@@ -177,11 +178,8 @@ class AnnotationConfigMutationMixin:
         else:
             raise BadRequest("No annotation config provided")
 
-        if name == "note":
-            raise BadRequest(
-                "The name 'note' is reserved for trace and span notes and cannot be used "
-                "for annotation configs."
-            )
+        if name == NOTE_NAME:
+            raise BadRequest(ANNOTATION_CONFIG_NOTE_ERROR)
 
         async with info.context.db() as session:
             annotation_config = models.AnnotationConfig(
@@ -227,11 +225,8 @@ class AnnotationConfigMutationMixin:
         else:
             raise BadRequest("No annotation config provided")
 
-        if name == "note":
-            raise BadRequest(
-                "The name 'note' is reserved for trace and span notes and cannot be used "
-                "for annotation configs."
-            )
+        if name == NOTE_NAME:
+            raise BadRequest(ANNOTATION_CONFIG_NOTE_ERROR)
 
         async with info.context.db() as session:
             annotation_config = await session.get(models.AnnotationConfig, config_id)

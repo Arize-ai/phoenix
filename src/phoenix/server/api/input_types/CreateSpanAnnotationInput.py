@@ -19,9 +19,3 @@ class CreateSpanAnnotationInput:
     metadata: JSON
     source: AnnotationSource
     identifier: Optional[str] = strawberry.UNSET
-
-
-@strawberry.input
-class CreateSpanNoteInput:
-    span_id: GlobalID
-    note: str

@@ -173,7 +173,7 @@ type AgentSessionRetention {
 
 type AgentSkill {
   """
-  The unique skill identifier used to load the skill (e.g. 'debug-trace').
+  The unique skill identifier used to load the skill (e.g. 'playground').
   """
   name: String!
 
@@ -990,6 +990,12 @@ input CreateProjectSessionAnnotationInput {
   identifier: String
 }
 
+input CreateProjectSessionNoteInput {
+  id: ID!
+  note: String!
+  identifier: String
+}
+
 input CreateProjectTraceRetentionPolicyInput {
   name: String!
   cronExpression: CronExpression!
@@ -1034,8 +1040,9 @@ input CreateSpanAnnotationInput {
 }
 
 input CreateSpanNoteInput {
-  spanId: ID!
+  id: ID!
   note: String!
+  identifier: String
 }
 
 type CreateSystemApiKeyMutationPayload {
@@ -1053,6 +1060,12 @@ input CreateTraceAnnotationInput {
   explanation: String = null
   metadata: JSON!
   source: AnnotationSource!
+  identifier: String
+}
+
+input CreateTraceNoteInput {
+  id: ID!
+  note: String!
   identifier: String
 }
 
@@ -2697,18 +2710,23 @@ type Mutation {
   updateSandboxProvider(input: UpdateSandboxProviderInput!): UpdateSandboxProviderPayload!
   upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
-  createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
+  createSpanNotes(input: [CreateSpanNoteInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
+  deleteSpanNotes(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   setAgentAssistantEnabled(input: SetAgentAssistantEnabledInput!): AgentAssistantEnabled!
   setAgentGithubEnabled(input: SetAgentGithubEnabledInput!): AgentGithubEnabled!
   setAgentTraceRecording(input: SetAgentTraceRecordingInput!): AgentTraceRecording!
   setAgentSessionRetention(input: SetAgentSessionRetentionInput!): AgentSessionRetention!
   createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  createProjectSessionNotes(input: [CreateProjectSessionNoteInput!]!): ProjectSessionAnnotationsMutationPayload!
   updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  deleteProjectSessionNotes(input: DeleteAnnotationsInput!): ProjectSessionAnnotationsMutationPayload!
   deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
+  createTraceNotes(input: [CreateTraceNoteInput!]!): TraceAnnotationMutationPayload!
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
+  deleteTraceNotes(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   deleteTraces(traceIds: [ID!]!): Query!
   transferTracesToProject(traceIds: [ID!]!, projectId: ID!): Query!
@@ -3278,6 +3296,11 @@ type ProjectSessionAnnotation implements Node & Annotation {
 
 type ProjectSessionAnnotationMutationPayload {
   projectSessionAnnotation: ProjectSessionAnnotation!
+  query: Query!
+}
+
+type ProjectSessionAnnotationsMutationPayload {
+  projectSessionAnnotations: [ProjectSessionAnnotation!]!
   query: Query!
 }
 
