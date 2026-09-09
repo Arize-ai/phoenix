@@ -24,7 +24,10 @@ function RunListRow({
   onStore: (store: EvaluatorStoreInstance) => void;
 }) {
   onStore(useEvaluatorStoreInstance());
-  useEvaluatorMappingSourceBoundToRow({ grain: "session", ...SESSION_ROW });
+  useEvaluatorMappingSourceBoundToRow({
+    recordKind: "session",
+    ...SESSION_ROW,
+  });
   return null;
 }
 
@@ -43,7 +46,7 @@ describe("useEvaluatorMappingSourceBoundToRow", () => {
     container.remove();
   });
 
-  it("binds the open row's context to the store under the row's own grain", async () => {
+  it("binds the open row's context to the store under the row's own recordKind", async () => {
     let store: EvaluatorStoreInstance | null = null;
     await act(async () =>
       root.render(
@@ -69,7 +72,7 @@ describe("useEvaluatorMappingSourceBoundToRow", () => {
       )
     );
     expect(store!.getState().evaluatorMappingSource).toEqual({
-      grain: "session",
+      recordKind: "session",
       source: SESSION_ROW.context,
     });
   });

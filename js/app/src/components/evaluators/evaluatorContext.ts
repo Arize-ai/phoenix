@@ -6,7 +6,7 @@ import {
   getEvaluatorMetadataEntries,
   type EvaluatorBoundVariable,
 } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
-import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorMappingSourceState } from "@phoenix/store/evaluatorStore";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
@@ -35,8 +35,8 @@ export type MaterializedEvaluatorContextEntry = {
 };
 
 export type MaterializedEvaluatorContext = {
-  grain: ProjectEvaluatorMappingSourceGrain;
-  /** False while the store holds only the grain's default source. */
+  recordKind: ProjectEvaluatorRecordKind;
+  /** False while the store holds only the recordKind's default source. */
   hasSampledRecord: boolean;
   /**
    * The three values the evaluator receives, by name. Paths an authoring tool
@@ -59,20 +59,20 @@ export type MaterializedEvaluatorContext = {
  * preview it.
  */
 export function materializeEvaluatorContext({
-  grain,
+  recordKind,
   evaluatorMappingSource,
   inputMapping,
 }: {
-  grain: ProjectEvaluatorMappingSourceGrain;
+  recordKind: ProjectEvaluatorRecordKind;
   evaluatorMappingSource: EvaluatorMappingSourceState;
   inputMapping: EvaluatorInputMapping;
 }): MaterializedEvaluatorContext | null {
-  if (evaluatorMappingSource.grain !== grain) {
+  if (evaluatorMappingSource.recordKind !== recordKind) {
     return null;
   }
 
   const source = evaluatorMappingSource.source as Record<string, unknown>;
-  const boundVariables = getEvaluatorBoundVariables(grain);
+  const boundVariables = getEvaluatorBoundVariables(recordKind);
   const recordMetadata = isStringKeyedObject(source[EVALUATOR_METADATA_SLOT])
     ? source[EVALUATOR_METADATA_SLOT]
     : {};
@@ -101,12 +101,12 @@ export function materializeEvaluatorContext({
   const boundMetadata = isStringKeyedObject(values[EVALUATOR_METADATA_SLOT])
     ? values[EVALUATOR_METADATA_SLOT]
     : {};
-  const vocabulary = getEvaluatorMetadataEntries(grain).map((variable) =>
+  const vocabulary = getEvaluatorMetadataEntries(recordKind).map((variable) =>
     materializeVocabularyEntry({ variable, boundMetadata, hasSampledRecord })
   );
 
   return {
-    grain,
+    recordKind,
     hasSampledRecord,
     values,
     evaluatorInputs,

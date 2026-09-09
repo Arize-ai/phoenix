@@ -93,9 +93,9 @@ describe("createCompletionOptions", () => {
 
 describe("code evaluator completions", () => {
   const evaluationContext = materializeEvaluatorContext({
-    grain: "span",
+    recordKind: "span",
     evaluatorMappingSource: {
-      grain: "span",
+      recordKind: "span",
       source: {
         input: "Why?",
         output: "Because.",
@@ -189,9 +189,9 @@ describe("code evaluator completions", () => {
 
 describe("code evaluator signature completions", () => {
   const evaluationContext = materializeEvaluatorContext({
-    grain: "span",
+    recordKind: "span",
     evaluatorMappingSource: {
-      grain: "span",
+      recordKind: "span",
       source: {
         input: "Why?",
         output: "Because.",

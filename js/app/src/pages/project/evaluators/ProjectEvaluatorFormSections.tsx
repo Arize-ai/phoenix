@@ -6,10 +6,10 @@ import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorFor
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import type {
-  ProjectEvaluatorMappingSourceGrain,
+  ProjectEvaluatorRecordKind,
   ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { toEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { toEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
  * The left definition panel for an LLM project evaluator; the matching-span
@@ -55,7 +55,7 @@ export const ProjectLlmEvaluatorFormSections = ({
       <LLMEvaluatorForm
         inputMappingSection={
           <ProjectEvaluatorInputMappingSection
-            grain={toEvaluatorMappingSourceGrain(scope.targetType)}
+            recordKind={toEvaluatorRecordKind(scope.targetType)}
           />
         }
       />
@@ -64,11 +64,11 @@ export const ProjectLlmEvaluatorFormSections = ({
 };
 
 const ProjectEvaluatorInputMappingSection = ({
-  grain,
+  recordKind,
 }: {
-  grain: ProjectEvaluatorMappingSourceGrain;
+  recordKind: ProjectEvaluatorRecordKind;
 }) => {
-  const recordNoun = grain;
+  const recordNoun = recordKind;
   return (
     <Flex direction="column" gap="size-200" marginTop="size-200">
       <Flex direction="column" gap="size-100">
@@ -89,7 +89,10 @@ const ProjectEvaluatorInputMappingSection = ({
         >
           {/* Keyed so the rows rebuild against the new record kind rather than
               carrying the previous one's paths forward. */}
-          <ProjectEvaluatorInputMapping key={grain} grain={grain} />
+          <ProjectEvaluatorInputMapping
+            key={recordKind}
+            recordKind={recordKind}
+          />
         </View>
       </Flex>
     </Flex>

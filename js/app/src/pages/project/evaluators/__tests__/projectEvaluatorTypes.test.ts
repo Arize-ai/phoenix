@@ -1,7 +1,7 @@
 import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 
 import {
-  dropOtherGrainEntityPathMappings,
+  dropOtherRecordKindPathMappings,
   formatProjectEvaluatorRunCounts,
   getDefaultProjectEvaluatorFilterCondition,
   getProjectEvaluatorMappingDiagnostics,
@@ -242,10 +242,10 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
   });
 });
 
-describe("dropOtherGrainEntityPathMappings", () => {
+describe("dropOtherRecordKindPathMappings", () => {
   it("drops paths rooted at the record kind the evaluator no longer runs on", () => {
     expect(
-      dropOtherGrainEntityPathMappings(
+      dropOtherRecordKindPathMappings(
         {
           literalMapping: { rubric: "helpfulness" },
           pathMapping: {
@@ -274,7 +274,7 @@ describe("dropOtherGrainEntityPathMappings", () => {
 
   it("drops session-rooted paths when the evaluator moves to spans", () => {
     expect(
-      dropOtherGrainEntityPathMappings(
+      dropOtherRecordKindPathMappings(
         {
           literalMapping: {},
           pathMapping: {

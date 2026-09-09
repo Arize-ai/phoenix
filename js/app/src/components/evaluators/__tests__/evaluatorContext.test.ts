@@ -5,7 +5,7 @@ import {
   SPAN_ANNOTATION_FIELDS,
   getEvaluatorMetadataEntries,
 } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
-import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT } from "@phoenix/store/evaluatorStore";
@@ -22,9 +22,9 @@ const UNMAPPED: EvaluatorInputMapping = { pathMapping: {}, literalMapping: {} };
 describe("materializeEvaluatorContext", () => {
   it("materializes each slot with the path it reads", () => {
     const spanContext = materializeEvaluatorContext({
-      grain: "span",
+      recordKind: "span",
       evaluatorMappingSource: {
-        grain: "span",
+        recordKind: "span",
         source: {
           input: "Why?",
           output: "Because.",
@@ -69,9 +69,9 @@ describe("materializeEvaluatorContext", () => {
     ]);
 
     const sessionContext = materializeEvaluatorContext({
-      grain: "session",
+      recordKind: "session",
       evaluatorMappingSource: {
-        grain: "session",
+        recordKind: "session",
         source: {
           input: "Hello",
           output: "Goodbye",
@@ -103,9 +103,9 @@ describe("materializeEvaluatorContext", () => {
 
   it("holds back every preview until a record has been sampled", () => {
     const unsampledContext = materializeEvaluatorContext({
-      grain: "span",
+      recordKind: "span",
       evaluatorMappingSource: {
-        grain: "span",
+        recordKind: "span",
         source: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
       },
       inputMapping: UNMAPPED,
@@ -131,9 +131,9 @@ describe("materializeEvaluatorContext", () => {
   // to read as a failure here rather than as the literal that never runs.
   it("fails a slot whose set path matches nothing, literal or not", () => {
     const context = materializeEvaluatorContext({
-      grain: "span",
+      recordKind: "span",
       evaluatorMappingSource: {
-        grain: "span",
+        recordKind: "span",
         source: {
           input: "Why?",
           output: "Because.",
@@ -156,9 +156,9 @@ describe("materializeEvaluatorContext", () => {
 
   it("lets a literal overwrite the path it sits beside once that path resolves", () => {
     const context = materializeEvaluatorContext({
-      grain: "span",
+      recordKind: "span",
       evaluatorMappingSource: {
-        grain: "span",
+        recordKind: "span",
         source: {
           input: "Why?",
           output: "Because.",
@@ -179,12 +179,12 @@ describe("materializeEvaluatorContext", () => {
     });
   });
 
-  it("materializes nothing for a source built for the other grain", () => {
+  it("materializes nothing for a source built for the other recordKind", () => {
     expect(
       materializeEvaluatorContext({
-        grain: "span",
+        recordKind: "span",
         evaluatorMappingSource: {
-          grain: "session",
+          recordKind: "session",
           source: { input: null, output: null, metadata: {} },
         },
         inputMapping: UNMAPPED,
@@ -202,42 +202,45 @@ describe("materializeEvaluatorContext", () => {
 describe("the preview binds what a live run binds", () => {
   const clientContexts: {
     label: string;
-    grain: ProjectEvaluatorMappingSourceGrain;
-    source: EvaluatorMappingSource<ProjectEvaluatorMappingSourceGrain>;
+    recordKind: ProjectEvaluatorRecordKind;
+    source: EvaluatorMappingSource<ProjectEvaluatorRecordKind>;
   }[] = [
     {
       label: "sample span",
-      grain: "span",
+      recordKind: "span",
       source: getSampleSpanEvaluationContext().context,
     },
     {
       label: "sample session",
-      grain: "session",
+      recordKind: "session",
       source: getSampleSessionEvaluationContext().context,
     },
   ];
 
   it.each(clientContexts)(
     "$label carries the whole binding surface",
-    ({ grain, source }) => {
+    ({ recordKind, source }) => {
       const materialized = materializeEvaluatorContext({
-        grain,
+        recordKind,
         evaluatorMappingSource:
-          grain === "span"
-            ? { grain, source: source as EvaluatorMappingSource<"span"> }
-            : { grain, source: source as EvaluatorMappingSource<"session"> },
+          recordKind === "span"
+            ? { recordKind, source: source as EvaluatorMappingSource<"span"> }
+            : {
+                recordKind,
+                source: source as EvaluatorMappingSource<"session">,
+              },
         inputMapping: UNMAPPED,
       });
 
-      const metadataNames = getEvaluatorMetadataEntries(grain).map(
+      const metadataNames = getEvaluatorMetadataEntries(recordKind).map(
         ({ name }) => name
       );
       // The server binds by the three top-level names and nothing else.
       expect(Object.keys(materialized?.values ?? {})).toEqual([
         ...EVALUATOR_SLOT_NAMES,
       ]);
-      // Under `metadata`: the grain's vocabulary and its record fields, flat —
-      // no grain-named level. A sampled span may also spread its own metadata
+      // Under `metadata`: the record kind's vocabulary and its record fields, flat —
+      // no record-kind-named level. A sampled span may also spread its own metadata
       // attribute's keys beside them.
       expect(Object.keys(source.metadata)).toEqual(
         expect.arrayContaining(metadataNames)
@@ -249,7 +252,7 @@ describe("the preview binds what a live run binds", () => {
       expect(materialized?.hasSampledRecord).toBe(true);
       // Declared types drive the container badge, so a sampled value has to
       // actually be that type.
-      for (const { name, type } of getEvaluatorMetadataEntries(grain)) {
+      for (const { name, type } of getEvaluatorMetadataEntries(recordKind)) {
         const value = source.metadata[name];
         if (value === null) {
           continue; // a scalar the sampled record legitimately lacks

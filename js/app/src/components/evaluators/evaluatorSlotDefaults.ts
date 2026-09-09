@@ -1,11 +1,11 @@
-import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export const EVALUATOR_SLOT_NAMES = ["input", "output", "metadata"] as const;
 
 export type EvaluatorSlotName = (typeof EVALUATOR_SLOT_NAMES)[number];
 
 type BySlot<T> = Record<
-  ProjectEvaluatorMappingSourceGrain,
+  ProjectEvaluatorRecordKind,
   Record<EvaluatorSlotName, T>
 >;
 
@@ -76,8 +76,8 @@ const SLOT_SUGGESTED_PATHS: BySlot<readonly EvaluatorSlotSuggestedPath[]> = {
 };
 
 export function getEvaluatorSlotSuggestedPaths(
-  grain: ProjectEvaluatorMappingSourceGrain,
+  recordKind: ProjectEvaluatorRecordKind,
   slotName: EvaluatorSlotName
 ): readonly EvaluatorSlotSuggestedPath[] {
-  return SLOT_SUGGESTED_PATHS[grain][slotName];
+  return SLOT_SUGGESTED_PATHS[recordKind][slotName];
 }

@@ -12,7 +12,7 @@ import {
 } from "../codeEvaluatorUtils";
 
 describe("the default source a new code evaluator opens on", () => {
-  it("names only what its grain hands the evaluator", () => {
+  it("names only what its recordKind hands the evaluator", () => {
     expect(getDefaultCodeEvaluatorSource("TYPESCRIPT", "dataset")).toContain(
       "function evaluate({ output, reference, input, metadata }: EvaluatorParams)"
     );
@@ -22,9 +22,9 @@ describe("the default source a new code evaluator opens on", () => {
     expect(getDefaultCodeEvaluatorSource("PYTHON", "session")).toContain(
       "def evaluate(input=None, output=None, metadata=None):"
     );
-    for (const grain of ["span", "session"] as const) {
+    for (const recordKind of ["span", "session"] as const) {
       for (const language of ["PYTHON", "TYPESCRIPT"] as const) {
-        const source = getDefaultCodeEvaluatorSource(language, grain);
+        const source = getDefaultCodeEvaluatorSource(language, recordKind);
         expect(source).not.toContain("reference");
         expect(source).not.toContain("EvaluatorParams");
       }

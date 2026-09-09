@@ -33,11 +33,11 @@ export const EvaluatorChatTemplate = () => {
   // A dataset evaluator's template has no record behind it, so it keeps the
   // flat path list; a project evaluator's completes what it actually receives.
   const evaluationContext = useMemo(() => {
-    const grain = evaluatorMappingSource.grain;
-    return grain === "dataset"
+    const recordKind = evaluatorMappingSource.recordKind;
+    return recordKind === "dataset"
       ? null
       : materializeEvaluatorContext({
-          grain,
+          recordKind,
           evaluatorMappingSource,
           inputMapping,
         });

@@ -5,8 +5,8 @@ import { EVALUATOR_SLOT_NAMES } from "@phoenix/components/evaluators/evaluatorSl
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import {
-  dropOtherGrainEntityPathMappings,
-  type ProjectEvaluatorMappingSourceGrain,
+  dropOtherRecordKindPathMappings,
+  type ProjectEvaluatorRecordKind,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
@@ -18,16 +18,16 @@ import {
  * reachable under `metadata`, so nothing about it is off limits.
  */
 export const ProjectEvaluatorInputMapping = ({
-  grain,
+  recordKind,
 }: {
-  grain: ProjectEvaluatorMappingSourceGrain;
+  recordKind: ProjectEvaluatorRecordKind;
 }) => {
   const { control, setValue } = useEvaluatorInputMappingControlsForm({
     pruneEmptyEntries: true,
-    // Mounted under a key of the grain, so switching what the evaluator runs on
+    // Mounted under a key of the record kind, so switching what the evaluator runs on
     // rebuilds these rows without the previous record kind's paths in them.
     filterInitialMapping: (inputMapping) =>
-      dropOtherGrainEntityPathMappings(inputMapping, grain),
+      dropOtherRecordKindPathMappings(inputMapping, recordKind),
   });
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
@@ -58,7 +58,7 @@ export const ProjectEvaluatorInputMapping = ({
               errorMessage={errorMessage}
               ariaLabel={ariaLabel}
               evaluatorMappingSource={evaluatorMappingSource}
-              grain={grain}
+              recordKind={recordKind}
               slotName={slotName}
             />
           )}

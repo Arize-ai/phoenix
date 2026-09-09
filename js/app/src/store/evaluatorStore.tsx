@@ -12,7 +12,7 @@ import type {
   EvaluatorKind,
   EvaluatorMappingSource,
   EvaluatorMappingSourceField,
-  EvaluatorMappingSourceGrain,
+  EvaluatorRecordKind,
   EvaluatorOptimizationDirection,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
@@ -28,13 +28,13 @@ export type AnnotationConfig =
   | ContinuousEvaluatorAnnotationConfig
   | FreeformEvaluatorAnnotationConfig;
 
-/** A mapping source and the kind of record it describes, one member per grain. */
+/** A mapping source and the kind of record it describes, one member per record kind. */
 export type EvaluatorMappingSourceState = {
-  [TGrain in EvaluatorMappingSourceGrain]: {
-    grain: TGrain;
-    source: EvaluatorMappingSource<TGrain>;
+  [TRecordKind in EvaluatorRecordKind]: {
+    recordKind: TRecordKind;
+    source: EvaluatorMappingSource<TRecordKind>;
   };
-}[EvaluatorMappingSourceGrain];
+}[EvaluatorRecordKind];
 
 export type EvaluatorStoreProps = {
   datasetEvaluator?: {
@@ -92,38 +92,38 @@ export type EvaluatorStoreActions = {
   setDatasetId: (datasetId: string | null) => void;
   /**
    * Sets the evaluator mapping source data (input, output, reference) as a
-   * record of the grain the caller declares it to be.
+   * record of the record kind the caller declares it to be.
    *
    * Span and session sources are structurally identical, so a payload alone
    * cannot say which record it came from. The caller binding one knows — a run
    * list binds the kind of record it renders, a draft tool binds the kind it
-   * was authored against — so the grain travels with the payload rather than
+   * was authored against — so the record kind travels with the payload rather than
    * being read back off whatever the store happens to hold.
    */
   setEvaluatorMappingSource: <
-    TGrain extends EvaluatorMappingSourceGrain,
+    TRecordKind extends EvaluatorRecordKind,
   >(evaluatorMappingSource: {
-    grain: TGrain;
-    source: EvaluatorMappingSource<TGrain>;
+    recordKind: TRecordKind;
+    source: EvaluatorMappingSource<TRecordKind>;
   }) => void;
   /**
    * Switches which kind of record the mapping source describes, resetting it to
-   * that grain's default.
+   * that record kind's default.
    *
    * Span and session sources are structurally identical, so no setter can infer
-   * the grain from a source. Callers that change the evaluated target must say
+   * the record kind from a source. Callers that change the evaluated target must say
    * so explicitly, or mapping vocabulary silently keeps naming the old record.
    */
-  setEvaluatorMappingSourceGrain: (grain: EvaluatorMappingSourceGrain) => void;
+  setEvaluatorRecordKind: (recordKind: EvaluatorRecordKind) => void;
   /** Sets a single field of the evaluator mapping source. */
   setEvaluatorMappingSourceField: (
     params: {
-      [TGrain in EvaluatorMappingSourceGrain]: {
-        grain: TGrain;
-        field: EvaluatorMappingSourceField<TGrain>;
+      [TRecordKind in EvaluatorRecordKind]: {
+        recordKind: TRecordKind;
+        field: EvaluatorMappingSourceField<TRecordKind>;
         value: Record<string, unknown>;
       };
-    }[EvaluatorMappingSourceGrain]
+    }[EvaluatorRecordKind]
   ) => void;
   /** Sets the currently selected example ID within the dataset. */
   setSelectedExampleId: (selectedExampleId?: string | null) => void;
@@ -243,17 +243,17 @@ export const SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"s
   };
 
 /**
- * How each grain reads a payload declared to be one of its records: its own
+ * How each record kind reads a payload declared to be one of its records: its own
  * fields, validated against its own vocabulary and nothing else.
  *
- * Metadata a grain cannot vouch for — an agent-authored payload, a context
- * built for another record kind — is dropped for that grain's empty metadata
+ * Metadata a record kind cannot vouch for — an agent-authored payload, a context
+ * built for another record kind — is dropped for that record kind's empty metadata
  * rather than read under a vocabulary it does not speak.
  */
-const READ_MAPPING_SOURCE_BY_GRAIN: {
-  [TGrain in EvaluatorMappingSourceGrain]: (
-    source: EvaluatorMappingSource<TGrain>
-  ) => EvaluatorMappingSource<TGrain>;
+const READ_MAPPING_SOURCE_BY_RECORD_KIND: {
+  [TRecordKind in EvaluatorRecordKind]: (
+    source: EvaluatorMappingSource<TRecordKind>
+  ) => EvaluatorMappingSource<TRecordKind>;
 } = {
   dataset: ({ input, output, reference, metadata }) => ({
     input: isStringKeyedObject(input) ? input : {},
@@ -280,39 +280,39 @@ const READ_MAPPING_SOURCE_BY_GRAIN: {
   }),
 };
 
-/** Reads a payload as the grain whoever bound it declared it to be. */
+/** Reads a payload as the recordKind whoever bound it declared it to be. */
 export function readEvaluatorMappingSource<
-  TGrain extends EvaluatorMappingSourceGrain,
+  TRecordKind extends EvaluatorRecordKind,
 >({
-  grain,
+  recordKind,
   source,
 }: {
-  grain: TGrain;
-  source: EvaluatorMappingSource<TGrain>;
+  recordKind: TRecordKind;
+  source: EvaluatorMappingSource<TRecordKind>;
 }): EvaluatorMappingSourceState {
-  // The cast pairs a grain with its own source; the compiler tracks that only
-  // once `TGrain` is one grain, which it is at every call site.
+  // The cast pairs a record kind with its own source; the compiler tracks that only
+  // once `TRecordKind` is one record kind, which it is at every call site.
   return {
-    grain,
-    source: READ_MAPPING_SOURCE_BY_GRAIN[grain](source),
+    recordKind,
+    source: READ_MAPPING_SOURCE_BY_RECORD_KIND[recordKind](source),
   } as EvaluatorMappingSourceState;
 }
 
-const MAPPING_SOURCE_DEFAULT_BY_GRAIN: {
-  [TGrain in EvaluatorMappingSourceGrain]: EvaluatorMappingSource<TGrain>;
+const MAPPING_SOURCE_DEFAULT_BY_RECORD_KIND: {
+  [TRecordKind in EvaluatorRecordKind]: EvaluatorMappingSource<TRecordKind>;
 } = {
   dataset: EVALUATOR_MAPPING_SOURCE_DEFAULT,
   span: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
   session: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
 };
 
-/** The mapping source a grain starts from before any record is selected. */
+/** The mapping source a recordKind starts from before any record is selected. */
 export function defaultEvaluatorMappingSourceState(
-  grain: EvaluatorMappingSourceGrain
+  recordKind: EvaluatorRecordKind
 ): EvaluatorMappingSourceState {
   return {
-    grain,
-    source: MAPPING_SOURCE_DEFAULT_BY_GRAIN[grain],
+    recordKind,
+    source: MAPPING_SOURCE_DEFAULT_BY_RECORD_KIND[recordKind],
   } as EvaluatorMappingSourceState;
 }
 
@@ -340,7 +340,7 @@ export const DEFAULT_STORE_VALUES = {
     includeExplanation: true,
   },
   evaluatorMappingSource: {
-    grain: "dataset",
+    recordKind: "dataset",
     source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
   },
   showPromptPreview: false,
@@ -565,29 +565,29 @@ export const createEvaluatorStore = (
               "setEvaluatorMappingSource"
             );
           },
-          setEvaluatorMappingSourceGrain(grain) {
-            if (get().evaluatorMappingSource.grain === grain) {
+          setEvaluatorRecordKind(recordKind) {
+            if (get().evaluatorMappingSource.recordKind === recordKind) {
               return;
             }
             set(
               {
                 evaluatorMappingSource:
-                  defaultEvaluatorMappingSourceState(grain),
+                  defaultEvaluatorMappingSourceState(recordKind),
               },
               undefined,
-              "setEvaluatorMappingSourceGrain"
+              "setEvaluatorRecordKind"
             );
           },
           setEvaluatorMappingSourceField(params) {
             const evaluatorMappingSource = get().evaluatorMappingSource;
             invariant(
-              evaluatorMappingSource.grain === params.grain,
-              "Evaluator mapping source grain must match the field grain"
+              evaluatorMappingSource.recordKind === params.recordKind,
+              "Evaluator mapping source recordKind must match the field recordKind"
             );
             set(
               {
                 evaluatorMappingSource: {
-                  grain: evaluatorMappingSource.grain,
+                  recordKind: evaluatorMappingSource.recordKind,
                   source: {
                     ...evaluatorMappingSource.source,
                     [params.field]: params.value,

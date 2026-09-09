@@ -1,4 +1,4 @@
-import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
  * The values a span or session supplies to an evaluator by name alone, with no
@@ -106,58 +106,60 @@ export const SPAN_ANNOTATION_FIELDS = [
   "email",
 ] as const;
 
-const BOUND_VARIABLES_BY_GRAIN: Record<
-  ProjectEvaluatorMappingSourceGrain,
+const BOUND_VARIABLES_BY_RECORD_KIND: Record<
+  ProjectEvaluatorRecordKind,
   EvaluatorBoundVariable[]
 > = {
   span: SPAN_BOUND_VARIABLES,
   session: SESSION_BOUND_VARIABLES,
 };
 
-const METADATA_FIELDS_BY_GRAIN: Record<
-  ProjectEvaluatorMappingSourceGrain,
+const METADATA_FIELDS_BY_RECORD_KIND: Record<
+  ProjectEvaluatorRecordKind,
   EvaluatorBoundVariable[]
 > = {
   span: SPAN_METADATA_FIELDS,
   session: SESSION_METADATA_FIELDS,
 };
 
-export const EVALUATOR_MAPPING_SOURCE_GRAINS = Object.keys(
-  BOUND_VARIABLES_BY_GRAIN
-) as ProjectEvaluatorMappingSourceGrain[];
+export const EVALUATOR_RECORD_KINDS = Object.keys(
+  BOUND_VARIABLES_BY_RECORD_KIND
+) as ProjectEvaluatorRecordKind[];
 
 /**
  * Ordered for reading: identity first, then status, then measures. The server
  * returns them unordered, so the order is this list's to decide.
  */
 export function getEvaluatorBoundVariables(
-  grain: ProjectEvaluatorMappingSourceGrain
+  recordKind: ProjectEvaluatorRecordKind
 ): EvaluatorBoundVariable[] {
-  return BOUND_VARIABLES_BY_GRAIN[grain];
+  return BOUND_VARIABLES_BY_RECORD_KIND[recordKind];
 }
 
 /** The record fields beside the vocabulary, after it in reading order. */
 export function getEvaluatorMetadataFields(
-  grain: ProjectEvaluatorMappingSourceGrain
+  recordKind: ProjectEvaluatorRecordKind
 ): EvaluatorBoundVariable[] {
-  return METADATA_FIELDS_BY_GRAIN[grain];
+  return METADATA_FIELDS_BY_RECORD_KIND[recordKind];
 }
 
 export function getEvaluatorMetadataEntries(
-  grain: ProjectEvaluatorMappingSourceGrain
+  recordKind: ProjectEvaluatorRecordKind
 ): EvaluatorBoundVariable[] {
-  const fields = getEvaluatorMetadataFields(grain);
+  const fields = getEvaluatorMetadataFields(recordKind);
   const isContainer = ({ type }: EvaluatorBoundVariable) =>
     type === "object" || type === "list";
   return [
     ...fields.filter(isContainer),
-    ...getEvaluatorBoundVariables(grain),
+    ...getEvaluatorBoundVariables(recordKind),
     ...fields.filter((field) => !isContainer(field)),
   ];
 }
 
 export function getEvaluatorMetadataEntryNames(
-  grain: ProjectEvaluatorMappingSourceGrain
+  recordKind: ProjectEvaluatorRecordKind
 ): Set<string> {
-  return new Set(getEvaluatorMetadataEntries(grain).map(({ name }) => name));
+  return new Set(
+    getEvaluatorMetadataEntries(recordKind).map(({ name }) => name)
+  );
 }
