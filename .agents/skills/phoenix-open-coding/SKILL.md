@@ -103,8 +103,8 @@ Write what you saw, not the category you think it belongs to — categorization 
 
 ## Saturation
 
-Stop when observations stop being new: the last 10–15 entities repeat failures you've already seen, you catch yourself paraphrasing earlier notes, or skips outnumber notes. Resist grouping into categories while still collecting; at saturation, move on to axial coding. You do not need to annotate every trace — annotating correct ones dilutes signal.
+Stop when observations stop being new: the last 10–15 entities repeat failures you've already seen, you catch yourself paraphrasing earlier notes, or skips outnumber notes. Resist grouping into categories while still collecting; at saturation, stop collecting and wrap up. You do not need to annotate every trace — annotating correct ones dilutes signal.
 
 ## Wrapping up
 
-Hand off to `phoenix-axial-coding`, which reads `$NOTES_SIDECAR` directly. If the run ends here instead, follow that skill's **Wrapping up** section for the two closing moves: sharing the Phoenix UI link filtered to this run's coding annotation identifier, and — only with explicit user confirmation — the identifier-bound delete sweep plus sidecar removal that discards everything the run produced.
+If the user asked for categories, counts, eval targets, or fix priorities, hand off to `phoenix-axial-coding`, which reads `$NOTES_SIDECAR` directly. Otherwise stop here: summarize what the notes surfaced, then offer to continue with `phoenix-axial-coding` and wait for the user's answer rather than starting it. If the run ends here, follow that skill's **Wrapping up** section for the two closing moves: sharing the Phoenix UI link filtered to this run's coding annotation identifier, and — only with explicit user confirmation — the identifier-bound delete sweep plus sidecar removal that discards everything the run produced.
