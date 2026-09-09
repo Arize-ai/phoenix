@@ -79,6 +79,7 @@ import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
+import { TRACE_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
@@ -93,6 +94,7 @@ import type {
 } from "./__generated__/TracesTable_spans.graphql";
 import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import { withFilterConditionParam } from "./filterConditionParam";
 import {
   SpanInputValueTooltipCell,
   SpanOutputValueTooltipCell,
@@ -118,6 +120,11 @@ import { useTraceFilters } from "./TraceFiltersContext";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
+  /**
+   * The settled condition `project` was loaded with; the rows on hand already
+   * match it.
+   */
+  seed: string;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -258,17 +265,37 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validTraceFilterCondition, setValidTraceFilterCondition] =
-    useState<string>("");
+    useState<string>(props.seed);
+  // React Router 8.2 recreates this setter whenever location.search changes; a
+  // stable ref keeps unrelated param changes out of the field's validation.
+  const setSearchParamsRef = useRef(setSearchParams);
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams;
+  }, [setSearchParams]);
   const handleValidTraceFilterCondition = useCallback(
-    ({ condition }: TraceFilterValidConditionArgs) => {
+    ({ condition, isInitialSettlement }: TraceFilterValidConditionArgs) => {
       setValidTraceFilterCondition(condition);
+      // The mount settlement echoes the URL's own condition; writing it back
+      // would touch the URL on every visit to the tab.
+      if (isInitialSettlement) {
+        return;
+      }
+      setSearchParamsRef.current(
+        (prev) =>
+          withFilterConditionParam(
+            prev,
+            TRACE_FILTER_CONDITION_PARAM,
+            condition
+          ),
+        { replace: true }
+      );
     },
     []
   );
@@ -891,8 +918,8 @@ export function TracesTable(props: TracesTableProps) {
   );
 
   useEffect(() => {
-    // The parent query preloads these initial variables, so refetch only after
-    // sorting, filtering, streaming, or the live time window changes.
+    // The parent's query already carries the seed, so the first render needs
+    // no refetch.
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
