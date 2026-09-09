@@ -991,6 +991,7 @@ input CreateProjectSessionAnnotationInput {
 }
 
 input CreateProjectSessionNoteInput {
+  """The session's Relay node ID or raw session ID."""
   id: ID!
   note: String!
   identifier: String
@@ -1040,6 +1041,7 @@ input CreateSpanAnnotationInput {
 }
 
 input CreateSpanNoteInput {
+  """The span's Relay node ID or OpenTelemetry span ID."""
   id: ID!
   note: String!
   identifier: String
@@ -1064,6 +1066,7 @@ input CreateTraceAnnotationInput {
 }
 
 input CreateTraceNoteInput {
+  """The trace's Relay node ID or OpenTelemetry trace ID."""
   id: ID!
   note: String!
   identifier: String

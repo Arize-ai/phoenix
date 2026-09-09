@@ -2,7 +2,6 @@ from typing import Any, Optional, cast
 
 import strawberry
 from sqlalchemy import insert, select
-from starlette.requests import Request
 from strawberry import UNSET, Info
 
 from phoenix.db import models
@@ -11,13 +10,11 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers.annotations import (
-    CREATE_TRACE_NOTES_ERROR,
-    DELETE_TRACE_NOTES_ERROR,
     NOTE_NAME,
     get_note_identifier,
     get_user_identifier,
 )
-from phoenix.server.api.helpers.note_targets import resolve_trace_rowids
+from phoenix.server.api.helpers.entity_rowids import resolve_trace_rowids
 from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.NoteInputs import CreateTraceNoteInput
@@ -27,8 +24,14 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation
-from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import TraceAnnotationDeleteEvent, TraceAnnotationInsertEvent
+
+CREATE_TRACE_NOTES_ERROR = (
+    "The name 'note' is reserved for notes. Use the createTraceNotes mutation instead."
+)
+DELETE_TRACE_NOTES_ERROR = (
+    "The name 'note' is reserved for notes. Use the deleteTraceNotes mutation instead."
+)
 
 
 @strawberry.type
@@ -48,10 +51,7 @@ class TraceAnnotationMutationMixin:
         if any(annotation_input.name == NOTE_NAME for annotation_input in input):
             raise BadRequest(CREATE_TRACE_NOTES_ERROR)
 
-        assert isinstance(request := info.context.request, Request)
-        user_id: Optional[int] = None
-        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-            user_id = int(user.identity)
+        user_id = info.context.user_id
 
         processed_annotations_map: dict[int, models.TraceAnnotation] = {}
 
@@ -154,24 +154,14 @@ class TraceAnnotationMutationMixin:
         if not input:
             raise BadRequest("No trace notes provided.")
 
-        assert isinstance(request := info.context.request, Request)
-        user_id: Optional[int] = None
-        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-            user_id = int(user.identity)
+        user_id = info.context.user_id
 
         async with info.context.db() as session:
             trace_rowids = await resolve_trace_rowids(
                 session, [str(note_input.id) for note_input in input]
             )
-            processed_annotation_ids: list[int] = []
-            for trace_rowid, note_input in zip(trace_rowids, input):
-                has_identifier = isinstance(note_input.identifier, str)
-                note_identifier = (
-                    note_input.identifier
-                    if has_identifier
-                    else get_note_identifier("px-trace-note")
-                )
-                values = {
+            records: list[dict[str, Any]] = [
+                {
                     "trace_rowid": trace_rowid,
                     "name": NOTE_NAME,
                     "label": None,
@@ -179,42 +169,38 @@ class TraceAnnotationMutationMixin:
                     "explanation": note_input.note,
                     "annotator_kind": AnnotatorKind.HUMAN.value,
                     "metadata_": {},
-                    "identifier": note_identifier,
+                    "identifier": (
+                        note_input.identifier
+                        if isinstance(note_input.identifier, str)
+                        else get_note_identifier("px-trace-note")
+                    ),
                     "source": AnnotationSource.APP.value,
                     "user_id": user_id,
                 }
-                if has_identifier:
-                    statement = insert_on_conflict(
-                        values,
-                        dialect=info.context.db.dialect,
-                        table=models.TraceAnnotation,
-                        unique_by=("name", "trace_rowid", "identifier"),
-                    ).returning(models.TraceAnnotation.id)
-                else:
-                    statement = (
-                        insert(models.TraceAnnotation)
-                        .values(**values)
-                        .returning(models.TraceAnnotation.id)
-                    )
-                processed_annotation_ids.append((await session.scalars(statement)).one())
-
-            final_annotations = await session.scalars(
-                select(models.TraceAnnotation).where(
-                    models.TraceAnnotation.id.in_(set(processed_annotation_ids))
-                )
+                for trace_rowid, note_input in zip(trace_rowids, input)
+            ]
+            annotations = await session.scalars(
+                insert_on_conflict(
+                    *records,
+                    dialect=info.context.db.dialect,
+                    table=models.TraceAnnotation,
+                    unique_by=("name", "trace_rowid", "identifier"),
+                ).returning(models.TraceAnnotation)
             )
-            annotations_by_id = {
-                annotation.id: annotation for annotation in final_annotations.all()
+            annotations_by_key = {
+                (annotation.trace_rowid, annotation.identifier): annotation
+                for annotation in annotations
             }
+            ordered_annotations = [
+                annotations_by_key[(record["trace_rowid"], record["identifier"])]
+                for record in records
+            ]
 
-        event_ids = tuple(dict.fromkeys(processed_annotation_ids))
+        event_ids = tuple(dict.fromkeys(annotation.id for annotation in ordered_annotations))
         info.context.event_queue.put(TraceAnnotationInsertEvent(event_ids))
         returned_annotations = [
-            TraceAnnotation(
-                id=annotations_by_id[annotation_id].id,
-                db_record=annotations_by_id[annotation_id],
-            )
-            for annotation_id in processed_annotation_ids
+            TraceAnnotation(id=annotation.id, db_record=annotation)
+            for annotation in ordered_annotations
         ]
         return TraceAnnotationMutationPayload(
             trace_annotations=returned_annotations,
@@ -230,10 +216,7 @@ class TraceAnnotationMutationMixin:
         if any(patch.name == NOTE_NAME for patch in input):
             raise BadRequest(CREATE_TRACE_NOTES_ERROR)
 
-        assert isinstance(request := info.context.request, Request)
-        user_id: Optional[int] = None
-        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-            user_id = int(user.identity)
+        user_id = info.context.user_id
 
         patch_by_id = {}
         for patch in input:
@@ -319,12 +302,8 @@ class TraceAnnotationMutationMixin:
                 raise BadRequest(f"Duplicate trace annotation ID: {annotation_id}")
             annotation_ids[annotation_id] = None
 
-        assert isinstance(request := info.context.request, Request)
-        user_id: Optional[int] = None
-        user_is_admin = False
-        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-            user_id = int(user.identity)
-            user_is_admin = user.is_admin
+        user_id = info.context.user_id
+        user_is_admin = user_id is not None and info.context.user.is_admin
 
         async with info.context.db() as session:
             annotations_by_id = {
@@ -385,12 +364,8 @@ class TraceAnnotationMutationMixin:
                 raise BadRequest(f"Duplicate trace annotation ID: {annotation_id}")
             trace_annotation_ids[annotation_id] = None
 
-        assert isinstance(request := info.context.request, Request)
-        user_id: Optional[int] = None
-        user_is_admin = False
-        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-            user_id = int(user.identity)
-            user_is_admin = user.is_admin
+        user_id = info.context.user_id
+        user_is_admin = user_id is not None and info.context.user.is_admin
 
         async with info.context.db() as session:
             deleted_annotations_by_id = {
