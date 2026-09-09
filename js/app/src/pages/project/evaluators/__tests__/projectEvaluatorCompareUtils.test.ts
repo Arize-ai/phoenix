@@ -1,9 +1,6 @@
 import {
-  FLAGGED_LABEL,
   formatMatrixSubtitle,
   getKappaGloss,
-  getPositiveLabel,
-  NOT_FLAGGED_LABEL,
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
 
@@ -53,18 +50,6 @@ describe("project evaluator compare utils", () => {
     expect(getKappaGloss(value)).toBe(expected);
   });
 
-  it("only marks the exact binary flagged pair as positive", () => {
-    expect(
-      getPositiveLabel(
-        [FLAGGED_LABEL, NOT_FLAGGED_LABEL],
-        [NOT_FLAGGED_LABEL, FLAGGED_LABEL]
-      )
-    ).toBe(FLAGGED_LABEL);
-    expect(
-      getPositiveLabel([FLAGGED_LABEL, "other"], [FLAGGED_LABEL, "other"])
-    ).toBeUndefined();
-  });
-
   it("formats matrix thresholds", () => {
     expect(
       formatMatrixSubtitle({
@@ -72,17 +57,33 @@ describe("project evaluator compare utils", () => {
         evaluatedByBoth: 12847,
         thresholdA: 0.5,
         thresholdB: 0.5,
+        optimizationDirectionA: "MINIMIZE",
+        optimizationDirectionB: "MINIMIZE",
       })
     ).toBe("12,847 spans evaluated by both · flagged at score ≥ 0.5");
+    expect(
+      formatMatrixSubtitle({
+        target: "SPAN",
+        evaluatedByBoth: 40,
+        thresholdA: 0.5,
+        thresholdB: 0.5,
+        optimizationDirectionA: "MAXIMIZE",
+        optimizationDirectionB: "MINIMIZE",
+      })
+    ).toBe(
+      "40 spans evaluated by both · A flagged at score ≤ 0.5 · B flagged at score ≥ 0.5"
+    );
     expect(
       formatMatrixSubtitle({
         target: "SESSION",
         evaluatedByBoth: 5,
         thresholdA: 0.5,
         thresholdB: 0.75,
+        optimizationDirectionA: "MAXIMIZE",
+        optimizationDirectionB: "MINIMIZE",
       })
     ).toBe(
-      "5 sessions evaluated by both · A flagged at score ≥ 0.5 · B flagged at score ≥ 0.75"
+      "5 sessions evaluated by both · A flagged at score ≤ 0.5 · B flagged at score ≥ 0.75"
     );
   });
 });
