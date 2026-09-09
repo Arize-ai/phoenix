@@ -7,7 +7,7 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.db import models
-from phoenix.server.api.helpers.evaluator_calibration import valid_calibration_labels
+from phoenix.server.api.helpers.evaluator_calibration import valid_calibration_outputs
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 
 
@@ -21,7 +21,9 @@ class RevisionKind(Enum):
 @strawberry.type
 class DatasetExampleCalibrationLabel:
     annotation_name: str
-    label: str
+    label: str | None
+    score: float | None
+    explanation: str | None
 
 
 @strawberry.type
@@ -37,8 +39,13 @@ class DatasetExampleRevision(ExampleRevision):
     @strawberry.field
     def calibration_labels(self) -> list[DatasetExampleCalibrationLabel]:
         return [
-            DatasetExampleCalibrationLabel(annotation_name=name, label=label)
-            for name, label in valid_calibration_labels(
+            DatasetExampleCalibrationLabel(
+                annotation_name=name,
+                label=value.get("label"),
+                score=value.get("score"),
+                explanation=value.get("explanation"),
+            )
+            for name, value in valid_calibration_outputs(
                 cast(dict[str, Any], self.input),
                 cast(dict[str, Any], self.output),
                 cast(dict[str, Any], self.metadata),

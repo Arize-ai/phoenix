@@ -1,6 +1,28 @@
 import type { EvaluatorPreviewInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 
-export type SlotId = "A" | "B";
+import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
+
+export const EVALUATOR_SLOT_IDS = ["A", "B", "C", "D"] as const;
+export type SlotId = (typeof EVALUATOR_SLOT_IDS)[number];
+
+export function getVisibleEvaluatorSlots(params: URLSearchParams): SlotId[] {
+  const selected = params.getAll("evaluatorSlot");
+  const slots = EVALUATOR_SLOT_IDS.filter((slot) => selected.includes(slot));
+  return slots.length
+    ? slots
+    : params.get("compare") === "true"
+      ? ["A", "B"]
+      : ["A"];
+}
+
+export function setVisibleEvaluatorSlots(
+  params: URLSearchParams,
+  slots: readonly SlotId[]
+) {
+  params.delete("evaluatorSlot");
+  params.delete("compare");
+  slots.forEach((slot) => params.append("evaluatorSlot", slot));
+}
 
 export type SlotSnapshot = {
   revision: string;
@@ -17,6 +39,7 @@ export type SlotSnapshot = {
 };
 
 export type EvaluatorSlotProps = {
+  registerAgentSlot?: (slot: SlotId, host: EvaluatorAgentSlot) => () => void;
   slotId: SlotId;
   datasetId: string | null;
   initialEvaluatorId?: string | null;
@@ -34,8 +57,7 @@ export type EvaluatorSlotProps = {
    */
   onRun?: () => void;
   /**
-   * Removes this slot from the comparison. Only the second slot is removable;
-   * the first is the comparison baseline.
+   * Removes this slot from the comparison. Any slot can be removed while more than one remains.
    */
   onRemove?: () => void;
   isRunning: boolean;
@@ -46,7 +68,7 @@ export type EvaluatorSlotProps = {
   }) => void;
 };
 
-/** The position of a slot in the A/B pair, for the alphabetic index icon. */
+/** The position of a slot in the comparison, for the alphabetic index icon. */
 export function getSlotIndex(slotId: SlotId): number {
-  return slotId === "A" ? 0 : 1;
+  return EVALUATOR_SLOT_IDS.indexOf(slotId);
 }

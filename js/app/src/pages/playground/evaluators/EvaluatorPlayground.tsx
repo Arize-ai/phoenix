@@ -9,6 +9,7 @@ import {
 import { Group } from "react-resizable-panels";
 import { useBlocker, useSearchParams } from "react-router";
 
+import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 import {
   Button,
   EmptyState,
@@ -36,11 +37,12 @@ import type {
   CalibrationExample,
   CalibrationPrediction,
   CalibrationRun,
+  ExpectedOutput,
+  SlotExpectations,
 } from "./calibration";
 import {
   createCalibrationContext,
   getCalibrationAnnotationName,
-  haveCompatibleLabels,
   runCalibrationSample,
 } from "./calibration";
 import { CalibrationDataset } from "./CalibrationDataset";
@@ -52,7 +54,13 @@ import {
 } from "./CalibrationSettingsButton";
 import { EvaluatorPlaygroundRunButton } from "./EvaluatorPlaygroundRunButton";
 import { EvaluatorSlot } from "./EvaluatorSlot";
+import {
+  EVALUATOR_SLOT_IDS,
+  getVisibleEvaluatorSlots,
+  setVisibleEvaluatorSlots,
+} from "./evaluatorSlotTypes";
 import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
+import { useEvaluatorWorkspaceOperations } from "./useEvaluatorWorkspaceOperations";
 
 const EMPTY_CONTEXT = { input: {}, output: {}, reference: {}, metadata: {} };
 
@@ -93,7 +101,8 @@ export default function EvaluatorPlayground() {
   const datasetId = searchParams.get("datasetId");
   const splitIds = searchParams.getAll("splitId");
   const versionId = searchParams.get("datasetVersionId");
-  const hasComparison = searchParams.get("compare") === "true";
+  const visibleSlotIds = getVisibleEvaluatorSlots(searchParams);
+  const hasComparison = visibleSlotIds.length > 1;
   const sampleSize = parseSampleSize(searchParams.get("sampleSize"));
   const [sampleGeneration, setSampleGeneration] = useState(0);
   const sampleKey = JSON.stringify([
@@ -115,7 +124,8 @@ export default function EvaluatorPlayground() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [pendingReview, setPendingReview] = useState<{
     example: CalibrationExample;
-    label: string | null;
+    slotId: SlotId;
+    output: ExpectedOutput | null;
   } | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewLabel, isSavingReview] =
@@ -128,22 +138,51 @@ export default function EvaluatorPlayground() {
             revisionId
             calibrationLabels {
               annotationName
+              score
+              explanation
               label
             }
           }
         }
       }
     `);
-  const visibleSlotIds: SlotId[] = hasComparison ? ["A", "B"] : ["A"];
   const isRunning = visibleSlotIds.some((slotId) => runs[slotId]?.isRunning);
-  const { labelName, labels, isCompatible, expected, currentRuns, staleSlots } =
-    getCalibrationView({ slots, runs, examples, sampleKey, visibleSlotIds });
+  const { expected, currentRuns, staleSlots } = getCalibrationView({
+    slots,
+    runs,
+    examples,
+    sampleKey,
+    visibleSlotIds,
+  });
+  const { registerAgentSlot, allowNavigation } =
+    useEvaluatorWorkspaceOperations({
+      datasetId,
+      versionId,
+      splitIds,
+      sampleSize,
+      sampleKey,
+      sampleLoaded: sample?.key === sampleKey,
+      visibleSlotIds,
+      examples,
+      slots,
+      runs: currentRuns,
+      expected,
+      staleSlots,
+      isRunning,
+      isSavingReview,
+      runSlots,
+      stop,
+      saveReview,
+    });
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    if (allowNavigation.current) return false;
     const nextMode = new URLSearchParams(nextLocation.search).get("mode");
-    const removesDirtyComparison =
-      hasComparison &&
-      new URLSearchParams(nextLocation.search).get("compare") !== "true" &&
-      !!slots.B?.isDirty;
+    const nextSlots = getVisibleEvaluatorSlots(
+      new URLSearchParams(nextLocation.search)
+    );
+    const removesDirtyComparison = visibleSlotIds.some(
+      (slot) => !nextSlots.includes(slot) && slots[slot]?.isDirty
+    );
     return (
       removesDirtyComparison ||
       ((isRunning ||
@@ -254,8 +293,9 @@ export default function EvaluatorPlayground() {
                   (output) => output.name === slot.selectedOutputName
                 )?.labels ?? [];
               if (
-                annotation?.label == null ||
-                !validLabels.includes(annotation.label)
+                !annotation ||
+                (validLabels.length > 0 &&
+                  !validLabels.includes(annotation.label ?? ""))
               ) {
                 resolve({
                   status: "error",
@@ -329,51 +369,84 @@ export default function EvaluatorPlayground() {
     );
   }
 
-  function saveReview(example: CalibrationExample, label: string | null) {
-    if (!datasetId || !labelName || isSavingReview) return;
-    setPendingReview({ example, label });
-    setSavingId(example.id);
-    setReviewError(null);
-    reviewLabel({
-      variables: {
-        input: {
-          datasetId,
-          exampleId: example.id,
-          expectedRevisionId: example.revisionId,
-          annotationName: labelName,
-          label,
+  function saveReview(
+    example: CalibrationExample,
+    slotId: SlotId,
+    output: ExpectedOutput | null
+  ): Promise<UIOperationResult> {
+    const slot = slots[slotId];
+    const labelName = slot
+      ? getCalibrationAnnotationName({
+          evaluatorName: slot.name,
+          outputName: slot.selectedOutputName,
+          outputCount: slot.outputNames.length,
+        })
+      : null;
+    if (!datasetId || !labelName || isSavingReview)
+      return Promise.resolve({
+        ok: false,
+        error: "Dataset/output unavailable or another review is saving.",
+      });
+    return new Promise((resolve) => {
+      setPendingReview({ example, slotId, output });
+      setSavingId(example.id);
+      setReviewError(null);
+      reviewLabel({
+        variables: {
+          input: {
+            datasetId,
+            exampleId: example.id,
+            expectedRevisionId: example.revisionId,
+            annotationName: labelName,
+            label: output?.label ?? null,
+            score: output?.score ?? null,
+            explanation: output?.explanation ?? null,
+          },
         },
-      },
-      onCompleted(response, errors) {
-        setSavingId(null);
-        if (errors?.length) {
-          setReviewError(errors.map((error) => error.message).join("\n"));
-          return;
-        }
-        setPendingReview(null);
-        setSample((previous) =>
-          previous?.key === sampleKey
-            ? {
-                ...previous,
-                examples: previous.examples.map((item) =>
-                  item.id === example.id
-                    ? {
-                        ...item,
-                        ...response.setDatasetExampleCalibrationLabel.revision,
-                      }
-                    : item
-                ),
-              }
-            : previous
-        );
-      },
-      onError(error) {
-        setSavingId(null);
-        setReviewError(
-          getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
-            error.message
-        );
-      },
+        onCompleted(response, errors) {
+          setSavingId(null);
+          if (errors?.length) {
+            const message = errors.map((error) => error.message).join("\n");
+            setReviewError(message);
+            resolve({ ok: false, error: message });
+            return;
+          }
+          resolve({
+            ok: true,
+            output: response.setDatasetExampleCalibrationLabel.revision,
+          });
+          setPendingReview(null);
+          setSample((previous) =>
+            previous?.key === sampleKey
+              ? {
+                  ...previous,
+                  examples: previous.examples.map((item) =>
+                    item.id === example.id
+                      ? {
+                          ...item,
+                          ...response.setDatasetExampleCalibrationLabel
+                            .revision,
+                        }
+                      : item
+                  ),
+                }
+              : previous
+          );
+        },
+        onError(error) {
+          resolve({
+            ok: false,
+            error:
+              getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+              error.message,
+          });
+          setSavingId(null);
+          setReviewError(
+            getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+              error.message
+          );
+        },
+      });
     });
   }
 
@@ -428,10 +501,23 @@ export default function EvaluatorPlayground() {
             <Button
               size="S"
               leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
-              isDisabled={isRunning || hasComparison}
-              onPress={() => changeParam("compare", "true")}
+              isDisabled={isRunning || visibleSlotIds.length >= 4}
+              onPress={() =>
+                setSearchParams((previous) => {
+                  const next = new URLSearchParams(previous);
+                  const available = EVALUATOR_SLOT_IDS.find(
+                    (slot) => !visibleSlotIds.includes(slot)
+                  );
+                  if (available)
+                    setVisibleEvaluatorSlots(next, [
+                      ...visibleSlotIds,
+                      available,
+                    ]);
+                  return next;
+                })
+              }
             >
-              Compare
+              Add evaluator
             </Button>
           }
         >
@@ -446,6 +532,7 @@ export default function EvaluatorPlayground() {
                   <Suspense fallback={<Skeleton height={240} />}>
                     <EvaluatorSlot
                       slotId={slotId}
+                      registerAgentSlot={registerAgentSlot}
                       datasetId={datasetId}
                       initialEvaluatorId={searchParams.get(
                         `evaluator${slotId}`
@@ -474,8 +561,20 @@ export default function EvaluatorPlayground() {
                           : undefined
                       }
                       onRemove={
-                        slotId === "B"
-                          ? () => changeParam("compare", null)
+                        hasComparison
+                          ? () =>
+                              setSearchParams((previous) => {
+                                const next = new URLSearchParams(previous);
+                                setVisibleEvaluatorSlots(
+                                  next,
+                                  visibleSlotIds.filter(
+                                    (slot) => slot !== slotId
+                                  )
+                                );
+                                next.delete(`evaluator${slotId}`);
+                                next.delete(`datasetEvaluator${slotId}`);
+                                return next;
+                              })
                           : undefined
                       }
                       isRunning={!!runs[slotId]?.isRunning}
@@ -532,8 +631,9 @@ export default function EvaluatorPlayground() {
                       next.append("splitId", splitId)
                     );
                     if (nextDatasetId !== datasetId) {
-                      next.delete("datasetEvaluatorA");
-                      next.delete("datasetEvaluatorB");
+                      EVALUATOR_SLOT_IDS.forEach((slot) =>
+                        next.delete(`datasetEvaluator${slot}`)
+                      );
                     }
                     return next;
                   });
@@ -572,11 +672,9 @@ export default function EvaluatorPlayground() {
               examples={examples}
               sampleSize={sampleSize}
               runs={currentRuns}
-              slotNames={{ A: slots.A?.name, B: slots.B?.name }}
+              slots={slots}
+              visibleSlotIds={visibleSlotIds}
               expected={expected}
-              labels={labels}
-              hasComparison={hasComparison}
-              isCompatible={isCompatible}
               filter={searchParams.get("reviewFilter") ?? "all"}
               onFilterChange={(value) => changeParam("reviewFilter", value)}
               onReview={saveReview}
@@ -584,7 +682,11 @@ export default function EvaluatorPlayground() {
               reviewError={reviewError}
               onRetryReview={() => {
                 if (pendingReview)
-                  saveReview(pendingReview.example, pendingReview.label);
+                  saveReview(
+                    pendingReview.example,
+                    pendingReview.slotId,
+                    pendingReview.output
+                  );
               }}
               onReloadSample={() => {
                 stop();
@@ -634,21 +736,23 @@ function getCalibrationView({
   sampleKey: string;
   visibleSlotIds: SlotId[];
 }) {
-  const labelName = slots.A?.selectedOutputName ?? "";
-  const labels =
-    slots.A?.outputNames.find((output) => output.name === labelName)?.labels ??
-    [];
-  const otherLabels =
-    slots.B?.outputNames.find(
-      (output) => output.name === slots.B?.selectedOutputName
-    )?.labels ?? [];
-  const isCompatible = haveCompatibleLabels(labels, otherLabels);
-  const expected: Partial<Record<string, string>> = {};
-  for (const example of examples) {
-    const label = example.calibrationLabels.find(
-      (item) => item.annotationName === labelName
-    )?.label;
-    if (label != null && labels.includes(label)) expected[example.id] = label;
+  const expected: SlotExpectations = {};
+  for (const slotId of visibleSlotIds) {
+    const slot = slots[slotId];
+    if (!slot) continue;
+    const name = getCalibrationAnnotationName({
+      evaluatorName: slot.name,
+      outputName: slot.selectedOutputName,
+      outputCount: slot.outputNames.length,
+    });
+    expected[slotId] = Object.fromEntries(
+      examples.flatMap((example) => {
+        const output = example.calibrationLabels.find(
+          (item) => item.annotationName === name
+        );
+        return output ? [[example.id, output]] : [];
+      })
+    );
   }
   const currentRuns: Partial<Record<SlotId, CalibrationRun>> = {};
   for (const slotId of visibleSlotIds) {
@@ -660,5 +764,5 @@ function getCalibrationView({
       currentRuns[slotId] &&
       currentRuns[slotId]?.revision !== slots[slotId]?.revision
   );
-  return { labelName, labels, isCompatible, expected, currentRuns, staleSlots };
+  return { expected, currentRuns, staleSlots };
 }

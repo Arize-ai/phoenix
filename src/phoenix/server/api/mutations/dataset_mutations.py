@@ -557,11 +557,13 @@ class DatasetMutationMixin:
             if not isinstance(labels, dict):
                 raise BadRequest("Unsupported calibration labels format.")
             labels = dict(labels)
-            if input.label is None:
+            if input.label is None and input.score is None and input.explanation is None:
                 labels.pop(input.annotation_name, None)
             else:
                 labels[input.annotation_name] = {
                     "label": input.label,
+                    "score": input.score,
+                    "explanation": input.explanation,
                     "sourceHash": calibration_source_hash(
                         revision.input, revision.output, revision.metadata_
                     ),

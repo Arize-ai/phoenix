@@ -14,6 +14,14 @@ sent to a model) — share the loop and discipline below; judgment structure fol
 environment capability, not artifact kind. The `experiments` skill reads the scores you design
 here; the explanations you enable are its evidence channel when comparing runs.
 
+## Evaluator playground
+
+For dataset-sample calibration or side-by-side LLM/code comparison, use `/playground?mode=evaluators`. If already mounted, remain there. Discover `evaluatorPlayground` actions with `search_browser_actions`; these are separate from `playground.*` prompt actions and `evaluators.*` form-dialog actions.
+
+Read the workspace, configure the dataset/splits/sample size and comparison, then select up to four explicit A/B/C/D slots. Read each slot before editing with its returned revision. Edit prompt/model or code/sandbox, output labels, and input mapping. Run all slots or only the changed slot, await completion, and read results (paginate beyond the first page). Runs are temporary previews, not experiments. Save a new evaluator only through `saveSlot` when requested.
+
+In this mode dataset `output` is the judged response, `reference` starts empty, and expected calibration labels are excluded from evaluator inputs. Inspect actual example content and configure mapping rather than assuming the experiment output shape described below. Each slot is a peer with its own expected output; there is no baseline. Record expected labels/scores/explanations only from user-confirmed judgments with evaluatorPlayground.setExpectedOutput, targeting the slot and selected output. The final column summarizes expectations persisted on the dataset example.
+
 ## The Authoring Loop
 
 1. Derive the grading task from the stated purpose — a hypothesis and its evaluator are one design:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<20a3f99f7550ceb9af202b3a37143fe2>>
+ * @generated SignedSource<<2d0b6f4bd58467a0135a20ef6d4698a6>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,9 @@ export type SetDatasetExampleCalibrationLabelInput = {
   datasetId: string;
   exampleId: string;
   expectedRevisionId: string;
+  explanation?: string | null;
   label?: string | null;
+  score?: number | null;
 };
 export type EvaluatorPlaygroundReviewMutation$variables = {
   input: SetDatasetExampleCalibrationLabelInput;
@@ -23,7 +25,9 @@ export type EvaluatorPlaygroundReviewMutation$data = {
     readonly revision: {
       readonly calibrationLabels: ReadonlyArray<{
         readonly annotationName: string;
-        readonly label: string;
+        readonly explanation: string | null;
+        readonly label: string | null;
+        readonly score: number | null;
       }>;
       readonly revisionId: string;
     };
@@ -91,6 +95,20 @@ v1 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
+                "name": "score",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "explanation",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
                 "name": "label",
                 "storageKey": null
               }
@@ -122,16 +140,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "8f18d70daf27f6f1fbd007840eb40a19",
+    "cacheID": "d86b6455ef97af692e36d79003adfa63",
     "id": null,
     "metadata": {},
     "name": "EvaluatorPlaygroundReviewMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorPlaygroundReviewMutation(\n  $input: SetDatasetExampleCalibrationLabelInput!\n) {\n  setDatasetExampleCalibrationLabel(input: $input) {\n    revision {\n      revisionId\n      calibrationLabels {\n        annotationName\n        label\n      }\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorPlaygroundReviewMutation(\n  $input: SetDatasetExampleCalibrationLabelInput!\n) {\n  setDatasetExampleCalibrationLabel(input: $input) {\n    revision {\n      revisionId\n      calibrationLabels {\n        annotationName\n        score\n        explanation\n        label\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a3f86e5d425512aa0d6186c5e4824bff";
+(node as any).hash = "2552c7da7ec845de589849c3034273f4";
 
 export default node;

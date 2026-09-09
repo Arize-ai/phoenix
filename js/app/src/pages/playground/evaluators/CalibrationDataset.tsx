@@ -46,6 +46,8 @@ export function CalibrationDataset({
                     metadata
                     calibrationLabels {
                       annotationName
+                      score
+                      explanation
                       label
                     }
                   }

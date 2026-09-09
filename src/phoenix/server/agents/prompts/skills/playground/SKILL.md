@@ -1,6 +1,6 @@
 ---
 name: playground
-description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset. Load before any playground `ui.*` operation call, including single-shot prompt rewrites.
+description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset. Load before prompt `ui.playground.*` operation calls, including single-shot prompt rewrites. For evaluator playground mode and `ui.evaluatorPlayground.*`, use the evaluators skill instead.
 summary: Author, edit, run, compare, and improve prompts in the Phoenix playground.
 ---
 

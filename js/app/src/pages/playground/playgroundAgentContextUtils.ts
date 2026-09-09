@@ -133,6 +133,7 @@ export function buildPlaygroundAgentContext({
 }): PlaygroundAgentContext {
   return {
     type: "playground",
+    mode: "prompts",
     recordExperiments,
     repetitions,
     nextExperimentScaffold: nextExperimentScaffold ?? undefined,

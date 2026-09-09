@@ -1306,7 +1306,9 @@ type DatasetExample implements Node {
 
 type DatasetExampleCalibrationLabel {
   annotationName: String!
-  label: String!
+  label: String
+  score: Float
+  explanation: String
 }
 
 type DatasetExampleCalibrationLabelPayload {
@@ -1353,9 +1355,9 @@ type DatasetExampleRevision implements ExampleRevision {
   output: JSON!
   metadata: JSON!
   revisionId: ID!
-  calibrationLabels: [DatasetExampleCalibrationLabel!]!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+  calibrationLabels: [DatasetExampleCalibrationLabel!]!
 }
 
 type DatasetExperimentAnnotationSummary {
@@ -4515,6 +4517,8 @@ input SetDatasetExampleCalibrationLabelInput {
   expectedRevisionId: ID!
   annotationName: String!
   label: String
+  score: Float = null
+  explanation: String = null
 }
 
 input SetDatasetExampleSplitsInput {

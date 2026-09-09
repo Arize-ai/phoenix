@@ -1,12 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  reviewEvaluatorPlaygroundOperation,
+  configureEvaluatorPlaygroundOperation,
+} from "@phoenix/agent/uiOperations/operations/evaluatorPlayground";
+
+import {
   createCalibrationContext,
+  matchesExpectedOutput,
   getCalibrationAgreement,
   getCalibrationAnnotationName,
   haveCompatibleLabels,
   runCalibrationSample,
 } from "../calibration";
+import {
+  getVisibleEvaluatorSlots,
+  setVisibleEvaluatorSlots,
+} from "../evaluatorSlotTypes";
 
 describe("calibration", () => {
   it("keeps expected labels out of whole-object evaluator mappings", () => {
@@ -86,7 +96,7 @@ describe("calibration", () => {
         };
       },
       onResult: (item, prediction) => {
-        if (prediction.status === "success")
+        if (prediction.status === "success" && prediction.label != null)
           results.set(item, prediction.label);
       },
     });
@@ -139,4 +149,66 @@ describe("calibration", () => {
     });
     expect(results.sort()).toEqual(["error", "success"]);
   });
+});
+
+describe("independent expected outputs", () => {
+  it("matches labels and scores independently without a baseline", () => {
+    const prediction = {
+      status: "success" as const,
+      label: "pass",
+      score: 0.75,
+      explanation: null,
+    };
+    expect(
+      matchesExpectedOutput(prediction, { label: null, score: 0.75 })
+    ).toBe(true);
+    expect(matchesExpectedOutput(prediction, { label: "pass" })).toBe(true);
+    expect(matchesExpectedOutput(prediction, { label: "pass", score: 1 })).toBe(
+      false
+    );
+    expect(
+      matchesExpectedOutput(
+        { status: "error", error: "failed" },
+        { label: "pass" }
+      )
+    ).toBe(false);
+  });
+  it("restores four peer slots and permits removing A", () => {
+    const params = new URLSearchParams("compare=true");
+    expect(getVisibleEvaluatorSlots(params)).toEqual(["A", "B"]);
+    setVisibleEvaluatorSlots(params, ["A", "B", "C", "D"]);
+    expect(getVisibleEvaluatorSlots(params)).toEqual(["A", "B", "C", "D"]);
+    setVisibleEvaluatorSlots(params, ["B", "C", "D"]);
+    expect(getVisibleEvaluatorSlots(params)).toEqual(["B", "C", "D"]);
+    expect(params.has("compare")).toBe(false);
+  });
+});
+
+it("requires an explicit evaluator for expected-output writes", () => {
+  const review = {
+    exampleId: "example",
+    expectedRevisionId: "revision",
+    outputName: "quality",
+    label: null,
+    score: 0.8,
+  };
+  expect(
+    reviewEvaluatorPlaygroundOperation.inputSchema.safeParse(review).success
+  ).toBe(false);
+  expect(
+    reviewEvaluatorPlaygroundOperation.inputSchema.safeParse({
+      ...review,
+      slot: "D",
+    }).success
+  ).toBe(true);
+  expect(
+    configureEvaluatorPlaygroundOperation.inputSchema.safeParse({
+      slots: ["A", "B", "C", "D"],
+    }).success
+  ).toBe(true);
+  expect(
+    configureEvaluatorPlaygroundOperation.inputSchema.safeParse({
+      slots: ["A", "B", "C", "D", "E"],
+    }).success
+  ).toBe(false);
 });
