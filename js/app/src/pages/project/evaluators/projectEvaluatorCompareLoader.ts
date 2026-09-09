@@ -2,10 +2,7 @@ import { fetchQuery, graphql, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
 import invariant from "tiny-invariant";
 
-import {
-  PROJECT_EVALUATOR_COMPARE_A_PARAM,
-  PROJECT_EVALUATOR_COMPARE_B_PARAM,
-} from "@phoenix/constants/searchParams";
+import { PROJECT_EVALUATOR_COMPARE_PARAM } from "@phoenix/constants/searchParams";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { projectEvaluatorCompareLoaderQuery } from "./__generated__/projectEvaluatorCompareLoaderQuery.graphql";
@@ -36,6 +33,19 @@ export const projectEvaluatorCompareLoaderGQL = graphql`
         id
         name
         evaluationTarget
+        evaluator {
+          outputConfigs {
+            ... on CategoricalAnnotationConfig {
+              optimizationDirection
+            }
+            ... on ContinuousAnnotationConfig {
+              optimizationDirection
+            }
+            ... on FreeformAnnotationConfig {
+              optimizationDirection
+            }
+          }
+        }
         project {
           id
         }
@@ -47,6 +57,19 @@ export const projectEvaluatorCompareLoaderGQL = graphql`
         id
         name
         evaluationTarget
+        evaluator {
+          outputConfigs {
+            ... on CategoricalAnnotationConfig {
+              optimizationDirection
+            }
+            ... on ContinuousAnnotationConfig {
+              optimizationDirection
+            }
+            ... on FreeformAnnotationConfig {
+              optimizationDirection
+            }
+          }
+        }
         project {
           id
         }
@@ -81,8 +104,8 @@ export async function projectEvaluatorCompareLoader({
 }> {
   invariant(params.projectId, "projectId is required");
   const searchParams = new URL(request.url).searchParams;
-  const evaluatorAId = searchParams.get(PROJECT_EVALUATOR_COMPARE_A_PARAM);
-  const evaluatorBId = searchParams.get(PROJECT_EVALUATOR_COMPARE_B_PARAM);
+  const evaluatorIds = searchParams.getAll(PROJECT_EVALUATOR_COMPARE_PARAM);
+  const [evaluatorAId, evaluatorBId] = evaluatorIds;
   const invalid = (invalidReason: ProjectEvaluatorCompareInvalidReason) => ({
     queryRef: null,
     invalidReason,
@@ -91,7 +114,7 @@ export async function projectEvaluatorCompareLoader({
     evaluatorAId,
     evaluatorBId,
   });
-  if (!evaluatorAId || !evaluatorBId) {
+  if (evaluatorIds.length !== 2 || !evaluatorAId || !evaluatorBId) {
     return invalid("missing");
   }
   if (evaluatorAId === evaluatorBId) {

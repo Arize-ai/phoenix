@@ -85,6 +85,5 @@ export const PROJECT_EVALUATOR_PARAM = "evaluator";
  */
 export const PROJECT_EVALUATOR_TEMPLATE_PARAM = "template";
 
-/** ProjectEvaluator Relay ids selected as sides A and B on the compare page. */
-export const PROJECT_EVALUATOR_COMPARE_A_PARAM = "a";
-export const PROJECT_EVALUATOR_COMPARE_B_PARAM = "b";
+/** Ordered ProjectEvaluator Relay ids selected on the compare page. */
+export const PROJECT_EVALUATOR_COMPARE_PARAM = "evaluatorId";
