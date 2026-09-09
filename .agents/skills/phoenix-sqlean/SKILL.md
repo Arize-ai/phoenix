@@ -121,7 +121,7 @@ sqlean moves its own pin.
 - CI's `test` matrix compiles in place across every OS/arch pair the publish job ships;
   `windows-11-arm` skips 3.10 — CPython publishes no Windows ARM64 build for it. It never runs
   cibuildwheel, which is what the `wheel` job is for.
-- Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. Until release-please
-  creates it, `sqlean-sources` skips and nothing builds.
+- Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. If it is missing,
+  `sqlean-sources` fails.
 - PyPI uses trusted publishing with **no** GitHub environment; the publisher's Environment field
   must stay blank to match.

@@ -1,0 +1,53 @@
+name: Resolve a release tag to a commit on the default branch
+description: >-
+  Resolve a release tag to its commit and fail unless that commit is reachable
+  from the default branch. Release jobs publish whatever they check out, and
+  any writer can point a tag at any commit; requiring the commit to be on the
+  default branch means it passed branch protection. Returns the commit SHA so
+  callers check out a pinned revision rather than a movable tag.
+
+inputs:
+  tag:
+    description: Tag name to resolve, without the refs/tags/ prefix.
+    required: true
+
+outputs:
+  revision:
+    description: >-
+      Full SHA of the commit the tag points at, verified to be on the default
+      branch.
+    value: ${{ steps.resolve.outputs.revision }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve tag and verify it is on the default branch
+      id: resolve
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        # ls-remote lists the peeled `^{}` line after an annotated tag's own
+        # line, so the last line is the commit for both tag types.
+        REVISION=$(git ls-remote origin "refs/tags/${TAG}" "refs/tags/${TAG}^{}" | tail -n1 | cut -f1)
+        if [ -z "$REVISION" ]; then
+          echo "::error::Tag ${TAG} does not exist"
+          exit 1
+        fi
+        # The compare API needs no local history (release jobs use shallow
+        # checkouts). identical/behind: every commit at the tag is on the
+        # default branch. ahead/diverged: at least one is not. per_page=1
+        # trims the commit and file lists; status covers the full range.
+        STATUS=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${DEFAULT_BRANCH}...${REVISION}?per_page=1" --jq .status)
+        case "$STATUS" in
+          identical|behind) ;;
+          *)
+            echo "::error::Tag ${TAG} (${REVISION}) is ${STATUS} relative to ${DEFAULT_BRANCH}. Release tags must point at a commit that is already on ${DEFAULT_BRANCH}."
+            exit 1
+            ;;
+        esac
+        echo "Tag ${TAG} -> ${REVISION} (on ${DEFAULT_BRANCH})"
+        echo "revision=${REVISION}" >> "$GITHUB_OUTPUT"
