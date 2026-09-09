@@ -80,7 +80,7 @@ def stage(manifest: dict[str, Any], output: Path, *, agent_image: str, verifier_
         "task": {"name": "arize/trace-count", "version": "1"},
         "metadata": metadata.model_dump(mode="json"),
         "environment": {"network_mode": "no-network", "cpus": 2, "memory_mb": 4096},
-        "agent": {"timeout_sec": 300},
+        "agent": {"timeout_sec": 300, "network_mode": "allowlist", "allowed_hosts": []},
         "verifier": {
             "environment_mode": "separate",
             "timeout_sec": 60,
