@@ -98,7 +98,7 @@ class TestTraceMutationMixin:
             assert project_session.content_complete is False
             work_unit = await session.get(models.EvalSessionWorkUnit, work_unit_id)
             assert work_unit is not None
-            assert work_unit.status == "EXPIRED"
+            assert work_unit.status == "CONTENT_LOST"
             assert work_unit.error == SESSION_CONTENT_INCOMPLETE_ERROR
 
     async def test_deleting_all_traces_in_a_session_also_deletes_the_session(
