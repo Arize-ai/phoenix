@@ -135,6 +135,8 @@ Did the assistant complete every active user intention?`,
 
 For model and provider options, see
 [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+Judge model choice changes accuracy on this evaluator; see [Benchmarks](#benchmarks)
+for a comparison of `gpt-4o-mini`, `gpt-5.6`, and `claude-sonnet-4-6`.
 
 ## Using with Phoenix
 
@@ -144,11 +146,47 @@ For model and provider options, see
 
 ## Benchmarks
 
-On a 45-example categorized synthetic benchmark using `gpt-4o-mini`, a recent
-run of the default prompt achieved **0.89 accuracy**, **0.88 macro precision**,
-**0.90 macro recall**, and **0.89 macro F1**. See
+The default prompt was scored on a 45-example categorized synthetic suite. Every
+model used the same prompt. Runs were local with `PHOENIX_TEST_TRACKING=false`.
+See
 [completeness.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/completeness.eval.ts)
 for the example set.
+
+
+| Model | n | Accuracy | Macro precision | Macro recall | Macro F1 | Misses |
+| --- | --- | --- | --- | --- | --- | --- |
+| `gpt-4o-mini` | 45 | 0.84 | 0.83 | 0.84 | 0.84 | 7 |
+| `gpt-5.6` | 45 | 1.00 | 1.00 | 1.00 | 1.00 | 0 |
+| `claude-sonnet-4-6` | 45 | 0.91 | 0.94 | 0.88 | 0.90 | 4 |
+
+On this suite, `gpt-5.6` matched gold on every example. The other models mainly
+missed cases that mix completeness with correctness, tool evidence, or
+multi-part asks:
+
+- **Correctness vs completeness.** Gold treats a delivered answer as complete even 
+  when it is wrong. `claude-sonnet-4-6` missed on these cases.
+- **Claims without tool evidence.** Gold treats the visible reply as sufficient 
+  when no matching tool record exists. `gpt-4o-mini` and `claude-sonnet-4-6` missed here.
+- **Partial delivery.** `gpt-4o-mini` labeled several multi-part and
+  partial-tool cases complete.
+
+<Accordion title="Disagreements (10 of 45)">
+  Predicted labels where at least one model missed gold or the models disagreed
+  with each other. **Bold** means the judge disagreed with gold.
+
+  | Case | Gold | gpt-4o-mini | gpt-5.6 | claude-sonnet-4-6 |
+  | --- | --- | --- | --- | --- |
+  | `[answered_despite_missing_context #0]` | `complete` | `complete` | `complete` | **`incomplete`** |
+  | `[answered_despite_missing_context #1]` | `complete` | `complete` | `complete` | **`incomplete`** |
+  | `[wrong_but_delivered #0]` | `complete` | `complete` | `complete` | **`incomplete`** |
+  | `[wrong_but_delivered #1]` | `complete` | **`incomplete`** | `complete` | `complete` |
+  | `[withdrawn_intention #0]` | `complete` | **`incomplete`** | `complete` | `complete` |
+  | `[claimed_but_not_done #1]` | `incomplete` | **`complete`** | `incomplete` | `incomplete` |
+  | `[claimed_without_tools #0]` | `complete` | **`incomplete`** | `complete` | **`incomplete`** |
+  | `[multipart_cases #1]` | `incomplete` | **`complete`** | `incomplete` | `incomplete` |
+  | `[multipart_cases #5]` | `incomplete` | **`complete`** | `incomplete` | `incomplete` |
+  | `[tool_partial #0]` | `incomplete` | **`complete`** | `incomplete` | `incomplete` |
+</Accordion>
 
 ## API Reference
 
