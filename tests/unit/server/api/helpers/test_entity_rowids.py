@@ -7,7 +7,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.exceptions import BadRequest, NotFound
-from phoenix.server.api.helpers.note_targets import (
+from phoenix.server.api.helpers.entity_rowids import (
     resolve_project_session_rowids,
     resolve_span_rowids,
     resolve_trace_rowids,

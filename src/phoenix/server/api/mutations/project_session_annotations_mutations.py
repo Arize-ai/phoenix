@@ -1,10 +1,9 @@
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import strawberry
-from sqlalchemy import insert, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
-from starlette.requests import Request
 from strawberry import Info
 from strawberry.relay import GlobalID
 
@@ -14,13 +13,11 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
 from phoenix.server.api.helpers.annotations import (
-    CREATE_PROJECT_SESSION_NOTES_ERROR,
-    DELETE_PROJECT_SESSION_NOTES_ERROR,
     NOTE_NAME,
     get_note_identifier,
     get_user_identifier,
 )
-from phoenix.server.api.helpers.note_targets import resolve_project_session_rowids
+from phoenix.server.api.helpers.entity_rowids import resolve_project_session_rowids
 from phoenix.server.api.input_types.CreateProjectSessionAnnotationInput import (
     CreateProjectSessionAnnotationInput,
 )
@@ -32,10 +29,16 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.ProjectSessionAnnotation import ProjectSessionAnnotation
-from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import (
     ProjectSessionAnnotationDeleteEvent,
     ProjectSessionAnnotationInsertEvent,
+)
+
+CREATE_PROJECT_SESSION_NOTES_ERROR = (
+    "The name 'note' is reserved for notes. Use the createProjectSessionNotes mutation instead."
+)
+DELETE_PROJECT_SESSION_NOTES_ERROR = (
+    "The name 'note' is reserved for notes. Use the deleteProjectSessionNotes mutation instead."
 )
 
 
@@ -60,10 +63,7 @@ class ProjectSessionAnnotationMutationMixin:
         if input.name == NOTE_NAME:
             raise BadRequest(CREATE_PROJECT_SESSION_NOTES_ERROR)
 
-        assert isinstance(request := info.context.request, Request)
-        user_id: Optional[int] = None
-        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-            user_id = int(user.identity)
+        user_id = info.context.user_id
 
         try:
             project_session_id = from_global_id_with_expected_type(
@@ -110,24 +110,14 @@ class ProjectSessionAnnotationMutationMixin:
         if not input:
             raise BadRequest("No project session notes provided.")
 
-        assert isinstance(request := info.context.request, Request)
-        user_id: Optional[int] = None
-        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-            user_id = int(user.identity)
+        user_id = info.context.user_id
 
         async with info.context.db() as session:
             project_session_rowids = await resolve_project_session_rowids(
                 session, [str(note_input.id) for note_input in input]
             )
-            processed_annotation_ids: list[int] = []
-            for project_session_rowid, note_input in zip(project_session_rowids, input):
-                has_identifier = isinstance(note_input.identifier, str)
-                note_identifier = (
-                    note_input.identifier
-                    if has_identifier
-                    else get_note_identifier("px-session-note")
-                )
-                values = {
+            records: list[dict[str, Any]] = [
+                {
                     "project_session_id": project_session_rowid,
                     "name": NOTE_NAME,
                     "label": None,
@@ -135,42 +125,38 @@ class ProjectSessionAnnotationMutationMixin:
                     "explanation": note_input.note,
                     "annotator_kind": AnnotatorKind.HUMAN.value,
                     "metadata_": {},
-                    "identifier": note_identifier,
+                    "identifier": (
+                        note_input.identifier
+                        if isinstance(note_input.identifier, str)
+                        else get_note_identifier("px-session-note")
+                    ),
                     "source": AnnotationSource.APP.value,
                     "user_id": user_id,
                 }
-                if has_identifier:
-                    statement = insert_on_conflict(
-                        values,
-                        dialect=info.context.db.dialect,
-                        table=models.ProjectSessionAnnotation,
-                        unique_by=("name", "project_session_id", "identifier"),
-                    ).returning(models.ProjectSessionAnnotation.id)
-                else:
-                    statement = (
-                        insert(models.ProjectSessionAnnotation)
-                        .values(**values)
-                        .returning(models.ProjectSessionAnnotation.id)
-                    )
-                processed_annotation_ids.append((await session.scalars(statement)).one())
-
-            final_annotations = await session.scalars(
-                select(models.ProjectSessionAnnotation).where(
-                    models.ProjectSessionAnnotation.id.in_(set(processed_annotation_ids))
-                )
+                for project_session_rowid, note_input in zip(project_session_rowids, input)
+            ]
+            annotations = await session.scalars(
+                insert_on_conflict(
+                    *records,
+                    dialect=info.context.db.dialect,
+                    table=models.ProjectSessionAnnotation,
+                    unique_by=("name", "project_session_id", "identifier"),
+                ).returning(models.ProjectSessionAnnotation)
             )
-            annotations_by_id = {
-                annotation.id: annotation for annotation in final_annotations.all()
+            annotations_by_key = {
+                (annotation.project_session_id, annotation.identifier): annotation
+                for annotation in annotations
             }
+            ordered_annotations = [
+                annotations_by_key[(record["project_session_id"], record["identifier"])]
+                for record in records
+            ]
 
-        event_ids = tuple(dict.fromkeys(processed_annotation_ids))
+        event_ids = tuple(dict.fromkeys(annotation.id for annotation in ordered_annotations))
         info.context.event_queue.put(ProjectSessionAnnotationInsertEvent(event_ids))
         returned_annotations = [
-            ProjectSessionAnnotation(
-                id=annotations_by_id[annotation_id].id,
-                db_record=annotations_by_id[annotation_id],
-            )
-            for annotation_id in processed_annotation_ids
+            ProjectSessionAnnotation(id=annotation.id, db_record=annotation)
+            for annotation in ordered_annotations
         ]
         return ProjectSessionAnnotationsMutationPayload(
             project_session_annotations=returned_annotations,
@@ -184,10 +170,7 @@ class ProjectSessionAnnotationMutationMixin:
         if input.name == NOTE_NAME:
             raise BadRequest(CREATE_PROJECT_SESSION_NOTES_ERROR)
 
-        assert isinstance(request := info.context.request, Request)
-        user_id: Optional[int] = None
-        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-            user_id = int(user.identity)
+        user_id = info.context.user_id
 
         try:
             id_ = from_global_id_with_expected_type(input.id, "ProjectSessionAnnotation")
@@ -242,12 +225,8 @@ class ProjectSessionAnnotationMutationMixin:
                 raise BadRequest(f"Duplicate session annotation ID: {annotation_id}")
             annotation_ids[annotation_id] = None
 
-        assert isinstance(request := info.context.request, Request)
-        user_id: Optional[int] = None
-        user_is_admin = False
-        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-            user_id = int(user.identity)
-            user_is_admin = user.is_admin
+        user_id = info.context.user_id
+        user_is_admin = user_id is not None and info.context.user.is_admin
 
         async with info.context.db() as session:
             annotations_by_id = {
@@ -300,12 +279,8 @@ class ProjectSessionAnnotationMutationMixin:
         except ValueError:
             raise BadRequest(f"Invalid session annotation ID: {id}")
 
-        assert isinstance(request := info.context.request, Request)
-        user_id: Optional[int] = None
-        user_is_admin = False
-        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-            user_id = int(user.identity)
-            user_is_admin = user.is_admin
+        user_id = info.context.user_id
+        user_is_admin = user_id is not None and info.context.user.is_admin
 
         async with info.context.db() as session:
             if not (anno := await session.get(models.ProjectSessionAnnotation, id_)):
