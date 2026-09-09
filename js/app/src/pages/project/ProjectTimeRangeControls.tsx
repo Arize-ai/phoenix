@@ -1,7 +1,10 @@
 import { startTransition, useEffect, useRef } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 
-import { ConnectedTimeRangeControls } from "@phoenix/components/datetime";
+import {
+  ConnectedTimeRangeControls,
+  useTimeRange,
+} from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -32,6 +35,7 @@ export function ProjectTimeRangeControls(props: {
     setIsStreaming,
     setFetchKey,
   } = useStreamState();
+  const { refreshLiveTimeRange } = useTimeRange();
   const { tab } = useProjectRootPath();
   const isStreamingTab = STREAMING_ENABLED_TABS.includes(tab);
   const isLiveStreaming = isStreamingTab && isStreamingState;
@@ -69,9 +73,12 @@ export function ProjectTimeRangeControls(props: {
     ) {
       // Update the loaded lastUpdatedAt so the effect doesn't fire again
       loadedLastUpdatedAtRef.current = currentLastUpdatedAt;
-      setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
+      startTransition(() => {
+        refreshLiveTimeRange();
+        setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
+      });
     }
-  }, [setFetchKey, currentLastUpdatedAt]);
+  }, [setFetchKey, currentLastUpdatedAt, refreshLiveTimeRange]);
 
   return (
     <ConnectedTimeRangeControls

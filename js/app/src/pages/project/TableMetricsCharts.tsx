@@ -60,9 +60,7 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
   );
   const { setCustomTimeRange } = useTimeRange();
   const { fetchKey } = useStreamState();
-  // Re-close the time range on each stream refresh so live, open-ended
-  // ranges extend to include newly streamed data
-  const timeRange = useClosedTimeRange({ refreshKey: fetchKey });
+  const timeRange = useClosedTimeRange();
   const charts = getProjectMetricCharts(selectedChartKeys);
   return (
     <ChartPanelStrip chartCount={charts.length}>
