@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useId, useState } from "react";
+import { Provider, TextContext } from "react-aria-components";
 
 import { Label, Text } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
@@ -85,16 +86,31 @@ export function CodeEditorFieldWrapper({
       >
         {children}
       </div>
-      {errorMessage ? (
-        <Text id={errorId} slot="errorMessage" color="danger" role="alert">
-          {errorMessage}
-        </Text>
-      ) : null}
-      {description && !errorMessage ? (
-        <Text id={descriptionId} slot="description">
-          {description}
-        </Text>
-      ) : null}
+      {/* The help texts resolve their slots against this wrapper's own
+          TextContext rather than an enclosing one (e.g. a Dialog, which offers
+          no "errorMessage" slot and would reject the error text at render). */}
+      <Provider
+        values={[
+          [
+            TextContext,
+            {
+              slots: {
+                description: { id: descriptionId },
+                errorMessage: { id: errorId },
+              },
+            },
+          ],
+        ]}
+      >
+        {errorMessage ? (
+          <Text slot="errorMessage" color="danger" role="alert">
+            {errorMessage}
+          </Text>
+        ) : null}
+        {description && !errorMessage ? (
+          <Text slot="description">{description}</Text>
+        ) : null}
+      </Provider>
     </div>
   );
 }
