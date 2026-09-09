@@ -9,7 +9,7 @@
   },
   "homepage": "https://arize.com/phoenix/",
   "repository": "https://github.com/Arize-ai/phoenix",
-  "license": "Elastic-2.0",
+  "license": "Apache-2.0",
   "keywords": [
     "phoenix",
     "agents",
