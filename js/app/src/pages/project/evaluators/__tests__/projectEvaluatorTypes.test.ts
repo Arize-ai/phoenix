@@ -55,11 +55,12 @@ describe("withProjectEvaluatorTarget", () => {
 });
 
 const runSummary = {
-  status: "HEALTHY",
+  status: "RUNNING",
   lastRunAt: "2026-08-14T12:00:00Z",
   queuedCount: 3,
   evaluatedCount: 118,
   failedCount: 2,
+  droppedCount: 0,
 };
 
 describe("getProjectEvaluatorStatus", () => {
@@ -70,7 +71,7 @@ describe("getProjectEvaluatorStatus", () => {
         schedulabilityReason: null,
         runSummary,
       }).label
-    ).toBe("Healthy");
+    ).toBe("Running");
   });
 
   it("reports a blocking configuration ahead of past runs", () => {
@@ -96,6 +97,9 @@ describe("formatProjectEvaluatorRunCounts", () => {
     expect(
       formatProjectEvaluatorRunCounts({ ...runSummary, failedCount: 0 })
     ).toBe("118 evaluated · 3 queued");
+    expect(
+      formatProjectEvaluatorRunCounts({ ...runSummary, droppedCount: 4 })
+    ).toBe("118 evaluated · 2 failed · 4 dropped · 3 queued");
   });
 });
 
