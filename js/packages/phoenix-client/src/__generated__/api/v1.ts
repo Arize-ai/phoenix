@@ -3306,6 +3306,31 @@ export interface components {
             /** Approval */
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
+        /** EvaluatorPlaygroundSlotUIContext */
+        EvaluatorPlaygroundSlotUIContext: {
+            /**
+             * Slot
+             * @enum {string}
+             */
+            slot: "A" | "B" | "C" | "D";
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "LLM" | "CODE";
+            /**
+             * Isdirty
+             * @default false
+             */
+            isDirty?: boolean;
+            /**
+             * Isrunning
+             * @default false
+             */
+            isRunning?: boolean;
+        };
         /** Experiment */
         Experiment: {
             /**
@@ -4528,6 +4553,16 @@ export interface components {
              * @enum {string}
              */
             type: "playground";
+            /**
+             * Mode
+             * @default prompts
+             * @enum {string}
+             */
+            mode?: "prompts" | "evaluators";
+            /** Evaluatorslots */
+            evaluatorSlots?: components["schemas"]["EvaluatorPlaygroundSlotUIContext"][];
+            /** Samplesize */
+            sampleSize?: number | null;
             /**
              * Recordexperiments
              * @default true

@@ -1,4 +1,5 @@
 <phoenix_dataset_context>
+  <evaluator_playground_override>When playground.mode is evaluators, control the current A/B workspace with evaluatorPlayground.*. Do not open separate evaluator form dialogs or switch to prompt playground. The form workflows below apply to other surfaces.</evaluator_playground_override>
   <description>This guidance applies when the user is viewing a dataset in the UI or working in a flow bound to one, i.e., when `ui_contexts` has a `dataset` entry. The user may ask you to author an evaluator, sample examples, or otherwise reason about the dataset. `datasetNodeId` scopes queries and links; `datasetVersionNodeId`, when present, is the active version.</description>
   <experiments_methodology>
     Running a prompt over this dataset is implicitly an experiment. Before designing a dataset run or its evaluators — and before reading or comparing experiment results — `load_skill` the `experiments` skill for the iteration methodology if it is not already loaded.

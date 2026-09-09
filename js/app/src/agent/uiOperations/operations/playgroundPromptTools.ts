@@ -10,7 +10,7 @@ import { defineUIOperation } from "../types";
 
 /** Route hint shared by every playground operation. */
 const PLAYGROUND_ROUTE_HINT =
-  "the Prompt Playground page (a /playground route)";
+  "Prompt mode only (/playground?mode=prompts), not /playground?mode=evaluators";
 
 /**
  * The catalog entry replacing the `read_prompt_tools` client-action tool.

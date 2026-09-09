@@ -1,18 +1,20 @@
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
+import type { SlotId } from "./evaluatorSlotTypes";
+
 export type CalibrationExample = {
   id: string;
   revisionId: string;
   input: unknown;
   output: unknown;
   metadata: unknown;
-  calibrationLabels: ReadonlyArray<{ annotationName: string; label: string }>;
+  calibrationLabels: ReadonlyArray<ExpectedOutput & { annotationName: string }>;
 };
 
 export type CalibrationPrediction =
   | {
       status: "success";
-      label: string;
+      label: string | null;
       explanation: string | null;
       score: number | null;
     }
@@ -126,5 +128,24 @@ export async function runCalibrationSample<T>({
       { length: Math.min(Math.max(1, concurrency), items.length) },
       worker
     )
+  );
+}
+
+export type ExpectedOutput = {
+  label: string | null;
+  score?: number | null;
+  explanation?: string | null;
+};
+export type SlotExpectations = Partial<
+  Record<SlotId, Partial<Record<string, ExpectedOutput>>>
+>;
+export function matchesExpectedOutput(
+  prediction: CalibrationPrediction | undefined,
+  expected: ExpectedOutput
+) {
+  return (
+    prediction?.status === "success" &&
+    (expected.label == null || prediction.label === expected.label) &&
+    (expected.score == null || prediction.score === expected.score)
   );
 }

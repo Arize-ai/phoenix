@@ -19,6 +19,27 @@ type AgentContextType = AgentContext["type"];
  */
 const MAX_QUICK_ACTIONS = 3;
 
+const EVALUATOR_QUICK_ACTIONS: EmptyStateQuickAction[] = [
+  {
+    icon: <Icons.Edit />,
+    label: "Improve an evaluator",
+    prompt:
+      "Read the evaluator playground and help me improve an evaluator draft.",
+  },
+  {
+    icon: <Icons.PlayCircle />,
+    label: "Run evaluators",
+    prompt:
+      "Run the visible evaluators on the selected sample and summarize the results.",
+  },
+  {
+    icon: <Icons.Code />,
+    label: "Compare a code evaluator",
+    prompt:
+      "Help me create a code evaluator in slot B that matches evaluator A in the evaluator playground.",
+  },
+];
+
 /**
  * Specificity ranking for the page-level contexts the assistant advertises. When several
  * contexts are active at once (e.g. a span is selected inside a project), the
@@ -128,7 +149,8 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
  * are returned so the empty state is never blank.
  */
 export function buildAgentQuickActions(
-  contextTypes: readonly AgentContextType[]
+  contextTypes: readonly AgentContextType[],
+  playgroundMode: "prompts" | "evaluators" = "prompts"
 ): EmptyStateQuickAction[] {
   const present = new Set(contextTypes);
   const actions: EmptyStateQuickAction[] = [];
@@ -138,7 +160,11 @@ export function buildAgentQuickActions(
     if (!present.has(contextType)) {
       continue;
     }
-    for (const action of QUICK_ACTIONS_BY_CONTEXT[contextType] ?? []) {
+    const contextActions =
+      contextType === "playground" && playgroundMode === "evaluators"
+        ? EVALUATOR_QUICK_ACTIONS
+        : (QUICK_ACTIONS_BY_CONTEXT[contextType] ?? []);
+    for (const action of contextActions) {
       if (seenLabels.has(action.label)) {
         continue;
       }
@@ -174,7 +200,14 @@ function selectActiveContextKey(state: AgentState): string {
  */
 export function useAgentQuickActions(): EmptyStateQuickAction[] {
   const contextKey = useAgentContext(selectActiveContextKey);
+  const playgroundMode = useAgentContext(
+    (state) =>
+      selectActiveContexts(state).find(
+        (context) => context.type === "playground"
+      )?.mode ?? "prompts"
+  );
   return buildAgentQuickActions(
-    contextKey ? (contextKey.split(",") as AgentContextType[]) : []
+    contextKey ? (contextKey.split(",") as AgentContextType[]) : [],
+    playgroundMode
   );
 }

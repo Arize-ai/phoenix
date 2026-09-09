@@ -114,6 +114,28 @@ export function useChatFollowScroll(): {
     if (event.deltaY < 0) {
       modeRef.current = "free";
     }
+    const scroller = scrollElementRef.current;
+    if (
+      !scroller ||
+      !event.cancelable ||
+      event.defaultPrevented ||
+      event.ctrlKey ||
+      Math.abs(event.deltaY) <= Math.abs(event.deltaX) ||
+      hasNestedVerticalScroller({ event, scroller })
+    ) {
+      return;
+    }
+    // Native trackpad scrolling can stall even over plain transcript text.
+    // Apply vertical intent directly; leave horizontal gestures, pinch zoom,
+    // and nested vertical viewers to the browser.
+    const scale =
+      event.deltaMode === 2
+        ? scroller.clientHeight
+        : event.deltaMode === 1
+          ? 16
+          : 1;
+    event.preventDefault();
+    scroller.scrollTop += event.deltaY * scale;
   }, []);
 
   const getResizeObserver = useCallback(() => {
@@ -134,14 +156,17 @@ export function useChatFollowScroll(): {
       const previous = scrollElementRef.current;
       if (previous) {
         previous.removeEventListener("scroll", handleScroll);
-        previous.removeEventListener("wheel", handleWheel);
+        previous.removeEventListener("wheel", handleWheel, true);
         resizeObserverRef.current?.unobserve(previous);
       }
       scrollElementRef.current = element;
       lastScrollTopRef.current = element?.scrollTop ?? null;
       if (element) {
         element.addEventListener("scroll", handleScroll, { passive: true });
-        element.addEventListener("wheel", handleWheel, { passive: true });
+        element.addEventListener("wheel", handleWheel, {
+          passive: false,
+          capture: true,
+        });
         // Observing the scroller itself keeps the pin correct when the
         // viewport (panel) is resized while following.
         getResizeObserver().observe(element);
@@ -175,4 +200,24 @@ export function useChatFollowScroll(): {
   }, []);
 
   return { scrollRef, contentRef, scrollToBottom, stopScroll };
+}
+
+function hasNestedVerticalScroller({
+  event,
+  scroller,
+}: {
+  event: WheelEvent;
+  scroller: HTMLElement;
+}): boolean {
+  // composedPath also includes code viewers inside shadow roots.
+  for (const target of event.composedPath()) {
+    if (target === scroller) break;
+    if (!(target instanceof HTMLElement)) continue;
+    const style = getComputedStyle(target);
+    const canScrollY =
+      /^(auto|scroll)$/.test(style.overflowY) &&
+      target.scrollHeight > target.clientHeight + 1;
+    if (canScrollY) return true;
+  }
+  return false;
 }

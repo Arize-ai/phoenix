@@ -20,35 +20,40 @@ export function EvaluatorSlotOutput({ name }: { name: string }) {
   const state = useEvaluatorStore((state) => state);
   const index = state.outputConfigs.findIndex((config) => config.name === name);
   const config = state.outputConfigs[index];
-  if (!config || !("values" in config))
+  if (!config) return <Alert variant="info">Choose an output.</Alert>;
+  if (!("values" in config))
     return (
-      <Alert
-        variant="info"
-        title="Categorical output required"
-        extra={
-          <Button
-            size="S"
-            onPress={() =>
-              state.setOutputConfigs([
-                {
-                  name: state.outputConfigs[0]?.name || "result",
-                  optimizationDirection: "NONE",
-                  values: [
-                    { label: "pass", score: 1 },
-                    { label: "fail", score: 0 },
-                  ],
-                },
-                ...state.outputConfigs.slice(1),
-              ])
+      <Flex direction="column" gap="size-100">
+        <Text>Numeric output: {config.name}</Text>
+        <Text color="text-500">
+          Review this evaluator with an expected score. Bounds are optional.
+        </Text>
+        {(["lowerBound", "upperBound"] as const).map((bound) => (
+          <NumberField
+            key={bound}
+            aria-label={bound === "lowerBound" ? "Lower bound" : "Upper bound"}
+            value={config[bound] ?? NaN}
+            onChange={(value) =>
+              state.setOutputConfigs(
+                state.outputConfigs.map((output, outputIndex) =>
+                  outputIndex === index
+                    ? {
+                        ...config,
+                        [bound]: Number.isFinite(value) ? value : null,
+                      }
+                    : output
+                )
+              )
             }
           >
-            Use categorical output
-          </Button>
-        }
-      >
-        Define the labels this evaluator can return so its results can be
-        compared against expected labels.
-      </Alert>
+            <Input
+              placeholder={
+                bound === "lowerBound" ? "Lower bound" : "Upper bound"
+              }
+            />
+          </NumberField>
+        ))}
+      </Flex>
     );
   // The first output is the one the shared form component edits. It also owns
   // the "include explanation" switch and the optimization direction.

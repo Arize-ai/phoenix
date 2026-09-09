@@ -4,6 +4,7 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { useSearchParams } from "react-router";
 
+import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 import {
   Alert,
   Button,
@@ -49,6 +50,8 @@ import {
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
+import { useModelMenuData } from "@phoenix/components/generative";
+import { usePreferencesContext } from "@phoenix/contexts";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
@@ -62,6 +65,7 @@ import type { EvaluatorSlotEditorAttachCodeMutation } from "./__generated__/Eval
 import type { EvaluatorSlotEditorQuery } from "./__generated__/EvaluatorSlotEditorQuery.graphql";
 import type { EvaluatorSlotEditorSaveCodeMutation } from "./__generated__/EvaluatorSlotEditorSaveCodeMutation.graphql";
 import type { EvaluatorSlotEditorSaveLLMMutation } from "./__generated__/EvaluatorSlotEditorSaveLLMMutation.graphql";
+import { createEvaluatorAgentSlot } from "./evaluatorAgentSlot";
 import { EvaluatorSlotOutput } from "./EvaluatorSlotOutput";
 import type { EvaluatorSlotProps, SlotSnapshot } from "./evaluatorSlotTypes";
 import {
@@ -92,6 +96,9 @@ export function EvaluatorSlotEditor({
     isRunning,
     isRunDisabled,
     sampleContext,
+    registerAgentSlot,
+    initialDatasetEvaluatorId,
+    initialEvaluatorId,
   } = props;
   const [searchParams, setSearchParams] = useSearchParams();
   const tabKey = `slotTab${slotId}`;
@@ -222,16 +229,11 @@ export function EvaluatorSlotEditor({
       const name =
         current.evaluator.globalName.trim() ||
         `evaluator_${slotId.toLowerCase()}`;
-      const outputNames = current.outputConfigs.flatMap((config) =>
-        "values" in config
-          ? [
-              {
-                name: config.name,
-                labels: config.values.map((value) => value.label),
-              },
-            ]
-          : []
-      );
+      const outputNames = current.outputConfigs.map((config) => ({
+        name: config.name,
+        labels:
+          "values" in config ? config.values.map((value) => value.label) : [],
+      }));
       const selectedOutputName = outputNames.some(
         (output) => output.name === selectedOutput
       )
@@ -285,8 +287,7 @@ export function EvaluatorSlotEditor({
           sandboxConfigId,
           sandboxConfigs,
         });
-      if (!outputNames.length)
-        validationError = "Choose a categorical output to compare labels.";
+      if (!outputNames.length) validationError = "Choose an output to review.";
       const revision = JSON.stringify({
         preview,
         inputMapping: current.evaluator.inputMapping,
@@ -334,21 +335,18 @@ export function EvaluatorSlotEditor({
     onChange,
     savedRevision,
   ]);
-  async function save() {
+  async function save(): Promise<UIOperationResult> {
     setSaveError(null);
     if (
       !datasetId ||
       !snapshot?.preview ||
       !(await store.getState().validateAll())
     )
-      return;
-    const saved = () => setSavedRevision(snapshot.revision);
-    const fail = (error: Error) =>
-      setSaveError(
-        getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
-          error.message
-      );
-    const name = state.evaluator.globalName.trim();
+      return {
+        ok: false,
+        error: "Select a dataset and complete evaluator setup before saving.",
+      };
+    const name = store.getState().evaluator.globalName.trim();
     if (!name) {
       setSaveError(NAME_REQUIRED_ERROR);
       setSearchParams(
@@ -359,64 +357,127 @@ export function EvaluatorSlotEditor({
         },
         { replace: true }
       );
-      return;
+      return { ok: false, error: NAME_REQUIRED_ERROR };
     }
-    if (snapshot.preview.inlineLlmEvaluator)
-      saveLLM({
-        variables: {
-          input: {
-            ...snapshot.preview.inlineLlmEvaluator,
-            name,
-            datasetId: datasetId,
-            inputMapping: snapshot.inputMapping,
-          },
-        },
-        onCompleted: (_response, errors) =>
-          errors?.length
-            ? setSaveError(errors.map((error) => error.message).join("\n"))
-            : saved(),
-        onError: fail,
-      });
-    else if (snapshot.preview.inlineCodeEvaluator) {
-      if (!sandboxConfigId) {
-        setSaveError("Select a sandbox before saving a code evaluator.");
-        return;
-      }
-      saveCode({
-        variables: {
-          input: {
-            ...snapshot.preview.inlineCodeEvaluator,
-            name,
-            sandboxConfigId,
-            inputMapping: snapshot.inputMapping,
-          },
-        },
-        onError: fail,
-        onCompleted: (response, errors) => {
-          if (errors?.length) {
-            setSaveError(errors.map((error) => error.message).join("\n"));
-            return;
-          }
-          attachCode({
-            variables: {
-              input: {
-                datasetId,
-                evaluatorId: response.createCodeEvaluator.evaluator.id,
-                name,
-                inputMapping: snapshot.inputMapping,
-                outputConfigs: buildOutputConfigsInput(state.outputConfigs),
-              },
+    return new Promise((resolve) => {
+      const fail = (error: Error) => {
+        const message =
+          getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+          error.message;
+        setSaveError(message);
+        resolve({ ok: false, error: message });
+      };
+      const saved = (id: string) => {
+        setSavedRevision(snapshot.revision);
+        props.onSelectionChange?.({
+          evaluatorId: null,
+          datasetEvaluatorId: id,
+        });
+        resolve({ ok: true, output: { datasetEvaluatorId: id, name } });
+      };
+      if (snapshot.preview?.inlineLlmEvaluator)
+        saveLLM({
+          variables: {
+            input: {
+              ...snapshot.preview.inlineLlmEvaluator,
+              name,
+              datasetId,
+              inputMapping: snapshot.inputMapping,
             },
-            onError: fail,
-            onCompleted: (_response, errors) =>
-              errors?.length
-                ? setSaveError(errors.map((error) => error.message).join("\n"))
-                : saved(),
-          });
-        },
-      });
-    }
+          },
+          onError: fail,
+          onCompleted: (response, errors) =>
+            errors?.length
+              ? fail(new Error(errors.map((error) => error.message).join("\n")))
+              : saved(response.createDatasetLlmEvaluator.evaluator.id),
+        });
+      else if (snapshot.preview?.inlineCodeEvaluator && sandboxConfigId)
+        saveCode({
+          variables: {
+            input: {
+              ...snapshot.preview.inlineCodeEvaluator,
+              name,
+              sandboxConfigId,
+              inputMapping: snapshot.inputMapping,
+            },
+          },
+          onError: fail,
+          onCompleted: (response, errors) => {
+            if (errors?.length) {
+              fail(new Error(errors.map((error) => error.message).join("\n")));
+              return;
+            }
+            attachCode({
+              variables: {
+                input: {
+                  datasetId,
+                  evaluatorId: response.createCodeEvaluator.evaluator.id,
+                  name,
+                  inputMapping: snapshot.inputMapping,
+                  outputConfigs: buildOutputConfigsInput(
+                    store.getState().outputConfigs
+                  ),
+                },
+              },
+              onError: fail,
+              onCompleted: (response, errors) =>
+                errors?.length
+                  ? fail(
+                      new Error(errors.map((error) => error.message).join("\n"))
+                    )
+                  : saved(response.createDatasetCodeEvaluator.evaluator.id),
+            });
+          },
+        });
+      else fail(new Error("Select a sandbox before saving a code evaluator."));
+    });
   }
+  const saveRef = useRef(save);
+  useEffect(() => {
+    saveRef.current = save;
+  });
+  const { modelCatalog } = useModelMenuData();
+  const modelConfigByProvider = usePreferencesContext(
+    (state) => state.modelConfigByProvider
+  );
+  useEffect(() => {
+    let local = { language, sourceCode, sandboxConfigId, selectedOutput };
+    const host = createEvaluatorAgentSlot({
+      slotId,
+      modelCatalog,
+      sourceKey: initialDatasetEvaluatorId ?? initialEvaluatorId ?? "new-llm",
+      kind,
+      store,
+      playgroundStore: playgroundStore ?? null,
+      getLocal: () => local,
+      setLocal: (next) => {
+        local = next;
+        setLanguage(next.language);
+        setSourceCode(next.sourceCode);
+        setSandboxConfigId(next.sandboxConfigId);
+        setSelectedOutput(next.selectedOutput);
+      },
+      getPreferences: () => modelConfigByProvider,
+      sandboxConfigs,
+      save: () => saveRef.current(),
+    });
+    return registerAgentSlot?.(slotId, host);
+  }, [
+    modelCatalog,
+    kind,
+    store,
+    playgroundStore,
+    language,
+    sourceCode,
+    sandboxConfigId,
+    selectedOutput,
+    modelConfigByProvider,
+    sandboxConfigs,
+    registerAgentSlot,
+    initialDatasetEvaluatorId,
+    initialEvaluatorId,
+    slotId,
+  ]);
   const currentSnapshot = snapshot ?? {
     isDirty: false,
     revision: "",
@@ -699,6 +760,10 @@ const validationCSS = css`
 // up with the slot's left edge (the index icon above it) rather than adding the
 // tab's own padding on top of that inset.
 const slotTabsCSS = css`
+  > .react-aria-TabList {
+    flex-shrink: 0;
+  }
+
   .react-aria-Tab:first-of-type {
     padding-inline-start: 0;
   }

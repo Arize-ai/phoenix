@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<810b265add96ca6b855f27da5607a949>>
+ * @generated SignedSource<<bb8ef1c4c204b9057d6c53a55a474746>>
  * @lightSyntaxTransform
  */
 
@@ -23,7 +23,9 @@ export type CalibrationDatasetQuery$data = {
           readonly revision: {
             readonly calibrationLabels: ReadonlyArray<{
               readonly annotationName: string;
-              readonly label: string;
+              readonly explanation: string | null;
+              readonly label: string | null;
+              readonly score: number | null;
             }>;
             readonly input: any;
             readonly metadata: any;
@@ -174,6 +176,20 @@ v6 = {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
+                          "name": "score",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "explanation",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
                           "name": "label",
                           "storageKey": null
                         }
@@ -258,16 +274,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9fca73929ca730e6747a508a84965e7d",
+    "cacheID": "c4f248501b550c24835f9d346b4089db",
     "id": null,
     "metadata": {},
     "name": "CalibrationDatasetQuery",
     "operationKind": "query",
-    "text": "query CalibrationDatasetQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]!\n  $versionId: ID\n  $first: Int!\n) {\n  node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      examples(first: $first, splitIds: $splitIds, datasetVersionId: $versionId) {\n        edges {\n          node {\n            id\n            revision {\n              revisionId\n              input\n              output\n              metadata\n              calibrationLabels {\n                annotationName\n                label\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query CalibrationDatasetQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]!\n  $versionId: ID\n  $first: Int!\n) {\n  node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      examples(first: $first, splitIds: $splitIds, datasetVersionId: $versionId) {\n        edges {\n          node {\n            id\n            revision {\n              revisionId\n              input\n              output\n              metadata\n              calibrationLabels {\n                annotationName\n                score\n                explanation\n                label\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4d2d17cd5f1fb7553a37ab507b269d9a";
+(node as any).hash = "943208fcb36db506c59d1ac88c0b60c3";
 
 export default node;

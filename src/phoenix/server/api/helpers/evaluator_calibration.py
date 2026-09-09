@@ -21,10 +21,10 @@ def calibration_source_hash(
     return hashlib.sha256(json.dumps(source, sort_keys=True).encode()).hexdigest()
 
 
-def valid_calibration_labels(
+def valid_calibration_outputs(
     input: dict[str, Any], output: dict[str, Any], metadata: dict[str, Any]
-) -> dict[str, str]:
-    """Return human labels whose source still matches the example content."""
+) -> dict[str, dict[str, Any]]:
+    """Return expected annotations whose source still matches the example."""
     calibration = metadata.get(CALIBRATION_METADATA_KEY)
     if not isinstance(calibration, dict) or calibration.get("schemaVersion") != 1:
         return {}
@@ -33,10 +33,10 @@ def valid_calibration_labels(
         return {}
     source_hash = calibration_source_hash(input, output, metadata)
     return {
-        name: label["label"]
-        for name, label in labels.items()
-        if isinstance(label, dict)
-        and label.get("sourceHash") == source_hash
-        and label.get("annotatorKind") == "HUMAN"
-        and isinstance(label.get("label"), str)
+        name: value
+        for name, value in labels.items()
+        if isinstance(value, dict)
+        and value.get("sourceHash") == source_hash
+        and value.get("annotatorKind") == "HUMAN"
+        and (isinstance(value.get("label"), str) or isinstance(value.get("score"), (int, float)))
     }

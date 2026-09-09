@@ -114,8 +114,19 @@ class PlaygroundExperimentScaffoldUIContext(BaseUIContext):
     has_metadata: bool = False
 
 
+class EvaluatorPlaygroundSlotUIContext(BaseUIContext):
+    slot: Literal["A", "B", "C", "D"]
+    name: str
+    kind: Literal["LLM", "CODE"]
+    is_dirty: bool = False
+    is_running: bool = False
+
+
 class PlaygroundUIContext(BaseUIContext):
     type: Literal["playground"]
+    mode: Literal["prompts", "evaluators"] = "prompts"
+    evaluator_slots: list[EvaluatorPlaygroundSlotUIContext] = Field(default_factory=list)
+    sample_size: int | None = None
     record_experiments: bool = True
     repetitions: int = 1
     next_experiment_scaffold: PlaygroundExperimentScaffoldUIContext | None = None

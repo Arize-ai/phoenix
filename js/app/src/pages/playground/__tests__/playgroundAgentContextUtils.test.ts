@@ -191,6 +191,7 @@ describe("buildPlaygroundAgentContext", () => {
       })
     ).toEqual({
       type: "playground",
+      mode: "prompts",
       recordExperiments: false,
       repetitions: 4,
       nextExperimentScaffold: undefined,
@@ -211,6 +212,7 @@ describe("buildPlaygroundAgentContext", () => {
       })
     ).toEqual({
       type: "playground",
+      mode: "prompts",
       recordExperiments: true,
       repetitions: 1,
       nextExperimentScaffold: scaffold,

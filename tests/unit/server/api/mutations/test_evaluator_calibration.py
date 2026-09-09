@@ -57,6 +57,61 @@ class TestCalibrationLabels:
             **overrides,
         }
 
+    async def test_independent_expected_outputs(
+        self,
+        calibration_example: tuple[int, int, int],
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        revision_id = self._input(calibration_example)["expectedRevisionId"]
+        mutation = self._MUTATION.replace(
+            "annotationName label", "annotationName label score explanation"
+        )
+        for index in range(4):
+            response = await gql_client.execute(
+                mutation,
+                variables={
+                    "input": self._input(
+                        calibration_example,
+                        expectedRevisionId=revision_id,
+                        annotationName=f"evaluator_{index}",
+                        label=None,
+                        score=index / 3,
+                        explanation="Human review",
+                    )
+                },
+            )
+            assert response.data and not response.errors
+            revision = response.data["setDatasetExampleCalibrationLabel"]["revision"]
+            revision_id = revision["revisionId"]
+            assert len(revision["calibrationLabels"]) == index + 1
+            assert revision["calibrationLabels"][-1] == {
+                "annotationName": f"evaluator_{index}",
+                "label": None,
+                "score": index / 3,
+                "explanation": "Human review",
+            }
+            assert revision["metadata"]["team"] == "support"
+        response = await gql_client.execute(
+            mutation,
+            variables={
+                "input": self._input(
+                    calibration_example,
+                    expectedRevisionId=revision_id,
+                    annotationName="evaluator_1",
+                    label=None,
+                )
+            },
+        )
+        assert response.data and not response.errors
+        outputs = response.data["setDatasetExampleCalibrationLabel"]["revision"][
+            "calibrationLabels"
+        ]
+        assert [output["annotationName"] for output in outputs] == [
+            "evaluator_0",
+            "evaluator_2",
+            "evaluator_3",
+        ]
+
     async def test_set_merge_clear_and_provenance(
         self,
         calibration_example: tuple[int, int, int],
@@ -187,8 +242,8 @@ async def test_calibration_labels_are_computed_only_when_requested(
         stored = await session.get(models.DatasetExampleRevision, calibration_example[2])
         assert stored is not None
         with patch(
-            "phoenix.server.api.types.DatasetExampleRevision.valid_calibration_labels",
-            return_value={"quality": "good"},
+            "phoenix.server.api.types.DatasetExampleRevision.valid_calibration_outputs",
+            return_value={"quality": {"label": "good"}},
         ) as validate_labels:
             revision = DatasetExampleRevision.from_orm_revision(stored)
             validate_labels.assert_not_called()

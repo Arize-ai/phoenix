@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Pressable } from "react-aria-components";
 
+import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 import {
   Alert,
   Button,
@@ -14,27 +16,45 @@ import {
   Popover,
   SegmentedControl,
   SegmentedControlItem,
+  PopoverArrow,
   Text,
-  Token,
+  TextField,
+  Input,
+  Label,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
+import {
+  AnnotationScoreText,
+  AnnotationTooltip,
+} from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
+import {
+  inlineDividerCSS,
+  quietHoverCSS,
+} from "@phoenix/components/core/styles";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import { PlaygroundErrorWrap } from "../PlaygroundErrorWrap";
 import type {
   CalibrationExample,
   CalibrationPrediction,
   CalibrationRun,
+  ExpectedOutput,
+  SlotExpectations,
 } from "./calibration";
-import { getCalibrationAgreement } from "./calibration";
+import { matchesExpectedOutput } from "./calibration";
 import { CalibrationSelect } from "./CalibrationSelect";
-import type { SlotId } from "./evaluatorSlotTypes";
+import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
 import { getSlotIndex } from "./evaluatorSlotTypes";
 
 const NO_VALUE = "—";
@@ -43,11 +63,9 @@ export function CalibrationResults({
   examples,
   sampleSize,
   runs,
-  slotNames,
+  slots,
+  visibleSlotIds,
   expected,
-  labels,
-  hasComparison,
-  isCompatible,
   filter,
   onFilterChange,
   onReview,
@@ -60,73 +78,55 @@ export function CalibrationResults({
   examples: CalibrationExample[];
   sampleSize: number;
   runs: Partial<Record<SlotId, CalibrationRun>>;
-  slotNames: Partial<Record<SlotId, string>>;
-  expected: Partial<Record<string, string>>;
-  labels: string[];
-  hasComparison: boolean;
-  isCompatible: boolean;
+  slots: Partial<Record<SlotId, SlotSnapshot>>;
+  visibleSlotIds: SlotId[];
+  expected: SlotExpectations;
   filter: string;
   onFilterChange: (filter: string) => void;
-  onReview: (example: CalibrationExample, label: string | null) => void;
+  onReview: (
+    example: CalibrationExample,
+    slot: SlotId,
+    output: ExpectedOutput | null
+  ) => Promise<UIOperationResult>;
   savingId: string | null;
   reviewError: string | null;
   staleSlots: string[];
   onRetryReview: () => void;
   onReloadSample: () => void;
 }) {
-  const slots: SlotId[] = hasComparison ? ["A", "B"] : ["A"];
-  const baselineLabels: Partial<Record<string, string>> = {};
-  for (const example of examples) {
-    const result = runs.A?.predictions[example.id];
-    if (result?.status === "success") baselineLabels[example.id] = result.label;
-  }
-  const agreement = getCalibrationAgreement({
-    expected: baselineLabels,
-    predictions: runs.B?.predictions ?? {},
-  });
-  // Every view is a subset of the same sample, so each option carries its
-  // count: a reviewer can see how much is left without switching views.
-  const views: { id: string; label: string; examples: CalibrationExample[] }[] =
-    [
-      { id: "all", label: "All", examples },
-      {
-        id: "unreviewed",
-        label: "Unreviewed",
-        examples: examples.filter((example) => expected[example.id] == null),
-      },
-      {
-        id: "errors",
-        label: "Errors",
-        examples: examples.filter((example) =>
-          slots.some(
-            (slotId) =>
-              runs[slotId]?.predictions[example.id]?.status === "error"
-          )
-        ),
-      },
-      ...(hasComparison
-        ? [
-            {
-              id: "disagreements",
-              label: "Disagreements",
-              examples: examples.filter((example) => {
-                const first = runs.A?.predictions[example.id];
-                const second = runs.B?.predictions[example.id];
-                return (
-                  isCompatible &&
-                  first?.status === "success" &&
-                  second?.status === "success" &&
-                  first.label !== second.label
-                );
-              }),
-            },
-          ]
-        : []),
-    ];
+  const views = [
+    { id: "all", label: "All", examples },
+    {
+      id: "unreviewed",
+      label: "Unreviewed",
+      examples: examples.filter((example) =>
+        visibleSlotIds.some((slot) => !expected[slot]?.[example.id])
+      ),
+    },
+    {
+      id: "errors",
+      label: "Errors",
+      examples: examples.filter((example) =>
+        visibleSlotIds.some(
+          (slot) => runs[slot]?.predictions[example.id]?.status === "error"
+        )
+      ),
+    },
+    {
+      id: "disagreements",
+      label: "Mismatches",
+      examples: examples.filter((example) =>
+        visibleSlotIds.some((slot) => {
+          const output = expected[slot]?.[example.id];
+          const prediction = runs[slot]?.predictions[example.id];
+          return (
+            output && prediction && !matchesExpectedOutput(prediction, output)
+          );
+        })
+      ),
+    },
+  ];
   const activeView = views.find((view) => view.id === filter) ?? views[0];
-  const filtered = activeView.examples;
-  const reviewedCount = Object.keys(expected).length;
-  const isSaving = savingId != null;
   return (
     <Flex direction="column" height="100%" minHeight={0}>
       <View
@@ -143,40 +143,11 @@ export function CalibrationResults({
           gap="size-200"
           wrap
         >
-          <Flex direction="row" gap="size-400" alignItems="center">
-            <Stat
-              label="Sample"
-              value={
-                examples.length < sampleSize
-                  ? `${examples.length}`
-                  : `First ${sampleSize}`
-              }
-            />
-            <Stat
-              label="Reviewed"
-              value={`${reviewedCount} / ${examples.length}`}
-            />
-            {slots.map((slotId) => (
-              <Stat
-                key={slotId}
-                label={`${slotId} vs expected`}
-                value={formatAgreement(
-                  !runs[slotId] || (slotId === "B" && !isCompatible)
-                    ? null
-                    : getCalibrationAgreement({
-                        expected,
-                        predictions: runs[slotId]?.predictions ?? {},
-                      })
-                )}
-              />
-            ))}
-            {hasComparison ? (
-              <Stat
-                label="B vs A"
-                value={formatAgreement(isCompatible ? agreement : null)}
-              />
-            ) : null}
-          </Flex>
+          <Text size="S" color="text-500">
+            {examples.length < sampleSize
+              ? `All ${examples.length} examples`
+              : `First ${sampleSize} examples`}
+          </Text>
           <SegmentedControl
             aria-label="Show results"
             size="S"
@@ -200,29 +171,29 @@ export function CalibrationResults({
       </View>
       {staleSlots.length ? (
         <Alert variant="warning" banner>
-          {staleSlots.length === 1
-            ? `Evaluator ${staleSlots[0]} has`
-            : `Evaluators ${staleSlots.join(" and ")} have`}{" "}
-          changed since the last run. Run again to compare the current drafts.
-        </Alert>
-      ) : null}
-      {hasComparison && !isCompatible ? (
-        <Alert variant="warning" banner>
-          A and B need categorical outputs with the same labels to be compared.
-          Label remapping is not supported.
+          Evaluators {staleSlots.join(", ")} changed since the last run. Run
+          again to review the current drafts.
         </Alert>
       ) : null}
       {reviewError ? (
         <Alert
           variant="danger"
           banner
-          title="Could not save expected label"
+          title="Could not save expected output"
           extra={
-            <Flex direction="row" gap="size-100" flex="none">
-              <Button size="S" isDisabled={isSaving} onPress={onRetryReview}>
+            <Flex direction="row" gap="size-100">
+              <Button
+                size="S"
+                isDisabled={savingId != null}
+                onPress={onRetryReview}
+              >
                 Retry
               </Button>
-              <Button size="S" isDisabled={isSaving} onPress={onReloadSample}>
+              <Button
+                size="S"
+                isDisabled={savingId != null}
+                onPress={onReloadSample}
+              >
                 Load latest sample
               </Button>
             </Flex>
@@ -233,46 +204,27 @@ export function CalibrationResults({
       ) : null}
       <div css={tableWrapCSS}>
         <table
-          css={css(tableCSS, borderedTableCSS)}
+          css={css(tableCSS, borderedTableCSS, resultsTableCSS)}
           aria-label="Evaluator comparison results"
         >
           <thead>
             <tr>
               <th css={indexColumnCSS}>#</th>
-              <th>Example</th>
-              {slots.map((slotId) => {
-                const run = runs[slotId];
-                return (
-                  <th key={slotId} css={slotColumnCSS}>
-                    <Flex direction="row" gap="size-100" alignItems="center">
-                      <AlphabeticIndexIcon
-                        index={getSlotIndex(slotId)}
-                        size="XS"
-                      />
-                      <Truncate maxWidth="100%">
-                        {slotNames[slotId] || `Evaluator ${slotId}`}
-                      </Truncate>
-                      {run?.isRunning ? (
-                        <Flex
-                          direction="row"
-                          gap="size-50"
-                          alignItems="center"
-                          flex="none"
-                        >
-                          <ProgressCircle isIndeterminate size="S" />
-                          <Text size="XS" color="text-500" fontFamily="mono">
-                            {Object.keys(run.predictions).length}/{run.total}
-                          </Text>
-                        </Flex>
-                      ) : null}
-                    </Flex>
-                  </th>
-                );
-              })}
-              <th css={expectedColumnCSS}>Expected label</th>
+              <th css={exampleColumnCSS}>Example</th>
+              {visibleSlotIds.map((slot) => (
+                <th key={slot} css={slotColumnCSS}>
+                  <EvaluatorColumnHeader
+                    slot={slot}
+                    name={slots[slot]?.name}
+                    run={runs[slot]}
+                    expected={expected[slot]}
+                    examples={examples}
+                  />
+                </th>
+              ))}
             </tr>
           </thead>
-          {filtered.length === 0 ? (
+          {!activeView.examples.length ? (
             <TableEmptyWrap>
               <CompactEmptyState
                 icon={<Icon svg={<Icons.Database />} />}
@@ -282,14 +234,8 @@ export function CalibrationResults({
             </TableEmptyWrap>
           ) : (
             <tbody>
-              {filtered.map((example) => {
+              {activeView.examples.map((example) => {
                 const position = examples.indexOf(example) + 1;
-                const baseline = runs.A?.predictions[example.id];
-                const expectedLabel = expected[example.id];
-                const canAcceptBaseline =
-                  baseline?.status === "success" &&
-                  expectedLabel == null &&
-                  !staleSlots.includes("A");
                 return (
                   <tr key={example.id}>
                     <td className="table__cell" css={indexColumnCSS}>
@@ -300,65 +246,33 @@ export function CalibrationResults({
                     <td className="table__cell">
                       <ExampleCell example={example} position={position} />
                     </td>
-                    {slots.map((slotId) => (
-                      <td className="table__cell" key={slotId}>
-                        <Prediction
-                          result={runs[slotId]?.predictions[example.id]}
+                    {visibleSlotIds.map((slot) => (
+                      <td className="table__cell" key={slot}>
+                        <EvaluatorCell
+                          key={`${slot}:${example.revisionId}:${slots[slot]?.revision}`}
+                          slot={slot}
+                          name={slots[slot]?.name || `Evaluator ${slot}`}
+                          position={position}
+                          result={runs[slot]?.predictions[example.id]}
                           isPending={
-                            !!runs[slotId]?.isRunning &&
-                            runs[slotId]?.predictions[example.id] == null
+                            !!runs[slot]?.isRunning &&
+                            !runs[slot]?.predictions[example.id]
                           }
-                          expected={
-                            slotId === "B" && !isCompatible
-                              ? undefined
-                              : expectedLabel
+                          expected={expected[slot]?.[example.id]}
+                          labels={
+                            slots[slot]?.outputNames.find(
+                              (output) =>
+                                output.name === slots[slot]?.selectedOutputName
+                            )?.labels ?? []
                           }
+                          isDisabled={
+                            savingId != null || !slots[slot]?.selectedOutputName
+                          }
+                          isSaving={savingId === example.id}
+                          onSave={(output) => onReview(example, slot, output)}
                         />
                       </td>
                     ))}
-                    <td className="table__cell">
-                      <Flex direction="row" gap="size-100" alignItems="center">
-                        <CalibrationSelect
-                          hideLabel
-                          label={`Expected label for example ${position}`}
-                          value={
-                            expectedLabel == null
-                              ? "unreviewed"
-                              : `label:${expectedLabel}`
-                          }
-                          isDisabled={isSaving || labels.length === 0}
-                          options={[
-                            { id: "unreviewed", name: "Unreviewed" },
-                            ...labels.map((label) => ({
-                              id: `label:${label}`,
-                              name: label,
-                            })),
-                          ]}
-                          onChange={(label) =>
-                            onReview(
-                              example,
-                              label === "unreviewed" ? null : label.slice(6)
-                            )
-                          }
-                        />
-                        {savingId === example.id ? (
-                          <ProgressCircle isIndeterminate size="S" />
-                        ) : canAcceptBaseline ? (
-                          <Button
-                            size="S"
-                            variant="quiet"
-                            leadingVisual={<Icon svg={<Icons.Checkmark />} />}
-                            isDisabled={isSaving}
-                            onPress={() => {
-                              if (baseline?.status === "success")
-                                onReview(example, baseline.label);
-                            }}
-                          >
-                            Accept A
-                          </Button>
-                        ) : null}
-                      </Flex>
-                    </td>
                   </tr>
                 );
               })}
@@ -370,8 +284,358 @@ export function CalibrationResults({
   );
 }
 
+/**
+ * An evaluator's column header: who it is, and how it is doing against the
+ * expected outputs reviewed so far. Keeping the metrics here means they scale
+ * with the number of evaluators instead of crowding a shared summary strip.
+ */
+function EvaluatorColumnHeader({
+  slot,
+  name,
+  run,
+  expected,
+  examples,
+}: {
+  slot: SlotId;
+  name?: string;
+  run?: CalibrationRun;
+  expected?: Partial<Record<string, ExpectedOutput>>;
+  examples: CalibrationExample[];
+}) {
+  const reviewed = examples.filter((example) => expected?.[example.id]);
+  const matches = reviewed.filter((example) =>
+    matchesExpectedOutput(run?.predictions[example.id], expected![example.id]!)
+  ).length;
+  // Agreement is counted over reviewed examples only, so say so: "2/2 agree"
+  // can't be mistaken for a share of the whole sample.
+  const agreement =
+    run && reviewed.length ? `${matches}/${reviewed.length} agree` : null;
+  return (
+    <Flex direction="column" gap="size-25" minWidth={0}>
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <AlphabeticIndexIcon index={getSlotIndex(slot)} size="XS" />
+        <Truncate maxWidth="100%">{name || `Evaluator ${slot}`}</Truncate>
+        {run?.isRunning ? <ProgressCircle isIndeterminate size="S" /> : null}
+      </Flex>
+      <Text size="XS" color="text-500" weight="normal">
+        {reviewed.length}/{examples.length} reviewed
+        {agreement ? ` · ${agreement}` : ""}
+      </Text>
+    </Flex>
+  );
+}
+
+/**
+ * One evaluator's result for one example, rendered the way experiment rows
+ * render annotations: a quiet label · score value with the details in a rich
+ * tooltip, and the expected output as a muted second line. Clicking the value
+ * opens the expected-output editor; accepting the prediction as expected is the
+ * one always-visible action, and only while the two disagree.
+ */
+function EvaluatorCell({
+  slot,
+  name,
+  position,
+  result,
+  isPending,
+  expected,
+  labels,
+  isDisabled,
+  isSaving,
+  onSave,
+}: {
+  slot: SlotId;
+  name: string;
+  position: number;
+  result?: CalibrationPrediction;
+  isPending: boolean;
+  expected?: ExpectedOutput;
+  labels: string[];
+  isDisabled: boolean;
+  isSaving: boolean;
+  onSave: (output: ExpectedOutput | null) => Promise<UIOperationResult>;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const prediction = result?.status === "success" ? result : null;
+  const verdict =
+    prediction && expected
+      ? matchesExpectedOutput(prediction, expected)
+        ? "match"
+        : "mismatch"
+      : null;
+  const canAccept = prediction != null && verdict !== "match";
+  const value = (
+    <button
+      className="button--reset"
+      css={valueButtonCSS}
+      aria-label={`Evaluator ${slot} result for example ${position}. Click to edit the expected output.`}
+    >
+      <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
+        {verdict ? <VerdictIcon verdict={verdict} /> : null}
+        <PredictionValue result={result} isPending={isPending} />
+      </Flex>
+    </button>
+  );
+  return (
+    <Flex direction="column" gap="size-50" minWidth={0}>
+      <Flex
+        direction="row"
+        gap="size-100"
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        <DialogTrigger isOpen={isEditing} onOpenChange={setIsEditing}>
+          {prediction ? (
+            <AnnotationTooltip
+              annotation={{
+                name,
+                label: prediction.label,
+                score: prediction.score,
+                explanation: prediction.explanation,
+              }}
+            >
+              <Pressable>{value}</Pressable>
+            </AnnotationTooltip>
+          ) : (
+            <Pressable>{value}</Pressable>
+          )}
+          <Popover placement="bottom start">
+            <PopoverArrow />
+            <Dialog
+              aria-label={`Expected output for evaluator ${slot}`}
+              style={{ width: 320 }}
+            >
+              <ExpectedOutputForm
+                slot={slot}
+                expected={expected}
+                labels={labels}
+                isDisabled={isDisabled}
+                onSave={onSave}
+                onClose={() => setIsEditing(false)}
+              />
+            </Dialog>
+          </Popover>
+        </DialogTrigger>
+        {isSaving ? (
+          <ProgressCircle isIndeterminate size="S" aria-label="Saving" />
+        ) : canAccept ? (
+          <TooltipTrigger>
+            <IconButton
+              size="S"
+              isDisabled={isDisabled}
+              aria-label={`Accept evaluator ${slot}'s output as expected for example ${position}`}
+              onPress={() =>
+                void onSave({
+                  label: prediction.label,
+                  score: prediction.score,
+                  explanation: prediction.explanation,
+                })
+              }
+            >
+              <Icon svg={<Icons.Checkmark />} />
+            </IconButton>
+            <Tooltip>
+              <TooltipArrow />
+              Accept as expected output
+            </Tooltip>
+          </TooltipTrigger>
+        ) : null}
+      </Flex>
+      {expected ? (
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <Text size="XS" color="text-500">
+            expected
+          </Text>
+          <CalibrationValue
+            label={expected.label}
+            score={expected.score}
+            size="XS"
+          />
+        </Flex>
+      ) : null}
+    </Flex>
+  );
+}
+
+// The quiet hover wash the rest of the app uses for click-to-reveal text,
+// sized so the value sits flush with the accept button beside it.
+const valueButtonCSS = css`
+  ${quietHoverCSS};
+  display: flex;
+  align-items: center;
+  min-height: var(--global-button-height-s);
+  min-width: 0;
+  text-align: left;
+`;
+
+const verdictIconCSS = css`
+  display: flex;
+  flex: none;
+  &[data-verdict="match"] {
+    color: var(--global-color-success);
+  }
+  &[data-verdict="mismatch"] {
+    color: var(--global-color-danger);
+  }
+`;
+
+/** Whether the prediction agrees with the expected output. */
+function VerdictIcon({ verdict }: { verdict: "match" | "mismatch" }) {
+  return (
+    <span
+      css={verdictIconCSS}
+      data-verdict={verdict}
+      role="img"
+      aria-label={
+        verdict === "match" ? "Matches expected" : "Differs from expected"
+      }
+    >
+      <Icon svg={verdict === "match" ? <Icons.Checkmark /> : <Icons.Close />} />
+    </span>
+  );
+}
+
+/**
+ * A label · score pair in the annotation value style: the label in the body
+ * font, the score in mono, a hairline divider between them.
+ */
+function CalibrationValue({
+  label,
+  score,
+  size,
+}: {
+  label?: string | null;
+  score?: number | null;
+  size?: "XS" | "S" | "M";
+}) {
+  const hasLabel = label != null && label !== "";
+  const hasScore = typeof score === "number";
+  if (!hasLabel && !hasScore)
+    return (
+      <Text size={size} color="text-500">
+        {NO_VALUE}
+      </Text>
+    );
+  return (
+    <span css={valuePartsCSS}>
+      {hasLabel ? <Text size={size}>{label}</Text> : null}
+      {hasLabel && hasScore ? (
+        <span aria-hidden css={inlineDividerCSS} />
+      ) : null}
+      {hasScore ? (
+        <AnnotationScoreText size={size} fontFamily="mono">
+          {floatFormatter(score)}
+        </AnnotationScoreText>
+      ) : null}
+    </span>
+  );
+}
+
+const valuePartsCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  min-width: 0;
+`;
+
+/** The expected-output editor shown inside a result's popover. */
+function ExpectedOutputForm({
+  slot,
+  expected,
+  labels,
+  isDisabled,
+  onSave,
+  onClose,
+}: {
+  slot: SlotId;
+  expected?: ExpectedOutput;
+  labels: string[];
+  isDisabled: boolean;
+  onSave: (output: ExpectedOutput | null) => Promise<UIOperationResult>;
+  onClose: () => void;
+}) {
+  const [label, setLabel] = useState(expected?.label ?? "");
+  const [score, setScore] = useState(
+    expected?.score != null ? String(expected.score) : ""
+  );
+  const [explanation, setExplanation] = useState(expected?.explanation ?? "");
+  const hasValue = label.trim() !== "" || score !== "";
+  const isValidScore = score === "" || Number.isFinite(Number(score));
+  async function save(output: ExpectedOutput | null) {
+    const result = await onSave(output);
+    if (result.ok) onClose();
+  }
+  return (
+    <View padding="size-200">
+      <Flex direction="column" gap="size-200">
+        <Text weight="heavy">Expected output · {slot}</Text>
+        {labels.length ? (
+          <CalibrationSelect
+            label="Label"
+            value={label || "__none"}
+            options={[
+              { id: "__none", name: "No label" },
+              ...labels.map((name) => ({ id: name, name })),
+            ]}
+            onChange={(value) => setLabel(value === "__none" ? "" : value)}
+          />
+        ) : (
+          <TextField value={label} onChange={setLabel}>
+            <Label>Label</Label>
+            <Input />
+          </TextField>
+        )}
+        <TextField value={score} onChange={setScore} isInvalid={!isValidScore}>
+          <Label>Score</Label>
+          <Input inputMode="decimal" placeholder="Optional" />
+        </TextField>
+        <TextField value={explanation} onChange={setExplanation}>
+          <Label>Explanation</Label>
+          <Input placeholder="Optional" />
+        </TextField>
+        <Flex direction="row" justifyContent="end" gap="size-100">
+          {expected ? (
+            <Button
+              size="S"
+              variant="default"
+              isDisabled={isDisabled}
+              onPress={() => void save(null)}
+            >
+              Clear
+            </Button>
+          ) : null}
+          <Button
+            size="S"
+            variant="primary"
+            isDisabled={isDisabled || !hasValue || !isValidScore}
+            onPress={() =>
+              void save({
+                label: label.trim() || null,
+                score: score === "" ? null : Number(score),
+                explanation: explanation.trim() || null,
+              })
+            }
+          >
+            Save expected
+          </Button>
+        </Flex>
+      </Flex>
+    </View>
+  );
+}
+
+// Two-line evaluator cells read better top-aligned with a little more room,
+// the way the experiment compare table lays out its annotation lists.
+const resultsTableCSS = css`
+  --global-table-cell-padding-y: var(--global-dimension-size-150);
+  tbody tr > td {
+    vertical-align: top;
+  }
+`;
+
 const tableWrapCSS = css`
   overflow: auto;
+  scroll-padding-top: var(--global-dimension-size-800);
   flex: 1;
   min-height: 0;
 `;
@@ -381,34 +645,13 @@ const indexColumnCSS = css`
   text-align: right;
 `;
 
+const exampleColumnCSS = css`
+  min-width: 360px;
+`;
+
 const slotColumnCSS = css`
   min-width: var(--global-dimension-size-2400);
 `;
-
-const expectedColumnCSS = css`
-  width: var(--global-dimension-size-3000);
-`;
-
-function formatAgreement(
-  agreement: ReturnType<typeof getCalibrationAgreement> | null
-) {
-  if (agreement == null || agreement.percent == null) return NO_VALUE;
-  return `${agreement.percent}%`;
-}
-
-/** A label over a value, for the results summary strip. */
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <Flex direction="column" gap="size-25">
-      <Text size="XS" color="text-500">
-        {label}
-      </Text>
-      <Text size="M" weight="heavy" fontFamily="mono">
-        {value}
-      </Text>
-    </Flex>
-  );
-}
 
 const exampleFieldCSS = css`
   display: grid;
@@ -469,14 +712,13 @@ function ExampleCell({
   );
 }
 
-function Prediction({
+/** The evaluator's output for one example, or why there isn't one yet. */
+function PredictionValue({
   result,
   isPending,
-  expected,
 }: {
   result?: CalibrationPrediction;
   isPending: boolean;
-  expected?: string;
 }) {
   if (!result) {
     return isPending ? (
@@ -486,48 +728,8 @@ function Prediction({
     );
   }
   if (result.status === "error")
-    return (
-      <Flex direction="row" gap="size-100" alignItems="center">
-        <Token
-          color="var(--global-color-danger)"
-          leadingVisual={<Icon svg={<Icons.AlertCircle />} />}
-        >
-          Error
-        </Token>
-        <DetailsPopover label="View error" icon={<Icons.Info />}>
-          <Text size="S">{result.error}</Text>
-        </DetailsPopover>
-      </Flex>
-    );
-  const verdict =
-    expected == null ? null : result.label === expected ? "match" : "mismatch";
-  return (
-    <Flex direction="row" gap="size-100" alignItems="center">
-      <Token
-        color={
-          verdict === "match"
-            ? "var(--global-color-success)"
-            : verdict === "mismatch"
-              ? "var(--global-color-danger)"
-              : "var(--global-color-gray-600)"
-        }
-        leadingVisual={
-          verdict === "match" ? (
-            <Icon svg={<Icons.Checkmark />} />
-          ) : verdict === "mismatch" ? (
-            <Icon svg={<Icons.Close />} />
-          ) : undefined
-        }
-      >
-        {result.label}
-      </Token>
-      {result.explanation ? (
-        <DetailsPopover label="View explanation" icon={<Icons.MessageCircle />}>
-          <Text size="S">{result.explanation}</Text>
-        </DetailsPopover>
-      ) : null}
-    </Flex>
-  );
+    return <PlaygroundErrorWrap>{result.error}</PlaygroundErrorWrap>;
+  return <CalibrationValue label={result.label} score={result.score} />;
 }
 
 /** An icon button that opens its children in a popover. */
