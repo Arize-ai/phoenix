@@ -1420,9 +1420,12 @@ CREATE TABLE public.eval_session_work_units (
         CHECK (((status)::text = ANY ((ARRAY[
             'PENDING'::character varying,
             'RUNNING'::character varying,
-            'DONE'::character varying,
             'ERROR'::character varying,
+            'DONE'::character varying,
+            'FAILED'::character varying,
             'EXPIRED'::character varying,
+            'SUPERSEDED'::character varying,
+            'CONTENT_LOST'::character varying,
             'FILTERED_OUT'::character varying,
             'SAMPLED_OUT'::character varying
         ])::text[]))),
@@ -1442,18 +1445,16 @@ CREATE TABLE public.eval_session_work_units (
 
 CREATE INDEX ix_eval_session_work_units_claimable ON public.eval_session_work_units
     USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
-CREATE INDEX ix_eval_session_work_units_error_attempts ON public.eval_session_work_units
-    USING btree (attempts) WHERE ((status)::text = 'ERROR'::text);
 CREATE INDEX ix_eval_session_work_units_evaluator_id ON public.eval_session_work_units
     USING btree (evaluator_id);
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON public.eval_session_work_units
     USING btree (project_evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON public.eval_session_work_units
-    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'SUPERSEDED'::character varying, 'CONTENT_LOST'::character varying])::text[]));
 CREATE INDEX ix_eval_session_work_units_terminal_watermark ON public.eval_session_work_units
     USING btree (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON public.eval_session_work_units
-    USING btree (project_session_rowid, evaluator_id, config_fingerprint) WHERE (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying])::text[])) OR (((status)::text = 'ERROR'::text) AND (attempts < 3)) OR ((status)::text = ANY ((ARRAY['FILTERED_OUT'::character varying, 'SAMPLED_OUT'::character varying])::text[])));
+    USING btree (project_session_rowid, evaluator_id, config_fingerprint) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying, 'FILTERED_OUT'::character varying, 'SAMPLED_OUT'::character varying])::text[]));
 
 
 -- Table: eval_work_units
@@ -1479,9 +1480,12 @@ CREATE TABLE public.eval_work_units (
         CHECK (((status)::text = ANY ((ARRAY[
             'PENDING'::character varying,
             'RUNNING'::character varying,
-            'DONE'::character varying,
             'ERROR'::character varying,
-            'EXPIRED'::character varying
+            'DONE'::character varying,
+            'FAILED'::character varying,
+            'EXPIRED'::character varying,
+            'SUPERSEDED'::character varying,
+            'DROPPED'::character varying
         ])::text[]))),
     CONSTRAINT fk_eval_work_units_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
@@ -1498,15 +1502,13 @@ CREATE TABLE public.eval_work_units (
 );
 
 CREATE INDEX ix_eval_work_units_claimable ON public.eval_work_units
-    USING btree (status, id) WHERE ((status)::text <> ALL ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
-CREATE INDEX ix_eval_work_units_error_attempts ON public.eval_work_units
-    USING btree (attempts) WHERE ((status)::text = 'ERROR'::text);
+    USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_work_units_evaluator_id ON public.eval_work_units
     USING btree (evaluator_id);
 CREATE INDEX ix_eval_work_units_project_evaluator_id ON public.eval_work_units
     USING btree (project_evaluator_id);
 CREATE INDEX ix_eval_work_units_terminal ON public.eval_work_units
-    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'EXPIRED'::character varying])::text[]));
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'SUPERSEDED'::character varying, 'DROPPED'::character varying])::text[]));
 
 
 -- Table: project_session_annotations

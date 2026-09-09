@@ -6,11 +6,12 @@ of this interface.
 Work-unit lifecycle:
 
     PENDING --claim--> RUNNING --complete--> DONE
-                       RUNNING --fail-----> ERROR
-                       RUNNING --expire---> EXPIRED
+                       RUNNING --fail-----> ERROR, or FAILED once the retry budget is spent
+                       RUNNING --expire---> EXPIRED | SUPERSEDED | CONTENT_LOST
                        RUNNING --release--> PENDING
-    RUNNING (lease lapsed) --> reclaimable
-    ERROR (cooldown elapsed, attempts remain) --> retried
+    RUNNING (lease lapsed) --> reclaimable, or FAILED when no attempts remain
+    ERROR (cooldown elapsed) --> retried
+    PENDING (pending TTL exceeded) --> DROPPED
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Protocol
+from typing import Literal, Optional, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +29,8 @@ from phoenix.server.online_eval.failure_policy import FailureDisposition
 LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
 LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
+
+RetiredWorkStatus = Literal["EXPIRED", "SUPERSEDED", "CONTENT_LOST"]
 
 PublicationWrite = Callable[[AsyncSession], Awaitable[None]]
 """Writes one unit's results, inside the transaction that fenced its publication."""
@@ -63,7 +66,8 @@ class ClaimedWorkUnit:
 class QueueLag:
     """Observable backlog; all counts are zero when no work rows exist.
     ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is
-    None when that backlog is empty."""
+    None when that backlog is empty. ``expired_count`` covers every retirement without
+    an outcome: EXPIRED, SUPERSEDED, CONTENT_LOST, and DROPPED."""
 
     pending_count: int
     running_count: int
@@ -84,7 +88,7 @@ class EvalWorkCoordinator(Protocol):
     ) -> Sequence[ClaimedWorkUnit]:
         """Lease up to ``limit`` claimable work units for ``claimed_by``. A unit is
         claimable when it is PENDING, or RUNNING with a lapsed lease, or ERROR past
-        its cooldown with attempts remaining. Returns an empty sequence when no
+        its cooldown. Returns an empty sequence when no
         claimable work exists."""
         ...
 
@@ -140,9 +144,9 @@ class EvalWorkCoordinator(Protocol):
         cooldown_until: Optional[datetime] = None,
         count_attempt: bool = True,
     ) -> bool:
-        """Transition a claimed unit RUNNING -> ERROR, recording the error and setting an
-        optional retry cooldown. ``count_attempt=True`` (the default) increments attempts,
-        walking the unit toward the max-attempts claimability bar; pass False for transient
+        """Transition a claimed unit RUNNING -> ERROR, or -> FAILED once the retry budget
+        is spent, recording the error and setting an optional retry cooldown.
+        ``count_attempt=True`` (the default) increments attempts; pass False for transient
         infrastructure failures (provider outage, network timeout) so the unit retries after
         its cooldown without ever being exhausted by an outage. Returns False if the claim
         was lost."""
@@ -154,8 +158,9 @@ class EvalWorkCoordinator(Protocol):
         work_unit_id: int,
         claimed_by: str,
         error: str,
+        status: RetiredWorkStatus = "EXPIRED",
     ) -> bool:
-        """Transition a claimed unit RUNNING -> EXPIRED with a stable terminal reason."""
+        """Retire a claimed unit RUNNING -> ``status`` with a stable reason."""
         ...
 
     async def release(
