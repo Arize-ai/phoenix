@@ -73,6 +73,14 @@ UNSUPPORTED_APPROVAL_CHUNKS = {
     "processUIMessageStream > automatic tool approval with execution (dynamic tool)": (
         "pydantic-ai does not model automatic approval fields or response chunks"
     ),
+    (
+        "processUIMessageStream > preserves approval descriptors through "
+        "request and response states"
+    ): "pydantic-ai approval chunks do not model approvalDescriptor",
+    (
+        "processUIMessageStream > preserves an approval descriptor restored from "
+        "a persisted message"
+    ): "pydantic-ai approval parts do not model descriptor",
 }
 
 _FIXTURES: list[dict[str, Any]] = json.loads(_FIXTURES_PATH.read_text())
@@ -147,7 +155,7 @@ def test_unsupported_case_list_is_explicit_and_current() -> None:
     unsupported_names = set(UNSUPPORTED_BY_PYDANTIC_AI) | set(UNSUPPORTED_APPROVAL_CHUNKS)
 
     assert len(UNSUPPORTED_BY_PYDANTIC_AI) == 11
-    assert len(UNSUPPORTED_APPROVAL_CHUNKS) == 4
+    assert len(UNSUPPORTED_APPROVAL_CHUNKS) == 6
     assert unsupported_names <= fixture_names
 
 
