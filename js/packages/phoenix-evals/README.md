@@ -98,6 +98,7 @@ All pre-built evaluators are available from the `@arizeai/phoenix-evals/llm` mod
 | Evaluator              | Function                              | Description                                                                       |
 | ---------------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
 | Faithfulness           | `createFaithfulnessEvaluator`         | Detects hallucinations — checks if the output is grounded in the provided context |
+| Completeness           | `createCompletenessEvaluator`         | Checks whether every active user request in a conversation was actually completed |
 | Conciseness            | `createConcisenessEvaluator`          | Evaluates whether the response is appropriately concise                           |
 | Correctness            | `createCorrectnessEvaluator`          | Checks if the output is factually correct given the input                         |
 | Document Relevance     | `createDocumentRelevanceEvaluator`    | Measures how relevant a retrieved document is to the query                        |

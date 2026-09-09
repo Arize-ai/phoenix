@@ -1,3 +1,4 @@
+from .completeness import CompletenessEvaluator
 from .conciseness import ConcisenessEvaluator
 from .correctness import CorrectnessEvaluator
 from .document_relevance import DocumentRelevanceEvaluator
@@ -16,6 +17,7 @@ from .toxicity import ToxicityEvaluator
 from .user_friction import UserFrictionEvaluator
 
 __all__ = [
+    "CompletenessEvaluator",
     "ConcisenessEvaluator",
     "CorrectnessEvaluator",
     "DocumentRelevanceEvaluator",
