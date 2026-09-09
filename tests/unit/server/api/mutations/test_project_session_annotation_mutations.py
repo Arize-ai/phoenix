@@ -1083,6 +1083,40 @@ class TestProjectSessionNoteMutations:
         assert all(note.project_session_id == project_session_data.id for note in stored_notes)
         assert all(note.user_id is None for note in stored_notes)
 
+    async def test_batch_preserves_order_and_returns_final_state_for_duplicate_keys(
+        self,
+        project_session_data: models.ProjectSession,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        node_id = str(GlobalID("ProjectSession", str(project_session_data.id)))
+        external_id = project_session_data.session_id
+        result = await gql_client.execute(
+            self._CREATE_NOTES,
+            {
+                "input": [
+                    {"id": node_id, "note": "draft", "identifier": "coding"},
+                    {"id": external_id, "note": "anonymous first"},
+                    {"id": external_id, "note": "other", "identifier": "other"},
+                    {"id": external_id, "note": "final", "identifier": " coding "},
+                    {"id": node_id, "note": "anonymous second", "identifier": "  "},
+                ]
+            },
+        )
+
+        assert result.data is not None
+        assert not result.errors
+        notes = result.data["createProjectSessionNotes"]["projectSessionAnnotations"]
+        assert [note["explanation"] for note in notes] == [
+            "final",
+            "anonymous first",
+            "other",
+            "final",
+            "anonymous second",
+        ]
+        assert notes[0]["id"] == notes[3]["id"]
+        assert len({note["id"] for note in notes}) == 4
+
     async def test_create_accumulates_without_identifier_and_upserts_with_identifier(
         self,
         project_session_data: models.ProjectSession,

@@ -23,7 +23,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.annotations import ANNOTATION_CONFIG_NOTE_ERROR, NOTE_NAME
+from phoenix.server.api.helpers.annotations import NOTE_NAME
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
     CategoricalAnnotationConfigInput,
@@ -40,6 +40,10 @@ from phoenix.server.api.types.AnnotationConfig import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
+
+ANNOTATION_CONFIG_NOTE_ERROR = (
+    "The name 'note' is reserved for notes and cannot be used for annotation configs."
+)
 
 ANNOTATION_TYPE_NAMES = (
     CategoricalAnnotationConfig.__name__,
