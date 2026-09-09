@@ -157,3 +157,8 @@ def test_compound_filters_and_missing_reward_cost_accounting():
     assert report["filters"] == first
     with pytest.raises(ValueError, match="Unknown"):
         matches(read, {"uses_sql": True})
+
+
+def test_report_cannot_silently_drop_unmapped_planned_trials():
+    with pytest.raises(ValueError, match="missing task metadata"):
+        summarize([], [{"task_id": "unknown", "trial_id": "1"}], filters={})

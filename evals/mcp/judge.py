@@ -9,6 +9,7 @@ from typing import Any
 from phoenix.evals import LLM
 from phoenix.evals.metrics.completeness import CompletenessEvaluator
 
+from runtime import CONFIG
 from trajectory import RENDERER_VERSION, RenderedTrajectory
 
 
@@ -16,6 +17,7 @@ def evaluate_completeness(rendered: RenderedTrajectory, llm: LLM) -> dict[str, A
     record: dict[str, Any] = {
         "evaluator": "phoenix.evals.metrics.completeness.CompletenessEvaluator",
         "evals_version": version("arize-phoenix-evals"),
+        "phoenix_revision": CONFIG["phoenix_revision"],
         "renderer_version": RENDERER_VERSION,
         "rendered_input_sha256": rendered.sha256,
         "omitted_fields": rendered.omitted_fields,

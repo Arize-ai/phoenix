@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -34,11 +35,13 @@ def matches(metadata: TaskMetadata, filters: dict[str, Any]) -> bool:
 def summarize(
     examples: list[dict[str, Any]], planned: list[dict[str, Any]], *, filters: dict[str, Any]
 ) -> dict[str, Any]:
-    tasks = {
-        example_facets(example).task_id
-        for example in examples
-        if matches(example_facets(example), filters)
-    }
+    authored = [example_facets(example) for example in examples]
+    all_ids = [task.task_id for task in authored]
+    if len(set(all_ids)) != len(all_ids):
+        raise ValueError("Duplicate task metadata; export one frozen dataset version")
+    if {trial["task_id"] for trial in planned} - set(all_ids):
+        raise ValueError("Planned trials have missing task metadata")
+    tasks = {task.task_id for task in authored if matches(task, filters)}
     selected = [trial for trial in planned if trial["task_id"] in tasks]
     trial_ids = [trial["trial_id"] for trial in selected]
     if len(set(trial_ids)) != len(trial_ids):
@@ -52,6 +55,10 @@ def summarize(
         for attempt in attempts
         if attempt.get("agent_cost_usd") is not None
     ]
+    if any(
+        type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0 for cost in known_cost
+    ):
+        raise ValueError("Agent cost must be finite, nonnegative, or missing")
     return {
         "metadata_schema_version": "1",
         "filters": filters,
