@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "phoenix": {
+      "url": "${PHOENIX_MCP_URL}"
+    }
+  }
+}
