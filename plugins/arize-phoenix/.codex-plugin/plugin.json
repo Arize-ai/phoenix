@@ -1,7 +1,7 @@
 {
   "name": "arize-phoenix",
   "version": "0.1.0+codex.20260909221629",
-  "description": "Investigate and manage traces, datasets, experiments, prompts, and annotations in Phoenix.",
+  "description": "Investigate agent traces, sessions, errors, and performance in Phoenix.",
   "author": {
     "name": "Arize AI",
     "email": "oss@arize.com",
@@ -19,8 +19,8 @@
   ],
   "interface": {
     "displayName": "Arize Phoenix",
-    "shortDescription": "Debug AI applications with Phoenix data.",
-    "longDescription": "Investigate failures, inspect traces and sessions, compare experiments, and manage datasets, prompts, and annotations in your Phoenix instance.",
+    "shortDescription": "Debug agents with Phoenix trace data.",
+    "longDescription": "Investigate agent failures, inspect traces and sessions, and analyze errors, latency, and token usage in your Phoenix instance.",
     "developerName": "Arize AI",
     "category": "Developer Tools",
     "capabilities": [
@@ -29,9 +29,9 @@
     ],
     "websiteURL": "https://arize.com/phoenix/",
     "defaultPrompt": [
-      "Find failed traces from the last 24 hours and summarize the most common errors.",
-      "Compare my two latest experiments on evaluation scores, latency, and cost.",
-      "Show me the slowest LLM spans in my project and identify likely bottlenecks."
+      "Find agent traces with errors in the last 24 hours and group them by exception type.",
+      "Walk through a failed agent session and identify where the behavior first went wrong.",
+      "Find the slowest agent traces in my project and break down where they spend their time."
     ],
     "brandColor": "#F14B5A",
     "logo": "./assets/logo.svg"
