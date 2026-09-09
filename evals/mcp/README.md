@@ -73,3 +73,20 @@ flag `--plugin arize-phoenix` when the runner is completed; Harbor ignores the o
 YAML `plugins` field. The JSON artifacts contain no credentials and do not launch
 anything. This layer still needs condition-specific images and trusted lifecycle
 integration before these configurations can become valid benchmark trials.
+
+The completeness integration sends a versioned readable conversation to Phoenix
+Evals and preserves its native Score. Its rubric excludes factual correctness.
+Exact count/state/policy checks remain authoritative. Missing tool observations or
+an oversized judge input produce unavailable evaluation, with the full rendering
+retained. Judge calibration, usage accounting and real verifier attachment are pending.
+
+Reports consume native Phoenix example metadata and a planned-trial ledger:
+
+```sh
+make mcp-report ARGS='--examples /private/examples.json --planned /private/planned.json --filters-file evals/mcp/configs/filters/core-read-only.json'
+```
+
+Use `configs/filters/annotation-writes.json` for the mutation slice. The Python
+`summarize` API also accepts the filter object directly. Array filters mean
+membership, and multiple fields are ANDed. Reports retain the selected filters,
+scored/planned denominators, missing rewards, and cost coverage across retry attempts.

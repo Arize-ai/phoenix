@@ -47,3 +47,7 @@ mcp-stage-task:
 .PHONY: mcp-matrix
 mcp-matrix:
 	$(MCP_PYTHON) $(MCP_DIR)/matrix.py $(ARGS)
+
+.PHONY: mcp-report
+mcp-report:
+	PYTHONPATH=$(MCP_DIR) $(MCP_PYTHON) $(MCP_DIR)/report.py $(ARGS)
