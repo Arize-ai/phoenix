@@ -33,3 +33,18 @@ records. The shared Phoenix database is never disposable benchmark state.
 
 Private wheels, downloaded TRAIL data, logs, and trajectories belong under ignored
 `.runtime/` or `.private/`. Do not publish TRAIL payloads or populated images.
+
+Fixture preparation is separate from seeding:
+
+```sh
+# Trusted setup process only; requires authorized HF_TOKEN in its environment.
+make mcp-fixture
+# Or use private local rows without any network request:
+make mcp-fixture ARGS='--input /absolute/private/rows.json'
+```
+
+The default revision is immutable. Outputs under `.private/trail` include source
+payload and protected truth. Repeated preparation accepts identical contents;
+changed contents require a new output directory. Fixture preparation creates no
+Phoenix server or database. The programmatic `fixture.seed` helper requires a
+caller-managed, authorized fresh target and refuses an existing fixture project.

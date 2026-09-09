@@ -15,8 +15,8 @@ mcp-typecheck:
 	.venv/bin/mypy --config-file $(MCP_DIR)/pyproject.toml --python-executable $(MCP_PYTHON)
 
 mcp-lint:
-	$(MCP_DIR)/.venv/bin/ruff check $(MCP_DIR)
-	$(MCP_DIR)/.venv/bin/ruff format --check $(MCP_DIR)
+	$(MCP_DIR)/.venv/bin/ruff check $(MCP_DIR) scripts/prepare_patronus_trail.py
+	$(MCP_DIR)/.venv/bin/ruff format --check $(MCP_DIR) scripts/prepare_patronus_trail.py
 
 mcp-preflight:
 	$(MCP_PYTHON) $(MCP_DIR)/preflight.py $(ARGS)
@@ -29,5 +29,9 @@ mcp-plugin-test:
 
 .PHONY: mcp-format
 mcp-format:
-	$(MCP_DIR)/.venv/bin/ruff format $(MCP_DIR)
-	$(MCP_DIR)/.venv/bin/ruff check --fix $(MCP_DIR)
+	$(MCP_DIR)/.venv/bin/ruff format $(MCP_DIR) scripts/prepare_patronus_trail.py
+	$(MCP_DIR)/.venv/bin/ruff check --fix $(MCP_DIR) scripts/prepare_patronus_trail.py
+
+.PHONY: mcp-fixture
+mcp-fixture:
+	$(MCP_PYTHON) -m scripts.prepare_patronus_trail --output $(MCP_DIR)/.private/trail $(ARGS)
