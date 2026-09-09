@@ -66,6 +66,20 @@ If `$NOTES_SIDECAR` already exists, append a disambiguator (`-v2`, `-dustin`, et
 
 > **Don't sample by span status `ERROR`.** OTel's `status_code` only flips to `ERROR` when an instrumentor catches a raised exception. Hallucinations, wrong tone, retrieval misses, and bad tool selection all complete cleanly as `OK` or `UNSET` — filtering to error status excludes the population this workflow exists to surface.
 
+### What to look for
+
+A checklist, not a taxonomy — categories come later. Note the first thing that goes wrong; a downstream symptom gets its own note only if it has an independent cause.
+
+- **Explicit errors** — exceptions or error messages in tool, LLM, or retriever spans
+- **Cost and latency** — unusually high token counts or slow spans
+- **Retrieval quality** — irrelevant, missing, or low-scoring chunks
+- **Response quality** — hallucination, factual errors, wrong tone, inappropriate refusals
+- **Tool use** — wrong tool, malformed call, mishandled result
+- **Trajectory** — loops, detours, unfinished tasks; across a session, lost context or goal drift
+- **Instrumentation gaps** — missing spans or attributes; a blind spot is a finding
+
+Treat existing evals and annotations as one input among many. Read content, not status: a success status can hide an error in the attributes, and an exception can be expected behavior.
+
 Whatever the tooling, the fetches are: **sample** recent traces (trace id, root span name, status, root-span `input.value` / `output.value`); **expand** one trace into its spans ordered by start time; **drill** into a single span by id when the unit is the span; and **check existing notes** on entities you are about to review — notes are stored server-side as annotations with the reserved name `note`. As always, be aware that the data may be verbose, so take care not to blow up the context.
 
 ## Recording Notes

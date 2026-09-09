@@ -49,6 +49,18 @@ Once the categories have stabilized — after Group and Attribute, not per-write
 
 Annotations write fine without a config, but the config is what makes the categories first-class in the Phoenix UI: human annotators get the taxonomy as a dropdown instead of free text, and later runs inherit a shared label vocabulary instead of drifting. If a new category emerges mid-recording, add it to the config before writing labels with it.
 
+## What Makes a Good Annotation
+
+An annotation is useful later only if it is filterable, aggregatable, and auditable. So:
+
+1. **Name the dimension; put the outcome in the label.** `billing_support_failure_mode` = `answered_off_topic`, not `answered_off_topic` = `true`.
+2. **One dimension per annotation.** Judging relevance *and* faithfulness means two annotations.
+3. **Annotate the responsible entity.** The retriever span for retrieval, the LLM span for output; the trace or session only for end-to-end judgments.
+4. **Label the first failure.** Label a downstream effect separately only if it is an independent problem.
+5. **Prefer labels to scores.** A small label set is applied consistently and aggregates cleanly; use a score only when the config defines the scale.
+6. **Cite evidence in the explanation.** "Retrieved onboarding docs for a cancellation question", not "retrieval was bad".
+7. **Keep names and labels stable across runs.** No `_v2` suffixes, and no borrowing another project's config because the name fits.
+
 ## Recording
 
 Write one annotation per entity with:
@@ -56,7 +68,7 @@ Write one annotation per entity with:
 - **name**: the annotation name chosen in [Annotation config](#annotation-config), e.g. `billing_support_failure_mode`
 - **label**: the category, e.g. `answered_off_topic`
 - **explanation** (optional): e.g. "asked about returns; answer covered shipping"
-- **annotator kind**: `HUMAN`
+- **annotator kind**: `LLM` for your own judgment, `HUMAN` only for one the user gave you
 - **identifier**: the coding annotation identifier
 
 The server also accepts an optional score. Writes upsert on `(entity_id, name, identifier)`. The server's default write mode enqueues asynchronously — prefer a synchronous mode where the tooling offers one, so the row is applied before continuing.
@@ -101,6 +113,8 @@ failure_taxonomy:
 - **Grounded in data** — emerged from actual note text, not assumed upfront
 
 ## Wrapping up
+
+Say whether you reused, extended, or created the annotation config — the rubric is the user's to weigh in on.
 
 Share Phoenix UI links with the user: one per level — span, trace, session — that actually carries this run's annotations, filtered to the run's work. Skip levels with none. Each tab reads its filter from its own search param; an unrecognized or misspelled param is silently dropped, leaving an unfiltered table.
 
