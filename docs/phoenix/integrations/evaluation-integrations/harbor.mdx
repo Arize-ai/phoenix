@@ -61,7 +61,11 @@ harbor run \
   --yes
 ```
 
-The plugin infers the Phoenix dataset name from the Harbor dataset. It creates one experiment for the selected agent and model. Each final task trial appears as a run as soon as that trial finishes.
+## What you'll see in Phoenix
+
+At job start, the plugin creates or reuses a versioned dataset for the resolved task set. Each Harbor task becomes a dataset example, and each agent and model configuration gets its own experiment.
+
+As each final logical trial finishes, Phoenix adds a run to the matching experiment. The run has Harbor's verifier rewards and an `infra_ok` evaluation. It also shows an error when Harbor recorded an exception and links to an ATIF trace when tracing succeeds.
 
 <Tip>
 Start with the default `atif` mode when your Harbor agent writes ATIF trajectories. It captures agent execution without adding tracing code or giving the sandbox network access to Phoenix.
