@@ -23,7 +23,7 @@
       "interface": {
         "displayName": "Arize Phoenix",
         "shortDescription": "Observe, evaluate, and debug AI applications.",
-        "longDescription": "Connect Codex to Phoenix traces, datasets, experiments, and evaluations, with reusable skills for Phoenix CLI, evaluations, and OpenInference tracing workflows.",
+        "longDescription": "Connect Codex to Phoenix traces, datasets, experiments, and evaluations through the Phoenix MCP server.",
         "developerName": "Arize AI",
         "category": "Developer Tools",
         "capabilities": [
