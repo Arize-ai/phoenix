@@ -761,7 +761,7 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
             )
         )
     assert len(units) == 1
-    assert units[0].status == "ERROR"
+    assert units[0].status == "FAILED"
     assert units[0].attempts == MAX_ATTEMPTS
 
 
@@ -808,7 +808,7 @@ async def test_incomplete_session_hydration_expires_without_counting_attempt(
     await consumer._process_unit(unit)
 
     stored = await _get_session_unit(db, unit_id)
-    assert stored.status == "EXPIRED"
+    assert stored.status == "CONTENT_LOST"
     assert stored.attempts == 0
     assert stored.evaluated_through == last_span_ingested_at
     assert await _session_annotations(db) == []
@@ -1337,7 +1337,7 @@ async def test_configuration_snapshot_is_discarded_after_claim_batch(
     await consumer._cycle()
 
     units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
-    assert [unit.status for unit in units] == ["DONE", "EXPIRED"]
+    assert [unit.status for unit in units] == ["DONE", "SUPERSEDED"]
     assert units[1].error == "CONFIG_FINGERPRINT_MISMATCH"
     assert len(client.requests) == 1
 
@@ -2016,7 +2016,7 @@ async def test_builtin_implementation_mismatch_expires_without_counting_attempt(
     await consumer._cycle()
 
     unit = await _get_unit(db, unit_id)
-    assert unit.status == "EXPIRED"
+    assert unit.status == "SUPERSEDED"
     assert unit.attempts == 0
     assert unit.error == "CONFIG_FINGERPRINT_MISMATCH"
 
@@ -3047,7 +3047,7 @@ async def test_staleness_guard_expires_unit_without_annotating(
     await consumer._cycle()
 
     unit = await _get_unit(db, unit_id)
-    assert unit.status == "EXPIRED"
+    assert unit.status == "SUPERSEDED"
     assert unit.error == "CONFIG_FINGERPRINT_MISMATCH"
     assert await _annotations(db) == []
 
@@ -3155,7 +3155,7 @@ async def test_session_stand_down_is_visible_on_the_expired_gauge(
         await session.execute(
             update(models.EvalSessionWorkUnit)
             .where(models.EvalSessionWorkUnit.id == unit_id)
-            .values(status="EXPIRED", error=SESSION_CONTENT_INCOMPLETE_ERROR)
+            .values(status="CONTENT_LOST", error=SESSION_CONTENT_INCOMPLETE_ERROR)
         )
 
     consumer = OnlineEvalConsumer(
