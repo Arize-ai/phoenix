@@ -1,10 +1,11 @@
 # Arize Phoenix for Cursor
 
-Installs the Phoenix [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp) and the three public coding-agent skills so Cursor can debug traces, run evals, and instrument apps against your Phoenix instance.
+Installs the Phoenix [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp), the [docs MCP](https://arize.com/docs/phoenix/integrations/docs-mcp), and the three public coding-agent skills so Cursor can debug traces, look up current docs, run evals, and instrument apps against your Phoenix instance.
 
 ## What you get
 
-- **MCP** — streamable HTTP to `<phoenix>/mcp`. Defaults to local Phoenix at `http://localhost:6006/mcp`. Auth is OAuth (browser login on first use).
+- **`phoenix` MCP** — streamable HTTP to `<phoenix>/mcp`. Defaults to local Phoenix at `http://localhost:6006/mcp`. Auth is OAuth (browser login on first use).
+- **`phoenix-docs` MCP** — Mintlify-hosted docs search at `https://arizeai-433a7140.mintlify.app/mcp`. No auth, no configuration.
 - **Skills** (symlinked from [`.agents/skills/`](../../../.agents/skills/)):
   - `phoenix-cli` — fetch traces, inspect datasets and experiments, query GraphQL
   - `phoenix-evals` — build and run evaluators

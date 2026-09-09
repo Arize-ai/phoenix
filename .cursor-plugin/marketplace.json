@@ -12,7 +12,7 @@
     {
       "name": "arize-phoenix",
       "source": "./plugins/cursor/phoenix",
-      "description": "Phoenix remote MCP plus public coding-agent skills"
+      "description": "Phoenix remote MCP, docs MCP, and public coding-agent skills"
     }
   ]
 }

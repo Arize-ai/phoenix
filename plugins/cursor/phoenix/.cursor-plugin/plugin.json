@@ -2,7 +2,7 @@
   "name": "arize-phoenix",
   "displayName": "Arize Phoenix",
   "version": "0.1.0",
-  "description": "Connect Cursor to your Phoenix instance and teach the agent how to debug traces, run evals, and instrument with OpenInference.",
+  "description": "Connect Cursor to your Phoenix instance and docs. Ships the remote MCP server, the docs MCP, and skills for debugging traces, running evals, and instrumenting with OpenInference.",
   "author": {
     "name": "Arize AI",
     "email": "oss@arize.com"
