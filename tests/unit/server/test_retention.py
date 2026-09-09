@@ -28,9 +28,7 @@ class _SweeperController:
 
     The sweeper parks in ``park`` where it would otherwise sleep. ``sweep`` releases it once
     and returns when it has parked again, which is after that sweep has run to completion,
-    so a test never has to guess how long a sweep takes. One caller at a time: the patch has
-    to be in place before the app's lifespan starts the sweeper, so the fixture that hands
-    this out must be requested before ``asgi_app``.
+    so a test never has to guess how long a sweep takes. Supports one caller at a time.
     """
 
     def __init__(self) -> None:
@@ -43,11 +41,7 @@ class _SweeperController:
         self._release.clear()
 
     async def sweep(self, timeout: float = 30.0) -> None:
-        await self._parked_within(
-            timeout,
-            "the sweeper never parked; request sweeper_trigger before asgi_app so the patch "
-            "precedes the sweeper's start",
-        )
+        await self._parked_within(timeout, "the sweeper never parked")
         self._parked.clear()
         self._release.set()
         await self._parked_within(timeout, "the sweep did not finish")
@@ -60,13 +54,24 @@ class _SweeperController:
 
 
 class TestTraceDataSweeper:
+    @pytest.fixture(autouse=True)
+    async def sweeper_trigger(self) -> AsyncIterator[_SweeperController]:
+        """Patch sleep before app startup for every test in this class.
+
+        Autouse ensures the patch precedes ``asgi_app`` regardless of test parameter order.
+        Each test gets a fresh controller, and app teardown runs before the patch is removed.
+        """
+        controller = _SweeperController()
+        with patch.object(TraceDataSweeper, "_sleep_until_next_hour", controller.park):
+            yield controller
+
     @pytest.mark.parametrize("use_default_policy", [True, False])
     async def test_max_count_rule(
         self,
         use_default_policy: bool,
-        sweeper_trigger: _SweeperController,
         db: DbSessionFactory,
         asgi_app: ASGIApp,
+        sweeper_trigger: _SweeperController,
     ) -> None:
         """Test that TraceDataSweeper correctly enforces trace retention policies.
 
@@ -193,9 +198,9 @@ class TestTraceDataSweeper:
     async def test_max_days_rule(
         self,
         use_default_policy: bool,
-        sweeper_trigger: _SweeperController,
         db: DbSessionFactory,
         asgi_app: ASGIApp,
+        sweeper_trigger: _SweeperController,
     ) -> None:
         """Test that TraceDataSweeper correctly enforces time-based retention policies.
 
@@ -313,9 +318,9 @@ class TestTraceDataSweeper:
     async def test_max_days_or_count_rule(
         self,
         use_default_policy: bool,
-        sweeper_trigger: _SweeperController,
         db: DbSessionFactory,
         asgi_app: ASGIApp,
+        sweeper_trigger: _SweeperController,
     ) -> None:
         """Test that TraceDataSweeper correctly enforces OR-based retention policies.
 
@@ -462,18 +467,6 @@ class TestTraceDataSweeper:
                     f"Project {project_id} ({test_case['description']}): "
                     f"trace IDs mismatch: expected {expected_trace_ids}, got {remaining_trace_ids}"
                 )
-
-
-@pytest.fixture
-async def sweeper_trigger() -> AsyncIterator[_SweeperController]:
-    """Replace the TraceDataSweeper's hourly sleep so a test drives each sweep and awaits it.
-
-    Request this before ``asgi_app``: the patch has to be in place when the app's lifespan
-    starts the sweeper, or the sweeper enters its real hourly sleep and ``sweep`` times out.
-    """
-    controller = _SweeperController()
-    with patch.object(TraceDataSweeper, "_sleep_until_next_hour", controller.park):
-        yield controller
 
 
 class TestOrphanSessionSweep:
