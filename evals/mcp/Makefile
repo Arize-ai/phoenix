@@ -35,3 +35,7 @@ mcp-format:
 .PHONY: mcp-fixture
 mcp-fixture:
 	$(MCP_PYTHON) -m scripts.prepare_patronus_trail --output $(MCP_DIR)/.private/trail $(ARGS)
+
+.PHONY: mcp-isolation-probe
+mcp-isolation-probe:
+	$(MCP_PYTHON) $(MCP_DIR)/isolation.py --docker-probe

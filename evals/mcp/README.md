@@ -48,3 +48,9 @@ payload and protected truth. Repeated preparation accepts identical contents;
 changed contents require a new output directory. Fixture preparation creates no
 Phoenix server or database. The programmatic `fixture.seed` helper requires a
 caller-managed, authorized fresh target and refuses an existing fixture project.
+
+`make mcp-isolation-probe` runs Harbor's pinned ephemeral Alpine capability probe.
+It does not create Phoenix state or make model calls. A passing probe is only a
+prerequisite: actual egress, web-tool, repository, grader, reward, and shutdown
+probes must pass for each installed agent condition before execution is enabled.
+The current Docker Desktop kernel lacks `CONFIG_NFT_FIB_INET`, so this gate fails.
