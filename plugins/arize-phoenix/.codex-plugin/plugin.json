@@ -7,7 +7,7 @@
     "email": "oss@arize.com",
     "url": "https://arize.com"
   },
-  "homepage": "https://arize.com/docs/phoenix",
+  "homepage": "https://arize.com/phoenix/",
   "repository": "https://github.com/Arize-ai/phoenix",
   "license": "Elastic-2.0",
   "keywords": [
@@ -28,7 +28,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://phoenix.arize.com",
+    "websiteURL": "https://arize.com/phoenix/",
     "defaultPrompt": [
       "Analyze my Phoenix traces and find the root cause.",
       "Help me build an evaluator for this AI application.",
