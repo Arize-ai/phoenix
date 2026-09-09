@@ -18,6 +18,69 @@ from tests.unit.graphql import AsyncGraphQLClient
 Resolver = Callable[[AsyncSession, Sequence[GlobalID | str]], Awaitable[list[int]]]
 
 
+@pytest.mark.parametrize(
+    "mutation_name, input_type, input_value",
+    [
+        (
+            "createSpanNotes",
+            "[CreateSpanNoteInput!]!",
+            [{"target": {"otelId": "span"}, "note": "review"}],
+        ),
+        (
+            "createTraceNotes",
+            "[CreateTraceNoteInput!]!",
+            [{"target": {"otelId": "trace"}, "note": "review"}],
+        ),
+        (
+            "createProjectSessionNotes",
+            "[CreateProjectSessionNoteInput!]!",
+            [{"target": {"sessionId": "session"}, "note": "review"}],
+        ),
+        (
+            "createProjectSessionAnnotations",
+            "CreateProjectSessionAnnotationInput!",
+            {
+                "projectSessionId": str(GlobalID("ProjectSession", "1")),
+                "name": "quality",
+                "label": "good",
+                "metadata": {},
+            },
+        ),
+        (
+            "updateProjectSessionAnnotations",
+            "UpdateAnnotationInput!",
+            {
+                "id": str(GlobalID("ProjectSessionAnnotation", "1")),
+                "name": "quality",
+                "label": "good",
+                "metadata": {},
+            },
+        ),
+    ],
+)
+async def test_annotation_mutations_require_annotator_kind(
+    gql_client: AsyncGraphQLClient,
+    caplog: pytest.LogCaptureFixture,
+    mutation_name: str,
+    input_type: str,
+    input_value: object,
+) -> None:
+    result = await gql_client.execute(
+        f"""
+        mutation Annotate($input: {input_type}) {{
+          {mutation_name}(input: $input) {{ __typename }}
+        }}
+        """,
+        {"input": input_value},
+    )
+
+    assert result.data is None
+    assert result.errors
+    assert (
+        "Field 'annotatorKind' of required type 'AnnotatorKind!' was not provided." in caplog.text
+    )
+
+
 @pytest.fixture
 async def note_targets(
     db: DbSessionFactory,
@@ -199,7 +262,11 @@ async def test_note_target_requires_exactly_one_non_null_identifier(
           {mutation_name}(input: $input) {{ __typename }}
         }}
         """,
-        {"input": [{"target": targets[invalid_target], "note": "review"}]},
+        {
+            "input": [
+                {"target": targets[invalid_target], "annotatorKind": "HUMAN", "note": "review"}
+            ]
+        },
     )
 
     assert result.data is None
@@ -236,9 +303,10 @@ async def test_session_note_target_preserves_literal_session_id(
         """,
         {
             "input": [
-                {"target": {"sessionId": raw_id}, "note": "raw session"},
+                {"target": {"sessionId": raw_id}, "annotatorKind": "HUMAN", "note": "raw session"},
                 {
                     "target": {"id": str(GlobalID("ProjectSession", str(first.id)))},
+                    "annotatorKind": "HUMAN",
                     "note": "node session",
                 },
             ]

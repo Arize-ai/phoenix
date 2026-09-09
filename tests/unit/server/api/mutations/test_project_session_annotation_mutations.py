@@ -519,6 +519,7 @@ class TestProjectSessionAnnotationMutations:
         # Use the basic annotation we created
         patch_input = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": created_basic_annotation["id"],
                 "name": "test_annotation_renamed",
                 "label": "UPDATED_LABEL",  # Provide label to satisfy validation
@@ -543,6 +544,7 @@ class TestProjectSessionAnnotationMutations:
         # B2. Update nonexistent annotation should error
         nonexistent_patch_input = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": str(GlobalID("ProjectSessionAnnotation", "999999")),
                 "name": "should_fail",
                 "label": "DUMMY_LABEL",  # Provide label to satisfy validation
@@ -562,6 +564,7 @@ class TestProjectSessionAnnotationMutations:
         # B3. Update with wrong type GID should error
         invalid_gid_patch_input = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": str(GlobalID("Span", "999")),
                 "name": "should_fail",
                 "label": "DUMMY_LABEL",  # Provide label to satisfy validation
@@ -581,6 +584,7 @@ class TestProjectSessionAnnotationMutations:
         # B4. Update score from non-null to null (with label to satisfy validation)
         score_to_null_input = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": created_omitted_identifier_annotation[
                     "id"
                 ],  # Use the annotation with score=0.5
@@ -623,6 +627,7 @@ class TestProjectSessionAnnotationMutations:
         # B5. Update with score=null, label=null, explanation="" should fail validation
         invalid_all_null_input: dict[str, Any] = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": created_basic_annotation["id"],
                 "name": "should_fail_validation",
                 "score": None,
@@ -646,6 +651,7 @@ class TestProjectSessionAnnotationMutations:
         # Fields not provided in the input are reset to their default values (null)
         score_only_input = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": created_first_metadata_annotation["id"],  # Use annotation with score=0.1
                 "name": created_first_metadata_annotation["name"],  # Keep same name
                 "score": 0.95,  # Change score from 0.1 to 0.95
@@ -672,6 +678,7 @@ class TestProjectSessionAnnotationMutations:
         # B7. Test individual field update: label only
         label_only_input = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": created_second_metadata_annotation["id"],  # Use annotation with label="B"
                 "name": created_second_metadata_annotation["name"],  # Keep same name
                 "label": "UPDATED_B_LABEL",  # Change label from "B" to "UPDATED_B_LABEL"
@@ -698,6 +705,7 @@ class TestProjectSessionAnnotationMutations:
         # B8. Test individual field update: explanation only
         explanation_only_input = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": created_basic_annotation["id"],  # Use basic annotation
                 "name": "explanation_only_test",  # Change name too
                 "explanation": "This is a completely new explanation",  # Change explanation
@@ -726,6 +734,7 @@ class TestProjectSessionAnnotationMutations:
         # B9. Test setting field to null: label from non-null to null
         label_to_null_input = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": updated_label_annotation["id"],  # Use annotation that has label
                 "name": "label_set_to_null",
                 "label": None,
@@ -751,6 +760,7 @@ class TestProjectSessionAnnotationMutations:
         # B10. Test setting field to null: explanation from non-null to null
         explanation_to_null_input = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": updated_explanation_annotation["id"],  # Use annotation that has explanation
                 "name": "explanation_set_to_null",
                 "explanation": None,
@@ -801,6 +811,7 @@ class TestProjectSessionAnnotationMutations:
         # B12. Test enum field update: source (APP → API)
         source_input = {
             "input": {
+                "annotatorKind": "HUMAN",
                 "id": created_omitted_identifier_annotation[
                     "id"
                 ],  # This was created with source=APP
@@ -1035,8 +1046,10 @@ class TestProjectSessionNoteMutations:
     }
     """
 
+    @pytest.mark.parametrize("annotator_kind", ["HUMAN", "LLM", "CODE"])
     async def test_create_by_node_and_session_id_preserves_note_semantics(
         self,
+        annotator_kind: str,
         project_session_data: models.ProjectSession,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -1049,10 +1062,12 @@ class TestProjectSessionNoteMutations:
                         "target": {
                             "id": str(GlobalID("ProjectSession", str(project_session_data.id)))
                         },
+                        "annotatorKind": annotator_kind,
                         "note": " node note ",
                     },
                     {
                         "target": {"sessionId": project_session_data.session_id},
+                        "annotatorKind": annotator_kind,
                         "note": "session note",
                         "identifier": " coding ",
                     },
@@ -1067,7 +1082,7 @@ class TestProjectSessionNoteMutations:
         assert all(note["name"] == "note" for note in notes)
         assert all(note["label"] is None for note in notes)
         assert all(note["score"] is None for note in notes)
-        assert all(note["annotatorKind"] == "HUMAN" for note in notes)
+        assert all(note["annotatorKind"] == annotator_kind for note in notes)
         assert all(note["metadata"] == {} for note in notes)
         assert all(note["source"] == "APP" for note in notes)
         assert notes[0]["identifier"].startswith("px-session-note:")
@@ -1084,6 +1099,7 @@ class TestProjectSessionNoteMutations:
         assert len(stored_notes) == 2
         assert all(note.project_session_id == project_session_data.id for note in stored_notes)
         assert all(note.user_id is None for note in stored_notes)
+        assert all(note.annotator_kind == annotator_kind for note in stored_notes)
 
     async def test_batch_preserves_order_and_returns_final_state_for_duplicate_keys(
         self,
@@ -1097,15 +1113,35 @@ class TestProjectSessionNoteMutations:
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": {"id": node_id}, "note": "draft", "identifier": "coding"},
-                    {"target": {"sessionId": external_id}, "note": "anonymous first"},
-                    {"target": {"sessionId": external_id}, "note": "other", "identifier": "other"},
+                    {
+                        "target": {"id": node_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "draft",
+                        "identifier": "coding",
+                    },
                     {
                         "target": {"sessionId": external_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "anonymous first",
+                    },
+                    {
+                        "target": {"sessionId": external_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "other",
+                        "identifier": "other",
+                    },
+                    {
+                        "target": {"sessionId": external_id},
+                        "annotatorKind": "HUMAN",
                         "note": "final",
                         "identifier": " coding ",
                     },
-                    {"target": {"id": node_id}, "note": "anonymous second", "identifier": "  "},
+                    {
+                        "target": {"id": node_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "anonymous second",
+                        "identifier": "  ",
+                    },
                 ]
             },
         )
@@ -1133,7 +1169,11 @@ class TestProjectSessionNoteMutations:
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": {"sessionId": project_session_data.session_id}, "note": "first"}
+                    {
+                        "target": {"sessionId": project_session_data.session_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "first",
+                    }
                 ]
             },
         )
@@ -1141,7 +1181,11 @@ class TestProjectSessionNoteMutations:
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": {"sessionId": project_session_data.session_id}, "note": "second"}
+                    {
+                        "target": {"sessionId": project_session_data.session_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "second",
+                    }
                 ]
             },
         )
@@ -1151,6 +1195,7 @@ class TestProjectSessionNoteMutations:
                 "input": [
                     {
                         "target": {"sessionId": project_session_data.session_id},
+                        "annotatorKind": "HUMAN",
                         "note": "draft",
                         "identifier": "coding",
                     }
@@ -1163,6 +1208,7 @@ class TestProjectSessionNoteMutations:
                 "input": [
                     {
                         "target": {"sessionId": project_session_data.session_id},
+                        "annotatorKind": "LLM",
                         "note": "final",
                         "identifier": "coding",
                     }
@@ -1204,6 +1250,7 @@ class TestProjectSessionNoteMutations:
             )
         assert len(notes) == 3
         assert [note.explanation for note in notes if note.identifier == "coding"] == ["final"]
+        assert [note.annotator_kind for note in notes if note.identifier == "coding"] == ["LLM"]
 
     @pytest.mark.parametrize(
         "target, expected_message",
@@ -1232,7 +1279,7 @@ class TestProjectSessionNoteMutations:
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": target, "note": "review"}]},
+            {"input": [{"target": target, "annotatorKind": "HUMAN", "note": "review"}]},
         )
 
         assert result.data is None
@@ -1246,7 +1293,15 @@ class TestProjectSessionNoteMutations:
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
-            {"input": [{"target": {"sessionId": project_session_data.session_id}, "note": " \t "}]},
+            {
+                "input": [
+                    {
+                        "target": {"sessionId": project_session_data.session_id},
+                        "annotatorKind": "HUMAN",
+                        "note": " \t ",
+                    }
+                ]
+            },
         )
 
         assert result.data is None
@@ -1265,6 +1320,7 @@ class TestProjectSessionNoteMutations:
                 "input": [
                     {
                         "target": {"sessionId": project_session_data.session_id},
+                        "annotatorKind": "HUMAN",
                         "note": "keep until valid delete",
                     }
                 ]
@@ -1373,7 +1429,11 @@ class TestProjectSessionNoteMutations:
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": {"sessionId": project_session_data.session_id}, "note": "protected"}
+                    {
+                        "target": {"sessionId": project_session_data.session_id},
+                        "annotatorKind": "HUMAN",
+                        "note": "protected",
+                    }
                 ]
             },
         )

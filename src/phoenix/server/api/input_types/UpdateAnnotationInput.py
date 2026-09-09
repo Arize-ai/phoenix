@@ -13,7 +13,7 @@ from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 class UpdateAnnotationInput:
     id: GlobalID
     name: str
-    annotator_kind: AnnotatorKind = AnnotatorKind.HUMAN
+    annotator_kind: AnnotatorKind
     label: Optional[str] = None
     score: Optional[float] = None
     explanation: Optional[str] = None

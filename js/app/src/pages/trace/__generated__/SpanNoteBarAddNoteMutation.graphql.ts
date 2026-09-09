@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad0a740fa7ccd748278f9f95149f3cd2>>
+ * @generated SignedSource<<0828b375ebda119dbef7f3820becd58e>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,9 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type CreateSpanNoteInput = {
+  annotatorKind: AnnotatorKind;
   identifier?: string | null;
   note: string;
   target: SpanIdentifierInput;
