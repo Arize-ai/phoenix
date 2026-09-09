@@ -59,8 +59,10 @@ def render_job(
         or results.fragment
     ):
         raise ValueError("Results endpoint must be a credential-free URL")
-    if target.hostname == results.hostname and target.port == results.port:
-        raise ValueError("Target and results roles require separate endpoints")
+    if target.hostname == results.hostname:
+        raise ValueError(
+            "Target and results require different hosts; host allowlists do not isolate ports"
+        )
     agent = "claude-code" if condition.startswith("claude-") else "codex"
     interface = condition.rsplit("-", 1)[1]
     requested = requested_model or MATRIX["requested_models"][agent]

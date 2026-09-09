@@ -77,3 +77,14 @@ def test_no_silent_model_substitution_or_endpoint_credentials(tmp_path):
     for bad in ("http://secret@target", "http://target?key=secret", "file:///tmp/db"):
         with pytest.raises(ValueError):
             render_job("codex-mcp", **(args | {"target_endpoint": bad}))
+
+
+def test_target_cannot_share_results_host_on_another_port(tmp_path):
+    with pytest.raises(ValueError, match="different hosts"):
+        render_job(
+            "codex-mcp",
+            tasks=tmp_path,
+            target_endpoint="http://target:6007",
+            results_endpoint="http://target:6006",
+            job_name="test",
+        )
