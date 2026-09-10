@@ -17,8 +17,7 @@ import {
   Flex,
   Icon,
   Icons,
-  PageHeader,
-  Skeleton,
+  Loading,
   View,
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
@@ -30,7 +29,6 @@ import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-import { PlaygroundModeSelect } from "../PlaygroundModeSelect";
 import type { EvaluatorPlaygroundPreviewMutation } from "./__generated__/EvaluatorPlaygroundPreviewMutation.graphql";
 import type { EvaluatorPlaygroundReviewMutation } from "./__generated__/EvaluatorPlaygroundReviewMutation.graphql";
 import type {
@@ -52,6 +50,7 @@ import {
   DEFAULT_SAMPLE_SIZE,
   parseSampleSize,
 } from "./CalibrationSettingsButton";
+import { EvaluatorPlaygroundFrame } from "./EvaluatorPlaygroundFrame";
 import { EvaluatorPlaygroundRunButton } from "./EvaluatorPlaygroundRunButton";
 import { EvaluatorSlot } from "./EvaluatorSlot";
 import {
@@ -63,14 +62,6 @@ import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
 import { useEvaluatorWorkspaceOperations } from "./useEvaluatorWorkspaceOperations";
 
 const EMPTY_CONTEXT = { input: {}, output: {}, reference: {}, metadata: {} };
-
-const playgroundWrapCSS = css`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-`;
 
 /**
  * Matches the prompt playground's prompts wrap so the two modes share the same
@@ -94,6 +85,8 @@ const slotCSS = css`
   min-width: 632px;
 `;
 
+const EMPTY_EXAMPLES: CalibrationExample[] = [];
+
 export default function EvaluatorPlayground() {
   const [searchParams, setSearchParams] = useSearchParams();
   const environment = useRelayEnvironment();
@@ -105,19 +98,28 @@ export default function EvaluatorPlayground() {
   const hasComparison = visibleSlotIds.length > 1;
   const sampleSize = parseSampleSize(searchParams.get("sampleSize"));
   const [sampleGeneration, setSampleGeneration] = useState(0);
-  const sampleKey = JSON.stringify([
+  const sampleScope = JSON.stringify([
     sampleGeneration,
     datasetId,
     splitIds,
     versionId,
-    sampleSize,
   ]);
+  const sampleKey = JSON.stringify([sampleScope, sampleSize]);
   const [sample, setSample] = useState<{
     key: string;
+    scope: string;
     examples: CalibrationExample[];
   } | null>(null);
-  const examples =
-    sample?.key === sampleKey ? sample.examples.slice(0, sampleSize) : [];
+  const isSampleLoading = datasetId != null && sample?.key !== sampleKey;
+  // Keep the displayed sample mounted while a size change loads. Execution and
+  // review still require the requested sample, and a different dataset/split/
+  // version must never display rows from the previous scope.
+  const displayedExamples =
+    sample?.scope === sampleScope ? sample.examples : EMPTY_EXAMPLES;
+  const examples = isSampleLoading ? EMPTY_EXAMPLES : displayedExamples;
+  const sampleContext = displayedExamples[0]
+    ? createCalibrationContext(displayedExamples[0])
+    : EMPTY_CONTEXT;
   const [slots, setSlots] = useState<Partial<Record<SlotId, SlotSnapshot>>>({});
   const [runs, setRuns] = useState<Partial<Record<SlotId, CalibrationRun>>>({});
   const controllers = useRef<Partial<Record<SlotId, AbortController>>>({});
@@ -382,11 +384,24 @@ export default function EvaluatorPlayground() {
           outputCount: slot.outputNames.length,
         })
       : null;
-    if (!datasetId || !labelName || isSavingReview)
+    if (!datasetId || !labelName || isSavingReview || isSampleLoading)
       return Promise.resolve({
         ok: false,
-        error: "Dataset/output unavailable or another review is saving.",
+        error:
+          "Wait for the dataset/output to load or the current review to finish.",
       });
+    if (
+      !examples.some(
+        (current) =>
+          current.id === example.id && current.revisionId === example.revisionId
+      )
+    ) {
+      return Promise.resolve({
+        ok: false,
+        error:
+          "This example is no longer in the current sample. Load it again before reviewing.",
+      });
+    }
     return new Promise((resolve) => {
       setPendingReview({ example, slotId, output });
       setSavingId(example.id);
@@ -469,29 +484,21 @@ export default function EvaluatorPlayground() {
     );
 
   return (
-    <div css={playgroundWrapCSS}>
-      <View borderBottomColor="default" borderBottomWidth="thin">
-        <PageHeader
-          title="Playground"
-          subTitle={<PlaygroundModeSelect />}
-          extra={
-            <Flex direction="row" gap="size-100" alignItems="center">
-              {providers.length ? (
-                <CredentialsDropdown
-                  providers={providers}
-                  isDisabled={isRunning}
-                />
-              ) : null}
-              <EvaluatorPlaygroundRunButton
-                isRunning={isRunning}
-                isDisabled={!canRun}
-                onRun={() => void runSlots(visibleSlotIds)}
-                onStop={stop}
-              />
-            </Flex>
-          }
-        />
-      </View>
+    <EvaluatorPlaygroundFrame
+      actions={
+        <Flex direction="row" gap="size-100" alignItems="center">
+          {providers.length ? (
+            <CredentialsDropdown providers={providers} isDisabled={isRunning} />
+          ) : null}
+          <EvaluatorPlaygroundRunButton
+            isRunning={isRunning}
+            isDisabled={!canRun}
+            onRun={() => void runSlots(visibleSlotIds)}
+            onStop={stop}
+          />
+        </Flex>
+      }
+    >
       <Group orientation="vertical" style={{ flex: 1, minHeight: 0 }}>
         <TitledPanel
           title="Evaluators"
@@ -529,7 +536,7 @@ export default function EvaluatorPlayground() {
                   aria-label={`Evaluator ${slotId}`}
                   css={slotCSS}
                 >
-                  <Suspense fallback={<Skeleton height={240} />}>
+                  <Suspense fallback={<Loading size="S" />}>
                     <EvaluatorSlot
                       slotId={slotId}
                       registerAgentSlot={registerAgentSlot}
@@ -540,11 +547,7 @@ export default function EvaluatorPlayground() {
                       initialDatasetEvaluatorId={searchParams.get(
                         `datasetEvaluator${slotId}`
                       )}
-                      sampleContext={
-                        examples[0]
-                          ? createCalibrationContext(examples[0])
-                          : EMPTY_CONTEXT
-                      }
+                      sampleContext={sampleContext}
                       onChange={(snapshot) =>
                         setSlots((previous) =>
                           previous[slotId]?.revision === snapshot.revision &&
@@ -611,34 +614,36 @@ export default function EvaluatorPlayground() {
           panelProps={{ defaultSize: 45, minSize: 15 }}
           extra={
             <Flex direction="row" alignItems="center" gap="size-100">
-              <DatasetSelectWithSplits
-                size="S"
-                placeholder="Select a dataset"
-                isDisabled={isRunning || isSavingReview}
-                value={datasetId ? { datasetId, splitIds } : null}
-                onSelectionChange={({
-                  datasetId: nextDatasetId,
-                  splitIds: nextSplits,
-                }) => {
-                  stop();
-                  setSearchParams((previous) => {
-                    const next = new URLSearchParams(previous);
-                    next.delete("datasetId");
-                    next.delete("splitId");
-                    next.delete("datasetVersionId");
-                    if (nextDatasetId) next.set("datasetId", nextDatasetId);
-                    nextSplits.forEach((splitId) =>
-                      next.append("splitId", splitId)
-                    );
-                    if (nextDatasetId !== datasetId) {
-                      EVALUATOR_SLOT_IDS.forEach((slot) =>
-                        next.delete(`datasetEvaluator${slot}`)
+              <Suspense fallback={<Loading size="S" />}>
+                <DatasetSelectWithSplits
+                  size="S"
+                  placeholder="Select a dataset"
+                  isDisabled={isRunning || isSavingReview}
+                  value={datasetId ? { datasetId, splitIds } : null}
+                  onSelectionChange={({
+                    datasetId: nextDatasetId,
+                    splitIds: nextSplits,
+                  }) => {
+                    stop();
+                    setSearchParams((previous) => {
+                      const next = new URLSearchParams(previous);
+                      next.delete("datasetId");
+                      next.delete("splitId");
+                      next.delete("datasetVersionId");
+                      if (nextDatasetId) next.set("datasetId", nextDatasetId);
+                      nextSplits.forEach((splitId) =>
+                        next.append("splitId", splitId)
                       );
-                    }
-                    return next;
-                  });
-                }}
-              />
+                      if (nextDatasetId !== datasetId) {
+                        EVALUATOR_SLOT_IDS.forEach((slot) =>
+                          next.delete(`datasetEvaluator${slot}`)
+                        );
+                      }
+                      return next;
+                    });
+                  }}
+                />
+              </Suspense>
               <CalibrationSettingsButton
                 sampleSize={sampleSize}
                 isDisabled={isRunning}
@@ -653,16 +658,19 @@ export default function EvaluatorPlayground() {
           }
         >
           {datasetId ? (
-            <Suspense fallback={<Skeleton height={160} />}>
+            <Suspense key={sampleKey} fallback={null}>
               <CalibrationDataset
-                key={sampleKey}
                 fetchKey={sampleKey}
                 datasetId={datasetId}
                 first={sampleSize}
                 splitIds={splitIds}
                 versionId={versionId}
                 onLoad={(loaded) =>
-                  setSample({ key: sampleKey, examples: loaded })
+                  setSample({
+                    key: sampleKey,
+                    scope: sampleScope,
+                    examples: loaded,
+                  })
                 }
               />
             </Suspense>
@@ -670,6 +678,7 @@ export default function EvaluatorPlayground() {
           {datasetId ? (
             <CalibrationResults
               examples={examples}
+              isLoading={isSampleLoading}
               sampleSize={sampleSize}
               runs={currentRuns}
               slots={slots}
@@ -719,7 +728,7 @@ export default function EvaluatorPlayground() {
         blocker={blocker}
         message="Leave evaluator playground? Unsaved drafts and run results will be lost. Saved expected labels remain in the dataset."
       />
-    </div>
+    </EvaluatorPlaygroundFrame>
   );
 }
 

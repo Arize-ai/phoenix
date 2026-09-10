@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
-import { useState, type ReactNode } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { Pressable } from "react-aria-components";
+import { shallow } from "zustand/shallow";
 
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 import {
@@ -9,6 +11,7 @@ import {
   Counter,
   Dialog,
   DialogTrigger,
+  ExpandableContent,
   Flex,
   Icon,
   IconButton,
@@ -16,6 +19,7 @@ import {
   Popover,
   SegmentedControl,
   SegmentedControlItem,
+  Loading,
   PopoverArrow,
   Text,
   TextField,
@@ -32,7 +36,6 @@ import {
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
-import { JSONText } from "@phoenix/components/code/JSONText";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
 import {
@@ -40,7 +43,7 @@ import {
   quietHoverCSS,
 } from "@phoenix/components/core/styles";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import { CellTop } from "@phoenix/components/table";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -53,15 +56,82 @@ import type {
   SlotExpectations,
 } from "./calibration";
 import { matchesExpectedOutput } from "./calibration";
+import { CalibrationResultsTable } from "./CalibrationResultsTable";
 import { CalibrationSelect } from "./CalibrationSelect";
 import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
 import { getSlotIndex } from "./evaluatorSlotTypes";
 
 const NO_VALUE = "—";
 
-export function CalibrationResults({
+/** Retain only presentation data. Action handlers always come from the current
+ * workspace, so the loading snapshot cannot execute or save against old data. */
+export function CalibrationResults(
+  props: ComponentProps<typeof CalibrationResultsContent>
+) {
+  const nextSnapshot = {
+    isReady: !props.isLoading,
+    examples: props.examples,
+    sampleSize: props.sampleSize,
+    runs: props.runs,
+    slots: props.slots,
+    visibleSlotIds: props.visibleSlotIds,
+    expected: props.expected,
+    filter: props.filter,
+    staleSlots: props.staleSlots,
+  };
+  const [snapshot, setSnapshot] = useState(nextSnapshot);
+  if (!props.isLoading && !shallow(snapshot, nextSnapshot)) {
+    setSnapshot(nextSnapshot);
+  }
+  const { isReady, ...displayed } = props.isLoading ? snapshot : nextSnapshot;
+  const isShowingPreviousSample = props.isLoading && isReady;
+  return (
+    <div css={resultsSnapshotCSS}>
+      <div inert={props.isLoading} css={resultsContentCSS}>
+        <CalibrationResultsContent {...props} {...displayed} />
+      </div>
+      {isShowingPreviousSample ? (
+        <div css={loadingOverlayCSS} role="status">
+          <Flex direction="column" alignItems="center" gap="size-100">
+            <ProgressCircle isIndeterminate aria-label="Loading sample" />
+            <Text weight="heavy">Loading sample…</Text>
+            <Text size="S">Previous results shown · review paused</Text>
+          </Flex>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const resultsSnapshotCSS = css`
+  position: relative;
+  height: 100%;
+  min-height: 0;
+`;
+const resultsContentCSS = css`
+  position: relative;
+  z-index: 0;
+  height: 100%;
+  min-height: 0;
+`;
+const loadingOverlayCSS = css`
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(
+    in srgb,
+    var(--global-background-color-default) 80%,
+    transparent
+  );
+`;
+
+function CalibrationResultsContent({
   examples,
   sampleSize,
+  isLoading,
   runs,
   slots,
   visibleSlotIds,
@@ -77,6 +147,7 @@ export function CalibrationResults({
 }: {
   examples: CalibrationExample[];
   sampleSize: number;
+  isLoading: boolean;
   runs: Partial<Record<SlotId, CalibrationRun>>;
   slots: Partial<Record<SlotId, SlotSnapshot>>;
   visibleSlotIds: SlotId[];
@@ -94,6 +165,9 @@ export function CalibrationResults({
   onRetryReview: () => void;
   onReloadSample: () => void;
 }) {
+  const positions = new Map(
+    examples.map((example, index) => [example.id, index + 1])
+  );
   const views = [
     { id: "all", label: "All", examples },
     {
@@ -127,6 +201,24 @@ export function CalibrationResults({
     },
   ];
   const activeView = views.find((view) => view.id === filter) ?? views[0];
+  const columns: ColumnDef<unknown>[] = [
+    { id: "input", header: "Input", size: 300, minSize: 200 },
+    { id: "output", header: "Output", size: 300, minSize: 200 },
+    ...visibleSlotIds.map((slot) => ({
+      id: slot,
+      size: 240,
+      minSize: 180,
+      header: () => (
+        <EvaluatorColumnHeader
+          slot={slot}
+          name={slots[slot]?.name}
+          run={runs[slot]}
+          expected={expected[slot]}
+          examples={examples}
+        />
+      ),
+    })),
+  ];
   return (
     <Flex direction="column" height="100%" minHeight={0}>
       <View
@@ -144,9 +236,11 @@ export function CalibrationResults({
           wrap
         >
           <Text size="S" color="text-500">
-            {examples.length < sampleSize
-              ? `All ${examples.length} examples`
-              : `First ${sampleSize} examples`}
+            {isLoading && !examples.length
+              ? "Loading sample…"
+              : examples.length < sampleSize
+                ? `All ${examples.length} examples`
+                : `First ${sampleSize} examples`}
           </Text>
           <SegmentedControl
             aria-label="Show results"
@@ -203,28 +297,18 @@ export function CalibrationResults({
         </Alert>
       ) : null}
       <div css={tableWrapCSS}>
-        <table
-          css={css(tableCSS, borderedTableCSS, resultsTableCSS)}
-          aria-label="Evaluator comparison results"
-        >
-          <thead>
-            <tr>
-              <th css={indexColumnCSS}>#</th>
-              <th css={exampleColumnCSS}>Example</th>
-              {visibleSlotIds.map((slot) => (
-                <th key={slot} css={slotColumnCSS}>
-                  <EvaluatorColumnHeader
-                    slot={slot}
-                    name={slots[slot]?.name}
-                    run={runs[slot]}
-                    expected={expected[slot]}
-                    examples={examples}
-                  />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          {!activeView.examples.length ? (
+        <CalibrationResultsTable columns={columns} isLoading={isLoading}>
+          {isLoading && !examples.length ? (
+            <tbody>
+              <tr>
+                <td colSpan={visibleSlotIds.length + 2}>
+                  <View paddingY="size-200">
+                    <Loading size="S" />
+                  </View>
+                </td>
+              </tr>
+            </tbody>
+          ) : !activeView.examples.length ? (
             <TableEmptyWrap>
               <CompactEmptyState
                 icon={<Icon svg={<Icons.Database />} />}
@@ -235,25 +319,39 @@ export function CalibrationResults({
           ) : (
             <tbody>
               {activeView.examples.map((example) => {
-                const position = examples.indexOf(example) + 1;
+                const position = positions.get(example.id)!;
                 return (
                   <tr key={example.id}>
-                    <td className="table__cell" css={indexColumnCSS}>
-                      <Text color="text-500" fontFamily="mono">
-                        {position}
-                      </Text>
+                    <td className="table__cell results-table__example-cell">
+                      <ExampleFieldCell
+                        label="input"
+                        value={example.input}
+                        position={position}
+                      />
                     </td>
-                    <td className="table__cell">
-                      <ExampleCell example={example} position={position} />
+                    <td className="table__cell results-table__example-cell">
+                      <ExampleFieldCell
+                        label="output"
+                        value={example.output}
+                        position={position}
+                      />
                     </td>
                     {visibleSlotIds.map((slot) => (
-                      <td className="table__cell" key={slot}>
+                      <td
+                        className="table__cell results-table__evaluator-cell"
+                        key={slot}
+                      >
                         <EvaluatorCell
-                          key={`${slot}:${example.revisionId}:${slots[slot]?.revision}`}
+                          key={JSON.stringify([
+                            slots[slot]?.name,
+                            slots[slot]?.selectedOutputName,
+                            slots[slot]?.outputNames.length === 1,
+                          ])}
                           slot={slot}
                           name={slots[slot]?.name || `Evaluator ${slot}`}
                           position={position}
                           result={runs[slot]?.predictions[example.id]}
+                          isLoading={isLoading}
                           isPending={
                             !!runs[slot]?.isRunning &&
                             !runs[slot]?.predictions[example.id]
@@ -266,9 +364,12 @@ export function CalibrationResults({
                             )?.labels ?? []
                           }
                           isDisabled={
-                            savingId != null || !slots[slot]?.selectedOutputName
+                            isLoading ||
+                            savingId != null ||
+                            !slots[slot]?.selectedOutputName
                           }
                           isSaving={savingId === example.id}
+                          isStale={staleSlots.includes(slot)}
                           onSave={(output) => onReview(example, slot, output)}
                         />
                       </td>
@@ -278,7 +379,7 @@ export function CalibrationResults({
               })}
             </tbody>
           )}
-        </table>
+        </CalibrationResultsTable>
       </div>
     </Flex>
   );
@@ -337,25 +438,31 @@ function EvaluatorCell({
   name,
   position,
   result,
+  isLoading,
   isPending,
   expected,
   labels,
   isDisabled,
   isSaving,
+  isStale,
   onSave,
 }: {
   slot: SlotId;
   name: string;
   position: number;
   result?: CalibrationPrediction;
+  isLoading: boolean;
   isPending: boolean;
   expected?: ExpectedOutput;
   labels: string[];
   isDisabled: boolean;
   isSaving: boolean;
+  /** The evaluator changed since this result was produced. */
+  isStale: boolean;
   onSave: (output: ExpectedOutput | null) => Promise<UIOperationResult>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  if (isLoading && isEditing) setIsEditing(false);
   const prediction = result?.status === "success" ? result : null;
   const verdict =
     prediction && expected
@@ -363,7 +470,6 @@ function EvaluatorCell({
         ? "match"
         : "mismatch"
       : null;
-  const canAccept = prediction != null && verdict !== "match";
   const value = (
     <button
       className="button--reset"
@@ -371,19 +477,26 @@ function EvaluatorCell({
       aria-label={`Evaluator ${slot} result for example ${position}. Click to edit the expected output.`}
     >
       <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
-        {verdict ? <VerdictIcon verdict={verdict} /> : null}
+        {verdict === "mismatch" ? <VerdictIcon verdict={verdict} /> : null}
         <PredictionValue result={result} isPending={isPending} />
       </Flex>
     </button>
   );
   return (
-    <Flex direction="column" gap="size-50" minWidth={0}>
-      <Flex
-        direction="row"
-        gap="size-100"
-        alignItems="center"
-        justifyContent="space-between"
-      >
+    <Flex
+      direction="column"
+      height="100%"
+      minWidth={0}
+      justifyContent="space-between"
+    >
+      <CellTop>
+        <EvaluatorCellStatus
+          result={result}
+          isPending={isPending}
+          isStale={isStale}
+        />
+      </CellTop>
+      <Flex direction="column" gap="size-50" css={resultRegionCSS}>
         <DialogTrigger isOpen={isEditing} onOpenChange={setIsEditing}>
           {prediction ? (
             <AnnotationTooltip
@@ -405,57 +518,113 @@ function EvaluatorCell({
               aria-label={`Expected output for evaluator ${slot}`}
               style={{ width: 320 }}
             >
-              <ExpectedOutputForm
-                slot={slot}
-                expected={expected}
-                labels={labels}
-                isDisabled={isDisabled}
-                onSave={onSave}
-                onClose={() => setIsEditing(false)}
-              />
+              {isEditing ? (
+                <ExpectedOutputForm
+                  slot={slot}
+                  expected={expected}
+                  labels={labels}
+                  isDisabled={isDisabled}
+                  onSave={onSave}
+                  onClose={() => setIsEditing(false)}
+                />
+              ) : null}
             </Dialog>
           </Popover>
         </DialogTrigger>
+        {prediction?.explanation ? (
+          // Same treatment as the trace annotations list — muted, clamped,
+          // full text on hover — but clamped to the room this row gives it.
+          <Truncate
+            maxLines={EXPLANATION_MAX_LINES}
+            title={prediction.explanation}
+          >
+            <Text size="S" color="text-500">
+              {prediction.explanation}
+            </Text>
+          </Truncate>
+        ) : null}
+      </Flex>
+      {/* Always present, like the annotation band under a prompt playground
+          output: an unreviewed cell shows the same "--" placeholder that band
+          shows before an evaluator has run. */}
+      <div css={expectedBandCSS}>
+        <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
+          <Text size="XS" color="text-500">
+            expected
+          </Text>
+          {expected ? (
+            <CalibrationValue
+              label={expected.label}
+              score={expected.score}
+              size="S"
+            />
+          ) : (
+            <Text fontFamily="mono" color="text-300">
+              --
+            </Text>
+          )}
+        </Flex>
+        {/* One control in one place: pressed while the expected output is the
+            prediction, so pressing again clears it — an easy undo. */}
         {isSaving ? (
           <ProgressCircle isIndeterminate size="S" aria-label="Saving" />
-        ) : canAccept ? (
+        ) : (
           <TooltipTrigger>
             <IconButton
               size="S"
-              isDisabled={isDisabled}
-              aria-label={`Accept evaluator ${slot}'s output as expected for example ${position}`}
-              onPress={() =>
-                void onSave({
-                  label: prediction.label,
-                  score: prediction.score,
-                  explanation: prediction.explanation,
-                })
+              // Ghost like the other row actions; the pressed state is carried
+              // by the success color rather than a filled button.
+              color={verdict === "match" ? "success" : "text-500"}
+              aria-pressed={verdict === "match"}
+              isDisabled={isDisabled || (!prediction && verdict !== "match")}
+              aria-label={
+                verdict === "match"
+                  ? `Clear expected output for evaluator ${slot}, example ${position}`
+                  : `Accept evaluator ${slot}'s output as expected for example ${position}`
               }
+              onPress={() => {
+                if (verdict === "match") void onSave(null);
+                else if (prediction)
+                  void onSave({
+                    label: prediction.label,
+                    score: prediction.score,
+                    explanation: prediction.explanation,
+                  });
+              }}
             >
               <Icon svg={<Icons.Checkmark />} />
             </IconButton>
             <Tooltip>
               <TooltipArrow />
-              Accept as expected output
+              {verdict === "match"
+                ? "Clear expected output"
+                : "Accept as expected output"}
             </Tooltip>
           </TooltipTrigger>
-        ) : null}
-      </Flex>
-      {expected ? (
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <Text size="XS" color="text-500">
-            expected
-          </Text>
-          <CalibrationValue
-            label={expected.label}
-            score={expected.score}
-            size="XS"
-          />
-        </Flex>
-      ) : null}
+        )}
+      </div>
     </Flex>
   );
 }
+
+const resultRegionCSS = css`
+  flex: 1 1 auto;
+  padding: var(--global-table-cell-padding-y) var(--global-table-cell-padding-x);
+`;
+
+// The band the experiment compare table draws under an output for its
+// annotation list: a faint fill with a hairline above, running edge to edge.
+const expectedBandCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--global-dimension-size-100);
+  min-height: 32px;
+  padding: var(--global-dimension-size-50) var(--global-table-cell-padding-x);
+  border-top: var(--global-border-size-thin) solid var(--global-color-gray-100);
+  background-color: var(--global-color-gray-50);
+`;
 
 // The quiet hover wash the rest of the app uses for click-to-reveal text,
 // sized so the value sits flush with the accept button beside it.
@@ -624,15 +793,6 @@ function ExpectedOutputForm({
   );
 }
 
-// Two-line evaluator cells read better top-aligned with a little more room,
-// the way the experiment compare table lays out its annotation lists.
-const resultsTableCSS = css`
-  --global-table-cell-padding-y: var(--global-dimension-size-150);
-  tbody tr > td {
-    vertical-align: top;
-  }
-`;
-
 const tableWrapCSS = css`
   overflow: auto;
   scroll-padding-top: var(--global-dimension-size-800);
@@ -640,76 +800,103 @@ const tableWrapCSS = css`
   min-height: 0;
 `;
 
-const indexColumnCSS = css`
-  width: var(--global-dimension-size-500);
-  text-align: right;
-`;
+// Content height for the input and output cells. Sized so a typical single
+// message input — a `messages` array holding one role/content pair, about nine
+// lines pretty-printed — shows in full, since scanning inputs without expanding
+// each one is the point of this table. Still shorter than the experiment
+// table's primary content, as the evaluator cells beside these are two short
+// rows.
+const EXAMPLE_FIELD_HEIGHT = 220;
 
-const exampleColumnCSS = css`
-  min-width: 360px;
-`;
+// Lines of explanation that fit an evaluator cell at that row height: the row is
+// the example content plus its header strip; the evaluator cell spends its own
+// strip, the value row, padding, and the expected band, leaving about six
+// 20px lines. Clamping to that fills the cell without growing the row.
+const EXPLANATION_MAX_LINES = 6;
 
-const slotColumnCSS = css`
-  min-width: var(--global-dimension-size-2400);
-`;
-
-const exampleFieldCSS = css`
-  display: grid;
-  grid-template-columns: var(--global-dimension-size-600) minmax(0, 1fr);
-  gap: var(--global-dimension-size-100);
-  align-items: baseline;
-  .font-mono,
-  span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+const exampleFieldContentCSS = css`
+  flex: none;
+  padding: var(--global-dimension-size-200);
+  .cm-editor {
+    background: transparent !important;
   }
 `;
 
-/** The example's input and output at a glance, with the full JSON a click away. */
-function ExampleCell({
-  example,
+/**
+ * A dataset field (input or output) rendered the way the experiment compare
+ * table renders an example: a header strip, a fixed-height content area that
+ * fades, and the value as JSON. Always JSON — these fields are objects by
+ * construction, and one representation is what lets the cell become an editor
+ * later without a per-cell "which mode is this" decision.
+ */
+function ExampleFieldCell({
+  label,
+  value,
   position,
 }: {
-  example: CalibrationExample;
+  label: "input" | "output";
+  value: unknown;
   position: number;
 }) {
+  const json = JSON.stringify(value ?? null, null, 2);
   return (
-    <Flex direction="row" gap="size-100" alignItems="center">
-      <Flex direction="column" gap="size-50" flex="1 1 auto" minWidth={0}>
-        <div css={exampleFieldCSS}>
-          <Text size="XS" color="text-500">
-            input
-          </Text>
-          <Text size="S">
-            <JSONText json={example.input} maxLength={120} disableTitle />
-          </Text>
-        </div>
-        <div css={exampleFieldCSS}>
-          <Text size="XS" color="text-500">
-            output
-          </Text>
-          <Text size="S">
-            <JSONText json={example.output} maxLength={120} disableTitle />
-          </Text>
-        </div>
-      </Flex>
-      <DetailsPopover
-        label={`View example ${position}`}
-        icon={<Icons.Expand />}
-        width={560}
+    <Flex direction="column" height="100%">
+      <CellTop
+        extra={
+          <DetailsPopover
+            label={`View ${label} for example ${position}`}
+            icon={<Icons.Expand />}
+            width={560}
+          >
+            <JSONBlock
+              value={json}
+              basicSetup={{ lineNumbers: false, foldGutter: false }}
+            />
+          </DetailsPopover>
+        }
       >
-        <JSONBlock
-          value={JSON.stringify(
-            { input: example.input, output: example.output },
-            null,
-            2
-          )}
-          basicSetup={{ lineNumbers: false, foldGutter: false }}
-        />
-      </DetailsPopover>
+        <Text color="text-500">
+          {label === "input" ? `example ${position}` : "output"}
+        </Text>
+      </CellTop>
+      <ExpandableContent height={EXAMPLE_FIELD_HEIGHT}>
+        <div css={exampleFieldContentCSS}>
+          <JSONBlock
+            value={json}
+            basicSetup={{ lineNumbers: false, foldGutter: false }}
+          />
+        </div>
+      </ExpandableContent>
     </Flex>
   );
+}
+
+/**
+ * The strip above an evaluator result, the counterpart of the prompt
+ * playground's run status bar. Evaluator previews report no timing or cost, so
+ * this shows what the cell itself knows: queued, done, failed, or outdated.
+ */
+function EvaluatorCellStatus({
+  result,
+  isPending,
+  isStale,
+}: {
+  result?: CalibrationPrediction;
+  isPending: boolean;
+  isStale: boolean;
+}) {
+  if (isPending) {
+    return (
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <Icon svg={<Icons.Loader />} />
+        <Text color="text-500">Queued</Text>
+      </Flex>
+    );
+  }
+  if (!result) return <Text color="text-500">Ready</Text>;
+  if (result.status === "error") return <Text color="danger">Failed</Text>;
+  if (isStale) return <Text color="warning">Evaluator changed since run</Text>;
+  return <Text color="text-500">Evaluated</Text>;
 }
 
 /** The evaluator's output for one example, or why there isn't one yet. */
@@ -724,7 +911,7 @@ function PredictionValue({
     return isPending ? (
       <ProgressCircle isIndeterminate size="S" aria-label="Evaluating" />
     ) : (
-      <Text color="text-500">{NO_VALUE}</Text>
+      <Text color="text-500">Press run to evaluate</Text>
     );
   }
   if (result.status === "error")
