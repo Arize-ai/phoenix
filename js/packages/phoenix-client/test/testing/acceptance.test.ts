@@ -206,6 +206,205 @@ describe("acceptance criteria", () => {
       "Acceptance criteria failed:\n  FAIL valid_sql passRate 0.000 (need pass rate >= 1.000; 1 sample)"
     );
   });
+
+  it("counts runs with no annotation in the passRate denominator", () => {
+    const results = [
+      ...Array.from({ length: 70 }, () =>
+        createRun([{ name: "correctness", score: 1 }])
+      ),
+      ...Array.from({ length: 30 }, () => createRun([], "failed")),
+    ];
+
+    const [result] = evaluateAcceptanceCriteria({
+      criteria: [
+        {
+          annotationName: "correctness",
+          metric: "passRate",
+          passFn: (annotation) => annotation.score === 1,
+          minPassRate: 1,
+        },
+      ],
+      results,
+    });
+
+    // 70/100 runs pass; the 30 runs that logged no annotation count as
+    // non-passing instead of being dropped from the denominator.
+    expect(result).toMatchObject({
+      value: expect.closeTo(0.7, 3),
+      sampleCount: 100,
+      passed: false,
+    });
+  });
+
+  it("counts failed runs with a zero score in the passRate denominator", () => {
+    const results = [
+      ...Array.from({ length: 70 }, () =>
+        createRun([{ name: "correctness", score: 1 }])
+      ),
+      ...Array.from({ length: 30 }, () =>
+        createRun([{ name: "correctness", score: 0 }], "failed")
+      ),
+    ];
+
+    const [result] = evaluateAcceptanceCriteria({
+      criteria: [
+        {
+          annotationName: "correctness",
+          metric: "passRate",
+          passFn: (annotation) => annotation.score === 1,
+          minPassRate: 1,
+        },
+      ],
+      results,
+    });
+
+    expect(result).toMatchObject({
+      value: expect.closeTo(0.7, 3),
+      sampleCount: 100,
+      passed: false,
+    });
+  });
+
+  it("fails passRate when nearly every run logged no annotation", () => {
+    const results = [
+      ...Array.from({ length: 99 }, () => createRun([], "failed")),
+      createRun([{ name: "correctness", score: 1 }]),
+    ];
+
+    const [result] = evaluateAcceptanceCriteria({
+      criteria: [
+        {
+          annotationName: "correctness",
+          metric: "passRate",
+          passFn: (annotation) => annotation.score === 1,
+          minPassRate: 1,
+        },
+      ],
+      results,
+    });
+
+    // 1/100 passes; the 99 unannotated runs must not vanish from the sample.
+    expect(result).toMatchObject({
+      value: expect.closeTo(0.01, 3),
+      sampleCount: 100,
+      passed: false,
+    });
+  });
+
+  it("fails passRate when no run logged the annotation", () => {
+    const results = Array.from({ length: 100 }, () => createRun([], "failed"));
+
+    const [result] = evaluateAcceptanceCriteria({
+      criteria: [
+        {
+          annotationName: "correctness",
+          metric: "passRate",
+          passFn: (annotation) => annotation.score === 1,
+          minPassRate: 1,
+        },
+      ],
+      results,
+    });
+
+    expect(result).toMatchObject({
+      value: null,
+      sampleCount: 0,
+      passed: false,
+      failureReason: "no matching annotations found",
+    });
+  });
+
+  it("counts runs with no annotation as zero in the average", () => {
+    const results = [
+      ...Array.from({ length: 70 }, () =>
+        createRun([{ name: "quality", score: 1 }])
+      ),
+      ...Array.from({ length: 30 }, () => createRun([], "failed")),
+    ];
+
+    const [result] = evaluateAcceptanceCriteria({
+      criteria: [
+        { annotationName: "quality", metric: "average", threshold: 0.95 },
+      ],
+      results,
+    });
+
+    // (70×1 + 30×0) / 100 = 0.7, which misses the 0.95 bar.
+    expect(result).toMatchObject({
+      value: expect.closeTo(0.7, 3),
+      sampleCount: 100,
+      passed: false,
+    });
+  });
+
+  it("fails average when no run logged a valid score", () => {
+    const results = Array.from({ length: 100 }, () => createRun([], "failed"));
+
+    const [result] = evaluateAcceptanceCriteria({
+      criteria: [
+        { annotationName: "quality", metric: "average", threshold: 0.5 },
+      ],
+      results,
+    });
+
+    expect(result).toMatchObject({
+      value: null,
+      sampleCount: 0,
+      passed: false,
+      failureReason: "no numeric or boolean scores found",
+    });
+  });
+
+  it("excludes skipped runs from the denominator", () => {
+    const results = [
+      ...Array.from({ length: 70 }, () =>
+        createRun([{ name: "correctness", score: 1 }])
+      ),
+      ...Array.from({ length: 30 }, () => createRun([], "skipped")),
+    ];
+
+    const [result] = evaluateAcceptanceCriteria({
+      criteria: [
+        {
+          annotationName: "correctness",
+          metric: "passRate",
+          passFn: (annotation) => annotation.score === 1,
+          minPassRate: 1,
+        },
+      ],
+      results,
+    });
+
+    expect(result).toMatchObject({
+      value: 1,
+      sampleCount: 70,
+      passed: true,
+    });
+  });
+
+  it("passes when every run annotates and clears the bar", () => {
+    const results = Array.from({ length: 100 }, () =>
+      createRun([{ name: "correctness", score: 1 }])
+    );
+
+    const [result] = evaluateAcceptanceCriteria({
+      criteria: [
+        {
+          annotationName: "correctness",
+          metric: "passRate",
+          passFn: (annotation) => annotation.score === 1,
+          minPassRate: 1,
+        },
+      ],
+      results,
+    });
+
+    expect(result).toMatchObject({
+      value: 1,
+      sampleCount: 100,
+      passed: true,
+    });
+  });
 });
 
 function createResult(annotations: Annotation[]): TestResult {
@@ -213,6 +412,19 @@ function createResult(annotations: Annotation[]): TestResult {
     suiteName: "acceptance suite",
     testName: "case",
     status: "passed",
+    annotations,
+    durationMs: 1,
+  };
+}
+
+function createRun(
+  annotations: Annotation[],
+  status: TestResult["status"] = "passed"
+): TestResult {
+  return {
+    suiteName: "acceptance suite",
+    testName: "case",
+    status,
     annotations,
     durationMs: 1,
   };
