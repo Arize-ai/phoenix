@@ -7,7 +7,11 @@ import httpx
 import pytest
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.constants.server_requirements import DELETE_PROMPT, PATCH_PROMPT
+from phoenix.client.constants.server_requirements import (
+    CREATE_PROMPT_VERSION_METADATA,
+    DELETE_PROMPT,
+    PATCH_PROMPT,
+)
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
 from phoenix.client.types import NOT_GIVEN, PromptVersion
 
@@ -52,6 +56,22 @@ class _GuardSentinel(Exception):
     pass
 
 
+class _SyncGuard:
+    """Rejects the prompt version metadata requirement, as an old server would."""
+
+    def require(self, requirement: object) -> None:
+        if requirement is CREATE_PROMPT_VERSION_METADATA:
+            raise _GuardSentinel
+
+
+class _AsyncGuard:
+    """Rejects the prompt version metadata requirement, as an old server would."""
+
+    async def require(self, requirement: object) -> None:
+        if requirement is CREATE_PROMPT_VERSION_METADATA:
+            raise _GuardSentinel
+
+
 class TestPromptsCreate:
     def test_create_sends_and_returns_version_metadata(self) -> None:
         metadata = {"agent": "support", "dependencies": ["retriever", "answerer"]}
@@ -73,6 +93,94 @@ class TestPromptsCreate:
         result = Prompts(client).create(version=version, name="my-prompt")
 
         assert result.metadata == metadata
+
+    def test_create_omits_empty_version_metadata(self) -> None:
+        created_version = _make_prompt_version()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "metadata" not in json.loads(request.content)["version"]
+            return httpx.Response(200, json={"data": created_version})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        version = PromptVersion([{"role": "user", "content": "Hello"}], model_name="gpt-4o")
+
+        result = Prompts(client).create(version=version, name="my-prompt")
+
+        assert result.metadata == {}
+
+    def test_create_guards_version_metadata_against_old_servers(self) -> None:
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: pytest.fail("transport must not be reached")),
+            base_url="http://test",
+        )
+        version = PromptVersion(
+            [{"role": "user", "content": "Hello"}],
+            model_name="gpt-4o",
+            metadata={"agent": "support"},
+        )
+        with pytest.raises(_GuardSentinel):
+            Prompts(client, _guard=_SyncGuard()).create(  # type: ignore[arg-type]
+                version=version,
+                name="my-prompt",
+            )
+
+    def test_create_skips_metadata_guard_without_version_metadata(self) -> None:
+        created_version = _make_prompt_version()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"data": created_version})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        version = PromptVersion([{"role": "user", "content": "Hello"}], model_name="gpt-4o")
+
+        Prompts(client, _guard=_SyncGuard()).create(  # type: ignore[arg-type]
+            version=version,
+            name="my-prompt",
+        )
+
+
+class TestAsyncPromptsCreate:
+    @pytest.mark.asyncio
+    async def test_create_sends_and_returns_version_metadata(self) -> None:
+        metadata = {"agent": "support", "dependencies": ["retriever", "answerer"]}
+        created_version = _make_prompt_version(metadata=metadata)
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/v1/prompts"
+            assert json.loads(request.content)["version"]["metadata"] == metadata
+            return httpx.Response(200, json={"data": created_version})
+
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            base_url="http://test",
+        )
+        version = PromptVersion(
+            [{"role": "user", "content": "Hello"}],
+            model_name="gpt-4o",
+            metadata=metadata,
+        )
+
+        result = await AsyncPrompts(client).create(version=version, name="my-prompt")
+
+        assert result.metadata == metadata
+
+    @pytest.mark.asyncio
+    async def test_create_guards_version_metadata_against_old_servers(self) -> None:
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda r: pytest.fail("transport must not be reached")),
+            base_url="http://test",
+        )
+        version = PromptVersion(
+            [{"role": "user", "content": "Hello"}],
+            model_name="gpt-4o",
+            metadata={"agent": "support"},
+        )
+        with pytest.raises(_GuardSentinel):
+            await AsyncPrompts(client, _guard=_AsyncGuard()).create(  # type: ignore[arg-type]
+                version=version,
+                name="my-prompt",
+            )
 
 
 class TestPromptsUpdate:

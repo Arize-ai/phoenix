@@ -102,6 +102,14 @@ DATASET_UPLOAD_SPLIT_KEY = ParameterRequirement(
     min_server_version=Version(15, 0, 0),
 )
 
+CREATE_PROMPT_VERSION_METADATA = ParameterRequirement(
+    parameter_name="metadata",
+    parameter_location="body",
+    route="POST /v1/prompts",
+    min_server_version=Version(20, 10, 0),
+    description="Prompt version metadata on POST /v1/prompts",
+)
+
 PATCH_PROMPT = RouteRequirement(
     method="PATCH",
     path="/v1/prompts/{prompt_identifier}",

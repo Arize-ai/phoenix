@@ -342,8 +342,9 @@ class PromptVersion:
             template_type=self._template_type,
             template_format=self._template_format,
             invocation_parameters=self._invocation_parameters,
-            metadata=self._metadata,
         )
+        if self._metadata:
+            ans["metadata"] = dict(self._metadata)
         if self._tools is not None:
             ans["tools"] = self._tools
         if self._response_format is not None:
@@ -360,6 +361,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
     ) -> Self:
         """
@@ -370,6 +372,8 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
             description (Optional[str]): A description of the prompt. Defaults to None.
+            metadata (Optional[Mapping[str, Any]]): Metadata for the prompt version.
+                Defaults to None.
             model_provider (Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"]):
                 The provider of the model to use for the prompt. Defaults to "OPENAI".
 
@@ -380,6 +384,7 @@ class PromptVersion:
             create_prompt_version_from_openai(
                 obj,
                 description=description,
+                metadata=metadata,
                 template_format=template_format,
                 model_provider=model_provider,
             )
@@ -393,6 +398,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["AWS"] = "AWS",
     ) -> Self:
         raise NotImplementedError("AWS is not supported yet")
@@ -405,6 +411,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["ANTHROPIC"] = "ANTHROPIC",
     ) -> Self:
         """
@@ -415,6 +422,8 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
             description (Optional[str]): A description of the prompt. Defaults to None.
+            metadata (Optional[Mapping[str, Any]]): Metadata for the prompt version.
+                Defaults to None.
             model_provider (Literal["ANTHROPIC"]): The provider of the model to use for the prompt.
                 Defaults to "ANTHROPIC".
 
@@ -425,6 +434,7 @@ class PromptVersion:
             create_prompt_version_from_anthropic(
                 obj,
                 description=description,
+                metadata=metadata,
                 template_format=template_format,
                 model_provider=model_provider,
             )
@@ -442,6 +452,7 @@ class PromptVersion:
         ] = None,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["GOOGLE"] = "GOOGLE",
     ) -> Self:
         """
@@ -453,6 +464,7 @@ class PromptVersion:
             config: Optional Google GenAI generation configuration.
             template_format: The format of the template to use. Defaults to ``"MUSTACHE"``.
             description: An optional prompt description.
+            metadata: Optional metadata for the prompt version.
             model_provider: The model provider. Defaults to ``"GOOGLE"``.
 
         Returns:
@@ -464,6 +476,7 @@ class PromptVersion:
                 contents,
                 config=config,
                 description=description,
+                metadata=metadata,
                 template_format=template_format,
                 model_provider=model_provider,
             )
