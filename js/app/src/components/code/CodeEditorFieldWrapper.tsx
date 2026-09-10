@@ -86,9 +86,6 @@ export function CodeEditorFieldWrapper({
       >
         {children}
       </div>
-      {/* The help texts resolve their slots against this wrapper's own
-          TextContext rather than an enclosing one (e.g. a Dialog, which offers
-          no "errorMessage" slot and would reject the error text at render). */}
       <Provider
         values={[
           [
