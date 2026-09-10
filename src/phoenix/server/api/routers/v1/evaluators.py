@@ -44,6 +44,7 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.api.types.Evaluator import EvaluationTarget
 from phoenix.server.authorization import is_not_locked
+from phoenix.server.online_eval.session_policy import MINIMUM_EVALUATION_DELAY_SECONDS
 
 
 class ExistingCodeEvaluator(EvaluatorRequest):
@@ -60,6 +61,8 @@ class CreateProjectEvaluatorRequest(EvaluatorRequest):
     input_mapping: Optional[InputMapping] = None
     evaluation_delay_seconds: Optional[int] = Field(
         default=None,
+        ge=MINIMUM_EVALUATION_DELAY_SECONDS,
+        le=2**31 - 1,
         description=(
             "Session quiet-period delay in seconds. Null uses the server default. "
             "SPAN rejects a non-null delay. TRACE evaluators are stored but not scheduled."
@@ -87,6 +90,8 @@ class PatchProjectEvaluatorRequest(EvaluatorRequest):
     )
     evaluation_delay_seconds: Optional[int] = Field(
         default=UNDEFINED,
+        ge=MINIMUM_EVALUATION_DELAY_SECONDS,
+        le=2**31 - 1,
         description="Omit to preserve. Null resets to the server's session delay default.",
     )
 

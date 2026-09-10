@@ -13697,7 +13697,9 @@
           "evaluation_delay_seconds": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 10.0
               },
               {
                 "type": "null"
@@ -18503,7 +18505,9 @@
           "evaluation_delay_seconds": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 10.0
               },
               {
                 "type": "null"

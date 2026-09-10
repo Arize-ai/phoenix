@@ -16,6 +16,8 @@ from phoenix.server.api.routers.v1.evaluators import (
         {"enabled": None},
         {"sampling_rate": 1.1},
         {"sampling_rate": float("nan")},
+        {"evaluation_delay_seconds": 9},
+        {"evaluation_delay_seconds": 2**31},
         {"evaluation_target": "SESSION"},
         {"evaluator_id": "another"},
         {"source_code": "def evaluate(): return 1"},

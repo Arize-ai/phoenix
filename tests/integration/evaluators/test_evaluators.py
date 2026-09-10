@@ -240,6 +240,46 @@ def test_llm_creation_patch_and_prompt_retention(
     assert result["data"]["node"]["id"] == updated["prompt_version_id"]
 
 
+def test_session_evaluation_delay_bounds(
+    client: httpx.Client, project: dict[str, Any], _app: _AppInfo
+) -> None:
+    collection = f"v1/projects/{project['id']}/evaluators"
+    body = _llm_body()
+    for delay in (9, 2**31):
+        response = client.post(collection, json={**body, "evaluation_delay_seconds": delay})
+        assert response.status_code == 422, response.text
+    assert client.get(collection).json()["data"] == []
+
+    maximum_delay = 2**31 - 1
+    response = client.post(collection, json={**body, "evaluation_delay_seconds": maximum_delay})
+    assert response.status_code == 201, response.text
+    binding = response.json()["data"]
+    item = f"v1/project_evaluators/{binding['project_evaluator_id']}"
+    assert binding["evaluation_delay_seconds"] == maximum_delay
+    for delay in (9, 2**31):
+        response = client.patch(
+            item, json={"name": f"renamed-{token_hex(8)}", "evaluation_delay_seconds": delay}
+        )
+        assert response.status_code == 422, response.text
+    assert client.get(item).json()["data"] == binding
+
+    for delay in (10, maximum_delay):
+        response = client.patch(item, json={"evaluation_delay_seconds": delay})
+        assert response.status_code == 200, response.text
+        result, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query="""
+            query($id: ID!) {
+              node(id: $id) { ... on ProjectEvaluator { evaluationDelaySeconds } }
+            }
+            """,
+            variables={"id": binding["project_evaluator_id"]},
+        )
+        assert not result.get("errors"), result
+        assert result["data"]["node"]["evaluationDelaySeconds"] == delay
+
+
 def test_unauthenticated_requests_are_rejected(_app: _AppInfo) -> None:
     with _httpx_client(_app) as client:
         for method, path in [
