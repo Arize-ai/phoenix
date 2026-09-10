@@ -1445,6 +1445,78 @@ async def test_materializes_due_trace_with_activity_snapshot(
     assert session_work_count == 0
 
 
+async def test_trace_filter_is_evaluated_against_page_rowids(
+    db: DbSessionFactory,
+) -> None:
+    project_id, matching_trace_rowid, last_span_ingested_at = await _add_trace_liveness(
+        db,
+        age_seconds=600,
+    )
+    async with db() as session:
+        project = await session.get(models.Project, project_id)
+        matching_trace = await session.get(models.Trace, matching_trace_rowid)
+        assert project is not None
+        assert matching_trace is not None
+        matching_trace.trace_id = "matching-trace"
+        excluded_trace = await _add_trace(session, project)
+        await _add_span(session, excluded_trace)
+        await session.execute(
+            update(models.Trace)
+            .where(models.Trace.id == excluded_trace.id)
+            .values(last_span_ingested_at=last_span_ingested_at)
+        )
+        excluded_trace_rowid = excluded_trace.id
+    await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="TRACE",
+        filter_condition="trace_id == 'matching-trace'",
+    )
+    filter_statements: list[tuple[str, Sequence[object]]] = []
+
+    def capture_filter_statement(
+        connection: object,
+        cursor: object,
+        statement: str,
+        parameters: Sequence[object],
+        context: object,
+        executemany: bool,
+    ) -> None:
+        if "traces.id IN" in statement:
+            filter_statements.append((statement, parameters))
+
+    event.listen(Engine, "before_cursor_execute", capture_filter_statement)
+    try:
+        await EvalSweeper(
+            db,
+            evaluation_target="TRACE",
+            max_outstanding=TRACE_SWEEP_MAX_OUTSTANDING,
+        )._tick()
+    finally:
+        event.remove(Engine, "before_cursor_execute", capture_filter_statement)
+
+    async with db() as session:
+        statuses = {
+            row.trace_rowid: row.status
+            for row in (
+                await session.execute(
+                    select(
+                        models.EvalTraceWorkUnit.trace_rowid,
+                        models.EvalTraceWorkUnit.status,
+                    )
+                )
+            ).all()
+        }
+    assert statuses == {
+        matching_trace_rowid: "PENDING",
+        excluded_trace_rowid: "FILTERED_OUT",
+    }
+    assert len(filter_statements) == 1
+    filter_statement, filter_parameters = filter_statements[0]
+    assert "traces.id IN (" in " ".join(filter_statement.split())
+    assert {matching_trace_rowid, excluded_trace_rowid} <= set(filter_parameters)
+
+
 async def test_trace_evaluator_with_an_uncompilable_filter_does_not_stop_the_tick(
     db: DbSessionFactory,
     caplog: pytest.LogCaptureFixture,

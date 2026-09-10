@@ -105,6 +105,8 @@ class _SweepTarget:
     filtered_entity_rowids_subquery: Callable[
         [str, Sequence[int], Sequence[int]], ScalarSelect[int]
     ]
+    # A due-horizon watermark is written before lock-time re-filtering can drop a page row,
+    # so this gate must never let a dropped row become eligible again.
     is_evaluable: Callable[[], ColumnElement[bool]]
     project_evaluator_is_schedulable: Callable[[type[models.ProjectEvaluator]], ColumnElement[bool]]
     lease_name_prefix: str
@@ -139,7 +141,13 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
         work_unit_model=models.EvalTraceWorkUnit,
         work_unit_target_column="trace_rowid",
         live_work_index_predicate=text(live_eval_session_work_index_predicate()),
-        filtered_entity_rowids_subquery=get_filtered_trace_rowids_subquery,
+        filtered_entity_rowids_subquery=lambda condition, project_rowids, candidate_rowids: (
+            get_filtered_trace_rowids_subquery(
+                condition,
+                project_rowids,
+                candidate_trace_rowids=candidate_rowids,
+            )
+        ),
         is_evaluable=lambda: true(),
         project_evaluator_is_schedulable=partial(
             project_evaluator_is_schedulable,
@@ -616,6 +624,7 @@ class EvalSweeper(DaemonTask):
             self._target.filtered_entity_rowids_subquery(
                 project_evaluator.filter_condition,
                 [project_evaluator.project_id],
+                (),
             )
         except Exception as error:
             logger.warning(
