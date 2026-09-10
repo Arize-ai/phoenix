@@ -229,4 +229,6 @@ URL-encode each expression into its tab's param:
 
     <endpoint>/projects/<project-node-id>/<tab>?<param>=<encoded-expression>
 
+When citing an individual finding, link directly to the annotated entity as well as sharing the filtered tables. For a trace, use `<endpoint>/projects/<project-node-id>/traces/<otel-trace-id>`. For a span, use that trace URL with `selectedSpanNodeId=<span-node-id>` so the annotated span opens selected. Resolve the span's Relay node ID and containing OpenTelemetry trace ID from the fetched data; the selection parameter does not accept an OpenTelemetry span ID. Preserve existing search parameters such as `timeRangeKey=30d` and URL-encode the added value.
+
 **Discarding the run** — only with the user's explicit confirmation, since it is destructive. For each of trace, span, and session, delete the project's annotations filtered to the coding annotation identifier. The server requires an explicit delete-all flag (or a time bound) to authorize the sweep; the identifier filter narrows but never authorizes on its own. Then remove `$NOTES_SIDECAR` and `$AXIAL_SIDECAR`. Each per-kind delete removes notes and axial labels together because they share the underlying annotation table.

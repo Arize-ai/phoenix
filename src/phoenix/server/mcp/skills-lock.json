@@ -4,7 +4,7 @@
     "phoenix-error-analysis": {
       "source": "../../../../.agents/skills/phoenix-error-analysis",
       "sourceType": "local",
-      "computedHash": "ed9a2553ab0c4fd6511ada566253e5de4a2b481ae6c4f3c333578a9f670e3c3a"
+      "computedHash": "00f8cb3df93911bc1abdd3780b4b88486f5f90c29e9965c567c204b6947c1dbf"
     }
   }
 }
