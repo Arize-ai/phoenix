@@ -7,7 +7,8 @@ from typing import Sequence, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from sqlalchemy import Table, delete, func, select, update
+from sqlalchemy import Table, delete, event, func, select, update
+from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.config import get_env_online_eval_max_session_outstanding
@@ -810,6 +811,37 @@ async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
     assert await _work_statuses(db) == ["PENDING"]
 
 
+async def test_stale_fingerprint_revival_selects_one_row_per_dedup_key(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _set_delay(db, project_evaluator_id, 10)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    await sweeper._tick()
+    async with db() as session:
+        work = (await session.scalars(select(models.EvalSessionWorkUnit))).one()
+        work.status = "SUPERSEDED"
+        work.error = STALE_FINGERPRINT_ERROR
+        session.add(
+            models.EvalSessionWorkUnit(
+                project_session_rowid=work.project_session_rowid,
+                evaluator_id=work.evaluator_id,
+                project_evaluator_id=work.project_evaluator_id,
+                config_fingerprint=work.config_fingerprint,
+                evaluated_through=work.evaluated_through,
+                status="SUPERSEDED",
+                error=STALE_FINGERPRINT_ERROR,
+            )
+        )
+
+    await sweeper._tick()
+    assert await _work_statuses(db) == ["PENDING", "SUPERSEDED"]
+
+    await sweeper._tick()
+    assert await _work_statuses(db) == ["PENDING", "SUPERSEDED"]
+
+
 async def test_incomplete_session_is_never_scheduled(
     db: DbSessionFactory,
 ) -> None:
@@ -1093,7 +1125,7 @@ async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
         )
 
 
-async def test_session_filter_decisions_are_persisted_before_sampling(
+async def test_session_filter_is_evaluated_against_page_rowids_before_sampling(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1131,15 +1163,32 @@ async def test_session_filter_decisions_are_persisted_before_sampling(
     monkeypatch.setattr(sweeper_module, "sample_key", record_sample)
     sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
     sweeper._publish_metrics = True
-    async with db() as session:
-        project_evaluator = await sweeper._load_evaluators(session)
-        database_now = await sweeper._database_now(session)
-        materialized_count, eligible_pair_count = await sweeper._load_eligible_pairs(
-            session,
-            database_now,
-            project_evaluator,
-            limit=2,
-        )
+    filter_statements: list[tuple[str, Sequence[object]]] = []
+
+    def capture_filter_statement(
+        connection: object,
+        cursor: object,
+        statement: str,
+        parameters: Sequence[object],
+        context: object,
+        executemany: bool,
+    ) -> None:
+        if "project_sessions.id IN" in statement:
+            filter_statements.append((statement, parameters))
+
+    event.listen(Engine, "before_cursor_execute", capture_filter_statement)
+    try:
+        async with db() as session:
+            project_evaluator = await sweeper._load_evaluators(session)
+            database_now = await sweeper._database_now(session)
+            materialized_count, eligible_pair_count = await sweeper._load_eligible_pairs(
+                session,
+                database_now,
+                project_evaluator,
+                limit=2,
+            )
+    finally:
+        event.remove(Engine, "before_cursor_execute", capture_filter_statement)
 
     async with db() as session:
         statuses = {
@@ -1160,15 +1209,15 @@ async def test_session_filter_decisions_are_persisted_before_sampling(
         declined_session_id: "FILTERED_OUT",
     }
     assert sampled_identities == ["matching-session"]
+    assert len(filter_statements) == 1
+    filter_statement, filter_parameters = filter_statements[0]
+    assert "project_sessions.id IN (" in " ".join(filter_statement.split())
+    assert {matching_session_id, declined_session_id} <= set(filter_parameters)
 
 
 async def test_filtered_and_unfiltered_criteria_schedule_independently(
     db: DbSessionFactory,
 ) -> None:
-    """An unfiltered criterion and a filtered one compile into separate union arms whose
-    bind parameters must stay distinct: sharing a name drops one criterion's identity
-    from the statement and hands its arm's rows to the other criterion.
-    """
     project_id, matching_session_id, _ = await _add_session_liveness(
         db,
         age_seconds=600,
