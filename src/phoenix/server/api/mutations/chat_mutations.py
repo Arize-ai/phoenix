@@ -30,6 +30,9 @@ from phoenix.server.api.evaluators import (
     EvaluationResult as EvaluationResultDict,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.evaluator_management import (
+    convert_output_config_inputs_to_pydantic,
+)
 from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_configs,
 )
@@ -39,9 +42,6 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.input_types.EvaluatorPreviewInput import (
     EvaluatorPreviewsInput,
-)
-from phoenix.server.api.mutations.evaluator_mutations import (
-    _convert_output_config_inputs_to_pydantic,
 )
 from phoenix.server.api.types.Evaluator import BuiltInEvaluator, CodeEvaluator
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
@@ -296,7 +296,7 @@ class ChatCompletionMutationMixin:
                 except ValidationError as error:
                     raise BadRequest(str(error))
 
-                all_configs = _convert_output_config_inputs_to_pydantic(
+                all_configs = convert_output_config_inputs_to_pydantic(
                     inline_llm_evaluator.output_configs
                 )
                 categorical_configs: list[CategoricalOutputConfig] = []
@@ -460,7 +460,7 @@ class ChatCompletionMutationMixin:
 
                 output_configs = [
                     c
-                    for c in _convert_output_config_inputs_to_pydantic(
+                    for c in convert_output_config_inputs_to_pydantic(
                         inline_code_evaluator.output_configs
                     )
                     if isinstance(

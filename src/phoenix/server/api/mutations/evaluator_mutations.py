@@ -33,17 +33,15 @@ from phoenix.server.api.evaluators import (
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers import evaluator_service
 from phoenix.server.api.helpers.evaluator_management import (
-    _PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION,
-    _ensure_evaluator_prompt_label,
-    _garbage_collect_evaluators,
-    _generate_unique_evaluator_name,
-    _get_project_for_dataset_evaluator,
-    _parse_evaluator_id,
-    _raise_on_uninferable_evaluate_signature,
-    _validate_code_evaluator_sandbox_config,
-)
-from phoenix.server.api.helpers.evaluator_management import (
-    _convert_output_config_inputs_to_pydantic as _convert_output_config_inputs_to_pydantic,
+    PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION,
+    convert_output_config_inputs_to_pydantic,
+    ensure_evaluator_prompt_label,
+    garbage_collect_evaluators,
+    generate_unique_evaluator_name,
+    get_project_for_dataset_evaluator,
+    parse_evaluator_id,
+    raise_on_uninferable_evaluate_signature,
+    validate_code_evaluator_sandbox_config,
 )
 from phoenix.server.api.helpers.evaluators import (
     LLMEvaluatorOutputConfigs,
@@ -402,7 +400,7 @@ class CreateCodeEvaluatorVersionPayload:
 class EvaluatorMutationMixin:
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description=f"Create an LLM project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
+        description=f"Create an LLM project evaluator. {PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
     )  # type: ignore
     async def create_project_llm_evaluator(
         self, info: Info[Context, None], input: CreateProjectLLMEvaluatorInput
@@ -411,7 +409,7 @@ class EvaluatorMutationMixin:
             project_id=input.project_id,
             name=input.name,
             prompt_version=input.prompt_version.to_orm_prompt_version(),
-            output_configs=_convert_output_config_inputs_to_pydantic(input.output_configs)
+            output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
             input_mapping=input.input_mapping.to_orm()
@@ -433,7 +431,7 @@ class EvaluatorMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description=f"Update an LLM project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
+        description=f"Update an LLM project evaluator. {PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
     )  # type: ignore
     async def update_project_llm_evaluator(
         self, info: Info[Context, None], input: UpdateProjectLLMEvaluatorInput
@@ -442,7 +440,7 @@ class EvaluatorMutationMixin:
             project_evaluator_id=input.project_evaluator_id,
             name=input.name,
             prompt_version=input.prompt_version.to_orm_prompt_version(),
-            output_configs=_convert_output_config_inputs_to_pydantic(input.output_configs)
+            output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
             input_mapping=input.input_mapping.to_orm()
@@ -467,7 +465,7 @@ class EvaluatorMutationMixin:
         description=(
             "Bind an existing CODE evaluator to a project. The evaluator's configuration is "
             "shared with every project and dataset it is bound to. "
-            f"{_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
+            f"{PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
         ),
     )  # type: ignore
     async def add_project_code_evaluator(
@@ -494,7 +492,7 @@ class EvaluatorMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description=f"Create a CODE project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
+        description=f"Create a CODE project evaluator. {PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
     )  # type: ignore
     async def create_project_code_evaluator(
         self, info: Info[Context, None], input: CreateProjectCodeEvaluatorInput
@@ -512,7 +510,7 @@ class EvaluatorMutationMixin:
             sampling_rate=input.sampling_rate,
             evaluation_target=input.evaluation_target,
             description=input.description,
-            output_configs=_convert_output_config_inputs_to_pydantic(input.output_configs)
+            output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
             input_mapping=input.input_mapping.to_orm()
@@ -533,7 +531,7 @@ class EvaluatorMutationMixin:
         description=(
             "Update a CODE project evaluator. Editing changes the underlying evaluator, which "
             "applies to every project and dataset it is bound to. "
-            f"{_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
+            f"{PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
         ),
     )  # type: ignore
     async def update_project_code_evaluator(
@@ -553,7 +551,7 @@ class EvaluatorMutationMixin:
             description=input.description,
             source_code=input.source_code,
             sandbox_config_id=input.sandbox_config_id,
-            output_configs=_convert_output_config_inputs_to_pydantic(input.output_configs)
+            output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
             input_mapping=input.input_mapping.to_orm()
@@ -631,7 +629,7 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                evaluator_name = await _generate_unique_evaluator_name(session, validated_name)
+                evaluator_name = await generate_unique_evaluator_name(session, validated_name)
 
                 dataset_name = await session.scalar(
                     select(models.Dataset.name).where(models.Dataset.id == dataset_id)
@@ -646,7 +644,7 @@ class EvaluatorMutationMixin:
                     output_configs=output_configs,
                     input_mapping=input.input_mapping.to_orm(),
                     user_id=user_id,
-                    project=_get_project_for_dataset_evaluator(
+                    project=get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
                         dataset_evaluator_name=str(evaluator_name),
                     ),
@@ -721,7 +719,7 @@ class EvaluatorMutationMixin:
                 await session.flush()
 
                 # Ensure the prompt is labeled as an evaluator prompt
-                await _ensure_evaluator_prompt_label(session, prompt.id)
+                await ensure_evaluator_prompt_label(session, prompt.id)
                 tag_name = IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}")
                 # Use the target prompt version ID (newly created if prompt_version_id
                 # provided, otherwise the new prompt version)
@@ -880,7 +878,7 @@ class EvaluatorMutationMixin:
                 await session.flush()
 
                 # Ensure the new prompt is labeled as an evaluator prompt
-                await _ensure_evaluator_prompt_label(session, new_prompt.id)
+                await ensure_evaluator_prompt_label(session, new_prompt.id)
 
                 target_prompt_id = new_prompt.id
                 llm_evaluator.prompt_id = target_prompt_id
@@ -1117,7 +1115,7 @@ class EvaluatorMutationMixin:
             if project_ids:
                 await delete_projects_and_evaluator_trace_projects(session, project_ids)
 
-            await _garbage_collect_evaluators(
+            await garbage_collect_evaluators(
                 session,
                 evaluator_ids=gc_candidate_evaluator_ids,
                 prompt_ids=candidate_prompt_ids,
@@ -1142,7 +1140,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
         try:
-            built_in_evaluator_id, _ = _parse_evaluator_id(input.evaluator_id)
+            built_in_evaluator_id, _ = parse_evaluator_id(input.evaluator_id)
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
 
@@ -1202,7 +1200,7 @@ class EvaluatorMutationMixin:
                 # (resolver falls back to base evaluator configs at runtime)
                 output_configs: Optional[list[OutputConfigType]] = None
                 if input.output_configs is not None:
-                    output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
+                    output_configs = convert_output_config_inputs_to_pydantic(input.output_configs)
 
                 dataset_evaluator = models.DatasetEvaluators(
                     dataset_id=dataset_rowid,
@@ -1212,7 +1210,7 @@ class EvaluatorMutationMixin:
                     output_configs=output_configs,
                     description=input.description,
                     user_id=user_id,
-                    project=_get_project_for_dataset_evaluator(
+                    project=get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
                         dataset_evaluator_name=str(name),
                     ),
@@ -1304,8 +1302,8 @@ class EvaluatorMutationMixin:
 
                 if input.output_configs is not UNSET:
                     if input.output_configs is not None:
-                        dataset_evaluator.output_configs = (
-                            _convert_output_config_inputs_to_pydantic(input.output_configs)
+                        dataset_evaluator.output_configs = convert_output_config_inputs_to_pydantic(
+                            input.output_configs
                         )
                     else:
                         # Reset to None = fall back to base evaluator configs at runtime
@@ -1341,7 +1339,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
         try:
-            evaluator_id, evaluator_kind = _parse_evaluator_id(input.evaluator_id)
+            evaluator_id, evaluator_kind = parse_evaluator_id(input.evaluator_id)
         except ValueError as e:
             raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
         if evaluator_kind != "CODE":
@@ -1368,7 +1366,7 @@ class EvaluatorMutationMixin:
                 validate_unique_config_names(input.output_configs)
             except ValueError as e:
                 raise BadRequest(str(e))
-            output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
+            output_configs = convert_output_config_inputs_to_pydantic(input.output_configs)
 
         try:
             async with info.context.db() as session:
@@ -1403,7 +1401,7 @@ class EvaluatorMutationMixin:
                     output_configs=output_configs,
                     description=input.description,
                     user_id=user_id,
-                    project=_get_project_for_dataset_evaluator(
+                    project=get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
                         dataset_evaluator_name=str(name),
                     ),
@@ -1487,8 +1485,8 @@ class EvaluatorMutationMixin:
 
                 if input.output_configs is not UNSET:
                     if input.output_configs is not None:
-                        dataset_evaluator.output_configs = (
-                            _convert_output_config_inputs_to_pydantic(input.output_configs)
+                        dataset_evaluator.output_configs = convert_output_config_inputs_to_pydantic(
+                            input.output_configs
                         )
                     else:
                         dataset_evaluator.output_configs = None
@@ -1526,15 +1524,15 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid evaluator name: {error}")
 
         output_configs: list[OutputConfigType] = (
-            _convert_output_config_inputs_to_pydantic(input.output_configs)
+            convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs
             else []
         )
         if input.input_mapping is None:
             raise BadRequest("input_mapping is required")
         input_mapping_orm = input.input_mapping.to_orm()
-        _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
-        sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+        raise_on_uninferable_evaluate_signature(input.source_code, input.language)
+        sandbox_config_id = await validate_code_evaluator_sandbox_config(
             info.context.db,
             sandbox_config_global_id=input.sandbox_config_id,
             language=input.language.value,
@@ -1585,7 +1583,7 @@ class EvaluatorMutationMixin:
             input_mapping=input.input_mapping.to_orm()
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
-            output_configs=_convert_output_config_inputs_to_pydantic(input.output_configs)
+            output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
         )

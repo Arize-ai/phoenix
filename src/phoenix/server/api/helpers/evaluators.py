@@ -371,11 +371,11 @@ def get_evaluator_output_configs(
 
     configs: list[OutputConfigType]
     if evaluator_input.output_configs:
-        from phoenix.server.api.mutations.evaluator_mutations import (
-            _convert_output_config_inputs_to_pydantic,
+        from phoenix.server.api.helpers.evaluator_management import (
+            convert_output_config_inputs_to_pydantic,
         )
 
-        configs = _convert_output_config_inputs_to_pydantic(evaluator_input.output_configs)
+        configs = convert_output_config_inputs_to_pydantic(evaluator_input.output_configs)
     else:
         configs = list(evaluator.output_configs)
 

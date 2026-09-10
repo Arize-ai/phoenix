@@ -55,7 +55,7 @@ _EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
     BuiltInEvaluator.__name__: "BUILTIN",
 }
 
-_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
+PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
     "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
     "session at the first quiet period after the evaluation delay: it applies the session "
     "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
@@ -104,14 +104,14 @@ def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConf
     raise BadRequest("Invalid output config input")
 
 
-def _convert_output_config_inputs_to_pydantic(
+def convert_output_config_inputs_to_pydantic(
     configs: list[AnnotationConfigInput],
 ) -> list[OutputConfigType]:
     """Convert a list of AnnotationConfigInput to pydantic models for evaluator output configs."""
     return [_output_config_input_to_pydantic(c) for c in configs]
 
 
-def _raise_on_uninferable_evaluate_signature(source_code: str, language: Language) -> None:
+def raise_on_uninferable_evaluate_signature(source_code: str, language: Language) -> None:
     if language is Language.PYTHON:
         _, error_message = _infer_python_evaluate_input_schema(source_code)
     elif language is Language.TYPESCRIPT:
@@ -122,7 +122,7 @@ def _raise_on_uninferable_evaluate_signature(source_code: str, language: Languag
         raise BadRequest(error_message)
 
 
-async def _validate_code_evaluator_sandbox_config(
+async def validate_code_evaluator_sandbox_config(
     db: DbSessionFactory,
     *,
     sandbox_config_global_id: GlobalID,
@@ -197,7 +197,7 @@ async def _validate_code_evaluator_sandbox_config(
     return sandbox_config_id
 
 
-async def _generate_unique_evaluator_name(
+async def generate_unique_evaluator_name(
     session: AsyncSession,
     base_name: Identifier,
     max_attempts: int = 5,
@@ -225,7 +225,7 @@ async def _generate_unique_evaluator_name(
     raise RuntimeError(f"Failed to generate unique evaluator name after {max_attempts} attempts")
 
 
-def _get_project_for_dataset_evaluator(
+def get_project_for_dataset_evaluator(
     *,
     dataset_name: str,
     dataset_evaluator_name: str,
@@ -245,7 +245,7 @@ def _get_dataset_evaluator_project_name_identifier() -> IdentifierModel:
     return IdentifierModel.model_validate(project_name)
 
 
-def _get_trace_project_for_project_evaluator(
+def get_trace_project_for_project_evaluator(
     *,
     project_name: str,
     project_evaluator_name: str,
@@ -259,7 +259,7 @@ def _get_trace_project_for_project_evaluator(
     )
 
 
-async def _ensure_evaluator_prompt_label(
+async def ensure_evaluator_prompt_label(
     session: AsyncSession,
     prompt_id: int,
 ) -> None:
@@ -306,7 +306,7 @@ async def _ensure_evaluator_prompt_label(
         session.add(association)
 
 
-async def _validate_project_evaluator_project(
+async def validate_project_evaluator_project(
     session: AsyncSession,
     project_id: int,
     project_global_id: GlobalID,
@@ -330,7 +330,7 @@ async def _validate_project_evaluator_project(
     return project
 
 
-def _validate_project_evaluator_filter(
+def validate_project_evaluator_filter(
     filter_condition: str,
     evaluation_target: EvaluationTarget,
 ) -> None:
@@ -349,12 +349,12 @@ def _validate_project_evaluator_filter(
         raise BadRequest("Invalid filter condition: unable to compile for supported databases")
 
 
-def _validate_project_evaluator_sampling_rate(sampling_rate: float) -> None:
+def validate_project_evaluator_sampling_rate(sampling_rate: float) -> None:
     if not 0.0 <= sampling_rate <= 1.0:
         raise BadRequest("samplingRate must be between 0.0 and 1.0")
 
 
-def _materialize_project_evaluator_evaluation_delay(
+def materialize_project_evaluator_evaluation_delay(
     evaluation_delay_seconds: Optional[int],
     evaluation_target: EvaluationTarget,
 ) -> int:
@@ -377,7 +377,7 @@ def _materialize_project_evaluator_evaluation_delay(
     return evaluation_delay_seconds
 
 
-def _validate_project_evaluator_target_update(
+def validate_project_evaluator_target_update(
     project_evaluator: models.ProjectEvaluator,
     evaluation_target: EvaluationTarget,
 ) -> None:
@@ -386,7 +386,7 @@ def _validate_project_evaluator_target_update(
     raise BadRequest("evaluationTarget is fixed at project evaluator creation")
 
 
-async def _garbage_collect_evaluators(
+async def garbage_collect_evaluators(
     session: AsyncSession,
     *,
     evaluator_ids: set[int],
@@ -416,7 +416,7 @@ async def _garbage_collect_evaluators(
         )
 
 
-def _parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
+def parse_evaluator_id(global_id: GlobalID) -> tuple[int, EvaluatorKind]:
     """
     Parse evaluator ID accepting LLMEvaluator, CodeEvaluator and BuiltInEvaluator types.
 
