@@ -171,8 +171,8 @@ function CalibrationResultsContent({
   const views = [
     { id: "all", label: "All", examples },
     {
-      id: "unreviewed",
-      label: "Unreviewed",
+      id: "missing-expected",
+      label: "Missing expected",
       examples: examples.filter((example) =>
         visibleSlotIds.some((slot) => !expected[slot]?.[example.id])
       ),
@@ -419,7 +419,7 @@ function EvaluatorColumnHeader({
         {run?.isRunning ? <ProgressCircle isIndeterminate size="S" /> : null}
       </Flex>
       <Text size="XS" color="text-500" weight="normal">
-        {reviewed.length}/{examples.length} reviewed
+        {reviewed.length}/{examples.length} with expected
         {agreement ? ` · ${agreement}` : ""}
       </Text>
     </Flex>
