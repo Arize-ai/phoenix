@@ -48,6 +48,7 @@ from phoenix.server.dml_event import (
     DmlEvent,
     ProjectSessionAnnotationInsertEvent,
     SpanAnnotationInsertEvent,
+    TraceAnnotationInsertEvent,
 )
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.online_eval import consumer as consumer_module
@@ -58,7 +59,10 @@ from phoenix.server.online_eval.bound_variables import (
     SESSION_METADATA_FIELD_NAMES,
     SPAN_BOUND_VARIABLE_NAMES,
     SPAN_METADATA_FIELD_NAMES,
+    TRACE_BOUND_VARIABLE_NAMES,
+    TRACE_METADATA_FIELD_NAMES,
     load_session_bound_variables,
+    load_trace_bound_variables,
 )
 from phoenix.server.online_eval.consumer import (
     OnlineEvalConsumer,
@@ -83,6 +87,7 @@ from phoenix.server.online_eval.executor import (
     OnlineEvalExecutor,
     session_eval_context,
     span_eval_context,
+    trace_eval_context,
 )
 from phoenix.server.online_eval.failure_policy import is_transient_error
 from phoenix.server.online_eval.project_evaluator_resolution import (
@@ -284,6 +289,48 @@ def _claimed_session_unit(
         claimed_by="consumer",
         lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
     )
+
+
+def _claimed_trace_unit(
+    trace_rowid: int,
+    *,
+    evaluator_id: int,
+    project_evaluator_id: int,
+    config_fingerprint: str,
+    work_unit_id: int = 1,
+) -> ClaimedWorkUnit:
+    now = datetime.now(timezone.utc)
+    return ClaimedWorkUnit(
+        work_unit_id=work_unit_id,
+        evaluation_target="TRACE",
+        target_rowid=trace_rowid,
+        evaluator_id=evaluator_id,
+        project_evaluator_id=project_evaluator_id,
+        config_fingerprint=config_fingerprint,
+        identifier=f"online:{config_fingerprint}",
+        attempts=0,
+        claimed_by="consumer",
+        lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
+    )
+
+
+async def _config_fingerprint(
+    db: DbSessionFactory,
+    evaluator_id: int,
+    project_evaluator_id: int,
+) -> str:
+    async with db() as session:
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        polymorphic = with_polymorphic(
+            models.Evaluator,
+            [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+        )
+        evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
+        assert evaluator is not None
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        assert resolved is not None
+        return config_fingerprint(resolved)
 
 
 async def _claim_materialized_unit(
@@ -582,6 +629,42 @@ async def _materialize_session_unit(
         return unit.id, fingerprint
 
 
+async def _materialize_trace_unit(
+    db: DbSessionFactory,
+    trace_rowid: int,
+    evaluator_id: int,
+    project_evaluator_id: int,
+) -> tuple[int, str]:
+    async with db() as session:
+        project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
+        assert project_evaluator is not None
+        polymorphic = with_polymorphic(
+            models.Evaluator,
+            [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+        )
+        evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
+        assert evaluator is not None
+        trace = await session.get(models.Trace, trace_rowid)
+        assert trace is not None
+        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        assert resolved is not None
+        fingerprint = config_fingerprint(resolved)
+        evaluated_through = trace.last_span_ingested_at
+        if evaluated_through is None:
+            evaluated_through = datetime.now(timezone.utc)
+            trace.last_span_ingested_at = evaluated_through
+        unit = models.EvalTraceWorkUnit(
+            trace_rowid=trace_rowid,
+            evaluator_id=evaluator_id,
+            project_evaluator_id=project_evaluator_id,
+            config_fingerprint=fingerprint,
+            evaluated_through=evaluated_through,
+        )
+        session.add(unit)
+        await session.flush()
+        return unit.id, fingerprint
+
+
 def _executor(
     db: DbSessionFactory,
     *,
@@ -609,6 +692,18 @@ async def _get_session_unit(db: DbSessionFactory, unit_id: int) -> models.EvalSe
         unit = await session.get(models.EvalSessionWorkUnit, unit_id)
         assert unit is not None
         return unit
+
+
+async def _get_trace_unit(db: DbSessionFactory, unit_id: int) -> models.EvalTraceWorkUnit:
+    async with db() as session:
+        unit = await session.get(models.EvalTraceWorkUnit, unit_id)
+        assert unit is not None
+        return unit
+
+
+async def _trace_annotations(db: DbSessionFactory) -> list[models.TraceAnnotation]:
+    async with db() as session:
+        return list(await session.scalars(select(models.TraceAnnotation)))
 
 
 async def _annotations(db: DbSessionFactory) -> list[models.SpanAnnotation]:
@@ -941,6 +1036,176 @@ async def test_load_session_bound_variables_reads_filter_language_values(
     assert resolved[empty_session.id]["first_input"] is None
 
 
+def _trace_vocabulary(**overrides: Any) -> dict[str, Any]:
+    """A full trace vocabulary, the shape `load_trace_bound_variables` returns."""
+    return (
+        {name: None for name in TRACE_BOUND_VARIABLE_NAMES}
+        | {"input": None, "output": None}
+        | {"start_time": "2026-01-01T00:00:00+00:00", "end_time": "2026-01-01T00:00:03+00:00"}
+        | overrides
+    )
+
+
+def test_trace_eval_context_lays_the_record_flat_under_metadata() -> None:
+    annotation = models.TraceAnnotation(
+        trace_rowid=1,
+        name="correctness",
+        annotator_kind="LLM",
+        label="correct",
+        score=1.0,
+        explanation="matched the reference",
+        metadata_={"model": "gpt-4o-mini"},
+        identifier="",
+        source="APP",
+        user_id=None,
+    )
+
+    context = trace_eval_context(
+        vocabulary=_trace_vocabulary(
+            input="question",
+            output="answer",
+            trace_id="trace-under-test",
+            num_spans=3,
+        ),
+        attributes={"metadata": {"num_spans": "shadowed"}},
+        events=[{"name": "exception"}],
+        annotations=[annotation],
+    )
+
+    assert set(context) == {"input", "output", "metadata"}
+    assert context["input"] == "question"
+    assert context["output"] == "answer"
+    metadata = context["metadata"]
+    assert set(metadata) == TRACE_BOUND_VARIABLE_NAMES | TRACE_METADATA_FIELD_NAMES
+    assert metadata["trace_id"] == "trace-under-test"
+    assert metadata["num_spans"] == 3
+    assert metadata["start_time"] == "2026-01-01T00:00:00+00:00"
+    assert metadata["end_time"] == "2026-01-01T00:00:03+00:00"
+    assert metadata["attributes"] == {"metadata": {"num_spans": "shadowed"}}
+    assert metadata["events"] == [{"name": "exception"}]
+    assert metadata["trace_annotations"] == {
+        "correctness": [
+            {
+                "label": "correct",
+                "score": 1.0,
+                "explanation": "matched the reference",
+                "metadata": {"model": "gpt-4o-mini"},
+                "annotator_kind": "LLM",
+            }
+        ]
+    }
+
+
+async def test_load_trace_bound_variables_reads_filter_language_values(
+    db: DbSessionFactory,
+) -> None:
+    start_time = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(
+            session,
+            project,
+            start_time=start_time,
+            end_time=start_time + timedelta(seconds=3),
+        )
+        root_span = await _add_span(
+            session,
+            trace,
+            attributes={
+                "input": {"value": "question"},
+                "output": {"value": "answer"},
+            },
+            llm_token_count_prompt=1,
+            llm_token_count_completion=2,
+        )
+        await _add_span(session, trace, parent_span=root_span, span_kind="TOOL")
+        empty_trace = await _add_trace(session, project, start_time=start_time)
+        # A collided attribute trie keeps the literal wire key, which the loader must read too.
+        wire_key_trace = await _add_trace(session, project, start_time=start_time)
+        await _add_span(session, wire_key_trace, attributes={"input.value": "question"})
+
+    async with db() as session:
+        resolved = await load_trace_bound_variables(
+            session,
+            [trace.id, empty_trace.id, wire_key_trace.id],
+        )
+
+    populated = resolved[trace.id]
+    assert set(populated) == set(TRACE_BOUND_VARIABLE_NAMES) | {
+        "start_time",
+        "end_time",
+        "input",
+        "output",
+    }
+    assert populated["trace_id"] == trace.trace_id
+    assert populated["latency_ms"] == 3000.0
+    assert populated["start_time"] == trace.start_time.isoformat()
+    assert populated["input"] == "question"
+    assert populated["output"] == "answer"
+    assert populated["num_spans"] == 2
+    assert populated["error_count"] == 0
+    assert populated["token_count_prompt"] == 1
+    assert populated["token_count_completion"] == 2
+    assert populated["token_count_total"] == 3
+    assert populated["llm_span_count"] == 1
+    assert populated["tool_span_count"] == 1
+    assert populated["total_cost"] == 0
+    assert resolved[empty_trace.id]["num_spans"] == 0
+    assert resolved[empty_trace.id]["input"] is None
+    assert resolved[wire_key_trace.id]["input"] == "question"
+
+
+async def test_trace_hydration_binds_the_trace_context(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        await _add_span(
+            session,
+            trace,
+            attributes={
+                "input": {"value": "question"},
+                "output": {"value": "answer"},
+            },
+        )
+        rootless_trace = await _add_trace(session, project)
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="TRACE",
+    )
+    fingerprint = await _config_fingerprint(db, evaluator_id, project_evaluator_id)
+    executor = _executor(db)
+
+    hydrated = await executor.hydrate(
+        _claimed_trace_unit(
+            trace.id,
+            evaluator_id=evaluator_id,
+            project_evaluator_id=project_evaluator_id,
+            config_fingerprint=fingerprint,
+        )
+    )
+    assert isinstance(hydrated, HydratedWorkUnit)
+    assert hydrated.context["input"] == "question"
+    assert hydrated.context["output"] == "answer"
+    metadata = hydrated.context["metadata"]
+    assert set(metadata) == TRACE_BOUND_VARIABLE_NAMES | TRACE_METADATA_FIELD_NAMES
+    assert metadata["trace_id"] == trace.trace_id
+    assert metadata["num_spans"] == 1
+    assert hydrated.annotation_metadata == {}
+
+    assert await executor.hydrate(
+        _claimed_trace_unit(
+            rootless_trace.id,
+            evaluator_id=evaluator_id,
+            project_evaluator_id=project_evaluator_id,
+            config_fingerprint=fingerprint,
+        )
+    ) == HydrationFailure(HydrationFailureReason.ROOT_SPAN_MISSING)
+
+
 async def test_span_entity_path_mapping_binds_attribute(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1257,7 +1522,7 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
-        session_vocabularies: Mapping[int, Mapping[str, Any]],
+        target_vocabularies: Mapping[tuple[models.EvaluationTarget, int], Mapping[str, Any]],
     ) -> Any:
         if unit.target_rowid == bad_span.id:
             await session.execute(text("SELECT 1 / 0"))
@@ -1266,7 +1531,7 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
             session,
             unit,
             project_id=project_id,
-            session_vocabularies=session_vocabularies,
+            target_vocabularies=target_vocabularies,
         )
 
     monkeypatch.setattr(OnlineEvalExecutor, "_hydrate_target_context", _fail_one_target)
@@ -3169,3 +3434,53 @@ async def test_session_stand_down_is_visible_on_the_expired_gauge(
 
     expired_gauge.labels.assert_called_once_with(evaluation_target="SESSION")
     expired_gauge.labels.return_value.set.assert_called_once_with(1)
+
+
+async def test_trace_consumer_writes_a_trace_annotation(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "question"}, "output": {"value": "answer"}},
+        )
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        evaluation_target="TRACE",
+    )
+    unit_id, fingerprint = await _materialize_trace_unit(
+        db,
+        trace.id,
+        evaluator_id,
+        project_evaluator_id,
+    )
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
+    events: SimpleQueue[DmlEvent] = SimpleQueue()
+
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        event_queue=events,
+        evaluation_target="TRACE",
+    )
+    await consumer._cycle()
+
+    assert (await _get_trace_unit(db, unit_id)).status == "DONE"
+    assert client.requests[0]["messages"][0]["content"] == (
+        "Input: question\n\nOutput: answer\n\nGood?"
+    )
+    (annotation,) = await _trace_annotations(db)
+    assert annotation.trace_rowid == trace.id
+    assert annotation.label == "good"
+    assert annotation.score == 1.0
+    assert annotation.annotator_kind == "LLM"
+    assert annotation.source == "API"
+    assert annotation.identifier == annotation_identifier(fingerprint)
+    assert annotation.metadata_ == {}
+    assert events.get_nowait() == TraceAnnotationInsertEvent((annotation.id,))
+    assert events.empty()

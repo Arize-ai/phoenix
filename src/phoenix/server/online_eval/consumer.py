@@ -3,7 +3,7 @@
 Runs on every replica; instances compete for work through coordinator claims.
 Each cycle claims a batch of work units and awaits the whole batch before claiming
 again. The batch size bounds fetched work; shared semaphores bound evaluation and
-database-phase concurrency across SPAN and SESSION consumers:
+database-phase concurrency across every target's consumers:
 hydrate behind the staleness guard (stale units are expired, never executed),
 evaluate with lease heartbeats, write annotations, then complete — or fail
 with a cooldown. Shutdown gives in-flight evals a grace period, then cancels
@@ -121,8 +121,8 @@ class OnlineEvalConsumer(DaemonTask):
     ) -> None:
         super().__init__()
         self._db = db
-        if evaluation_target not in ("SPAN", "SESSION"):
-            raise ValueError("Online evaluation consumers support SPAN and SESSION targets")
+        if evaluation_target not in ("SPAN", "SESSION", "TRACE"):
+            raise ValueError(f"Online evaluation consumers do not support {evaluation_target}")
         self._evaluation_target = evaluation_target
         self._coordinator: EvalWorkCoordinator = coordinator or DbEvalWorkCoordinator(
             db, evaluation_target=self._evaluation_target
