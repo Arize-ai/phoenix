@@ -68,9 +68,6 @@ export function SpanAnnotationDeleteButton({
           query {
             node(id: $spanId) {
               ... on Span {
-                # the summaries are what the cards and the trace header read;
-                # without them a delete leaves a mean score behind that the
-                # table beside it no longer has the annotations to support
                 ...AnnotationSummaryGroup
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
