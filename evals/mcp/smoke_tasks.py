@@ -1,5 +1,6 @@
 """Stage short read-only inspection tasks with private deterministic references."""
 
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -32,6 +33,19 @@ def stage_review(manifest: dict, fixture: dict, output: Path, *, image: str) -> 
     from metadata import TaskMetadata
     from stage_task import stage
 
+    if not fixture.get("expected_state_sha256") or not fixture.get("expected_trace_sha256"):
+        raise ValueError("Prepare and validate the review fixture before staging tasks")
+    fixture_hash = hashlib.sha256(
+        json.dumps(
+            {
+                "trail": manifest["fixture_hash"],
+                "references": fixture["references"],
+                "state": fixture["expected_state_sha256"],
+                "tracing": fixture["expected_trace_sha256"],
+            },
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
     template = stage(manifest, output / "template", agent_image=image, verifier_image=image)
     staged = []
     for name, instruction in TASKS.items():
@@ -54,6 +68,7 @@ def stage_review(manifest: dict, fixture: dict, output: Path, *, image: str) -> 
             "experiment-review": ["experiments", "datasets"],
         }[name]
         metadata = config["metadata"] | {
+            "fixture_hash": fixture_hash,
             "task_id": name,
             "task_family_id": name,
             "task_type": "diagnosis" if name == "experiment-review" else "lookup",

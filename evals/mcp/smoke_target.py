@@ -14,6 +14,7 @@ import json
 import os
 import sqlite3
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote
@@ -28,6 +29,10 @@ from sqlglot.optimizer.scope import traverse_scope
 from starlette.responses import JSONResponse
 
 from smoke_state import snapshot
+
+
+class UnsupportedQuery(ValueError):
+    """A rejected query shape is not evidence of attempted access to other data."""
 
 
 def scoped_sql(sql: str, project_id: int, review: dict | None = None) -> str:
@@ -74,10 +79,11 @@ def scoped_sql(sql: str, project_id: int, review: dict | None = None) -> str:
             if isinstance(source, exp.Table):
                 physical.append(source)
     for table in physical:
-        if table.db or table.catalog or table.name not in predicates:
+        name = table.name.casefold()
+        if table.db or table.catalog or name not in predicates:
             raise ValueError("SQL relation is outside the smoke fixture")
         subquery = parse_one(
-            f"SELECT * FROM {table.name} WHERE {predicates[table.name]}", read="sqlite"
+            f"SELECT * FROM {name} WHERE {predicates[name]}", read="sqlite"
         ).subquery(alias=table.alias_or_name)
         table.replace(subquery)
     return root.sql(dialect="sqlite")
@@ -156,15 +162,44 @@ class Policy:
             "input",
             "repetitionNumber",
             "context",
+            "spans",
+            "trace",
+            "parentId",
+            "attributes",
+            "spanKind",
+            "statusCode",
+            "statusMessage",
+            "latencyMs",
+            "annotations",
         }
         if not self.review:
             permitted -= {"dataset", "datasetVersion", "datasetExample", "runs", "example"}
 
-        def check(selection):
+        fragments = {
+            definition.name.value: definition
+            for definition in document.definitions
+            if isinstance(definition, ast.FragmentDefinitionNode)
+        }
+
+        def check(selection, *, root=False, active=frozenset()):
+            if isinstance(selection, ast.FragmentSpreadNode):
+                name = selection.name.value
+                if name in active or name not in fragments:
+                    raise UnsupportedQuery("Unknown or cyclic GraphQL fragment")
+                for child in fragments[name].selection_set.selections:
+                    check(child, root=root, active=active | {name})
+                return
+            if root and isinstance(selection, ast.FieldNode):
+                if selection.name.value in {"__schema", "__type", "__typename"}:
+                    return
+                if selection.name.value not in {"projects", "node"}:
+                    raise ValueError("Only fixture project queries are available")
             if isinstance(selection, ast.FieldNode):
                 name = selection.name.value
                 if name not in permitted:
-                    raise ValueError(f"GraphQL field outside count scope: {name}")
+                    raise UnsupportedQuery(
+                        f"GraphQL field is not supported by the smoke boundary: {name}"
+                    )
                 if name == "node" and selection.arguments:
                     values = {
                         a.name.value: value_from_ast_untyped(a.value, variables)
@@ -207,31 +242,25 @@ class Policy:
                         a for a in selection.arguments if a.name.value != "filter"
                     ) + (arg,)
             elif not isinstance(selection, ast.InlineFragmentNode):
-                raise ValueError("Named fragments are not admitted by this smoke boundary")
+                raise UnsupportedQuery("Unsupported GraphQL selection")
             if selection.selection_set:
                 for child in selection.selection_set.selections:
-                    check(child)
+                    check(
+                        child,
+                        root=root and isinstance(selection, ast.InlineFragmentNode),
+                        active=active,
+                    )
 
         for definition in document.definitions:
+            if isinstance(definition, ast.FragmentDefinitionNode):
+                continue
             if (
                 not isinstance(definition, ast.OperationDefinitionNode)
                 or definition.operation.value != "query"
             ):
                 raise ValueError("Only GraphQL queries are available")
             for field in definition.selection_set.selections:
-                if isinstance(field, ast.FieldNode) and field.name.value in {
-                    "__schema",
-                    "__type",
-                    "__typename",
-                }:
-                    # Schema introspection has no user-data resolvers.
-                    continue
-                if not isinstance(field, ast.FieldNode) or field.name.value not in {
-                    "projects",
-                    "node",
-                }:
-                    raise ValueError("Only fixture project queries are available")
-                check(field)
+                check(field, root=True)
         return payload | {"query": print_ast(document)}
 
 
@@ -320,8 +349,14 @@ class TargetBoundary:
             self.policy.log("rest", path=path)
             return await self.app(scope, receive, send)
         except ValueError as exc:
-            self.policy.log("denied", path=path, reason=str(exc))
-            return await JSONResponse({"error": str(exc)}, status_code=403)(scope, receive, send)
+            self.policy.log(
+                "query_error" if isinstance(exc, UnsupportedQuery) else "denied",
+                path=path,
+                reason=str(exc),
+            )
+            return await JSONResponse(
+                {"error": str(exc)}, status_code=400 if isinstance(exc, UnsupportedQuery) else 403
+            )(scope, receive, send)
 
     @staticmethod
     def _collector(messages):
@@ -337,23 +372,50 @@ class ToolBoundary(Middleware):
 
     async def on_call_tool(self, context, call_next):
         name = context.message.name
+        if name not in {"executeSql", "describeSqlSchema"}:
+            return await call_next(context)
         args = context.message.arguments or {}
-        if name == "executeSql":
-            if "sql" not in args:
-                # Let the native validator report missing arguments. A malformed
-                # call is not an attempt to access a forbidden resource.
-                return await call_next(context)
-            try:
-                args = args | {
-                    "sql": scoped_sql(args["sql"], self.policy.project_id, self.policy.review)
-                }
-            except (ValueError, KeyError) as exc:
-                self.policy.log("denied", tool=name, reason=str(exc))
-                raise ToolError(str(exc)) from exc
-            self.policy.log("sql", sql=args["sql"])
-            message = context.message.model_copy(update={"arguments": args})
-            context = dataclasses.replace(context, message=message)
-        return await call_next(context)
+        call_id = uuid.uuid4().hex
+        event = {"operation": name, "call_id": call_id}
+        self.policy.log("tool_operation", **event, phase="started", sql=args.get("sql"))
+        try:
+            if name == "executeSql" and "sql" in args:
+                try:
+                    args = args | {
+                        "sql": scoped_sql(args["sql"], self.policy.project_id, self.policy.review)
+                    }
+                except (ValueError, KeyError) as exc:
+                    self.policy.log("denied", tool=name, reason=str(exc))
+                    raise ToolError(str(exc)) from exc
+                message = context.message.model_copy(update={"arguments": args})
+                context = dataclasses.replace(context, message=message)
+            result = await call_next(context)
+        except BaseException:
+            self.policy.log(
+                "tool_operation", **event, phase="completed", outcome="error", error_envelope=True
+            )
+            raise
+        content = result.structured_content
+        error = result.is_error or (isinstance(content, dict) and "error" in content)
+        # The schema tool returns text; executeSql advertises a structured envelope.
+        if name == "executeSql" and not isinstance(content, dict):
+            self.policy.log(
+                "tool_operation",
+                **event,
+                phase="completed",
+                outcome="unknown",
+                error_envelope=False,
+            )
+        else:
+            self.policy.log(
+                "tool_operation",
+                **event,
+                phase="completed",
+                outcome="error" if error else "success",
+                error_envelope=bool(error),
+                validate_only=bool(args.get("validate_only", False)),
+            )
+        return result
 
 
 def main():

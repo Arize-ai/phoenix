@@ -10,6 +10,8 @@ from smoke_target import Policy, scoped_sql
     "query",
     [
         "SELECT count(*) FROM traces",
+        "SELECT count(*) FROM TRACES",
+        'SELECT count(*) FROM "TrAcEs"',
         "WITH t AS (SELECT * FROM traces) SELECT count(*) FROM t",
         "SELECT count(*) FROM traces t JOIN projects p ON p.id=t.project_rowid",
         "SELECT count(*) FROM traces WHERE project_rowid != 2",
@@ -74,7 +76,6 @@ def test_graphql_scope_overrides_caller_filter_and_preserves_alias(policy):
         ("{ datasets { edges { node { id } } } }", {}),
         ("query($id:ID!) {node(id:$id){id}}", {"id": "UHJvamVjdDoy"}),
         ("{ projects {edges{node{dataset{id}}}}}", {}),
-        ("{projects {...Secrets}} fragment Secrets on ProjectConnection {edges{node{id}}}", {}),
     ],
 )
 def test_graphql_forbidden_access(policy, query, variables):
@@ -89,3 +90,17 @@ def test_native_tool_namespaces_preserve_hosted_tool_boundary():
     assert not local_tool({"type": "tool_search", "execution": "server"})
     assert not local_tool({"type": "mcp", "server_url": "https://example.com"})
     assert not local_tool({"type": "shell", "environment": {"type": "container_auto"}})
+
+
+def test_fixture_span_queries_and_named_fragments_are_available(policy):
+    query = (
+        'query { node(id:"UHJvamVjdDox") {...Fixture} } '
+        "fragment Fixture on Project { spans(first:20){edges{node{spanId}}} }"
+    )
+    assert "spans(first: 20)" in policy.graphql({"query": query})["query"]
+    for query in [
+        'query {...Other} fragment Other on Query {node(id:"UHJvamVjdDoy"){id}}',
+        "query {...A} fragment A on Query {...A}",
+    ]:
+        with pytest.raises(ValueError):
+            policy.graphql({"query": query})

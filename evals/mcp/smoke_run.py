@@ -22,7 +22,8 @@ from preflight import check_runtime
 from smoke_state import snapshot, snapshot_review, validate_annotations
 from smoke_tasks import stage_review
 from stage_task import stage
-from trajectory import render_trajectory
+from trajectory import render_trajectory, sql_measurements
+from verify import read_answer
 
 HERE = Path(__file__).resolve().parent
 PRIVATE = HERE / ".private"
@@ -38,7 +39,7 @@ def events(path: Path, offset: int = 0) -> list[dict]:
         return [json.loads(line) for line in stream if line.strip()]
 
 
-def check_fixture(truth: dict, payload: dict) -> dict:
+def check_fixture(truth: dict, payload: dict, review: dict | None = None) -> dict:
     state = snapshot(DATABASE, truth["project"])
     validate_annotations(DATABASE, state["project_id"], payload)
     expected = {
@@ -56,13 +57,24 @@ def check_fixture(truth: dict, payload: dict) -> dict:
         or state["span_ids"] != truth["span_ids"]
     ):
         raise RuntimeError("Stored fixture does not match source identities and annotation counts")
-    review_path = PRIVATE / "review-fixture.json"
-    if review_path.exists():
-        state["review_sha256"] = snapshot_review(DATABASE, json.loads(review_path.read_text()))
+    if review is not None:
+        state["review_sha256"] = snapshot_review(DATABASE, review)
+        if state["review_sha256"] != review.get("expected_state_sha256") or state[
+            "sha256"
+        ] != review.get("expected_trace_sha256"):
+            raise RuntimeError("Review fixture differs from its frozen state; validate preparation")
     return state
 
 
-async def run_condition(condition: str, root: Path, tasks: list[Path], images: dict, keys: dict):
+async def run_condition(
+    condition: str,
+    root: Path,
+    tasks: list[Path],
+    images: dict,
+    keys: dict,
+    baseline: dict,
+    review: dict | None,
+):
     run_dir = root / condition
     trusted_root = run_dir / "trusted"
     trusted_root.mkdir(parents=True)
@@ -70,7 +82,9 @@ async def run_condition(condition: str, root: Path, tasks: list[Path], images: d
     audit_dir.mkdir()
     truth = json.loads((PRIVATE / "trail/truth.json").read_text())
     payload = json.loads((PRIVATE / "trail/payload.json").read_text())
-    before = check_fixture(truth, payload)
+    before = check_fixture(truth, payload, review)
+    if before != baseline:
+        raise RuntimeError("Fixture changed between conditions")
     target_audit = PRIVATE / "target-audit.jsonl"
     gateway = "mcp-smoke-gateway-" + root.name + "-" + condition
     provider = "anthropic" if condition.startswith("claude") else "openai"
@@ -160,7 +174,7 @@ async def run_condition(condition: str, root: Path, tasks: list[Path], images: d
             shutdown = json.loads((trusted / "shutdown.json").read_text())
             if shutdown["confirmed"] is not True:
                 raise RuntimeError("Agent shutdown was not verified")
-            after = check_fixture(truth, payload)
+            after = check_fixture(truth, payload, review)
             offsets = json.loads((trusted / "audit-offsets.json").read_text())
             isolation = json.loads((trusted / "isolation.json").read_text())
             if not all(isolation.values()):
@@ -180,13 +194,15 @@ async def run_condition(condition: str, root: Path, tasks: list[Path], images: d
             (trusted / "audit.json").write_text(json.dumps(audit))
             (trusted / "state.json").write_text(json.dumps({"before": before, "after": after}))
             trial_dir = job.job_dir / event.trial_name
-            answer = json.loads(read_regular(trial_dir / "artifacts", "answer.json"))
+            answer, submission_error = read_answer(trial_dir / "artifacts")
+            (trusted / "submission.json").write_text(json.dumps({"error": submission_error}))
+            measurements = sql_measurements(audit)
+            (trusted / "measurements.json").write_text(json.dumps(measurements))
             trajectory = json.loads(read_regular(trial_dir / "agent", "trajectory.json"))
             reference = {"project": truth["project"], "trace_count": truth["trace_count"]}
             if task.name != "trace-count":
-                reference = json.loads((PRIVATE / "review-fixture.json").read_text())["references"][
-                    task.name
-                ]
+                assert review is not None
+                reference = review["references"][task.name]
                 (trusted / "reference.json").write_text(json.dumps(reference))
             rendered = render_trajectory(
                 task.joinpath("instruction.md").read_text(),
@@ -205,17 +221,21 @@ async def run_condition(condition: str, root: Path, tasks: list[Path], images: d
         result = await job.run()
         await plugin.on_job_end(result)
         (run_dir / "result.json").write_text(result.model_dump_json(indent=2))
-        if any(trial.exception_info for trial in result.trial_results):
-            raise RuntimeError("Smoke infrastructure failed; fix it before advancing the matrix")
-        if any(
-            not trial.verifier_result or trial.verifier_result.rewards.get("reward") != 1
-            for trial in result.trial_results
-        ):
-            raise RuntimeError("Smoke verification failed; inspect it before advancing the matrix")
+        require_completed_results(result)
         return result
     finally:
         subprocess.run(["docker", "stop", gateway], check=True, stdout=subprocess.DEVNULL)
         subprocess.run(["docker", "rm", gateway], check=True, stdout=subprocess.DEVNULL)
+
+
+def require_completed_results(result) -> None:
+    if any(trial.exception_info for trial in result.trial_results):
+        raise RuntimeError("Smoke infrastructure failed; fix it before advancing the matrix")
+    if any(
+        not trial.verifier_result or trial.verifier_result.rewards.get("reward") not in (0, 1)
+        for trial in result.trial_results
+    ):
+        raise RuntimeError("Smoke verification is missing a behavioral reward")
 
 
 async def main():
@@ -243,9 +263,11 @@ async def main():
     root.mkdir()
     images = json.loads((HERE / ".runtime/smoke-images/images.json").read_text())
     manifest = json.loads((PRIVATE / "trail/manifest.json").read_text())
+    fixture = None
     if args.suite == "review":
         fixture = json.loads((PRIVATE / "review-fixture.json").read_text())
         tasks = stage_review(manifest, fixture, root / "review", image=BASE)
+        (root / "review-fixture.json").write_text(json.dumps(fixture))
     else:
         tasks = [stage(manifest, root / "tasks", agent_image=BASE, verifier_image=BASE)]
     if args.task:
@@ -262,10 +284,14 @@ async def main():
             }
         )
     )
+    truth = json.loads((PRIVATE / "trail/truth.json").read_text())
+    payload = json.loads((PRIVATE / "trail/payload.json").read_text())
+    baseline = check_fixture(truth, payload, fixture)
+    (root / "fixture-state.json").write_text(json.dumps(baseline))
     print(f"Sample artifacts: {root}", flush=True)
     for condition in conditions:
         print(f"Starting {condition}: one attempt per task", flush=True)
-        await run_condition(condition, root, tasks, images, keys)
+        await run_condition(condition, root, tasks, images, keys, baseline, fixture)
 
 
 if __name__ == "__main__":

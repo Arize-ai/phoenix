@@ -19,7 +19,8 @@ make mcp-test mcp-typecheck mcp-smoke-boundary-test mcp-lint
 
 The dedicated benchmark environment uses Harbor 0.22.0 and builds the Phoenix
 client and evals wheels from the revision in `configs/runtime.json`. Their hashes
-must match `configs/wheels.json`. The separate Phoenix development environment
+must match `configs/wheels.json`. Isolated wheel builds use the backend and dependency
+versions in `configs/build-constraints.txt`. The separate Phoenix development environment
 uses the checkout's server dependencies. Images contain pinned agent versions.
 CLI agents use a transport executable named `px`; a separate broker image runs
 the pinned Phoenix CLI. No image contains TRAIL payloads or credentials.
@@ -71,7 +72,9 @@ these are task inputs, separate from the benchmark's recorded results.
 
 Each Harbor agent runs on a Docker internal network with isolated gateway mode.
 A separate trusted gateway admits only the assigned Phoenix interface and model
-inference. It recursively rejects hosted tools, including web search. Codex uses
+inference. It rejects hosted tools, remote document/image URL inputs, and references
+to external provider files. Inline text and image data remain
+available. Codex uses
 HTTP Responses transport through this gateway. Same-container probes check public
 hosts, direct IPs, host Phoenix endpoints, protected files, and hosted search
 before agent execution. This avoids Harbor's default nftables path, which requires
@@ -87,12 +90,33 @@ that files written by `px` are visible to the agent. The broker stops before gra
 The agent's verifier directory is not mounted from the host. A probe plants a
 forged reward there. Harbor stops the agent, the runner independently inspects its
 container state, and a separate offline verifier receives the declared answer and
-trusted evidence. Missing evidence yields no reward. The native completeness
+trusted evidence. Missing trusted evidence yields no reward. Missing, malformed,
+or oversized agent answers receive a zero behavioral reward. The native completeness
 evaluator runs after shutdown; its rubric excludes factual correctness. Count,
 evidence IDs, unchanged fixture state, and access policy have separate scores.
 Review tasks compare requested records against private references, ignoring list
 order. The runner also snapshots the review dataset and experiment before and
-after execution. A failed reward or infrastructure error stops the remaining matrix.
+after execution. Zero rewards remain recorded and subsequent conditions run.
+Infrastructure failures or missing rewards stop the remaining matrix.
+
+Review preparation resumes from checkpointed IDs after interruption, including a
+lost response after a successful create. It validates existing examples and runs
+before reusing them, then freezes the tracing and review state. Run
+`make mcp-smoke-review-fixture` once for fixtures prepared before this validation
+was added. It preserves the existing resources and validates their content.
+Changed state is rejected rather than silently accepted as a new baseline.
+Review references and state hashes contribute to every review task's dataset
+identity. Each sample saves its references and checks the same baseline across
+conditions.
+
+Native SQL and schema calls produce correlated start/completion audit records.
+The runner saves `measurements.json` and records `sql_attempted`, `sql_succeeded`,
+`schema_inspected`, and `sql_measurement_complete` through the Harbor verifier.
+SQL error envelopes do not count as success. Incomplete or legacy audit records
+report unavailable measurements, not zero use. These measurements do not change
+the behavioral reward. Unsupported fixture query shapes are distinct from denied
+access to other resources; fixture-only span queries and named GraphQL fragments
+are supported.
 
 The reusable TRAIL converter upserts annotations by identifier: this fixture has
 585 source span-annotation records representing 581 stored annotations, plus 585
@@ -110,7 +134,7 @@ make mcp-smoke-check ARGS='evals/mcp/.private/sample-TIMESTAMP'
 ```
 
 The checker reads Phoenix records back, validates dataset facets and version
-linkage, requires one run per selected task and condition, checks every evaluation, and
+linkage, requires one run per selected task and condition, checks every stored evaluation against the terminal verifier rewards, and
 confirms that the linked trace contains spans. `--condition` can select completed
 conditions from a sample that stopped on an infrastructure failure. Reports and
 raw artifacts stay in ignored `.private/`; do not publish restricted trajectories.

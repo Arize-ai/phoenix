@@ -35,6 +35,36 @@ def local_tool(tool):
     return False
 
 
+def validate_inference(payload):
+    """Admit local tools and inline input; provider fetches bypass Docker egress rules."""
+    tools = payload.get("tools") or []
+    if not all(local_tool(tool) for tool in tools):
+        raise ValueError("Hosted tools, including web search, are disabled")
+    if payload.get("mcp_servers") or payload.get("container"):
+        raise ValueError("Remote execution is disabled")
+
+    def check(value):
+        if isinstance(value, dict):
+            # URL document sources and uploaded provider files are both outside
+            # this trial's filesystem. Inline data URLs remain usable for images.
+            if value.get("type") in {"url", "file"}:
+                raise ValueError("Remote input sources are disabled")
+            for key, child in value.items():
+                if key in {"file_id", "file_url"} and child:
+                    raise ValueError("External provider state is disabled")
+                if key in {"url", "image_url"} and isinstance(child, str):
+                    if not child.startswith("data:"):
+                        raise ValueError("Remote input URLs are disabled")
+                check(child)
+        elif isinstance(value, list):
+            for child in value:
+                check(child)
+
+    # Tool parameters can legitimately describe URLs; validate actual input blocks.
+    for key in ("messages", "input", "system"):
+        check(payload.get(key))
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
@@ -84,12 +114,8 @@ class Handler(BaseHTTPRequestHandler):
                 if self.command != "POST" or route not in allowed_routes:
                     raise ValueError("Provider route is not inference")
                 payload = json.loads(body or b"{}")
+                validate_inference(payload)
                 tools = payload.get("tools") or []
-                if not all(local_tool(tool) for tool in tools):
-                    audit(kind="rejected_tools", tool_types=[t.get("type") for t in tools])
-                    raise ValueError("Hosted tools, including web search, are disabled")
-                if payload.get("mcp_servers") or payload.get("container"):
-                    raise ValueError("Remote execution is disabled")
                 audit(
                     kind="inference",
                     model=payload.get("model"),

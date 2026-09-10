@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import math
 import subprocess
 from pathlib import Path
 
@@ -48,7 +49,7 @@ def main():
         check=True,
     )
     scores = json.loads((output / "reward.json").read_text())
-    if not scores or any(value not in (0, 1) for value in scores.values()):
+    if not scores or any(not math.isfinite(value) or value < 0 for value in scores.values()):
         raise RuntimeError("Verifier did not produce valid scores")
     print(json.dumps(scores))
 

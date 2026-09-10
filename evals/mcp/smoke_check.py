@@ -87,9 +87,8 @@ def main():
                     "evidence_valid",
                     "scope_preserved",
                     "access_policy_ok",
-                    "task_completeness",
                 }
-                if required != scores.keys() or scores["infra_ok"] != 1:
+                if not required <= scores.keys() or scores["infra_ok"] != 1:
                     raise RuntimeError(
                         "Expected complete native verifier and completeness evaluations"
                     )
@@ -103,9 +102,14 @@ def main():
                 trusted = sample / condition / "trusted" / trial["trial_name"]
                 if not trusted.exists():
                     trusted = trusted.parent  # Original single-task artifacts.
+                local_scores = trial["verifier_result"]["rewards"]
+                if scores != local_scores | {"infra_ok": 1}:
+                    raise RuntimeError("Stored evaluations differ from terminal verifier rewards")
                 truth = json.loads((trusted / "truth.json").read_text())
                 payload = json.loads((sample.parent / "trail/payload.json").read_text())
-                state = check_fixture(truth, payload)
+                fixture_path = sample / "review-fixture.json"
+                review = json.loads(fixture_path.read_text()) if fixture_path.exists() else None
+                state = check_fixture(truth, payload, review)
                 persisted = json.loads((trusted / "state.json").read_text())
                 # The initial count runs predate the additive review fixture.
                 if "review_sha256" not in persisted["before"]:
