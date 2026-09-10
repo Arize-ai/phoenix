@@ -15,3 +15,11 @@ minimumReleaseAgeExclude:
   - "vitest@5.0.0"
   - "@vitest/mocker@5.0.0"
   - "@vitest/spy@5.0.0"
+  # React 19.3.0 and the packages released alongside it were all published
+  # together on September 9, 2026. Drop these once that date clears the
+  # minimumReleaseAge window above.
+  - "react@19.3.0"
+  - "react-dom@19.3.0"
+  - "scheduler@0.28.0"
+  - "@types/react@19.3.0"
+  - "@types/react-dom@19.3.0"

@@ -58,6 +58,13 @@ minimumReleaseAgeExclude:
   - "@vitest/spy@5.0.0"
   - "@vitest/ui@5.0.0"
   - "@vitest/utils@5.0.0"
+  # React 19.3.0 and the packages released alongside it were all published
+  # together on September 9, 2026.
+  - "react@19.3.0"
+  - "react-dom@19.3.0"
+  - "scheduler@0.28.0"
+  - "@types/react@19.3.0"
+  - "@types/react-dom@19.3.0"
 minimumReleaseAgeExcludePrune: true
 
 # @browser-ai/core imports @ai-sdk/provider at runtime without declaring it,
