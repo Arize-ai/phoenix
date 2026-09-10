@@ -1,6 +1,7 @@
 import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import {
+  GET_TRACES_FILTER_EXPRESSION,
   GET_TRACES_FILTERS,
   LIST_PROJECT_TRACES,
 } from "../constants/serverRequirements";
@@ -32,21 +33,30 @@ export interface GetTracesParams extends ClientFn {
   /** Filter traces by session identifier(s) (session_id strings or GlobalIDs) */
   sessionId?: string | string[] | null;
   /**
+   * Trace DSL expression, combined with other filters using AND.
+   * Use the same expression on subsequent pages. Empty strings do not filter.
+   * @requires Phoenix server >= 20.10.0
+   */
+  filter?: string | null;
+  /**
    * Filter by trace error status. `true` returns only traces containing at
    * least one errored span, `false` only traces with no errored spans.
    * Omit to leave traces unfiltered by error status.
+   * @deprecated Use `filter: "error_count > 0"` or `filter: "error_count == 0"`.
    *
    * @requires Phoenix server >= 20.8.0
    */
   error?: boolean | null;
   /**
    * Inclusive lower bound on trace latency in milliseconds.
+   * @deprecated Use `filter: "latency_ms >= N"`.
    *
    * @requires Phoenix server >= 20.8.0
    */
   minLatencyMs?: number | null;
   /**
    * Inclusive upper bound on trace latency in milliseconds.
+   * @deprecated Use `filter: "latency_ms <= N"`.
    *
    * @requires Phoenix server >= 20.8.0
    */
@@ -96,11 +106,15 @@ function buildQuery({
   order,
   includeSpans,
   sessionId,
+  filter,
   error,
   minLatencyMs,
   maxLatencyMs,
 }: Omit<GetTracesParams, "client" | "project">): ListProjectTracesQuery {
   const query: ListProjectTracesQuery = { limit };
+  if (filter) {
+    query.filter = filter;
+  }
   if (cursor) {
     query.cursor = cursor;
   }
@@ -195,8 +209,7 @@ export type GetTracesResult = {
  * const slowFailures = await getTraces({
  *   client,
  *   project: { projectName: "my-project" },
- *   error: true,
- *   minLatencyMs: 1000,
+ *   filter: "error_count > 0 and latency_ms >= 1000",
  * });
  * ```
  */
@@ -209,6 +222,12 @@ export async function getTraces({
   const client = _client ?? createClient();
   validateLatencyBounds({ minLatencyMs, maxLatencyMs });
   await ensureServerCapability({ client, requirement: LIST_PROJECT_TRACES });
+  if (params.filter) {
+    await ensureServerCapability({
+      client,
+      requirement: GET_TRACES_FILTER_EXPRESSION,
+    });
+  }
   if (errorFilter != null || minLatencyMs != null || maxLatencyMs != null) {
     await ensureServerCapability({ client, requirement: GET_TRACES_FILTERS });
   }

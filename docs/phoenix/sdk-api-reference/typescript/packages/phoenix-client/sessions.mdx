@@ -42,6 +42,19 @@ Each session includes cumulative prompt, completion, and total token counts acro
 all of its spans. The fields may be `undefined` when using a Phoenix server that
 does not return session token usage.
 
+On Phoenix server **20.10.0+**, pass the same `filter` expression you use in the
+sessions UI. The expression applies before pagination and is sent on every page:
+
+```ts
+const failedSessions = await listSessions({
+  project: "support-bot",
+  filter: "num_traces_with_error > 0 and duration_ms >= 60000",
+});
+```
+
+Empty expressions do not filter. Invalid expressions return HTTP 400; older
+servers are rejected before sending an expression.
+
 ## Retrieve A Session And Its Turns
 
 ```ts
