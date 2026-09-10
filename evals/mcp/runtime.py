@@ -37,6 +37,8 @@ def build() -> None:
                 "uv",
                 "build",
                 "--wheel",
+                "--build-constraints",
+                str(HERE / "configs/build-constraints.txt"),
                 "--out-dir",
                 str(wheel_dir),
                 str(source / "packages" / package),
@@ -51,6 +53,9 @@ def build() -> None:
             raise ValueError("Built wheel differs from reviewed SHA256 pin")
     manifest = {
         "phoenix_revision": revision,
+        "build_constraints_sha256": hashlib.sha256(
+            (HERE / "configs/build-constraints.txt").read_bytes()
+        ).hexdigest(),
         "wheels": [
             {"path": str(p.relative_to(HERE)), "sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
             for p in wheels

@@ -1,0 +1,6 @@
+# Build backend used by the reviewed wheel hashes.
+hatchling==1.32.0
+packaging==26.3
+pathspec==1.1.1
+pluggy==1.6.0
+trove-classifiers==2026.6.1.19
