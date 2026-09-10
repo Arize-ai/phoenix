@@ -1,5 +1,8 @@
 """add online eval coordination
 
+The traces.last_span_ingested_at index is created inside this migration's transaction and does not
+honor PHOENIX_MIGRATE_INDEX_CONCURRENTLY because the column is added in the same transaction.
+
 Revision ID: a7f1c3e9d2b4
 Revises: 4aad9107d196
 Create Date: 2026-06-17 00:00:00.000000
