@@ -17,6 +17,13 @@ from runtime import HERE
 MATRIX = json.loads((HERE / "configs/matrix.json").read_text())
 
 
+def experiment_name(agent: str, model: str, interface: str) -> str:
+    """Display the configuration; Harbor metadata retains unique job identity."""
+    agent_label = {"claude-code": "Claude Code", "codex": "Codex"}[agent]
+    model_label = {"claude-opus-5": "Opus 5", "gpt-5.6": "GPT-5.6"}.get(model, model)
+    return f"{agent_label} · {model_label} · {interface.upper()}"
+
+
 def runner_environment(
     source: Mapping[str, str], *, agent: str, runner_home: Path
 ) -> dict[str, str]:
@@ -122,7 +129,7 @@ def render_job(
         "dataset": "phoenix-mcp-smoke",
         "trace_mode": "atif",
         "endpoint": results_endpoint,
-        "experiment_name": job_name,
+        "experiment_name": experiment_name(agent, model, interface),
     }
     return job, plugin
 
