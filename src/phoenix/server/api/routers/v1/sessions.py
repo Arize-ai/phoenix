@@ -362,7 +362,7 @@ async def list_project_sessions(
     filter: Optional[str] = Query(
         default=None,
         description=(
-            "Session filter expression, using the same DSL as the UI session filter. "
+            "Filter sessions using a boolean expression. "
             "For example: `num_traces_with_error > 0 and duration_ms >= 60000`. "
             "Empty expressions do not filter. Invalid expressions return 400."
         ),

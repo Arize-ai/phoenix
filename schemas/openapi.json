@@ -4755,11 +4755,11 @@
                   "type": "null"
                 }
               ],
-              "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI.",
+              "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.",
               "deprecated": true,
               "title": "Error"
             },
-            "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI.",
+            "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.",
             "deprecated": true
           },
           {
@@ -4817,10 +4817,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Trace filter expression, using the same DSL as the UI trace filter. For example: `error_count > 0 and latency_ms >= 1000`. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400.",
+              "description": "Filter traces using a boolean expression. For example: `error_count > 0 and latency_ms >= 1000`. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400.",
               "title": "Filter"
             },
-            "description": "Trace filter expression, using the same DSL as the UI trace filter. For example: `error_count > 0 and latency_ms >= 1000`. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400."
+            "description": "Filter traces using a boolean expression. For example: `error_count > 0 and latency_ms >= 1000`. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400."
           }
         ],
         "responses": {
@@ -7679,10 +7679,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Session filter expression, using the same DSL as the UI session filter. For example: `num_traces_with_error > 0 and duration_ms >= 60000`. Empty expressions do not filter. Invalid expressions return 400.",
+              "description": "Filter sessions using a boolean expression. For example: `num_traces_with_error > 0 and duration_ms >= 60000`. Empty expressions do not filter. Invalid expressions return 400.",
               "title": "Filter"
             },
-            "description": "Session filter expression, using the same DSL as the UI session filter. For example: `num_traces_with_error > 0 and duration_ms >= 60000`. Empty expressions do not filter. Invalid expressions return 400."
+            "description": "Filter sessions using a boolean expression. For example: `num_traces_with_error > 0 and duration_ms >= 60000`. Empty expressions do not filter. Invalid expressions return 400."
           }
         ],
         "responses": {
