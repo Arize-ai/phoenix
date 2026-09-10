@@ -16,7 +16,7 @@ async def test_actual_mcp_dispatch_records_success_error_envelopes_and_schema_re
     mcp = FastMCP("audit-test")
 
     @mcp.tool
-    async def executeSql(sql: str) -> dict:
+    async def executeSql(sql: str, validate_only: bool = False) -> dict:
         if "broken" in sql:
             return {"error": {"message": "SQL failed"}}
         return {"columns": ["count"], "rows": [[1]]}
@@ -29,9 +29,10 @@ async def test_actual_mcp_dispatch_records_success_error_envelopes_and_schema_re
     async with Client(mcp) as client:
         await client.call_tool("executeSql", {"sql": "SELECT count(*) FROM TRACES"})
         await client.call_tool("executeSql", {"sql": "SELECT broken FROM traces"})
+        await client.call_tool("executeSql", {"sql": "SELECT 1", "validate_only": True})
         await client.call_tool("describeSqlSchema", {})
     assert sql_measurements(events) == {
-        "sql_attempted": 2,
+        "sql_attempted": 3,
         "sql_succeeded": 1,
         "schema_inspected": 1,
         "sql_measurement_complete": 1,

@@ -112,7 +112,7 @@ conditions.
 Native SQL and schema calls produce correlated start/completion audit records.
 The runner saves `measurements.json` and records `sql_attempted`, `sql_succeeded`,
 `schema_inspected`, and `sql_measurement_complete` through the Harbor verifier.
-SQL error envelopes do not count as success. Incomplete or legacy audit records
+SQL error envelopes and validation-only calls do not count as executed SQL success. Incomplete or legacy audit records
 report unavailable measurements, not zero use. These measurements do not change
 the behavioral reward. Unsupported fixture query shapes are distinct from denied
 access to other resources; fixture-only span queries and named GraphQL fragments

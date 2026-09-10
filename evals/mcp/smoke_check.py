@@ -7,7 +7,8 @@ from pathlib import Path
 import httpx
 
 from metadata import TaskMetadata
-from smoke_run import check_fixture
+from smoke_run import DATABASE, check_fixture
+from smoke_state import snapshot_review
 
 
 def pages(client, path, **params):
@@ -111,7 +112,11 @@ def main():
                 review = json.loads(fixture_path.read_text()) if fixture_path.exists() else None
                 state = check_fixture(truth, payload, review)
                 persisted = json.loads((trusted / "state.json").read_text())
-                # The initial count runs predate the additive review fixture.
+                # Legacy samples froze the state but did not copy the review
+                # manifest. Its existing IDs still let us verify that snapshot.
+                if "review_sha256" in persisted["before"] and review is None:
+                    legacy = json.loads((sample.parent / "review-fixture.json").read_text())
+                    state["review_sha256"] = snapshot_review(DATABASE, legacy)
                 if "review_sha256" not in persisted["before"]:
                     state.pop("review_sha256", None)
                 if state != persisted["before"] or state != persisted["after"]:
