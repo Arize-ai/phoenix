@@ -54,6 +54,7 @@ from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionI
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Evaluator import (
+    PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION,
     BuiltInEvaluator,
     CodeEvaluator,
     DatasetEvaluator,
@@ -76,6 +77,7 @@ from phoenix.server.online_eval.session_policy import (
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
 from phoenix.server.session_filters import validate_session_filter_condition
+from phoenix.server.trace_filters import validate_trace_filter_condition
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.filter import validate_span_filter_condition
 
@@ -84,16 +86,6 @@ _EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
     CodeEvaluator.__name__: "CODE",
     BuiltInEvaluator.__name__: "BUILTIN",
 }
-
-_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
-    "SPAN evaluators run on matching sampled spans. A SESSION evaluator decides once per "
-    "session at the first quiet period after the evaluation delay: it applies the session "
-    "filter first, then deterministic sampling, and schedules admitted work asynchronously. "
-    "A filter non-match or sampling miss is permanently declined for that evaluator "
-    "configuration; later activity does not reopen the decision. TRACE evaluators are stored "
-    "but not scheduled. Only SESSION scheduling honors the evaluation delay, which a SPAN "
-    "target rejects. The target is fixed at creation."
-)
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
@@ -366,13 +358,16 @@ def _validate_project_evaluator_filter(
 ) -> None:
     """Validate a filter in the language of the target it selects.
 
-    Spans and traces are filtered with the span filter DSL, sessions with the session
-    filter DSL, so the expression is compiled by the same path its target's scheduler
-    sweep will use.
+    Each target has its own filter language, and the expression is compiled here by the
+    same path that will compile it when the evaluator runs. An expression accepted here
+    but rejected by the target's own language would leave the evaluator producing
+    nothing.
     """
     try:
         if evaluation_target is EvaluationTarget.SESSION:
             validate_session_filter_condition(filter_condition)
+        elif evaluation_target is EvaluationTarget.TRACE:
+            validate_trace_filter_condition(filter_condition)
         else:
             validate_span_filter_condition(filter_condition)
     except Exception:
@@ -388,11 +383,7 @@ def _materialize_project_evaluator_evaluation_delay(
     evaluation_delay_seconds: Optional[int],
     evaluation_target: EvaluationTarget,
 ) -> int:
-    """Resolve the delay to store; only the session sweep waits one out.
-
-    Span work is scheduled off the global ingestion frontier, so a delay supplied for a
-    span evaluator is refused rather than stored as a setting that never applies.
-    """
+    """Resolve the delay to store; TRACE and SESSION targets are the ones that wait it out."""
     if evaluation_delay_seconds is None:
         return DEFAULT_EVALUATION_DELAY_SECONDS
     if evaluation_target is EvaluationTarget.SPAN:
@@ -568,12 +559,12 @@ class CreateProjectLLMEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
-            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
-            "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
+            f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store "
+            f"the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or "
+            "session is evaluated only once, and later activity does not schedule another "
+            "evaluation."
         ),
     )
 
@@ -596,13 +587,12 @@ class UpdateProjectLLMEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=UNSET,
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
-            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
-            "are stored but not scheduled. Omit to preserve the current setting, or use null "
-            f"to store the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} "
-            "seconds. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
+            f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current "
+            "setting, or use null to store the current default of "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or session is evaluated "
+            "only once, and later activity does not schedule another evaluation."
         ),
     )
 
@@ -626,12 +616,12 @@ class AddProjectCodeEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
-            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
-            "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
+            f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store "
+            f"the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or "
+            "session is evaluated only once, and later activity does not schedule another "
+            "evaluation."
         ),
     )
 
@@ -660,12 +650,12 @@ class CreateProjectCodeEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
-            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
-            "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
-            "once, and later activity does not schedule another evaluation."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
+            f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store "
+            f"the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or "
+            "session is evaluated only once, and later activity does not schedule another "
+            "evaluation."
         ),
     )
 
@@ -695,13 +685,12 @@ class UpdateProjectCodeEvaluatorInput:
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=UNSET,
         description=(
-            "Seconds a SESSION must stay quiet before evaluation is scheduled; the minimum is "
-            f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
-            "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
-            "are stored but not scheduled. Omit to preserve the current setting, or use null "
-            f"to store the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} "
-            "seconds. A session is evaluated only once, and later activity does not schedule "
-            "another evaluation."
+            "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
+            f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current "
+            "setting, or use null to store the current default of "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or session is evaluated "
+            "only once, and later activity does not schedule another evaluation."
         ),
     )
 
@@ -779,7 +768,7 @@ class CreateCodeEvaluatorVersionPayload:
 class EvaluatorMutationMixin:
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description=f"Create an LLM project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
+        description=f"Create an LLM project evaluator. {PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
     )  # type: ignore
     async def create_project_llm_evaluator(
         self, info: Info[Context, None], input: CreateProjectLLMEvaluatorInput
@@ -892,7 +881,7 @@ class EvaluatorMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description=f"Update an LLM project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
+        description=f"Update an LLM project evaluator. {PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
     )  # type: ignore
     async def update_project_llm_evaluator(
         self, info: Info[Context, None], input: UpdateProjectLLMEvaluatorInput
@@ -1054,7 +1043,7 @@ class EvaluatorMutationMixin:
         description=(
             "Bind an existing CODE evaluator to a project. The evaluator's configuration is "
             "shared with every project and dataset it is bound to. "
-            f"{_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
+            f"{PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
         ),
     )  # type: ignore
     async def add_project_code_evaluator(
@@ -1116,7 +1105,7 @@ class EvaluatorMutationMixin:
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
-        description=f"Create a CODE project evaluator. {_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
+        description=f"Create a CODE project evaluator. {PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}",
     )  # type: ignore
     async def create_project_code_evaluator(
         self, info: Info[Context, None], input: CreateProjectCodeEvaluatorInput
@@ -1216,7 +1205,7 @@ class EvaluatorMutationMixin:
         description=(
             "Update a CODE project evaluator. Editing changes the underlying evaluator, which "
             "applies to every project and dataset it is bound to. "
-            f"{_PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
+            f"{PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION}"
         ),
     )  # type: ignore
     async def update_project_code_evaluator(
