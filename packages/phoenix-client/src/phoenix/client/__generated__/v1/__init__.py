@@ -2334,6 +2334,7 @@ class PromptVersionData(TypedDict):
         PromptMetaInvocationParameters,
     ]
     description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
     tools: NotRequired[PromptTools]
     response_format: NotRequired[PromptResponseFormatJSONSchema]
 

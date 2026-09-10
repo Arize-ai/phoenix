@@ -112,6 +112,7 @@ def create_prompt_version_from_openai(
     /,
     *,
     description: Optional[str] = None,
+    metadata: Optional[Mapping[str, Any]] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
 ) -> v1.PromptVersionData:
@@ -145,6 +146,8 @@ def create_prompt_version_from_openai(
         ans["response_format"] = _ResponseFormatConversion.from_openai(obj["response_format"])
     if description:
         ans["description"] = description
+    if metadata:
+        ans["metadata"] = dict(metadata)
     return ans
 
 

@@ -122,6 +122,7 @@ def create_prompt_version_from_anthropic(
     /,
     *,
     description: Optional[str] = None,
+    metadata: Optional[Mapping[str, Any]] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     model_provider: Literal["ANTHROPIC"] = "ANTHROPIC",
 ) -> v1.PromptVersionData:
@@ -159,6 +160,8 @@ def create_prompt_version_from_anthropic(
         ans["tools"] = tools
     if description:
         ans["description"] = description
+    if metadata:
+        ans["metadata"] = dict(metadata)
     return ans
 
 

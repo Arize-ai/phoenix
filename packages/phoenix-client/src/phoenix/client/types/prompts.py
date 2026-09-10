@@ -60,6 +60,7 @@ class PromptVersion:
         *,
         model_name: str,
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal[
             "OPENAI",
             "AZURE_OPENAI",
@@ -88,7 +89,9 @@ class PromptVersion:
             prompt (Sequence[v1.PromptMessage]): A sequence of prompt messages.
             model_name (str): The name of the model to use for the prompt.
             description (Optional[str]): A description of the prompt. Defaults
-            to None. model_provider (Literal["OPENAI", "AZURE_OPENAI",
+                to None.
+            metadata (Optional[Mapping[str, Any]]): Metadata for the prompt version.
+            model_provider (Literal["OPENAI", "AZURE_OPENAI",
             "ANTHROPIC", "GOOGLE",
                 "DEEPSEEK", "XAI", "AWS", "OLLAMA"]): The provider of the model
                 to use for the prompt. Defaults to "OPENAI".
@@ -120,6 +123,7 @@ class PromptVersion:
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
+        self._metadata = dict(metadata or {})
         self._invocation_parameters: Union[
             v1.PromptOpenAIInvocationParameters,
             v1.PromptAzureOpenAIInvocationParameters,
@@ -234,6 +238,7 @@ class PromptVersion:
     def __dir__(self) -> list[str]:
         return [
             "id",
+            "metadata",
             "format",
             "from_openai",
             "from_anthropic",
@@ -246,6 +251,11 @@ class PromptVersion:
         Prompt Version ID if stored in the Phoenix backend
         """
         return self._id
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Metadata associated with this prompt version."""
+        return dict(self._metadata)
 
     def format(
         self,
@@ -308,6 +318,7 @@ class PromptVersion:
             messages,
             model_name=obj["model_name"],
             description=obj.get("description"),
+            metadata=obj.get("metadata"),
             model_provider=obj["model_provider"],
             template_format=obj["template_format"],
         )
@@ -332,6 +343,8 @@ class PromptVersion:
             template_format=self._template_format,
             invocation_parameters=self._invocation_parameters,
         )
+        if self._metadata:
+            ans["metadata"] = dict(self._metadata)
         if self._tools is not None:
             ans["tools"] = self._tools
         if self._response_format is not None:
@@ -348,6 +361,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
     ) -> Self:
         """
@@ -358,6 +372,8 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
             description (Optional[str]): A description of the prompt. Defaults to None.
+            metadata (Optional[Mapping[str, Any]]): Metadata for the prompt version.
+                Defaults to None.
             model_provider (Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"]):
                 The provider of the model to use for the prompt. Defaults to "OPENAI".
 
@@ -368,6 +384,7 @@ class PromptVersion:
             create_prompt_version_from_openai(
                 obj,
                 description=description,
+                metadata=metadata,
                 template_format=template_format,
                 model_provider=model_provider,
             )
@@ -381,6 +398,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["AWS"] = "AWS",
     ) -> Self:
         raise NotImplementedError("AWS is not supported yet")
@@ -393,6 +411,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["ANTHROPIC"] = "ANTHROPIC",
     ) -> Self:
         """
@@ -403,6 +422,8 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
             description (Optional[str]): A description of the prompt. Defaults to None.
+            metadata (Optional[Mapping[str, Any]]): Metadata for the prompt version.
+                Defaults to None.
             model_provider (Literal["ANTHROPIC"]): The provider of the model to use for the prompt.
                 Defaults to "ANTHROPIC".
 
@@ -413,6 +434,7 @@ class PromptVersion:
             create_prompt_version_from_anthropic(
                 obj,
                 description=description,
+                metadata=metadata,
                 template_format=template_format,
                 model_provider=model_provider,
             )
@@ -430,6 +452,7 @@ class PromptVersion:
         ] = None,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["GOOGLE"] = "GOOGLE",
     ) -> Self:
         """
@@ -441,6 +464,7 @@ class PromptVersion:
             config: Optional Google GenAI generation configuration.
             template_format: The format of the template to use. Defaults to ``"MUSTACHE"``.
             description: An optional prompt description.
+            metadata: Optional metadata for the prompt version.
             model_provider: The model provider. Defaults to ``"GOOGLE"``.
 
         Returns:
@@ -452,6 +476,7 @@ class PromptVersion:
                 contents,
                 config=config,
                 description=description,
+                metadata=metadata,
                 template_format=template_format,
                 model_provider=model_provider,
             )
