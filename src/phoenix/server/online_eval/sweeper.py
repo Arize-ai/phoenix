@@ -389,6 +389,13 @@ class EvalSweeper(DaemonTask):
         self._evaluation_target = evaluation_target
         self._target = target
         self._metric_labels = {"evaluation_target": evaluation_target}
+        ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG.labels(**self._metric_labels)
+        ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(**self._metric_labels)
+        ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS.labels(**self._metric_labels)
+        ONLINE_EVAL_SWEEP_ATTEMPTS.labels(**self._metric_labels)
+        ONLINE_EVAL_SWEEP_DURATION_SECONDS.labels(**self._metric_labels)
+        ONLINE_EVAL_SWEEP_FAILURES.labels(**self._metric_labels)
+        ONLINE_EVAL_SWEEP_SUCCESSES.labels(**self._metric_labels)
         self._consumer_group = consumer_group
         self._tick_interval_seconds = tick_interval_seconds
         self._max_outstanding = max_outstanding
