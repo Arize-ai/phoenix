@@ -353,7 +353,11 @@ class SessionEvalSweeper(DaemonTask):
                     logger.exception("Session evaluation sweep failed")
                 await asyncio.sleep(self._tick_interval_seconds)
         finally:
-            await self._release_lease()
+            release = asyncio.ensure_future(self._release_lease())
+            try:
+                await asyncio.shield(release)
+            except asyncio.CancelledError:
+                raise
 
     async def _tick(self) -> None:
         mutations_allowed = not self._db.should_not_insert_or_update
