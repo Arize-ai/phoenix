@@ -164,6 +164,8 @@ _PARENT_IS_NOT_NULL = "__parent_is_not_null__"
 _STRICT_ROOT_KEYWORD = "parent_id"
 
 
+# Cost names are filter-only; Projector resolves them as dynamic attributes.
+# aggregate_names is shared with the projection translator and cannot hold these names.
 _SPAN_COST_BINDING_PREFIX = "__span_cost_"
 
 
