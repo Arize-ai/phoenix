@@ -24,3 +24,12 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["evals/mcp"]
+exclude = ["tasks/", "tests/", "live_tests/"]
+check_untyped_defs = true
+follow_imports = "skip"
+ignore_missing_imports = true
+explicit_package_bases = true

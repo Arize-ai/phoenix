@@ -339,6 +339,7 @@ files = [
   "tests/",
 ]
 exclude = [
+  "evals/mcp/", # Separate Python 3.13 runtime; checked by make mcp-typecheck.
   "api_reference",
   "dist/",
   "examples/",

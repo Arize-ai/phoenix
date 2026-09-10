@@ -558,4 +558,4 @@ clean-all: clean ## Clean everything including node_modules
 	@rm -rf .venv
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-include evals/mcp/Makefile
+include $(wildcard evals/mcp/Makefile)

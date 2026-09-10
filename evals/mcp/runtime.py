@@ -31,19 +31,19 @@ def build() -> None:
         bundle.extractall(source, filter="data")
     wheels = []
     for package in ("phoenix-client", "phoenix-evals"):
-        output = destination / package
+        wheel_dir = destination / package
         subprocess.run(
             [
                 "uv",
                 "build",
                 "--wheel",
                 "--out-dir",
-                str(output),
+                str(wheel_dir),
                 str(source / "packages" / package),
             ],
             check=True,
         )
-        (wheel,) = output.glob("*.whl")
+        (wheel,) = wheel_dir.glob("*.whl")
         wheels.append(wheel)
     pins = json.loads((HERE / "configs/wheels.json").read_text())
     for wheel in wheels:

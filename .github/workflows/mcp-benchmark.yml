@@ -1,0 +1,41 @@
+name: MCP benchmark
+
+on:
+  pull_request:
+    paths:
+      - "evals/mcp/**"
+      - "scripts/prepare_patronus_trail.py"
+      - "pyproject.toml"
+      - ".github/workflows/mcp-benchmark.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-benchmark-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Benchmark checks on Python 3.13
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - name: Fetch pinned wheel sources
+        run: git fetch --depth=1 origin e2e514329b5b93c912d6d2e8cea478e96211b115
+      - name: Install server and benchmark dependencies
+        run: make install-python mcp-setup
+      - name: Check benchmark
+        run: make mcp-test mcp-typecheck mcp-lint
+      - name: Check fixture boundary
+        if: ${{ hashFiles('evals/mcp/live_tests/*.py') != '' }}
+        run: make mcp-smoke-boundary-test

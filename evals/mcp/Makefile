@@ -10,6 +10,10 @@ mcp-setup:
 mcp-test:
 	PYTHONPATH=$(MCP_DIR):. $(MCP_PYTHON) -m pytest -q $(MCP_DIR)/tests
 
+.PHONY: mcp-typecheck
+mcp-typecheck:
+	.venv/bin/mypy --config-file $(MCP_DIR)/pyproject.toml --python-executable $(MCP_PYTHON)
+
 mcp-lint:
 	$(MCP_DIR)/.venv/bin/ruff check $(MCP_DIR)
 	$(MCP_DIR)/.venv/bin/ruff format --check $(MCP_DIR)
