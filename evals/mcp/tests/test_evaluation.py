@@ -190,3 +190,22 @@ def test_sql_measurements_require_correlated_completed_operations():
     for incomplete in [events[:-1], events + [events[0]], [{"kind": "sql", "sql": "SELECT 1"}]]:
         assert sql_measurements(incomplete)["sql_measurement_complete"] == 0
         assert sql_measurements(incomplete)["sql_succeeded"] is None
+
+
+def test_validation_only_sql_is_not_counted_as_executed():
+    event = {"operation": "executeSql", "call_id": "validation"}
+    result = sql_measurements(
+        [
+            event | {"phase": "started"},
+            event
+            | {
+                "phase": "completed",
+                "outcome": "success",
+                "error_envelope": False,
+                "validate_only": True,
+            },
+        ]
+    )
+    assert result["sql_attempted"] == 1
+    assert result["sql_succeeded"] == 0
+    assert result["sql_measurement_complete"] == 1

@@ -138,7 +138,10 @@ def sql_measurements(events: list[dict[str, Any]] | None) -> dict[str, int | Non
     ]
     return {
         "sql_attempted": sum(event["operation"] == "executeSql" for event in starts),
-        "sql_succeeded": sum(event["operation"] == "executeSql" for event in successful),
+        "sql_succeeded": sum(
+            event["operation"] == "executeSql" and not event.get("validate_only", False)
+            for event in successful
+        ),
         "schema_inspected": int(
             any(event["operation"] == "describeSqlSchema" for event in successful)
         ),
