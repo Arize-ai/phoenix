@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.6.0...arize-phoenix-evals-v3.7.0) (2026-09-10)
+
+
+### Features
+
+* **evals:** completeness evaluator ([#15767](https://github.com/Arize-ai/phoenix/issues/15767)) ([63805d0](https://github.com/Arize-ai/phoenix/commit/63805d0f13eb3c2cf5b55378abd542ca505e0d9a))
+* **evals:** deprecate document relevance evaluators ([#15991](https://github.com/Arize-ai/phoenix/issues/15991)) ([d67ea3f](https://github.com/Arize-ai/phoenix/commit/d67ea3fdaaa3df4c006c950e12e785f2bdc81960))
+
 ## [3.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.5.1...arize-phoenix-evals-v3.6.0) (2026-09-01)
 
 
