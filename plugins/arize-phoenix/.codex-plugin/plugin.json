@@ -1,41 +1,4 @@
 {
   "name": "arize-phoenix",
-  "version": "0.1.0+codex.20260909221629",
-  "description": "Investigate agent traces, sessions, errors, and performance in Phoenix.",
-  "author": {
-    "name": "Arize AI",
-    "email": "oss@arize.com",
-    "url": "https://arize.com"
-  },
-  "homepage": "https://arize.com/phoenix/",
-  "repository": "https://github.com/Arize-ai/phoenix",
-  "license": "Apache-2.0",
-  "keywords": [
-    "phoenix",
-    "agents",
-    "ai-observability",
-    "evaluations",
-    "llm-tracing",
-    "openinference"
-  ],
-  "interface": {
-    "displayName": "Arize Phoenix",
-    "shortDescription": "Debug agents with Phoenix trace data.",
-    "longDescription": "Investigate agent failures, inspect traces and sessions, and analyze errors, latency, and token usage in your Phoenix instance.",
-    "developerName": "Arize AI",
-    "category": "Developer Tools",
-    "capabilities": [
-      "Read",
-      "Write"
-    ],
-    "websiteURL": "https://arize.com/phoenix/",
-    "defaultPrompt": [
-      "Group recent agent trace errors by exception.",
-      "Find where a failed agent session first went wrong.",
-      "Show where my slowest agent traces spend time."
-    ],
-    "brandColor": "#F14B5A",
-    "logo": "./assets/logo.svg"
-  },
   "mcpServers": "./.mcp.json"
 }
