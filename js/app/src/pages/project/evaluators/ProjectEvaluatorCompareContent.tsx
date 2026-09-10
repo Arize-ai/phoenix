@@ -114,7 +114,7 @@ export function ProjectEvaluatorCompareContent({
           evaluatorAOptimizationDirection={evaluatorAOptimizationDirection}
           evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
         />
-        <Card title="TODO: score distributions" />
+        <Card title="TODO: score distributions" titleSeparator={false} />
       </div>
     </Flex>
   );

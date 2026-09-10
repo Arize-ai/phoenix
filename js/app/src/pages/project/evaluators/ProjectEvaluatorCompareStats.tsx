@@ -1,12 +1,8 @@
 import { css } from "@emotion/react";
 import { graphql, useFragment } from "react-relay";
 
-import { ColorSwatch, Text, View } from "@phoenix/components";
-import {
-  CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS,
-  ChartPanel,
-  ChartPanelStrip,
-} from "@phoenix/components/chart";
+import { ColorSwatch, Text } from "@phoenix/components";
+import { ChartPanel, ChartPanelStrip } from "@phoenix/components/chart";
 import type { ProjectEvaluatorCompareStats_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareStats_comparison.graphql";
 import {
   EVALUATOR_COMPARE_COLORS,
@@ -24,7 +20,12 @@ import {
 } from "@phoenix/utils/numberFormatUtils";
 
 const stripCSS = css`
-  height: ${CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}px;
+  height: var(--global-dimension-size-2400);
+
+  .chart-panel .chart-panel__title.heading {
+    font-size: var(--global-font-size-m);
+    line-height: var(--global-line-height-m);
+  }
 `;
 
 const statValueCSS = css`
@@ -159,6 +160,14 @@ export function ProjectEvaluatorCompareStats({
   );
   const { coverage, statistics } = comparison;
   const kappaGloss = getKappaGloss(statistics.cohensKappa);
+  const evaluatedByBothShareOfRange =
+    coverage.totalInRange === 0
+      ? null
+      : coverage.evaluatedByBoth / coverage.totalInRange;
+  const onlyAShareOfRange =
+    coverage.totalInRange === 0 ? null : coverage.onlyA / coverage.totalInRange;
+  const onlyBShareOfRange =
+    coverage.totalInRange === 0 ? null : coverage.onlyB / coverage.totalInRange;
   const disagreementShare =
     statistics.disagreementCount == null || coverage.evaluatedByBoth === 0
       ? null
@@ -167,11 +176,7 @@ export function ProjectEvaluatorCompareStats({
   return (
     <div css={stripCSS}>
       <ChartPanelStrip chartCount={3}>
-        <ChartPanel
-          title="Agreement"
-          subtitle="Do the two evaluators reach the same verdict?"
-          fillHeight
-        >
+        <ChartPanel title="Agreement" headingLevel={3} fillHeight>
           <StatFieldList>
             <StatField label="agreement">
               <Text size="S">
@@ -203,14 +208,17 @@ export function ProjectEvaluatorCompareStats({
             </StatField>
           </StatFieldList>
         </ChartPanel>
-        <ChartPanel
-          title="Coverage"
-          subtitle="The population this page is computed over"
-          fillHeight
-        >
+        <ChartPanel title="Coverage" headingLevel={3} fillHeight>
           <StatFieldList fillHeight={false}>
             <StatField label="evaluated by both">
-              <Text size="S">{formatInt(coverage.evaluatedByBoth)}</Text>
+              <StatValueWithDetail
+                value={formatInt(coverage.evaluatedByBoth)}
+                detail={
+                  evaluatedByBothShareOfRange == null
+                    ? null
+                    : formatNullableRate(evaluatedByBothShareOfRange)
+                }
+              />
             </StatField>
             <StatField
               label={`${formatEvaluationTargetPlural(
@@ -219,28 +227,47 @@ export function ProjectEvaluatorCompareStats({
             >
               <Text size="S">{formatInt(coverage.totalInRange)}</Text>
             </StatField>
-            <StatField label={`only ${evaluatorAName}`}>
-              <Text size="S">{formatInt(coverage.onlyA)}</Text>
+            <StatField
+              label={
+                <div css={evaluatorNameCSS}>
+                  <ColorSwatch color={EVALUATOR_COMPARE_COLORS.a} size="M" />
+                  <Text size="XS" color="text-700" title={evaluatorAName}>
+                    only {evaluatorAName}
+                  </Text>
+                </div>
+              }
+            >
+              <StatValueWithDetail
+                value={formatInt(coverage.onlyA)}
+                detail={
+                  onlyAShareOfRange == null
+                    ? null
+                    : formatNullableRate(onlyAShareOfRange)
+                }
+              />
             </StatField>
-            <StatField label={`only ${evaluatorBName}`}>
-              <Text size="S">{formatInt(coverage.onlyB)}</Text>
+            <StatField
+              label={
+                <div css={evaluatorNameCSS}>
+                  <ColorSwatch color={EVALUATOR_COMPARE_COLORS.b} size="M" />
+                  <Text size="XS" color="text-700" title={evaluatorBName}>
+                    only {evaluatorBName}
+                  </Text>
+                </div>
+              }
+            >
+              <StatValueWithDetail
+                value={formatInt(coverage.onlyB)}
+                detail={
+                  onlyBShareOfRange == null
+                    ? null
+                    : formatNullableRate(onlyBShareOfRange)
+                }
+              />
             </StatField>
           </StatFieldList>
-          <View paddingTop="size-200">
-            <Text size="XS" color="text-700">
-              Every panel below uses the {formatInt(coverage.evaluatedByBoth)}{" "}
-              {formatEvaluationTargetPlural(comparison.evaluationTarget)}{" "}
-              evaluated by both.
-            </Text>
-          </View>
         </ChartPanel>
-        <ChartPanel
-          title="Side by side"
-          subtitle={`Each evaluator over the shared ${formatEvaluationTargetPlural(
-            comparison.evaluationTarget
-          )}`}
-          fillHeight
-        >
+        <ChartPanel title="Side by side" headingLevel={3} fillHeight>
           <div css={sideBySideGridCSS}>
             <Text size="XS" color="text-700">
               evaluator

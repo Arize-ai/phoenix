@@ -48,6 +48,7 @@ export function ProjectEvaluatorCompareMatrix({
   return (
     <Card
       title="Label overlap"
+      titleSeparator={false}
       subTitle={formatMatrixSubtitle({
         target: comparison.evaluationTarget,
         evaluatedByBoth: comparison.coverage.evaluatedByBoth,
