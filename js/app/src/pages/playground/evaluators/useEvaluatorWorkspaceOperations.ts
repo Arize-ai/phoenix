@@ -38,7 +38,7 @@ export function useEvaluatorWorkspaceOperations(state: {
   staleSlots: string[];
   isRunning: boolean;
   isSavingReview: boolean;
-  runSlots: (slots: SlotId[]) => Promise<void>;
+  runSlots: (slots: SlotId[], exampleIds?: readonly string[]) => Promise<void>;
   stop: () => void;
   saveReview: (
     example: CalibrationExample,
@@ -62,7 +62,7 @@ export function useEvaluatorWorkspaceOperations(state: {
     evaluatorSlots: state.visibleSlotIds.map((slot) => ({
       slot,
       name: state.slots[slot]?.name ?? "Loading",
-      kind: state.slots[slot]?.preview?.inlineCodeEvaluator ? "CODE" : "LLM",
+      kind: state.slots[slot]?.kind ?? "LLM",
       isDirty: state.slots[slot]?.isDirty ?? false,
       isRunning: state.runs[slot]?.isRunning ?? false,
     })),
@@ -97,7 +97,7 @@ export function useEvaluatorWorkspaceOperations(state: {
         slot,
         name: current.slots[slot]?.name,
         outputName: current.slots[slot]?.selectedOutputName,
-        kind: getSlot(slot)?.read().kind,
+        kind: current.slots[slot]?.kind,
         validationError: current.slots[slot]?.validationError,
         isDirty: current.slots[slot]?.isDirty,
         isRunning: current.runs[slot]?.isRunning ?? false,
@@ -236,7 +236,7 @@ export function useEvaluatorWorkspaceOperations(state: {
       );
       return waitForEvaluatorSlot(() => getSlot(input.slot), source);
     },
-    runSlots: async (requested) => {
+    runSlots: async (requested, exampleIds) => {
       const current = latest.current;
       if (current.isRunning || current.isSavingReview)
         return { ok: false, error: "A run or review save is already active." };
@@ -247,6 +247,16 @@ export function useEvaluatorWorkspaceOperations(state: {
         return {
           ok: false,
           error: "Select a dataset and wait for a nonempty sample to load.",
+        };
+      if (
+        exampleIds?.some(
+          (id) => !current.examples.some((example) => example.id === id)
+        )
+      )
+        return {
+          ok: false,
+          error:
+            "Every exampleId must be in the loaded sample. Read the workspace for the current example ids.",
         };
       for (const slot of targets) {
         if (!current.visibleSlotIds.includes(slot))
@@ -266,7 +276,7 @@ export function useEvaluatorWorkspaceOperations(state: {
               `Slot ${slot} is not ready.`,
           };
       }
-      await current.runSlots(targets);
+      await current.runSlots(targets, exampleIds);
       await new Promise((resolve) => setTimeout(resolve, 0));
       return { ok: true, output: readWorkspace({ offset: 0, limit: 20 }) };
     },
