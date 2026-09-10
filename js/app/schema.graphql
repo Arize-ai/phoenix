@@ -3535,7 +3535,7 @@ type ProjectSession implements Node {
   lastOutput: SpanIOValue
 
   """
-  The canonical context that online evaluators bind against when they run on this session. Null whenever a live evaluation would refuse this session: its content was trimmed after ingestion, or it has no eligible root turn to evaluate.
+  The canonical context that online evaluators bind against when they run on this session. Null when the session has no eligible root turn to evaluate.
   """
   sessionEvaluationContext: JSON
 

@@ -164,7 +164,6 @@ async def _add_session_liveness(
     *,
     age_seconds: float,
     project_id: int | None = None,
-    content_complete: bool = True,
     session_id: str | None = None,
 ) -> tuple[int, int, datetime]:
     last_span_ingested_at = _now() - timedelta(seconds=age_seconds)
@@ -181,10 +180,7 @@ async def _add_session_liveness(
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session.id)
-            .values(
-                last_span_ingested_at=last_span_ingested_at,
-                content_complete=content_complete,
-            )
+            .values(last_span_ingested_at=last_span_ingested_at)
         )
         return project.id, project_session.id, last_span_ingested_at
 
@@ -202,7 +198,7 @@ async def _set_delay(
         )
 
 
-async def test_materializes_due_complete_session_with_activity_snapshot(
+async def test_materializes_due_session_with_activity_snapshot(
     db: DbSessionFactory,
 ) -> None:
     project_id, project_session_id, last_span_ingested_at = await _add_session_liveness(
@@ -358,7 +354,7 @@ async def test_materialization_locks_idle_evaluators_before_due_evaluators_and_s
 
 
 @pytest.mark.postgres_only
-async def test_materialization_waits_for_retention_session_lock(
+async def test_materialization_waits_for_session_lock(
     postgresql_engine: AsyncEngine,
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
@@ -371,24 +367,27 @@ async def test_materialization_waits_for_retention_session_lock(
             database_now = await sweeper._database_now(session)
             return await sweeper._sweep(session, database_now)
 
-    async with db() as retention_session:
-        await retention_session.execute(
-            update(models.ProjectSession)
-            .where(models.ProjectSession.id == project_session_id)
-            .values(content_complete=False)
+    async with db() as locking_session:
+        assert (
+            await locking_session.scalar(
+                select(models.ProjectSession.id)
+                .where(models.ProjectSession.id == project_session_id)
+                .with_for_update()
+            )
+            == project_session_id
         )
         materialization = asyncio.create_task(materialize())
         await asyncio.sleep(0.05)
         assert not materialization.done()
 
     inserted_count, _ = await asyncio.wait_for(materialization, timeout=5)
-    assert inserted_count == 0
+    assert inserted_count == 1
     async with db() as session:
         work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
         assert await session.scalar(select(models.ProjectEvaluator.swept_through_at)) is not None
-    assert work_count == 0
+    assert work_count == 1
 
 
 @pytest.mark.postgres_only
@@ -841,23 +840,6 @@ async def test_stale_fingerprint_revival_selects_one_row_per_dedup_key(
 
     await sweeper._tick()
     assert await _work_statuses(db) == ["PENDING", "SUPERSEDED"]
-
-
-async def test_incomplete_session_is_never_scheduled(
-    db: DbSessionFactory,
-) -> None:
-    project_id, _, _ = await _add_session_liveness(
-        db,
-        age_seconds=600,
-        content_complete=False,
-    )
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
-
-    await EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)._tick()
-
-    async with db() as session:
-        count = await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit))
-    assert count == 0
 
 
 async def test_quiet_session_predating_criterion_creation_is_not_live(

@@ -16,7 +16,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import get_env_online_eval_max_session_outstanding
 from phoenix.db import models
-from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
+from phoenix.db.helpers import delete_traces
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -864,16 +864,29 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
     assert units[0].attempts == MAX_ATTEMPTS
 
 
-async def test_incomplete_session_hydration_expires_without_counting_attempt(
+async def test_pending_session_with_deleted_trace_is_claimed_hydrated_and_published(
     db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
-        project_session.content_complete = False
-        trace = await _add_trace(session, project, project_session)
-        await _add_span(session, trace)
-    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(
+        deleted_trace = await _add_trace(session, project, project_session)
+        await _add_span(
+            session,
+            deleted_trace,
+            span_kind="CHAIN",
+            attributes={"input": {"value": "old"}, "output": {"value": "old"}},
+        )
+        retained_trace = await _add_trace(session, project, project_session)
+        await _add_span(
+            session,
+            retained_trace,
+            span_kind="CHAIN",
+            attributes={"input": {"value": "new"}, "output": {"value": "new"}},
+        )
+        deleted_trace_id = deleted_trace.id
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
         db,
         project.id,
         evaluation_target="SESSION",
@@ -885,12 +898,8 @@ async def test_incomplete_session_hydration_expires_without_counting_attempt(
         project_evaluator_id,
     )
     async with db() as session:
-        last_span_ingested_at = await session.scalar(
-            select(models.ProjectSession.last_span_ingested_at).where(
-                models.ProjectSession.id == project_session.id
-            )
-        )
-    assert last_span_ingested_at is not None
+        await delete_traces(session, models.Trace.id == deleted_trace_id)
+    _patch_playground_client(monkeypatch, _StubLLMClient())
     consumer = OnlineEvalConsumer(
         db,
         decrypt=lambda value: value,
@@ -901,16 +910,12 @@ async def test_incomplete_session_hydration_expires_without_counting_attempt(
         limit=1,
     )
 
-    assert await consumer._executor.hydrate(unit) == HydrationFailure(
-        HydrationFailureReason.SESSION_CONTENT_INCOMPLETE
-    )
+    assert isinstance(await consumer._executor.hydrate(unit), HydratedWorkUnit)
     await consumer._process_unit(unit)
 
     stored = await _get_session_unit(db, unit_id)
-    assert stored.status == "CONTENT_LOST"
-    assert stored.attempts == 0
-    assert stored.evaluated_through == last_span_ingested_at
-    assert await _session_annotations(db) == []
+    assert stored.status == "DONE"
+    assert len(await _session_annotations(db)) == 1
 
 
 def _session_vocabulary(**overrides: Any) -> dict[str, Any]:
@@ -3389,51 +3394,6 @@ async def test_disabled_criteria_expires_unit(db: DbSessionFactory) -> None:
     assert unit.status == "EXPIRED"
     assert unit.error == "PROJECT_EVALUATOR_DISABLED"
     assert await _annotations(db) == []
-
-
-async def test_session_stand_down_is_visible_on_the_expired_gauge(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Deleting session content retires its evaluations by expiring them, so the
-    expired gauge is the only place an operator sees evaluations being dropped.
-    """
-    monkeypatch.setattr(consumer_module, "get_env_enable_prometheus", lambda: True)
-    expired_gauge = Mock()
-    monkeypatch.setattr(consumer_module, "ONLINE_EVAL_EXPIRED_WORK_UNITS", expired_gauge)
-
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project)
-        trace = await _add_trace(session, project, project_session)
-        await _add_span(session, trace)
-    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(
-        db,
-        project.id,
-        evaluation_target="SESSION",
-    )
-    unit_id, _ = await _materialize_session_unit(
-        db,
-        project_session.id,
-        evaluator_id,
-        project_evaluator_id,
-    )
-    async with db() as session:
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == unit_id)
-            .values(status="CONTENT_LOST", error=SESSION_CONTENT_INCOMPLETE_ERROR)
-        )
-
-    consumer = OnlineEvalConsumer(
-        db,
-        decrypt=lambda value: value,
-        evaluation_target="SESSION",
-    )
-    await consumer._publish_queue_metrics()
-
-    expired_gauge.labels.assert_called_once_with(evaluation_target="SESSION")
-    expired_gauge.labels.return_value.set.assert_called_once_with(1)
 
 
 async def test_trace_consumer_writes_a_trace_annotation(

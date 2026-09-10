@@ -43,7 +43,7 @@ _LIVENESS_TABLES = {
         project_column="project_id",
         key_column="session_id",
         key_value="liveness-backfill",
-        added_column_names=frozenset({"last_span_ingested_at", "content_complete"}),
+        added_column_names=frozenset({"last_span_ingested_at"}),
         liveness_index_name="ix_project_sessions_project_id_last_span_ingested_at",
         sqlite_desc_index_sql={
             "ix_project_sessions_project_id_end_time": (

@@ -136,7 +136,6 @@ class HydrationFailureReason(str, Enum):
     SPAN_MISSING = "SPAN_MISSING"
     SESSION_MISSING = "SESSION_MISSING"
     SESSION_PROJECT_MISMATCH = "SESSION_PROJECT_MISMATCH"
-    SESSION_CONTENT_INCOMPLETE = "SESSION_CONTENT_INCOMPLETE"
     TRACE_MISSING = "TRACE_MISSING"
     TRACE_PROJECT_MISMATCH = "TRACE_PROJECT_MISMATCH"
     UNSUPPORTED_TARGET = "UNSUPPORTED_TARGET"
@@ -154,8 +153,6 @@ class HydrationFailure:
         """The status the unit is retired with: the two lifecycle reasons get their own."""
         if self.reason is HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH:
             return "SUPERSEDED"
-        if self.reason is HydrationFailureReason.SESSION_CONTENT_INCOMPLETE:
-            return "CONTENT_LOST"
         return "EXPIRED"
 
 
@@ -511,8 +508,6 @@ async def _load_session_context(
         return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
     if project_session.project_id != project_id:
         return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
-    if not project_session.content_complete:
-        return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
     loaded = await load_session_eval_context(
         session,
         project_session_rowid=project_session.id,

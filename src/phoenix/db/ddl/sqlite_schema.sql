@@ -174,7 +174,6 @@ CREATE TABLE project_sessions (
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
     last_span_ingested_at TIMESTAMP,
-    content_complete BOOLEAN DEFAULT true NOT NULL,
     CONSTRAINT pk_project_sessions PRIMARY KEY (id),
     CONSTRAINT uq_project_sessions_session_id UNIQUE (session_id),
     CONSTRAINT fk_project_sessions_project_id_projects
@@ -1330,7 +1329,6 @@ CHECK (status IN (
             'FAILED',
             'EXPIRED',
             'SUPERSEDED',
-            'CONTENT_LOST',
             'FILTERED_OUT',
             'SAMPLED_OUT'
         )),
@@ -1364,7 +1362,7 @@ CREATE INDEX ix_eval_session_work_units_evaluator_id ON eval_session_work_units
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON eval_session_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
-    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'CONTENT_LOST');
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED');
 CREATE INDEX ix_eval_session_work_units_terminal_watermark ON eval_session_work_units
     (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON eval_session_work_units
@@ -1391,7 +1389,6 @@ CHECK (status IN (
             'FAILED',
             'EXPIRED',
             'SUPERSEDED',
-            'CONTENT_LOST',
             'FILTERED_OUT',
             'SAMPLED_OUT'
         )),
@@ -1424,7 +1421,7 @@ CREATE INDEX ix_eval_trace_work_units_evaluator_id ON eval_trace_work_units
 CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON eval_trace_work_units
     (project_evaluator_id);
 CREATE INDEX ix_eval_trace_work_units_terminal ON eval_trace_work_units (updated_at)
-    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'CONTENT_LOST');
+    WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED');
 CREATE INDEX ix_eval_trace_work_units_terminal_watermark ON eval_trace_work_units
     (trace_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_trace_work_units_live_key ON eval_trace_work_units

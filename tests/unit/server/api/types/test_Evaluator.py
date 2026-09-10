@@ -7,7 +7,7 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.eval_work import MAX_ATTEMPTS, SESSION_CONTENT_INCOMPLETE_ERROR
+from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -1859,18 +1859,6 @@ async def test_project_evaluator_run_summary(
                     status="DONE",
                     updated_at=now - timedelta(minutes=2),
                 ),
-                # Expired because the session's traces were deleted before the
-                # evaluation ran — a lifecycle event outside every bucket.
-                models.EvalSessionWorkUnit(
-                    project_session_rowid=project_session.id,
-                    evaluator_id=evaluator.id,
-                    project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=token_hex(8),
-                    evaluated_through=now,
-                    status="CONTENT_LOST",
-                    error=SESSION_CONTENT_INCOMPLETE_ERROR,
-                    updated_at=now,
-                ),
             ]
         )
         await session.flush()
@@ -1899,8 +1887,8 @@ async def test_project_evaluator_run_summary(
     run_summary = response.data["node"]["runSummary"]
     assert run_summary["status"] == "RUNNING"
     assert run_summary["evaluatedCount"] == 2
-    # Given up on: the FAILED unit and the EXPIRED one. SUPERSEDED and CONTENT_LOST
-    # fall outside every bucket; DROPPED has its own.
+    # Given up on: the FAILED unit and the EXPIRED one. SUPERSEDED falls outside
+    # every bucket; DROPPED has its own.
     assert run_summary["failedCount"] == 2
     assert run_summary["droppedCount"] == 1
     # Waiting: the PENDING unit and the ERROR with attempts remaining.
