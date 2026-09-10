@@ -94,6 +94,7 @@ vi.mock("@phoenix/components/table", async (importOriginal) => ({
 vi.mock("../TraceFilterConditionField", async () => {
   const React = await import("react");
   return {
+    EMPTY_TRACE_FILTER_VOCABULARY: [],
     TraceFilterConditionField: (
       props: NonNullable<typeof fieldMocks.props>
     ) => {

@@ -21,11 +21,6 @@ import type {
 import type { ProjectEvaluatorResultAnnotation } from "./useProjectEvaluatorResultAnnotations";
 import { useProjectEvaluatorResultAnnotations } from "./useProjectEvaluatorResultAnnotations";
 
-/**
- * The evaluator's result annotations live at the level its target selects on
- * the evaluated project. TRACE evaluators are stored but never scheduled, so
- * an empty trace-level chart is the honest reading for them.
- */
 function getAnnotationLevel(
   evaluationTarget: EvaluationTarget
 ): MetricChartTableView {

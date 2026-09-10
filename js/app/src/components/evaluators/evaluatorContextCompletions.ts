@@ -28,6 +28,7 @@ export const RECORD_SECTION_BY_GRAIN: Record<
   CompletionSection
 > = {
   span: { name: "From the span", rank: 2 },
+  trace: { name: "From the trace", rank: 2 },
   session: { name: "From the session", rank: 2 },
 };
 
