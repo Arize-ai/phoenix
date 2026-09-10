@@ -22,6 +22,7 @@ from phoenix.db.insertion.project_session import advance_project_session_livenes
 from phoenix.db.insertion.session_annotation import SessionAnnotationQueueInserter
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
+from phoenix.db.insertion.trace import advance_trace_liveness
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Insertables, Precursors
 from phoenix.server.daemons.span_cost_calculator import (
@@ -160,6 +161,7 @@ class BulkInserter:
             return
         project_ids = set()
         project_session_rowids: set[int] = set()
+        trace_rowids: set[int] = set()
         span_costs: list[models.SpanCost] = []
         try:
             start = perf_counter()
@@ -181,6 +183,7 @@ class BulkInserter:
                     if result is None:
                         continue
                     project_ids.add(result.project_rowid)
+                    trace_rowids.add(result.trace_rowid)
                     if result.project_session_rowid is not None:
                         project_session_rowids.add(result.project_session_rowid)
                     try:
@@ -204,6 +207,7 @@ class BulkInserter:
                 try:
                     async with session.begin_nested():
                         await advance_project_session_liveness(session, project_session_rowids)
+                        await advance_trace_liveness(session, trace_rowids)
                 except Exception as e:
                     BULK_LOADER_EXCEPTIONS.inc()
                     logger.exception(str(e))
