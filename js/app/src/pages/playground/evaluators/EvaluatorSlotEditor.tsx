@@ -48,7 +48,7 @@ import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluato
 import {
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,
-  getOutputConfigValidationErrors,
+  getEvaluatorOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
 import {
   useModelMenuData,
@@ -292,8 +292,10 @@ function EvaluatorSlotEditorContent({
         ? selectedOutput
         : (outputNames[0]?.name ?? "");
       let validationError: string | null =
-        getOutputConfigValidationErrors(current.outputConfigs).join("\n") ||
-        null;
+        getEvaluatorOutputConfigValidationErrors({
+          kind,
+          configs: current.outputConfigs,
+        }).join("\n") || null;
       let preview: SlotSnapshot["preview"] = null;
       try {
         if (kind === "CODE")

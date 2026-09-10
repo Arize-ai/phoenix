@@ -136,7 +136,7 @@ export const editEvaluatorPlaygroundSlotOperation = defineUIOperation({
   operationKind: "write",
   availability,
   description:
-    "Edit exactly one evaluator draft with a readSlot revision. Only supplied fields change; lists/mappings replace their entire value. Prompt/messages/model/includeExplanation apply to LLM; code/language/sandbox to CODE. Outputs can be categorical, continuous or freeform. Dataset output is the judged response; reference starts empty. Human expected labels never enter evaluator context. Does not save or run.",
+    "Edit exactly one evaluator draft with a readSlot revision. Only supplied fields change; lists/mappings replace their entire value. Prompt/messages/model/includeExplanation apply to LLM; code/language/sandbox to CODE. Outputs: LLM slots accept only categorical outputs (labels, each optionally scored — express a 0–1 scale as scored labels); continuous and freeform outputs are valid only for CODE slots and are rejected for LLM on run and save. Dataset output is the judged response; reference starts empty. Human expected labels never enter evaluator context. Does not save or run.",
   inputSchema: evaluatorSlotEditSchema,
 });
 export const runEvaluatorPlaygroundOperation = defineUIOperation({
