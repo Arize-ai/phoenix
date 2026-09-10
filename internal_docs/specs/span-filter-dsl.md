@@ -1508,7 +1508,7 @@ and, where possible, suggest the repair.
 | Reduction without a comprehension | ``​`len(...)` takes a comprehension over cost_details, e.g. `len([x for x in cost_details])`​`` (the example is per kind) |
 | Unknown iterable | ``invalid iterable `cost_detals`, did you mean "cost_details"?`` |
 | Unknown element field | ``invalid field `d.nope`, expected one of cost, cost_per_token, is_prompt, token_type, or tokens`` |
-| Element field where a top-level name was written | ``​`latency_ms` is a span-level term, not a cost_details element field; …`` |
+| Element field where a top-level name was written | ``​`latency_ms` is a top-level term, not a cost_details element field; …`` |
 | Element operand type | ``cannot compare `x.cost` (a number) with `'abc'` (text)`` |
 | Reduction over a non-number | ``​`sum(...)` reduces numbers, and `x.token_type` is text; …`` |
 | Unknown annotation member | ``invalid eval attribute `.x` in `...`, expected `.score` or …`` |

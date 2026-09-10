@@ -262,8 +262,6 @@ class _FilterBindings:
     # Dotted spellings accepted as shorthands for a root-span attribute key, e.g. `user.id`.
     # Under `strict_semantics` every other dotted root is rejected.
     attribute_proxies: frozenset[str] = frozenset()
-    # Noun used when reporting a top-level name referenced from an element scope.
-    term_noun: str = "top-level"
     # Numeric names bound from related rows when the filter is applied to a statement.
     deferred_number_names: frozenset[str] = frozenset()
     allow_outer_element_references: bool = False
@@ -407,7 +405,6 @@ SPAN_BINDINGS = _FilterBindings(
     case_insensitive_containment=True,
     deferred_number_names=frozenset(_SPAN_COST_SCALARS),
     iterables=_SPAN_ITERABLES,
-    term_noun="span-level",
 )
 
 
@@ -3103,7 +3100,7 @@ class _SemanticPolicy:
             if name in self._bindings.binding_names:
                 fields = scope.grammar.element_bindings.binding_names
                 raise SyntaxError(
-                    f"`{name}` is a {self._bindings.term_noun} term, not a {scope.iterable} "
+                    f"`{name}` is a top-level term, not a {scope.iterable} "
                     f"element field; a {scope.iterable} element exposes "
                     f"{_disjunction(sorted(fields))}"
                 )
