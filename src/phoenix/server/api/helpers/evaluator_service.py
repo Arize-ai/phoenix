@@ -1015,11 +1015,11 @@ async def patch_project_evaluator(
                 row.name = IdentifierModel.model_validate(patch.name)
             if patch.sampling_rate is not UNSET:
                 assert patch.sampling_rate is not None
-                _validate_project_evaluator_sampling_rate(patch.sampling_rate)
+                validate_project_evaluator_sampling_rate(patch.sampling_rate)
                 row.sampling_rate = patch.sampling_rate
             if patch.filter_condition is not UNSET:
                 assert patch.filter_condition is not None
-                _validate_project_evaluator_filter(patch.filter_condition, target)
+                validate_project_evaluator_filter(patch.filter_condition, target)
                 row.filter_condition = patch.filter_condition
             if patch.enabled is not UNSET:
                 assert patch.enabled is not None
@@ -1033,7 +1033,7 @@ async def patch_project_evaluator(
                         raise BadRequest("input_mapping cannot be null for LLM evaluators")
                 row.input_mapping = patch.input_mapping
             if patch.evaluation_delay_seconds is not UNSET:
-                row.evaluation_delay_seconds = _materialize_project_evaluator_evaluation_delay(
+                row.evaluation_delay_seconds = materialize_project_evaluator_evaluation_delay(
                     patch.evaluation_delay_seconds, target
                 )
             await session.flush()
