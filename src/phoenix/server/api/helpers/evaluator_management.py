@@ -67,10 +67,7 @@ PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
-    """
-    Convert AnnotationConfigInput to pydantic for evaluator output configs.
-    Always includes name.
-    """
+    """Convert an annotation input to a named evaluator output configuration."""
     if input.categorical is not None and input.categorical is not UNSET:
         cat = input.categorical
         return CategoricalOutputConfig(
@@ -107,7 +104,7 @@ def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConf
 def convert_output_config_inputs_to_pydantic(
     configs: list[AnnotationConfigInput],
 ) -> list[OutputConfigType]:
-    """Convert a list of AnnotationConfigInput to pydantic models for evaluator output configs."""
+    """Convert annotation inputs to evaluator output configurations."""
     return [_output_config_input_to_pydantic(c) for c in configs]
 
 
@@ -177,8 +174,7 @@ async def validate_code_evaluator_sandbox_config(
             }
         )
 
-    # Sandboxed validation can wait for worker capacity. Run it after the short
-    # metadata transaction releases SQLite's process-wide database lock.
+    # Release SQLite's database lock before waiting for sandbox worker capacity.
     try:
         validation_error = await adapter.validate_code(
             validated_config,
@@ -202,11 +198,7 @@ async def generate_unique_evaluator_name(
     base_name: Identifier,
     max_attempts: int = 5,
 ) -> Identifier:
-    """
-    Generate a unique evaluator name by appending a suffix if needed.
-    Returns the original name if unique, otherwise appends a random suffix.
-    Retries up to max_attempts times if random collisions occur.
-    """
+    """Return an unused name, trying at most max_attempts random suffixes on collision."""
     exists = await session.scalar(
         select(models.Evaluator.id).where(models.Evaluator.name == base_name).limit(1)
     )
@@ -285,20 +277,18 @@ async def ensure_evaluator_prompt_label(
     ).one_or_none()
 
     if label_and_association is None:
-        # Create the label if it doesn't exist
         label = models.PromptLabel(
             name="evaluator",
             description="Automatically assigned to prompts created for LLM evaluators",
             color="#4ecf50",
         )
         session.add(label)
-        await session.flush()  # Flush to get the ID
+        await session.flush()
         existing_association = None
     else:
         label, existing_association = label_and_association
 
     if existing_association is None:
-        # Create the association if it doesn't exist
         association = models.PromptPromptLabel(
             prompt_id=prompt_id,
             prompt_label_id=label.id,
@@ -334,12 +324,7 @@ def validate_project_evaluator_filter(
     filter_condition: str,
     evaluation_target: EvaluationTarget,
 ) -> None:
-    """Validate a filter in the language of the target it selects.
-
-    Spans and traces are filtered with the span filter DSL, sessions with the session
-    filter DSL, so the expression is compiled by the same path its target's scheduler
-    sweep will use.
-    """
+    """Compile SESSION filters with the session DSL; SPAN and TRACE filters with the span DSL."""
     try:
         if evaluation_target is EvaluationTarget.SESSION:
             validate_session_filter_condition(filter_condition)
@@ -358,11 +343,7 @@ def materialize_project_evaluator_evaluation_delay(
     evaluation_delay_seconds: Optional[int],
     evaluation_target: EvaluationTarget,
 ) -> int:
-    """Resolve the delay to store; only the session sweep waits one out.
-
-    Span work is scheduled off the global ingestion frontier, so a delay supplied for a
-    span evaluator is refused rather than stored as a setting that never applies.
-    """
+    """Default omitted delays and validate explicit delays; SPAN rejects explicit delays."""
     if evaluation_delay_seconds is None:
         return DEFAULT_SESSION_EVALUATION_DELAY_SECONDS
     if evaluation_target is EvaluationTarget.SPAN:

@@ -451,9 +451,7 @@ async def create_project_code_evaluator(
 
     user_id = context.user_id
 
-    # Validated before the write session opens: the helper takes the session
-    # factory and opens its own session, which would otherwise nest inside
-    # the transaction below.
+    # Validate outside the write transaction to avoid nested sessions.
     sandbox_config_id = await validate_code_evaluator_sandbox_config(
         context.db,
         sandbox_config_global_id=input.sandbox_config_id,
@@ -543,9 +541,7 @@ async def update_project_code_evaluator(
 
     user_id = context.user_id
 
-    # Validated before the write session opens: the helper takes the session
-    # factory and opens its own session, which would otherwise nest inside
-    # the transaction below.
+    # Validate outside the write transaction to avoid nested sessions.
     validated_sandbox_config_id: Optional[int] = None
     if input.sandbox_config_id is not UNSET and input.sandbox_config_id is not None:
         async with context.db() as session:
@@ -571,9 +567,7 @@ async def update_project_code_evaluator(
                 if current_with_version is not None and current_with_version[1] is not None
                 else ""
             )
-        # Source code supplied in this same request is what will be stored,
-        # so the sandbox is validated against that rather than the version
-        # it is about to replace.
+        # Validate the candidate source against the effective sandbox configuration.
         validated_sandbox_config_id = await validate_code_evaluator_sandbox_config(
             context.db,
             sandbox_config_global_id=input.sandbox_config_id,
