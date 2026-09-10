@@ -1,7 +1,8 @@
 {
   "mcpServers": {
     "phoenix": {
-      "command": "./scripts/phoenix-mcp"
+      "command": "./scripts/phoenix-mcp",
+      "env_vars": ["PHOENIX_ENDPOINT", "PHOENIX_API_KEY"]
     }
   }
 }
