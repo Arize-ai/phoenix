@@ -1,0 +1,14 @@
+procs:
+  api:
+    shell: "../../scripts/dev-process.sh api"
+    stop:
+      {
+        cmd: 'pnpm exec portless --name "${PHOENIX_DEV_API_NAME:?}" --force true',
+      }
+
+  frontend:
+    shell: "../../scripts/dev-process.sh frontend"
+    stop:
+      {
+        cmd: 'pnpm exec portless --name "${PHOENIX_DEV_FRONTEND_NAME:?}" --force true',
+      }

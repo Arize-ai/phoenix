@@ -33,7 +33,7 @@ NC := \033[0m # No Color
 	setup setup-remote-export install-python install-node \
 	graphql schema-graphql relay-build \
 	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app \
-	dev dev-backend dev-frontend dev-docker dev-mock-llm \
+	dev dev-session dev-sessions dev-backend dev-frontend dev-docker dev-mock-llm \
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
@@ -67,6 +67,8 @@ help: ## Show this help message
 	@echo -e ""
 	@echo -e "$(GREEN)Development:$(NC)"
 	@echo -e "  $(YELLOW)dev$(NC)                   - Full dev environment (backend + frontend)"
+	@echo -e "  dev-session           - Managed worktree dev environment with a stable URL"
+	@echo -e "  dev-sessions          - Inspect, restart, or stop managed sessions"
 	@echo -e "  dev-backend            - Backend only (FastAPI server)"
 	@echo -e "  dev-frontend           - Frontend only (React dev server)"
 	@echo -e "  dev-docker             - Docker devops environment (use ARGS= for arguments)"
@@ -251,6 +253,12 @@ openapi: schema-openapi codegen-python-client codegen-ts-client codegen-ts-testi
 dev: ## Full dev environment (backend + frontend with hot reload)
 	@echo -e "$(CYAN)Starting full development environment...$(NC)"
 	cd $(APP_DIR) && $(PNPM) dev
+
+dev-session: ## Managed worktree dev environment with a stable Portless URL
+	@$(NODE) --disable-warning=ExperimentalWarning scripts/dev-sessions.ts start $(ARGS)
+
+dev-sessions: ## Manage worktree dev sessions (ARGS="list", "stop", "clean", ...)
+	@$(NODE) --disable-warning=ExperimentalWarning scripts/dev-sessions.ts $(or $(ARGS),list)
 
 dev-backend: ## Backend only (FastAPI server)
 	@echo -e "$(CYAN)Starting backend server...$(NC)"
