@@ -20,11 +20,39 @@ Session filters require Phoenix **19.18.0+**.
 | UI filter bar | Yes — spans table (via GraphQL) | Yes — traces table (via GraphQL) | Yes — sessions table (via GraphQL) |
 | GraphQL | `filterCondition` argument | `traceFilterCondition` argument | `sessionFilterCondition` argument |
 | Python client (dataframe export) | Yes — `SpanQuery().where(...)`, sent to `POST /v1/spans` | No filter surface | Not yet |
-| REST list / search endpoints | Discrete query params only — no filter expression | No filter surface | No filter surface |
+| REST list / search endpoints | Discrete query params only — no filter expression | `filter` query parameter (20.10.0+) | `filter` query parameter (20.10.0+) |
 
-Support for session filters in the REST API and Python client is tracked in
-[#15099](https://github.com/Arize-ai/phoenix/issues/15099) and
-[#15112](https://github.com/Arize-ai/phoenix/issues/15112).
+### REST trace and session filters
+
+Starting with Phoenix **20.10.0**, pass the expression from the trace or session filter
+bar to the corresponding project list endpoint as `filter`. URL-encode the expression:
+
+```bash
+curl --get 'http://localhost:6006/v1/projects/support-bot/traces' \
+  --data-urlencode 'filter=error_count > 0 and latency_ms >= 1000'
+
+curl --get 'http://localhost:6006/v1/projects/support-bot/sessions' \
+  --data-urlencode 'filter=num_traces_with_error > 0 and duration_ms >= 60000'
+```
+
+Use your deployment's authentication headers when required. Filters apply before
+pagination. Keep the same expression and other filters when requesting the next cursor.
+An empty expression has no effect; an invalid expression returns HTTP 400 with the
+compiler's error message.
+
+The trace endpoint combines `filter` with existing query parameters using **AND**.
+The individual error and latency parameters remain supported but are deprecated:
+
+| Deprecated parameter | Equivalent expression |
+| :--- | :--- |
+| `error=true` | `error_count > 0` |
+| `error=false` | `error_count == 0` |
+| `min_latency_ms=1000` | `latency_ms >= 1000` |
+| `max_latency_ms=5000` | `latency_ms <= 5000` |
+
+`error_count` counts errored spans anywhere in the trace, including children of a
+successful root. Latency bounds are inclusive. Session duration is `duration_ms`;
+use `num_traces_with_error` for the number of traces containing errors in a session.
 
 <Info>
 The **Experiment Compare** view has its own filter language for filtering experiment runs,

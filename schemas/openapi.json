@@ -4755,10 +4755,12 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI.",
+              "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI.",
+              "deprecated": true,
               "title": "Error"
             },
-            "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI."
+            "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI.",
+            "deprecated": true
           },
           {
             "name": "min_latency_ms",
@@ -4774,10 +4776,12 @@
                   "type": "null"
                 }
               ],
-              "description": "Inclusive lower bound on trace latency in milliseconds.",
+              "description": "Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.",
+              "deprecated": true,
               "title": "Min Latency Ms"
             },
-            "description": "Inclusive lower bound on trace latency in milliseconds."
+            "description": "Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.",
+            "deprecated": true
           },
           {
             "name": "max_latency_ms",
@@ -4793,10 +4797,30 @@
                   "type": "null"
                 }
               ],
-              "description": "Inclusive upper bound on trace latency in milliseconds.",
+              "description": "Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.",
+              "deprecated": true,
               "title": "Max Latency Ms"
             },
-            "description": "Inclusive upper bound on trace latency in milliseconds."
+            "description": "Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.",
+            "deprecated": true
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Trace filter expression, using the same DSL as the UI trace filter. For example: `error_count > 0 and latency_ms >= 1000`. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400.",
+              "title": "Filter"
+            },
+            "description": "Trace filter expression, using the same DSL as the UI trace filter. For example: `error_count > 0 and latency_ms >= 1000`. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400."
           }
         ],
         "responses": {
@@ -4819,6 +4843,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "404": {
             "content": {
@@ -7631,6 +7665,24 @@
               "title": "Order"
             },
             "description": "Sort order by ID: 'asc' (ascending) or 'desc' (descending)."
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Session filter expression, using the same DSL as the UI session filter. For example: `num_traces_with_error > 0 and duration_ms >= 60000`. Empty expressions do not filter. Invalid expressions return 400.",
+              "title": "Filter"
+            },
+            "description": "Session filter expression, using the same DSL as the UI session filter. For example: `num_traces_with_error > 0 and duration_ms >= 60000`. Empty expressions do not filter. Invalid expressions return 400."
           }
         ],
         "responses": {
@@ -7653,6 +7705,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "404": {
             "content": {

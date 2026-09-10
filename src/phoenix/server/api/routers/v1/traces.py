@@ -46,6 +46,7 @@ from phoenix.server.authorization import (
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
+from phoenix.server.trace_filters import TraceFilterConditionError, apply_trace_filter_to_page
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
@@ -142,7 +143,7 @@ def _parse_trace_cursor(cursor: str, sort: str) -> Cursor:
     "/projects/{project_identifier}/traces",
     operation_id="listProjectTraces",
     summary="List traces for a project",
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([400, 404, 422]),
 )
 async def list_project_traces(
     request: Request,
@@ -185,7 +186,9 @@ async def list_project_traces(
     ),
     error: Optional[bool] = Query(
         default=None,
+        deprecated=True,
         description=(
+            "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. "
             "Filter by trace error status. If true, only return traces that contain "
             "at least one span with `status_code == ERROR`. If false, only return "
             "traces with no errored spans. If omitted, traces are not filtered by "
@@ -195,12 +198,29 @@ async def list_project_traces(
     min_latency_ms: Optional[float] = Query(
         default=None,
         ge=0,
-        description="Inclusive lower bound on trace latency in milliseconds.",
+        deprecated=True,
+        description=(
+            "Inclusive lower bound on trace latency in milliseconds. "
+            "Deprecated: use `filter=latency_ms >= N`."
+        ),
     ),
     max_latency_ms: Optional[float] = Query(
         default=None,
         ge=0,
-        description="Inclusive upper bound on trace latency in milliseconds.",
+        deprecated=True,
+        description=(
+            "Inclusive upper bound on trace latency in milliseconds. "
+            "Deprecated: use `filter=latency_ms <= N`."
+        ),
+    ),
+    filter: Optional[str] = Query(
+        default=None,
+        description=(
+            "Trace filter expression, using the same DSL as the UI trace filter. "
+            "For example: `error_count > 0 and latency_ms >= 1000`. "
+            "Combined with other filters using AND. Empty expressions do not filter. "
+            "Invalid expressions return 400."
+        ),
     ),
 ) -> GetTracesResponseBody:
     async with request.app.state.db.read() as session:
@@ -267,6 +287,18 @@ async def list_project_traces(
             stmt = stmt.where(models.Trace.latency_ms >= min_latency_ms)
         if max_latency_ms is not None:
             stmt = stmt.where(models.Trace.latency_ms <= max_latency_ms)
+
+        if filter:
+            try:
+                stmt = apply_trace_filter_to_page(
+                    stmt,
+                    filter,
+                    project_rowids=[project_rowid],
+                    start_time=normalize_datetime(start_time, timezone.utc),
+                    end_time=normalize_datetime(end_time, timezone.utc),
+                )
+            except TraceFilterConditionError as filter_error:
+                raise HTTPException(status_code=400, detail=str(filter_error)) from filter_error
 
         if cursor:
             parsed_cursor = _parse_trace_cursor(cursor, sort)
