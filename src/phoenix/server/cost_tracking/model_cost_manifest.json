@@ -2250,6 +2250,57 @@
       ]
     },
     {
+      "name": "global.openai.gpt-6-astra",
+      "name_pattern": "global\\.openai\\.gpt-6-astra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        },
+        {
+          "base_rate": 0.00005,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000075
+          }
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-6
+          }
+        },
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000025
+          }
+        }
+      ]
+    },
+    {
       "name": "gpt-3.5-turbo",
       "name_pattern": "gpt-(35|3.5)-turbo",
       "source": "litellm",
@@ -5585,6 +5636,40 @@
       ]
     },
     {
+      "name": "us-gov.openai.gpt-oss-120b-1:0",
+      "name_pattern": "us-gov\\.openai\\.gpt-oss-120b-1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 7.2e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.openai.gpt-oss-20b-1:0",
+      "name_pattern": "us-gov\\.openai\\.gpt-oss-20b-1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.4e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.6e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "us.openai.gpt-5.6-luna",
       "name_pattern": "us\\.openai\\.gpt-5\\.6-luna",
       "source": "litellm",
@@ -5733,6 +5818,57 @@
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
             "new_rate": 5.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "us.openai.gpt-6-astra",
+      "name_pattern": "us\\.openai\\.gpt-6-astra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000022
+          }
+        },
+        {
+          "base_rate": 0.000055,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000825
+          }
+        },
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2.2e-6
+          }
+        },
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000275
           }
         }
       ]
