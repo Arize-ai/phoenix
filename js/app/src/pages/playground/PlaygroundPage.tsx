@@ -1,8 +1,7 @@
 import { lazy, Suspense } from "react";
 import { useLoaderData, useSearchParams } from "react-router";
 
-import { Skeleton } from "@phoenix/components";
-
+import { EvaluatorPlaygroundLoading } from "./evaluators/EvaluatorPlaygroundFrame";
 import { Playground } from "./Playground";
 import type { PlaygroundPageLoaderData } from "./playgroundPageLoader";
 import { buildPlaygroundPropsFromLoaderData } from "./playgroundPageLoader";
@@ -19,7 +18,7 @@ export function PlaygroundPage() {
   );
   if (searchParams.get("mode") === "evaluators") {
     return (
-      <Suspense fallback={<Skeleton height="100%" />}>
+      <Suspense fallback={<EvaluatorPlaygroundLoading />}>
         <EvaluatorPlayground />
       </Suspense>
     );

@@ -209,12 +209,14 @@ export function Playground(
         <View borderBottomColor="default" borderBottomWidth="thin">
           <PageHeader
             title="Playground"
-            subTitle={<PlaygroundModeSelect />}
             extra={
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <PlaygroundCredentialsDropdown />
-                <PlaygroundConfigButton />
-                <PlaygroundRunButton />
+              <Flex direction="row" gap="size-300" alignItems="center">
+                <PlaygroundModeSelect />
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <PlaygroundCredentialsDropdown />
+                  <PlaygroundConfigButton />
+                  <PlaygroundRunButton />
+                </Flex>
               </Flex>
             }
           />
