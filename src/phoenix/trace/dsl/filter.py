@@ -1153,6 +1153,7 @@ def _join_span_cost(
     condition references a cost scalar.
     """
     span_cost = aliased(models.SpanCost)
+    # Assumes at most one cost row per span.
     stmt = stmt.outerjoin(span_cost, onclause=span_cost.span_rowid == models.Span.id)
     bindings: dict[str, typing.Any] = {}
     for member in members:
