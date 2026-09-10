@@ -7,11 +7,10 @@ import {
   DialogHeader,
   DialogTitleExtra,
   Flex,
-  Heading,
   LinkButton,
+  TitleWithID,
 } from "@phoenix/components";
 import { ExperimentCompareDetails } from "@phoenix/components/experiment/ExperimentCompareDetails";
-import { ExampleDetailsLink } from "@phoenix/pages/example/ExampleDetailsLink";
 import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetailsPaginator";
 
 export function ExperimentCompareDetailsDialog({
@@ -43,17 +42,15 @@ export function ExperimentCompareDetailsDialog({
     <Dialog aria-label="Example Details">
       <DialogContent>
         <DialogHeader>
-          <Flex gap="size-150" alignItems="center">
+          <Flex gap="size-150">
             <ExampleDetailsPaginator
               currentExampleIndex={selectedExampleIndex}
               exampleIds={exampleIds}
               onExampleChange={onExampleChange}
             />
-            <Heading>Example</Heading>
-            <ExampleDetailsLink
-              exampleId={selectedExampleId}
-              externalId={selectedExampleExternalId}
-              datasetVersionId={datasetVersionId}
+            <TitleWithID
+              title="Example"
+              id={selectedExampleExternalId ?? selectedExampleId}
             />
           </Flex>
           <DialogTitleExtra>

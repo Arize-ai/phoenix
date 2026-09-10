@@ -38,6 +38,7 @@ import {
   Icon,
   IconButton,
   Icons,
+  IDBadge,
   ProgressBar,
   Text,
   View,
@@ -61,7 +62,6 @@ import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
-import { ExampleDetailsLink } from "@phoenix/pages/example/ExampleDetailsLink";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -522,14 +522,13 @@ export function ExperimentCompareListPage({
       header: "example",
       accessorKey: "example",
       size: 110,
-      cell: ({ getValue, row }) => {
-        const exampleId = getValue() as string;
+      cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
-            <ExampleDetailsLink
-              exampleId={exampleId}
-              externalId={row.original.externalId}
-              datasetVersionId={baseExperiment?.datasetVersion?.id}
+            <IDBadge
+              id={row.original.externalId ?? row.original.example}
+              variant="quiet"
+              tooltipText="Copy example ID"
             />
             <TooltipTrigger>
               <IconButton
@@ -1141,7 +1140,6 @@ export function ExperimentCompareListPage({
     annotationConfigsByName,
     annotationSummaries,
     baseExperimentColor,
-    baseExperiment.datasetVersion.id,
     columnHelper,
     experiments,
     getExperimentColor,
