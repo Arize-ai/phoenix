@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 7.11.0
+
+### Minor Changes
+
+- 2b73847: Accept `metadata` in `promptVersion()` so prompt versions can carry arbitrary JSON metadata.
+
 ## 7.10.0
 
 ### Minor Changes
