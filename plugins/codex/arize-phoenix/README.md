@@ -9,7 +9,7 @@ Plugin MCP URLs cannot contain environment variables, so the plugin registers a 
 | Variable | Effect |
 | -------- | ------ |
 | `PHOENIX_ENDPOINT` | Base URL of your Phoenix instance, for example `https://phoenix.example.com`. Defaults to `http://localhost:6006`. |
-| `PHOENIX_API_KEY` | Optional. When set, requests carry it as a bearer token and no browser login is needed. Otherwise Codex opens a browser window to sign in with your Phoenix account on first use. |
+| `PHOENIX_API_KEY` | Optional. When set, requests carry it as a bearer token and no browser login is needed. The launcher passes `mcp-remote` an unexpanded `${PHOENIX_API_KEY}` reference that it resolves from its environment, so the key never appears in the process arguments. Otherwise Codex opens a browser window to sign in with your Phoenix account on first use. |
 
 These are the same variables the `px` CLI reads. Export them in the shell you launch Codex from. Codex forwards only the variables the plugin declares, which is why both are listed in `mcp.json` and `.mcp.json`.
 
