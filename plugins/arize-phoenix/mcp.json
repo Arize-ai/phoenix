@@ -3,7 +3,11 @@
   "mcpServers": {
     "phoenix": {
       "type": "stdio",
-      "command": "./scripts/phoenix-mcp"
+      "command": "./scripts/phoenix-mcp",
+      "env": {
+        "PHOENIX_ENDPOINT": "${PHOENIX_ENDPOINT}",
+        "PHOENIX_API_KEY": "${PHOENIX_API_KEY}"
+      }
     }
   }
 }

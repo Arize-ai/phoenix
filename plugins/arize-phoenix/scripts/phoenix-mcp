@@ -1,7 +1,15 @@
 #!/bin/sh
+# Bridges stdio to the Phoenix remote MCP server at <PHOENIX_ENDPOINT>/mcp.
+#
+# Plugin MCP URLs cannot contain environment variables, so the endpoint is
+# read here instead. A host that does not expand `${VAR}` placeholders in
+# `env` passes the literal text through; treat that the same as unset.
 set -eu
 
-phoenix_endpoint=${PHOENIX_ENDPOINT:-http://localhost:6006}
+phoenix_endpoint=${PHOENIX_ENDPOINT:-}
+case "$phoenix_endpoint" in
+  ''|'${'*) phoenix_endpoint=http://localhost:6006 ;;
+esac
 phoenix_endpoint=${phoenix_endpoint%/}
 
 case "$phoenix_endpoint" in
@@ -9,4 +17,9 @@ case "$phoenix_endpoint" in
   *) phoenix_mcp_url=$phoenix_endpoint/mcp ;;
 esac
 
-exec npx --yes mcp-remote "$phoenix_mcp_url"
+# An API key skips the browser login; useful for headless or CI sessions.
+phoenix_api_key=${PHOENIX_API_KEY:-}
+case "$phoenix_api_key" in
+  ''|'${'*) exec npx --yes mcp-remote "$phoenix_mcp_url" ;;
+  *) exec npx --yes mcp-remote "$phoenix_mcp_url" --header "Authorization: Bearer $phoenix_api_key" ;;
+esac
