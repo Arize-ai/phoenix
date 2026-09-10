@@ -4977,6 +4977,57 @@ async def test_list_dataset_splits_scopes_splits_through_example_membership(
     }
 
 
+async def test_list_dataset_splits_counts_are_dataset_scoped_for_cross_dataset_split(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """A split may span datasets; each dataset reports only its own examples.
+
+
+    A split is tied to a dataset only through its examples, and nothing binds a
+    split to a single dataset. Build a split holding one example from dataset A
+    and one from dataset B, then confirm each dataset's listing reports only the
+    count of its own examples (1 and 1) -- never the split's global total -- and
+    that the two dataset-scoped counts sum to the split's true size (2).
+    """
+    dataset_a, examples_a = await _create_dataset_with_examples(httpx_client, "ds_cross_a", 1)
+    dataset_b, examples_b = await _create_dataset_with_examples(httpx_client, "ds_cross_b", 1)
+
+    # A split can only be seeded with examples from the dataset in the URL, so
+    # create it against A with A's example, then add B's example by PATCHing
+    # through dataset B. The split itself is bound to neither dataset.
+    created = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_a}/splits",
+        json={"name": "cross_ds", "example_ids": examples_a},
+    )
+    assert created.status_code == 201
+    split_id = created.json()["data"]["id"]
+
+    patched = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_b}/splits/{split_id}",
+        json={"add_example_ids": examples_b},
+    )
+    assert patched.status_code == 200
+    # The update was issued through dataset B, so its response is B-scoped.
+    assert patched.json()["data"]["example_count"] == 1
+
+    def _count(body: dict[str, Any]) -> int:
+        matches = [s for s in body["data"] if s["name"] == "cross_ds"]
+        assert len(matches) == 1, f"expected exactly one 'cross_ds' split, got {matches}"
+        return matches[0]["example_count"]
+
+    resp_a = await httpx_client.get(f"/v1/datasets/{dataset_a}/splits")
+    assert resp_a.status_code == 200
+    count_a = _count(resp_a.json())
+
+    resp_b = await httpx_client.get(f"/v1/datasets/{dataset_b}/splits")
+    assert resp_b.status_code == 200
+    count_b = _count(resp_b.json())
+
+    # Each dataset should only see its own example
+    assert count_a == 1
+    assert count_b == 1
+
+
 async def test_list_dataset_splits_excludes_soft_deleted_examples_from_counts(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
