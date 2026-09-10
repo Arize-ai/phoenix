@@ -18,8 +18,11 @@ case "$phoenix_endpoint" in
 esac
 
 # An API key skips the browser login; useful for headless or CI sessions.
+# The header carries an unexpanded `${PHOENIX_API_KEY}` reference that
+# mcp-remote substitutes from its environment at runtime, so the key itself
+# never appears in the process arguments.
 phoenix_api_key=${PHOENIX_API_KEY:-}
 case "$phoenix_api_key" in
   ''|'${'*) exec npx --yes mcp-remote "$phoenix_mcp_url" ;;
-  *) exec npx --yes mcp-remote "$phoenix_mcp_url" --header "Authorization: Bearer $phoenix_api_key" ;;
+  *) exec npx --yes mcp-remote "$phoenix_mcp_url" --header 'Authorization: Bearer ${PHOENIX_API_KEY}' ;;
 esac
