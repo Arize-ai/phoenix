@@ -7,7 +7,7 @@ Work-unit lifecycle:
 
     PENDING --claim--> RUNNING --complete--> DONE
                        RUNNING --fail-----> ERROR, or FAILED once the retry budget is spent
-                       RUNNING --expire---> EXPIRED | SUPERSEDED | CONTENT_LOST
+                       RUNNING --expire---> EXPIRED | SUPERSEDED
                        RUNNING --release--> PENDING
     RUNNING (lease lapsed) --> reclaimable, or FAILED when no attempts remain
     ERROR (cooldown elapsed) --> retried
@@ -30,7 +30,7 @@ LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
 LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
 
-RetiredWorkStatus = Literal["EXPIRED", "SUPERSEDED", "CONTENT_LOST"]
+RetiredWorkStatus = Literal["EXPIRED", "SUPERSEDED"]
 
 PublicationWrite = Callable[[AsyncSession], Awaitable[None]]
 """Writes one unit's results, inside the transaction that fenced its publication."""
@@ -67,7 +67,7 @@ class QueueLag:
     """Observable backlog; all counts are zero when no work rows exist.
     ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is
     None when that backlog is empty. ``expired_count`` covers every retirement without
-    an outcome: EXPIRED, SUPERSEDED, CONTENT_LOST, and DROPPED."""
+    an outcome: EXPIRED, SUPERSEDED, and DROPPED."""
 
     pending_count: int
     running_count: int

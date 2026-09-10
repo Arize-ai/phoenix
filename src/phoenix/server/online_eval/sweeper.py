@@ -123,7 +123,7 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
                 candidate_session_rowids=candidate_rowids,
             )
         ),
-        is_evaluable=lambda: models.ProjectSession.content_complete.is_(True),
+        is_evaluable=lambda: true(),
         lease_name_prefix=_SESSION_SWEEP_LEASE_NAME,
     ),
     "TRACE": _SweepTarget(
@@ -268,9 +268,7 @@ def _eligible_pairs_relation(
             getattr(terminal_work, target_column) == entity_model.id,
             terminal_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             terminal_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
-            terminal_work.status.in_(
-                ("DONE", "FAILED", "EXPIRED", "CONTENT_LOST", *SESSION_DECLINED_STATUSES)
-            ),
+            terminal_work.status.in_(("DONE", "FAILED", "EXPIRED", *SESSION_DECLINED_STATUSES)),
         )
         .correlate(entity_model, project_evaluator_relation)
         .scalar_subquery()

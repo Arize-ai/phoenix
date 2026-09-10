@@ -149,9 +149,8 @@ class ProjectSession(Node):
     @strawberry.field(
         description=(
             "The canonical context that online evaluators bind against when they "
-            "run on this session. Null whenever a live evaluation would refuse "
-            "this session: its content was trimmed after ingestion, or it has no "
-            "eligible root turn to evaluate."
+            "run on this session. Null when the session has no eligible root turn "
+            "to evaluate."
         ),
     )  # type: ignore
     async def session_evaluation_context(
@@ -166,15 +165,7 @@ class ProjectSession(Node):
 
         async with info.context.db.read() as session:
             project_session = await session.get(models.ProjectSession, self.id)
-            # One unevaluable session must not fail the whole list it is read in;
-            # the null row says why on its own. The row is read here rather than
-            # carried from the list because it can be deleted or trimmed in
-            # between, and the loader below raises on a session that is gone.
             if project_session is None:
-                return None
-            # The sweeper only claims content-complete sessions, so a preview of a
-            # trimmed one would bind against turns no live evaluation reads.
-            if not project_session.content_complete:
                 return None
             vocabularies = await load_session_bound_variables(
                 session,

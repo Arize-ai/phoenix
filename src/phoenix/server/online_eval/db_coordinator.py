@@ -305,14 +305,14 @@ class DbEvalWorkCoordinator:
             else:
                 project_session_rowid = identity.project_session_rowid
                 if project_session_rowid is not None:
-                    content_complete = await session.scalar(
-                        select(models.ProjectSession.content_complete)
+                    locked_project_session_rowid = await session.scalar(
+                        select(models.ProjectSession.id)
                         .where(models.ProjectSession.id == project_session_rowid)
                         .with_for_update()
                     )
-                    if content_complete is not True:
+                    if locked_project_session_rowid is None:
                         raise PublicationClaimLostError(
-                            f"work unit {work_unit_id} session content is incomplete or missing"
+                            f"work unit {work_unit_id} session is missing"
                         )
                 elif self._evaluation_target == "SESSION":
                     raise PublicationClaimLostError(
@@ -457,8 +457,7 @@ class DbEvalWorkCoordinator:
             retryable_error_count=counts.get("ERROR", 0),
             exhausted_error_count=counts.get("FAILED", 0),
             expired_count=sum(
-                counts.get(status, 0)
-                for status in ("EXPIRED", "SUPERSEDED", "CONTENT_LOST", "DROPPED")
+                counts.get(status, 0) for status in ("EXPIRED", "SUPERSEDED", "DROPPED")
             ),
             oldest_actionable_age_seconds=oldest_actionable_age_seconds,
         )
