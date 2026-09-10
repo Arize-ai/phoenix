@@ -78,11 +78,6 @@ import { getProjectEvaluatorResultAnnotations } from "@phoenix/pages/project/eva
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;
-/**
- * Below this many evaluators, the gallery promo stays visible beneath the
- * table so a project that's just getting started keeps seeing it.
- */
-const GALLERY_PROMO_MAX_EVALUATOR_COUNT = 15;
 /** Labels for columns whose header is not a plain string. */
 const COLUMN_LABELS: Partial<Record<string, string>> = {
   meanScore: "mean score",
@@ -708,10 +703,6 @@ export function ProjectEvaluatorsTable({
       </div>
     );
   }
-  // hasNext means more evaluators exist beyond this page, so rows.length is
-  // only the true total once the full connection has loaded.
-  const showGalleryPromo =
-    !isFiltered && !hasNext && rows.length < GALLERY_PROMO_MAX_EVALUATOR_COUNT;
   return (
     <div css={scrollableAreaCSS}>
       <EvaluatorScoreWindowProvider value={scoreWindow}>
@@ -837,11 +828,6 @@ export function ProjectEvaluatorsTable({
               onLoadMore={loadNext}
             />
           </Flex>
-        </View>
-      ) : null}
-      {showGalleryPromo ? (
-        <View borderTopWidth="thin" borderTopColor="default">
-          <ProjectEvaluatorsEmptyState />
         </View>
       ) : null}
     </div>
