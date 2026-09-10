@@ -103,7 +103,9 @@ export const configureEvaluatorPlaygroundOperation = defineUIOperation({
     sampleSize: z.number().int().min(1).max(500).optional(),
     compare: z.boolean().optional(),
     slots: z.array(slot).min(1).max(4).optional(),
-    filter: z.enum(["all", "missing-expected", "errors", "disagreements"]).optional(),
+    filter: z
+      .enum(["all", "missing-expected", "errors", "disagreements"])
+      .optional(),
     discardChanges: z.boolean().default(false),
   }),
 });
@@ -145,9 +147,10 @@ export const runEvaluatorPlaygroundOperation = defineUIOperation({
   longRunning: true,
   availability,
   description:
-    "Run all visible evaluators (omit slots) or explicit A–D slots on the shared sample. Awaits completion and returns run status/results; calls LLMs or sandboxes and can incur cost. Unselected slot results remain unchanged. Does not save evaluators, create experiments, or write expected labels.",
+    "Run all visible evaluators (omit slots) or explicit A–D slots on the shared sample, or on only the given exampleIds (a row run keeps the other rows' results). Awaits completion and returns run status/results; calls LLMs or sandboxes and can incur cost. Unselected slot results remain unchanged. Does not save evaluators, create experiments, or write expected labels.",
   inputSchema: z.strictObject({
     slots: z.array(slot).min(1).max(4).optional(),
+    exampleIds: z.array(z.string()).min(1).optional(),
   }),
 });
 export const stopEvaluatorPlaygroundOperation = defineUIOperation({

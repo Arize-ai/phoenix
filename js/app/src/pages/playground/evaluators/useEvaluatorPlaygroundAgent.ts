@@ -60,7 +60,10 @@ export function useEvaluatorPlaygroundAgent({
     input: ConfigureEvaluatorWorkspace
   ) => Promise<UIOperationResult>;
   selectSlot: (input: SelectEvaluatorSlot) => Promise<UIOperationResult>;
-  runSlots: (slots?: SlotId[]) => Promise<UIOperationResult>;
+  runSlots: (
+    slots?: SlotId[],
+    exampleIds?: string[]
+  ) => Promise<UIOperationResult>;
   stopRuns: () => void;
   reviewExample: (input: ReviewEvaluatorExample) => Promise<UIOperationResult>;
   isBusy: boolean;
@@ -152,7 +155,8 @@ export function useEvaluatorPlaygroundAgent({
         },
         {
           descriptor: run,
-          handler: ({ slots }) => withWriteLock(() => runSlots(slots)),
+          handler: ({ slots, exampleIds }) =>
+            withWriteLock(() => runSlots(slots, exampleIds)),
         },
         {
           descriptor: stop,

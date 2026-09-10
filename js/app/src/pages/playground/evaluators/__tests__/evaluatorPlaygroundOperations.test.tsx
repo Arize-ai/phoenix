@@ -115,7 +115,7 @@ describe("PXI evaluator mode dispatch", () => {
         await dispatch("evaluatorPlayground.run", { slots: ["B"] })
       ).toMatchObject({ ok: true, output: { results: ["pass"] } });
     });
-    expect(run).toHaveBeenCalledWith(["B"]);
+    expect(run).toHaveBeenCalledWith(["B"], undefined);
     expect(
       await dispatch("evaluatorPlayground.configure", { sampleSize: 501 })
     ).toMatchObject({ ok: false, code: "INVALID_INPUT" });
