@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1c9f0a0036f11aa5a446d8782fdc99a9>>
+ * @generated SignedSource<<2181a1408f3e8a4e41c2022c07827891>>
  * @lightSyntaxTransform
  */
 
@@ -39,6 +39,7 @@ export type SpansTable_spans$data = {
         readonly metadata: string | null;
         readonly name: string;
         readonly output: {
+          readonly evaluatorValue?: string;
           readonly value: string;
         } | null;
         readonly spanAnnotations: ReadonlyArray<{
@@ -61,6 +62,74 @@ export type SpansTable_spans$data = {
               readonly cost: number | null;
             };
           };
+          readonly evaluatorResultAnnotations?: ReadonlyArray<{
+            readonly __typename: "ProjectSessionAnnotation";
+            readonly annotatorKind: AnnotatorKind;
+            readonly createdAt: string;
+            readonly explanation: string | null;
+            readonly id: string;
+            readonly label: string | null;
+            readonly name: string;
+            readonly projectSession: {
+              readonly id: string;
+              readonly project: {
+                readonly id: string;
+              };
+            };
+            readonly score: number | null;
+            readonly updatedAt: string;
+            readonly user: {
+              readonly profilePictureUrl: string | null;
+              readonly username: string;
+            } | null;
+          } | {
+            readonly __typename: "SpanAnnotation";
+            readonly annotatorKind: AnnotatorKind;
+            readonly createdAt: string;
+            readonly explanation: string | null;
+            readonly id: string;
+            readonly label: string | null;
+            readonly name: string;
+            readonly score: number | null;
+            readonly span: {
+              readonly id: string;
+              readonly trace: {
+                readonly project: {
+                  readonly id: string;
+                };
+                readonly traceId: string;
+              };
+            };
+            readonly updatedAt: string;
+            readonly user: {
+              readonly profilePictureUrl: string | null;
+              readonly username: string;
+            } | null;
+          } | {
+            readonly __typename: "TraceAnnotation";
+            readonly annotatorKind: AnnotatorKind;
+            readonly createdAt: string;
+            readonly explanation: string | null;
+            readonly id: string;
+            readonly label: string | null;
+            readonly name: string;
+            readonly score: number | null;
+            readonly trace: {
+              readonly project: {
+                readonly id: string;
+              };
+              readonly traceId: string;
+            };
+            readonly updatedAt: string;
+            readonly user: {
+              readonly profilePictureUrl: string | null;
+              readonly username: string;
+            } | null;
+          } | {
+            // This will never be '%other', but we need some
+            // value in case none of the concrete values match.
+            readonly __typename: "%other";
+          }>;
           readonly id: string;
           readonly traceAnnotationSummaries: ReadonlyArray<{
             readonly count: number;
@@ -131,15 +200,119 @@ v3 = {
   ],
   "storageKey": null
 },
-v4 = [
-  {
-    "alias": "value",
-    "args": null,
-    "kind": "ScalarField",
-    "name": "truncatedValue",
-    "storageKey": null
-  }
-];
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "traceId",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "score",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "explanation",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotatorKind",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "User",
+  "kind": "LinkedField",
+  "name": "user",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "username",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "profilePictureUrl",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Project",
+  "kind": "LinkedField",
+  "name": "project",
+  "plural": false,
+  "selections": [
+    (v2/*:: as any*/)
+  ],
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Trace",
+  "kind": "LinkedField",
+  "name": "trace",
+  "plural": false,
+  "selections": [
+    (v4/*:: as any*/),
+    (v13/*:: as any*/)
+  ],
+  "storageKey": null
+},
+v15 = {
+  "alias": "value",
+  "args": null,
+  "kind": "ScalarField",
+  "name": "truncatedValue",
+  "storageKey": null
+};
 return {
   "argumentDefinitions": [
     {
@@ -156,6 +329,11 @@ return {
       "defaultValue": 30,
       "kind": "LocalArgument",
       "name": "first"
+    },
+    {
+      "defaultValue": false,
+      "kind": "LocalArgument",
+      "name": "includeEvaluatorResults"
     },
     {
       "defaultValue": null,
@@ -375,13 +553,7 @@ return {
                   "plural": false,
                   "selections": [
                     (v2/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "traceId",
-                      "storageKey": null
-                    },
+                    (v4/*:: as any*/),
                     {
                       "condition": "rootSpansOnly",
                       "kind": "Condition",
@@ -413,6 +585,100 @@ return {
                       "args": null,
                       "kind": "FragmentSpread",
                       "name": "TraceAnnotationSummaryGroup"
+                    },
+                    {
+                      "condition": "includeEvaluatorResults",
+                      "kind": "Condition",
+                      "passingValue": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": null,
+                          "kind": "LinkedField",
+                          "name": "evaluatorResultAnnotations",
+                          "plural": true,
+                          "selections": [
+                            (v5/*:: as any*/),
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v2/*:: as any*/),
+                                (v1/*:: as any*/),
+                                (v6/*:: as any*/),
+                                (v7/*:: as any*/),
+                                (v8/*:: as any*/),
+                                (v9/*:: as any*/),
+                                (v10/*:: as any*/),
+                                (v11/*:: as any*/),
+                                (v12/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": "Span",
+                                  "kind": "LinkedField",
+                                  "name": "span",
+                                  "plural": false,
+                                  "selections": [
+                                    (v2/*:: as any*/),
+                                    (v14/*:: as any*/)
+                                  ],
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "SpanAnnotation",
+                              "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v2/*:: as any*/),
+                                (v1/*:: as any*/),
+                                (v6/*:: as any*/),
+                                (v7/*:: as any*/),
+                                (v8/*:: as any*/),
+                                (v9/*:: as any*/),
+                                (v10/*:: as any*/),
+                                (v11/*:: as any*/),
+                                (v12/*:: as any*/),
+                                (v14/*:: as any*/)
+                              ],
+                              "type": "TraceAnnotation",
+                              "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v2/*:: as any*/),
+                                (v1/*:: as any*/),
+                                (v6/*:: as any*/),
+                                (v7/*:: as any*/),
+                                (v8/*:: as any*/),
+                                (v9/*:: as any*/),
+                                (v10/*:: as any*/),
+                                (v11/*:: as any*/),
+                                (v12/*:: as any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": "ProjectSession",
+                                  "kind": "LinkedField",
+                                  "name": "projectSession",
+                                  "plural": false,
+                                  "selections": [
+                                    (v2/*:: as any*/),
+                                    (v13/*:: as any*/)
+                                  ],
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "ProjectSessionAnnotation",
+                              "abstractKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ]
                     }
                   ],
                   "storageKey": null
@@ -424,7 +690,9 @@ return {
                   "kind": "LinkedField",
                   "name": "input",
                   "plural": false,
-                  "selections": (v4/*:: as any*/),
+                  "selections": [
+                    (v15/*:: as any*/)
+                  ],
                   "storageKey": null
                 },
                 {
@@ -434,7 +702,23 @@ return {
                   "kind": "LinkedField",
                   "name": "output",
                   "plural": false,
-                  "selections": (v4/*:: as any*/),
+                  "selections": [
+                    (v15/*:: as any*/),
+                    {
+                      "condition": "includeEvaluatorResults",
+                      "kind": "Condition",
+                      "passingValue": true,
+                      "selections": [
+                        {
+                          "alias": "evaluatorValue",
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "value",
+                          "storageKey": null
+                        }
+                      ]
+                    }
+                  ],
                   "storageKey": null
                 },
                 {
@@ -447,34 +731,10 @@ return {
                   "selections": [
                     (v2/*:: as any*/),
                     (v1/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "label",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "score",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "annotatorKind",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "createdAt",
-                      "storageKey": null
-                    }
+                    (v6/*:: as any*/),
+                    (v7/*:: as any*/),
+                    (v9/*:: as any*/),
+                    (v10/*:: as any*/)
                   ],
                   "storageKey": null
                 },
@@ -540,13 +800,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "__typename",
-                  "storageKey": null
-                }
+                (v5/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -588,6 +842,6 @@ return {
 };
 })();
 
-(node as any).hash = "9f87998132bb9b45c5213dc30f86043e";
+(node as any).hash = "4bd5c171ededc5040982b57abba8d513";
 
 export default node;

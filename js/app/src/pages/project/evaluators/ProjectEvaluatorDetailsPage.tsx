@@ -243,6 +243,8 @@ function ProjectEvaluatorDetailsPageContent({
             <ProjectEvaluatorTraces
               projectId={projectEvaluator.traceProject.id}
               projectEvaluatorId={projectEvaluator.id}
+              projectEvaluator={projectEvaluator}
+              evaluationTarget={projectEvaluator.evaluationTarget}
               hasEverRun={projectEvaluator.runSummary.status !== "NEVER_RUN"}
             />
           </Suspense>

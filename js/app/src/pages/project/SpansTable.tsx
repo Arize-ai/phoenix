@@ -38,11 +38,15 @@ import {
   AnnotationSummaryGroupToken,
   AnnotationSummaryGroupTokens,
 } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
 import {
   TraceAnnotationSummaryGroupToken,
   TraceAnnotationSummaryGroupTokens,
 } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
-import type { Annotation } from "@phoenix/components/annotation/types";
+import type {
+  Annotation,
+  AnnotationTargetType,
+} from "@phoenix/components/annotation/types";
 import { useProjectAnnotationConfigsByName } from "@phoenix/components/annotation/useProjectAnnotationConfigsByName";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -82,6 +86,7 @@ import {
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
+import { EvaluatorOutputCell } from "@phoenix/pages/project/evaluators/EvaluatorOutputCell";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -136,6 +141,15 @@ type SpansTableProps = {
    * filter field is edited to. Must match the preload's own scope.
    */
   projectEvaluatorId?: string;
+  /** Evaluator-owned configs for annotations rendered in evaluator trace output cells. */
+  evaluatorResultAnnotationConfigsByName?: ReadonlyMap<
+    string,
+    AnnotationOptimizationConfig
+  >;
+  /** Annotation names emitted by the evaluator, including outputs without optimization config. */
+  evaluatorResultAnnotationNames?: readonly string[];
+  /** Target type shown in parsed evaluator-output annotation details. */
+  evaluatorResultAnnotationTargetType?: AnnotationTargetType;
   /**
    * Replaces the generic "no traces match" state when the table has no rows,
    * for views that can say something more specific about why.
@@ -144,6 +158,11 @@ type SpansTableProps = {
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+const EMPTY_ANNOTATION_CONFIGS = new Map<
+  string,
+  AnnotationOptimizationConfig
+>();
 
 const renderSpanTraceAnnotationFilterActions = (annotation: Annotation) => (
   <SpanTraceAnnotationTooltipFilterActions annotation={annotation} />
@@ -349,6 +368,7 @@ export function SpansTable(props: SpansTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
           projectEvaluatorId: { type: "ID", defaultValue: null }
+          includeEvaluatorResults: { type: "Boolean", defaultValue: false }
         ) {
           name
           spanAnnotationNames
@@ -390,12 +410,80 @@ export function SpansTable(props: SpansTableProps) {
                     name
                   }
                   ...TraceAnnotationSummaryGroup
+                  evaluatorResultAnnotations
+                    @include(if: $includeEvaluatorResults) {
+                    __typename
+                    ... on SpanAnnotation {
+                      id
+                      name
+                      label
+                      score
+                      explanation
+                      annotatorKind
+                      createdAt
+                      updatedAt
+                      user {
+                        username
+                        profilePictureUrl
+                      }
+                      span {
+                        id
+                        trace {
+                          traceId
+                          project {
+                            id
+                          }
+                        }
+                      }
+                    }
+                    ... on TraceAnnotation {
+                      id
+                      name
+                      label
+                      score
+                      explanation
+                      annotatorKind
+                      createdAt
+                      updatedAt
+                      user {
+                        username
+                        profilePictureUrl
+                      }
+                      trace {
+                        traceId
+                        project {
+                          id
+                        }
+                      }
+                    }
+                    ... on ProjectSessionAnnotation {
+                      id
+                      name
+                      label
+                      score
+                      explanation
+                      annotatorKind
+                      createdAt
+                      updatedAt
+                      user {
+                        username
+                        profilePictureUrl
+                      }
+                      projectSession {
+                        id
+                        project {
+                          id
+                        }
+                      }
+                    }
+                  }
                 }
                 input {
                   value: truncatedValue
                 }
                 output {
                   value: truncatedValue
+                  evaluatorValue: value @include(if: $includeEvaluatorResults)
                 }
                 spanAnnotations {
                   id
@@ -675,9 +763,27 @@ export function SpansTable(props: SpansTableProps) {
       header: "output",
       accessorKey: "output.value",
       cell: ({ getValue, row }) => (
-        <SpanOutputValueTooltipCell
-          nodeId={row.original.id}
-          preview={getValue()}
+        <EvaluatorOutputCell
+          annotations={row.original.trace.evaluatorResultAnnotations ?? []}
+          annotationConfigsByName={
+            props.evaluatorResultAnnotationConfigsByName ??
+            EMPTY_ANNOTATION_CONFIGS
+          }
+          annotationNames={props.evaluatorResultAnnotationNames ?? []}
+          annotationTargetType={
+            props.evaluatorResultAnnotationTargetType ?? "span"
+          }
+          output={row.original.output?.evaluatorValue}
+          sourceId={row.original.id}
+          createdAt={row.original.startTime}
+          isSuccessful={row.original.statusCode === "OK"}
+          isExpanded={areRowsExpanded}
+          fallback={
+            <SpanOutputValueTooltipCell
+              nodeId={row.original.id}
+              preview={getValue()}
+            />
+          }
         />
       ),
       enableSorting: false,

@@ -67,6 +67,7 @@ from phoenix.server.online_eval.session_policy import (
     session_project_evaluator_is_schedulable,
 )
 from phoenix.server.online_eval.tracing import (
+    EVALUATOR_TRACE_ID_METADATA_KEY,
     marked_evaluator_tracer,
     persist_evaluator_traces,
 )
@@ -80,7 +81,6 @@ logger = logging.getLogger(__name__)
 
 _EMPTY_INPUT_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 _SESSION_POLICY_METADATA_KEY = "phoenix.online_eval.session_policy"
-_EVALUATOR_TRACE_ID_METADATA_KEY = "phoenix.evaluator_trace_id"
 _DEFAULT_EXECUTION_DEADLINE_SECONDS = 600.0
 
 AnnotatorKind = Literal["LLM", "CODE"]
@@ -349,7 +349,7 @@ def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
     """The evaluator trace this annotation came from, for readers that want to
     open the evaluation behind a score."""
     trace_id = result.get("trace_id")
-    return {_EVALUATOR_TRACE_ID_METADATA_KEY: trace_id} if trace_id else {}
+    return {EVALUATOR_TRACE_ID_METADATA_KEY: trace_id} if trace_id else {}
 
 
 def _session_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:

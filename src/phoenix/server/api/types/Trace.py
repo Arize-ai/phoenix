@@ -25,6 +25,10 @@ from phoenix.server.api.input_types.TraceAnnotationSort import (
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
+from phoenix.server.api.types.EvaluatorResultAnnotation import (
+    EvaluatorResultAnnotation,
+    to_gql_evaluator_result_annotation,
+)
 from phoenix.server.api.types.pagination import (
     Cursor,
     CursorString,
@@ -86,6 +90,20 @@ class Trace(Node):
                 (self.id, models.Trace.trace_id),
             )
         return ID(trace_id)
+
+    @strawberry.field(description="Annotations successfully produced by this evaluator trace.")  # type: ignore
+    async def evaluator_result_annotations(
+        self,
+        info: Info[Context, None],
+    ) -> list[EvaluatorResultAnnotation]:
+        if self.db_record:
+            trace_id = self.db_record.trace_id
+        else:
+            trace_id = await info.context.data_loaders.trace_fields.load(
+                (self.id, models.Trace.trace_id),
+            )
+        annotations = await info.context.data_loaders.evaluator_result_annotations.load(trace_id)
+        return [to_gql_evaluator_result_annotation(annotation) for annotation in annotations]
 
     @strawberry.field
     async def start_time(

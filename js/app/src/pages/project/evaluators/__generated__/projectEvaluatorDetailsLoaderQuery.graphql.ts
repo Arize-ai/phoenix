@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1baf08a7af4e54746c54a7e4e8140763>>
+ * @generated SignedSource<<b6e996ac03be88fd97e1cc981cf87cf2>>
  * @lightSyntaxTransform
  */
 
@@ -9,6 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
 export type projectEvaluatorDetailsLoaderQuery$variables = {
@@ -18,6 +19,7 @@ export type projectEvaluatorDetailsLoaderQuery$data = {
   readonly projectEvaluator: {
     readonly __typename: "ProjectEvaluator";
     readonly enabled: boolean;
+    readonly evaluationTarget: EvaluationTarget;
     readonly evaluator: {
       readonly description: string | null;
       readonly id?: string;
@@ -32,7 +34,7 @@ export type projectEvaluatorDetailsLoaderQuery$data = {
     readonly traceProject: {
       readonly id: string;
     };
-    readonly " $fragmentSpreads": FragmentRefs<"AnnotationConfigurationCard_projectEvaluator" | "CodeProjectEvaluatorConfigCards_projectEvaluator" | "CodeProjectEvaluatorDetails_projectEvaluator" | "LLMProjectEvaluatorDetails_projectEvaluator" | "ProjectEvaluatorMetrics_projectEvaluator" | "ProjectEvaluatorScopeDetails_projectEvaluator" | "ProjectEvaluatorStats_projectEvaluator">;
+    readonly " $fragmentSpreads": FragmentRefs<"AnnotationConfigurationCard_projectEvaluator" | "CodeProjectEvaluatorConfigCards_projectEvaluator" | "CodeProjectEvaluatorDetails_projectEvaluator" | "LLMProjectEvaluatorDetails_projectEvaluator" | "ProjectEvaluatorMetrics_projectEvaluator" | "ProjectEvaluatorScopeDetails_projectEvaluator" | "ProjectEvaluatorStats_projectEvaluator" | "useProjectEvaluatorResultAnnotationsFragment">;
   } | {
     // This will never be '%other', but we need some
     // value in case none of the concrete values match.
@@ -91,107 +93,114 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
+  "name": "evaluationTarget",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "kind",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "versionCount",
   "storageKey": null
 },
-v9 = [
+v10 = [
   (v3/*:: as any*/)
 ],
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "Project",
   "kind": "LinkedField",
   "name": "traceProject",
   "plural": false,
-  "selections": (v9/*:: as any*/),
-  "storageKey": null
-},
-v11 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "status",
+  "selections": (v10/*:: as any*/),
   "storageKey": null
 },
 v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "optimizationDirection",
+  "name": "status",
   "storageKey": null
 },
 v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "lowerBound",
+  "name": "optimizationDirection",
   "storageKey": null
 },
 v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "upperBound",
+  "name": "lowerBound",
   "storageKey": null
 },
 v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "temperature",
+  "name": "upperBound",
   "storageKey": null
 },
 v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "frequencyPenalty",
+  "name": "temperature",
   "storageKey": null
 },
 v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "presencePenalty",
+  "name": "frequencyPenalty",
   "storageKey": null
 },
 v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "topP",
+  "name": "presencePenalty",
   "storageKey": null
 },
 v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "extraBody",
+  "name": "topP",
   "storageKey": null
 },
 v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "stopSequences",
+  "name": "extraBody",
   "storageKey": null
 },
 v21 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "stopSequences",
+  "storageKey": null
+},
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -220,6 +229,7 @@ return {
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v5/*:: as any*/),
+              (v6/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -228,13 +238,13 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v6/*:: as any*/),
                   (v7/*:: as any*/),
+                  (v8/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
                       (v3/*:: as any*/),
-                      (v8/*:: as any*/)
+                      (v9/*:: as any*/)
                     ],
                     "type": "CodeEvaluator",
                     "abstractKey": null
@@ -242,7 +252,7 @@ return {
                 ],
                 "storageKey": null
               },
-              (v10/*:: as any*/),
+              (v11/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -251,7 +261,7 @@ return {
                 "name": "runSummary",
                 "plural": false,
                 "selections": [
-                  (v11/*:: as any*/)
+                  (v12/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -284,6 +294,11 @@ return {
                 "args": null,
                 "kind": "FragmentSpread",
                 "name": "ProjectEvaluatorMetrics_projectEvaluator"
+              },
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "useProjectEvaluatorResultAnnotationsFragment"
               },
               {
                 "args": null,
@@ -322,6 +337,7 @@ return {
             "selections": [
               (v4/*:: as any*/),
               (v5/*:: as any*/),
+              (v6/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -331,8 +347,8 @@ return {
                 "plural": false,
                 "selections": [
                   (v2/*:: as any*/),
-                  (v6/*:: as any*/),
                   (v7/*:: as any*/),
+                  (v8/*:: as any*/),
                   (v3/*:: as any*/),
                   {
                     "alias": null,
@@ -361,7 +377,7 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v12/*:: as any*/),
+                          (v13/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -395,9 +411,9 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v12/*:: as any*/),
                           (v13/*:: as any*/),
                           (v14/*:: as any*/),
+                          (v15/*:: as any*/),
                           (v4/*:: as any*/)
                         ],
                         "type": "ContinuousAnnotationConfig",
@@ -406,7 +422,7 @@ return {
                       {
                         "kind": "InlineFragment",
                         "selections": [
-                          (v12/*:: as any*/),
+                          (v13/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -414,8 +430,8 @@ return {
                             "name": "threshold",
                             "storageKey": null
                           },
-                          (v13/*:: as any*/),
                           (v14/*:: as any*/),
+                          (v15/*:: as any*/),
                           (v4/*:: as any*/)
                         ],
                         "type": "FreeformAnnotationConfig",
@@ -423,7 +439,7 @@ return {
                       },
                       {
                         "kind": "InlineFragment",
-                        "selections": (v9/*:: as any*/),
+                        "selections": (v10/*:: as any*/),
                         "type": "Node",
                         "abstractKey": "__isNode"
                       }
@@ -433,7 +449,7 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v8/*:: as any*/),
+                      (v9/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -470,7 +486,7 @@ return {
                         "selections": [
                           (v3/*:: as any*/),
                           (v4/*:: as any*/),
-                          (v7/*:: as any*/),
+                          (v8/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -624,7 +640,7 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v15/*:: as any*/),
+                                  (v16/*:: as any*/),
                                   {
                                     "alias": "openaiMaxTokens",
                                     "args": null,
@@ -639,9 +655,9 @@ return {
                                     "name": "maxCompletionTokens",
                                     "storageKey": null
                                   },
-                                  (v16/*:: as any*/),
                                   (v17/*:: as any*/),
                                   (v18/*:: as any*/),
+                                  (v19/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -663,7 +679,7 @@ return {
                                     "name": "reasoningEffort",
                                     "storageKey": null
                                   },
-                                  (v19/*:: as any*/)
+                                  (v20/*:: as any*/)
                                 ],
                                 "type": "PromptOpenAIInvocationParameters",
                                 "abstractKey": null
@@ -678,9 +694,9 @@ return {
                                     "name": "maxTokens",
                                     "storageKey": null
                                   },
-                                  (v15/*:: as any*/),
-                                  (v18/*:: as any*/),
-                                  (v20/*:: as any*/),
+                                  (v16/*:: as any*/),
+                                  (v19/*:: as any*/),
+                                  (v21/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -760,7 +776,7 @@ return {
                                     ],
                                     "storageKey": null
                                   },
-                                  (v19/*:: as any*/)
+                                  (v20/*:: as any*/)
                                 ],
                                 "type": "PromptAnthropicInvocationParameters",
                                 "abstractKey": null
@@ -768,7 +784,7 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v15/*:: as any*/),
+                                  (v16/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -776,10 +792,10 @@ return {
                                     "name": "maxOutputTokens",
                                     "storageKey": null
                                   },
-                                  (v20/*:: as any*/),
-                                  (v17/*:: as any*/),
-                                  (v16/*:: as any*/),
+                                  (v21/*:: as any*/),
                                   (v18/*:: as any*/),
+                                  (v17/*:: as any*/),
+                                  (v19/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -833,9 +849,9 @@ return {
                                     "name": "maxTokens",
                                     "storageKey": null
                                   },
-                                  (v15/*:: as any*/),
-                                  (v18/*:: as any*/),
-                                  (v20/*:: as any*/)
+                                  (v16/*:: as any*/),
+                                  (v19/*:: as any*/),
+                                  (v21/*:: as any*/)
                                 ],
                                 "type": "PromptAwsInvocationParameters",
                                 "abstractKey": null
@@ -922,7 +938,7 @@ return {
                                                 "name": "toolCall",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v21/*:: as any*/),
+                                                  (v22/*:: as any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -960,7 +976,7 @@ return {
                                                 "name": "toolResult",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v21/*:: as any*/),
+                                                  (v22/*:: as any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -1088,7 +1104,7 @@ return {
                 ],
                 "storageKey": null
               },
-              (v10/*:: as any*/),
+              (v11/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -1097,7 +1113,7 @@ return {
                 "name": "runSummary",
                 "plural": false,
                 "selections": [
-                  (v11/*:: as any*/),
+                  (v12/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -1147,13 +1163,6 @@ return {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "evaluationTarget",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
                 "name": "schedulabilityStatus",
                 "storageKey": null
               },
@@ -1171,7 +1180,7 @@ return {
                 "kind": "LinkedField",
                 "name": "project",
                 "plural": false,
-                "selections": (v9/*:: as any*/),
+                "selections": (v10/*:: as any*/),
                 "storageKey": null
               },
               {
@@ -1230,16 +1239,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9b317f46ba5e5b6a8aebe35890f79e47",
+    "cacheID": "64566a97e956dc3103b01bc3c961cca9",
     "id": null,
     "metadata": {},
     "name": "projectEvaluatorDetailsLoaderQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorDetailsLoaderQuery(\n  $projectEvaluatorId: ID!\n) {\n  projectEvaluator: node(id: $projectEvaluatorId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      enabled\n      evaluator {\n        __typename\n        kind\n        description\n        ... on CodeEvaluator {\n          id\n          versionCount\n        }\n        id\n      }\n      traceProject {\n        id\n      }\n      runSummary {\n        status\n      }\n      ...ProjectEvaluatorStats_projectEvaluator\n      ...ProjectEvaluatorScopeDetails_projectEvaluator\n      ...LLMProjectEvaluatorDetails_projectEvaluator\n      ...CodeProjectEvaluatorDetails_projectEvaluator\n      ...CodeProjectEvaluatorConfigCards_projectEvaluator\n      ...ProjectEvaluatorMetrics_projectEvaluator\n      ...AnnotationConfigurationCard_projectEvaluator\n    }\n    id\n  }\n}\n\nfragment AnnotationConfigurationCard_projectEvaluator on ProjectEvaluator {\n  evaluator {\n    __typename\n    kind\n    outputConfigs {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        name\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        name\n        optimizationDirection\n        threshold\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      promptVersion {\n        tools {\n          tools {\n            __typename\n            ... on PromptToolFunction {\n              function {\n                parameters\n              }\n            }\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment CodeEvaluatorSandboxCard_sandboxConfig on SandboxConfig {\n  id\n  name\n  description\n  timeout\n  config {\n    envVars {\n      name\n      secretKey\n    }\n    internetAccess {\n      mode\n    }\n    dependencies {\n      packages\n    }\n  }\n  provider {\n    backendType\n    id\n  }\n}\n\nfragment CodeProjectEvaluatorConfigCards_projectEvaluator on ProjectEvaluator {\n  evaluationTarget\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    ... on CodeEvaluator {\n      sandboxConfig {\n        ...CodeEvaluatorSandboxCard_sandboxConfig\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment CodeProjectEvaluatorDetails_projectEvaluator on ProjectEvaluator {\n  evaluator {\n    __typename\n    kind\n    ... on CodeEvaluator {\n      language\n      currentVersion {\n        sourceCode\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment LLMProjectEvaluatorDetails_projectEvaluator on ProjectEvaluator {\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        invocationParameters {\n          __typename\n          ...PromptInvocationParametersReadableFragment\n        }\n        ...PromptChatMessagesCard__main\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorMetrics_projectEvaluator on ProjectEvaluator {\n  evaluationTarget\n  project {\n    id\n  }\n  traceProject {\n    id\n  }\n  ...useProjectEvaluatorResultAnnotationsFragment\n}\n\nfragment ProjectEvaluatorScopeDetails_projectEvaluator on ProjectEvaluator {\n  evaluationTarget\n  filterCondition\n  samplingRate\n  evaluationDelaySeconds\n  schedulabilityStatus\n  schedulabilityReason\n}\n\nfragment ProjectEvaluatorStats_projectEvaluator on ProjectEvaluator {\n  createdAt\n  evaluationTarget\n  schedulabilityStatus\n  schedulabilityReason\n  project {\n    id\n  }\n  traceProject {\n    id\n  }\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n    lastError\n  }\n  evaluator {\n    __typename\n    kind\n    id\n  }\n  ...useProjectEvaluatorResultAnnotationsFragment\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment useProjectEvaluatorResultAnnotationsFragment on ProjectEvaluator {\n  name\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query projectEvaluatorDetailsLoaderQuery(\n  $projectEvaluatorId: ID!\n) {\n  projectEvaluator: node(id: $projectEvaluatorId) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      name\n      enabled\n      evaluationTarget\n      evaluator {\n        __typename\n        kind\n        description\n        ... on CodeEvaluator {\n          id\n          versionCount\n        }\n        id\n      }\n      traceProject {\n        id\n      }\n      runSummary {\n        status\n      }\n      ...ProjectEvaluatorStats_projectEvaluator\n      ...ProjectEvaluatorScopeDetails_projectEvaluator\n      ...LLMProjectEvaluatorDetails_projectEvaluator\n      ...CodeProjectEvaluatorDetails_projectEvaluator\n      ...CodeProjectEvaluatorConfigCards_projectEvaluator\n      ...ProjectEvaluatorMetrics_projectEvaluator\n      ...useProjectEvaluatorResultAnnotationsFragment\n      ...AnnotationConfigurationCard_projectEvaluator\n    }\n    id\n  }\n}\n\nfragment AnnotationConfigurationCard_projectEvaluator on ProjectEvaluator {\n  evaluator {\n    __typename\n    kind\n    outputConfigs {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        name\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        name\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        name\n        optimizationDirection\n        threshold\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      promptVersion {\n        tools {\n          tools {\n            __typename\n            ... on PromptToolFunction {\n              function {\n                parameters\n              }\n            }\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment CodeEvaluatorSandboxCard_sandboxConfig on SandboxConfig {\n  id\n  name\n  description\n  timeout\n  config {\n    envVars {\n      name\n      secretKey\n    }\n    internetAccess {\n      mode\n    }\n    dependencies {\n      packages\n    }\n  }\n  provider {\n    backendType\n    id\n  }\n}\n\nfragment CodeProjectEvaluatorConfigCards_projectEvaluator on ProjectEvaluator {\n  evaluationTarget\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    ... on CodeEvaluator {\n      sandboxConfig {\n        ...CodeEvaluatorSandboxCard_sandboxConfig\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment CodeProjectEvaluatorDetails_projectEvaluator on ProjectEvaluator {\n  evaluator {\n    __typename\n    kind\n    ... on CodeEvaluator {\n      language\n      currentVersion {\n        sourceCode\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment LLMProjectEvaluatorDetails_projectEvaluator on ProjectEvaluator {\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        invocationParameters {\n          __typename\n          ...PromptInvocationParametersReadableFragment\n        }\n        ...PromptChatMessagesCard__main\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorMetrics_projectEvaluator on ProjectEvaluator {\n  evaluationTarget\n  project {\n    id\n  }\n  traceProject {\n    id\n  }\n  ...useProjectEvaluatorResultAnnotationsFragment\n}\n\nfragment ProjectEvaluatorScopeDetails_projectEvaluator on ProjectEvaluator {\n  evaluationTarget\n  filterCondition\n  samplingRate\n  evaluationDelaySeconds\n  schedulabilityStatus\n  schedulabilityReason\n}\n\nfragment ProjectEvaluatorStats_projectEvaluator on ProjectEvaluator {\n  createdAt\n  evaluationTarget\n  schedulabilityStatus\n  schedulabilityReason\n  project {\n    id\n  }\n  traceProject {\n    id\n  }\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n    lastError\n  }\n  evaluator {\n    __typename\n    kind\n    id\n  }\n  ...useProjectEvaluatorResultAnnotationsFragment\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment useProjectEvaluatorResultAnnotationsFragment on ProjectEvaluator {\n  name\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a4c2966187a6f1072a2d4c3193d6a870";
+(node as any).hash = "bb684ed32e8c4c0f4f5f6457be63fa02";
 
 export default node;

@@ -112,6 +112,151 @@ class TestTrace:
         assert await self._node(field, trace_with_user, httpx_client) == "user-1"
         assert await self._node(field, trace_with_user_on_child, httpx_client) == "user-2"
 
+    async def test_evaluator_result_annotations(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        async with db() as session:
+            evaluator_project = await _add_project(session)
+            evaluator_trace = await _add_trace(session, evaluator_project)
+            target_project = await _add_project(session)
+            target_session = await _add_project_session(session, target_project)
+            target_trace = await _add_trace(session, target_project, target_session)
+            target_span = await _add_span(session, target_trace)
+            evaluator_trace_metadata = {"phoenix.evaluator_trace_id": evaluator_trace.trace_id}
+            annotations = [
+                models.SpanAnnotation(
+                    span_rowid=target_span.id,
+                    name="span-result",
+                    label="relevant",
+                    score=1.0,
+                    explanation="The context supports the response.",
+                    metadata_=evaluator_trace_metadata,
+                    annotator_kind="LLM",
+                    identifier="span-result",
+                    source="API",
+                    user_id=None,
+                ),
+                models.TraceAnnotation(
+                    trace_rowid=target_trace.id,
+                    name="trace-result",
+                    label="passing",
+                    score=0.9,
+                    explanation="The trace completed correctly.",
+                    metadata_=evaluator_trace_metadata,
+                    annotator_kind="CODE",
+                    identifier="trace-result",
+                    source="API",
+                    user_id=None,
+                ),
+                models.ProjectSessionAnnotation(
+                    project_session_id=target_session.id,
+                    name="session-result",
+                    label="helpful",
+                    score=0.8,
+                    explanation="The session answered the user's question.",
+                    metadata_=evaluator_trace_metadata,
+                    annotator_kind="LLM",
+                    identifier="session-result",
+                    source="API",
+                    user_id=None,
+                ),
+                models.SpanAnnotation(
+                    span_rowid=target_span.id,
+                    name="unrelated",
+                    label="ignored",
+                    score=0.0,
+                    explanation=None,
+                    metadata_={"phoenix.evaluator_trace_id": "another-trace"},
+                    annotator_kind="CODE",
+                    identifier="unrelated",
+                    source="API",
+                    user_id=None,
+                ),
+            ]
+            session.add_all(annotations)
+            await session.flush()
+
+        response = await gql_client.execute(
+            query="""
+              query EvaluatorResultAnnotations($traceId: ID!) {
+                node(id: $traceId) {
+                  ... on Trace {
+                    evaluatorResultAnnotations {
+                      __typename
+                      ... on SpanAnnotation {
+                        name
+                        label
+                        score
+                        explanation
+                        span {
+                          id
+                          trace {
+                            traceId
+                            project { id }
+                          }
+                        }
+                      }
+                      ... on TraceAnnotation {
+                        name
+                        trace {
+                          traceId
+                          project { id }
+                        }
+                      }
+                      ... on ProjectSessionAnnotation {
+                        name
+                        projectSession {
+                          id
+                          sessionId
+                          project { id }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            """,
+            variables={"traceId": str(GlobalID(Trace.__name__, str(evaluator_trace.id)))},
+        )
+
+        assert response.data and not response.errors
+        result_annotations = response.data["node"]["evaluatorResultAnnotations"]
+        assert result_annotations == [
+            {
+                "__typename": "SpanAnnotation",
+                "name": "span-result",
+                "label": "relevant",
+                "score": 1.0,
+                "explanation": "The context supports the response.",
+                "span": {
+                    "id": str(GlobalID(Span.__name__, str(target_span.id))),
+                    "trace": {
+                        "traceId": target_trace.trace_id,
+                        "project": {"id": str(GlobalID("Project", str(target_project.id)))},
+                    },
+                },
+            },
+            {
+                "__typename": "TraceAnnotation",
+                "name": "trace-result",
+                "trace": {
+                    "traceId": target_trace.trace_id,
+                    "project": {"id": str(GlobalID("Project", str(target_project.id)))},
+                },
+            },
+            {
+                "__typename": "ProjectSessionAnnotation",
+                "name": "session-result",
+                "projectSession": {
+                    "id": str(GlobalID(ProjectSession.__name__, str(target_session.id))),
+                    "sessionId": target_session.session_id,
+                    "project": {"id": str(GlobalID("Project", str(target_project.id)))},
+                },
+            },
+        ]
+
 
 async def test_trace_spans_pagination(
     db: DbSessionFactory,

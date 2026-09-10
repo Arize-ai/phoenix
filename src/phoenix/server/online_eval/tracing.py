@@ -32,6 +32,9 @@ PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH = PROJECT_EVALUATOR_ID_ATTRIBUTE.split(".")
 PROJECT_EVALUATOR_NAME_ATTRIBUTE = "phoenix.project_evaluator_name"
 """The evaluator's name, as the user gave it."""
 
+EVALUATOR_TRACE_ID_METADATA_KEY = "phoenix.evaluator_trace_id"
+"""Annotation metadata key linking a successful result to its evaluator trace."""
+
 _PROJECT_EVALUATOR_NODE_TYPE = "ProjectEvaluator"
 # The GraphQL type name is spelled out rather than imported: the API type module
 # already imports from this package, so importing it back would be circular.
