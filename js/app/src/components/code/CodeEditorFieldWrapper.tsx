@@ -86,7 +86,11 @@ export function CodeEditorFieldWrapper({
         {children}
       </div>
       {errorMessage ? (
-        <Text id={errorId} slot="errorMessage" color="danger" role="alert">
+        // slot={null} opts out of a parent's slotted TextContext: this wrapper
+        // is not a RAC Field, so no ancestor offers an "errorMessage" slot and
+        // a Dialog ancestor (save/clone/edit prompt) rejects it at render
+        // (#16027). The error stays associated via aria-describedby + role.
+        <Text id={errorId} slot={null} color="danger" role="alert">
           {errorMessage}
         </Text>
       ) : null}
