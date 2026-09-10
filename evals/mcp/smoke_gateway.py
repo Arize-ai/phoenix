@@ -70,14 +70,18 @@ class Handler(BaseHTTPRequestHandler):
             }
         }
         try:
+            peer_file = AUDIT.parent / "cli-peer.json"
+            cli_peer = json.loads(peer_file.read_text())["address"] if peer_file.exists() else None
             if path.startswith("/provider/"):
+                if self.client_address[0] == cli_peer:
+                    raise ValueError("The CLI broker cannot request inference")
                 route = path.removeprefix("/provider")
-                allowed = (
+                allowed_routes = (
                     {"/v1/responses"}
                     if provider == "openai"
                     else {"/v1/messages", "/v1/messages/count_tokens"}
                 )
-                if self.command != "POST" or route not in allowed:
+                if self.command != "POST" or route not in allowed_routes:
                     raise ValueError("Provider route is not inference")
                 payload = json.loads(body or b"{}")
                 tools = payload.get("tools") or []
@@ -106,6 +110,8 @@ class Handler(BaseHTTPRequestHandler):
                         "DELETE",
                     }
                 else:
+                    if not cli_peer or self.client_address[0] != cli_peer:
+                        raise ValueError("Phoenix CLI requests must come from the px broker")
                     allowed = (path.startswith("/v1/") and self.command == "GET") or (
                         path == "/graphql" and self.command == "POST"
                     )

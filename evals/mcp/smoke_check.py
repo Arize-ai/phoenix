@@ -34,40 +34,32 @@ def main():
         all_experiments = list(pages(client, f"/v1/datasets/{dataset_id}/experiments"))
         checked = []
         for condition in args.condition or plan["conditions"]:
-            selected = [e for e in all_experiments if e["name"] == sample.name + "-" + condition]
+            selected = [
+                e
+                for e in all_experiments
+                if e["metadata"].get("harbor_job_name") == sample.name + "-" + condition
+            ]
             if len(selected) != 1:
                 raise RuntimeError("Missing or duplicate condition experiment")
             experiment = selected[0]
             experiment_id = experiment["id"]
             runs = list(pages(client, f"/v1/experiments/{experiment_id}/runs"))
-            if len(runs) != 1 or runs[0]["error"] or runs[0]["repetition_number"] != 1:
-                raise RuntimeError("Expected one completed run with no infrastructure error")
-            trace_id = runs[0]["trace_id"]
-            traces = [
-                t
+            task_names = plan.get("tasks", [plan.get("task", "trace-count")])
+            if len(runs) != len(task_names) or any(
+                run["error"] or run["repetition_number"] != 1 for run in runs
+            ):
+                raise RuntimeError(
+                    "Expected one completed run per task with no infrastructure error"
+                )
+            traces = {
+                t["trace_id"]: t
                 for t in pages(
                     client,
                     f"/v1/projects/{experiment['project_name']}/traces",
                     include_spans="true",
                 )
-                if t["trace_id"] == trace_id
-            ]
-            if len(traces) != 1 or not traces[0]["spans"]:
-                raise RuntimeError("Run has no stored ATIF trace spans")
-            records = client.get(f"/v1/experiments/{experiment_id}/json").raise_for_status().json()
-            scores = {a["name"]: a["score"] for a in records[0]["annotations"]}
-            required = {
-                "reward",
-                "infra_ok",
-                "answer_complete",
-                "answer_correct",
-                "evidence_valid",
-                "scope_preserved",
-                "access_policy_ok",
-                "task_completeness",
             }
-            if required != scores.keys() or scores["infra_ok"] != 1:
-                raise RuntimeError("Expected complete native verifier and completeness evaluations")
+            records = client.get(f"/v1/experiments/{experiment_id}/json").raise_for_status().json()
             examples = (
                 client.get(
                     f"/v1/datasets/{dataset_id}/examples",
@@ -76,29 +68,65 @@ def main():
                 .raise_for_status()
                 .json()["data"]["examples"]
             )
-            if len(examples) != 1 or examples[0]["node_id"] != runs[0]["dataset_example_id"]:
-                raise RuntimeError("Experiment does not reference the expected dataset example")
-            facets = TaskMetadata.model_validate(examples[0]["metadata"]["task_config"]["metadata"])
-            trusted = sample / condition / "trusted"
-            truth = json.loads((trusted / "truth.json").read_text())
-            payload = json.loads((sample.parent / "trail/payload.json").read_text())
-            state = check_fixture(truth, payload)
-            persisted = json.loads((trusted / "state.json").read_text())
-            if state != persisted["before"] or state != persisted["after"]:
-                raise RuntimeError("Fixture changed after verification")
-            checked.append(
-                {
-                    "condition": condition,
-                    "experiment_id": experiment_id,
-                    "dataset_version_id": experiment["dataset_version_id"],
-                    "run_id": runs[0]["id"],
-                    "trace_id": trace_id,
-                    "span_count": len(traces[0]["spans"]),
-                    "scores": scores,
-                    "facets": facets.model_dump(mode="json"),
-                    "url": f"http://localhost:6006/datasets/{dataset_id}/experiments/{experiment_id}",
+            if len(examples) != len(task_names) or {e["node_id"] for e in examples} != {
+                r["dataset_example_id"] for r in runs
+            }:
+                raise RuntimeError("Experiment does not reference the expected dataset examples")
+            local = json.loads((sample / condition / "result.json").read_text())
+            for run in runs:
+                trace_id = run["trace_id"]
+                if trace_id not in traces or not traces[trace_id]["spans"]:
+                    raise RuntimeError("Run has no stored ATIF trace spans")
+                record = next(r for r in records if r["example_id"] == run["dataset_example_id"])
+                scores = {a["name"]: a["score"] for a in record["annotations"]}
+                required = {
+                    "reward",
+                    "infra_ok",
+                    "answer_complete",
+                    "answer_correct",
+                    "evidence_valid",
+                    "scope_preserved",
+                    "access_policy_ok",
+                    "task_completeness",
                 }
-            )
+                if required != scores.keys() or scores["infra_ok"] != 1:
+                    raise RuntimeError(
+                        "Expected complete native verifier and completeness evaluations"
+                    )
+                example = next(e for e in examples if e["node_id"] == run["dataset_example_id"])
+                facets = TaskMetadata.model_validate(example["metadata"]["task_config"]["metadata"])
+                if facets.task_id not in task_names:
+                    raise RuntimeError("Unexpected task in the experiment")
+                trial = next(
+                    t for t in local["trial_results"] if t["task_name"] == "arize/" + facets.task_id
+                )
+                trusted = sample / condition / "trusted" / trial["trial_name"]
+                if not trusted.exists():
+                    trusted = trusted.parent  # Original single-task artifacts.
+                truth = json.loads((trusted / "truth.json").read_text())
+                payload = json.loads((sample.parent / "trail/payload.json").read_text())
+                state = check_fixture(truth, payload)
+                persisted = json.loads((trusted / "state.json").read_text())
+                # The initial count runs predate the additive review fixture.
+                if "review_sha256" not in persisted["before"]:
+                    state.pop("review_sha256", None)
+                if state != persisted["before"] or state != persisted["after"]:
+                    raise RuntimeError("Fixture changed after verification")
+                checked.append(
+                    {
+                        "condition": condition,
+                        "task": facets.task_id,
+                        "experiment_name": experiment["name"],
+                        "experiment_id": experiment_id,
+                        "dataset_version_id": experiment["dataset_version_id"],
+                        "run_id": run["id"],
+                        "trace_id": trace_id,
+                        "span_count": len(traces[trace_id]["spans"]),
+                        "scores": scores,
+                        "facets": facets.model_dump(mode="json"),
+                        "url": f"http://localhost:6006/datasets/{dataset_id}/experiments/{experiment_id}",
+                    }
+                )
         report = {"dataset_id": dataset_id, "checked": checked}
         (sample / "phoenix-check.json").write_text(json.dumps(report, indent=2))
         print(

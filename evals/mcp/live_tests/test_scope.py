@@ -55,6 +55,8 @@ def policy(tmp_path):
     result.truth = {"project": "mcp-trail-gaia"}
     result.project_id = 1
     result.node_id = "UHJvamVjdDox"
+    result.review = None
+    result.span_nodes = set()
     return result
 
 

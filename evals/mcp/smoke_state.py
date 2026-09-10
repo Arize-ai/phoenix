@@ -2,10 +2,43 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import sqlite3
 from pathlib import Path
+
+
+def snapshot_review(database: Path, review: dict) -> str:
+    dataset_id = int(base64.b64decode(review["dataset_id"]).decode().split(":")[1])
+    experiment_id = int(base64.b64decode(review["experiment_id"]).decode().split(":")[1])
+    predicates = {
+        "datasets": ("id=?", dataset_id),
+        "dataset_versions": ("dataset_id=?", dataset_id),
+        "dataset_examples": ("dataset_id=?", dataset_id),
+        "dataset_example_revisions": (
+            "dataset_example_id IN (SELECT id FROM dataset_examples WHERE dataset_id=?)",
+            dataset_id,
+        ),
+        "experiments": ("id=?", experiment_id),
+        "experiment_runs": ("experiment_id=?", experiment_id),
+        "experiment_run_annotations": (
+            "experiment_run_id IN (SELECT id FROM experiment_runs WHERE experiment_id=?)",
+            experiment_id,
+        ),
+    }
+    with sqlite3.connect(f"file:{database.resolve()}?mode=ro", uri=True) as conn:
+        conn.row_factory = sqlite3.Row
+        data = {
+            table: [
+                dict(row)
+                for row in conn.execute(
+                    f"SELECT * FROM {table} WHERE {predicate} ORDER BY id", (value,)
+                )
+            ]
+            for table, (predicate, value) in predicates.items()
+        }
+    return hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
 
 
 def snapshot(database: Path, project: str) -> dict:

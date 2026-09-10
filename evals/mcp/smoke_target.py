@@ -12,9 +12,11 @@ import base64
 import dataclasses
 import json
 import os
+import sqlite3
 import sys
 from pathlib import Path
-from urllib.parse import unquote
+from typing import Any
+from urllib.parse import parse_qs, unquote
 
 from fastmcp.exceptions import ToolError
 from fastmcp.server.middleware import Middleware
@@ -28,7 +30,7 @@ from starlette.responses import JSONResponse
 from smoke_state import snapshot
 
 
-def scoped_sql(sql: str, project_id: int) -> str:
+def scoped_sql(sql: str, project_id: int, review: dict | None = None) -> str:
     statements = parse(sql, read="sqlite")
     if len(statements) != 1:
         raise ValueError("Only one SQL statement is available")
@@ -36,16 +38,42 @@ def scoped_sql(sql: str, project_id: int) -> str:
     if not isinstance(root, exp.Query):
         raise ValueError("Only read-only tracing SQL is available")
     physical = []
+    predicates = {
+        "projects": f"id = {int(project_id)}",
+        "traces": f"project_rowid = {int(project_id)}",
+        "spans": f"trace_rowid IN (SELECT id FROM traces WHERE project_rowid = {int(project_id)})",
+        "span_annotations": (
+            "span_rowid IN (SELECT id FROM spans WHERE trace_rowid IN "
+            f"(SELECT id FROM traces WHERE project_rowid = {int(project_id)}))"
+        ),
+    }
+    if review:
+        dataset_id = int(base64.b64decode(review["dataset_id"]).decode().split(":")[1])
+        experiment_id = int(base64.b64decode(review["experiment_id"]).decode().split(":")[1])
+        predicates |= {
+            "datasets": f"id = {dataset_id}",
+            "dataset_versions": f"dataset_id = {dataset_id}",
+            "dataset_examples": f"dataset_id = {dataset_id}",
+            "dataset_example_revisions": (
+                "dataset_example_id IN (SELECT id FROM dataset_examples "
+                f"WHERE dataset_id = {dataset_id})"
+            ),
+            "experiments": f"id = {experiment_id}",
+            "experiment_runs": f"experiment_id = {experiment_id}",
+            "experiment_run_annotations": (
+                "experiment_run_id IN (SELECT id FROM experiment_runs "
+                f"WHERE experiment_id = {experiment_id})"
+            ),
+        }
     for scope in traverse_scope(root):
         for _, source in scope.selected_sources.values():
             if isinstance(source, exp.Table):
                 physical.append(source)
     for table in physical:
-        if table.db or table.catalog or table.name not in {"projects", "traces"}:
-            raise ValueError("This smoke target exposes only projects and traces in SQL")
-        column = "id" if table.name == "projects" else "project_rowid"
+        if table.db or table.catalog or table.name not in predicates:
+            raise ValueError("SQL relation is outside the smoke fixture")
         subquery = parse_one(
-            f"SELECT * FROM {table.name} WHERE {column} = {int(project_id)}", read="sqlite"
+            f"SELECT * FROM {table.name} WHERE {predicates[table.name]}", read="sqlite"
         ).subquery(alias=table.alias_or_name)
         table.replace(subquery)
     return root.sql(dialect="sqlite")
@@ -57,6 +85,17 @@ class Policy:
         self.state = snapshot(database, truth["project"])
         self.project_id = self.state["project_id"]
         self.node_id = base64.b64encode(f"Project:{self.project_id}".encode()).decode()
+        review_path = audit.parent / "review-fixture.json"
+        self.review = json.loads(review_path.read_text()) if review_path.exists() else None
+        with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as conn:
+            self.span_nodes = {
+                base64.b64encode(f"Span:{row[0]}".encode()).decode()
+                for row in conn.execute(
+                    "SELECT s.id FROM spans s JOIN traces t ON t.id=s.trace_rowid "
+                    "WHERE t.project_rowid=?",
+                    (self.project_id,),
+                )
+            }
 
     def log(self, kind: str, **fields):
         with self.audit.open("a") as stream:
@@ -83,7 +122,39 @@ class Policy:
             "startTime",
             "endTime",
             "cursor",
+            "datasetVersionId",
+            "datasetId",
+            "exampleCount",
+            "runCount",
+            "errorRate",
+            "averageRunLatencyMs",
+            "successfulRunCount",
+            "failedRunCount",
+            "repetitions",
+            "description",
+            "createdAt",
+            "updatedAt",
+            "spanId",
+            "spanAnnotations",
+            "label",
+            "score",
+            "explanation",
+            "annotatorKind",
+            "identifier",
+            "runs",
+            "datasetExampleId",
+            "datasetExample",
+            "datasetVersion",
+            "dataset",
+            "example",
+            "error",
+            "output",
+            "input",
+            "repetitionNumber",
+            "context",
         }
+        if not self.review:
+            permitted -= {"dataset", "datasetVersion", "datasetExample", "runs", "example"}
 
         def check(selection):
             if isinstance(selection, ast.FieldNode):
@@ -95,8 +166,17 @@ class Policy:
                         a.name.value: value_from_ast_untyped(a.value, variables)
                         for a in selection.arguments
                     }
-                    if values != {"id": self.node_id}:
-                        raise ValueError("Only the fixture project node is available")
+                    allowed_ids = {self.node_id} | self.span_nodes
+                    if self.review:
+                        allowed_ids |= {
+                            self.review["dataset_id"],
+                            self.review["experiment_id"],
+                            self.review["dataset_version_id"],
+                        }
+                    if set(values) != {"id"} or values["id"] not in allowed_ids:
+                        raise ValueError(
+                            "Only fixture project, dataset and experiment nodes are available"
+                        )
                 if name == "projects":
                     # The native filter is substring based. Fail if it would match
                     # any other project, then inject the fixture filter.
@@ -135,6 +215,13 @@ class Policy:
             ):
                 raise ValueError("Only GraphQL queries are available")
             for field in definition.selection_set.selections:
+                if isinstance(field, ast.FieldNode) and field.name.value in {
+                    "__schema",
+                    "__type",
+                    "__typename",
+                }:
+                    # Schema introspection has no user-data resolvers.
+                    continue
                 if not isinstance(field, ast.FieldNode) or field.name.value not in {
                     "projects",
                     "node",
@@ -177,17 +264,21 @@ class TargetBoundary:
             if method != "GET":
                 raise ValueError("The smoke target is read-only")
             parts = path.strip("/").split("/")
-            if parts == ["v1", "projects"]:
-                messages = []
+            if parts == ["v1", "projects"] or (parts == ["v1", "datasets"] and self.policy.review):
+                messages: list[dict[str, Any]] = []
                 inner_scope = dict(
                     scope, headers=[(k, v) for k, v in scope["headers"] if k != b"accept-encoding"]
                 )
                 await self.app(inner_scope, receive, self._collector(messages))
                 body = b"".join(message.get("body", b"") for message in messages)
                 payload = json.loads(body)
-                payload["data"] = [
-                    p for p in payload["data"] if p["name"] == self.policy.truth["project"]
-                ]
+                key = "name" if parts[1] == "projects" else "id"
+                if parts[1] == "projects":
+                    expected = self.policy.truth["project"]
+                else:
+                    assert self.policy.review is not None
+                    expected = self.policy.review["dataset_id"]
+                payload["data"] = [p for p in payload["data"] if p[key] == expected]
                 response = JSONResponse(payload)
                 return await response(scope, receive, send)
             allowed = False
@@ -196,11 +287,30 @@ class TargetBoundary:
                     self.policy.truth["project"],
                     self.policy.node_id,
                     str(self.policy.project_id),
-                } and (len(parts) == 3 or parts[3] in {"spans", "traces"})
+                } and (
+                    len(parts) == 3
+                    or parts[3] in {"spans", "traces", "span_annotations", "trace_annotations"}
+                )
             if len(parts) >= 3 and parts[:2] == ["v1", "traces"]:
                 allowed = parts[2] in self.policy.truth["trace_ids"]
             if len(parts) >= 3 and parts[:2] == ["v1", "spans"]:
                 allowed = parts[2] in self.policy.truth["span_ids"]
+            review = self.policy.review
+            if review and len(parts) >= 3:
+                if parts[:2] == ["v1", "datasets"]:
+                    allowed = parts[2] == review["dataset_id"] and (
+                        len(parts) == 3
+                        or (len(parts) == 4 and parts[3] in {"examples", "versions", "experiments"})
+                    )
+                    params = parse_qs(scope.get("query_string", b"").decode())
+                    if "version_id" in params and params["version_id"] != [
+                        review["dataset_version_id"]
+                    ]:
+                        allowed = False
+                elif parts[:2] == ["v1", "experiments"]:
+                    allowed = parts[2] == review["experiment_id"] and (
+                        len(parts) == 3 or (len(parts) == 4 and parts[3] in {"runs", "json"})
+                    )
             if not allowed:
                 raise ValueError("Route is outside the fixture tracing scope")
             self.policy.log("rest", path=path)
@@ -230,7 +340,9 @@ class ToolBoundary(Middleware):
                 # call is not an attempt to access a forbidden resource.
                 return await call_next(context)
             try:
-                args = args | {"sql": scoped_sql(args["sql"], self.policy.project_id)}
+                args = args | {
+                    "sql": scoped_sql(args["sql"], self.policy.project_id, self.policy.review)
+                }
             except (ValueError, KeyError) as exc:
                 self.policy.log("denied", tool=name, reason=str(exc))
                 raise ToolError(str(exc)) from exc

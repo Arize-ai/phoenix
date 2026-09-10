@@ -13,10 +13,19 @@ def main():
     context.mkdir(parents=True, exist_ok=True)
     shutil.copy(HERE / "smoke-images/Dockerfile", context / "Dockerfile")
     shutil.copy(HERE / "smoke_gateway.py", context)
-    for name in ("verify.py", "isolation.py", "smoke_verify.py"):
+    shutil.copy(HERE / "smoke_cli.py", context)
+    for name in ("verify.py", "isolation.py", "smoke_verify.py", "smoke_tasks.py"):
         shutil.copy(HERE / name, context)
     images = {}
-    for name in ("claude-mcp", "claude-cli", "codex-mcp", "codex-cli", "verifier", "gateway"):
+    for name in (
+        "claude-mcp",
+        "claude-cli",
+        "codex-mcp",
+        "codex-cli",
+        "verifier",
+        "gateway",
+        "cli-broker",
+    ):
         tag = "mcp-smoke-" + name + ":20260909"
         subprocess.run(["docker", "build", "--target", name, "-t", tag, str(context)], check=True)
         image = json.loads(subprocess.check_output(["docker", "image", "inspect", tag]))[0]

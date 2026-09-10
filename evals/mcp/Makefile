@@ -61,6 +61,10 @@ mcp-smoke-target:
 mcp-live-sample:
 	PYTHONPATH=$(MCP_DIR) $(MCP_PYTHON) $(MCP_DIR)/smoke_run.py $(ARGS)
 
+.PHONY: mcp-smoke-review-fixture
+mcp-smoke-review-fixture:
+	$(MCP_PYTHON) $(MCP_DIR)/smoke_review_fixture.py
+
 .PHONY: mcp-smoke-boundary-test
 mcp-smoke-boundary-test:
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=$(MCP_DIR) .venv/bin/python -m pytest -p pytest_asyncio.plugin -q -o addopts='' $(MCP_DIR)/live_tests

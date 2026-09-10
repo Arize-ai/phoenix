@@ -6,15 +6,23 @@ WORKDIR /workspace
 FROM base AS claude-mcp
 RUN npm install -g @anthropic-ai/claude-code@2.1.267
 FROM claude-mcp AS claude-cli
-RUN npm install -g @arizeai/phoenix-cli@1.18.1
+COPY smoke_cli.py /opt/smoke_cli.py
+RUN printf '#!/bin/sh\nexec python /opt/smoke_cli.py "$@"\n' > /usr/local/bin/px && chmod 755 /usr/local/bin/px
 
 FROM base AS codex-mcp
 RUN npm install -g @openai/codex@0.154.0
 FROM codex-mcp AS codex-cli
+COPY smoke_cli.py /opt/smoke_cli.py
+RUN printf '#!/bin/sh\nexec python /opt/smoke_cli.py "$@"\n' > /usr/local/bin/px && chmod 755 /usr/local/bin/px
+
+FROM base AS cli-broker
 RUN npm install -g @arizeai/phoenix-cli@1.18.1
+COPY smoke_cli.py /opt/smoke_cli.py
+USER node
+ENTRYPOINT ["python", "/opt/smoke_cli.py", "--serve"]
 
 FROM base AS verifier
-COPY verify.py isolation.py smoke_verify.py /tests/
+COPY verify.py isolation.py smoke_verify.py smoke_tasks.py /tests/
 RUN printf '#!/bin/sh\nset -eu\npython /tests/smoke_verify.py\n' > /tests/test.sh
 
 FROM base AS gateway

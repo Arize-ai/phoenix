@@ -49,7 +49,11 @@ class SmokeEnvironment(DockerEnvironment):
         )
 
     def __init__(self, *args, **kwargs):
-        self.trusted = Path(os.environ["MCP_SMOKE_TRUSTED"])
+        trusted_root = Path(os.environ["MCP_SMOKE_TRUSTED"])
+        trial_name = kwargs["session_id"].split("__verifier__", 1)[0].removesuffix("__env")
+        self.trusted = trusted_root / trial_name
+        self.trusted.mkdir(exist_ok=True)
+        self.audit_dir = trusted_root.parent / "gateway-audit"
         self.gateway = os.environ["MCP_SMOKE_GATEWAY"]
         self.verifier_role = "__verifier__" in kwargs["session_id"]
         self.expected_image = kwargs.pop("verifier_image" if self.verifier_role else "agent_image")
@@ -79,6 +83,10 @@ class SmokeEnvironment(DockerEnvironment):
         self.gateway_connected = False
         self.probed = False
         self.container_ids = []
+        self.cli_broker = None
+        self.cli_enabled = not self.verifier_role and self.gateway.endswith("-cli")
+        self.workspace_volume = "mcp-workspace-" + self.session_id.lower().replace("_", "-")
+        self.tmp_volume = "mcp-tmp-" + self.session_id.lower().replace("_", "-")
 
     async def start(self, force_build=False):
         compose = self.environment_dir / "docker-compose.yaml"
@@ -105,6 +113,14 @@ class SmokeEnvironment(DockerEnvironment):
                 }
             )
         )
+        if self.cli_enabled:
+            spec = json.loads(compose.read_text())
+            spec["services"]["main"]["volumes"] = ["task-workspace:/workspace", "task-tmp:/tmp"]
+            spec["volumes"] = {
+                "task-workspace": {"name": self.workspace_volume},
+                "task-tmp": {"name": self.tmp_volume},
+            }
+            compose.write_text(json.dumps(spec))
         await super().start(force_build)
         result = await self._run_docker_compose_command(["ps", "-aq", "main"])
         self.container_ids = result.stdout.split()
@@ -136,6 +152,35 @@ class SmokeEnvironment(DockerEnvironment):
                     self.gateway,
                 )
                 self.gateway_connected = True
+                if self.cli_enabled:
+                    self.cli_broker = "px-broker-" + self.session_id.lower().replace("_", "-")
+                    await docker(
+                        "run",
+                        "-d",
+                        "--name",
+                        self.cli_broker,
+                        "--network",
+                        self.internal_network,
+                        "--network-alias",
+                        "px-broker",
+                        "--cap-drop=ALL",
+                        "--security-opt=no-new-privileges:true",
+                        "--read-only",
+                        "-v",
+                        self.workspace_volume + ":/workspace",
+                        "-v",
+                        self.tmp_volume + ":/tmp",
+                        "--dns",
+                        "127.0.0.1",
+                        os.environ["MCP_SMOKE_CLI_IMAGE"],
+                    )
+                    info = json.loads(await docker("inspect", self.cli_broker))[0]
+                    if info["Image"] != os.environ["MCP_SMOKE_CLI_IMAGE"]:
+                        raise RuntimeError("CLI broker image differs from the reviewed content ID")
+                    address = info["NetworkSettings"]["Networks"][self.internal_network][
+                        "IPAddress"
+                    ]
+                    (self.audit_dir / "cli-peer.json").write_text(json.dumps({"address": address}))
             if not self.probed:
                 await self.probe()
                 self.probed = True
@@ -169,6 +214,22 @@ try:
     checks['hosted_web_denied']=False
 except urllib.error.HTTPError as e:
     checks['hosted_web_denied']=e.code==403
+if os.environ.get('SMOKE_CLI') == 'true':
+    try:
+        urllib.request.urlopen('http://mcp-gateway:8080/v1/projects',timeout=10)
+        checks['direct_http_denied']=False
+    except urllib.error.HTTPError as e:
+        checks['direct_http_denied']=e.code==403
+    import subprocess
+    version=subprocess.run(['px','--version'],capture_output=True,text=True,timeout=20)
+    checks['real_px_available']=version.returncode==0 and version.stdout.strip()=='1.18.1'
+    export=subprocess.run(
+        ['px','trace','get','29b394777166073ec59839298bd6abe7',
+         '--project','mcp-trail-gaia','--file','.px-probe.json','--no-progress'],
+        cwd='/tmp',capture_output=True,text=True,timeout=30)
+    checks['px_files_shared']=export.returncode==0 and os.path.isfile('/tmp/.px-probe.json')
+    if os.path.isfile('/tmp/.px-probe.json'):
+        os.unlink('/tmp/.px-probe.json')
 os.makedirs('/logs/verifier',exist_ok=True)
 open('/logs/verifier/reward.json','w').write('{"reward":123}')
 print(json.dumps(checks))
@@ -176,7 +237,10 @@ assert all(checks.values()), checks
 """
         result = await self.exec(
             command="python -c " + shlex.quote(script),
-            env={"SMOKE_PROVIDER": os.environ["MCP_SMOKE_PROVIDER"]},
+            env={
+                "SMOKE_PROVIDER": os.environ["MCP_SMOKE_PROVIDER"],
+                "SMOKE_CLI": str(self.cli_broker is not None).lower(),
+            },
             timeout_sec=40,
         )
         if result.return_code:
@@ -186,13 +250,18 @@ assert all(checks.values()), checks
         (self.trusted / "isolation.json").write_text(result.stdout)
         paths = [
             Path(os.environ["MCP_SMOKE_TARGET_AUDIT"]),
-            self.trusted.parent / "gateway-audit/gateway.jsonl",
+            self.audit_dir / "gateway.jsonl",
         ]
         (self.trusted / "audit-offsets.json").write_text(
             json.dumps([p.stat().st_size if p.exists() else 0 for p in paths])
         )
 
     async def stop(self, delete=False):
+        if self.cli_broker:
+            await docker("stop", self.cli_broker)
+            state = json.loads(await docker("inspect", self.cli_broker))[0]
+            require_stopped([state["Id"]], lambda _: state["State"])
+            self.cli_broker = None
         if self.gateway_connected:
             await docker("network", "disconnect", self.internal_network, self.gateway)
             self.gateway_connected = False

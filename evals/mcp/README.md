@@ -1,8 +1,9 @@
 # Phoenix MCP benchmark
 
 Run the `trace-count` task once per condition: Claude Code with MCP or `px`, and
-Codex with MCP or `px`. The sample is serial, has no retries, and does not run a
-larger task suite. Requested models are `opus-5` (provider ID `claude-opus-5`) and
+Codex with MCP or `px`. The sample is serial and has no automatic retries.
+The optional review suite inspects trace structure, stored annotations, and a
+dataset/experiment with a recorded failure. Requested models are `opus-5` (provider ID `claude-opus-5`) and
 `gpt-5.6`; authenticated OpenAI inference resolves the latter to `gpt-5.6-sol`.
 
 ## Setup and execution
@@ -19,8 +20,9 @@ make mcp-test mcp-smoke-boundary-test mcp-lint
 The dedicated benchmark environment uses Harbor 0.22.0 and builds the Phoenix
 client and evals wheels from the revision in `configs/runtime.json`. Their hashes
 must match `configs/wheels.json`. The separate Phoenix development environment
-uses the checkout's server dependencies. Images contain pinned agent versions;
-only CLI images contain `px`. No image contains TRAIL payloads or credentials.
+uses the checkout's server dependencies. Images contain pinned agent versions.
+CLI agents use a transport executable named `px`; a separate broker image runs
+the pinned Phoenix CLI. No image contains TRAIL payloads or credentials.
 
 Prepare the pinned TRAIL fixture with `HF_TOKEN` in the trusted downloader's
 process environment:
@@ -45,6 +47,11 @@ make mcp-smoke-target
 make mcp-live-sample
 # Or select conditions after fixing an infrastructure failure:
 make mcp-live-sample ARGS='--condition codex-mcp --condition codex-cli'
+# Prepare a separate three-example fixture, then restart mcp-smoke-target:
+make mcp-smoke-review-fixture
+make mcp-live-sample ARGS='--suite review'
+# Select only tasks affected by a corrected failure:
+make mcp-live-sample ARGS='--suite review --condition claude-cli --task experiment-review'
 ```
 
 The runner reads credentials from its environment, never from Keychain or a
@@ -56,9 +63,11 @@ credentials are used only for fixture preparation.
 
 The scoped dev endpoint runs native Phoenix MCP code mode and native REST/GraphQL
 reads over the shared database. An outer boundary blocks writes, results access,
-and reads outside the fixture. SQL is restricted to project and trace relations,
-with a fixture predicate inserted into every physical relation. This boundary is
-specific to the count smoke; it is not authorization for broader benchmark tasks.
+and reads outside the fixture. SQL inserts fixture predicates into every physical
+relation. Tracing and annotation reads are confined to the TRAIL project. Dataset
+and experiment reads are confined to the IDs created by `mcp-smoke-review-fixture`.
+The review fixture contains synthetic outcomes, including an intentional timeout;
+these are task inputs, separate from the benchmark's recorded results.
 
 Each Harbor agent runs on a Docker internal network with isolated gateway mode.
 A separate trusted gateway admits only the assigned Phoenix interface and model
@@ -68,12 +77,22 @@ hosts, direct IPs, host Phoenix endpoints, protected files, and hosted search
 before agent execution. This avoids Harbor's default nftables path, which requires
 `CONFIG_NFT_FIB_INET` on the Docker host.
 
+For CLI conditions, the gateway admits Phoenix requests only from the broker's
+container IP. The broker runs the real `px` binary with argv and stdin, never a
+shell or inherited agent environment. It has no provider keys or public network.
+The agent and broker share only their task workspace and temporary files, so CLI
+downloads and relative paths work. Probes verify that direct HTTP is rejected and
+that files written by `px` are visible to the agent. The broker stops before grading.
+
 The agent's verifier directory is not mounted from the host. A probe plants a
 forged reward there. Harbor stops the agent, the runner independently inspects its
 container state, and a separate offline verifier receives the declared answer and
 trusted evidence. Missing evidence yields no reward. The native completeness
 evaluator runs after shutdown; its rubric excludes factual correctness. Count,
 evidence IDs, unchanged fixture state, and access policy have separate scores.
+Review tasks compare requested records against private references, ignoring list
+order. The runner also snapshots the review dataset and experiment before and
+after execution. A failed reward or infrastructure error stops the remaining matrix.
 
 The reusable TRAIL converter upserts annotations by identifier: this fixture has
 585 source span-annotation records representing 581 stored annotations, plus 585
@@ -91,10 +110,15 @@ make mcp-smoke-check ARGS='evals/mcp/.private/sample-TIMESTAMP'
 ```
 
 The checker reads Phoenix records back, validates dataset facets and version
-linkage, requires one run per selected condition, checks every evaluation, and
+linkage, requires one run per selected task and condition, checks every evaluation, and
 confirms that the linked trace contains spans. `--condition` can select completed
 conditions from a sample that stopped on an infrastructure failure. Reports and
 raw artifacts stay in ignored `.private/`; do not publish restricted trajectories.
+
+Experiment names show the configuration, for example `Claude Code · Opus 5 · MCP`
+or `Codex · GPT-5.6 · CLI`. Timestamps remain in private artifact paths and Harbor
+job metadata. The checker uses stored Harbor identity rather than display names,
+so experiments can be renamed in Phoenix without breaking verification.
 
 `make mcp-smoke-verifier-probe ARGS='<sample>/<condition>'` tests the verifier with
 an already-stopped trial's saved evidence without another agent or judge call.
