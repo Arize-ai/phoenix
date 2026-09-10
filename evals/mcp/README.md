@@ -1,92 +1,103 @@
 # Phoenix MCP benchmark
 
-This benchmark compares current Phoenix MCP with `px` using Claude Code and Codex.
-Implementation is in progress. No live benchmark results exist yet.
+Run the `trace-count` task once per condition: Claude Code with MCP or `px`, and
+Codex with MCP or `px`. The sample is serial, has no retries, and does not run a
+larger task suite. Requested models are `opus-5` (provider ID `claude-opus-5`) and
+`gpt-5.6`; authenticated OpenAI inference resolves the latter to `gpt-5.6-sol`.
 
-Run from the repository root:
+## Setup and execution
+
+Run commands from the repository root:
 
 ```sh
 make mcp-setup
-make mcp-preflight
-make mcp-test
-make mcp-plugin-test
-make mcp-preflight ARGS=--live
+make install-python
+make mcp-smoke-images
+make mcp-test mcp-smoke-boundary-test mcp-lint
 ```
 
-Setup creates a dedicated Harbor 0.22.0 environment. It builds the client and evals
-wheels from the git revision in `configs/runtime.json`, installs those wheels, and
-records their SHA256 digests in `.runtime/build.json`. It does not use PATH Harbor.
-The client includes ATIF tracing; the evals wheel includes `CompletenessEvaluator`.
-Dependencies are locked separately from the Phoenix application environment.
+The dedicated benchmark environment uses Harbor 0.22.0 and builds the Phoenix
+client and evals wheels from the revision in `configs/runtime.json`. Their hashes
+must match `configs/wheels.json`. The separate Phoenix development environment
+uses the checkout's server dependencies. Images contain pinned agent versions;
+only CLI images contain `px`. No image contains TRAIL payloads or credentials.
 
-The requested models remain `opus-5` and `gpt-5.6`. Neither is claimed to be a
-verified provider identifier. Both provider keys must come from the runner's
-process environment. Preflight reports presence only and never uses Keychain,
-personal agent settings, or a credential fallback.
-
-`mcp-smoke` currently fails closed with the outstanding live-run gates. No target
-creation, database changes, or paid calls occur. Target provisioning and cleanup,
-and an initial spending cap, require the user's decisions. Runtime network,
-shutdown, and evidence-transfer checks must also pass before enabling execution.
-The results destination defaults to the existing Phoenix instance for additive
-records. The shared Phoenix database is never disposable benchmark state.
-
-Private wheels, downloaded TRAIL data, logs, and trajectories belong under ignored
-`.runtime/` or `.private/`. Do not publish TRAIL payloads or populated images.
-
-Fixture preparation is separate from seeding:
+Prepare the pinned TRAIL fixture with `HF_TOKEN` in the trusted downloader's
+process environment:
 
 ```sh
-# Trusted setup process only; requires authorized HF_TOKEN in its environment.
 make mcp-fixture
-# Or use private local rows without any network request:
-make mcp-fixture ARGS='--input /absolute/private/rows.json'
 ```
 
-The default revision is immutable. Outputs under `.private/trail` include source
-payload and protected truth. Repeated preparation accepts identical contents;
-changed contents require a new output directory. Fixture preparation creates no
-Phoenix server or database. The programmatic `fixture.seed` helper requires a
-caller-managed, authorized fresh target and refuses an existing fixture project.
+Preparation writes ignored private files and does not create a database. Seed the
+prepared payload through `fixture.seed` into the existing Phoenix instance at
+`http://localhost:6006`; this additive helper refuses an existing project. Do not
+reset or delete a project to make seeding pass. Reuse an existing fixture only
+when its IDs and annotation content match `smoke_run.check_fixture`.
 
-`make mcp-isolation-probe` runs Harbor's pinned ephemeral Alpine capability probe.
-It does not create Phoenix state or make model calls. A passing probe is only a
-prerequisite: actual egress, web-tool, repository, grader, reward, and shutdown
-probes must pass for each installed agent condition before execution is enabled.
-The current Docker Desktop kernel lacks `CONFIG_NFT_FIB_INET`, so this gate fails.
-
-Task staging requires a prepared manifest and reviewed runtime image digests:
+The sample uses `~/.phoenix/phoenix.db` for both the fixture and results. Leave
+`PHOENIX_WORKING_DIR` unset. Start the scoped development endpoint in another
+terminal, then inject provider keys into the runner process and run the sample:
 
 ```sh
-make mcp-stage-task ARGS='--manifest /private/manifest.json --output /private/tasks --agent-image registry/agent@sha256:DIGEST --verifier-image registry/python@sha256:DIGEST'
+make mcp-smoke-target
+# In another terminal, with OPENAI_API_KEY and ANTHROPIC_API_KEY supplied:
+make mcp-live-sample
+# Or select conditions after fixing an infrastructure failure:
+make mcp-live-sample ARGS='--condition codex-mcp --condition codex-cli'
 ```
 
-Replace `DIGEST` with actual 64-character image hashes. The canonical task has no
-MCP registration, so CLI conditions cannot inherit an MCP server. Network defaults
-are closed. This staging command does not configure a runnable trial: trusted
-truth/audit transfer and condition access must be attached by the pending runner.
-The verifier emits no authoritative reward without trusted evidence.
+The runner reads credentials from its environment, never from Keychain or a
+personal agent login. Only the trusted gateway receives the actual provider key;
+agents receive a placeholder. The judge receives an explicit OpenAI key. HF
+credentials are used only for fixture preparation.
 
-`make mcp-matrix ARGS='--tasks /private/tasks --output /private/jobs --target http://target:6006'`
-serializes four Harbor jobs plus separate plugin kwargs. Use the native plugin
-flag `--plugin arize-phoenix` when the runner is completed; Harbor ignores the old
-YAML `plugins` field. The JSON artifacts contain no credentials and do not launch
-anything. This layer still needs condition-specific images and trusted lifecycle
-integration before these configurations can become valid benchmark trials.
+## Isolation and verification
 
-The completeness integration sends a versioned readable conversation to Phoenix
-Evals and preserves its native Score. Its rubric excludes factual correctness.
-Exact count/state/policy checks remain authoritative. Missing tool observations or
-an oversized judge input produce unavailable evaluation, with the full rendering
-retained. Judge calibration, usage accounting and real verifier attachment are pending.
+The scoped dev endpoint runs native Phoenix MCP code mode and native REST/GraphQL
+reads over the shared database. An outer boundary blocks writes, results access,
+and reads outside the fixture. SQL is restricted to project and trace relations,
+with a fixture predicate inserted into every physical relation. This boundary is
+specific to the count smoke; it is not authorization for broader benchmark tasks.
 
-Reports consume native Phoenix example metadata and a planned-trial ledger:
+Each Harbor agent runs on a Docker internal network with isolated gateway mode.
+A separate trusted gateway admits only the assigned Phoenix interface and model
+inference. It recursively rejects hosted tools, including web search. Codex uses
+HTTP Responses transport through this gateway. Same-container probes check public
+hosts, direct IPs, host Phoenix endpoints, protected files, and hosted search
+before agent execution. This avoids Harbor's default nftables path, which requires
+`CONFIG_NFT_FIB_INET` on the Docker host.
+
+The agent's verifier directory is not mounted from the host. A probe plants a
+forged reward there. Harbor stops the agent, the runner independently inspects its
+container state, and a separate offline verifier receives the declared answer and
+trusted evidence. Missing evidence yields no reward. The native completeness
+evaluator runs after shutdown; its rubric excludes factual correctness. Count,
+evidence IDs, unchanged fixture state, and access policy have separate scores.
+
+The reusable TRAIL converter upserts annotations by identifier: this fixture has
+585 source span-annotation records representing 581 stored annotations, plus 585
+trace annotations. The runner checks every stored target, label, score, explanation,
+name and annotator kind, as well as trace/span identities and before/after state.
+
+## Inspect recorded results
+
+The runner uses only the native `arize-phoenix` Harbor plugin for the dataset,
+experiments, verifier evaluations and linked ATIF traces. Failed diagnostic jobs
+remain recorded. A sample prints its private output directory; inspect it with:
 
 ```sh
-make mcp-report ARGS='--examples /private/examples.json --planned /private/planned.json --filters-file evals/mcp/configs/filters/core-read-only.json'
+make mcp-smoke-check ARGS='evals/mcp/.private/sample-TIMESTAMP'
 ```
 
-Use `configs/filters/annotation-writes.json` for the mutation slice. The Python
-`summarize` API also accepts the filter object directly. Array filters mean
-membership, and multiple fields are ANDed. Reports retain the selected filters,
-scored/planned denominators, missing rewards, and cost coverage across retry attempts.
+The checker reads Phoenix records back, validates dataset facets and version
+linkage, requires one run per selected condition, checks every evaluation, and
+confirms that the linked trace contains spans. `--condition` can select completed
+conditions from a sample that stopped on an infrastructure failure. Reports and
+raw artifacts stay in ignored `.private/`; do not publish restricted trajectories.
+
+`make mcp-smoke-verifier-probe ARGS='<sample>/<condition>'` tests the verifier with
+an already-stopped trial's saved evidence without another agent or judge call.
+The general metadata-filtered report remains available through `make mcp-report`;
+filters are in `configs/filters/`. No repetitions or broader sweep are implied by
+a successful smoke.

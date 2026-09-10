@@ -21,8 +21,7 @@ mcp-lint:
 mcp-preflight:
 	$(MCP_PYTHON) $(MCP_DIR)/preflight.py $(ARGS)
 
-mcp-smoke:
-	$(MCP_PYTHON) $(MCP_DIR)/preflight.py --live
+mcp-smoke: mcp-live-sample
 
 mcp-plugin-test:
 	$(MCP_PYTHON) -m pytest -q -o addopts='' packages/phoenix-client/tests/client/harbor packages/phoenix-client/tests/client/helpers/atif
@@ -51,3 +50,25 @@ mcp-matrix:
 .PHONY: mcp-report
 mcp-report:
 	PYTHONPATH=$(MCP_DIR) $(MCP_PYTHON) $(MCP_DIR)/report.py $(ARGS)
+
+.PHONY: mcp-smoke-images mcp-live-sample mcp-smoke-target
+mcp-smoke-images:
+	$(MCP_PYTHON) $(MCP_DIR)/smoke_images.py
+
+mcp-smoke-target:
+	PYTHONPATH=src:$(MCP_DIR) .venv/bin/python $(MCP_DIR)/smoke_target.py --truth $(MCP_DIR)/.private/trail/truth.json --audit $(MCP_DIR)/.private/target-audit.jsonl
+
+mcp-live-sample:
+	PYTHONPATH=$(MCP_DIR) $(MCP_PYTHON) $(MCP_DIR)/smoke_run.py $(ARGS)
+
+.PHONY: mcp-smoke-boundary-test
+mcp-smoke-boundary-test:
+	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=$(MCP_DIR) .venv/bin/python -m pytest -p pytest_asyncio.plugin -q -o addopts='' $(MCP_DIR)/live_tests
+
+.PHONY: mcp-smoke-verifier-probe
+mcp-smoke-verifier-probe:
+	$(MCP_PYTHON) $(MCP_DIR)/smoke_verifier_probe.py $(ARGS)
+
+.PHONY: mcp-smoke-check
+mcp-smoke-check:
+	PYTHONPATH=$(MCP_DIR) $(MCP_PYTHON) $(MCP_DIR)/smoke_check.py $(ARGS)
