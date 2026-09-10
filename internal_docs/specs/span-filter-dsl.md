@@ -242,6 +242,7 @@ Span, trace, and session filters expose the same cost data at their respective g
 |---|---|---|---|
 | Scalar names | `total_cost`, `prompt_cost`, `completion_cost` | Same | Same |
 | Scalar scope | Current span | Sum across the trace | Sum across the session |
+| Per-span cost scalars inside comprehensions | Not applicable | Not supported | Not supported |
 | Missing scalar | `0` | `0` | `0` |
 | Detail collection | `cost_details` | `span_cost_details` | `span_cost_details` |
 | Detail scope | Current span | All spans in the trace | All spans in the session |
