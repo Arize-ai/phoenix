@@ -6,7 +6,6 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.helpers.evaluator_calibration import CALIBRATION_METADATA_KEY
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -112,7 +111,7 @@ class TestCalibrationLabels:
             "evaluator_3",
         ]
 
-    async def test_set_merge_clear_and_provenance(
+    async def test_set_merge_clear_and_annotation_shape(
         self,
         calibration_example: tuple[int, int, int],
         gql_client: AsyncGraphQLClient,
@@ -160,15 +159,69 @@ class TestCalibrationLabels:
                 .limit(1)
             )
             assert stored is not None
-            entry = stored.metadata_[CALIBRATION_METADATA_KEY]["labels"]["refusal"]
-            assert entry["annotatorKind"] == "HUMAN"
-            assert len(entry["sourceHash"]) == 64
-            # Changing input, output, or mapping metadata invalidates the expected labels.
-            for field in ("input", "output", "metadata_"):
-                original = getattr(stored, field)
-                setattr(stored, field, {**original, "changed": True})
-                assert not DatasetExampleRevision.from_orm_revision(stored).calibration_labels()
-                setattr(stored, field, original)
+            # One human record per name, in the span→example annotation shape, and
+            # a cleared name leaves no empty list behind.
+            annotations = stored.metadata_["annotations"]
+            assert list(annotations) == ["refusal"]
+            assert annotations["refusal"] == [
+                {
+                    "label": "no",
+                    "score": None,
+                    "explanation": None,
+                    "metadata": {},
+                    "annotator_kind": "HUMAN",
+                    "user_id": None,
+                    "username": None,
+                    "email": None,
+                }
+            ]
+
+    async def test_keeps_other_annotators_and_reads_only_human_records(
+        self,
+        calibration_example: tuple[int, int, int],
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        llm_record = {
+            "label": "bad",
+            "score": 0.0,
+            "explanation": "judge",
+            "metadata": {},
+            "annotator_kind": "LLM",
+            "user_id": None,
+            "username": None,
+            "email": None,
+        }
+        async with db() as session:
+            revision = await session.get(models.DatasetExampleRevision, calibration_example[2])
+            assert revision is not None
+            revision.metadata_ = {"team": "support", "annotations": {"quality": [llm_record]}}
+        response = await gql_client.execute(
+            self._MUTATION, variables={"input": self._input(calibration_example)}
+        )
+        assert response.data and not response.errors
+        revision_payload = response.data["setDatasetExampleCalibrationLabel"]["revision"]
+        assert revision_payload["calibrationLabels"] == [
+            {"annotationName": "quality", "label": "good"}
+        ]
+        records = revision_payload["metadata"]["annotations"]["quality"]
+        assert records[0] == llm_record
+        assert records[1]["annotator_kind"] == "HUMAN" and records[1]["label"] == "good"
+        # Clearing removes only the human record.
+        response = await gql_client.execute(
+            self._MUTATION,
+            variables={
+                "input": self._input(
+                    calibration_example,
+                    expectedRevisionId=revision_payload["revisionId"],
+                    label=None,
+                )
+            },
+        )
+        assert response.data and not response.errors
+        cleared = response.data["setDatasetExampleCalibrationLabel"]["revision"]
+        assert cleared["calibrationLabels"] == []
+        assert cleared["metadata"]["annotations"] == {"quality": [llm_record]}
 
     async def test_stale_revision_is_rejected(
         self, calibration_example: tuple[int, int, int], gql_client: AsyncGraphQLClient
@@ -217,12 +270,12 @@ class TestCalibrationLabels:
             if deleted:
                 revision.revision_kind = "DELETE"
             else:
-                revision.metadata_ = {CALIBRATION_METADATA_KEY: {"schemaVersion": 2}}
+                revision.metadata_ = {"annotations": "not-an-object"}
         response = await gql_client.execute(
             self._MUTATION, variables={"input": self._input(calibration_example)}
         )
         assert response.errors
-        message = "Example not found" if deleted else "Unsupported calibration metadata"
+        message = "Example not found" if deleted else "must be an object"
         assert message in response.errors[0].message
         async with db() as session:
             revisions = (
@@ -242,10 +295,10 @@ async def test_calibration_labels_are_computed_only_when_requested(
         stored = await session.get(models.DatasetExampleRevision, calibration_example[2])
         assert stored is not None
         with patch(
-            "phoenix.server.api.types.DatasetExampleRevision.valid_calibration_outputs",
+            "phoenix.server.api.types.DatasetExampleRevision.get_expected_outputs",
             return_value={"quality": {"label": "good"}},
         ) as validate_labels:
             revision = DatasetExampleRevision.from_orm_revision(stored)
             validate_labels.assert_not_called()
             assert revision.calibration_labels()[0].label == "good"
-            validate_labels.assert_called_once_with(stored.input, stored.output, stored.metadata_)
+            validate_labels.assert_called_once_with(stored.metadata_)

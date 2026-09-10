@@ -21,10 +21,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_metadata,
     get_dataset_example_output,
 )
-from phoenix.server.api.helpers.evaluator_calibration import (
-    CALIBRATION_METADATA_KEY,
-    calibration_source_hash,
-)
+from phoenix.server.api.helpers.evaluator_calibration import set_expected_output
 from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
@@ -549,33 +546,28 @@ class DatasetMutationMixin:
                 raise NotFound("Example not found.")
             if revision.id != expected_revision_id:
                 raise Conflict("This example has changed. Reload it before saving a label.")
-            metadata = dict(revision.metadata_)
-            calibration = metadata.get(CALIBRATION_METADATA_KEY, {})
-            if not isinstance(calibration, dict) or calibration.get("schemaVersion", 1) != 1:
-                raise BadRequest("Unsupported calibration metadata format.")
-            labels = calibration.get("labels", {})
-            if not isinstance(labels, dict):
-                raise BadRequest("Unsupported calibration labels format.")
-            labels = dict(labels)
-            if input.label is None and input.score is None and input.explanation is None:
-                labels.pop(input.annotation_name, None)
-            else:
-                labels[input.annotation_name] = {
-                    "label": input.label,
-                    "score": input.score,
-                    "explanation": input.explanation,
-                    "sourceHash": calibration_source_hash(
-                        revision.input, revision.output, revision.metadata_
-                    ),
-                    "sourceRevisionId": str(input.expected_revision_id),
-                    "annotatorKind": "HUMAN",
-                    "userId": info.context.user_id,
-                }
-            metadata[CALIBRATION_METADATA_KEY] = {
-                **calibration,
-                "schemaVersion": 1,
-                "labels": labels,
-            }
+            user = (
+                await session.get(models.User, user_id)
+                if (user_id := info.context.user_id) is not None
+                else None
+            )
+            try:
+                # The same record shape the span→example converter writes, so a
+                # graded example and an annotated span read alike downstream.
+                metadata = set_expected_output(
+                    revision.metadata_,
+                    annotation_name=input.annotation_name,
+                    label=input.label,
+                    score=input.score,
+                    explanation=input.explanation,
+                    user_id=str(GlobalID(models.User.__name__, str(user_id)))
+                    if user_id is not None
+                    else None,
+                    username=user.username if user is not None else None,
+                    email=user.email if user is not None else None,
+                )
+            except ValueError as error:
+                raise BadRequest(str(error)) from error
             version = models.DatasetVersion(
                 dataset_id=dataset_id,
                 description="Update evaluator calibration label",
