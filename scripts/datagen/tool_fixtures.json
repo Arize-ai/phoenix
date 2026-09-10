@@ -1,0 +1,250 @@
+{
+  "customer_support": {
+    "name": "customer_support",
+    "documents": [
+      {
+        "id": "returns-policy",
+        "title": "Returns and refunds",
+        "text": "Unused merchandise may be returned within 30 calendar days after delivery. Warehouse inspection normally takes three business days, followed by three to seven business days for bank posting."
+      },
+      {
+        "id": "delivery-guide",
+        "title": "Delivery status",
+        "text": "Standard delivery takes four to six business days. Express delivery takes one to two business days. A carrier trace is available after two business days without movement."
+      }
+    ],
+    "records": [
+      {
+        "id": "order-1001",
+        "customer": "Avery Chen",
+        "total": 84.5,
+        "currency": "USD"
+      },
+      {
+        "id": "order-1002",
+        "customer": "Sam Rivera",
+        "total": 129.0,
+        "currency": "USD"
+      }
+    ],
+    "statuses": [
+      {
+        "id": "order-1001",
+        "state": "in_transit",
+        "detail": "Carrier scan unchanged for two business days"
+      },
+      {
+        "id": "order-1002",
+        "state": "processing",
+        "detail": "Preparing for shipment"
+      }
+    ]
+  },
+  "data_analyst": {
+    "name": "data_analyst",
+    "documents": [
+      {
+        "id": "metric-definitions",
+        "title": "Governed analytics metrics",
+        "text": "Net revenue is captured item revenue after discounts, less refunds recognized on the refund date, excluding tax and shipping. Sales bookings are not recognized revenue."
+      },
+      {
+        "id": "timezone-and-units",
+        "title": "Timezones and units",
+        "text": "Daily warehouse metrics use each facility's local date. Monetary records use major currency units unless the source adapter is explicitly marked otherwise."
+      }
+    ],
+    "records": [
+      {
+        "id": "warehouse-east",
+        "timezone": "America/New_York",
+        "currency": "USD"
+      },
+      {
+        "id": "warehouse-west",
+        "timezone": "America/Los_Angeles",
+        "currency": "USD"
+      }
+    ],
+    "statuses": [
+      {
+        "id": "warehouse-east",
+        "state": "ready",
+        "detail": "Previous local business day is complete"
+      },
+      {
+        "id": "warehouse-west",
+        "state": "delayed",
+        "detail": "Inventory snapshot is awaiting reconciliation"
+      }
+    ]
+  },
+  "coding_agent": {
+    "name": "coding_agent",
+    "documents": [
+      {
+        "id": "router-api",
+        "title": "RelayCache routing API",
+        "text": "Router.route is the current public coroutine. Router.dispatch is a deprecated compatibility alias retained through the next minor release."
+      },
+      {
+        "id": "retry-ownership",
+        "title": "Retry ownership",
+        "text": "The scheduler owns attempt timing and retry.py owns pure retry-budget and delay calculations. Broker adapters own transport and acknowledgement translation."
+      },
+      {
+        "id": "metrics-conventions",
+        "title": "Latency metrics conventions",
+        "text": "Latency histograms must cover the slow tail: buckets end at 5.0 seconds. Emit one histogram per route with route name as a label."
+      },
+      {
+        "id": "broker-ack-contract",
+        "title": "Broker acknowledgement contract",
+        "text": "A delivery is acknowledged exactly once, after handler completion. Adapters must not acknowledge on redelivery of an already-processed message."
+      },
+      {
+        "id": "release-process",
+        "title": "Release process",
+        "text": "Every closed issue that changed behavior gets a CHANGELOG entry under the upcoming version heading before the release branch is cut."
+      },
+      {
+        "id": "config-reference",
+        "title": "Configuration reference",
+        "text": "RELAYCACHE_TIMEOUT accepts seconds as a decimal number. Values are read once at startup by config.load_settings."
+      }
+    ],
+    "records": [
+      {
+        "id": "issue-204",
+        "title": "README uses deprecated Router.dispatch",
+        "state": "open"
+      },
+      {
+        "id": "issue-219",
+        "title": "Retry backoff starts one attempt early",
+        "state": "reproduced"
+      },
+      {
+        "id": "issue-231",
+        "title": "Latency histogram misses the slow tail",
+        "state": "open"
+      },
+      {
+        "id": "issue-242",
+        "title": "RELAYCACHE_TIMEOUT drops decimal values",
+        "state": "open"
+      },
+      {
+        "id": "issue-250",
+        "title": "Consumers observe duplicate acknowledgements",
+        "state": "reproduced"
+      },
+      {
+        "id": "issue-263",
+        "title": "CHANGELOG missing entries for 1.4",
+        "state": "open"
+      }
+    ],
+    "statuses": [
+      {
+        "id": "issue-204",
+        "state": "ready",
+        "detail": "Documentation-only correction"
+      },
+      {
+        "id": "issue-219",
+        "state": "investigating",
+        "detail": "Focused scheduler test is failing"
+      },
+      {
+        "id": "issue-231",
+        "state": "ready",
+        "detail": "Bucket list fix in metrics.py"
+      },
+      {
+        "id": "issue-242",
+        "state": "ready",
+        "detail": "Parse timeout as float in config.py"
+      },
+      {
+        "id": "issue-250",
+        "state": "investigating",
+        "detail": "Redelivery path acknowledges twice"
+      },
+      {
+        "id": "issue-263",
+        "state": "ready",
+        "detail": "Docs-only release note additions"
+      }
+    ],
+    "repository": {
+      "search_page_size": 2,
+      "read_chunk_lines": 2,
+      "files": [
+        {
+          "path": "README.md",
+          "content": "# RelayCache\n\nRoute requests with `await Router.dispatch(request)`.\nThe scheduler owns retry timing and broker acknowledgements stay in adapters.\nSee `src/relaycache/router.py` for the public routing API."
+        },
+        {
+          "path": "src/relaycache/router.py",
+          "content": "class Router:\n    async def route(self, request):\n        return await self._send(request)\n\n    async def dispatch(self, request):\n        return await self.route(request)"
+        },
+        {
+          "path": "src/relaycache/retry.py",
+          "content": "def retry_index(attempt: int) -> int:\n    if attempt < 0:\n        raise ValueError(\"attempt must be non-negative\")\n    return attempt + 1\n\ndef retry_delay(attempt: int) -> float:\n    return 0.25 * (2 ** retry_index(attempt))"
+        },
+        {
+          "path": "src/relaycache/scheduler.py",
+          "content": "from .retry import retry_delay\n\nasync def schedule_retry(job, attempt):\n    delay = retry_delay(attempt)\n    await job.defer(delay)\n    return delay"
+        },
+        {
+          "path": "src/relaycache/metrics.py",
+          "content": "LATENCY_BUCKETS = [0.1, 0.5, 1.0]\n\ndef observe_latency(histogram, route, seconds):\n    histogram.labels(route=route).observe(seconds)\n"
+        },
+        {
+          "path": "src/relaycache/config.py",
+          "content": "import os\n\ndef load_settings():\n    timeout = int(os.environ.get(\"RELAYCACHE_TIMEOUT\", \"30\"))\n    return {\"timeout\": timeout}\n"
+        },
+        {
+          "path": "src/relaycache/broker.py",
+          "content": "class BrokerAdapter:\n    def handle(self, message):\n        receipt = self._process(message)\n        self.ack(message)\n        if message.redelivered:\n            self.ack(message)\n        return receipt\n"
+        },
+        {
+          "path": "docs/CHANGELOG.md",
+          "content": "# Changelog\n\n## 1.4 (upcoming)\n\n- Router.route is the public routing coroutine.\n\n## 1.3\n\n- Added broker adapter acknowledgement translation.\n"
+        }
+      ],
+      "transient_failures": {
+        "read_file:README.md": 1,
+        "read_file:src/relaycache/scheduler.py": 1
+      },
+      "tests": [
+        {
+          "name": "tests/test_readme.py",
+          "path": "README.md",
+          "contains": "Router.route"
+        },
+        {
+          "name": "tests/test_retry.py",
+          "path": "src/relaycache/retry.py",
+          "contains": "return attempt\n"
+        },
+        {
+          "name": "tests/test_metrics.py",
+          "path": "src/relaycache/metrics.py",
+          "contains": "5.0"
+        },
+        {
+          "name": "tests/test_config.py",
+          "path": "src/relaycache/config.py",
+          "contains": "float("
+        },
+        {
+          "name": "tests/test_broker.py",
+          "path": "src/relaycache/broker.py",
+          "contains": "return receipt"
+        }
+      ]
+    }
+  }
+}
