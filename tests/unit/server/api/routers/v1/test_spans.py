@@ -10,7 +10,6 @@ from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.server.api.routers.v1.spans import (
     OtlpAnyValue,
     OtlpSpan,
@@ -390,13 +389,10 @@ async def test_delete_span_empty_trace_cleanup(
         assert remaining_trace is None
 
 
-async def test_delete_span_stands_down_the_sessions_evaluations(
+async def test_delete_span_preserves_the_sessions_evaluations(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """Deleting one span mutates session content without deleting a trace, so the
-    stand-down has to key off the span, not off trace deletion.
-    """
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
@@ -413,11 +409,11 @@ async def test_delete_span_stands_down_the_sessions_evaluations(
     async with db() as session:
         remaining_session = await session.get(models.ProjectSession, project_session_id)
         assert remaining_session is not None
-        assert remaining_session.content_complete is False
         work_unit = await session.get(models.EvalSessionWorkUnit, work_unit_id)
         assert work_unit is not None
-        assert work_unit.status == "CONTENT_LOST"
-        assert work_unit.error == SESSION_CONTENT_INCOMPLETE_ERROR
+        assert work_unit.status == "RUNNING"
+        assert work_unit.error is None
+        assert work_unit.claimed_by == "consumer"
 
 
 async def test_delete_span_with_global_id(

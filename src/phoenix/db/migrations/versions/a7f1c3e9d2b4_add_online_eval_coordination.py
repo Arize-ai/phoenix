@@ -23,16 +23,14 @@ _EVAL_WORK_STATUS_CHECK = (
 )
 _EVAL_SESSION_WORK_STATUS_CHECK = (
     "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', "
-    "'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
+    "'FILTERED_OUT', 'SAMPLED_OUT')"
 )
 _LIVE_EVAL_WORK_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
 _LIVE_EVAL_SESSION_WORK_PREDICATE = (
     "status IN ('PENDING', 'RUNNING', 'ERROR', 'FILTERED_OUT', 'SAMPLED_OUT')"
 )
 _TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'DROPPED')"
-_TERMINAL_EVAL_SESSION_WORK_PREDICATE = (
-    "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'CONTENT_LOST')"
-)
+_TERMINAL_EVAL_SESSION_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED')"
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -251,15 +249,6 @@ def upgrade() -> None:
             "last_span_ingested_at",
             sa.TIMESTAMP(timezone=True),
             nullable=True,
-        ),
-    )
-    op.add_column(
-        "project_sessions",
-        sa.Column(
-            "content_complete",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.text("true"),
         ),
     )
     op.create_index(
@@ -566,5 +555,4 @@ def downgrade() -> None:
         "ix_project_sessions_project_id_last_span_ingested_at",
         table_name="project_sessions",
     )
-    op.drop_column("project_sessions", "content_complete")
     op.drop_column("project_sessions", "last_span_ingested_at")

@@ -1,4 +1,3 @@
-import asyncio
 from collections import defaultdict
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
@@ -11,10 +10,8 @@ import sqlalchemy as sa
 from faker import Faker
 from freezegun import freeze_time
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncEngine
 
 from phoenix.db import models
-from phoenix.db.helpers import delete_traces
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.trace_retention import (
     MaxCountRule,
@@ -25,7 +22,6 @@ from phoenix.db.types.trace_retention import (
     _MaxDays,
     _time_of_next_run,
 )
-from phoenix.server.app import _db
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
@@ -250,7 +246,7 @@ class TestTraceRetentionRuleMaxCount:
             chain.from_iterable(unaffected_projects.values())
         ), "Unaffected projects should retain all their traces"
 
-    async def test_marks_affected_session_content_incomplete(
+    async def test_deleting_trace_preserves_session_evaluation_records(
         self,
         db: DbSessionFactory,
     ) -> None:
@@ -295,9 +291,7 @@ class TestTraceRetentionRuleMaxCount:
                 project_evaluator_id=criteria.id,
                 config_fingerprint=token_hex(8),
                 evaluated_through=now,
-                status="RUNNING",
-                claimed_at=now,
-                claimed_by="consumer",
+                status="DONE",
             )
             session.add(work_unit)
             await session.flush()
@@ -346,112 +340,15 @@ class TestTraceRetentionRuleMaxCount:
                     models.Trace.project_session_rowid == project_session_id
                 )
             )
-            assert retained_session.content_complete is False
-            assert retained_work.status == "CONTENT_LOST"
-            assert retained_work.claimed_by is None
+            assert retained_work.status == "DONE"
             assert (
                 await session.get(models.ProjectSessionAnnotation, online_eval_annotation_id)
-                is None
+                is not None
             )
             assert (
                 await session.get(models.ProjectSessionAnnotation, human_annotation_id) is not None
             )
             assert remaining_trace_count == 1
-
-
-@pytest.mark.postgres_only
-async def test_trace_delete_stands_down_sessions_added_while_delete_waits(
-    postgresql_engine: AsyncEngine,
-) -> None:
-    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    now = datetime.now(timezone.utc)
-    async with db() as session:
-        project = models.Project(name=token_hex(8))
-        session.add(project)
-        await session.flush()
-        first_session = models.ProjectSession(
-            session_id=token_hex(8),
-            project_id=project.id,
-            start_time=now,
-            end_time=now,
-        )
-        later_session = models.ProjectSession(
-            session_id=token_hex(8),
-            project_id=project.id,
-            start_time=now,
-            end_time=now,
-        )
-        session.add_all((first_session, later_session))
-        await session.flush()
-        first_trace = models.Trace(
-            project_rowid=project.id,
-            project_session_rowid=first_session.id,
-            trace_id=token_hex(16),
-            start_time=now,
-            end_time=now,
-        )
-        session.add(first_trace)
-        await session.flush()
-        project_id = project.id
-        first_trace_id = first_trace.id
-        first_session_id = first_session.id
-        later_session_id = later_session.id
-
-    async with db() as blocker:
-        assert (
-            await blocker.scalar(
-                sa.select(models.Trace.id)
-                .where(models.Trace.id == first_trace_id)
-                .with_for_update()
-            )
-            == first_trace_id
-        )
-
-        async def run_delete() -> None:
-            async with db() as session:
-                await delete_traces(
-                    session,
-                    models.Trace.project_rowid == project_id,
-                )
-
-        delete_task = asyncio.create_task(run_delete())
-        with pytest.raises(asyncio.TimeoutError):
-            await asyncio.wait_for(asyncio.shield(delete_task), timeout=0.1)
-
-        async with db() as session:
-            session.add(
-                models.Trace(
-                    project_rowid=project_id,
-                    project_session_rowid=later_session_id,
-                    trace_id=token_hex(16),
-                    start_time=now,
-                    end_time=now,
-                )
-            )
-
-    await delete_task
-
-    async with db() as session:
-        assert (
-            await session.scalar(
-                sa.select(sa.func.count(models.Trace.id)).where(
-                    models.Trace.project_rowid == project_id
-                )
-            )
-            == 0
-        )
-        content_complete = {
-            session_id: is_complete
-            for session_id, is_complete in (
-                await session.execute(
-                    sa.select(
-                        models.ProjectSession.id,
-                        models.ProjectSession.content_complete,
-                    ).where(models.ProjectSession.id.in_((first_session_id, later_session_id)))
-                )
-            ).all()
-        }
-    assert content_complete == {first_session_id: False, later_session_id: False}
 
 
 class TestTraceRetentionRuleMaxDaysOrCountRule:
