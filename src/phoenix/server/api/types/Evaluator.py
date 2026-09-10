@@ -54,6 +54,7 @@ from phoenix.server.online_eval.session_policy import (
     SchedulabilityReason,
     session_schedulability_reason,
 )
+from phoenix.utilities.template_formatters import TemplateFormatterError
 
 if TYPE_CHECKING:
     from .Dataset import Dataset
@@ -777,12 +778,16 @@ class LLMEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> JSON:
         prompt_version = await self._get_prompt_version(info)
-        return JSON(
-            infer_input_schema_from_prompt_template(
+        try:
+            input_schema = infer_input_schema_from_prompt_template(
                 template=prompt_version.template,
                 template_format=prompt_version.template_format,
             )
-        )
+        except (ValueError, TemplateFormatterError):
+            # Stored prompt templates are not syntax-checked at write time; a
+            # malformed template must not null out the whole evaluator node.
+            input_schema = {"type": "object", "properties": {}, "required": []}
+        return JSON(input_schema)
 
     @strawberry.field
     async def user(
@@ -828,17 +833,9 @@ class LLMEvaluator(Evaluator, Node):
                 ]
             )
         if prompt_version_tag_id is not None:
-            (
-                tag_prompt_id,
-                prompt_version_id,
-            ) = await info.context.data_loaders.prompt_version_tag_fields.load_many(
-                [
-                    (prompt_version_tag_id, models.PromptVersionTag.prompt_id),
-                    (prompt_version_tag_id, models.PromptVersionTag.prompt_version_id),
-                ]
+            prompt_version_id = await info.context.data_loaders.prompt_version_tag_fields.load(
+                (prompt_version_tag_id, models.PromptVersionTag.prompt_version_id)
             )
-            if tag_prompt_id != prompt_id:
-                raise NotFound(f"Prompt version not found for prompt {prompt_id}")
         else:
             prompt_version_id = await info.context.data_loaders.latest_prompt_version_ids.load(
                 prompt_id

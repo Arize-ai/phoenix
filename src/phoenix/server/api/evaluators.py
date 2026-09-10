@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from copy import deepcopy
 from datetime import datetime, timezone
+from functools import cached_property
 from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar, cast
 
 import openinference.instrumentation as oi
@@ -301,8 +302,10 @@ class LLMEvaluator(BaseEvaluator):
     def llm_client(self) -> "PlaygroundClient[Any]":
         return self._llm_client
 
-    @property
+    @cached_property
     def input_schema(self) -> dict[str, Any]:
+        # The template is fixed at construction and evaluate() reads this
+        # several times per record, so parse it once.
         return infer_input_schema_from_prompt_template(
             template=self._template,
             template_format=self._template_format,

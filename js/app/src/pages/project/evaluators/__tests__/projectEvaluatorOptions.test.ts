@@ -15,7 +15,6 @@ const codeEvaluator = {
     properties: { output: {} },
     required: ["output"],
   },
-  inputs: [{ name: "output" }],
   language: "TYPESCRIPT",
   sourceCode: "function evaluate(output: string) { return output.length; }",
   sandboxConfig: { id: "SandboxConfig:1" },

@@ -170,13 +170,9 @@ export type EvaluatorInputSummary = {
 };
 
 export type LlmProjectEvaluatorDetails =
-  projectEvaluatorOptions_llmEvaluatorDetails$data & {
-    readonly inputs: readonly EvaluatorInputSummary[];
-  };
+  projectEvaluatorOptions_llmEvaluatorDetails$data;
 export type CodeProjectEvaluatorDetails =
-  projectEvaluatorOptions_codeEvaluatorDetails$data & {
-    readonly inputs: readonly EvaluatorInputSummary[];
-  };
+  projectEvaluatorOptions_codeEvaluatorDetails$data;
 export type ProjectEvaluatorDetails =
   | LlmProjectEvaluatorDetails
   | CodeProjectEvaluatorDetails;
@@ -185,26 +181,16 @@ export function readProjectEvaluatorDetails(
   evaluator: ProjectEvaluatorDetailsNode | null
 ): ProjectEvaluatorDetails | null {
   if (evaluator?.__typename === "LLMEvaluator") {
-    const details =
-      readInlineData<projectEvaluatorOptions_llmEvaluatorDetails$key>(
-        llmProjectEvaluatorDetailsFragment,
-        evaluator
-      );
-    return {
-      ...details,
-      inputs: getEvaluatorInputSummaries(details.llmInputSchema),
-    };
+    return readInlineData<projectEvaluatorOptions_llmEvaluatorDetails$key>(
+      llmProjectEvaluatorDetailsFragment,
+      evaluator
+    );
   }
   if (evaluator?.__typename === "CodeEvaluator") {
-    const details =
-      readInlineData<projectEvaluatorOptions_codeEvaluatorDetails$key>(
-        codeProjectEvaluatorDetailsFragment,
-        evaluator
-      );
-    return {
-      ...details,
-      inputs: getEvaluatorInputSummaries(details.codeInputSchema),
-    };
+    return readInlineData<projectEvaluatorOptions_codeEvaluatorDetails$key>(
+      codeProjectEvaluatorDetailsFragment,
+      evaluator
+    );
   }
   return null;
 }
@@ -216,8 +202,8 @@ export function getEvaluatorInputSummaries(
   const properties = inputSchema.properties;
   if (!isStringKeyedObject(properties)) return [];
   return Object.entries(properties).map(([name, unknownProperty]) => {
-    if (!isStringKeyedObject(unknownProperty)) return { name };
     const description =
+      isStringKeyedObject(unknownProperty) &&
       typeof unknownProperty.description === "string" &&
       unknownProperty.description.trim()
         ? unknownProperty.description

@@ -45,9 +45,11 @@ import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__gene
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
 import {
+  getEvaluatorInputSummaries,
   projectEvaluatorDetailsQueryNode,
   readProjectEvaluatorDetails,
   type CodeProjectEvaluatorDetails,
+  type EvaluatorInputSummary,
   type LlmProjectEvaluatorDetails,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import {
@@ -896,15 +898,10 @@ function EvaluatorOutputSummary({
   );
 }
 
-type EvaluatorInputSummaryItem = {
-  readonly name: string;
-  readonly description?: string;
-};
-
-function EvaluatorInputSummary({
+function EvaluatorInputList({
   inputs,
 }: {
-  inputs: readonly EvaluatorInputSummaryItem[];
+  inputs: readonly EvaluatorInputSummary[];
 }) {
   if (inputs.length === 0) return null;
   return (
@@ -917,7 +914,12 @@ function EvaluatorInputSummary({
           {inputs.map((input) => (
             <ListItem key={input.name}>
               <Flex direction="column" gap="size-25">
-                <Text size="S" fontFamily="mono" css={inputNameCSS}>
+                <Text
+                  size="S"
+                  weight="heavy"
+                  fontFamily="mono"
+                  css={inputNameCSS}
+                >
                   {input.name}
                 </Text>
                 {input.description ? (
@@ -964,7 +966,9 @@ function AnnotationValues({
                 justifyContent="space-between"
                 gap="size-100"
               >
-                <Text size="S">{label}</Text>
+                <Text size="S" weight="heavy">
+                  {label}
+                </Text>
                 <Text size="XS" color="text-500">
                   <AnnotationScoreText
                     elementType="span"
@@ -1013,7 +1017,9 @@ function LlmCustomEvaluatorDetails({
     <Flex direction="column" gap="size-200" height="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
-      <EvaluatorInputSummary inputs={evaluator.inputs} />
+      <EvaluatorInputList
+        inputs={getEvaluatorInputSummaries(evaluator.llmInputSchema)}
+      />
       <EvaluatorPromptPreview messages={messages} />
       <EvaluatorDetailsAction onPress={onDuplicateEvaluator}>
         Duplicate this evaluator
@@ -1047,7 +1053,9 @@ function CodeCustomEvaluatorDetails({
         </div>
       </dl>
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
-      <EvaluatorInputSummary inputs={evaluator.inputs} />
+      <EvaluatorInputList
+        inputs={getEvaluatorInputSummaries(evaluator.codeInputSchema)}
+      />
       <Flex direction="column" gap="size-75">
         <Text elementType="h3" size="S" weight="heavy">
           Code
@@ -1191,12 +1199,7 @@ function EvaluatorTemplateDetails({
           </dd>
         </div>
       </dl>
-      <EvaluatorInputSummary
-        inputs={(template.inputs ?? []).map((input) => ({
-          name: input.name,
-          description: input.description,
-        }))}
-      />
+      <EvaluatorInputList inputs={template.inputs ?? []} />
       <AnnotationValues
         values={choices}
         optimizationDirection={template.optimizationDirection}
@@ -1237,7 +1240,17 @@ const detailsSectionWellCSS = css`
 `;
 
 const listSectionWellCSS = css`
-  padding: var(--global-dimension-size-50);
+  /* Let the list own the inset so item dividers run edge to edge. */
+  padding: 0;
+  overflow: hidden;
+
+  & li {
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
+
+    &:not(:first-of-type)::after {
+      left: 0;
+    }
+  }
 `;
 
 const inputNameCSS = css`
