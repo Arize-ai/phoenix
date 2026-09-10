@@ -310,13 +310,11 @@ class DbEvalWorkCoordinator:
                     raise PublicationClaimLostError(
                         f"work unit {work_unit_id} session content is missing"
                     )
-                await self._require_complete_session(
-                    session, work_unit_id, identity.project_session_rowid
-                )
+                await self._require_session(session, work_unit_id, identity.project_session_rowid)
             elif self._evaluation_target == "SPAN":
-                # A span in a session takes the session grain's lock and completeness check.
+                # A span in a session takes the session grain's lock and existence fence.
                 if identity.project_session_rowid is not None:
-                    await self._require_complete_session(
+                    await self._require_session(
                         session, work_unit_id, identity.project_session_rowid
                     )
             else:
@@ -338,20 +336,18 @@ class DbEvalWorkCoordinator:
             await write(session)
 
     @staticmethod
-    async def _require_complete_session(
+    async def _require_session(
         session: AsyncSession,
         work_unit_id: int,
         project_session_rowid: int,
     ) -> None:
-        content_complete = await session.scalar(
-            select(models.ProjectSession.content_complete)
+        locked_project_session_rowid = await session.scalar(
+            select(models.ProjectSession.id)
             .where(models.ProjectSession.id == project_session_rowid)
             .with_for_update()
         )
-        if content_complete is not True:
-            raise PublicationClaimLostError(
-                f"work unit {work_unit_id} session content is incomplete or missing"
-            )
+        if locked_project_session_rowid is None:
+            raise PublicationClaimLostError(f"work unit {work_unit_id} session is missing")
 
     async def fail(
         self,
@@ -476,8 +472,7 @@ class DbEvalWorkCoordinator:
             retryable_error_count=counts.get("ERROR", 0),
             exhausted_error_count=counts.get("FAILED", 0),
             expired_count=sum(
-                counts.get(status, 0)
-                for status in ("EXPIRED", "SUPERSEDED", "CONTENT_LOST", "DROPPED")
+                counts.get(status, 0) for status in ("EXPIRED", "SUPERSEDED", "DROPPED")
             ),
             oldest_actionable_age_seconds=oldest_actionable_age_seconds,
         )
