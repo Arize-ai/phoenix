@@ -52,7 +52,8 @@ def main() -> None:
     trusted = Path("/trusted")
     truth = json.loads((trusted / "truth.json").read_text())
     evidence = json.loads((trusted / "evidence.json").read_text())
-    answer = json.loads(read_regular(Path("/logs/artifacts"), "answer.json"))
+    # Harbor restores declared artifacts to their original source paths.
+    answer = json.loads(read_regular(Path("/workspace"), "answer.json"))
     scores = grade_count(answer, truth, evidence)
     Path("/logs/verifier/reward.json").write_text(json.dumps(scores))
 
