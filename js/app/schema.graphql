@@ -991,7 +991,7 @@ input CreateProjectSessionAnnotationInput {
 }
 
 input CreateProjectSessionNoteInput {
-  target: ProjectSessionIdentifierInput!
+  session: ProjectSessionReferenceInput!
   note: String!
   annotatorKind: AnnotatorKind!
   source: AnnotationSource!
@@ -1042,7 +1042,7 @@ input CreateSpanAnnotationInput {
 }
 
 input CreateSpanNoteInput {
-  target: SpanIdentifierInput!
+  span: SpanReferenceInput!
   note: String!
   annotatorKind: AnnotatorKind!
   source: AnnotationSource!
@@ -1068,7 +1068,7 @@ input CreateTraceAnnotationInput {
 }
 
 input CreateTraceNoteInput {
-  target: TraceIdentifierInput!
+  trace: TraceReferenceInput!
   note: String!
   annotatorKind: AnnotatorKind!
   source: AnnotationSource!
@@ -3336,8 +3336,8 @@ type ProjectSessionEdge {
   node: ProjectSession!
 }
 
-input ProjectSessionIdentifierInput @oneOf {
-  """The session's Phoenix Relay node ID."""
+input ProjectSessionReferenceInput @oneOf {
+  """The session's Phoenix node ID."""
   id: ID
 
   """The raw session.id value supplied by the application, matched exactly."""
@@ -4541,14 +4541,6 @@ type SpanIOValue {
   value: String!
 }
 
-input SpanIdentifierInput @oneOf {
-  """The span's Phoenix Relay node ID."""
-  id: ID
-
-  """The span's OpenTelemetry span ID, matched exactly."""
-  otelId: String
-}
-
 enum SpanKind {
   chain
   tool
@@ -4566,6 +4558,14 @@ enum SpanKind {
 type SpanKindCount {
   spanKind: SpanKind!
   count: Int!
+}
+
+input SpanReferenceInput @oneOf {
+  """The span's Phoenix node ID."""
+  id: ID
+
+  """The span's OpenTelemetry span ID, matched exactly."""
+  otelId: String
 }
 
 """
@@ -4890,14 +4890,6 @@ type TraceEdge {
   node: Trace!
 }
 
-input TraceIdentifierInput @oneOf {
-  """The trace's Phoenix Relay node ID."""
-  id: ID
-
-  """The trace's OpenTelemetry trace ID, matched exactly."""
-  otelId: String
-}
-
 type TraceLatencyMsPercentileTimeSeriesDataPoint {
   timestamp: DateTime!
   p50: Float
@@ -4911,6 +4903,14 @@ type TraceLatencyMsPercentileTimeSeriesDataPoint {
 
 type TraceLatencyPercentileTimeSeries {
   data: [TraceLatencyMsPercentileTimeSeriesDataPoint!]!
+}
+
+input TraceReferenceInput @oneOf {
+  """The trace's Phoenix node ID."""
+  id: ID
+
+  """The trace's OpenTelemetry trace ID, matched exactly."""
+  otelId: String
 }
 
 union TraceRetentionRule = TraceRetentionRuleMaxDays | TraceRetentionRuleMaxCount | TraceRetentionRuleMaxDaysOrCount

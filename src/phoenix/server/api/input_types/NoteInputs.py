@@ -4,10 +4,10 @@ import strawberry
 from strawberry import UNSET
 
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.input_types.EntityIdentifierInput import (
-    ProjectSessionIdentifierInput,
-    SpanIdentifierInput,
-    TraceIdentifierInput,
+from phoenix.server.api.input_types.ReferenceInputs import (
+    ProjectSessionReferenceInput,
+    SpanReferenceInput,
+    TraceReferenceInput,
 )
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
@@ -28,7 +28,7 @@ def _trim_identifier(identifier: Optional[str]) -> Optional[str]:
 
 @strawberry.input
 class CreateSpanNoteInput:
-    target: SpanIdentifierInput
+    span: SpanReferenceInput
     note: str
     annotator_kind: AnnotatorKind
     source: AnnotationSource
@@ -41,7 +41,7 @@ class CreateSpanNoteInput:
 
 @strawberry.input
 class CreateTraceNoteInput:
-    target: TraceIdentifierInput
+    trace: TraceReferenceInput
     note: str
     annotator_kind: AnnotatorKind
     source: AnnotationSource
@@ -54,7 +54,7 @@ class CreateTraceNoteInput:
 
 @strawberry.input
 class CreateProjectSessionNoteInput:
-    target: ProjectSessionIdentifierInput
+    session: ProjectSessionReferenceInput
     note: str
     annotator_kind: AnnotatorKind
     source: AnnotationSource
