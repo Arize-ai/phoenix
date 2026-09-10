@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { createContext, useContext, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import type { FetchPolicy } from "relay-runtime";
 
@@ -93,6 +93,10 @@ export function getModelsByProvider(
  */
 export type ModelCredentialSource = "any" | "server";
 
+/** Surfaces that preload and retain the catalog can let nested pickers reuse it. */
+export const ModelMenuFetchPolicyContext =
+  createContext<FetchPolicy>("store-and-network");
+
 // Stable empty store so the "server" credential source doesn't invalidate
 // the memoized readiness computations on every render.
 const NO_LOCAL_CREDENTIALS: LocalProviderCredentials = {};
@@ -103,19 +107,21 @@ const NO_LOCAL_CREDENTIALS: LocalProviderCredentials = {};
  *
  * @param params - hook options
  * @param params.fetchPolicy - Relay fetch policy for the catalog query.
- *   Defaults to "store-and-network" so pickers stay fresh; consumers that
+ *   Defaults to the surface policy ("store-and-network" unless overridden by
+ *   ModelMenuFetchPolicyContext) so pickers stay fresh; consumers that
  *   mount alongside a picker on the same surface can pass "store-or-network"
  *   to reuse its response instead of issuing a duplicate network fetch.
  * @param params.credentialSource - which credential store the surface's
  *   execution path can actually use; see {@link ModelCredentialSource}.
  */
 export function useModelMenuData({
-  fetchPolicy = "store-and-network",
+  fetchPolicy,
   credentialSource = "any",
 }: {
   fetchPolicy?: FetchPolicy;
   credentialSource?: ModelCredentialSource;
 } = {}) {
+  const defaultFetchPolicy = useContext(ModelMenuFetchPolicyContext);
   const data = useLazyLoadQuery<useModelMenuDataQuery>(
     graphql`
       query useModelMenuDataQuery {
@@ -142,7 +148,7 @@ export function useModelMenuData({
       }
     `,
     {},
-    { fetchPolicy }
+    { fetchPolicy: fetchPolicy ?? defaultFetchPolicy }
   );
 
   const modelsByProvider = useMemo(

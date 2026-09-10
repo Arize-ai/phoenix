@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
-import { Suspense, useDeferredValue, useEffect, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import {
+  Suspense,
+  useDeferredValue,
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
+import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 
 import {
   Alert,
@@ -29,8 +35,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@phoenix/components/core/dialog";
+import EvaluatorProviderQueryNode, {
+  type EvaluatorPlaygroundProviderQuery,
+} from "@phoenix/components/evaluators/__generated__/EvaluatorPlaygroundProviderQuery.graphql";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import ModelMenuQueryNode, {
+  type useModelMenuDataQuery,
+} from "@phoenix/components/generative/__generated__/useModelMenuDataQuery.graphql";
+import { ModelMenuFetchPolicyContext } from "@phoenix/components/generative/useModelMenuData";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
@@ -148,12 +161,14 @@ function EvaluatorSlotPicker({
   sourceName: string;
   onSelectionChange: (id: string) => void;
 }) {
+  const [hasOpened, setHasOpened] = useState(false);
+  const [isLoadingOptions, startLoadingOptions] = useTransition();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const data = useLazyLoadQuery<EvaluatorSlotQuery>(
     graphql`
-      query EvaluatorSlotQuery($filter: EvaluatorFilter) {
-        evaluators(first: 50, filter: $filter) {
+      query EvaluatorSlotQuery($filter: EvaluatorFilter, $hasOpened: Boolean!) {
+        evaluators(first: 50, filter: $filter) @include(if: $hasOpened) {
           edges {
             node {
               id
@@ -165,9 +180,12 @@ function EvaluatorSlotPicker({
         }
       }
     `,
-    { filter: deferredSearch ? { col: "name", value: deferredSearch } : null }
+    {
+      hasOpened,
+      filter: deferredSearch ? { col: "name", value: deferredSearch } : null,
+    }
   );
-  const options = data.evaluators.edges
+  const options = (data.evaluators?.edges ?? [])
     .map(({ node }) => node)
     .filter(
       (node) => !node.isBuiltin && (node.kind === "LLM" || node.kind === "CODE")
@@ -175,6 +193,9 @@ function EvaluatorSlotPicker({
   return (
     <Select
       aria-label="Evaluator"
+      onOpenChange={(isOpen) => {
+        if (isOpen) startLoadingOptions(() => setHasOpened(true));
+      }}
       style={{ minWidth: 0, maxWidth: "100%" }}
       size="S"
       value={selection}
@@ -197,6 +218,7 @@ function EvaluatorSlotPicker({
             placeholder="Search evaluators"
           />
         </View>
+        {isLoadingOptions ? <Loading size="S" /> : null}
         <ListBox>
           <SelectItem id="new-llm" textValue="New LLM evaluator">
             <Flex direction="row" gap="size-100" alignItems="center">
@@ -236,9 +258,6 @@ function EvaluatorSlotSource(
   const data = useLazyLoadQuery<EvaluatorSlotSourceQuery>(
     graphql`
       query EvaluatorSlotSourceQuery($id: ID!, $hasSource: Boolean!) {
-        modelProviders {
-          dependenciesInstalled
-        }
         node(id: $id) @include(if: $hasSource) {
           ... on Evaluator {
             ...EvaluatorSlot_source @relay(mask: false)
@@ -484,15 +503,30 @@ function EvaluatorSlotLLMProvider({
   source: EvaluatorSlotSourceQuery["response"]["node"];
   children: ReactNode;
 }) {
+  const [providerQuery, loadProviderQuery] =
+    useQueryLoader<EvaluatorPlaygroundProviderQuery>(
+      EvaluatorProviderQueryNode
+    );
+  const [modelQuery, loadModelQuery] =
+    useQueryLoader<useModelMenuDataQuery>(ModelMenuQueryNode);
+  useEffect(() => {
+    // Neither catalog depends on the other. Start both before mounting the
+    // provider/editor tree; useQueryLoader retains them until this slot unmounts.
+    loadProviderQuery({});
+    loadModelQuery({});
+  }, [loadProviderQuery, loadModelQuery]);
+  if (!providerQuery || !modelQuery) return <Loading size="S" />;
   return (
-    <EvaluatorPlaygroundProvider
-      promptId={source?.prompt?.id}
-      promptName={source?.prompt?.name}
-      promptVersionRef={source?.promptVersion}
-      promptVersionTag={source?.promptVersionTag?.name}
-      templateFormat={source?.promptVersion?.templateFormat}
-    >
-      {children}
-    </EvaluatorPlaygroundProvider>
+    <ModelMenuFetchPolicyContext value="store-or-network">
+      <EvaluatorPlaygroundProvider
+        promptId={source?.prompt?.id}
+        promptName={source?.prompt?.name}
+        promptVersionRef={source?.promptVersion}
+        promptVersionTag={source?.promptVersionTag?.name}
+        templateFormat={source?.promptVersion?.templateFormat}
+      >
+        {children}
+      </EvaluatorPlaygroundProvider>
+    </ModelMenuFetchPolicyContext>
   );
 }
