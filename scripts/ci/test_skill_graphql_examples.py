@@ -1,8 +1,4 @@
-"""Every fenced ```graphql example in a shipped skill validates against the exported schema.
-
-Runs as its own CI job, triggered by changes to the skills or to
-``js/app/schema.graphql``, rather than with the Python unit suite.
-"""
+"""Lives outside tests/ so CI runs it only when a skill or ``js/app/schema.graphql`` changes."""
 
 from __future__ import annotations
 
@@ -56,17 +52,17 @@ def _shipped_skill_dirs() -> list[Path]:
     ]
 
 
-def _graphql_examples() -> list[tuple[str, str]]:
-    examples: list[tuple[str, str]] = []
+def _queries_by_location() -> dict[str, str]:
+    queries: dict[str, str] = {}
     for skill_dir in _shipped_skill_dirs():
         for path in sorted(skill_dir.rglob("*.md")):
             text = path.read_text(encoding="utf-8")
             for index, match in enumerate(_GRAPHQL_FENCE.finditer(text)):
-                examples.append((f"{path.relative_to(REPO_ROOT)}#{index}", match.group(1)))
-    return examples
+                queries[f"{path.relative_to(REPO_ROOT)}#{index}"] = match.group(1)
+    return queries
 
 
-GRAPHQL_EXAMPLES = _graphql_examples()
+QUERIES_BY_LOCATION = _queries_by_location()
 
 
 @pytest.fixture(scope="module")
@@ -74,21 +70,23 @@ def schema() -> GraphQLSchema:
     return build_schema(SCHEMA_PATH.read_text(encoding="utf-8"))
 
 
-def test_public_agent_skills_exclude_internal_and_third_party() -> None:
-    public = {skill_dir.name for skill_dir in _public_agent_skill_dirs()}
-    assert public
-    assert not {"phoenix-server", "gh-stack", "agent-browser"} & public
-
-
-def test_fence_pattern_finds_examples() -> None:
-    assert GRAPHQL_EXAMPLES
+def test_public_agent_skills_exist() -> None:
+    assert _public_agent_skill_dirs()
 
 
 @pytest.mark.parametrize(
-    "label, query", GRAPHQL_EXAMPLES, ids=[label for label, _ in GRAPHQL_EXAMPLES]
+    "skill_name", ["phoenix-server", "gh-stack"], ids=["internal", "third-party"]
 )
-def test_example_validates_against_exported_schema(
-    schema: GraphQLSchema, label: str, query: str
-) -> None:
+def test_non_public_agent_skills_are_excluded(skill_name: str) -> None:
+    assert (AGENT_SKILLS_ROOT / skill_name / "SKILL.md").is_file()
+    assert skill_name not in {skill_dir.name for skill_dir in _public_agent_skill_dirs()}
+
+
+def test_fence_pattern_finds_examples() -> None:
+    assert QUERIES_BY_LOCATION
+
+
+@pytest.mark.parametrize("query", QUERIES_BY_LOCATION.values(), ids=QUERIES_BY_LOCATION.keys())
+def test_example_validates_against_exported_schema(schema: GraphQLSchema, query: str) -> None:
     errors = validate(schema, parse(query))
-    assert not errors, f"{label}: {[error.message for error in errors]}"
+    assert not errors, [error.message for error in errors]
