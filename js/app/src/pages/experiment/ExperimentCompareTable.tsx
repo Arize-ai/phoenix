@@ -54,7 +54,6 @@ import { CellTop, PaddedCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
-import { ExampleDetailsLink } from "@phoenix/pages/example/ExampleDetailsLink";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
@@ -357,13 +356,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         enableSorting: false,
         cell: ({ row }) => (
           <ExperimentInputCell
-            exampleId={
-              <ExampleDetailsLink
-                exampleId={row.original.example.id}
-                externalId={row.original.example.externalId}
-                datasetVersionId={baseExperiment?.datasetVersion?.id}
-              />
-            }
+            exampleId={row.original.example.id}
+            externalId={row.original.example.externalId}
             value={row.original.input}
             height={cellContentHeight}
             onExpand={() => {
@@ -715,7 +709,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 datasetId={datasetId}
                 datasetVersionId={baseExperiment.datasetVersion.id}
                 selectedExampleIndex={selectedExampleIndex}
-                selectedExampleId={exampleIds[selectedExampleIndex]}
+                selectedExampleId={tableData[selectedExampleIndex].example.id}
                 selectedExampleExternalId={
                   tableData[selectedExampleIndex].example.externalId
                 }
