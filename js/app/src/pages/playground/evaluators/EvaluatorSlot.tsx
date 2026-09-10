@@ -15,6 +15,7 @@ import {
   Dialog,
   Flex,
   Icon,
+  IconButton,
   Icons,
   ListBox,
   Loading,
@@ -26,6 +27,9 @@ import {
   SelectItem,
   SelectValue,
   Text,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
@@ -68,15 +72,25 @@ function EvaluatorSlotContent(props: EvaluatorSlotProps) {
   const [selection, setSelection] = useState(
     props.initialDatasetEvaluatorId ?? props.initialEvaluatorId ?? "new-llm"
   );
+  // Bumped on every (re)selection so choosing the source already loaded — the
+  // reset button does exactly that — still remounts a fresh editor.
+  const [generation, setGeneration] = useState(0);
   const [sourceName, setSourceName] = useState("Loading evaluator…");
+  const [kind, setKind] = useState<"LLM" | "CODE">("LLM");
   const [isDirty, setIsDirty] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   function selectSource(id: string) {
     setIsDirty(false);
     setPendingSelection(null);
     setSelection(id);
+    setGeneration((current) => current + 1);
     props.onSelectionChange?.({ evaluatorId: id, datasetEvaluatorId: null });
   }
+  function requestSource(id: string) {
+    if (isDirty) setPendingSelection(id);
+    else selectSource(id);
+  }
+  const freshSource = kind === "CODE" ? "new-code" : "new-llm";
   const sourceControl = (
     <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
       <View flex="none">
@@ -87,25 +101,43 @@ function EvaluatorSlotContent(props: EvaluatorSlotProps) {
           selection={selection}
           sourceName={sourceName}
           onSelectionChange={(id) => {
-            if (id === selection) return;
-            if (isDirty) setPendingSelection(id);
-            else selectSource(id);
+            if (id !== selection) requestSource(id);
           }}
         />
       </Suspense>
+      {/* Start over in the same kind without hunting for the "New…" entry in
+          the picker. Reuses the picker's discard confirmation when the draft
+          has changes. */}
+      <TooltipTrigger>
+        <IconButton
+          size="S"
+          aria-label={`Reset evaluator ${props.slotId} to a new ${
+            kind === "CODE" ? "code" : "LLM"
+          } evaluator`}
+          isDisabled={props.isRunning}
+          onPress={() => requestSource(freshSource)}
+        >
+          <Icon svg={<Icons.RotateCcw />} />
+        </IconButton>
+        <Tooltip>
+          <TooltipArrow />
+          Reset to a new {kind === "CODE" ? "code" : "LLM"} evaluator
+        </Tooltip>
+      </TooltipTrigger>
     </Flex>
   );
   return (
     <Flex direction="column" height="100%" minHeight={0}>
       <Suspense fallback={<Loading size="S" />}>
         <EvaluatorSlotSource
-          key={selection}
+          key={`${selection}:${generation}`}
           {...props}
           selection={selection}
           sourceControl={sourceControl}
           onChange={(snapshot) => {
             setIsDirty(snapshot.isDirty);
             setSourceName(snapshot.name);
+            setKind(snapshot.kind);
             props.onChange(snapshot);
           }}
         />
@@ -124,8 +156,8 @@ function EvaluatorSlotContent(props: EvaluatorSlotProps) {
               </DialogHeader>
               <View padding="size-200">
                 <Text>
-                  Loading another evaluator replaces the unsaved draft in
-                  evaluator {props.slotId}. This cannot be undone.
+                  This replaces the unsaved draft in evaluator {props.slotId}.
+                  This cannot be undone.
                 </Text>
               </View>
               <DialogFooter>
@@ -476,6 +508,7 @@ function EvaluatorSlotUnavailable({
       onChange({
         revision: `unavailable:${selection}`,
         isDirty: false,
+        kind: "LLM",
         name: "Unavailable evaluator",
         outputNames: [],
         selectedOutputName: "",
