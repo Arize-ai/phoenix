@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useEffectEvent, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { useSearchParams } from "react-router";
 
@@ -50,7 +50,10 @@ import {
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
-import { useModelMenuData } from "@phoenix/components/generative";
+import {
+  useModelMenuData,
+  type ModelCatalog,
+} from "@phoenix/components/generative";
 import { usePreferencesContext } from "@phoenix/contexts";
 import {
   useEvaluatorStore,
@@ -73,45 +76,29 @@ import {
   getDefaultSandboxConfigId,
 } from "./evaluatorSlotValidation";
 
-export function EvaluatorSlotEditor({
-  kind,
-  initialLanguage,
-  initialSourceCode,
-  initialSandboxConfigId,
-  sourceControl,
-  ...props
-}: EvaluatorSlotProps & {
+type EditorProps = EvaluatorSlotProps & {
   kind: "LLM" | "CODE";
   sourceControl: ReactNode;
   initialLanguage?: CodeEvaluatorLanguage;
   initialSourceCode?: string;
   initialSandboxConfigId?: string;
-}) {
-  const {
-    datasetId,
-    slotId,
-    onChange,
-    onRun,
-    onRemove,
-    isRunning,
-    isRunDisabled,
-    sampleContext,
-    registerAgentSlot,
-    initialDatasetEvaluatorId,
-    initialEvaluatorId,
-  } = props;
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tabKey = `slotTab${slotId}`;
-  const selectedTab = searchParams.get(tabKey) ?? "editor";
-  const store = useEvaluatorStoreInstance();
-  const state = useEvaluatorStore((state) => state);
-  const playgroundStore = useContext(PlaygroundContext);
-  const [language, setLanguage] = useState<CodeEvaluatorLanguage>(
-    initialLanguage ?? "PYTHON"
+};
+
+const EMPTY_SANDBOX_CONFIGS: ReturnType<typeof mapSandboxConfigOptions> = [];
+const EMPTY_MODEL_CATALOG: ModelCatalog = {
+  installedBuiltInProviders: new Set(),
+  customProviders: [],
+};
+
+export function EvaluatorSlotEditor(props: EditorProps) {
+  return props.kind === "CODE" ? (
+    <CodeSlotEditor {...props} />
+  ) : (
+    <LLMSlotEditor {...props} />
   );
-  const [sourceCode, setSourceCode] = useState(
-    initialSourceCode ?? getDefaultCodeEvaluatorSource(language, "dataset")
-  );
+}
+
+function CodeSlotEditor(props: EditorProps) {
   const data = useLazyLoadQuery<EvaluatorSlotEditorQuery>(
     graphql`
       query EvaluatorSlotEditorQuery {
@@ -153,6 +140,69 @@ export function EvaluatorSlotEditor({
   const sandboxConfigs = mapSandboxConfigOptions(
     data.sandboxProviders,
     data.sandboxBackends
+  );
+  return (
+    <EvaluatorSlotEditorContent
+      {...props}
+      sandboxConfigs={sandboxConfigs}
+      modelCatalog={EMPTY_MODEL_CATALOG}
+    />
+  );
+}
+
+function LLMSlotEditor(props: EditorProps) {
+  const { modelCatalog } = useModelMenuData({
+    fetchPolicy: "store-or-network",
+  });
+  return (
+    <EvaluatorSlotEditorContent
+      {...props}
+      sandboxConfigs={EMPTY_SANDBOX_CONFIGS}
+      modelCatalog={modelCatalog}
+    />
+  );
+}
+
+function EvaluatorSlotEditorContent({
+  kind,
+  initialLanguage,
+  initialSourceCode,
+  initialSandboxConfigId,
+  sourceControl,
+  sandboxConfigs,
+  modelCatalog,
+  ...props
+}: EditorProps & {
+  sandboxConfigs: ReturnType<typeof mapSandboxConfigOptions>;
+  modelCatalog: ModelCatalog;
+}) {
+  const {
+    datasetId,
+    slotId,
+    onChange,
+    onRun,
+    onRemove,
+    isRunning,
+    isRunDisabled,
+    sampleContext,
+    registerAgentSlot,
+    initialDatasetEvaluatorId,
+    initialEvaluatorId,
+  } = props;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabKey = `slotTab${slotId}`;
+  const selectedTab = searchParams.get(tabKey) ?? "editor";
+  const store = useEvaluatorStoreInstance();
+  const globalName = useEvaluatorStore((state) => state.evaluator.globalName);
+  const setEvaluatorGlobalName = useEvaluatorStore(
+    (state) => state.setEvaluatorGlobalName
+  );
+  const playgroundStore = useContext(PlaygroundContext);
+  const [language, setLanguage] = useState<CodeEvaluatorLanguage>(
+    initialLanguage ?? "PYTHON"
+  );
+  const [sourceCode, setSourceCode] = useState(
+    initialSourceCode ?? getDefaultCodeEvaluatorSource(language, "dataset")
   );
   const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(() =>
     getDefaultSandboxConfigId({
@@ -204,6 +254,8 @@ export function EvaluatorSlotEditor({
       }
     `);
   const isSaving = isSavingLLM || isSavingCode || isAttachingCode;
+  // A parent render must not rebuild the evaluator or restart subscriptions.
+  const onSnapshotChange = useEffectEvent(onChange);
   useEffect(() => {
     store.getState().setEvaluatorMappingSource({
       grain: "dataset",
@@ -311,12 +363,30 @@ export function EvaluatorSlotEditor({
           ? previous
           : next
       );
-      onChange(next);
+      onSnapshotChange(next);
     }
     publish();
-    const unsubscribeEvaluator = store.subscribe(publish);
+    const unsubscribeEvaluator = store.subscribe((current, previous) => {
+      if (
+        current.evaluator !== previous.evaluator ||
+        current.outputConfigs !== previous.outputConfigs
+      ) {
+        publish();
+      }
+    });
     const unsubscribePlayground =
-      kind === "LLM" ? playgroundStore?.subscribe(publish) : undefined;
+      kind === "LLM"
+        ? playgroundStore?.subscribe((current, previous) => {
+            // These are the inputs read by getInstancePromptParamsFromStore.
+            if (
+              current.instances !== previous.instances ||
+              current.allInstanceMessages !== previous.allInstanceMessages ||
+              current.templateFormat !== previous.templateFormat
+            ) {
+              publish();
+            }
+          })
+        : undefined;
     return () => {
       unsubscribeEvaluator();
       unsubscribePlayground?.();
@@ -332,7 +402,6 @@ export function EvaluatorSlotEditor({
     selectedOutput,
     datasetId,
     slotId,
-    onChange,
     savedRevision,
   ]);
   async function save(): Promise<UIOperationResult> {
@@ -436,7 +505,6 @@ export function EvaluatorSlotEditor({
   useEffect(() => {
     saveRef.current = save;
   });
-  const { modelCatalog } = useModelMenuData();
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
@@ -590,8 +658,8 @@ export function EvaluatorSlotEditor({
           <Flex direction="column" gap="size-200">
             <TextField
               aria-label={`Evaluator ${slotId} name`}
-              value={state.evaluator.globalName}
-              onChange={state.setEvaluatorGlobalName}
+              value={globalName}
+              onChange={setEvaluatorGlobalName}
               isInvalid={saveError === NAME_REQUIRED_ERROR}
             >
               <Label>Name</Label>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1f3ec13ef6d112317abeb98e35506b7e>>
+ * @generated SignedSource<<9c46f5e42567f46be7735ddb74a944e1>>
  * @lightSyntaxTransform
  */
 
@@ -16,9 +16,10 @@ export type EvaluatorFilter = {
 };
 export type EvaluatorSlotQuery$variables = {
   filter?: EvaluatorFilter | null;
+  hasOpened: boolean;
 };
 export type EvaluatorSlotQuery$data = {
-  readonly evaluators: {
+  readonly evaluators?: {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly id: string;
@@ -40,6 +41,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "filter"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "hasOpened"
   }
 ],
 v1 = [
@@ -90,41 +96,48 @@ return {
     "name": "EvaluatorSlotQuery",
     "selections": [
       {
-        "alias": null,
-        "args": (v1/*:: as any*/),
-        "concreteType": "EvaluatorConnection",
-        "kind": "LinkedField",
-        "name": "evaluators",
-        "plural": false,
+        "condition": "hasOpened",
+        "kind": "Condition",
+        "passingValue": true,
         "selections": [
           {
             "alias": null,
-            "args": null,
-            "concreteType": "EvaluatorEdge",
+            "args": (v1/*:: as any*/),
+            "concreteType": "EvaluatorConnection",
             "kind": "LinkedField",
-            "name": "edges",
-            "plural": true,
+            "name": "evaluators",
+            "plural": false,
             "selections": [
               {
                 "alias": null,
                 "args": null,
-                "concreteType": null,
+                "concreteType": "EvaluatorEdge",
                 "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
+                "name": "edges",
+                "plural": true,
                 "selections": [
-                  (v2/*:: as any*/),
-                  (v3/*:: as any*/),
-                  (v4/*:: as any*/),
-                  (v5/*:: as any*/)
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "node",
+                    "plural": false,
+                    "selections": [
+                      (v2/*:: as any*/),
+                      (v3/*:: as any*/),
+                      (v4/*:: as any*/),
+                      (v5/*:: as any*/)
+                    ],
+                    "storageKey": null
+                  }
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
           }
-        ],
-        "storageKey": null
+        ]
       }
     ],
     "type": "Query",
@@ -137,62 +150,69 @@ return {
     "name": "EvaluatorSlotQuery",
     "selections": [
       {
-        "alias": null,
-        "args": (v1/*:: as any*/),
-        "concreteType": "EvaluatorConnection",
-        "kind": "LinkedField",
-        "name": "evaluators",
-        "plural": false,
+        "condition": "hasOpened",
+        "kind": "Condition",
+        "passingValue": true,
         "selections": [
           {
             "alias": null,
-            "args": null,
-            "concreteType": "EvaluatorEdge",
+            "args": (v1/*:: as any*/),
+            "concreteType": "EvaluatorConnection",
             "kind": "LinkedField",
-            "name": "edges",
-            "plural": true,
+            "name": "evaluators",
+            "plural": false,
             "selections": [
               {
                 "alias": null,
                 "args": null,
-                "concreteType": null,
+                "concreteType": "EvaluatorEdge",
                 "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
+                "name": "edges",
+                "plural": true,
                 "selections": [
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "node",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "__typename",
+                        "storageKey": null
+                      },
+                      (v2/*:: as any*/),
+                      (v3/*:: as any*/),
+                      (v4/*:: as any*/),
+                      (v5/*:: as any*/)
+                    ],
                     "storageKey": null
-                  },
-                  (v2/*:: as any*/),
-                  (v3/*:: as any*/),
-                  (v4/*:: as any*/),
-                  (v5/*:: as any*/)
+                  }
                 ],
                 "storageKey": null
               }
             ],
             "storageKey": null
           }
-        ],
-        "storageKey": null
+        ]
       }
     ]
   },
   "params": {
-    "cacheID": "8229bad49093288bbe5eb811b89bc300",
+    "cacheID": "efbcc18548aa9795008a063023829309",
     "id": null,
     "metadata": {},
     "name": "EvaluatorSlotQuery",
     "operationKind": "query",
-    "text": "query EvaluatorSlotQuery(\n  $filter: EvaluatorFilter\n) {\n  evaluators(first: 50, filter: $filter) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        kind\n        isBuiltin\n      }\n    }\n  }\n}\n"
+    "text": "query EvaluatorSlotQuery(\n  $filter: EvaluatorFilter\n  $hasOpened: Boolean!\n) {\n  evaluators(first: 50, filter: $filter) @include(if: $hasOpened) {\n    edges {\n      node {\n        __typename\n        id\n        name\n        kind\n        isBuiltin\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "180627d2dc37b9ebf5d14bec88bcedb9";
+(node as any).hash = "3a6a5ec5711469642ab28b39c95bb9b7";
 
 export default node;
