@@ -8,7 +8,7 @@
       "name": "arize-phoenix",
       "source": {
         "source": "local",
-        "path": "./plugins/arize-phoenix"
+        "path": "./plugins/codex/arize-phoenix"
       },
       "policy": {
         "installation": "AVAILABLE",
