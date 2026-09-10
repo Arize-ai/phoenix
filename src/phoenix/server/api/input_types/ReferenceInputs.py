@@ -6,9 +6,9 @@ from strawberry.relay import GlobalID
 
 
 @strawberry.input(one_of=True)
-class SpanIdentifierInput:
+class SpanReferenceInput:
     id: Optional[GlobalID] = strawberry.field(
-        default=UNSET, description="The span's Phoenix Relay node ID."
+        default=UNSET, description="The span's Phoenix node ID."
     )
     otel_id: Optional[str] = strawberry.field(
         default=UNSET, description="The span's OpenTelemetry span ID, matched exactly."
@@ -23,9 +23,9 @@ class SpanIdentifierInput:
 
 
 @strawberry.input(one_of=True)
-class TraceIdentifierInput:
+class TraceReferenceInput:
     id: Optional[GlobalID] = strawberry.field(
-        default=UNSET, description="The trace's Phoenix Relay node ID."
+        default=UNSET, description="The trace's Phoenix node ID."
     )
     otel_id: Optional[str] = strawberry.field(
         default=UNSET, description="The trace's OpenTelemetry trace ID, matched exactly."
@@ -40,9 +40,9 @@ class TraceIdentifierInput:
 
 
 @strawberry.input(one_of=True)
-class ProjectSessionIdentifierInput:
+class ProjectSessionReferenceInput:
     id: Optional[GlobalID] = strawberry.field(
-        default=UNSET, description="The session's Phoenix Relay node ID."
+        default=UNSET, description="The session's Phoenix node ID."
     )
     session_id: Optional[str] = strawberry.field(
         default=UNSET,

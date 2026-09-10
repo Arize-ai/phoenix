@@ -24,17 +24,17 @@ Resolver = Callable[[AsyncSession, Sequence[GlobalID | str]], Awaitable[list[int
         (
             "createSpanNotes",
             "[CreateSpanNoteInput!]!",
-            [{"target": {"otelId": "span"}, "source": "APP", "note": "review"}],
+            [{"span": {"otelId": "span"}, "source": "APP", "note": "review"}],
         ),
         (
             "createTraceNotes",
             "[CreateTraceNoteInput!]!",
-            [{"target": {"otelId": "trace"}, "source": "APP", "note": "review"}],
+            [{"trace": {"otelId": "trace"}, "source": "APP", "note": "review"}],
         ),
         (
             "createProjectSessionNotes",
             "[CreateProjectSessionNoteInput!]!",
-            [{"target": {"sessionId": "session"}, "source": "APP", "note": "review"}],
+            [{"session": {"sessionId": "session"}, "source": "APP", "note": "review"}],
         ),
         (
             "createProjectSessionAnnotations",
@@ -237,11 +237,11 @@ async def test_resolve_rowids_rejects_global_id_of_wrong_type(
 
 
 @pytest.mark.parametrize(
-    "mutation_name, input_type, external_field",
+    "mutation_name, input_type, reference_field, external_field",
     [
-        ("createSpanNotes", "CreateSpanNoteInput", "otelId"),
-        ("createTraceNotes", "CreateTraceNoteInput", "otelId"),
-        ("createProjectSessionNotes", "CreateProjectSessionNoteInput", "sessionId"),
+        ("createSpanNotes", "CreateSpanNoteInput", "span", "otelId"),
+        ("createTraceNotes", "CreateTraceNoteInput", "trace", "otelId"),
+        ("createProjectSessionNotes", "CreateProjectSessionNoteInput", "session", "sessionId"),
     ],
 )
 @pytest.mark.parametrize(
@@ -257,6 +257,7 @@ async def test_note_target_requires_exactly_one_non_null_identifier(
     gql_client: AsyncGraphQLClient,
     mutation_name: str,
     input_type: str,
+    reference_field: str,
     external_field: str,
     invalid_target: str,
     expected_error: str,
@@ -276,7 +277,7 @@ async def test_note_target_requires_exactly_one_non_null_identifier(
         {
             "input": [
                 {
-                    "target": targets[invalid_target],
+                    reference_field: targets[invalid_target],
                     "annotatorKind": "HUMAN",
                     "source": "APP",
                     "note": "review",
@@ -320,13 +321,13 @@ async def test_session_note_target_preserves_literal_session_id(
         {
             "input": [
                 {
-                    "target": {"sessionId": raw_id},
+                    "session": {"sessionId": raw_id},
                     "annotatorKind": "HUMAN",
                     "source": "APP",
                     "note": "raw session",
                 },
                 {
-                    "target": {"id": str(GlobalID("ProjectSession", str(first.id)))},
+                    "session": {"id": str(GlobalID("ProjectSession", str(first.id)))},
                     "annotatorKind": "HUMAN",
                     "source": "APP",
                     "note": "node session",

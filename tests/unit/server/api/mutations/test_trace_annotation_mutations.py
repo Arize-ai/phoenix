@@ -343,13 +343,13 @@ class TestTraceNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"id": str(GlobalID("Trace", str(_trace_data.id)))},
+                        "trace": {"id": str(GlobalID("Trace", str(_trace_data.id)))},
                         "annotatorKind": annotator_kind,
                         "source": source,
                         "note": " node note ",
                     },
                     {
-                        "target": {"otelId": _trace_data.trace_id},
+                        "trace": {"otelId": _trace_data.trace_id},
                         "annotatorKind": annotator_kind,
                         "source": source,
                         "note": "OTel note",
@@ -397,34 +397,34 @@ class TestTraceNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"id": node_id},
+                        "trace": {"id": node_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "draft",
                         "identifier": "coding",
                     },
                     {
-                        "target": {"otelId": external_id},
+                        "trace": {"otelId": external_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "anonymous first",
                     },
                     {
-                        "target": {"otelId": external_id},
+                        "trace": {"otelId": external_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "other",
                         "identifier": "other",
                     },
                     {
-                        "target": {"otelId": external_id},
+                        "trace": {"otelId": external_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "final",
                         "identifier": " coding ",
                     },
                     {
-                        "target": {"id": node_id},
+                        "trace": {"id": node_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "anonymous second",
@@ -458,7 +458,7 @@ class TestTraceNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": _trace_data.trace_id},
+                        "trace": {"otelId": _trace_data.trace_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "first",
@@ -471,7 +471,7 @@ class TestTraceNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": _trace_data.trace_id},
+                        "trace": {"otelId": _trace_data.trace_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "second",
@@ -484,7 +484,7 @@ class TestTraceNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": _trace_data.trace_id},
+                        "trace": {"otelId": _trace_data.trace_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "draft",
@@ -498,7 +498,7 @@ class TestTraceNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": _trace_data.trace_id},
+                        "trace": {"otelId": _trace_data.trace_id},
                         "annotatorKind": "LLM",
                         "source": "API",
                         "note": "final",
@@ -540,7 +540,7 @@ class TestTraceNoteMutations:
         assert [note.source for note in notes if note.identifier == "coding"] == ["API"]
 
     @pytest.mark.parametrize(
-        "target, expected_message",
+        "trace_reference, expected_message",
         [
             pytest.param(
                 {"otelId": "missing-trace"}, "Could not find traces", id="missing-otel-id"
@@ -559,14 +559,19 @@ class TestTraceNoteMutations:
         self,
         _trace_data: models.Trace,
         gql_client: AsyncGraphQLClient,
-        target: dict[str, str],
+        trace_reference: dict[str, str],
         expected_message: str,
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": target, "annotatorKind": "HUMAN", "source": "APP", "note": "review"}
+                    {
+                        "trace": trace_reference,
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "review",
+                    }
                 ]
             },
         )
@@ -585,7 +590,7 @@ class TestTraceNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": _trace_data.trace_id},
+                        "trace": {"otelId": _trace_data.trace_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": " \t ",
@@ -609,7 +614,7 @@ class TestTraceNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": _trace_data.trace_id},
+                        "trace": {"otelId": _trace_data.trace_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "keep until valid delete",
@@ -689,7 +694,7 @@ class TestTraceNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": _trace_data.trace_id},
+                        "trace": {"otelId": _trace_data.trace_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "protected",
