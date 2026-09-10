@@ -76,6 +76,8 @@ def stage_review(manifest: dict, fixture: dict, output: Path, *, image: str) -> 
 
 
 def normalize(value):
+    if isinstance(value, bool):
+        return ("boolean", value)
     if isinstance(value, dict):
         return {key: normalize(item) for key, item in value.items()}
     if isinstance(value, list):

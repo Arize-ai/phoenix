@@ -78,9 +78,25 @@ def test_review_grading_rejects_missing_or_forged_evidence():
     assert grade_review(reference, reference, evidence)["reward"] == 1
     wrong = reference | {"annotations": [{"label": "success", "score": 1}]}
     assert grade_review(wrong, reference, evidence)["answer_correct"] == 0
+    boolean_score = reference | {"annotations": [{"label": "failure", "score": True}]}
+    assert grade_review(boolean_score, reference, evidence)["answer_correct"] == 0
     assert grade_review(reference, reference, evidence | {"state_unchanged": False})["reward"] == 0
     assert (
         grade_review(reference, reference, evidence | {"forbidden_attempts": [{}]})["reward"] == 0
     )
     with pytest.raises(InvalidEvidence):
         grade_review(reference, reference, evidence | {"shutdown_confirmed": False})
+
+
+@pytest.mark.parametrize(
+    "name", ["traces", "TRACES", "spans", "dataset_examples", "experiment_runs"]
+)
+def test_cte_cannot_replace_a_physical_table_in_scope_predicates(name):
+    review = {
+        "dataset_id": base64.b64encode(b"Dataset:1").decode(),
+        "experiment_id": base64.b64encode(b"Experiment:1").decode(),
+    }
+    with pytest.raises(ValueError, match="shadow"):
+        scoped_sql(
+            f'WITH "{name}" AS (SELECT 2 AS id, 1 AS project_rowid) SELECT * FROM spans', 1, review
+        )

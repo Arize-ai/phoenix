@@ -276,3 +276,8 @@ assert all(checks.values()), checks
             (self.trusted / "shutdown.json").write_text(
                 json.dumps({"containers": self.container_ids, "confirmed": True})
             )
+        # Stopped containers retain their files without reserving Docker subnets.
+        network = json.loads(await docker("network", "inspect", self.internal_network))[0]
+        if network.get("Containers"):
+            raise RuntimeError("Smoke network still has active containers after shutdown")
+        await docker("network", "rm", self.internal_network)

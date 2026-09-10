@@ -1,4 +1,4 @@
-"""Run one count task per agent/interface condition, without retries or repetition."""
+"""Run each selected smoke task once per condition, without automatic retries."""
 
 from __future__ import annotations
 
@@ -102,52 +102,55 @@ async def run_condition(condition: str, root: Path, tasks: list[Path], images: d
         env=gateway_env,
         stdout=subprocess.DEVNULL,
     )
-    os.environ["MCP_SMOKE_GATEWAY"] = gateway
-    os.environ["MCP_SMOKE_TRUSTED"] = str(trusted_root)
-    os.environ["MCP_SMOKE_PROVIDER"] = provider
-    os.environ["MCP_SMOKE_TARGET_AUDIT"] = str(target_audit)
-    os.environ["MCP_SMOKE_CLI_IMAGE"] = images["cli-broker"]["id"]
-    job_config, plugin_config = render_job(
-        condition,
-        tasks=tasks[0].parent,
-        target_endpoint="http://mcp-gateway:8080",
-        results_endpoint="http://localhost:6006",
-        job_name=root.name + "-" + condition,
-    )
-    job_config.jobs_dir = run_dir / "jobs"
-    job_config.datasets[0].task_names = [task.name for task in tasks]
-    job_config.environment.import_path = "smoke_environment:SmokeEnvironment"
-    job_config.environment.kwargs = {
-        "agent_image": images[condition]["id"],
-        "verifier_image": images["verifier"]["id"],
-    }
-    agent = job_config.agents[0]
-    agent.extra_allowed_hosts = ["mcp-gateway"]
-    agent.env |= {
-        key_name: "smoke-gateway-placeholder",
-        "ANTHROPIC_BASE_URL"
-        if provider == "anthropic"
-        else "OPENAI_BASE_URL": "http://mcp-gateway:8080/provider"
-        + ("/v1" if provider == "openai" else ""),
-    }
-    # Explicitly include image identity in the effective agent configuration
-    # that Phoenix uses to distinguish experiments.
-    agent.kwargs["smoke_image_id"] = images[condition]["id"]
-    if provider == "openai":
-        agent.kwargs["config"] |= {
-            "model_provider": "smoke",
-            "model_providers": {
-                "smoke": {
-                    "name": "Smoke inference gateway",
-                    "base_url": "http://mcp-gateway:8080/provider/v1",
-                    "wire_api": "responses",
-                    "env_key": "OPENAI_API_KEY",
-                    "supports_websockets": False,
-                }
-            },
-        }
-    (run_dir / "config.json").write_text(job_config.model_dump_json(indent=2))
     try:
+        os.environ["MCP_SMOKE_GATEWAY"] = gateway
+        os.environ["MCP_SMOKE_TRUSTED"] = str(trusted_root)
+        os.environ["MCP_SMOKE_PROVIDER"] = provider
+        os.environ["MCP_SMOKE_TARGET_AUDIT"] = str(target_audit)
+        os.environ["MCP_SMOKE_CLI_IMAGE"] = images["cli-broker"]["id"]
+        job_config, plugin_config = render_job(
+            condition,
+            tasks=tasks[0].parent,
+            target_endpoint="http://mcp-gateway:8080",
+            results_endpoint="http://localhost:6006",
+            job_name=root.name + "-" + condition,
+        )
+        job_config.jobs_dir = run_dir / "jobs"
+        plugin_config["experiment_name"] += (
+            " · Trace count" if tasks[0].name == "trace-count" else " · Fixture review"
+        )
+        job_config.datasets[0].task_names = [task.name for task in tasks]
+        job_config.environment.import_path = "smoke_environment:SmokeEnvironment"
+        job_config.environment.kwargs = {
+            "agent_image": images[condition]["id"],
+            "verifier_image": images["verifier"]["id"],
+        }
+        agent = job_config.agents[0]
+        agent.extra_allowed_hosts = ["mcp-gateway"]
+        agent.env |= {
+            key_name: "smoke-gateway-placeholder",
+            "ANTHROPIC_BASE_URL"
+            if provider == "anthropic"
+            else "OPENAI_BASE_URL": "http://mcp-gateway:8080/provider"
+            + ("/v1" if provider == "openai" else ""),
+        }
+        # Explicitly include image identity in the effective agent configuration
+        # that Phoenix uses to distinguish experiments.
+        agent.kwargs["smoke_image_id"] = images[condition]["id"]
+        if provider == "openai":
+            agent.kwargs["config"] |= {
+                "model_provider": "smoke",
+                "model_providers": {
+                    "smoke": {
+                        "name": "Smoke inference gateway",
+                        "base_url": "http://mcp-gateway:8080/provider/v1",
+                        "wire_api": "responses",
+                        "env_key": "OPENAI_API_KEY",
+                        "supports_websockets": False,
+                    }
+                },
+            }
+        (run_dir / "config.json").write_text(job_config.model_dump_json(indent=2))
         job = await Job.create(job_config)
 
         async def prepare_verifier(event):

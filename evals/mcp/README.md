@@ -14,7 +14,7 @@ Run commands from the repository root:
 make mcp-setup
 make install-python
 make mcp-smoke-images
-make mcp-test mcp-smoke-boundary-test mcp-lint
+make mcp-test mcp-typecheck mcp-smoke-boundary-test mcp-lint
 ```
 
 The dedicated benchmark environment uses Harbor 0.22.0 and builds the Phoenix

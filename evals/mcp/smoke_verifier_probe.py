@@ -11,12 +11,20 @@ HERE = Path(__file__).resolve().parent
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("sample", type=Path)
+    parser.add_argument("--task", default="trace-count")
     args = parser.parse_args()
     condition = args.sample.resolve()
-    artifacts = list(condition.glob("jobs/*/trace-count*/artifacts"))
+    artifacts = [
+        path
+        for path in condition.glob("jobs/*/*/artifacts")
+        if path.parent.name.startswith(args.task + "__")
+    ]
     if len(artifacts) != 1:
         raise ValueError("Expected one existing trial")
-    output = condition / "verifier-probe"
+    trusted = condition / "trusted" / artifacts[0].parent.name
+    if not trusted.exists():
+        trusted = trusted.parent
+    output = condition / ("verifier-probe-" + args.task)
     output.mkdir(exist_ok=False)
     images = json.loads((HERE / ".runtime/smoke-images/images.json").read_text())
     subprocess.run(
@@ -28,7 +36,7 @@ def main():
             "--read-only",
             "--cap-drop=ALL",
             "-v",
-            f"{condition / 'trusted'}:/trusted:ro",
+            f"{trusted}:/trusted:ro",
             "-v",
             f"{artifacts[0]}:/workspace:ro",
             "-v",

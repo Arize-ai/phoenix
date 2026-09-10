@@ -2,7 +2,7 @@
 
 Uses the shared database. No copied database, altered schema, or replacement MCP
 tool definitions. The boundary applies to nested code-mode tool dispatch too.
-This initial boundary admits only the tracing reads needed by the count task.
+Tracing reads and optional dataset/experiment reads are restricted to fixture IDs.
 """
 
 from __future__ import annotations
@@ -65,6 +65,10 @@ def scoped_sql(sql: str, project_id: int, review: dict | None = None) -> str:
                 f"WHERE experiment_id = {experiment_id})"
             ),
         }
+    # Predicates refer to physical tables by name. A caller CTE with that name
+    # would redirect a predicate to fabricated rows instead of the fixture.
+    if any(cte.alias_or_name.casefold() in predicates for cte in root.find_all(exp.CTE)):
+        raise ValueError("CTE names must not shadow fixture tables")
     for scope in traverse_scope(root):
         for _, source in scope.selected_sources.values():
             if isinstance(source, exp.Table):
