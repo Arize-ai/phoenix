@@ -2179,6 +2179,8 @@ def _randomize_casing(email: str) -> str:
 _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/datasets/fake-id-{}/evaluators"),
     (422, "GET", "v1/dataset_evaluators/fake-id-{}"),
+    (404, "GET", "v1/projects/fake-id-{}/evaluators"),
+    (422, "GET", "v1/project_evaluators/fake-id-{}"),
     (422, "GET", "v1/evaluators/fake-id-{}"),
     # Projects
     (404, "GET", "v1/projects/fake-id-{}"),
@@ -2263,6 +2265,10 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "PATCH", "v1/dataset_evaluators/fake-id-{}"),
     (422, "DELETE", "v1/dataset_evaluators/fake-id-{}"),
     (422, "DELETE", "v1/dataset_evaluators"),
+    (422, "POST", "v1/projects/fake-id-{}/evaluators"),
+    (422, "PATCH", "v1/project_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/project_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/project_evaluators"),
     (422, "PATCH", "v1/evaluators/fake-id-{}"),
     (422, "POST", "v1/evaluators/fake-id-{}/versions"),
     # POST routes
