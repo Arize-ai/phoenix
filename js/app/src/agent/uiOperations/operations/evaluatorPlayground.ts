@@ -103,7 +103,7 @@ export const configureEvaluatorPlaygroundOperation = defineUIOperation({
     sampleSize: z.number().int().min(1).max(500).optional(),
     compare: z.boolean().optional(),
     slots: z.array(slot).min(1).max(4).optional(),
-    filter: z.enum(["all", "unreviewed", "errors", "disagreements"]).optional(),
+    filter: z.enum(["all", "missing-expected", "errors", "disagreements"]).optional(),
     discardChanges: z.boolean().default(false),
   }),
 });

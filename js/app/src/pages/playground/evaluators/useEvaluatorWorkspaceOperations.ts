@@ -180,7 +180,7 @@ export function useEvaluatorWorkspaceOperations(state: {
           if (input.sampleSize != null)
             next.set("sampleSize", String(input.sampleSize));
           setVisibleEvaluatorSlots(next, nextSlots);
-          if (input.filter) next.set("reviewFilter", input.filter);
+          if (input.filter) next.set("resultFilter", input.filter);
           return next;
         })
       );

@@ -684,8 +684,8 @@ export default function EvaluatorPlayground() {
               slots={slots}
               visibleSlotIds={visibleSlotIds}
               expected={expected}
-              filter={searchParams.get("reviewFilter") ?? "all"}
-              onFilterChange={(value) => changeParam("reviewFilter", value)}
+              filter={searchParams.get("resultFilter") ?? "all"}
+              onFilterChange={(value) => changeParam("resultFilter", value)}
               onReview={saveReview}
               savingId={savingId}
               reviewError={reviewError}
