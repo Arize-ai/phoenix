@@ -692,8 +692,8 @@ async def delete_spans(
     """Delete the spans matching this filter, standing down the evaluations of every
     session that loses content.
 
-    Removing a span changes what the session contains whether or not its trace survives,
-    so span deletion stands down the same way trace deletion does. See `delete_traces`.
+    Removing a span changes what its session contains, so span deletion stands down session
+    evaluations. Trace evaluations remain records of what was evaluated.
     """
     while span_rowids := tuple(
         await session.scalars(

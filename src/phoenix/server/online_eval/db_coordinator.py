@@ -279,7 +279,12 @@ class DbEvalWorkCoordinator:
             if identity is None:
                 raise PublicationClaimLostError(f"work unit {work_unit_id} no longer exists")
 
-            # Match `delete_traces`: session locks must precede trace locks.
+            # Publication lock order:
+            # - SPAN/SESSION: evaluator -> session -> work unit.
+            # - TRACE: evaluator -> trace -> work unit; never the trace's session.
+            # Both are compatible with `delete_traces`, whose entity order is session -> trace.
+            # Exception: the sweep reaps lapsed leases (work-unit locks) before locking evaluators.
+            # Exception: per-span ingest widens the trace before the session.
             project_evaluator_enabled = await session.scalar(
                 select(models.ProjectEvaluator.enabled)
                 .where(models.ProjectEvaluator.id == identity.project_evaluator_id)
