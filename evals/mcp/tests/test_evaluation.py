@@ -63,7 +63,7 @@ def test_renderer_preserves_parallel_results_errors_and_contradictions():
         sql_measurements(
             [{"operation": "executeSql", "outcome": "success", "error_envelope": True}]
         )["sql_succeeded"]
-        == 0
+        is None
     )
 
 
@@ -162,3 +162,31 @@ def test_compound_filters_and_missing_reward_cost_accounting():
 def test_report_cannot_silently_drop_unmapped_planned_trials():
     with pytest.raises(ValueError, match="missing task metadata"):
         summarize([], [{"task_id": "unknown", "trial_id": "1"}], filters={})
+
+
+def test_sql_measurements_require_correlated_completed_operations():
+    events = []
+    for call_id, operation, error in [
+        ("a", "executeSql", False),
+        ("b", "executeSql", True),
+        ("c", "describeSqlSchema", False),
+    ]:
+        event = {"operation": operation, "call_id": call_id}
+        events += [
+            event | {"phase": "started"},
+            event
+            | {
+                "phase": "completed",
+                "outcome": "error" if error else "success",
+                "error_envelope": error,
+            },
+        ]
+    assert sql_measurements(events) == {
+        "sql_attempted": 2,
+        "sql_succeeded": 1,
+        "schema_inspected": 1,
+        "sql_measurement_complete": 1,
+    }
+    for incomplete in [events[:-1], events + [events[0]], [{"kind": "sql", "sql": "SELECT 1"}]]:
+        assert sql_measurements(incomplete)["sql_measurement_complete"] == 0
+        assert sql_measurements(incomplete)["sql_succeeded"] is None
