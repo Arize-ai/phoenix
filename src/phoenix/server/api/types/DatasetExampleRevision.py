@@ -7,7 +7,7 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.db import models
-from phoenix.server.api.helpers.evaluator_calibration import valid_calibration_outputs
+from phoenix.server.api.helpers.evaluator_calibration import get_expected_outputs
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 
 
@@ -45,11 +45,7 @@ class DatasetExampleRevision(ExampleRevision):
                 score=value.get("score"),
                 explanation=value.get("explanation"),
             )
-            for name, value in valid_calibration_outputs(
-                cast(dict[str, Any], self.input),
-                cast(dict[str, Any], self.output),
-                cast(dict[str, Any], self.metadata),
-            ).items()
+            for name, value in get_expected_outputs(cast(dict[str, Any], self.metadata)).items()
         ]
 
     @classmethod
