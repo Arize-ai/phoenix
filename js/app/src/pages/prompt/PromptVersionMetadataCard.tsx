@@ -23,7 +23,7 @@ export function PromptVersionMetadataCard({
     <Card
       title="Metadata"
       collapsible
-      data-testid="prompt-version-metadata-card"
+      testId="prompt-version-metadata-card"
       extra={<CopyToClipboardButton text={metadataJSON} />}
     >
       <JSONBlock value={metadataJSON} />
