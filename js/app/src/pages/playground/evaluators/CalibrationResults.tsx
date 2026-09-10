@@ -20,6 +20,7 @@ import {
   SegmentedControl,
   SegmentedControlItem,
   Loading,
+  NumberField,
   PopoverArrow,
   Text,
   TextField,
@@ -38,10 +39,7 @@ import {
 import { JSONBlock } from "@phoenix/components/code";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
-import {
-  inlineDividerCSS,
-  quietHoverCSS,
-} from "@phoenix/components/core/styles";
+import { inlineDividerCSS } from "@phoenix/components/core/styles";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { CellTop } from "@phoenix/components/table";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -51,14 +49,16 @@ import { PlaygroundErrorWrap } from "../PlaygroundErrorWrap";
 import type {
   CalibrationExample,
   CalibrationPrediction,
+  CalibrationResult,
   CalibrationRun,
   ExpectedOutput,
+  ExpectedVerdict,
   SlotExpectations,
 } from "./calibration";
-import { matchesExpectedOutput } from "./calibration";
+import { getExpectedOutputIssue, getExpectedVerdict } from "./calibration";
 import { CalibrationResultsTable } from "./CalibrationResultsTable";
 import { CalibrationSelect } from "./CalibrationSelect";
-import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
+import type { SlotId, SlotOutput, SlotSnapshot } from "./evaluatorSlotTypes";
 import { getSlotIndex } from "./evaluatorSlotTypes";
 
 const NO_VALUE = "—";
@@ -78,6 +78,8 @@ export function CalibrationResults(
     expected: props.expected,
     filter: props.filter,
     staleSlots: props.staleSlots,
+    isRunning: props.isRunning,
+    runnableSlots: props.runnableSlots,
   };
   const [snapshot, setSnapshot] = useState(nextSnapshot);
   if (!props.isLoading && !shallow(snapshot, nextSnapshot)) {
@@ -139,6 +141,10 @@ function CalibrationResultsContent({
   filter,
   onFilterChange,
   onReview,
+  isRunning,
+  runnableSlots,
+  onRunSlot,
+  onRunExample,
   savingId,
   reviewError,
   staleSlots,
@@ -159,6 +165,14 @@ function CalibrationResultsContent({
     slot: SlotId,
     output: ExpectedOutput | null
   ) => Promise<UIOperationResult>;
+  /** Any slot is executing; every play control waits for it to finish. */
+  isRunning: boolean;
+  /** Slots whose draft is complete enough to execute. */
+  runnableSlots: SlotId[];
+  /** Run one evaluator over the whole sample (the column's play button). */
+  onRunSlot: (slot: SlotId) => void;
+  /** Run every evaluator on one example (the row's play button). */
+  onRunExample: (exampleId: string) => void;
   savingId: string | null;
   reviewError: string | null;
   staleSlots: string[];
@@ -168,6 +182,16 @@ function CalibrationResultsContent({
   const positions = new Map(
     examples.map((example, index) => [example.id, index + 1])
   );
+  const selectedOutput = (slot: SlotId) =>
+    slots[slot]?.outputNames.find(
+      (output) => output.name === slots[slot]?.selectedOutputName
+    );
+  const verdictFor = (slot: SlotId, example: CalibrationExample) =>
+    getExpectedVerdict({
+      prediction: runs[slot]?.predictions[example.id],
+      expected: expected[slot]?.[example.id],
+      output: selectedOutput(slot),
+    });
   const views = [
     { id: "all", label: "All", examples },
     {
@@ -187,21 +211,34 @@ function CalibrationResultsContent({
       ),
     },
     {
+      // Anything the expectation can't be squared with: a result that differs
+      // from it, or an expectation the output config can no longer produce.
       id: "disagreements",
       label: "Mismatches",
       examples: examples.filter((example) =>
         visibleSlotIds.some((slot) => {
-          const output = expected[slot]?.[example.id];
-          const prediction = runs[slot]?.predictions[example.id];
-          return (
-            output && prediction && !matchesExpectedOutput(prediction, output)
-          );
+          const verdict = verdictFor(slot, example);
+          return verdict === "mismatch" || verdict === "invalid";
         })
       ),
     },
   ];
   const activeView = views.find((view) => view.id === filter) ?? views[0];
+  const canRunRows =
+    !isLoading &&
+    !isRunning &&
+    visibleSlotIds.length > 0 &&
+    visibleSlotIds.every((slot) => runnableSlots.includes(slot));
   const columns: ColumnDef<unknown>[] = [
+    // The row's own column: its number, and the play button that runs every
+    // evaluator on just this example.
+    {
+      id: "row",
+      header: () => <VisuallyHiddenHeader>Example</VisuallyHiddenHeader>,
+      size: ROW_COLUMN_WIDTH,
+      minSize: ROW_COLUMN_WIDTH,
+      enableResizing: false,
+    },
     { id: "input", header: "Input", size: 300, minSize: 200 },
     { id: "output", header: "Output", size: 300, minSize: 200 },
     ...visibleSlotIds.map((slot) => ({
@@ -214,7 +251,10 @@ function CalibrationResultsContent({
           name={slots[slot]?.name}
           run={runs[slot]}
           expected={expected[slot]}
+          output={selectedOutput(slot)}
           examples={examples}
+          canRun={!isLoading && !isRunning && runnableSlots.includes(slot)}
+          onRun={() => onRunSlot(slot)}
         />
       ),
     })),
@@ -301,7 +341,7 @@ function CalibrationResultsContent({
           {isLoading && !examples.length ? (
             <tbody>
               <tr>
-                <td colSpan={visibleSlotIds.length + 2}>
+                <td colSpan={visibleSlotIds.length + 3}>
                   <View paddingY="size-200">
                     <Loading size="S" />
                   </View>
@@ -322,6 +362,16 @@ function CalibrationResultsContent({
                 const position = positions.get(example.id)!;
                 return (
                   <tr key={example.id}>
+                    <td className="table__cell results-table__row-cell">
+                      <RowCell
+                        position={position}
+                        isPending={visibleSlotIds.some((slot) =>
+                          runs[slot]?.queued.includes(example.id)
+                        )}
+                        canRun={canRunRows}
+                        onRun={() => onRunExample(example.id)}
+                      />
+                    </td>
                     <td className="table__cell results-table__example-cell">
                       <ExampleFieldCell
                         label="input"
@@ -352,24 +402,16 @@ function CalibrationResultsContent({
                           position={position}
                           result={runs[slot]?.predictions[example.id]}
                           isLoading={isLoading}
-                          isPending={
-                            !!runs[slot]?.isRunning &&
-                            !runs[slot]?.predictions[example.id]
-                          }
+                          isPending={!!runs[slot]?.queued.includes(example.id)}
                           expected={expected[slot]?.[example.id]}
-                          labels={
-                            slots[slot]?.outputNames.find(
-                              (output) =>
-                                output.name === slots[slot]?.selectedOutputName
-                            )?.labels ?? []
-                          }
+                          output={selectedOutput(slot)}
+                          slotRevision={slots[slot]?.revision}
                           isDisabled={
                             isLoading ||
                             savingId != null ||
                             !slots[slot]?.selectedOutputName
                           }
                           isSaving={savingId === example.id}
-                          isStale={staleSlots.includes(slot)}
                           onSave={(output) => onReview(example, slot, output)}
                         />
                       </td>
@@ -385,43 +427,160 @@ function CalibrationResultsContent({
   );
 }
 
+// Wide enough for a two-digit row number over a small play button.
+const ROW_COLUMN_WIDTH = 48;
+
+/** A column header for a column whose meaning is carried by its cells. */
+function VisuallyHiddenHeader({ children }: { children: ReactNode }) {
+  return <span css={visuallyHiddenCSS}>{children}</span>;
+}
+
+const visuallyHiddenCSS = css`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+`;
+
 /**
- * An evaluator's column header: who it is, and how it is doing against the
- * expected outputs reviewed so far. Keeping the metrics here means they scale
- * with the number of evaluators instead of crowding a shared summary strip.
+ * The leading cell of a row: its number, and a play button — shown on hover,
+ * like the row actions elsewhere in the app — that runs every evaluator on
+ * this one example. Together with the play in each evaluator's column header
+ * this makes the direction of a run visible: down a column, or across a row.
+ */
+function RowCell({
+  position,
+  isPending,
+  canRun,
+  onRun,
+}: {
+  position: number;
+  /** A run is still waiting on this row in at least one column. */
+  isPending: boolean;
+  canRun: boolean;
+  onRun: () => void;
+}) {
+  return (
+    <Flex
+      direction="column"
+      alignItems="center"
+      gap="size-100"
+      css={rowCellCSS}
+    >
+      <Text size="S" color="text-500" fontFamily="mono">
+        {position}
+      </Text>
+      {isPending ? (
+        <ProgressCircle isIndeterminate size="S" aria-label="Running" />
+      ) : (
+        <span className="results-table__row-play">
+          <TooltipTrigger>
+            <IconButton
+              size="S"
+              aria-label={`Run evaluators on example ${position}`}
+              isDisabled={!canRun}
+              onPress={onRun}
+            >
+              <Icon svg={<Icons.Play />} />
+            </IconButton>
+            <Tooltip>
+              <TooltipArrow />
+              Run evaluators on this example
+            </Tooltip>
+          </TooltipTrigger>
+        </span>
+      )}
+    </Flex>
+  );
+}
+
+const rowCellCSS = css`
+  padding-top: var(--global-dimension-size-100);
+`;
+
+/**
+ * An evaluator's column header: who it is, how it is doing against the
+ * expected outputs so far, and the play button that runs it down the whole
+ * sample. Keeping the metrics here means they scale with the number of
+ * evaluators instead of crowding a shared summary strip.
  */
 function EvaluatorColumnHeader({
   slot,
   name,
   run,
   expected,
+  output,
   examples,
+  canRun,
+  onRun,
 }: {
   slot: SlotId;
   name?: string;
   run?: CalibrationRun;
   expected?: Partial<Record<string, ExpectedOutput>>;
+  output?: SlotOutput;
   examples: CalibrationExample[];
+  canRun: boolean;
+  onRun: () => void;
 }) {
-  const reviewed = examples.filter((example) => expected?.[example.id]);
-  const matches = reviewed.filter((example) =>
-    matchesExpectedOutput(run?.predictions[example.id], expected![example.id]!)
-  ).length;
-  // Agreement is counted over reviewed examples only, so say so: "2/2 agree"
-  // can't be mistaken for a share of the whole sample.
+  // Examples with a persisted expected output. This is dataset state, so it
+  // survives a reload while run results do not — hence "with expected", not
+  // "reviewed", which would imply someone looked at this run.
+  const withExpected = examples.filter((example) => expected?.[example.id]);
+  // Agreement is counted over examples whose expectation the output config
+  // can still produce, and says so: "2/2 agree" can't be mistaken for a share
+  // of the whole sample.
+  const verdicts = withExpected.map((example) =>
+    getExpectedVerdict({
+      prediction: run?.predictions[example.id],
+      expected: expected?.[example.id],
+      output,
+    })
+  );
+  const graded = verdicts.filter((verdict) => verdict !== "invalid");
+  const matches = graded.filter((verdict) => verdict === "match").length;
   const agreement =
-    run && reviewed.length ? `${matches}/${reviewed.length} agree` : null;
+    run && graded.length ? `${matches}/${graded.length} agree` : null;
   return (
-    <Flex direction="column" gap="size-25" minWidth={0}>
-      <Flex direction="row" gap="size-100" alignItems="center">
-        <AlphabeticIndexIcon index={getSlotIndex(slot)} size="XS" />
-        <Truncate maxWidth="100%">{name || `Evaluator ${slot}`}</Truncate>
-        {run?.isRunning ? <ProgressCircle isIndeterminate size="S" /> : null}
+    <Flex
+      direction="row"
+      gap="size-100"
+      alignItems="start"
+      justifyContent="space-between"
+      minWidth={0}
+    >
+      <Flex direction="column" gap="size-25" minWidth={0}>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <AlphabeticIndexIcon index={getSlotIndex(slot)} size="XS" />
+          <Truncate maxWidth="100%">{name || `Evaluator ${slot}`}</Truncate>
+        </Flex>
+        <Text size="XS" color="text-500" weight="normal">
+          {withExpected.length}/{examples.length} with expected
+          {agreement ? ` · ${agreement}` : ""}
+        </Text>
       </Flex>
-      <Text size="XS" color="text-500" weight="normal">
-        {reviewed.length}/{examples.length} with expected
-        {agreement ? ` · ${agreement}` : ""}
-      </Text>
+      {run?.isRunning ? (
+        <View flex="none" paddingY="size-50">
+          <ProgressCircle isIndeterminate size="S" aria-label="Running" />
+        </View>
+      ) : (
+        <TooltipTrigger>
+          <IconButton
+            size="S"
+            aria-label={`Run evaluator ${slot} on all examples`}
+            isDisabled={!canRun}
+            onPress={onRun}
+          >
+            <Icon svg={<Icons.Play />} />
+          </IconButton>
+          <Tooltip>
+            <TooltipArrow />
+            Run evaluator {slot} on all examples
+          </Tooltip>
+        </TooltipTrigger>
+      )}
     </Flex>
   );
 }
@@ -429,9 +588,11 @@ function EvaluatorColumnHeader({
 /**
  * One evaluator's result for one example, rendered the way experiment rows
  * render annotations: a quiet label · score value with the details in a rich
- * tooltip, and the expected output as a muted second line. Clicking the value
- * opens the expected-output editor; accepting the prediction as expected is the
- * one always-visible action, and only while the two disagree.
+ * tooltip and the explanation beneath, then the expected output as a band
+ * along the bottom. Grading happens against the result: thumbs up records it
+ * as the expected output, thumbs down opens the form to record what it should
+ * have been. The band shows what is recorded and, when it disagrees with the
+ * result, says so; pressing it opens the same form.
  */
 function EvaluatorCell({
   slot,
@@ -441,46 +602,41 @@ function EvaluatorCell({
   isLoading,
   isPending,
   expected,
-  labels,
+  output,
+  slotRevision,
   isDisabled,
   isSaving,
-  isStale,
   onSave,
 }: {
   slot: SlotId;
   name: string;
   position: number;
-  result?: CalibrationPrediction;
+  result?: CalibrationResult;
   isLoading: boolean;
   isPending: boolean;
   expected?: ExpectedOutput;
-  labels: string[];
+  /** The slot's selected output, which the expected output must fit. */
+  output?: SlotOutput;
+  /** The slot's current draft revision, to tell whether the result is stale. */
+  slotRevision?: string;
   isDisabled: boolean;
   isSaving: boolean;
-  /** The evaluator changed since this result was produced. */
-  isStale: boolean;
   onSave: (output: ExpectedOutput | null) => Promise<UIOperationResult>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   if (isLoading && isEditing) setIsEditing(false);
   const prediction = result?.status === "success" ? result : null;
-  const verdict =
-    prediction && expected
-      ? matchesExpectedOutput(prediction, expected)
-        ? "match"
-        : "mismatch"
-      : null;
+  const verdict = getExpectedVerdict({ prediction: result, expected, output });
+  const issue = expected ? getExpectedOutputIssue({ expected, output }) : null;
+  const isStale = !!result && result.revision !== slotRevision;
+  const canGrade = !!prediction && !isDisabled;
   const value = (
-    <button
-      className="button--reset"
-      css={valueButtonCSS}
-      aria-label={`Evaluator ${slot} result for example ${position}. Click to edit the expected output.`}
+    <span
+      css={valueCSS}
+      aria-label={`Evaluator ${slot} result for example ${position}`}
     >
-      <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
-        {verdict === "mismatch" ? <VerdictIcon verdict={verdict} /> : null}
-        <PredictionValue result={result} isPending={isPending} />
-      </Flex>
-    </button>
+      <PredictionValue result={result} isPending={isPending} />
+    </span>
   );
   return (
     <Flex
@@ -497,7 +653,13 @@ function EvaluatorCell({
         />
       </CellTop>
       <Flex direction="column" gap="size-50" css={resultRegionCSS}>
-        <DialogTrigger isOpen={isEditing} onOpenChange={setIsEditing}>
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          justifyContent="space-between"
+          minWidth={0}
+        >
           {prediction ? (
             <AnnotationTooltip
               annotation={{
@@ -510,27 +672,59 @@ function EvaluatorCell({
               <Pressable>{value}</Pressable>
             </AnnotationTooltip>
           ) : (
-            <Pressable>{value}</Pressable>
+            value
           )}
-          <Popover placement="bottom start">
-            <PopoverArrow />
-            <Dialog
-              aria-label={`Expected output for evaluator ${slot}`}
-              style={{ width: 320 }}
-            >
-              {isEditing ? (
-                <ExpectedOutputForm
-                  slot={slot}
-                  expected={expected}
-                  labels={labels}
-                  isDisabled={isDisabled}
-                  onSave={onSave}
-                  onClose={() => setIsEditing(false)}
-                />
-              ) : null}
-            </Dialog>
-          </Popover>
-        </DialogTrigger>
+          {/* Grade the result. Both stay in place and read their state from
+              the expected output, so agreeing twice clears it — an easy undo. */}
+          <Flex direction="row" gap="size-25" alignItems="center" flex="none">
+            <TooltipTrigger>
+              <IconButton
+                size="S"
+                color={verdict === "match" ? "success" : "text-500"}
+                aria-pressed={verdict === "match"}
+                isDisabled={!canGrade}
+                aria-label={
+                  verdict === "match"
+                    ? `Clear expected output for evaluator ${slot}, example ${position}`
+                    : `Agree with evaluator ${slot}'s result for example ${position}`
+                }
+                onPress={() => {
+                  if (verdict === "match") void onSave(null);
+                  else if (prediction)
+                    void onSave({
+                      label: prediction.label,
+                      score: prediction.score,
+                      explanation: prediction.explanation,
+                    });
+                }}
+              >
+                <Icon svg={<Icons.ThumbsUp />} />
+              </IconButton>
+              <Tooltip>
+                <TooltipArrow />
+                {verdict === "match"
+                  ? "Clear expected output"
+                  : "Agree: record this result as expected"}
+              </Tooltip>
+            </TooltipTrigger>
+            <TooltipTrigger>
+              <IconButton
+                size="S"
+                color={verdict === "mismatch" ? "danger" : "text-500"}
+                aria-pressed={verdict === "mismatch"}
+                isDisabled={!canGrade}
+                aria-label={`Disagree with evaluator ${slot}'s result for example ${position}`}
+                onPress={() => setIsEditing(true)}
+              >
+                <Icon svg={<Icons.ThumbsDown />} />
+              </IconButton>
+              <Tooltip>
+                <TooltipArrow />
+                Disagree: record what was expected
+              </Tooltip>
+            </TooltipTrigger>
+          </Flex>
+        </Flex>
         {prediction?.explanation ? (
           // Same treatment as the trace annotations list — muted, clamped,
           // full text on hover — but clamped to the room this row gives it.
@@ -545,66 +739,102 @@ function EvaluatorCell({
         ) : null}
       </Flex>
       {/* Always present, like the annotation band under a prompt playground
-          output: an unreviewed cell shows the same "--" placeholder that band
-          shows before an evaluator has run. */}
-      <div css={expectedBandCSS}>
-        <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
-          <Text size="XS" color="text-500">
-            expected
-          </Text>
-          {expected ? (
-            <CalibrationValue
-              label={expected.label}
-              score={expected.score}
-              size="S"
-            />
-          ) : (
-            <Text fontFamily="mono" color="text-300">
-              --
-            </Text>
-          )}
-        </Flex>
-        {/* One control in one place: pressed while the expected output is the
-            prediction, so pressing again clears it — an easy undo. */}
-        {isSaving ? (
-          <ProgressCircle isIndeterminate size="S" aria-label="Saving" />
-        ) : (
-          <TooltipTrigger>
-            <IconButton
-              size="S"
-              // Ghost like the other row actions; the pressed state is carried
-              // by the success color rather than a filled button.
-              color={verdict === "match" ? "success" : "text-500"}
-              aria-pressed={verdict === "match"}
-              isDisabled={isDisabled || (!prediction && verdict !== "match")}
-              aria-label={
-                verdict === "match"
-                  ? `Clear expected output for evaluator ${slot}, example ${position}`
-                  : `Accept evaluator ${slot}'s output as expected for example ${position}`
-              }
-              onPress={() => {
-                if (verdict === "match") void onSave(null);
-                else if (prediction)
-                  void onSave({
-                    label: prediction.label,
-                    score: prediction.score,
-                    explanation: prediction.explanation,
-                  });
-              }}
+          output: a cell with no expected output shows the same "--" placeholder
+          that band shows before an evaluator has run. The band is the editor's
+          trigger, so the form opens from it whether reached by press or by
+          thumbs down. */}
+      <DialogTrigger isOpen={isEditing} onOpenChange={setIsEditing}>
+        <Pressable>
+          <button
+            className="button--reset"
+            css={expectedBandCSS}
+            data-verdict={verdict ?? undefined}
+            disabled={isDisabled}
+            aria-label={`Expected output for evaluator ${slot}, example ${position}. Press to edit.`}
+          >
+            <Flex
+              direction="row"
+              gap="size-100"
+              alignItems="center"
+              minWidth={0}
             >
-              <Icon svg={<Icons.Checkmark />} />
-            </IconButton>
-            <Tooltip>
-              <TooltipArrow />
-              {verdict === "match"
-                ? "Clear expected output"
-                : "Accept as expected output"}
-            </Tooltip>
-          </TooltipTrigger>
-        )}
-      </div>
+              <Text size="XS" color="text-500">
+                expected
+              </Text>
+              {expected ? (
+                <CalibrationValue
+                  label={expected.label}
+                  score={expected.score}
+                  size="S"
+                />
+              ) : (
+                <Text fontFamily="mono" color="text-300">
+                  --
+                </Text>
+              )}
+            </Flex>
+            {isSaving ? (
+              <ProgressCircle isIndeterminate size="S" aria-label="Saving" />
+            ) : (
+              <ExpectedBandStatus verdict={verdict} issue={issue} />
+            )}
+          </button>
+        </Pressable>
+        <Popover placement="bottom start">
+          <PopoverArrow />
+          <Dialog
+            aria-label={`Expected output for evaluator ${slot}`}
+            style={{ width: 320 }}
+          >
+            {isEditing ? (
+              <ExpectedOutputForm
+                slot={slot}
+                expected={expected}
+                output={output}
+                isDisabled={isDisabled}
+                onSave={onSave}
+                onClose={() => setIsEditing(false)}
+              />
+            ) : null}
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
     </Flex>
   );
+}
+
+/**
+ * How the recorded expectation stands, shown on the band itself so the
+ * comparison reads where the expected value is rather than as a mark against
+ * the result: nothing while they agree, a note when they differ, and a warning
+ * when the output config can no longer produce the expected value.
+ */
+function ExpectedBandStatus({
+  verdict,
+  issue,
+}: {
+  verdict: ExpectedVerdict;
+  issue: string | null;
+}) {
+  if (verdict === "invalid")
+    return (
+      <span css={bandStatusCSS} title={issue ?? undefined}>
+        <Icon svg={<Icons.AlertTriangle />} />
+        <Text size="XS" color="inherit">
+          not in output config
+        </Text>
+      </span>
+    );
+  if (verdict === "mismatch")
+    return (
+      <span css={bandStatusCSS}>
+        <Icon svg={<Icons.AlertCircle />} />
+        <Text size="XS" color="inherit">
+          differs from result
+        </Text>
+      </span>
+    );
+  return null;
 }
 
 const resultRegionCSS = css`
@@ -614,55 +844,50 @@ const resultRegionCSS = css`
 
 // The band the experiment compare table draws under an output for its
 // annotation list: a faint fill with a hairline above, running edge to edge.
+// It is a button here, so it also takes the table's quiet hover wash.
 const expectedBandCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: var(--global-dimension-size-100);
+  width: 100%;
   min-height: 32px;
   padding: var(--global-dimension-size-50) var(--global-table-cell-padding-x);
   border-top: var(--global-border-size-thin) solid var(--global-color-gray-100);
   background-color: var(--global-color-gray-50);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  &:hover:not(:disabled),
+  &:focus-visible {
+    background-color: var(--global-color-gray-100);
+  }
+  &:focus-visible {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
+  }
+  &:disabled {
+    cursor: default;
+  }
 `;
 
-// The quiet hover wash the rest of the app uses for click-to-reveal text,
-// sized so the value sits flush with the accept button beside it.
-const valueButtonCSS = css`
-  ${quietHoverCSS};
+// The result value sits flush with the thumbs beside it.
+const valueCSS = css`
   display: flex;
   align-items: center;
   min-height: var(--global-button-height-s);
   min-width: 0;
-  text-align: left;
 `;
 
-const verdictIconCSS = css`
-  display: flex;
+// Warning-toned band note; the icon and text share the color.
+const bandStatusCSS = css`
+  display: inline-flex;
   flex: none;
-  &[data-verdict="match"] {
-    color: var(--global-color-success);
-  }
-  &[data-verdict="mismatch"] {
-    color: var(--global-color-danger);
-  }
+  align-items: center;
+  gap: var(--global-dimension-size-50);
+  color: var(--global-color-warning);
 `;
-
-/** Whether the prediction agrees with the expected output. */
-function VerdictIcon({ verdict }: { verdict: "match" | "mismatch" }) {
-  return (
-    <span
-      css={verdictIconCSS}
-      data-verdict={verdict}
-      role="img"
-      aria-label={
-        verdict === "match" ? "Matches expected" : "Differs from expected"
-      }
-    >
-      <Icon svg={verdict === "match" ? <Icons.Checkmark /> : <Icons.Close />} />
-    </span>
-  );
-}
 
 /**
  * A label · score pair in the annotation value style: the label in the body
@@ -707,57 +932,56 @@ const valuePartsCSS = css`
   min-width: 0;
 `;
 
-/** The expected-output editor shown inside a result's popover. */
+/**
+ * The expected-output editor shown in the band's popover. Its fields follow
+ * the slot's selected output config: a choice of that output's labels (with
+ * the label's configured score) for a categorical output, otherwise a score
+ * within the output's bounds and a free label.
+ */
 function ExpectedOutputForm({
   slot,
   expected,
-  labels,
+  output,
   isDisabled,
   onSave,
   onClose,
 }: {
   slot: SlotId;
   expected?: ExpectedOutput;
-  labels: string[];
+  output?: SlotOutput;
   isDisabled: boolean;
   onSave: (output: ExpectedOutput | null) => Promise<UIOperationResult>;
   onClose: () => void;
 }) {
   const [label, setLabel] = useState(expected?.label ?? "");
-  const [score, setScore] = useState(
-    expected?.score != null ? String(expected.score) : ""
-  );
+  const [score, setScore] = useState<number | null>(expected?.score ?? null);
   const [explanation, setExplanation] = useState(expected?.explanation ?? "");
-  const hasValue = label.trim() !== "" || score !== "";
-  const isValidScore = score === "" || Number.isFinite(Number(score));
-  async function save(output: ExpectedOutput | null) {
-    const result = await onSave(output);
+  const draft = getExpectedDraft({ label, score, output });
+  async function save(next: ExpectedOutput | null) {
+    const result = await onSave(next);
     if (result.ok) onClose();
   }
   return (
     <View padding="size-200">
       <Flex direction="column" gap="size-200">
         <Text weight="heavy">Expected output · {slot}</Text>
-        {labels.length ? (
-          <CalibrationSelect
-            label="Label"
-            value={label || "__none"}
-            options={[
-              { id: "__none", name: "No label" },
-              ...labels.map((name) => ({ id: name, name })),
-            ]}
-            onChange={(value) => setLabel(value === "__none" ? "" : value)}
+        {draft.isCategorical ? (
+          <CategoricalExpectedFields
+            labels={output?.labels ?? []}
+            label={label}
+            score={draft.score}
+            onChange={setLabel}
           />
         ) : (
-          <TextField value={label} onChange={setLabel}>
-            <Label>Label</Label>
-            <Input />
-          </TextField>
+          <ScoredExpectedFields
+            output={output}
+            label={label}
+            score={score}
+            isScoreInBounds={draft.isScoreInBounds}
+            onLabelChange={setLabel}
+            onScoreChange={setScore}
+          />
         )}
-        <TextField value={score} onChange={setScore} isInvalid={!isValidScore}>
-          <Label>Score</Label>
-          <Input inputMode="decimal" placeholder="Optional" />
-        </TextField>
         <TextField value={explanation} onChange={setExplanation}>
           <Label>Explanation</Label>
           <Input placeholder="Optional" />
@@ -776,11 +1000,11 @@ function ExpectedOutputForm({
           <Button
             size="S"
             variant="primary"
-            isDisabled={isDisabled || !hasValue || !isValidScore}
+            isDisabled={isDisabled || !draft.hasValue || !draft.isScoreInBounds}
             onPress={() =>
               void save({
                 label: label.trim() || null,
-                score: score === "" ? null : Number(score),
+                score: draft.score,
                 explanation: explanation.trim() || null,
               })
             }
@@ -790,6 +1014,112 @@ function ExpectedOutputForm({
         </Flex>
       </Flex>
     </View>
+  );
+}
+
+/**
+ * What the form would save, and whether it may: a categorical output takes
+ * the chosen label's configured score, anything else the typed score as long
+ * as it sits within the output's bounds.
+ */
+function getExpectedDraft({
+  label,
+  score,
+  output,
+}: {
+  label: string;
+  score: number | null;
+  output?: SlotOutput;
+}) {
+  const labels = output?.labels ?? [];
+  const isCategorical = labels.length > 0;
+  if (isCategorical)
+    return {
+      isCategorical,
+      score: output?.labelScores[label] ?? null,
+      hasValue: labels.includes(label),
+      isScoreInBounds: true,
+    };
+  const isScoreInBounds =
+    score == null ||
+    ((output?.lowerBound == null || score >= output.lowerBound) &&
+      (output?.upperBound == null || score <= output.upperBound));
+  return {
+    isCategorical,
+    score,
+    hasValue: label.trim() !== "" || score != null,
+    isScoreInBounds,
+  };
+}
+
+/** Pick one of the output's labels; its score comes from the config. */
+function CategoricalExpectedFields({
+  labels,
+  label,
+  score,
+  onChange,
+}: {
+  labels: string[];
+  label: string;
+  score: number | null;
+  onChange: (label: string) => void;
+}) {
+  return (
+    <Flex direction="column" gap="size-50">
+      <CalibrationSelect
+        label="Label"
+        value={label}
+        options={labels.map((name) => ({ id: name, name }))}
+        onChange={onChange}
+      />
+      {score != null ? (
+        <Text size="XS" color="text-500">
+          Scores {floatFormatter(score)} in this output config.
+        </Text>
+      ) : null}
+    </Flex>
+  );
+}
+
+/** A score within the output's bounds, and an optional free label. */
+function ScoredExpectedFields({
+  output,
+  label,
+  score,
+  isScoreInBounds,
+  onLabelChange,
+  onScoreChange,
+}: {
+  output?: SlotOutput;
+  label: string;
+  score: number | null;
+  isScoreInBounds: boolean;
+  onLabelChange: (label: string) => void;
+  onScoreChange: (score: number | null) => void;
+}) {
+  const hasBounds = output?.lowerBound != null || output?.upperBound != null;
+  return (
+    <>
+      <NumberField
+        value={score ?? NaN}
+        onChange={(next) => onScoreChange(Number.isNaN(next) ? null : next)}
+        minValue={output?.lowerBound ?? undefined}
+        maxValue={output?.upperBound ?? undefined}
+        isInvalid={!isScoreInBounds}
+      >
+        <Label>Score</Label>
+        <Input placeholder="Optional" />
+        {hasBounds ? (
+          <Text slot="description">
+            from {output?.lowerBound ?? "−∞"} to {output?.upperBound ?? "∞"}
+          </Text>
+        ) : null}
+      </NumberField>
+      <TextField value={label} onChange={onLabelChange}>
+        <Label>Label</Label>
+        <Input placeholder="Optional" />
+      </TextField>
+    </>
   );
 }
 
@@ -855,9 +1185,7 @@ function ExampleFieldCell({
           </DetailsPopover>
         }
       >
-        <Text color="text-500">
-          {label === "input" ? `example ${position}` : "output"}
-        </Text>
+        <Text color="text-500">{label}</Text>
       </CellTop>
       <ExpandableContent height={EXAMPLE_FIELD_HEIGHT}>
         <div css={exampleFieldContentCSS}>

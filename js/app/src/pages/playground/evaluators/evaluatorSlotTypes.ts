@@ -24,11 +24,26 @@ export function setVisibleEvaluatorSlots(
   slots.forEach((slot) => params.append("evaluatorSlot", slot));
 }
 
+/**
+ * One output of a slot's evaluator, reduced to what the results table needs
+ * to render and validate an expected output against it: the allowed labels
+ * and their configured scores for a categorical output, the bounds for a
+ * continuous one.
+ */
+export type SlotOutput = {
+  name: string;
+  labels: string[];
+  labelScores: Partial<Record<string, number>>;
+  lowerBound: number | null;
+  upperBound: number | null;
+};
+
 export type SlotSnapshot = {
   revision: string;
   isDirty: boolean;
+  kind: "LLM" | "CODE";
   name: string;
-  outputNames: { name: string; labels: string[] }[];
+  outputNames: SlotOutput[];
   selectedOutputName: string;
   preview: EvaluatorPreviewInput | null;
   inputMapping: {
@@ -52,16 +67,10 @@ export type EvaluatorSlotProps = {
   };
   onChange: (snapshot: SlotSnapshot) => void;
   /**
-   * Runs this slot on its own. Only offered while comparing — with a single
-   * slot the page-level Run button is the one way to run it.
-   */
-  onRun?: () => void;
-  /**
    * Removes this slot from the comparison. Any slot can be removed while more than one remains.
    */
   onRemove?: () => void;
   isRunning: boolean;
-  isRunDisabled?: boolean;
   onSelectionChange?: (selection: {
     evaluatorId: string | null;
     datasetEvaluatorId: string | null;

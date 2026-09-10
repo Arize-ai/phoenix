@@ -71,4 +71,15 @@ const resultsTableCSS = css`
     padding: 0;
     height: 100%;
   }
+  // The row's play button appears on hover, the way row actions do elsewhere,
+  // with a short fade so it doesn't flicker as the pointer crosses rows. It
+  // stays put while a control in the row has focus.
+  .results-table__row-play {
+    opacity: 0;
+    transition: opacity 0.15s ease-in;
+  }
+  tbody tr:hover .results-table__row-play,
+  tbody tr:focus-within .results-table__row-play {
+    opacity: 1;
+  }
 `;

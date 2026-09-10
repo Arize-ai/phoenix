@@ -211,25 +211,45 @@ export default function EvaluatorPlayground() {
     });
   }
 
-  async function runSlots(slotIds: SlotId[]) {
+  /**
+   * Run the given slots over the sample, or over just the given examples. A
+   * whole-column run starts that column over; a row run keeps the column's
+   * other results and replaces only the targeted rows.
+   */
+  async function runSlots(slotIds: SlotId[], exampleIds?: readonly string[]) {
+    const targets = exampleIds
+      ? examples.filter((example) => exampleIds.includes(example.id))
+      : examples;
+    const targetIds = new Set(targets.map((example) => example.id));
     // Freeze every slot before the first request, and share one concurrency budget.
     const requests = slotIds.flatMap((slotId) => {
       const slot = slots[slotId];
-      if (!slot?.preview || slot.validationError || !examples.length) return [];
+      if (!slot?.preview || slot.validationError || !targets.length) return [];
       controllers.current[slotId]?.abort();
       const controller = new AbortController();
       controllers.current[slotId] = controller;
-      setRuns((previous) => ({
-        ...previous,
-        [slotId]: {
-          revision: slot.revision,
-          sampleKey,
-          predictions: {},
-          total: examples.length,
-          isRunning: true,
-        },
-      }));
-      return examples.map((example) => ({ slotId, slot, controller, example }));
+      setRuns((previous) => {
+        const current = previous[slotId];
+        const kept =
+          exampleIds && current?.sampleKey === sampleKey
+            ? Object.fromEntries(
+                Object.entries(current.predictions).filter(
+                  ([id]) => !targetIds.has(id)
+                )
+              )
+            : {};
+        return {
+          ...previous,
+          [slotId]: {
+            revision: slot.revision,
+            sampleKey,
+            predictions: kept,
+            queued: targets.map((example) => example.id),
+            isRunning: true,
+          },
+        };
+      });
+      return targets.map((example) => ({ slotId, slot, controller, example }));
     });
     await runCalibrationSample({
       items: requests,
@@ -325,7 +345,7 @@ export default function EvaluatorPlayground() {
           });
         });
       },
-      onResult({ slotId, controller, example }, prediction) {
+      onResult({ slotId, slot, controller, example }, prediction) {
         if (
           controller.signal.aborted ||
           controllers.current[slotId] !== controller
@@ -338,7 +358,11 @@ export default function EvaluatorPlayground() {
                 ...previous,
                 [slotId]: {
                   ...run,
-                  predictions: { ...run.predictions, [example.id]: prediction },
+                  predictions: {
+                    ...run.predictions,
+                    [example.id]: { ...prediction, revision: slot.revision },
+                  },
+                  queued: run.queued.filter((id) => id !== example.id),
                 },
               }
             : previous;
@@ -351,7 +375,10 @@ export default function EvaluatorPlayground() {
         setRuns((previous) => {
           const run = previous[slotId];
           return run
-            ? { ...previous, [slotId]: { ...run, isRunning: false } }
+            ? {
+                ...previous,
+                [slotId]: { ...run, isRunning: false, queued: [] },
+              }
             : previous;
         });
       }
@@ -365,7 +392,7 @@ export default function EvaluatorPlayground() {
       Object.fromEntries(
         Object.entries(previous).map(([slotId, run]) => [
           slotId,
-          { ...run, isRunning: false },
+          { ...run, isRunning: false, queued: [] },
         ])
       )
     );
@@ -477,11 +504,13 @@ export default function EvaluatorPlayground() {
       })
     )
   );
+  // Slots whose draft is complete enough to execute. Run all and a row's play
+  // button need every visible slot ready; a column's play needs only its own.
+  const runnableSlots = visibleSlotIds.filter(
+    (slotId) => !!slots[slotId]?.preview && !slots[slotId]?.validationError
+  );
   const canRun =
-    !!examples.length &&
-    visibleSlotIds.every(
-      (slotId) => !!slots[slotId]?.preview && !slots[slotId]?.validationError
-    );
+    !!examples.length && runnableSlots.length === visibleSlotIds.length;
 
   return (
     <EvaluatorPlaygroundFrame
@@ -558,11 +587,6 @@ export default function EvaluatorPlayground() {
                             : { ...previous, [slotId]: snapshot }
                         )
                       }
-                      onRun={
-                        hasComparison
-                          ? () => void runSlots([slotId])
-                          : undefined
-                      }
                       onRemove={
                         hasComparison
                           ? () =>
@@ -581,7 +605,6 @@ export default function EvaluatorPlayground() {
                           : undefined
                       }
                       isRunning={!!runs[slotId]?.isRunning}
-                      isRunDisabled={isRunning || !examples.length}
                       onSelectionChange={({
                         evaluatorId,
                         datasetEvaluatorId,
@@ -687,6 +710,12 @@ export default function EvaluatorPlayground() {
               filter={searchParams.get("resultFilter") ?? "all"}
               onFilterChange={(value) => changeParam("resultFilter", value)}
               onReview={saveReview}
+              isRunning={isRunning}
+              runnableSlots={runnableSlots}
+              onRunSlot={(slot) => void runSlots([slot])}
+              onRunExample={(exampleId) =>
+                void runSlots(visibleSlotIds, [exampleId])
+              }
               savingId={savingId}
               reviewError={reviewError}
               onRetryReview={() => {
@@ -768,10 +797,12 @@ function getCalibrationView({
     if (runs[slotId]?.sampleKey === sampleKey)
       currentRuns[slotId] = runs[slotId];
   }
-  const staleSlots = visibleSlotIds.filter(
-    (slotId) =>
-      currentRuns[slotId] &&
-      currentRuns[slotId]?.revision !== slots[slotId]?.revision
+  // Rows can be run one at a time, so a column is stale as soon as any of its
+  // results was produced by an older draft than the one now in the slot.
+  const staleSlots = visibleSlotIds.filter((slotId) =>
+    Object.values(currentRuns[slotId]?.predictions ?? {}).some(
+      (result) => result && result.revision !== slots[slotId]?.revision
+    )
   );
   return { expected, currentRuns, staleSlots };
 }

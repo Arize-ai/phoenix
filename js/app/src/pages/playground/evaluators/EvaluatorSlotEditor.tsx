@@ -70,7 +70,11 @@ import type { EvaluatorSlotEditorSaveCodeMutation } from "./__generated__/Evalua
 import type { EvaluatorSlotEditorSaveLLMMutation } from "./__generated__/EvaluatorSlotEditorSaveLLMMutation.graphql";
 import { createEvaluatorAgentSlot } from "./evaluatorAgentSlot";
 import { EvaluatorSlotOutput } from "./EvaluatorSlotOutput";
-import type { EvaluatorSlotProps, SlotSnapshot } from "./evaluatorSlotTypes";
+import type {
+  EvaluatorSlotProps,
+  SlotOutput,
+  SlotSnapshot,
+} from "./evaluatorSlotTypes";
 import {
   getCodeSlotValidationError,
   getDefaultSandboxConfigId,
@@ -180,10 +184,8 @@ function EvaluatorSlotEditorContent({
     datasetId,
     slotId,
     onChange,
-    onRun,
     onRemove,
     isRunning,
-    isRunDisabled,
     sampleContext,
     registerAgentSlot,
     initialDatasetEvaluatorId,
@@ -281,11 +283,29 @@ function EvaluatorSlotEditorContent({
       const name =
         current.evaluator.globalName.trim() ||
         `evaluator_${slotId.toLowerCase()}`;
-      const outputNames = current.outputConfigs.map((config) => ({
-        name: config.name,
-        labels:
-          "values" in config ? config.values.map((value) => value.label) : [],
-      }));
+      const outputNames: SlotOutput[] = current.outputConfigs.map((config) =>
+        "values" in config
+          ? {
+              name: config.name,
+              labels: config.values.map((value) => value.label),
+              labelScores: Object.fromEntries(
+                config.values.flatMap((value) =>
+                  typeof value.score === "number"
+                    ? [[value.label, value.score]]
+                    : []
+                )
+              ),
+              lowerBound: null,
+              upperBound: null,
+            }
+          : {
+              name: config.name,
+              labels: [],
+              labelScores: {},
+              lowerBound: config.lowerBound ?? null,
+              upperBound: config.upperBound ?? null,
+            }
+      );
       const selectedOutputName = outputNames.some(
         (output) => output.name === selectedOutput
       )
@@ -348,9 +368,10 @@ function EvaluatorSlotEditorContent({
         selectedOutputName,
       });
       initialRevision.current ??= revision;
-      const next = {
+      const next: SlotSnapshot = {
         revision,
         isDirty: revision !== (savedRevision ?? initialRevision.current),
+        kind,
         name,
         outputNames,
         selectedOutputName,
@@ -571,9 +592,7 @@ function EvaluatorSlotEditorContent({
         isSaving={isSaving}
         isRunning={isRunning}
         isSaveDisabled={isSaving || isActionDisabled}
-        isRunDisabled={isRunning || !!isRunDisabled || isActionDisabled}
         onSave={() => void save()}
-        onRun={onRun}
         onRemove={onRemove}
       />
       {saveError ? (
@@ -723,9 +742,7 @@ function EvaluatorSlotToolbar({
   isSaving,
   isRunning,
   isSaveDisabled,
-  isRunDisabled,
   onSave,
-  onRun,
   onRemove,
 }: {
   slotId: EvaluatorSlotProps["slotId"];
@@ -736,9 +753,7 @@ function EvaluatorSlotToolbar({
   isSaving: boolean;
   isRunning: boolean;
   isSaveDisabled: boolean;
-  isRunDisabled: boolean;
   onSave: () => void;
-  onRun?: () => void;
   onRemove?: () => void;
 }) {
   return (
@@ -787,18 +802,6 @@ function EvaluatorSlotToolbar({
         >
           Save as new
         </Button>
-        {onRun ? (
-          <Button
-            size="S"
-            leadingVisual={
-              <Icon svg={isRunning ? <Icons.Loading /> : <Icons.Play />} />
-            }
-            onPress={onRun}
-            isDisabled={isRunDisabled}
-          >
-            {isRunning ? "Running" : "Run"}
-          </Button>
-        ) : null}
         {onRemove ? (
           <TooltipTrigger>
             <Button
