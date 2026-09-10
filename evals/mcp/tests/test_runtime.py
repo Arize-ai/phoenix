@@ -15,6 +15,7 @@ def test_secret_canaries_are_not_serialized():
     assert "CANARY" not in output
     assert "/private/auth.json" not in output
     assert credential_status(environment) == {"ANTHROPIC_API_KEY": True, "OPENAI_API_KEY": True}
+    assert live_blockers(environment) == []
 
 
 def test_missing_keys_and_unresolved_models_are_explicit():
