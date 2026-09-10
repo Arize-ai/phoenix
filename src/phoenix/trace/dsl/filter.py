@@ -23,10 +23,10 @@ NameMap: TypeAlias = typing.Mapping[str, "sqlalchemy.SQLColumnExpression[typing.
 
 FilterValueType: TypeAlias = typing.Literal["boolean", "datetime", "number", "string", "null"]
 
-_VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation")
+_VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation", "identifier")
 
 
-AnnotationAttribute: TypeAlias = typing.Literal["explanation", "label", "score"]
+AnnotationAttribute: TypeAlias = typing.Literal["explanation", "identifier", "label", "score"]
 AnnotationName: TypeAlias = str
 AnnotationRelationKind: TypeAlias = typing.Literal["span", "trace"]
 
@@ -51,6 +51,7 @@ class AliasedAnnotationRelation:
     _label_attribute_alias: str = field(init=False, repr=False)
     _score_attribute_alias: str = field(init=False, repr=False)
     _explanation_attribute_alias: str = field(init=False, repr=False)
+    _identifier_attribute_alias: str = field(init=False, repr=False)
     _exists_attribute_alias: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -59,12 +60,14 @@ class AliasedAnnotationRelation:
         label_attribute_alias = f"{table_alias}_label_{alias_id}"
         score_attribute_alias = f"{table_alias}_score_{alias_id}"
         explanation_attribute_alias = f"{table_alias}_explanation_{alias_id}"
+        identifier_attribute_alias = f"{table_alias}_identifier_{alias_id}"
         exists_attribute_alias = f"{table_alias}_exists_{alias_id}"
 
         table = aliased(self.annotation_model, name=table_alias)
         object.__setattr__(self, "_label_attribute_alias", label_attribute_alias)
         object.__setattr__(self, "_score_attribute_alias", score_attribute_alias)
         object.__setattr__(self, "_explanation_attribute_alias", explanation_attribute_alias)
+        object.__setattr__(self, "_identifier_attribute_alias", identifier_attribute_alias)
         object.__setattr__(self, "_exists_attribute_alias", exists_attribute_alias)
         object.__setattr__(self, "table", table)
 
@@ -77,6 +80,7 @@ class AliasedAnnotationRelation:
         yield self._label_attribute_alias, self.table.label
         yield self._score_attribute_alias, self.table.score
         yield self._explanation_attribute_alias, self.table.explanation
+        yield self._identifier_attribute_alias, self.table.identifier
         yield (
             self._exists_attribute_alias,
             case((self.table.id.is_not(None), literal(True)), else_=literal(False)),
@@ -92,6 +96,8 @@ class AliasedAnnotationRelation:
             return self._score_attribute_alias
         if attribute == "explanation":
             return self._explanation_attribute_alias
+        if attribute == "identifier":
+            return self._identifier_attribute_alias
         assert_never(attribute)
 
 
@@ -787,6 +793,10 @@ class _ComprehensionExtractor(ast.NodeTransformer):
                 relation.name,
                 "explanation",
             )
+            self._annotation_aliases[relation._identifier_attribute_alias] = (
+                relation.name,
+                "identifier",
+            )
             self._annotation_aliases[relation._exists_attribute_alias] = (relation.name, None)
 
     def _reject_annotation_alias_reads(self, node: ast.AST) -> None:
@@ -1080,6 +1090,7 @@ def _compile_condition(
                 for alias in (
                     aliased_annotation._label_attribute_alias,
                     aliased_annotation._explanation_attribute_alias,
+                    aliased_annotation._identifier_attribute_alias,
                 )
             ),
         )
@@ -1767,7 +1778,7 @@ def _get_filter_value_type(node: ast.AST) -> typing.Optional[FilterValueType]:
     if isinstance(node, ast.Name):
         return _get_named_filter_value_type(node.id)
     if isinstance(node, ast.Attribute) and _is_annotation(node.value):
-        if node.attr in ("label", "explanation"):
+        if node.attr in ("label", "explanation", "identifier"):
             return "string"
         if node.attr == "score":
             return "number"

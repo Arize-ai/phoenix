@@ -79,6 +79,7 @@ async function fetchAnnotationCompletions(
       names: getNonNoteAnnotationNames(
         data?.project?.spanAnnotationNames ?? []
       ),
+      includeIdentifier: true,
     }),
     ...createAnnotationMemberCompletions({
       accessor: "trace_annotations",
@@ -87,6 +88,7 @@ async function fetchAnnotationCompletions(
       names: getNonNoteAnnotationNames(
         data?.project?.traceAnnotationsNames ?? []
       ),
+      includeIdentifier: true,
     }),
   ];
 }

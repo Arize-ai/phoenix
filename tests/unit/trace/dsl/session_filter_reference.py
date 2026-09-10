@@ -259,8 +259,8 @@ _ELEMENT_FIELDS: Mapping[str, frozenset[str]] = {
         }
     ),
     "traces": frozenset({"start_time", "end_time", "latency_ms"}),
-    "session_annotations": frozenset({"name", "label", "score"}),
-    "span_annotations": frozenset({"name", "label", "score"}),
+    "session_annotations": frozenset({"name", "label", "score", "identifier"}),
+    "span_annotations": frozenset({"name", "label", "score", "identifier"}),
     "span_cost_details": frozenset({"token_type", "is_prompt", "cost", "tokens", "cost_per_token"}),
 }
 
@@ -386,7 +386,7 @@ class _Evaluator:
     def _annotation_attribute(self, node: ast.Attribute) -> Any:
         key = _annotation_key(node.value)
         annotation = self._annotations.get(str(key))
-        if annotation is None or node.attr not in ("score", "label"):
+        if annotation is None or node.attr not in ("score", "label", "identifier"):
             return MISSING
         value = getattr(annotation, node.attr)
         return MISSING if value is None else value
@@ -1106,6 +1106,19 @@ DIFFERENTIAL_CONDITIONS: tuple[str, ...] = (
     'session_annotations["Quality"].score is None',
     'session_annotations["Missing"].score > 0',
     'session_annotations["Quality"].score > 0.5 and num_traces > 0',
+    'session_annotations["Quality"].identifier == "second"',
+    'session_annotations["Quality"].identifier == "missing-run"',
+    'session_annotations["Quality"].identifier == ""',
+    'session_annotations["Quality"].identifier == "second" and '
+    'session_annotations["Quality"].label == "bad"',
+    'session_annotations["Quality"].identifier == "second" and '
+    'session_annotations["Quality"].label == "good"',
+    'session_annotations["Quality"].identifier == "third" and '
+    'session_annotations["Quality"].score is None',
+    'session_annotations["Missing"].identifier == ""',
+    'any(a.name == "Quality" and a.identifier == "third" for a in session_annotations)',
+    'any(a.identifier == "" for a in session_annotations)',
+    'any(a.identifier == "second" for a in span_annotations)',
 )
 
 # Point access and equivalent quantification over `session_annotations` are two grammars over one
@@ -1132,5 +1145,11 @@ AGREEMENT_PAIRS: tuple[tuple[str, str], ...] = (
     (
         'session_annotations["Missing"].score > 0',
         'any(a.name == "Missing" and a.score > 0 for a in session_annotations)',
+    ),
+    (
+        'session_annotations["Quality"].identifier == "second" and '
+        'session_annotations["Quality"].label == "bad"',
+        'any(a.name == "Quality" and a.identifier == "second" and a.label == "bad" '
+        "for a in session_annotations)",
     ),
 )
