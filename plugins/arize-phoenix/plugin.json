@@ -38,7 +38,7 @@
           "Show recent traces with errors and summarize what failed.",
           "Compare the latest experiment runs on my dataset."
         ],
-        "brandColor": "#F14B5A",
+        "brandColor": "#00ADEE",
         "logo": "./assets/logo.svg"
       }
     }
