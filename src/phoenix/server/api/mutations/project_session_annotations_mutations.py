@@ -16,8 +16,8 @@ from phoenix.server.api.helpers.annotations import (
     NOTE_NAME,
     get_note_identifier,
     get_user_identifier,
+    resolve_project_session_rowids,
 )
-from phoenix.server.api.helpers.entity_rowids import resolve_project_session_rowids
 from phoenix.server.api.input_types.CreateProjectSessionAnnotationInput import (
     CreateProjectSessionAnnotationInput,
 )
@@ -113,7 +113,7 @@ class ProjectSessionAnnotationMutationMixin:
 
         async with info.context.db() as session:
             project_session_rowids = await resolve_project_session_rowids(
-                session, [note_input.target.reference for note_input in input]
+                session, [note_input.session.reference for note_input in input]
             )
             records: list[dict[str, Any]] = [
                 {

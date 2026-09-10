@@ -13,8 +13,8 @@ from phoenix.server.api.helpers.annotations import (
     NOTE_NAME,
     get_note_identifier,
     get_user_identifier,
+    resolve_span_rowids,
 )
-from phoenix.server.api.helpers.entity_rowids import resolve_span_rowids
 from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.NoteInputs import CreateSpanNoteInput
@@ -174,7 +174,7 @@ class SpanAnnotationMutationMixin:
 
         user_id = info.context.user_id
 
-        refs = [note_input.target.reference for note_input in input]
+        refs = [note_input.span.reference for note_input in input]
 
         async with info.context.db() as session:
             span_rowids = await resolve_span_rowids(session, refs)

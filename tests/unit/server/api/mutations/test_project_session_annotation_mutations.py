@@ -1073,7 +1073,7 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "target": {
+                        "session": {
                             "id": str(GlobalID("ProjectSession", str(project_session_data.id)))
                         },
                         "annotatorKind": annotator_kind,
@@ -1081,7 +1081,7 @@ class TestProjectSessionNoteMutations:
                         "note": " node note ",
                     },
                     {
-                        "target": {"sessionId": project_session_data.session_id},
+                        "session": {"sessionId": project_session_data.session_id},
                         "annotatorKind": annotator_kind,
                         "source": source,
                         "note": "session note",
@@ -1131,34 +1131,34 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"id": node_id},
+                        "session": {"id": node_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "draft",
                         "identifier": "coding",
                     },
                     {
-                        "target": {"sessionId": external_id},
+                        "session": {"sessionId": external_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "anonymous first",
                     },
                     {
-                        "target": {"sessionId": external_id},
+                        "session": {"sessionId": external_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "other",
                         "identifier": "other",
                     },
                     {
-                        "target": {"sessionId": external_id},
+                        "session": {"sessionId": external_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "final",
                         "identifier": " coding ",
                     },
                     {
-                        "target": {"id": node_id},
+                        "session": {"id": node_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "anonymous second",
@@ -1192,7 +1192,7 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"sessionId": project_session_data.session_id},
+                        "session": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "first",
@@ -1205,7 +1205,7 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"sessionId": project_session_data.session_id},
+                        "session": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "second",
@@ -1218,7 +1218,7 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"sessionId": project_session_data.session_id},
+                        "session": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "draft",
@@ -1232,7 +1232,7 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"sessionId": project_session_data.session_id},
+                        "session": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "LLM",
                         "source": "API",
                         "note": "final",
@@ -1280,7 +1280,7 @@ class TestProjectSessionNoteMutations:
         assert [note.source for note in notes if note.identifier == "coding"] == ["API"]
 
     @pytest.mark.parametrize(
-        "target, expected_message",
+        "session_reference, expected_message",
         [
             pytest.param(
                 {"sessionId": "missing-session"}, "Could not find project sessions", id="missing-id"
@@ -1301,14 +1301,19 @@ class TestProjectSessionNoteMutations:
         self,
         project_session_data: models.ProjectSession,
         gql_client: AsyncGraphQLClient,
-        target: dict[str, str],
+        session_reference: dict[str, str],
         expected_message: str,
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": target, "annotatorKind": "HUMAN", "source": "APP", "note": "review"}
+                    {
+                        "session": session_reference,
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "review",
+                    }
                 ]
             },
         )
@@ -1327,7 +1332,7 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"sessionId": project_session_data.session_id},
+                        "session": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": " \t ",
@@ -1351,7 +1356,7 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"sessionId": project_session_data.session_id},
+                        "session": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "keep until valid delete",
@@ -1463,7 +1468,7 @@ class TestProjectSessionNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"sessionId": project_session_data.session_id},
+                        "session": {"sessionId": project_session_data.session_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "protected",

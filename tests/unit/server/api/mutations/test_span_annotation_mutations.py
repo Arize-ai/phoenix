@@ -289,7 +289,7 @@ class TestSpanAnnotationMutations:
             {
                 "input": [
                     {
-                        "target": {"id": missing_span_gid},
+                        "span": {"id": missing_span_gid},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "Needs review",
@@ -322,7 +322,7 @@ class TestSpanAnnotationMutations:
             {
                 "input": [
                     {
-                        "target": {"id": str(GlobalID("Span", "1"))},
+                        "span": {"id": str(GlobalID("Span", "1"))},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "Needs review",
@@ -410,13 +410,13 @@ class TestSpanNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"id": str(GlobalID("Span", str(first_span.id)))},
+                        "span": {"id": str(GlobalID("Span", str(first_span.id)))},
                         "annotatorKind": annotator_kind,
                         "source": source,
                         "note": " node note ",
                     },
                     {
-                        "target": {"otelId": "span2"},
+                        "span": {"otelId": "span2"},
                         "annotatorKind": annotator_kind,
                         "source": source,
                         "note": "OTel note",
@@ -467,34 +467,34 @@ class TestSpanNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"id": node_id},
+                        "span": {"id": node_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "draft",
                         "identifier": "coding",
                     },
                     {
-                        "target": {"otelId": external_id},
+                        "span": {"otelId": external_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "anonymous first",
                     },
                     {
-                        "target": {"otelId": external_id},
+                        "span": {"otelId": external_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "other",
                         "identifier": "other",
                     },
                     {
-                        "target": {"otelId": external_id},
+                        "span": {"otelId": external_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "final",
                         "identifier": " coding ",
                     },
                     {
-                        "target": {"id": node_id},
+                        "span": {"id": node_id},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "anonymous second",
@@ -527,7 +527,7 @@ class TestSpanNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": "span1"},
+                        "span": {"otelId": "span1"},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "first",
@@ -540,7 +540,7 @@ class TestSpanNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": "span1"},
+                        "span": {"otelId": "span1"},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "second",
@@ -553,7 +553,7 @@ class TestSpanNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": "span1"},
+                        "span": {"otelId": "span1"},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "draft",
@@ -567,7 +567,7 @@ class TestSpanNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": "span1"},
+                        "span": {"otelId": "span1"},
                         "annotatorKind": "LLM",
                         "source": "API",
                         "note": "final",
@@ -608,7 +608,7 @@ class TestSpanNoteMutations:
         assert [note.source for note in notes if note.identifier == "coding"] == ["API"]
 
     @pytest.mark.parametrize(
-        "target, expected_message",
+        "span_reference, expected_message",
         [
             pytest.param({"otelId": "missing-span"}, "Could not find spans", id="missing-otel-id"),
             pytest.param(
@@ -624,14 +624,19 @@ class TestSpanNoteMutations:
     async def test_create_rejects_invalid_target(
         self,
         gql_client: AsyncGraphQLClient,
-        target: dict[str, str],
+        span_reference: dict[str, str],
         expected_message: str,
     ) -> None:
         result = await gql_client.execute(
             self._CREATE_NOTES,
             {
                 "input": [
-                    {"target": target, "annotatorKind": "HUMAN", "source": "APP", "note": "review"}
+                    {
+                        "span": span_reference,
+                        "annotatorKind": "HUMAN",
+                        "source": "APP",
+                        "note": "review",
+                    }
                 ]
             },
         )
@@ -649,7 +654,7 @@ class TestSpanNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": "span1"},
+                        "span": {"otelId": "span1"},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "  \n ",
@@ -672,7 +677,7 @@ class TestSpanNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": "span1"},
+                        "span": {"otelId": "span1"},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "keep until valid delete",
@@ -748,7 +753,7 @@ class TestSpanNoteMutations:
             {
                 "input": [
                     {
-                        "target": {"otelId": "span1"},
+                        "span": {"otelId": "span1"},
                         "annotatorKind": "HUMAN",
                         "source": "APP",
                         "note": "protected",

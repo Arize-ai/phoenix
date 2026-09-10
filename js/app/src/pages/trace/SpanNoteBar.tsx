@@ -151,7 +151,7 @@ function SpanNoteBarContent({ spanNodeId }: { spanNodeId: string }) {
       variables: {
         input: [
           {
-            target: { id: spanNodeId },
+            span: { id: spanNodeId },
             note,
             annotatorKind: "HUMAN",
             source: "APP",

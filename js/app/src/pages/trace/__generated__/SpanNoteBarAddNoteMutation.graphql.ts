@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b9cddd2e4aeb232c254be311a108e710>>
+ * @generated SignedSource<<317de02ec59814d8e9cba43d226ff3f5>>
  * @lightSyntaxTransform
  */
 
@@ -15,9 +15,9 @@ export type CreateSpanNoteInput = {
   identifier?: string | null;
   note: string;
   source: AnnotationSource;
-  target: SpanIdentifierInput;
+  span: SpanReferenceInput;
 };
-export type SpanIdentifierInput = {
+export type SpanReferenceInput = {
   id: string;
   otelId?: never;
 } | {
