@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 from pathlib import Path
 from typing import Any
@@ -46,16 +47,32 @@ def grade_count(answer: Any, truth: dict[str, Any], evidence: dict[str, Any]) ->
     return scores | {"reward": float(all(value == 1 for value in scores.values()))}
 
 
-def main() -> None:
+def read_answer(workspace: Path) -> tuple[Any, str | None]:
+    """Invalid agent submissions fail the task; trusted evidence errors still raise."""
+    try:
+        return json.loads(read_regular(workspace, "answer.json")), None
+    except (FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError, InvalidEvidence) as exc:
+        return None, type(exc).__name__
+    except OSError as exc:
+        if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+            return None, "UnsafeArtifact"
+        raise
+
+
+def main(
+    *,
+    trusted: Path = Path("/trusted"),
+    workspace: Path = Path("/workspace"),
+    output: Path = Path("/logs/verifier/reward.json"),
+) -> None:
     # This directory must be mounted by the trusted runner only into the verifier.
     # Harbor does not provide it by default; missing evidence fails without a reward.
-    trusted = Path("/trusted")
     truth = json.loads((trusted / "truth.json").read_text())
     evidence = json.loads((trusted / "evidence.json").read_text())
     # Harbor restores declared artifacts to their original source paths.
-    answer = json.loads(read_regular(Path("/workspace"), "answer.json"))
+    answer, _ = read_answer(workspace)
     scores = grade_count(answer, truth, evidence)
-    Path("/logs/verifier/reward.json").write_text(json.dumps(scores))
+    output.write_text(json.dumps(scores))
 
 
 if __name__ == "__main__":

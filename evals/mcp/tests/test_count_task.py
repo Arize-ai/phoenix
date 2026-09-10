@@ -82,3 +82,37 @@ async def test_native_harbor_plugin_preserves_facets_and_fixture_identity(tmp_pa
     second = await plan("second")
     assert first.tasks[0].digest != second.tasks[0].digest
     assert first.tasks[0].task_id == second.tasks[0].task_id
+
+
+@pytest.mark.parametrize(
+    "submission",
+    [None, b"not json", b"\xff", b"x" * 1_048_577],
+    ids=["missing", "malformed", "encoding", "oversized"],
+)
+def test_verifier_scores_invalid_submissions_without_an_infrastructure_error(tmp_path, submission):
+    import json
+
+    from verify import main
+
+    _, truth, evidence = valid()
+    trusted = tmp_path / "trusted"
+    workspace = tmp_path / "workspace"
+    trusted.mkdir()
+    workspace.mkdir()
+    (trusted / "truth.json").write_text(json.dumps(truth))
+    (trusted / "evidence.json").write_text(json.dumps(evidence))
+    if submission is not None:
+        (workspace / "answer.json").write_bytes(submission)
+    output = tmp_path / "reward.json"
+    main(trusted=trusted, workspace=workspace, output=output)
+    scores = json.loads(output.read_text())
+    assert scores["reward"] == scores["answer_correct"] == 0
+    assert scores["scope_preserved"] == scores["access_policy_ok"] == 1
+
+
+def test_verifier_still_requires_trusted_evidence(tmp_path):
+    from verify import main
+
+    with pytest.raises(FileNotFoundError):
+        main(trusted=tmp_path, workspace=tmp_path, output=tmp_path / "reward.json")
+    assert not (tmp_path / "reward.json").exists()
