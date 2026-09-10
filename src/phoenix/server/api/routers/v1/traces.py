@@ -192,7 +192,7 @@ async def list_project_traces(
             "Filter by trace error status. If true, only return traces that contain "
             "at least one span with `status_code == ERROR`. If false, only return "
             "traces with no errored spans. If omitted, traces are not filtered by "
-            "error status. Matches the error indicator shown in the UI."
+            "error status."
         ),
     ),
     min_latency_ms: Optional[float] = Query(
@@ -216,7 +216,7 @@ async def list_project_traces(
     filter: Optional[str] = Query(
         default=None,
         description=(
-            "Trace filter expression, using the same DSL as the UI trace filter. "
+            "Filter traces using a boolean expression. "
             "For example: `error_count > 0 and latency_ms >= 1000`. "
             "Combined with other filters using AND. Empty expressions do not filter. "
             "Invalid expressions return 400."
