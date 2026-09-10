@@ -116,6 +116,7 @@ class Policy:
         variables = payload.get("variables") or {}
         permitted = {
             "projects",
+            "getProjectByName",
             "node",
             "id",
             "name",
@@ -192,7 +193,7 @@ class Policy:
             if root and isinstance(selection, ast.FieldNode):
                 if selection.name.value in {"__schema", "__type", "__typename"}:
                     return
-                if selection.name.value not in {"projects", "node"}:
+                if selection.name.value not in {"projects", "getProjectByName", "node"}:
                     raise ValueError("Only fixture project queries are available")
             if isinstance(selection, ast.FieldNode):
                 name = selection.name.value
@@ -200,6 +201,14 @@ class Policy:
                     raise UnsupportedQuery(
                         f"GraphQL field is not supported by the smoke boundary: {name}"
                     )
+                if name == "getProjectByName":
+                    if (
+                        len(selection.arguments) != 1
+                        or selection.arguments[0].name.value != "name"
+                        or value_from_ast_untyped(selection.arguments[0].value, variables)
+                        != self.truth["project"]
+                    ):
+                        raise ValueError("Project lookup is outside the fixture scope")
                 if name == "node" and selection.arguments:
                     values = {
                         a.name.value: value_from_ast_untyped(a.value, variables)

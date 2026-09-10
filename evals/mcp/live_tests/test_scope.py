@@ -104,3 +104,36 @@ def test_fixture_span_queries_and_named_fragments_are_available(policy):
     ]:
         with pytest.raises(ValueError):
             policy.graphql({"query": query})
+
+
+@pytest.mark.parametrize(
+    "query, variables",
+    [
+        ('{ getProjectByName(name:"mcp-trail-gaia") {id name traceCount} }', {}),
+        (
+            "query($name:String!) {...Lookup} "
+            "fragment Lookup on Query {fixture:getProjectByName(name:$name){id}}",
+            {"name": "mcp-trail-gaia"},
+        ),
+    ],
+)
+def test_graphql_fixture_lookup_by_name(policy, query, variables):
+    scoped = policy.graphql({"query": query, "variables": variables})
+    assert "getProjectByName" in scoped["query"]
+    assert scoped["variables"] == variables
+
+
+@pytest.mark.parametrize(
+    "query, variables",
+    [
+        ('{ getProjectByName(name:"results") {id} }', {}),
+        ("query($name:String!) {getProjectByName(name:$name){id}}", {"name": "results"}),
+        ("query($name:String!) {getProjectByName(name:$name){id}}", {}),
+        ("{ getProjectByName {id} }", {}),
+        ('{ getProjectByName(name:"mcp-trail-gaia", extra:1) {id} }', {}),
+        ("{ projectCount }", {}),
+    ],
+)
+def test_graphql_lookup_cannot_escape_fixture(policy, query, variables):
+    with pytest.raises(ValueError):
+        policy.graphql({"query": query, "variables": variables})
