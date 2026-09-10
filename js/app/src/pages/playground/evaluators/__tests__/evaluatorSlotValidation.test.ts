@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { getEvaluatorOutputConfigValidationErrors } from "@phoenix/components/evaluators/utils";
+
 import {
   getCodeSlotValidationError,
   getDefaultSandboxConfigId,
@@ -112,5 +114,45 @@ describe("default sandbox selection", () => {
         language: "PYTHON",
       })
     ).toBeNull();
+  });
+});
+
+describe("output config kind rule", () => {
+  const categorical = {
+    name: "quality",
+    optimizationDirection: "MAXIMIZE" as const,
+    values: [
+      { label: "poor", score: 0 },
+      { label: "good", score: 1 },
+    ],
+  };
+  const continuous = {
+    name: "quality",
+    optimizationDirection: "MAXIMIZE" as const,
+    lowerBound: 0,
+    upperBound: 1,
+  };
+  it("rejects a continuous output on an LLM evaluator, naming the fix", () => {
+    const errors = getEvaluatorOutputConfigValidationErrors({
+      kind: "LLM",
+      configs: [continuous],
+    });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("only support categorical outputs");
+    expect(errors[0]).toContain('"quality"');
+  });
+  it("accepts categorical outputs on an LLM evaluator and any output on code", () => {
+    expect(
+      getEvaluatorOutputConfigValidationErrors({
+        kind: "LLM",
+        configs: [categorical],
+      })
+    ).toEqual([]);
+    expect(
+      getEvaluatorOutputConfigValidationErrors({
+        kind: "CODE",
+        configs: [continuous],
+      })
+    ).toEqual([]);
   });
 });

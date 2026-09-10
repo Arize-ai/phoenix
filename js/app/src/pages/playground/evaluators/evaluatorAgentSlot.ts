@@ -6,7 +6,7 @@ import { reconcileJudgeOperations } from "@phoenix/agent/tools/llmEvaluatorDraft
 import type { EditLlmEvaluatorDraftOperation } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import type { EvaluatorSlotEdit } from "@phoenix/agent/uiOperations/operations/evaluatorPlayground";
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
-import { getOutputConfigValidationErrors } from "@phoenix/components/evaluators/utils";
+import { getEvaluatorOutputConfigValidationErrors } from "@phoenix/components/evaluators/utils";
 import { getProviderKeyForGenerativeModelSDK } from "@phoenix/components/generative/modelProviderUtils";
 import type { ModelCatalog } from "@phoenix/components/generative/useModelMenuData";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
@@ -93,6 +93,12 @@ export function createEvaluatorAgentSlot({
     return {
       ...draft,
       revision: JSON.stringify(draft),
+      // Stated on every read so an agent learns the rule before its first edit
+      // rather than from a rejected run.
+      outputConfigRules:
+        kind === "LLM"
+          ? "LLM evaluators support only categorical outputs: the judge picks a label, and the score is that label's score. Express a numeric scale as scored labels (e.g. poor=0, fair=0.5, good=1). Continuous and freeform outputs are rejected on run and save."
+          : "Code evaluators may declare categorical, continuous, or freeform outputs; the function returns the label and/or score.",
       availableSandboxConfigs: sandboxConfigs,
       availableModels: {
         providers: [...modelCatalog.installedBuiltInProviders],
@@ -165,7 +171,10 @@ export function createEvaluatorAgentSlot({
             "kind" in config ? config : { ...config, kind: "classification" }
           )
         ) ?? state.outputConfigs;
-      const errors = getOutputConfigValidationErrors(outputConfigs);
+      const errors = getEvaluatorOutputConfigValidationErrors({
+        kind,
+        configs: outputConfigs,
+      });
       if (errors.length) return { ok: false, error: errors.join("\n") };
       if (
         input.selectedOutputName &&

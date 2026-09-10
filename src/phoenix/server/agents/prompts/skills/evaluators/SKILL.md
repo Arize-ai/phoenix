@@ -33,7 +33,11 @@ In this mode dataset `output` is the judged response, `reference` starts empty, 
    the stated purpose lacks the failure mode, target output field, or acceptable tradeoff.
 3. Decide the labels. Choose a small, mutually exclusive, collectively exhaustive set — often
    binary (`correct`/`incorrect`, `pass`/`fail`). Add labels only to distinguish failure modes that
-   matter; every extra label adds boundary ambiguity.
+   matter; every extra label adds boundary ambiguity. An LLM evaluator is always categorical: the
+   judge picks a label, and the score is the score attached to that label. When the user asks an
+   LLM judge for a numeric scale, define scored labels (e.g. `poor`=0, `fair`=0.5, `good`=1);
+   never give an LLM evaluator a continuous or freeform output — the server rejects it on run and
+   save. Only code evaluators may return a free numeric score.
 4. Locate the signal in the run's fields — a top-level key, a chat-style `messages` array,
    assistant content parts, `tool_calls`, or a `function_call` — by inspecting the actual shape.
 5. Write the judgment: a function that reads the field and returns the label or score, or a judge
