@@ -773,14 +773,20 @@ PyObject* pysqlite_cursor_iternext(pysqlite_Cursor *self)
     }
 
     if (self->statement) {
+        /* GH-80254: lock the cursor while stepping and fetching so a
+           detect_types converter cannot re-enter execute() on this
+           cursor and reset or free the statement out from under us. */
+        self->locked = 1;
         rc = pysqlite_step(self->statement->st, self->connection);
         if (PyErr_Occurred()) {
             (void)pysqlite_statement_reset(self->statement);
+            self->locked = 0;
             Py_DECREF(next_row);
             return NULL;
         }
         if (rc != SQLITE_DONE && rc != SQLITE_ROW) {
             (void)pysqlite_statement_reset(self->statement);
+            self->locked = 0;
             Py_DECREF(next_row);
             _pysqlite_seterror(self->connection->db);
             return NULL;
@@ -790,9 +796,11 @@ PyObject* pysqlite_cursor_iternext(pysqlite_Cursor *self)
             self->next_row = _pysqlite_fetch_one_row(self);
             if (self->next_row == NULL) {
                 (void)pysqlite_statement_reset(self->statement);
+                self->locked = 0;
                 return NULL;
             }
         }
+        self->locked = 0;
     }
 
     return next_row;
@@ -888,6 +896,14 @@ PyObject* pysqlite_cursor_close(pysqlite_Cursor* self, PyObject* args)
         return NULL;
     }
     if (!pysqlite_check_thread(self->connection) || !pysqlite_check_connection(self->connection)) {
+        return NULL;
+    }
+
+    /* GH-80254: converters and row factories used to close the cursor
+       while fetch still held the statement. */
+    if (self->locked) {
+        PyErr_SetString(pysqlite_ProgrammingError,
+                        "Recursive use of cursors not allowed.");
         return NULL;
     }
 

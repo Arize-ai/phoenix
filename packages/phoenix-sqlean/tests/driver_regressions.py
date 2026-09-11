@@ -9,10 +9,13 @@
 # exercised with fault injection.
 
 import gc
+import subprocess
 import sys
+import textwrap
 import threading
 import unittest
 import weakref
+from pathlib import Path
 
 from sqlean import dbapi2 as sqlite
 
@@ -270,6 +273,52 @@ class ConnectionLifecycleRegressionTests(unittest.TestCase):
             target.close()
 
 
+class CallbackCloseRegressionTests(unittest.TestCase):
+    def _run(self, source):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-X",
+                "faulthandler",
+                "-c",
+                "from sqlean import dbapi2 as sqlite\n" + textwrap.dedent(source),
+            ],
+            cwd=Path(__file__).resolve().parents[1],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result.stdout
+
+    def test_cursor_close_in_converter(self):
+        self._run(
+            """
+            def conv(value):
+                try:
+                    cur.close()
+                except sqlite.ProgrammingError:
+                    raise
+                else:
+                    raise AssertionError("cursor close() should have been refused")
+            sqlite.register_converter("X", conv)
+            con = sqlite.connect(":memory:", detect_types=sqlite.PARSE_COLNAMES)
+            cur = con.cursor()
+            cur.execute("create table t(a, b)")
+            cur.execute("insert into t values (1, 2)")
+            try:
+                cur.execute('select a as "a [X]", b as "b [X]" from t')
+                cur.fetchall()
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected fetch to fail after a refused cursor close")
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+
 class CursorRegressionTests(unittest.TestCase):
     def setUp(self):
         self.cx = sqlite.connect(":memory:")
@@ -288,6 +337,36 @@ class CursorRegressionTests(unittest.TestCase):
         self.assertEqual(cur.fetchmany(0), [])
         self.assertEqual(cur.fetchmany(-1), [])
         self.assertEqual(len(cur.fetchmany(3)), 3)
+
+    def test_converter_cannot_reenter_cursor(self):
+        # A detect_types converter re-entering execute() on the same
+        # cursor used to reset the statement out from under the active
+        # fetch.  The first row is fetched inside execute() (which was
+        # already locked); re-entering on the second row exercises the
+        # previously unlocked iteration path.
+        cx = sqlite.connect(":memory:", detect_types=sqlite.PARSE_COLNAMES)
+        try:
+            cx.execute("create table test(i int)")
+            cx.executemany("insert into test(i) values (?)", [(1,), (2,)])
+            cur = cx.cursor()
+
+            def reenter(value):
+                if value == b"2":
+                    cur.execute("select 3")
+                return value
+
+            sqlite.register_converter("reenter", reenter)
+            try:
+                # execute() itself succeeds: only row 1 is fetched there.
+                cur.execute('select i as "i [reenter]" from test order by i')
+                # The first fetch prefetches row 2, where the
+                # converter's re-entrant execute() must be rejected.
+                with self.assertRaises(sqlite.ProgrammingError):
+                    cur.fetchall()
+            finally:
+                del sqlite.converters["REENTER"]
+        finally:
+            cx.close()
 
     def test_udf_text_with_embedded_nul(self):
         # Function arguments and results were marshalled with
@@ -363,6 +442,7 @@ def suite():
             loader.loadTestsFromTestCase(FactoryMemberRegressionTests),
             loader.loadTestsFromTestCase(BusyHandlerRegressionTests),
             loader.loadTestsFromTestCase(ConnectionLifecycleRegressionTests),
+            loader.loadTestsFromTestCase(CallbackCloseRegressionTests),
             loader.loadTestsFromTestCase(CursorRegressionTests),
             loader.loadTestsFromTestCase(RowRegressionTests),
         )
