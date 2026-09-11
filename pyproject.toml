@@ -56,7 +56,7 @@ dependencies = [
   "arize-phoenix-sqlean",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=3.6.0",
+  "arize-phoenix-evals>=3.8.0",
   "arize-phoenix-otel>=0.17.0",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "fastmcp-slim[client,server]>=4,<5",  # client: pydantic-ai's MCPToolset, used by the agent assistant. server: the in-process MCP server mounted at /mcp.
