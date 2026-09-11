@@ -4,3 +4,4 @@ export * from "./RecordIcon";
 export * from "./SelectChevronUpDownIcon";
 import * as Icons from "./Icons";
 export { Icons };
+export * from "./utils";

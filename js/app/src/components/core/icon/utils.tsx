@@ -1,4 +1,5 @@
-import { Icon } from "../icon";
+import type { SeverityLevel } from "../types";
+import { Icon } from "./Icon";
 import {
   AlertCircle,
   AlertCircleFilled,
@@ -8,8 +9,7 @@ import {
   CheckmarkCircleFilled,
   Info,
   InfoFilled,
-} from "../icon/Icons";
-import type { SeverityLevel } from "../types";
+} from "./Icons";
 
 type IconOptions = {
   /**
@@ -18,6 +18,10 @@ type IconOptions = {
    */
   filled?: boolean;
 };
+/**
+ * The icon that stands for a severity level, so alerts, badges, and tooltips
+ * agree on which glyph means "warning" or "success".
+ */
 export function getSeverityIcon(
   severity: SeverityLevel,
   { filled }: IconOptions = { filled: true }
