@@ -2,6 +2,8 @@
  *
  * Copyright (C) 2004-2010 Gerhard Häring <gh@ghaering.de>
  *
+ * Modified by the Arize Phoenix team, 2026.
+ *
  * This file is part of pysqlite.
  *
  * This software is provided 'as-is', without any express or implied
@@ -365,6 +367,10 @@ PyObject* pysqlite_connection_blob(pysqlite_Connection *self, PyObject *args,
         return NULL;
     }
 
+    if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
+        return NULL;
+    }
+
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_blob_open(self->db, dbname, table, column, row,
                            !readonly, &blob);
@@ -377,50 +383,65 @@ PyObject* pysqlite_connection_blob(pysqlite_Connection *self, PyObject *args,
 
     pyblob = PyObject_New(pysqlite_Blob, &pysqlite_BlobType);
     if (!pyblob) {
-        goto error;
+        Py_BEGIN_ALLOW_THREADS
+        sqlite3_blob_close(blob);
+        Py_END_ALLOW_THREADS
+        return NULL;
     }
 
+    /* From here on pyblob owns the sqlite3_blob handle: its dealloc
+       closes it, so error paths must not close it a second time. */
     rc = pysqlite_blob_init(pyblob, self, blob);
     if (rc) {
         Py_CLEAR(pyblob);
-        goto error;
+        return NULL;
     }
 
     // Add our blob to connection blobs list
     weakref = PyWeakref_NewRef((PyObject*)pyblob, NULL);
     if (!weakref) {
         Py_CLEAR(pyblob);
-        goto error;
+        return NULL;
     }
     if (PyList_Append(self->blobs, weakref) != 0) {
         Py_CLEAR(weakref);
         Py_CLEAR(pyblob);
-        goto error;
+        return NULL;
     }
     Py_DECREF(weakref);
 
     return (PyObject*)pyblob;
-
-error:
-    Py_BEGIN_ALLOW_THREADS
-    sqlite3_blob_close(blob);
-    Py_END_ALLOW_THREADS
-    return NULL;
 }
 
 static void pysqlite_close_all_blobs(pysqlite_Connection *self)
 {
-    int i;
+    Py_ssize_t i;
     PyObject *weakref;
     PyObject *blob;
+    PyObject *blobs;
 
-    for (i = 0; i < PyList_GET_SIZE(self->blobs); i++) {
-        weakref = PyList_GET_ITEM(self->blobs, i);
+    /* Closing a blob unlinks it from self->blobs; iterate over a
+       snapshot so the removals cannot shift entries out from under the
+       loop. */
+    blobs = PyList_GetSlice(self->blobs, 0, PyList_GET_SIZE(self->blobs));
+    if (blobs == NULL) {
+        PyErr_Clear();
+        return;
+    }
+
+    for (i = 0; i < PyList_GET_SIZE(blobs); i++) {
+        weakref = PyList_GET_ITEM(blobs, i);
         if (PyWeakref_GetRef(weakref, &blob) == 1) {
-            pysqlite_blob_close((pysqlite_Blob*)blob);
+            PyObject *res = pysqlite_blob_close((pysqlite_Blob*)blob);
+            if (res == NULL) {
+                PyErr_Clear();
+            }
+            Py_XDECREF(res);
             Py_DECREF(blob);
         }
     }
+
+    Py_DECREF(blobs);
 }
 
 PyObject* pysqlite_connection_close(pysqlite_Connection* self, PyObject* args)
