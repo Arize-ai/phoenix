@@ -25,6 +25,12 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import Model as PydanticAIModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from evals.pxi.harness.backend import (
+    EvalBackendCapability,
+    eval_graphql_schema,
+    eval_phoenix_mcp_server,
+    unavailable_graphql_context,
+)
 from phoenix.config import (
     get_env_allow_external_resources,
     get_env_collector_endpoint,
@@ -624,6 +630,9 @@ async def run_pxi_example(
             headless=False,
             model=model,
             docs_mcp_server=docs_mcp_server,
+            phoenix_mcp_server=eval_phoenix_mcp_server(_OFFLINE_DB),
+            schema=eval_graphql_schema(),
+            build_graphql_context=unavailable_graphql_context,
             tracer_provider=tracer_provider,
             db=_OFFLINE_DB,
             event_queue=_OFFLINE_EVENT_QUEUE,
@@ -633,6 +642,7 @@ async def run_pxi_example(
             user_prompt,
             deps=deps,
             message_history=message_history,
+            capabilities=[EvalBackendCapability()],
         )
         output = agent_task_output(result)
     except Exception as exc:
