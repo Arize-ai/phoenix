@@ -1004,13 +1004,13 @@ async def patch_project_evaluator(
     patch: ProjectEvaluatorPatch,
 ) -> models.ProjectEvaluator:
     """Update binding settings without modifying the shared evaluator definition."""
-    row_id = from_global_id_with_expected_type(project_evaluator_id, ProjectEvaluator.__name__)
+    row_id = from_global_id_with_expected_type(project_evaluator_id, "ProjectEvaluator")
     try:
         async with context.db() as session:
             row = await session.get(models.ProjectEvaluator, row_id)
             if row is None:
                 raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
-            target = EvaluationTarget(row.evaluation_target)
+            target = row.evaluation_target
             if patch.name is not UNSET:
                 row.name = IdentifierModel.model_validate(patch.name)
             if patch.sampling_rate is not UNSET:

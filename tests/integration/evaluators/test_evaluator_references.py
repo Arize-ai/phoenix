@@ -4,21 +4,14 @@ from typing import Any
 
 import httpx
 
-from ._helpers import _mapping
-from ._helpers import client as client
-from ._helpers import sandbox_id as sandbox_id
-from .test_dataset_evaluators import _code_body, _create
-from .test_dataset_evaluators import dataset_id as dataset_id
-from .test_definitions import definition_client as definition_client
-from .test_definitions import definition_dataset as definition_dataset
-from .test_evaluators import project as project
+from ._helpers import _create_dataset_evaluator, _dataset_code_body, _mapping
 
 
 def test_definition_survives_dataset_and_project_references(
     client: httpx.Client, dataset_id: str, sandbox_id: str, project: dict[str, Any]
 ) -> None:
-    first = _create(client, dataset_id, _code_body(sandbox_id))
-    second = _create(
+    first = _create_dataset_evaluator(client, dataset_id, _dataset_code_body(sandbox_id))
+    second = _create_dataset_evaluator(
         client,
         dataset_id,
         {

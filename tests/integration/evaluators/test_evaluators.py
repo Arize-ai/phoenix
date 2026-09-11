@@ -1,27 +1,12 @@
 """REST evaluator lifecycle and cross-API compatibility tests."""
 
-from collections.abc import Iterator
 from secrets import token_hex
 from typing import Any
 
 import httpx
-import pytest
 
 from .._helpers import _AppInfo, _gql, _httpx_client
 from ._helpers import _llm_body, _mapping
-from ._helpers import client as client
-from ._helpers import sandbox_id as sandbox_id
-
-
-@pytest.fixture
-def project(client: httpx.Client) -> Iterator[dict[str, Any]]:
-    response = client.post("v1/projects", json={"name": f"eval-{token_hex(8)}"})
-    response.raise_for_status()
-    project = response.json()["data"]
-    try:
-        yield project
-    finally:
-        client.delete(f"v1/projects/{project['id']}")
 
 
 def _create_code(

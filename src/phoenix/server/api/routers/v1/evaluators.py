@@ -1,5 +1,6 @@
 """Manage project evaluator bindings and shared evaluator definitions."""
 
+from enum import Enum
 from typing import Annotated, Any, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, Query, Response
@@ -42,9 +43,17 @@ from phoenix.server.api.routers.v1.utils import (
     add_errors_to_responses,
     get_project_by_identifier,
 )
-from phoenix.server.api.types.Evaluator import EvaluationTarget
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.online_eval.session_policy import MINIMUM_EVALUATION_DELAY_SECONDS
+
+
+class EvaluationTarget(Enum):
+    SPAN = "SPAN"
+    TRACE = "TRACE"
+    SESSION = "SESSION"
+
+    def to_orm(self) -> models.EvaluationTarget:
+        return self.value
 
 
 class ExistingCodeEvaluator(EvaluatorRequest):
@@ -257,7 +266,7 @@ async def create_project_evaluator(
                 service.AddProjectCodeEvaluatorInput(
                     project_id=project_id,
                     name=body.name,
-                    evaluation_target=body.evaluation_target,
+                    evaluation_target=body.evaluation_target.to_orm(),
                     sampling_rate=body.sampling_rate,
                     filter_condition=body.filter_condition,
                     enabled=body.enabled,
@@ -272,14 +281,14 @@ async def create_project_evaluator(
                 service.CreateProjectCodeEvaluatorInput(
                     project_id=project_id,
                     name=body.name,
-                    evaluation_target=body.evaluation_target,
+                    evaluation_target=body.evaluation_target.to_orm(),
                     sampling_rate=body.sampling_rate,
                     filter_condition=body.filter_condition,
                     enabled=body.enabled,
                     input_mapping=body.input_mapping,
                     evaluation_delay_seconds=body.evaluation_delay_seconds,
                     source_code=definition.source_code,
-                    language=definition.language,
+                    language=definition.language.to_orm(),
                     sandbox_config_id=GlobalID.from_id(definition.sandbox_config_id),
                     evaluator_input_mapping=definition.input_mapping,
                     description=definition.description,
@@ -293,7 +302,7 @@ async def create_project_evaluator(
                 service.CreateProjectLLMEvaluatorInput(
                     project_id=project_id,
                     name=body.name,
-                    evaluation_target=body.evaluation_target,
+                    evaluation_target=body.evaluation_target.to_orm(),
                     sampling_rate=body.sampling_rate,
                     filter_condition=body.filter_condition,
                     enabled=body.enabled,
