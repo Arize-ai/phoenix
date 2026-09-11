@@ -32,12 +32,14 @@ from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
     PatchDatasetExamplesInput,
 )
 from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
-from phoenix.server.api.input_types.SetDatasetExampleCalibrationLabelInput import (
-    SetDatasetExampleCalibrationLabelInput,
+from phoenix.server.api.input_types.SetDatasetExampleCalibrationLabelsInput import (
+    DatasetExampleCalibrationLabelInput,
+    SetDatasetExampleCalibrationLabelsInput,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
@@ -52,10 +54,11 @@ class DatasetMutationPayload:
 
 
 @strawberry.type
-class DatasetExampleCalibrationLabelPayload:
+class DatasetExampleCalibrationLabelsPayload:
     dataset: Dataset
-    example: DatasetExample
-    revision: DatasetExampleRevision
+    version: DatasetVersion
+    """The touched examples, each resolving its revision as of the new version."""
+    examples: list[DatasetExample]
 
 
 @strawberry.type
@@ -513,84 +516,121 @@ class DatasetMutationMixin:
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def set_dataset_example_calibration_label(
+    async def set_dataset_example_calibration_labels(
         self,
         info: Info[Context, None],
-        input: SetDatasetExampleCalibrationLabelInput,
-    ) -> DatasetExampleCalibrationLabelPayload:
+        input: SetDatasetExampleCalibrationLabelsInput,
+    ) -> DatasetExampleCalibrationLabelsPayload:
+        """Write a batch of human expected outputs as one dataset version.
+
+        Annotating is bursty — a person works down a column of results — so the
+        client coalesces annotations and sends them together. One version per batch
+        keeps the dataset's history proportional to sittings, not clicks.
+        """
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
-        example_id = from_global_id_with_expected_type(input.example_id, DatasetExample.__name__)
-        expected_revision_id = from_global_id_with_expected_type(
-            input.expected_revision_id, DatasetExampleRevision.__name__
-        )
+        labels_by_example: dict[int, list[DatasetExampleCalibrationLabelInput]] = {}
+        expected_revision_ids: dict[int, int] = {}
+        for item in input.labels:
+            example_id = from_global_id_with_expected_type(item.example_id, DatasetExample.__name__)
+            revision_id = from_global_id_with_expected_type(
+                item.expected_revision_id, DatasetExampleRevision.__name__
+            )
+            if expected_revision_ids.setdefault(example_id, revision_id) != revision_id:
+                raise BadRequest(
+                    "An example's annotations must all name the same expected revision."
+                )
+            labels_by_example.setdefault(example_id, []).append(item)
         async with info.context.db() as session:
             # A write lock serializes calibration updates on both SQLite and PostgreSQL.
-            example = await session.scalar(
-                update(models.DatasetExample)
-                .where(
-                    models.DatasetExample.id == example_id,
-                    models.DatasetExample.dataset_id == dataset_id,
+            examples = {
+                example.id: example
+                for example in await session.scalars(
+                    update(models.DatasetExample)
+                    .where(
+                        models.DatasetExample.id.in_(labels_by_example),
+                        models.DatasetExample.dataset_id == dataset_id,
+                    )
+                    .values(dataset_id=models.DatasetExample.dataset_id)
+                    .returning(models.DatasetExample)
                 )
-                .values(dataset_id=models.DatasetExample.dataset_id)
-                .returning(models.DatasetExample)
-            )
-            if example is None:
+            }
+            if len(examples) != len(labels_by_example):
                 raise NotFound("Example not found in the selected dataset.")
-            revision = await session.scalar(
-                select(models.DatasetExampleRevision)
-                .where(models.DatasetExampleRevision.dataset_example_id == example_id)
-                .order_by(models.DatasetExampleRevision.id.desc())
-                .limit(1)
+            latest_revision_id = (
+                select(func.max(models.DatasetExampleRevision.id))
+                .where(models.DatasetExampleRevision.dataset_example_id.in_(labels_by_example))
+                .group_by(models.DatasetExampleRevision.dataset_example_id)
+                .scalar_subquery()
             )
-            if revision is None or revision.revision_kind == "DELETE":
-                raise NotFound("Example not found.")
-            if revision.id != expected_revision_id:
-                raise Conflict("This example has changed. Reload it before saving a label.")
-            user = (
-                await session.get(models.User, user_id)
-                if (user_id := info.context.user_id) is not None
-                else None
-            )
-            try:
-                # The same record shape the span→example converter writes, so a
-                # graded example and an annotated span read alike downstream.
-                metadata = set_expected_output(
-                    revision.metadata_,
-                    annotation_name=input.annotation_name,
-                    label=input.label,
-                    score=input.score,
-                    explanation=input.explanation,
-                    user_id=str(GlobalID(models.User.__name__, str(user_id)))
-                    if user_id is not None
-                    else None,
-                    username=user.username if user is not None else None,
-                    email=user.email if user is not None else None,
+            revisions = {
+                revision.dataset_example_id: revision
+                for revision in await session.scalars(
+                    select(models.DatasetExampleRevision).where(
+                        models.DatasetExampleRevision.id.in_(latest_revision_id)
+                    )
                 )
-            except ValueError as error:
-                raise BadRequest(str(error)) from error
+            }
+            user_id = info.context.user_id
+            user = await session.get(models.User, user_id) if user_id is not None else None
+            user_global_id = (
+                str(GlobalID(models.User.__name__, str(user_id))) if user_id is not None else None
+            )
+            next_metadata: dict[int, dict[str, Any]] = {}
+            for example_id, items in labels_by_example.items():
+                revision = revisions.get(example_id)
+                if revision is None or revision.revision_kind == "DELETE":
+                    raise NotFound("Example not found.")
+                if revision.id != expected_revision_ids[example_id]:
+                    raise Conflict("An example has changed. Reload the sample before saving.")
+                metadata: dict[str, Any] = dict(revision.metadata_)
+                for item in items:
+                    try:
+                        # The same record shape the span→example converter writes,
+                        # so an example annotated here reads like one built from
+                        # an annotated span.
+                        metadata = set_expected_output(
+                            metadata,
+                            annotation_name=item.annotation_name,
+                            label=item.label,
+                            score=item.score,
+                            explanation=item.explanation,
+                            user_id=user_global_id,
+                            username=user.username if user is not None else None,
+                            email=user.email if user is not None else None,
+                        )
+                    except ValueError as error:
+                        raise BadRequest(str(error)) from error
+                next_metadata[example_id] = metadata
+            count = len(next_metadata)
+            noun = "example" if count == 1 else "examples"
             version = models.DatasetVersion(
                 dataset_id=dataset_id,
-                description="Update evaluator calibration label",
+                description=f"Update expected outputs for {count} {noun}",
                 metadata_={},
-                user_id=info.context.user_id,
+                user_id=user_id,
             )
             session.add(version)
             await session.flush()
-            updated_revision = models.DatasetExampleRevision(
-                dataset_example_id=example_id,
-                dataset_version_id=version.id,
-                input=revision.input,
-                output=revision.output,
-                metadata_=metadata,
-                revision_kind="PATCH",
+            session.add_all(
+                models.DatasetExampleRevision(
+                    dataset_example_id=example_id,
+                    dataset_version_id=version.id,
+                    input=revisions[example_id].input,
+                    output=revisions[example_id].output,
+                    metadata_=metadata,
+                    revision_kind="PATCH",
+                )
+                for example_id, metadata in next_metadata.items()
             )
-            session.add(updated_revision)
             await session.flush()
         info.context.event_queue.put(DatasetInsertEvent((dataset_id,)))
-        return DatasetExampleCalibrationLabelPayload(
+        return DatasetExampleCalibrationLabelsPayload(
             dataset=Dataset(id=dataset_id),
-            example=DatasetExample(id=example_id, db_record=example, version_id=version.id),
-            revision=DatasetExampleRevision.from_orm_revision(updated_revision),
+            version=DatasetVersion(id=version.id, db_record=version),
+            examples=[
+                DatasetExample(id=example_id, db_record=examples[example_id], version_id=version.id)
+                for example_id in next_metadata
+            ],
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore

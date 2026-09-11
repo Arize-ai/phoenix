@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2d0b6f4bd58467a0135a20ef6d4698a6>>
+ * @generated SignedSource<<50aecbf495225f130cec13040a1b998e>>
  * @lightSyntaxTransform
  */
 
@@ -8,9 +8,12 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SetDatasetExampleCalibrationLabelInput = {
-  annotationName: string;
+export type SetDatasetExampleCalibrationLabelsInput = {
   datasetId: string;
+  labels: ReadonlyArray<DatasetExampleCalibrationLabelInput>;
+};
+export type DatasetExampleCalibrationLabelInput = {
+  annotationName: string;
   exampleId: string;
   expectedRevisionId: string;
   explanation?: string | null;
@@ -18,19 +21,22 @@ export type SetDatasetExampleCalibrationLabelInput = {
   score?: number | null;
 };
 export type EvaluatorPlaygroundReviewMutation$variables = {
-  input: SetDatasetExampleCalibrationLabelInput;
+  input: SetDatasetExampleCalibrationLabelsInput;
 };
 export type EvaluatorPlaygroundReviewMutation$data = {
-  readonly setDatasetExampleCalibrationLabel: {
-    readonly revision: {
-      readonly calibrationLabels: ReadonlyArray<{
-        readonly annotationName: string;
-        readonly explanation: string | null;
-        readonly label: string | null;
-        readonly score: number | null;
-      }>;
-      readonly revisionId: string;
-    };
+  readonly setDatasetExampleCalibrationLabels: {
+    readonly examples: ReadonlyArray<{
+      readonly id: string;
+      readonly revision: {
+        readonly calibrationLabels: ReadonlyArray<{
+          readonly annotationName: string;
+          readonly explanation: string | null;
+          readonly label: string | null;
+          readonly score: number | null;
+        }>;
+        readonly revisionId: string;
+      };
+    }>;
   };
 };
 export type EvaluatorPlaygroundReviewMutation = {
@@ -56,60 +62,78 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "DatasetExampleCalibrationLabelPayload",
+    "concreteType": "DatasetExampleCalibrationLabelsPayload",
     "kind": "LinkedField",
-    "name": "setDatasetExampleCalibrationLabel",
+    "name": "setDatasetExampleCalibrationLabels",
     "plural": false,
     "selections": [
       {
         "alias": null,
         "args": null,
-        "concreteType": "DatasetExampleRevision",
+        "concreteType": "DatasetExample",
         "kind": "LinkedField",
-        "name": "revision",
-        "plural": false,
+        "name": "examples",
+        "plural": true,
         "selections": [
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "revisionId",
+            "name": "id",
             "storageKey": null
           },
           {
             "alias": null,
             "args": null,
-            "concreteType": "DatasetExampleCalibrationLabel",
+            "concreteType": "DatasetExampleRevision",
             "kind": "LinkedField",
-            "name": "calibrationLabels",
-            "plural": true,
+            "name": "revision",
+            "plural": false,
             "selections": [
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "annotationName",
+                "name": "revisionId",
                 "storageKey": null
               },
               {
                 "alias": null,
                 "args": null,
-                "kind": "ScalarField",
-                "name": "score",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "explanation",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "label",
+                "concreteType": "DatasetExampleCalibrationLabel",
+                "kind": "LinkedField",
+                "name": "calibrationLabels",
+                "plural": true,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "annotationName",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "score",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "explanation",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "label",
+                    "storageKey": null
+                  }
+                ],
                 "storageKey": null
               }
             ],
@@ -140,16 +164,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "d86b6455ef97af692e36d79003adfa63",
+    "cacheID": "6e2c91fc484a1f787ad640d2394b9380",
     "id": null,
     "metadata": {},
     "name": "EvaluatorPlaygroundReviewMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorPlaygroundReviewMutation(\n  $input: SetDatasetExampleCalibrationLabelInput!\n) {\n  setDatasetExampleCalibrationLabel(input: $input) {\n    revision {\n      revisionId\n      calibrationLabels {\n        annotationName\n        score\n        explanation\n        label\n      }\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorPlaygroundReviewMutation(\n  $input: SetDatasetExampleCalibrationLabelsInput!\n) {\n  setDatasetExampleCalibrationLabels(input: $input) {\n    examples {\n      id\n      revision {\n        revisionId\n        calibrationLabels {\n          annotationName\n          score\n          explanation\n          label\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2552c7da7ec845de589849c3034273f4";
+(node as any).hash = "1c6752810ffa5dbf363d6cfde76a30ec";
 
 export default node;

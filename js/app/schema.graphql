@@ -1311,10 +1311,19 @@ type DatasetExampleCalibrationLabel {
   explanation: String
 }
 
-type DatasetExampleCalibrationLabelPayload {
+input DatasetExampleCalibrationLabelInput {
+  exampleId: ID!
+  expectedRevisionId: ID!
+  annotationName: String!
+  label: String
+  score: Float = null
+  explanation: String = null
+}
+
+type DatasetExampleCalibrationLabelsPayload {
   dataset: Dataset!
-  example: DatasetExample!
-  revision: DatasetExampleRevision!
+  version: DatasetVersion!
+  examples: [DatasetExample!]!
 }
 
 """A connection to a list of items."""
@@ -2773,7 +2782,7 @@ type Mutation {
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
-  setDatasetExampleCalibrationLabel(input: SetDatasetExampleCalibrationLabelInput!): DatasetExampleCalibrationLabelPayload!
+  setDatasetExampleCalibrationLabels(input: SetDatasetExampleCalibrationLabelsInput!): DatasetExampleCalibrationLabelsPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
@@ -4511,14 +4520,9 @@ input SetAgentTraceRecordingInput {
   allowRemoteExport: Boolean!
 }
 
-input SetDatasetExampleCalibrationLabelInput {
+input SetDatasetExampleCalibrationLabelsInput {
   datasetId: ID!
-  exampleId: ID!
-  expectedRevisionId: ID!
-  annotationName: String!
-  label: String
-  score: Float = null
-  explanation: String = null
+  labels: [DatasetExampleCalibrationLabelInput!]!
 }
 
 input SetDatasetExampleSplitsInput {

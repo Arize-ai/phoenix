@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense, useEffect, useRef, useState } from "react";
-import {
-  commitMutation,
-  graphql,
-  useMutation,
-  useRelayEnvironment,
-} from "react-relay";
+import { commitMutation, graphql, useRelayEnvironment } from "react-relay";
 import { Group } from "react-resizable-panels";
 import { useBlocker, useSearchParams } from "react-router";
 
@@ -59,9 +54,14 @@ import {
   setVisibleEvaluatorSlots,
 } from "./evaluatorSlotTypes";
 import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
+import type { PendingExpectedOutputs } from "./expectedOutputQueue";
+import { useExpectedOutputQueue } from "./expectedOutputQueue";
 import { useEvaluatorWorkspaceOperations } from "./useEvaluatorWorkspaceOperations";
 
 const EMPTY_CONTEXT = { input: {}, output: {}, reference: {}, metadata: {} };
+
+type ExpectedOutputLabelInput =
+  EvaluatorPlaygroundReviewMutation["variables"]["input"]["labels"][number];
 
 /**
  * Matches the prompt playground's prompts wrap so the two modes share the same
@@ -123,31 +123,14 @@ export default function EvaluatorPlayground() {
   const [slots, setSlots] = useState<Partial<Record<SlotId, SlotSnapshot>>>({});
   const [runs, setRuns] = useState<Partial<Record<SlotId, CalibrationRun>>>({});
   const controllers = useRef<Partial<Record<SlotId, AbortController>>>({});
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [pendingReview, setPendingReview] = useState<{
-    example: CalibrationExample;
-    slotId: SlotId;
-    output: ExpectedOutput | null;
-  } | null>(null);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-  const [reviewLabel, isSavingReview] =
-    useMutation<EvaluatorPlaygroundReviewMutation>(graphql`
-      mutation EvaluatorPlaygroundReviewMutation(
-        $input: SetDatasetExampleCalibrationLabelInput!
-      ) {
-        setDatasetExampleCalibrationLabel(input: $input) {
-          revision {
-            revisionId
-            calibrationLabels {
-              annotationName
-              score
-              explanation
-              label
-            }
-          }
-        }
-      }
-    `);
+  // Annotations are written in batches (see expectedOutputQueue). The flush reads
+  // the sample through this ref so a timer firing later still resolves each
+  // example's current revision, not the one it had when annotated.
+  const latestSample = useRef({ datasetId, examples: displayedExamples });
+  useEffect(() => {
+    latestSample.current = { datasetId, examples: displayedExamples };
+  });
+  const annotations = useExpectedOutputQueue(flushExpectedOutputs);
   const isRunning = visibleSlotIds.some((slotId) => runs[slotId]?.isRunning);
   const { expected, currentRuns, staleSlots } = getCalibrationView({
     slots,
@@ -155,6 +138,7 @@ export default function EvaluatorPlayground() {
     examples,
     sampleKey,
     visibleSlotIds,
+    overlay: annotations.overlay,
   });
   const { registerAgentSlot, allowNavigation } =
     useEvaluatorWorkspaceOperations({
@@ -171,7 +155,7 @@ export default function EvaluatorPlayground() {
       expected,
       staleSlots,
       isRunning,
-      isSavingReview,
+      isSavingReview: annotations.isSaving,
       runSlots,
       stop,
       saveReview,
@@ -188,6 +172,8 @@ export default function EvaluatorPlayground() {
     return (
       removesDirtyComparison ||
       ((isRunning ||
+        annotations.pendingCount > 0 ||
+        annotations.isSaving ||
         Object.keys(runs).length > 0 ||
         visibleSlotIds.some((slotId) => slots[slotId]?.isDirty)) &&
         (currentLocation.pathname !== nextLocation.pathname ||
@@ -398,10 +384,15 @@ export default function EvaluatorPlayground() {
     );
   }
 
-  function saveReview(
+  /**
+   * Record an expected output. It shows as expected immediately and is written with the
+   * next batch; `immediate` writes now and reports the outcome, for PXI.
+   */
+  async function saveReview(
     example: CalibrationExample,
     slotId: SlotId,
-    output: ExpectedOutput | null
+    output: ExpectedOutput | null,
+    { immediate = false }: { immediate?: boolean } = {}
   ): Promise<UIOperationResult> {
     const slot = slots[slotId];
     const labelName = slot
@@ -411,69 +402,100 @@ export default function EvaluatorPlayground() {
           outputCount: slot.outputNames.length,
         })
       : null;
-    if (!datasetId || !labelName || isSavingReview || isSampleLoading)
-      return Promise.resolve({
+    if (!datasetId || !labelName || isSampleLoading)
+      return {
+        ok: false,
+        error: "Wait for the dataset and output to load before annotating.",
+      };
+    if (!examples.some((current) => current.id === example.id))
+      return {
         ok: false,
         error:
-          "Wait for the dataset/output to load or the current review to finish.",
-      });
-    if (
-      !examples.some(
-        (current) =>
-          current.id === example.id && current.revisionId === example.revisionId
-      )
-    ) {
-      return Promise.resolve({
-        ok: false,
-        error:
-          "This example is no longer in the current sample. Load it again before reviewing.",
-      });
+          "This example is no longer in the current sample. Load it again before annotating.",
+      };
+    annotations.enqueue(example.id, labelName, output);
+    return immediate ? annotations.flushNow() : { ok: true };
+  }
+
+  /** One mutation, one dataset version, for every annotation in the batch. */
+  function flushExpectedOutputs(
+    batch: PendingExpectedOutputs
+  ): Promise<UIOperationResult> {
+    const { datasetId: currentDatasetId, examples: currentExamples } =
+      latestSample.current;
+    if (!currentDatasetId)
+      return Promise.resolve({ ok: false, error: "No dataset is selected." });
+    const labels: ExpectedOutputLabelInput[] = [];
+    for (const [exampleId, byName] of Object.entries(batch)) {
+      const example = currentExamples.find((item) => item.id === exampleId);
+      if (!example)
+        return Promise.resolve({
+          ok: false,
+          error:
+            "An annotated example is no longer in the sample. Load the latest sample and try again.",
+        });
+      for (const [annotationName, output] of Object.entries(byName))
+        labels.push({
+          exampleId,
+          expectedRevisionId: example.revisionId,
+          annotationName,
+          label: output?.label ?? null,
+          score: output?.score ?? null,
+          explanation: output?.explanation ?? null,
+        });
     }
+    if (!labels.length) return Promise.resolve({ ok: true });
     return new Promise((resolve) => {
-      setPendingReview({ example, slotId, output });
-      setSavingId(example.id);
-      setReviewError(null);
-      reviewLabel({
-        variables: {
-          input: {
-            datasetId,
-            exampleId: example.id,
-            expectedRevisionId: example.revisionId,
-            annotationName: labelName,
-            label: output?.label ?? null,
-            score: output?.score ?? null,
-            explanation: output?.explanation ?? null,
-          },
-        },
+      commitMutation<EvaluatorPlaygroundReviewMutation>(environment, {
+        mutation: graphql`
+          mutation EvaluatorPlaygroundReviewMutation(
+            $input: SetDatasetExampleCalibrationLabelsInput!
+          ) {
+            setDatasetExampleCalibrationLabels(input: $input) {
+              examples {
+                id
+                revision {
+                  revisionId
+                  calibrationLabels {
+                    annotationName
+                    score
+                    explanation
+                    label
+                  }
+                }
+              }
+            }
+          }
+        `,
+        variables: { input: { datasetId: currentDatasetId, labels } },
         onCompleted(response, errors) {
-          setSavingId(null);
           if (errors?.length) {
-            const message = errors.map((error) => error.message).join("\n");
-            setReviewError(message);
-            resolve({ ok: false, error: message });
+            resolve({
+              ok: false,
+              error: errors.map((error) => error.message).join("\n"),
+            });
             return;
           }
-          resolve({
-            ok: true,
-            output: response.setDatasetExampleCalibrationLabel.revision,
-          });
-          setPendingReview(null);
+          const saved = new Map(
+            response.setDatasetExampleCalibrationLabels.examples.map((item) => [
+              item.id,
+              item.revision,
+            ])
+          );
+          // Fold the new revisions into the sample so later annotations on these
+          // examples carry the right expected revision.
           setSample((previous) =>
-            previous?.key === sampleKey
+            previous
               ? {
                   ...previous,
-                  examples: previous.examples.map((item) =>
-                    item.id === example.id
-                      ? {
-                          ...item,
-                          ...response.setDatasetExampleCalibrationLabel
-                            .revision,
-                        }
-                      : item
-                  ),
+                  examples: previous.examples.map((item) => {
+                    const revision = saved.get(item.id);
+                    return revision ? { ...item, ...revision } : item;
+                  }),
                 }
               : previous
           );
+          resolve({ ok: true, output: { saved: saved.size } });
         },
         onError(error) {
           resolve({
@@ -482,11 +504,6 @@ export default function EvaluatorPlayground() {
               getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
               error.message,
           });
-          setSavingId(null);
-          setReviewError(
-            getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
-              error.message
-          );
         },
       });
     });
@@ -641,13 +658,16 @@ export default function EvaluatorPlayground() {
                 <DatasetSelectWithSplits
                   size="S"
                   placeholder="Select a dataset"
-                  isDisabled={isRunning || isSavingReview}
+                  isDisabled={isRunning}
                   value={datasetId ? { datasetId, splitIds } : null}
                   onSelectionChange={({
                     datasetId: nextDatasetId,
                     splitIds: nextSplits,
                   }) => {
                     stop();
+                    // Annotations are resolved against the sample they were made
+                    // on, so write them before it goes away.
+                    void annotations.flushNow();
                     setSearchParams((previous) => {
                       const next = new URLSearchParams(previous);
                       next.delete("datasetId");
@@ -670,12 +690,13 @@ export default function EvaluatorPlayground() {
               <CalibrationSettingsButton
                 sampleSize={sampleSize}
                 isDisabled={isRunning}
-                onSampleSizeChange={(size) =>
+                onSampleSizeChange={(size) => {
+                  void annotations.flushNow();
                   changeParam(
                     "sampleSize",
                     size === DEFAULT_SAMPLE_SIZE ? null : String(size)
-                  )
-                }
+                  );
+                }}
               />
             </Flex>
           }
@@ -716,20 +737,12 @@ export default function EvaluatorPlayground() {
               onRunExample={(exampleId) =>
                 void runSlots(visibleSlotIds, [exampleId])
               }
-              savingId={savingId}
-              reviewError={reviewError}
-              onRetryReview={() => {
-                if (pendingReview)
-                  saveReview(
-                    pendingReview.example,
-                    pendingReview.slotId,
-                    pendingReview.output
-                  );
-              }}
+              saveStatus={annotations.status}
+              pendingCount={annotations.pendingCount}
+              reviewError={annotations.error}
+              onRetryReview={() => void annotations.flushNow()}
               onReloadSample={() => {
                 stop();
-                setReviewError(null);
-                setPendingReview(null);
                 changeParam("datasetVersionId", null);
                 setSampleGeneration((generation) => generation + 1);
               }}
@@ -755,7 +768,7 @@ export default function EvaluatorPlayground() {
       </Group>
       <ConfirmNavigationDialog
         blocker={blocker}
-        message="Leave evaluator playground? Unsaved drafts and run results will be lost. Saved expected labels remain in the dataset."
+        message="Leave evaluator playground? Unsaved drafts and run results will be lost. Unsaved annotations are written to the dataset on the way out."
       />
     </EvaluatorPlaygroundFrame>
   );
@@ -767,12 +780,15 @@ function getCalibrationView({
   examples,
   sampleKey,
   visibleSlotIds,
+  overlay,
 }: {
   slots: Partial<Record<SlotId, SlotSnapshot>>;
   runs: Partial<Record<SlotId, CalibrationRun>>;
   examples: CalibrationExample[];
   sampleKey: string;
   visibleSlotIds: SlotId[];
+  /** Annotations not yet confirmed by the server; they win over the dataset. */
+  overlay: PendingExpectedOutputs;
 }) {
   const expected: SlotExpectations = {};
   for (const slotId of visibleSlotIds) {
@@ -785,9 +801,13 @@ function getCalibrationView({
     });
     expected[slotId] = Object.fromEntries(
       examples.flatMap((example) => {
-        const output = example.calibrationLabels.find(
-          (item) => item.annotationName === name
-        );
+        const pending = overlay[example.id]?.[name];
+        const output =
+          pending !== undefined
+            ? pending
+            : example.calibrationLabels.find(
+                (item) => item.annotationName === name
+              );
         return output ? [[example.id, output]] : [];
       })
     );
