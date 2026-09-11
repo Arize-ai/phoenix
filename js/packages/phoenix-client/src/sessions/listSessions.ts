@@ -17,7 +17,7 @@ export type ListSessionsParams = ClientFn &
   ProjectIdentifier & {
     /**
      * Session DSL expression applied before pagination. Empty strings do not filter.
-     * @requires Phoenix server >= 20.10.0
+     * @requires Phoenix server >= 20.11.0
      */
     filter?: string | null;
   };

@@ -35,7 +35,7 @@ export interface GetTracesParams extends ClientFn {
   /**
    * Trace DSL expression, combined with other filters using AND.
    * Use the same expression on subsequent pages. Empty strings do not filter.
-   * @requires Phoenix server >= 20.10.0
+   * @requires Phoenix server >= 20.11.0
    */
   filter?: string | null;
   /**
