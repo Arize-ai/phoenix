@@ -45,6 +45,7 @@ px experiment get <id>
 px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
+px prompt set <prompt-identifier>
 px prompt delete <prompt-identifier>
 px project list
 px project get <name>
@@ -379,6 +380,8 @@ px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, 
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
+px prompt set <name> --template "Hello {{name}}" --model gpt-4o --model-provider OPENAI --format raw --no-progress
+px prompt set <name> --json prompt.json --tag production --format raw --no-progress
 ```
 
 ## Annotation Configs
