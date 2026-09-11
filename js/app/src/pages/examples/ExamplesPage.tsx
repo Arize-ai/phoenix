@@ -4,10 +4,7 @@ import invariant from "tiny-invariant";
 import { useStore } from "zustand";
 
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
-import {
-  useOwnedPreloadedQuery,
-  useUnsavedChangesBlocker,
-} from "@phoenix/hooks";
+import { useOwnedPreloadedQuery, useConfirmNavigation } from "@phoenix/hooks";
 import { ExamplesFilterBar } from "@phoenix/pages/examples/ExamplesFilterBar";
 import { ExamplesFilterProvider } from "@phoenix/pages/examples/ExamplesFilterContext";
 import {
@@ -40,7 +37,7 @@ export function ExamplesPage() {
   // An edit session lives only in memory, so leaving the page drops it.
   const changeCount = useStore(editStore, getEditableTableChangeCount);
   const hasUnsavedChanges = useStore(editStore, hasEditableTableUnsavedChanges);
-  const blocker = useUnsavedChangesBlocker({ hasUnsavedChanges });
+  const blocker = useConfirmNavigation({ hasUnsavedChanges });
   return (
     <ExamplesFilterProvider>
       <ExamplesFilterBar editStore={editStore} />
