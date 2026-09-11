@@ -567,6 +567,64 @@ def test_decode_otlp_span_existing_oi_attrs_win_over_gen_ai() -> None:
     assert decoded.attributes["llm"]["model_name"] == "gpt-4-from-oi"
 
 
+def test_decode_otlp_span_does_not_interleave_gen_ai_messages_into_partial_oi_mapping() -> None:
+    """A dual-emitted span (e.g. an instrumentation that converts most gen_ai.*
+    attrs to OpenInference client-side but misses ``gen_ai.system_instructions``)
+    must not have its partial OI message mapping gap-filled per key from the
+    synthesized one. The two mappings disagree on message indexing -- the
+    synthesized mapping puts the system prompt at index 0 and shifts the real
+    user turn to index 1, while the client's mapping has only the user turn, at
+    index 0 -- so a per-key ``setdefault`` merge interleaves them: the system
+    prompt lands under the client's ``role: user`` at index 0, and the user
+    message is duplicated at index 1.
+
+    The client's mapping, even incomplete, is internally consistent, so it must
+    win in its entirety rather than being merged with the synthesized one.
+    """
+    system_instructions = json.dumps([{"type": "text", "content": "You are a helpful assistant."}])
+    input_messages = json.dumps(
+        [{"role": "user", "parts": [{"type": "text", "content": "only root spans"}]}]
+    )
+    otlp_span = otlp.Span(
+        name="chat",
+        trace_id=token_bytes(16),
+        span_id=token_bytes(8),
+        attributes=[
+            KeyValue(
+                key="gen_ai.system_instructions",
+                value=AnyValue(string_value=system_instructions),
+            ),
+            KeyValue(key="gen_ai.input.messages", value=AnyValue(string_value=input_messages)),
+            # The client already converted its own input message to OpenInference,
+            # but -- like `@arizeai/openinference-genai` 0.2.0 -- dropped the
+            # system instructions, so only index 0 (the user turn) is present.
+            KeyValue(
+                key="llm.input_messages.0.message.role",
+                value=AnyValue(string_value="user"),
+            ),
+            KeyValue(
+                key="llm.input_messages.0.message.contents.0.message_content.text",
+                value=AnyValue(string_value="only root spans"),
+            ),
+        ],
+    )
+
+    decoded = decode_otlp_span(otlp_span)
+
+    input_messages_attr = decoded.attributes["llm"]["input_messages"]
+    assert len(input_messages_attr) == 1, (
+        "the synthesized system message must not be merged in alongside the "
+        f"client's mapping: {input_messages_attr}"
+    )
+    message = input_messages_attr[0]["message"]
+    assert message["role"] == "user"
+    assert message["contents"][0]["message_content"]["text"] == "only root spans"
+    # The synthesized per-key fallback (`.content`) must not appear -- that is
+    # the shape the old per-key `setdefault` merge filled in from the
+    # synthesized mapping once the client's own index 0 didn't set it.
+    assert "content" not in message
+
+
 @pytest.fixture
 def span() -> Span:
     trace_id = "f096b681-b8d4-44eb-bc4a-1db0b5a8d556"
