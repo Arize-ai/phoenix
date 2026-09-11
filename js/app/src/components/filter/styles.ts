@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { validationBadgeGrowIn } from "@phoenix/components/core/field/ValidationBadge";
+import { validationBadgeGrowIn } from "@phoenix/components/core/alert";
 import { APP_PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 /**

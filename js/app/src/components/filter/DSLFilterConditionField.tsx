@@ -50,7 +50,7 @@ import { pierreDark, pierreLight } from "@phoenix/components/code";
 import {
   ValidationBadge,
   ValidationTooltip,
-} from "@phoenix/components/core/field";
+} from "@phoenix/components/core/alert";
 import type { SeverityLevel } from "@phoenix/components/core/types";
 import { useTheme } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils/classNames";
