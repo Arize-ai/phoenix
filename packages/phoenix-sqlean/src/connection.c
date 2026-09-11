@@ -1419,6 +1419,7 @@ PyObject* pysqlite_connection_create_function(pysqlite_Connection* self, PyObjec
     }
     Py_INCREF(func);
     pysqlite_enter_sqlite(self);
+    Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_create_function_v2(self->db,
                                     name,
                                     narg,
@@ -1428,6 +1429,7 @@ PyObject* pysqlite_connection_create_function(pysqlite_Connection* self, PyObjec
                                     NULL,
                                     NULL,
                                     &_destructor);
+    Py_END_ALLOW_THREADS
     pysqlite_leave_sqlite(self);
 
     if (rc != SQLITE_OK) {
@@ -1458,6 +1460,7 @@ PyObject* pysqlite_connection_create_aggregate(pysqlite_Connection* self, PyObje
 
     Py_INCREF(aggregate_class);
     pysqlite_enter_sqlite(self);
+    Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_create_function_v2(self->db,
                                     name,
                                     n_arg,
@@ -1467,6 +1470,7 @@ PyObject* pysqlite_connection_create_aggregate(pysqlite_Connection* self, PyObje
                                     &_pysqlite_step_callback,
                                     &_pysqlite_final_callback,
                                     &_destructor);
+    Py_END_ALLOW_THREADS
     pysqlite_leave_sqlite(self);
 
     if (rc != SQLITE_OK) {
@@ -1499,6 +1503,7 @@ PyObject* pysqlite_connection_create_window_function(pysqlite_Connection* self, 
 
     Py_INCREF(window_function_class);
     pysqlite_enter_sqlite(self);
+    Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_create_window_function(
         self->db,
         name,
@@ -1510,6 +1515,7 @@ PyObject* pysqlite_connection_create_window_function(pysqlite_Connection* self, 
         &_pysqlite_value_callback,
         &_pysqlite_inverse_callback,
         &_destructor);
+    Py_END_ALLOW_THREADS
     pysqlite_leave_sqlite(self);
 
     if (rc != SQLITE_OK) {
@@ -1729,7 +1735,9 @@ static PyObject* pysqlite_connection_set_authorizer(pysqlite_Connection* self, P
     int rc;
     if (authorizer_cb == Py_None) {
         pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_set_authorizer(self->db, NULL, NULL);
+        Py_END_ALLOW_THREADS
         pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK) {
             PyErr_SetString(pysqlite_OperationalError, "Error setting authorizer callback");
@@ -1740,7 +1748,9 @@ static PyObject* pysqlite_connection_set_authorizer(pysqlite_Connection* self, P
     else {
         Py_INCREF(authorizer_cb);
         pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_set_authorizer(self->db, _authorizer_callback, (void*)authorizer_cb);
+        Py_END_ALLOW_THREADS
         pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK) {
             Py_DECREF(authorizer_cb);
@@ -1771,13 +1781,17 @@ static PyObject* pysqlite_connection_set_progress_handler(pysqlite_Connection* s
 
     if (progress_handler == Py_None) {
         pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
         sqlite3_progress_handler(self->db, 0, 0, (void*)0);
+        Py_END_ALLOW_THREADS
         pysqlite_leave_sqlite(self);
         Py_XSETREF(self->function_pinboard_progress_handler, NULL);
     } else {
         Py_INCREF(progress_handler);
         pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
         sqlite3_progress_handler(self->db, n, _progress_handler, progress_handler);
+        Py_END_ALLOW_THREADS
         pysqlite_leave_sqlite(self);
         Py_XSETREF(self->function_pinboard_progress_handler, progress_handler);
     }
@@ -1803,7 +1817,9 @@ static PyObject* pysqlite_connection_set_busy_handler(pysqlite_Connection* self,
     int rc;
     if (busy_handler == Py_None) {
         pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_busy_handler(self->db, NULL, NULL);
+        Py_END_ALLOW_THREADS
         pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK) {
             PyErr_SetString(pysqlite_OperationalError, "Error setting busy handler");
@@ -1814,7 +1830,9 @@ static PyObject* pysqlite_connection_set_busy_handler(pysqlite_Connection* self,
     else {
         Py_INCREF(busy_handler);
         pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_busy_handler(self->db, _busy_handler, (void*)busy_handler);
+        Py_END_ALLOW_THREADS
         pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK) {
             Py_DECREF(busy_handler);
@@ -1843,7 +1861,9 @@ static PyObject* pysqlite_connection_set_busy_timeout(pysqlite_Connection* self,
     }
 
     int rc;
+    Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_busy_timeout(self->db, (int)(busy_timeout * 1000.0));
+    Py_END_ALLOW_THREADS
     if (rc != SQLITE_OK) {
         PyErr_SetString(pysqlite_OperationalError, "Error setting busy timeout");
         return NULL;
@@ -1876,16 +1896,24 @@ static PyObject* pysqlite_connection_set_trace_callback(pysqlite_Connection* sel
     if (trace_callback == Py_None) {
         /* None clears the trace callback previously set */
 #ifdef HAVE_TRACE_V2
+        Py_BEGIN_ALLOW_THREADS
         sqlite3_trace_v2(self->db, SQLITE_TRACE_STMT, NULL, (void*)0);
+        Py_END_ALLOW_THREADS
 #else
+        Py_BEGIN_ALLOW_THREADS
         sqlite3_trace(self->db, 0, (void*)0);
+        Py_END_ALLOW_THREADS
 #endif
         Py_XSETREF(self->function_pinboard_trace_callback, NULL);
     } else {
 #ifdef HAVE_TRACE_V2
+        Py_BEGIN_ALLOW_THREADS
         sqlite3_trace_v2(self->db, SQLITE_TRACE_STMT, _trace_callback, trace_callback);
+        Py_END_ALLOW_THREADS
 #else
+        Py_BEGIN_ALLOW_THREADS
         sqlite3_trace(self->db, _trace_callback, trace_callback);
+        Py_END_ALLOW_THREADS
 #endif
         Py_INCREF(trace_callback);
         Py_XSETREF(self->function_pinboard_trace_callback, trace_callback);
@@ -2421,12 +2449,14 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
     if (callable != Py_None) {
         Py_INCREF(callable);
         pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_create_collation_v2(self->db,
                                          name_str,
                                          SQLITE_UTF8,
                                          callable,
                                          pysqlite_collation_callback,
                                          &_destructor);
+        Py_END_ALLOW_THREADS
         pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK) {
             Py_DECREF(callable);
@@ -2435,23 +2465,27 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
         }
         if (PyDict_SetItemString(self->collations, name_str, callable) < 0) {
             pysqlite_enter_sqlite(self);
+            Py_BEGIN_ALLOW_THREADS
             (void)sqlite3_create_collation_v2(self->db,
                                               name_str,
                                               SQLITE_UTF8,
                                               NULL,
                                               NULL,
                                               NULL);
+            Py_END_ALLOW_THREADS
             pysqlite_leave_sqlite(self);
             return NULL;
         }
     } else {
         pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_create_collation_v2(self->db,
                                          name_str,
                                          SQLITE_UTF8,
                                          NULL,
                                          NULL,
                                          NULL);
+        Py_END_ALLOW_THREADS
         pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->db);

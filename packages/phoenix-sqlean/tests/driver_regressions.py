@@ -1195,6 +1195,41 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_cross_thread_registration_does_not_deadlock(self):
+        # Registering a function held the GIL while taking the connection
+        # mutex. With check_same_thread=False, a reader thread inside
+        # sqlite3_step holds that mutex and its UDF waits for the GIL:
+        # AB-BA. The registration calls now release the GIL.
+        self._run(
+            """
+            import threading
+            con = sqlite.connect(":memory:", check_same_thread=False)
+            con.execute("create table t(x)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(20000)])
+            in_step = threading.Event()
+            def udf(v):
+                in_step.set()
+                return v
+            con.create_function("udf", 1, udf)
+            result = []
+            def reader():
+                result.append(con.execute("select sum(udf(x)) from t").fetchone()[0])
+            t = threading.Thread(target=reader)
+            t.start()
+            assert in_step.wait(10), "reader never entered the UDF"
+            con.create_function("g", 0, lambda: 0)          # deadlocked here
+            con.create_collation("c", lambda a, b: 0)
+            con.set_authorizer(lambda *a: sqlite.SQLITE_OK)
+            con.set_progress_handler(lambda: 0, 1000)
+            con.set_busy_timeout(0.1)
+            con.set_trace_callback(lambda s: None)
+            t.join(10)
+            assert not t.is_alive(), "reader thread hung"
+            assert result == [sum(range(20000))], result
+            con.close()
+            """
+        )
+
     def test_open_blob_from_function_destructor(self):
         self._run(
             """
