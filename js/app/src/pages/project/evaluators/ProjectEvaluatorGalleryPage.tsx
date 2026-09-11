@@ -11,6 +11,8 @@ import {
   ExpandableContent,
   Flex,
   Heading,
+  Icon,
+  type IconKey,
   List,
   ListBox,
   ListBoxItem,
@@ -39,6 +41,7 @@ import {
   PROJECT_EVALUATOR_PARAM,
   PROJECT_EVALUATOR_TEMPLATE_PARAM,
 } from "@phoenix/constants/searchParams";
+import { useTheme } from "@phoenix/contexts";
 import type { projectEvaluatorDetailsQuery as ProjectEvaluatorDetailsQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
 import type { projectEvaluatorGalleryPageQuery as ProjectEvaluatorGalleryPageQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorGalleryPageQuery.graphql";
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
@@ -81,6 +84,44 @@ const SCROLL_SPY_ROOT_MARGIN = "0px 0px -70% 0px";
 
 type TemplateCategory = EvaluatorCategory | typeof OTHER_CATEGORY;
 type GallerySection = TemplateCategory | typeof CUSTOM_EVALUATORS_SECTION;
+
+type EvaluatorCategoryAppearance = {
+  icon: IconKey;
+  color: string;
+  lightColor?: string;
+};
+
+const EVALUATOR_CATEGORY_APPEARANCE = {
+  GROUNDING_AND_RETRIEVAL: {
+    icon: "ScanSearch",
+    color: "var(--global-color-orange-900)",
+    lightColor: "var(--global-color-orange-800)",
+  },
+  AGENTS: {
+    icon: "Agent",
+    color: "var(--global-color-purple-700)",
+    lightColor: "var(--global-color-purple-900)",
+  },
+  RESPONSE_QUALITY: {
+    icon: "BadgeCheck",
+    color: "var(--global-color-green-800)",
+  },
+  SAFETY_AND_SECURITY: {
+    icon: "SafetySecurity",
+    color: "var(--global-color-red-700)",
+    lightColor: "var(--global-color-red-800)",
+  },
+  USER_EXPERIENCE: {
+    icon: "Smile",
+    color: "var(--global-color-blue-700)",
+    lightColor: "var(--global-color-blue-900)",
+  },
+} satisfies Record<EvaluatorCategory, EvaluatorCategoryAppearance>;
+
+const CUSTOM_EVALUATOR_APPEARANCE = {
+  icon: "SquarePen",
+  color: "var(--global-color-gray-700)",
+} satisfies EvaluatorCategoryAppearance;
 
 type CustomEvaluator = {
   readonly __typename: "LLMEvaluator" | "CodeEvaluator";
@@ -136,6 +177,43 @@ function getGalleryCategory(
   category: EvaluatorCategory | null
 ): TemplateCategory {
   return category ?? OTHER_CATEGORY;
+}
+
+function getEvaluatorCategoryAppearance(
+  section: GallerySection
+): EvaluatorCategoryAppearance {
+  return section === CUSTOM_EVALUATORS_SECTION || section === OTHER_CATEGORY
+    ? CUSTOM_EVALUATOR_APPEARANCE
+    : EVALUATOR_CATEGORY_APPEARANCE[section];
+}
+
+function EvaluatorCategoryIcon({
+  section,
+  isWrapped = false,
+}: {
+  section: GallerySection;
+  isWrapped?: boolean;
+}) {
+  const { theme } = useTheme();
+  const appearance = getEvaluatorCategoryAppearance(section);
+  const color =
+    theme === "light"
+      ? (appearance.lightColor ?? appearance.color)
+      : appearance.color;
+  return (
+    <span
+      css={isWrapped ? categoryHeadingIconCSS : categoryMenuIconCSS}
+      style={{
+        color,
+        backgroundColor: isWrapped
+          ? `color-mix(in srgb, ${color} 10%, transparent)`
+          : undefined,
+      }}
+      aria-hidden="true"
+    >
+      <Icon svgKey={appearance.icon} />
+    </span>
+  );
 }
 
 function getSectionHeadingId(section: GallerySection): string {
@@ -426,7 +504,10 @@ function EvaluatorGallery() {
     count: number;
   }) => (
     <ListBoxItem key={id} id={id} textValue={name}>
-      <Text size="S">{name}</Text>
+      <Flex direction="row" alignItems="center" gap="size-100">
+        <EvaluatorCategoryIcon section={id} />
+        <Text size="S">{name}</Text>
+      </Flex>
       <Counter variant="quiet">{count}</Counter>
     </ListBoxItem>
   );
@@ -568,6 +649,10 @@ function EvaluatorGallery() {
               className="project-evaluator-gallery__template-category-section"
             >
               <Header className="project-evaluator-gallery__template-category-header">
+                <EvaluatorCategoryIcon
+                  section={CUSTOM_EVALUATORS_SECTION}
+                  isWrapped
+                />
                 <Text
                   ref={(element) => {
                     if (element) {
@@ -628,6 +713,7 @@ function EvaluatorGallery() {
                 className="project-evaluator-gallery__template-category-section"
               >
                 <Header className="project-evaluator-gallery__template-category-header">
+                  <EvaluatorCategoryIcon section={category} isWrapped />
                   <Text
                     ref={(element) => {
                       if (element) {
@@ -1290,6 +1376,22 @@ function EvaluatorDetailsError() {
   );
 }
 
+const categoryMenuIconCSS = css`
+  flex: none;
+  font-size: var(--global-font-size-s);
+`;
+
+const categoryHeadingIconCSS = css`
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--global-dimension-size-400);
+  height: var(--global-dimension-size-400);
+  border-radius: var(--global-rounding-medium);
+  font-size: var(--global-font-size-s);
+`;
+
 const compactCategoryListCSS = css`
   gap: var(--global-dimension-size-100);
 
@@ -1452,6 +1554,9 @@ const galleryCSS = css`
 
   .project-evaluator-gallery__template-category-header {
     grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
   }
 
   .project-evaluator-gallery__template-category-heading {
