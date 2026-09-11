@@ -362,14 +362,13 @@ class TestAgentMCPServerIsIndependentOfTheMount:
 
         assert app.state.pxi_mcp_server is None
 
-    async def test_surface_is_read_only(
+    async def test_surface_is_read_only_except_note_writes(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Through the server ``create_app`` wires, so the read-only derivation is
         the one sessions get. Code mode hides the derived tools behind
         ``execute``; the ``list_tools`` discovery tool is the view of that catalog,
-        checked against every operation in the OpenAPI document. The note
-        create and annotation sweep routes are the one admitted exception.
+        checked against every operation in the OpenAPI document.
         """
         import json
 
@@ -391,14 +390,14 @@ class TestAgentMCPServerIsIndependentOfTheMount:
             "deleteTraceAnnotations",
             "deleteSessionAnnotations",
         }
-        operation_ids: dict[bool, set[str]] = {True: set(), False: set()}
+        reads: set[str] = set()
+        writes: set[str] = set()
         for operations in app.openapi()["paths"].values():
             for method, operation in operations.items():
-                operation_id = operation["operationId"]
-                operation_ids[method == "get" or operation_id in note_writes].add(operation_id)
-        assert note_writes <= operation_ids[True]
-        assert operation_ids[True] <= catalog
-        assert catalog.isdisjoint(operation_ids[False]), catalog & operation_ids[False]
+                (reads if method == "get" else writes).add(operation["operationId"])
+        assert note_writes <= writes
+        assert reads | note_writes <= catalog
+        assert catalog.isdisjoint(writes - note_writes), catalog & writes
 
 
 async def test_mcp_code_mode_replaces_tool_surface(
