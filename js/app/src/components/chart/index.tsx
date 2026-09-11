@@ -18,6 +18,7 @@ export * from "./formatters";
 export * from "./useTimeTickFormatter";
 export * from "./useBinTimeTickFormatter";
 export * from "./colors";
+export * from "./confusionMatrix";
 export * from "./binning";
 export * from "./timeTicks";
 export * from "./useTimeAxisTicks";

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<317f7db06bcb9b75de9f08ef6d676808>>
+ * @generated SignedSource<<a1f94ff201b3b2cfde0938668b0cf627>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,13 @@ export type SpanCumulativeTokenCountDetailsQuery$variables = {
 export type SpanCumulativeTokenCountDetailsQuery$data = {
   readonly node: {
     readonly __typename: "Span";
+    readonly cumulativeCostDetailSummaryEntries: ReadonlyArray<{
+      readonly isPrompt: boolean;
+      readonly tokenType: string;
+      readonly value: {
+        readonly tokens: number | null;
+      };
+    }>;
     readonly cumulativeTokenCountCompletion: number | null;
     readonly cumulativeTokenCountPrompt: number | null;
     readonly cumulativeTokenCountTotal: number | null;
@@ -73,6 +80,49 @@ v3 = {
       "kind": "ScalarField",
       "name": "cumulativeTokenCountCompletion",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanCostDetailSummaryEntry",
+      "kind": "LinkedField",
+      "name": "cumulativeCostDetailSummaryEntries",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "tokenType",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "isPrompt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "value",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "tokens",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "Span",
@@ -131,16 +181,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c1da825bac7aac7aafa07638290f6f1d",
+    "cacheID": "975f0a6fc9e19d2c2c80e4394d4751e7",
     "id": null,
     "metadata": {},
     "name": "SpanCumulativeTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanCumulativeTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      cumulativeTokenCountTotal\n      cumulativeTokenCountPrompt\n      cumulativeTokenCountCompletion\n    }\n    id\n  }\n}\n"
+    "text": "query SpanCumulativeTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      cumulativeTokenCountTotal\n      cumulativeTokenCountPrompt\n      cumulativeTokenCountCompletion\n      cumulativeCostDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f7a968d87890a07d6e1dd6f06bad6b51";
+(node as any).hash = "8ad6ab6ae7d391f888e4fa5509986f73";
 
 export default node;

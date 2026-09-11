@@ -187,8 +187,8 @@ async def process_ui_message_stream(
     """Reduce UI-message chunks into ``state`` while yielding them unchanged.
 
     Port of ``processUIMessageStream`` and its per-chunk ``switch``:
-    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L78
-    https://github.com/vercel/ai/blob/ai%407.0.31/packages/ai/src/ui/process-ui-message-stream.ts#L386
+    https://github.com/vercel/ai/blob/ai%407.0.85/packages/ai/src/ui/process-ui-message-stream.ts#L82
+    https://github.com/vercel/ai/blob/ai%407.0.85/packages/ai/src/ui/process-ui-message-stream.ts#L426
     """
     async for chunk in stream:
         if isinstance(chunk, TextStartChunk):
@@ -235,6 +235,7 @@ async def process_ui_message_stream(
         elif isinstance(chunk, ReasoningStartChunk):
             reasoning_part = ReasoningUIPart(
                 type="reasoning",
+                id=chunk.id,
                 text="",
                 provider_metadata=chunk.provider_metadata,
                 state="streaming",
@@ -449,8 +450,10 @@ async def process_ui_message_stream(
         elif isinstance(chunk, StartStepChunk):
             state.message.parts.append(StepStartUIPart(type="step-start"))
         elif isinstance(chunk, FinishStepChunk):
-            state.active_text_parts = {}
-            state.active_reasoning_parts = {}
+            # Active parts are closed by their explicit end chunks, not by step
+            # boundaries: a merged stream's step can finish while another
+            # stream's part is still active.
+            pass
         elif isinstance(chunk, StartChunk):
             if chunk.message_id is not None:
                 state.message.id = chunk.message_id

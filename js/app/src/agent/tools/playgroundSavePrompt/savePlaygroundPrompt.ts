@@ -36,11 +36,11 @@ const MAX_GENERATED_PROMPT_NAME_BASE_LENGTH = 72;
 
 type SavePromptResult =
   | { ok: true; output: SavePromptOutput }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: string };
 
 type SavePromptPreviewResult =
   | { ok: true; output: SavePromptPreview }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: string };
 
 const createPromptMutation = graphql`
   mutation savePlaygroundPromptCreateMutation($input: CreateChatPromptInput!) {
@@ -238,6 +238,7 @@ export function getSavePromptPreview({
     return {
       ok: false,
       error: `Playground instance ${snapshot.output.instanceId} was not found.`,
+      code: "NOT_FOUND",
     };
   }
 

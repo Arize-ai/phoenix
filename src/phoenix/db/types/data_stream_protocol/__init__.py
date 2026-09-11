@@ -60,10 +60,12 @@ from .request_types import (
     UIMessage,
     UIMessagePart,
 )
+from .ui_state_types import EditPermission, UIContexts
 
 PhoenixUIMessageAdapter = TypeAdapter(PhoenixUIMessage)
 
 __all__ = [
+    "EditPermission",
     "AgentErrorData",
     "AssistantMessageMetadataUsage",
     "AssistantMessageMetadataUsageCacheTokenDetails",
@@ -117,4 +119,5 @@ __all__ = [
     "TurnTraceContext",
     "UIMessage",
     "UIMessagePart",
+    "UIContexts",
 ]

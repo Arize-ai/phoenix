@@ -6,7 +6,6 @@ import logging
 from collections.abc import (
     AsyncGenerator,
     AsyncIterator,
-    Awaitable,
     Callable,
     Iterable,
     Sequence,
@@ -20,6 +19,7 @@ from uuid import uuid4
 
 import anyio
 from fastapi import APIRouter, Depends, HTTPException, Query
+from jinja2 import Template
 from openinference.instrumentation import using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry import trace as trace_api
@@ -42,12 +42,14 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    SecretStr,
     StrictBool,
     TypeAdapter,
     model_validator,
 )
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
+from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
@@ -67,7 +69,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from sqlalchemy import ColumnElement, Insert, exists, func, or_, select, tuple_, update
+from sqlalchemy import ColumnElement, Insert, func, or_, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -96,6 +98,7 @@ from phoenix.db.types.data_stream_protocol import (
     DynamicToolOutputAvailablePart,
     DynamicToolOutputErrorPart,
     DynamicToolUIPart,
+    EditPermission,
     MessageMetadata,
     PhoenixAssistantMessageMetadata,
     PhoenixToolCallCallbackProviderMetadata,
@@ -116,24 +119,31 @@ from phoenix.db.types.data_stream_protocol import (
     ToolOutputErrorPart,
     ToolUIPart,
     TurnTraceContext,
+    UIContexts,
     UIMessage,
     UIMessagePart,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.server.agents.agent_factory import build_agent
+from phoenix.server.agents.agent_factory import build_agent, build_agent_tracer
 from phoenix.server.agents.capabilities import get_external_tool_definition
-from phoenix.server.agents.capabilities.skills import Skill
+from phoenix.server.agents.config import AgentsEnvConfig
 from phoenix.server.agents.context import (
     AppContext,
     ChatContext,
     ResolvedContexts,
     resolve_contexts,
+    sanitize_untrusted_value,
 )
 from phoenix.server.agents.exceptions import AgentError, CompactionError
+from phoenix.server.agents.github import (
+    ChatRequestCredentialKey,
+    GitHubMCPConfig,
+    resolve_github_mcp_config,
+)
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
-from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
-from phoenix.server.agents.server_agents import build_server_agent
+from phoenix.server.agents.prompts import UI_STATE_TEMPLATE, AgentPrompts
+from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
 from phoenix.server.agents.session_titles import (
     MAX_AGENT_SESSION_TITLE_LENGTH,
     truncate_agent_session_title,
@@ -144,7 +154,6 @@ from phoenix.server.agents.skill_requests import (
     iter_requested_skill_response_chunks,
     resolve_requested_skills,
 )
-from phoenix.server.agents.skills import get_skills_for_contexts
 from phoenix.server.agents.summarization import (
     summarize_messages,
     summarize_messages_for_compaction,
@@ -152,8 +161,6 @@ from phoenix.server.agents.summarization import (
 from phoenix.server.agents.types import (
     AgentDependencies,
     AgentOutput,
-    ModelProviderAvailability,
-    SandboxAvailability,
 )
 from phoenix.server.agents.ui_message_stream import (
     AgentErrorChunk,
@@ -172,12 +179,8 @@ from phoenix.server.api.helpers.agent_sessions import (
     resolve_model_routing,
     set_session_model,
 )
-from phoenix.server.api.helpers.playground_registry import (
-    PLAYGROUND_CLIENT_REGISTRY,
-    PROVIDER_DEFAULT,
-)
 from phoenix.server.api.openapi.registry import register_openapi_schema
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -189,10 +192,6 @@ from phoenix.server.api.types.pagination import (
     CursorSortColumn,
     CursorSortColumnDataType,
 )
-from phoenix.server.api.types.SandboxConfig import (
-    SandboxBackendStatus,
-    get_sandbox_backend_info,
-)
 from phoenix.server.authorization import (
     insufficient_storage_message,
     is_agent_assistant_enabled,
@@ -202,8 +201,7 @@ from phoenix.server.authorization import (
 )
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
-from phoenix.server.sandbox import SecretsContext
-from phoenix.server.sandbox.types import SandboxRuntimeContext
+from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, Skill, load_skills
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import (
     Tracer,
@@ -304,19 +302,142 @@ class TranscriptPersistedChunk(DataChunk):
     transient: Literal[True] = True
 
 
+def _get_user_message_metadata(message: PhoenixUIMessage) -> PhoenixUserMessageMetadata | None:
+    if message.role != "user":
+        return None
+    phoenix_metadata = message.metadata.phoenix if message.metadata is not None else None
+    if not isinstance(phoenix_metadata, PhoenixUserMessageMetadata):
+        return None
+    return phoenix_metadata
+
+
 def _resolve_browser_clock(messages: Sequence[PhoenixUIMessage]) -> AppContext | None:
     """Return the newest user-message browser-clock stamp, if any."""
     for message in reversed(messages):
-        if message.role != "user":
-            continue
-        phoenix_metadata = message.metadata.phoenix if message.metadata is not None else None
-        if isinstance(phoenix_metadata, PhoenixUserMessageMetadata):
+        if (phoenix_metadata := _get_user_message_metadata(message)) is not None:
             return AppContext(
                 type="app",
                 current_date_time=phoenix_metadata.current_date_time,
                 time_zone=phoenix_metadata.time_zone,
             )
     return None
+
+
+def _get_ui_contexts(contexts: ResolvedContexts) -> UIContexts:
+    """The subset of this turn's contexts stored on the user message and shown to the model."""
+    return UIContexts(
+        project=contexts.project,
+        trace=contexts.trace,
+        session=contexts.session,
+        span=contexts.span,
+        prompt=contexts.prompt,
+        prompt_version=contexts.prompt_version,
+        dataset=contexts.dataset,
+        playground=contexts.playground,
+        code_evaluator=contexts.code_evaluator,
+        llm_evaluator=contexts.llm_evaluator,
+    )
+
+
+_UI_STATE_TAG = "phoenix_ui_state"
+_MAX_UI_STATE_TEXT_CHARS = 512
+"""Cap for user-authored text in the block; a span filter is the longest legitimate value."""
+
+
+def _sanitize_ui_state_strings(value: Any) -> Any:
+    """Neutralize and cap every string in a dumped UI-state document.
+
+    Ids and enums pass through unchanged; the pass exists for the handful of
+    free-text fields (span filter, names, descriptions) the user can type into.
+    """
+    if isinstance(value, str):
+        return sanitize_untrusted_value(
+            value, enclosing_tag=_UI_STATE_TAG, max_chars=_MAX_UI_STATE_TEXT_CHARS
+        )
+    if isinstance(value, dict):
+        return {key: _sanitize_ui_state_strings(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_ui_state_strings(item) for item in value]
+    return value
+
+
+def _render_ui_state(
+    ui_contexts: UIContexts,
+    edit_permission: EditPermission,
+    *,
+    template: Template,
+) -> str:
+    """Render one turn's stored UI state as its ``<phoenix_ui_state>`` block.
+
+    The body is the same JSON the metadata stores, so the model reads exactly
+    what was persisted. Pure, so a turn's block stays byte-identical however
+    late it is re-rendered.
+    """
+    return template.render(
+        ui_contexts=_sanitize_ui_state_strings(
+            ui_contexts.model_dump(mode="json", by_alias=True, exclude_none=True)
+        ),
+        edit_permission=edit_permission,
+    )
+
+
+def _get_ui_state_block_from_metadata(message: PhoenixUIMessage) -> str | None:
+    """Render the UI state stored on ``message`` when it was written."""
+    phoenix_metadata = _get_user_message_metadata(message)
+    if phoenix_metadata is None or phoenix_metadata.ui_contexts is None:
+        return None
+    return _render_ui_state(
+        phoenix_metadata.ui_contexts,
+        phoenix_metadata.edit_permission,
+        template=UI_STATE_TEMPLATE,
+    )
+
+
+def _add_ui_contexts_to_metadata(message: PhoenixUIMessage, ui_contexts: UIContexts) -> None:
+    """Store this turn's UI contexts on the user message."""
+    phoenix_metadata = _get_user_message_metadata(message)
+    if phoenix_metadata is not None:
+        phoenix_metadata.ui_contexts = ui_contexts
+
+
+def _add_edit_permission_to_metadata(
+    message: PhoenixUIMessage, edit_permission: EditPermission
+) -> None:
+    """Store this turn's edit permission on the user message."""
+    phoenix_metadata = _get_user_message_metadata(message)
+    if phoenix_metadata is not None:
+        phoenix_metadata.edit_permission = edit_permission
+
+
+def _prepend_ui_state_block(message: PhoenixUIMessage, block: str) -> PhoenixUIMessage:
+    """Return a model-facing copy of ``message`` with its state block ahead of the
+    user's text.
+    """
+    return message.model_copy(
+        update={"parts": [TextUIPart(type="text", text=block), *message.parts]}
+    )
+
+
+def _prepend_ui_state_blocks_from_metadata(
+    messages: Sequence[PhoenixUIMessage],
+) -> list[PhoenixUIMessage]:
+    """Render each turn's stored UI state into the model-facing transcript.
+
+    Emitted only where a stored block differs from the newest one before it, so
+    blocks land in the same positions on every turn.
+    """
+    rendered: list[PhoenixUIMessage] = []
+    injected = False
+    previous: str | None = None
+    for message in messages:
+        block = _get_ui_state_block_from_metadata(message)
+        if block is None or block == previous:
+            rendered.append(message)
+            continue
+        previous = block
+        injected = True
+        rendered.append(_prepend_ui_state_block(message, block))
+    return rendered if injected else list(messages)
 
 
 ToolOutputUIPart = (
@@ -365,6 +486,19 @@ def _validate_submitted_tool_approvals(tool_approvals: Sequence[ToolApproval]) -
     tool_call_ids = [tool_approval.tool_call_id for tool_approval in tool_approvals]
     if len(tool_call_ids) != len(set(tool_call_ids)):
         raise ValueError("Each toolApprovals entry must have a distinct toolCallId")
+
+
+class ChatRequestCredential(_CamelBaseModel):
+    """One client-held credential riding the request for the duration of a turn.
+
+    The value is ephemeral: it is injected server-side as transport auth for
+    the matching integration and is never persisted, traced, or echoed. It is
+    top-level on the request body — never part of the message — so it cannot
+    reach the session transcript.
+    """
+
+    key: ChatRequestCredentialKey = Field(description="The credential's secret-key name.")
+    value: SecretStr
 
 
 class ChatRequestBody(_CamelBaseModel):
@@ -435,6 +569,15 @@ class ChatRequestBody(_CamelBaseModel):
             "transcript) once it does. On mismatch the server rejects the "
             "send with HTTP 409 and code ``agent_session_messages_stale`` — the "
             "client should refetch the session before retrying."
+        ),
+    )
+    credentials: list[ChatRequestCredential] = Field(
+        default_factory=list,
+        description=(
+            "Client-held credentials for optional integrations (e.g. the "
+            "user's own GitHub personal access token under the key "
+            "``GITHUB_PERSONAL_ACCESS_TOKEN``), used only for the duration of "
+            "the turn and never persisted. Unknown keys are rejected."
         ),
     )
     record_local_traces: bool = False
@@ -601,8 +744,8 @@ class PatchAgentSessionRequestBody(V1RoutesBaseModel):
 class AgentSessionSummary(V1RoutesBaseModel):
     id: str
     title: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: IsoDatetime
+    updated_at: IsoDatetime
     is_ephemeral: bool
 
 
@@ -1303,48 +1446,6 @@ async def _refresh_cumulative_span_counts(
         span.cumulative_llm_token_count_completion = count.completion_tokens
 
 
-async def _load_available_sandbox_backend_types(
-    *,
-    session: AsyncSession,
-    decrypt: Callable[[bytes], bytes],
-    runtime: SandboxRuntimeContext,
-) -> frozenset[models.SandboxBackendType]:
-    backend_info = await get_sandbox_backend_info(
-        secrets=SecretsContext(session=session, decrypt=decrypt),
-        runtime=runtime,
-    )
-    return frozenset(
-        info.backend_type.value
-        for info in backend_info
-        if info.status is SandboxBackendStatus.AVAILABLE
-    )
-
-
-async def _load_sandbox_availability(
-    session: AsyncSession,
-    *,
-    available_backend_types: frozenset[models.SandboxBackendType] | None = None,
-) -> SandboxAvailability:
-    """Compute the pre-turn ``has_usable`` gate for sandbox-backed capabilities.
-
-    ``has_usable`` is true when at least one enabled ``SandboxConfig`` sits
-    under an enabled provider. When ``available_backend_types`` is supplied it
-    mirrors the code-evaluator form's backend-status filter, so the gate matches
-    the set the mounted form can actually select. The selectable inventory is
-    fetched on-demand by the agent via ``phoenix-gql``, not loaded here."""
-    if available_backend_types is not None and not available_backend_types:
-        return SandboxAvailability(has_usable=False)
-    condition = (
-        models.SandboxConfig.enabled.is_(True)
-        & models.SandboxProvider.enabled.is_(True)
-        & (models.SandboxProvider.backend_type == models.SandboxConfig.backend_type)
-    )
-    if available_backend_types is not None:
-        condition &= models.SandboxConfig.backend_type.in_(available_backend_types)
-    has_usable = bool(await session.scalar(select(exists().where(condition))))
-    return SandboxAvailability(has_usable=has_usable)
-
-
 def _decode_context_node_id(node_id: str | None, expected_type_name: str) -> int | None:
     if node_id is None:
         return None
@@ -1357,38 +1458,11 @@ def _decode_context_node_id(node_id: str | None, expected_type_name: str) -> int
         return None
 
 
-def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
-    return contexts.dataset is not None or contexts.code_evaluator is not None
-
-
 def _subagents_enabled(contexts: ResolvedContexts) -> bool:
     """Whether the server-side subagent should be attached."""
     if get_env_phoenix_agents_disable_bash():
         return False
     return contexts.subagents is not None and contexts.subagents.enabled
-
-
-def _load_model_provider_availability() -> ModelProviderAvailability:
-    """Compute the pre-turn ``has_usable`` gate for model-provider-backed capabilities.
-
-    ``has_usable`` is true when at least one generative provider has its SDK
-    installed. This is env-independent (it checks installed packages, not
-    credentials), so it is computed over the provider registry rather than the
-    database. Per-request credentials can arrive at run time, so the gate
-    deliberately ignores ``credentials_set`` to avoid hiding the tool."""
-    has_usable = any(
-        (client := PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, PROVIDER_DEFAULT))
-        is not None
-        and client.dependencies_are_installed()
-        for provider_key in PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
-    )
-    return ModelProviderAvailability(has_usable=has_usable)
-
-
-def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bool:
-    # ``open_llm_evaluator_form`` gates on model-provider availability with no
-    # ``llm_evaluator`` context, so a dataset-backed playground must also trigger the load.
-    return contexts.dataset is not None or contexts.llm_evaluator is not None
 
 
 def _resolve_trace_recording(
@@ -3172,23 +3246,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     else None
                 )
                 tracer_provider = tracer.tracer_provider if tracer is not None else None
-                sandbox_availability = SandboxAvailability()
-                model_provider_availability = ModelProviderAvailability()
-                agent_supports_availability_gate = not body.headless
+                github_mcp_config: GitHubMCPConfig | None = None
+                github_enabled = AgentsEnvConfig.from_env().allows_github(
+                    request.app.state.system_settings.agent_github
+                )
                 async with request.app.state.db() as session:
-                    if agent_supports_availability_gate:
-                        if _contexts_need_sandbox_availability(resolved_contexts):
-                            available_backend_types = await _load_available_sandbox_backend_types(
-                                session=session,
-                                decrypt=request.app.state.decrypt,
-                                runtime=request.app.state.sandbox_runtime,
-                            )
-                            sandbox_availability = await _load_sandbox_availability(
-                                session,
-                                available_backend_types=available_backend_types,
-                            )
-                        if _contexts_need_model_provider_availability(resolved_contexts):
-                            model_provider_availability = _load_model_provider_availability()
                     phoenix_user_email = await _load_phoenix_user_email(
                         session=session,
                         phoenix_user=phoenix_user,
@@ -3197,6 +3259,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         session,
                         agent_session_rowid=agent_session_rowid,
                     )
+                    if github_enabled:
+                        github_mcp_config = await resolve_github_mcp_config(
+                            session,
+                            request.app.state.decrypt,
+                            {credential.key: credential.value for credential in body.credentials},
+                        )
                 model = await build_model(
                     session_model,
                     db=db_session_factory,
@@ -3208,6 +3276,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
             if (browser_clock := _resolve_browser_clock(transcript_messages)) is not None:
                 resolved_contexts.app = browser_clock
+
+            if body.message is not None and not body.headless:
+                _add_ui_contexts_to_metadata(body.message, _get_ui_contexts(resolved_contexts))
+                _add_edit_permission_to_metadata(body.message, body.edit_permission)
 
             web_access_enabled = (
                 resolved_contexts.web_access is not None
@@ -3235,148 +3307,60 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 else str(uuid4())
             )
             model_transcript_messages = transcript_messages
-            compaction_history: list[ModelMessage] = []
 
-            adapter: VercelAIAdapter[AgentDependencies, AgentOutput] | VercelAIAdapter[None, str]
-            run_agent_stream: Callable[
-                [Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]]],
-                AsyncIterator[BaseChunk],
-            ]
-            if body.headless:
-                server_agent = build_server_agent(
-                    model=model,
-                    schema=request.app.state.graphql_schema,
-                    build_graphql_context=lambda: request.app.state.build_graphql_context(
-                        phoenix_user
-                    ),
-                    db=request.app.state.db,
-                    event_queue=request.state.event_queue,
-                    prompts=ServerAgentPrompts(base=agent_prompts.base),
-                    docs_mcp_server=request.app.state.docs_mcp_server,
-                    phoenix_mcp_server=request.app.state.pxi_mcp_server,
-                    principal=phoenix_user,
-                    enable_web_access=web_access_enabled,
-                    # A headless run has no client to answer an approval
-                    # request, so in manual mode it gets no mutation access at
-                    # all rather than mutations with the approval flow skipped.
-                    allow_mutations=(
-                        graphql_mutations_enabled and body.edit_permission == "bypass"
-                    ),
-                    require_mutation_approval=False,
-                    read_only=request.app.state.read_only,
-                    auth_enabled=request.app.state.authentication_enabled,
-                    user_id=request_user_id,
-                    is_viewer=is_viewer,
-                    tracer_provider=tracer_provider,
-                    enable_subagents=subagents_enabled,
-                    initial_bash_snapshot=initial_bash_snapshot,
-                    on_bash_snapshot=_capture_bash_snapshot,
-                )
-                server_agent_adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
-                    agent=server_agent,
-                    run_input=_to_pydantic_ai_request_data(
-                        body, messages=model_transcript_messages
-                    ),
-                    accept=request.headers.get("accept"),
-                    sdk_version=7,
-                    server_message_id=server_message_id,
+            async def _publish_subagent_message_chunk(
+                subagent_message_chunk: ToolOutputAvailableChunk,
+            ) -> None:
+                await subagent_message_chunks.put(subagent_message_chunk)
+
+            def _set_subagent_final_tool_output(
+                final_tool_output: ToolOutputAvailableChunk,
+            ) -> None:
+                final_tool_outputs_by_tool_call_id[final_tool_output.tool_call_id] = (
+                    final_tool_output
                 )
 
-                def _run_server_agent_stream(
-                    on_complete: Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]],
-                ) -> AsyncIterator[BaseChunk]:
-                    return server_agent_adapter.run_stream(
-                        deps=None,
-                        message_history=compaction_history,
-                        on_complete=on_complete,
-                    )
-
-                adapter = server_agent_adapter
-                run_agent_stream = _run_server_agent_stream
-            else:
-                subagent = (
-                    build_server_agent(
-                        model=model,
-                        schema=request.app.state.graphql_schema,
-                        build_graphql_context=lambda: request.app.state.build_graphql_context(
-                            phoenix_user
-                        ),
-                        db=request.app.state.db,
-                        event_queue=request.state.event_queue,
-                        docs_mcp_server=request.app.state.docs_mcp_server,
-                        phoenix_mcp_server=request.app.state.pxi_mcp_server,
-                        principal=phoenix_user,
-                        enable_web_access=web_access_enabled,
-                        # A subagent runs mid-turn with no way to surface an
-                        # approval request, so in manual mode it gets no
-                        # mutation access at all.
-                        allow_mutations=(
-                            graphql_mutations_enabled and body.edit_permission == "bypass"
-                        ),
-                        require_mutation_approval=False,
-                        read_only=request.app.state.read_only,
-                        auth_enabled=request.app.state.authentication_enabled,
-                        user_id=request_user_id,
-                        is_viewer=is_viewer,
-                        tracer_provider=tracer_provider,
-                        enable_subagents=False,
-                    )
-                    if subagents_enabled
+            agent: AbstractAgent[AgentDependencies, AgentOutput] = build_agent(
+                name="PXIAgent",
+                headless=body.headless,
+                model=model,
+                db=request.app.state.db,
+                event_queue=request.state.event_queue,
+                prompts=agent_prompts,
+                principal=phoenix_user,
+                schema=request.app.state.graphql_schema if bash_enabled else None,
+                build_graphql_context=(
+                    (lambda: request.app.state.build_graphql_context(phoenix_user))
+                    if bash_enabled
                     else None
-                )
-                publish_subagent_message_chunk: (
-                    Callable[[ToolOutputAvailableChunk], Awaitable[None]] | None
-                ) = None
-                set_subagent_final_tool_output: (
-                    Callable[[ToolOutputAvailableChunk], None] | None
-                ) = None
-
-                if subagent is not None:
-
-                    async def _publish_subagent_message_chunk(
-                        subagent_message_chunk: ToolOutputAvailableChunk,
-                    ) -> None:
-                        await subagent_message_chunks.put(subagent_message_chunk)
-
-                    def _set_subagent_final_tool_output(
-                        final_tool_output: ToolOutputAvailableChunk,
-                    ) -> None:
-                        final_tool_outputs_by_tool_call_id[final_tool_output.tool_call_id] = (
-                            final_tool_output
-                        )
-
-                    publish_subagent_message_chunk = _publish_subagent_message_chunk
-                    set_subagent_final_tool_output = _set_subagent_final_tool_output
-
-                agent = build_agent(
-                    model=model,
-                    docs_mcp_server=request.app.state.docs_mcp_server,
-                    phoenix_mcp_server=request.app.state.pxi_mcp_server,
-                    principal=phoenix_user,
-                    enable_web_access=web_access_enabled,
-                    tracer_provider=tracer_provider,
-                    server_agent=subagent,
-                    publish_subagent_message_chunk=publish_subagent_message_chunk,
-                    set_subagent_final_tool_output=set_subagent_final_tool_output,
-                    db=request.app.state.db,
-                    event_queue=request.state.event_queue,
-                    read_only=request.app.state.read_only,
-                    auth_enabled=request.app.state.authentication_enabled,
-                    user_id=request_user_id,
-                    is_viewer=is_viewer,
-                    schema=request.app.state.graphql_schema if bash_enabled else None,
-                    build_graphql_context=(
-                        (lambda: request.app.state.build_graphql_context(phoenix_user))
-                        if bash_enabled
-                        else None
-                    ),
-                    allow_mutations=graphql_mutations_enabled,
-                    require_mutation_approval=body.edit_permission == "manual",
-                    initial_bash_snapshot=initial_bash_snapshot,
-                    on_bash_snapshot=_capture_bash_snapshot,
+                ),
+                docs_mcp_server=request.app.state.docs_mcp_server,
+                phoenix_mcp_server=request.app.state.pxi_mcp_server,
+                github_mcp_config=github_mcp_config,
+                tracer_provider=tracer_provider,
+                read_only=request.app.state.read_only,
+                auth_enabled=request.app.state.authentication_enabled,
+                edit_permission=body.edit_permission,
+                graphql_mutations_enabled=graphql_mutations_enabled,
+                enable_web_access=web_access_enabled,
+                enable_subagents=subagents_enabled,
+                initial_bash_snapshot=initial_bash_snapshot,
+                on_bash_snapshot=_capture_bash_snapshot,
+                publish_subagent_message_chunk=(
+                    None if body.headless else _publish_subagent_message_chunk
+                ),
+                set_subagent_final_tool_output=(
+                    None if body.headless else _set_subagent_final_tool_output
+                ),
+            )
+            if body.headless:
+                agent = OpenInferenceAgentWrapper(agent, tracer=build_agent_tracer(tracer_provider))
+            else:
+                model_transcript_messages = _prepend_ui_state_blocks_from_metadata(
+                    model_transcript_messages
                 )
                 if body.requested_skills:
-                    available_skills = get_skills_for_contexts(resolved_contexts)
+                    available_skills = load_skills(PXI_SKILLS_ROOTS)
                     forced_skills = resolve_requested_skills(
                         messages=model_transcript_messages,
                         requested_skill_names=body.requested_skills,
@@ -3387,39 +3371,20 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             messages=model_transcript_messages,
                             requested_skill_names=body.requested_skills,
                             available_skills=available_skills,
-                            load_skill_template=agent_prompts.load_skill,
                             message_factory=PhoenixUIMessage,
                         )
-                assistant_adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = (
-                    VercelAIAdapter(
-                        agent=agent,
-                        run_input=_to_pydantic_ai_request_data(
-                            body, messages=model_transcript_messages
-                        ),
-                        accept=request.headers.get("accept"),
-                        sdk_version=7,
-                        server_message_id=server_message_id,
-                    )
-                )
-                deps = AgentDependencies(
-                    contexts=resolved_contexts,
-                    edit_permission=body.edit_permission,
-                    is_viewer=is_viewer,
-                    sandbox_availability=sandbox_availability,
-                    model_provider_availability=model_provider_availability,
-                )
-
-                def _run_assistant_agent_stream(
-                    on_complete: Callable[[AgentRunResult[Any]], AsyncIterator[BaseChunk]],
-                ) -> AsyncIterator[BaseChunk]:
-                    return assistant_adapter.run_stream(
-                        deps=deps,
-                        message_history=compaction_history,
-                        on_complete=on_complete,
-                    )
-
-                adapter = assistant_adapter
-                run_agent_stream = _run_assistant_agent_stream
+            adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
+                agent=agent,
+                run_input=_to_pydantic_ai_request_data(body, messages=model_transcript_messages),
+                accept=request.headers.get("accept"),
+                sdk_version=7,
+                server_message_id=server_message_id,
+            )
+            deps = AgentDependencies(
+                contexts=resolved_contexts,
+                edit_permission=body.edit_permission,
+                is_viewer=is_viewer,
+            )
 
             continued_turn_trace_context = _message_turn_trace_context(continued_assistant_message)
             superseded_turn_trace_context = _message_turn_trace_context(
@@ -3647,7 +3612,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         using_session(session_id=otel_session_id),
                         _maybe_using_user(instrument_user_id, phoenix_user_email),
                     ):
-                        raw_stream = run_agent_stream(_on_complete)
+                        raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
                         assert _is_async_generator(raw_stream)
 
                         async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
@@ -3673,7 +3638,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                         forced_skill_message_chunks = (
                                             iter_requested_skill_response_chunks(
                                                 skills=forced_skills,
-                                                load_skill_template=agent_prompts.load_skill,
                                             )
                                         )
                                         for (

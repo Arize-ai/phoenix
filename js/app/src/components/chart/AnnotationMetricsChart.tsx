@@ -143,6 +143,43 @@ export function AnnotationMetricsChart(props: AnnotationMetricsChartProps) {
   );
 }
 
+function getAnnotationChartState({
+  series,
+  view,
+}: Pick<AnnotationMetricsChartProps, "series" | "view">) {
+  const { data, reference } = series;
+  const isScoreView = view === "scores";
+  const scoreValues = [...data, reference].flatMap((point) =>
+    point?.meanScore == null ? [] : [point.meanScore]
+  );
+  const domain =
+    !isScoreView || scoreValues.every((score) => score >= 0 && score <= 1)
+      ? ([0, 1] as [number, number])
+      : undefined;
+  const isReferencePrepended =
+    !isScoreView &&
+    reference != null &&
+    !data.some(({ x }) => x === reference.x);
+  const baseChartData = isScoreView
+    ? data
+    : getAnnotationMetricsChartData({ data, reference });
+  const chartData = isScoreView
+    ? baseChartData
+    : baseChartData.map((point) => ({
+        ...point,
+        otherFraction: getAnnotationOtherFraction({ point }),
+      }));
+  return {
+    chartData,
+    domain,
+    hasOtherValues: chartData.some(
+      (point) => "otherFraction" in point && point.otherFraction != null
+    ),
+    isReferencePrepended,
+    isScoreView,
+  };
+}
+
 function AnnotationMetricsChartContent({
   series,
   view,
@@ -160,39 +197,15 @@ function AnnotationMetricsChartContent({
   const categoryColors = useCategoryChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
-  const { data, reference } = series;
-  const isScoreView = view === "scores";
-  const scoreValues = [...data, reference].flatMap((point) =>
-    point?.meanScore == null ? [] : [point.meanScore]
-  );
-  const scoreValuesFitUnitDomain = scoreValues.every(
-    (score) => score >= 0 && score <= 1
-  );
-  const domain =
-    !isScoreView || scoreValuesFitUnitDomain
-      ? ([0, 1] as [number, number])
-      : undefined;
+  const { data } = series;
   const visibleLabels = series.labels;
-  const isReferencePrepended =
-    !isScoreView &&
-    reference != null &&
-    !data.some(({ x }) => x === reference.x);
-  // A score baseline is a non-chronological comparison value, so show it as
-  // a horizontal reference without inserting it into the connected line.
-  const baseChartData = isScoreView
-    ? data
-    : getAnnotationMetricsChartData({ data, reference });
-  // Labels hidden interactively stay classified so toggling a series does not
-  // change the other values.
-  const chartData = isScoreView
-    ? baseChartData
-    : baseChartData.map((point) => ({
-        ...point,
-        otherFraction: getAnnotationOtherFraction({ point }),
-      }));
-  const hasOtherValues = chartData.some(
-    (point) => "otherFraction" in point && point.otherFraction != null
-  );
+  const {
+    chartData,
+    domain,
+    hasOtherValues,
+    isReferencePrepended,
+    isScoreView,
+  } = getAnnotationChartState({ series, view });
 
   return (
     <ChartEmptyStateOverlay

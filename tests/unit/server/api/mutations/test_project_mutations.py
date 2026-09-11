@@ -132,6 +132,78 @@ class TestProjectMutations:
                     session_obj = await session.get(models.ProjectSession, project_sessions[i].id)
                     assert session_obj is None, f"Session {i} should be deleted"
 
+    async def test_clear_project_preserves_straddling_session_and_its_newer_trace(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """A bounded clear must not delete a session that still has newer traces.
+
+        Deleting such a session would cascade-delete its surviving traces via
+        the ``traces.project_session_rowid ON DELETE CASCADE`` foreign key,
+        destroying data outside the requested time bound.
+        """
+        base_start_time = datetime.now(timezone.utc)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            project_session = models.ProjectSession(
+                project_id=project.id,
+                session_id=token_hex(8),
+                start_time=base_start_time - timedelta(days=2),
+                end_time=base_start_time + timedelta(hours=1),
+            )
+            session.add(project_session)
+            await session.flush()
+            old_trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=token_hex(16),
+                project_session_rowid=project_session.id,
+                start_time=base_start_time - timedelta(days=2),
+                end_time=base_start_time - timedelta(days=2) + timedelta(hours=1),
+            )
+            new_trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=token_hex(16),
+                project_session_rowid=project_session.id,
+                start_time=base_start_time,
+                end_time=base_start_time + timedelta(hours=1),
+            )
+            session.add_all([old_trace, new_trace])
+            await session.flush()
+
+        # Clear up to a point between the two traces: the old trace is deleted,
+        # and the session straddling the bound survives with its newer trace.
+        end_time = base_start_time - timedelta(days=1)
+        result = await gql_client.execute(
+            query="""
+            mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) {
+                    __typename
+                }
+            }
+            """,
+            variables={
+                "input": {
+                    "id": str(GlobalID("Project", str(project.id))),
+                    "endTime": end_time.isoformat(),
+                }
+            },
+        )
+        assert not result.errors
+
+        async with db() as session:
+            assert await session.get(models.Trace, old_trace.id) is None, (
+                "Trace before the bound should be deleted"
+            )
+            assert await session.get(models.Trace, new_trace.id) is not None, (
+                "Trace after the bound must survive the clear"
+            )
+            assert await session.get(models.ProjectSession, project_session.id) is not None, (
+                "Session with a surviving trace must not be deleted"
+            )
+
     async def test_create_project(
         self,
         db: DbSessionFactory,

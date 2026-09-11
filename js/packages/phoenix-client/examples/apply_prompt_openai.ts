@@ -33,14 +33,43 @@ const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 
+function getPromptSelector(): PromptSelector | null {
+  if (PROMPT_VERSION_ID) return { versionId: PROMPT_VERSION_ID };
+  if (PROMPT_TAG && PROMPT_NAME) {
+    return { name: PROMPT_NAME, tag: PROMPT_TAG };
+  }
+  return PROMPT_NAME ? { name: PROMPT_NAME } : null;
+}
+
+function logStreamingChunk({
+  chunk,
+  responseText,
+  messages,
+}: {
+  chunk: OpenAI.Chat.Completions.ChatCompletionChunk;
+  responseText: string;
+  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+}): void {
+  const content = chunk.choices[0]?.delta?.content;
+  if (content) {
+    console.clear();
+    console.log("Input:\n");
+    console.log(JSON.stringify(messages, null, 2));
+    console.log("\nOutput:\n");
+    try {
+      console.log(JSON.stringify(JSON.parse(responseText), null, 2));
+    } catch {
+      console.log(responseText);
+    }
+    return;
+  }
+
+  const toolCalls = chunk.choices[0]?.delta?.tool_calls;
+  if (toolCalls) console.log(toolCalls);
+}
+
 const main = async () => {
-  const promptArgument: PromptSelector | null = PROMPT_VERSION_ID
-    ? { versionId: PROMPT_VERSION_ID }
-    : PROMPT_TAG && PROMPT_NAME
-      ? { name: PROMPT_NAME, tag: PROMPT_TAG }
-      : PROMPT_NAME
-        ? { name: PROMPT_NAME }
-        : null;
+  const promptArgument = getPromptSelector();
   if (!promptArgument) {
     throw new Error(
       `Either PROMPT_VERSION_ID, PROMPT_TAG and PROMPT_NAME, or PROMPT_NAME must be provided in the environment`
@@ -88,20 +117,12 @@ const main = async () => {
 
   let responseText = "";
   for await (const chunk of response) {
-    if (chunk.choices[0]?.delta?.content) {
-      responseText += chunk.choices[0]?.delta?.content;
-      console.clear();
-      console.log("Input:\n");
-      console.log(JSON.stringify(openAIParams.messages, null, 2));
-      console.log("\nOutput:\n");
-      try {
-        console.log(JSON.stringify(JSON.parse(responseText), null, 2));
-      } catch {
-        console.log(responseText);
-      }
-    } else if (chunk.choices[0]?.delta?.tool_calls) {
-      console.log(chunk.choices[0]?.delta?.tool_calls);
-    }
+    responseText += chunk.choices[0]?.delta?.content ?? "";
+    logStreamingChunk({
+      chunk,
+      responseText,
+      messages: openAIParams.messages,
+    });
   }
 
   console.log("\n\n");

@@ -34,12 +34,15 @@ from phoenix.config import (
     get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db.types.data_stream_protocol import PhoenixAssistantMessageMetadata
+from phoenix.server.agents.agent_factory import build_agent, build_agent_tracer
+from phoenix.server.agents.config import AgentsEnvConfig
 from phoenix.server.agents.context import ChatContext, resolve_contexts
 from phoenix.server.agents.exceptions import AgentError
+from phoenix.server.agents.github import GitHubMCPConfig, resolve_github_mcp_config
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
-from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
-from phoenix.server.agents.server_agents import build_server_agent
+from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
+from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.api.routers.agents import (
     _build_phoenix_assistant_message_metadata,
     _ensure_project_exists,
@@ -167,19 +170,18 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         deprecated=True,
         responses=add_errors_to_responses([400, 401, 403, 404, 507]),
     )
-    async def run_server_agent(
+    async def run_headless_agent(
         session_id: str,
         request: Request,
         request_body: LegacyChatRequest,
     ) -> Response:
         if get_env_phoenix_agents_disable_bash():
-            raise HTTPException(status_code=403, detail="Server agent is disabled")
+            raise HTTPException(status_code=403, detail="Headless agent is disabled")
 
         body = request_body.root
         resolved_contexts = resolve_contexts(body.contexts)
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
-        user_id = int(phoenix_user.identity) if phoenix_user is not None else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
         graphql_mutations_enabled = resolved_contexts.graphql_mutations_enabled
         recording = request.app.state.system_settings.agent_trace_recording
@@ -217,30 +219,38 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
             and get_env_phoenix_agents_web_access_enabled()
         )
         subagents_enabled = _subagents_enabled(resolved_contexts)
-        server_agent = build_server_agent(
+        # The legacy body is fed wholesale to the adapter as run_input, so it
+        # deliberately carries no request credentials; only the workspace
+        # secret or environment token applies here. Writes stay unavailable
+        # unless edit permission is "bypass" (this route is always headless).
+        github_mcp_config: GitHubMCPConfig | None = None
+        if AgentsEnvConfig.from_env().allows_github(request.app.state.system_settings.agent_github):
+            async with request.app.state.db.read() as session:
+                github_mcp_config = await resolve_github_mcp_config(
+                    session, request.app.state.decrypt, {}
+                )
+        agent = build_agent(
+            name="PXIAgent",
+            headless=True,
             model=model,
             schema=request.app.state.graphql_schema,
             build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
             db=request.app.state.db,
             event_queue=request.state.event_queue,
-            prompts=ServerAgentPrompts(base=AgentPrompts().base),
             docs_mcp_server=request.app.state.docs_mcp_server,
             phoenix_mcp_server=request.app.state.pxi_mcp_server,
+            github_mcp_config=github_mcp_config,
             principal=phoenix_user,
             enable_web_access=web_access_enabled,
-            # This deprecated route runs with ``deps=None`` and cannot surface
-            # an approval request, so mutations require an explicit bypass.
-            allow_mutations=(graphql_mutations_enabled and body.edit_permission == "bypass"),
-            require_mutation_approval=False,
+            edit_permission=body.edit_permission,
+            graphql_mutations_enabled=graphql_mutations_enabled,
             read_only=request.app.state.read_only,
             auth_enabled=request.app.state.authentication_enabled,
-            user_id=user_id,
-            is_viewer=is_viewer,
             tracer_provider=tracer_provider,
             enable_subagents=subagents_enabled,
         )
-        adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
-            agent=server_agent,
+        adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
+            agent=OpenInferenceAgentWrapper(agent, tracer=build_agent_tracer(tracer_provider)),
             run_input=body,
             accept=request.headers.get("accept"),
             sdk_version=7,
@@ -259,7 +269,14 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
                 with detached_otel_context(), using_session(session_id=session_id):
-                    raw_stream = adapter.run_stream(deps=None, on_complete=_on_complete)
+                    raw_stream = adapter.run_stream(
+                        deps=AgentDependencies(
+                            contexts=resolved_contexts,
+                            edit_permission=body.edit_permission,
+                            is_viewer=is_viewer,
+                        ),
+                        on_complete=_on_complete,
+                    )
                     assert _is_async_generator(raw_stream)
                     async with aclosing(raw_stream) as stream:
                         async for chunk in stream:
@@ -271,7 +288,7 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
                                 )
                             yield chunk
             except Exception as exc:
-                logger.exception("Server agent chat stream failed for session %s", session_id)
+                logger.exception("Headless agent chat stream failed for session %s", session_id)
                 yield ErrorChunk(error_text=str(exc).strip() or type(exc).__name__)
             finally:
                 if tracer is not None:

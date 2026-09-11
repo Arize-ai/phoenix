@@ -1,8 +1,11 @@
 dataset_name: set_time_range
 description: >-
-  PXI eval suite for the deferred set_time_range tool. Covers preset enum
+  PXI eval suite for the timeRange.set UI operation. Covers preset enum
   values, custom bounded and open-ended ranges, ambiguous relative time
-  requests, and negative cases where another tool or no tool should be used.
+  requests, and negative cases where another operation or no operation should
+  be used. Positive examples prime the search_browser_actions discovery step
+  (a catalog excerpt produced by the real signature renderer) so each example
+  scores the operation-selection step; fresh-turn negatives stay unprimed.
 evaluators:
   - correct_tools_called
   - tool_call_args_match
@@ -14,11 +17,77 @@ examples:
       messages:
         - role: user
           content: Show me just the last 15 minutes.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: &catalog |
+            // Complete catalog: all 3 UI operations, best query matches first.
+            // Further search_browser_actions calls return these same operations re-ranked — reuse
+            // this catalog instead of searching again. Only per-operation availability
+            // ("available on the current page") changes, after navigation.
+
+            // UIResult<T = unknown> = { ok: true; output: T } | { ok: false; code?: ErrorCode; error: string }
+            // ErrorCode = "UNKNOWN_OPERATION" | "NOT_AVAILABLE" | "INVALID_INPUT" | "CAPABILITY_DISABLED"
+            //   | "NO_SESSION" | "HANDLER_ERROR" | "NOT_FOUND" | "STALE_REVISION" | "NO_RUN_OUTPUT"
+            // Branch on `code` (stable), not on the `error` prose (for humans).
+
+            /**
+             * Set the Phoenix app time range selector. Use preset `timeRangeKey` values for standard relative windows (15m, 1h, 12h, 1d, 7d, 30d). Use `custom` with `startTime` and optional `endTime` for specific calendar windows. Call the `get_current_datetime` tool first to read the current date/time in the user's browser timezone; base relative calendar phrases on that value — never on prior knowledge or on the currently selected time range.
+             * kind: write; available on the current page.
+             */
+            ui.timeRange.set(input: { timeRangeKey: "15m" | "1h" | "12h" | "1d" | "7d" | "30d" | "custom"; startTime?: string; endTime?: string }): Promise<UIResult>;
+
+            /**
+             * Set the spans table filter. The filter is applied declaratively as a complete state: the freeform `condition` (Phoenix span filter DSL) describes the entire view, and the table is updated to exactly that state. There is no notion of leaving part of the filter unchanged — always send the whole condition. Pass an empty string to clear it.
+
+            ROOT SPANS ARE PART OF THE CONDITION: restrict to root spans -- spans with no parent -- with the predicate `parent_id is None`; omit it to search every span. This is usually the top-level span of each trace, but nothing enforces one root per trace: a fragmented or partially ingested trace can have several, so do not treat the row count as a trace count. Do NOT restrict to root spans when narrowing to a `span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL) — those kinds are almost always nested under a CHAIN/AGENT root, so combining them with a root predicate yields zero results even when matching spans exist. The same applies to anything that targets nested spans (specific tool names, status_code == 'ERROR' on inner calls, annotations attached to leaf spans). Trace annotations apply to every span in the annotated trace: combine a trace-annotation condition with `parent_id is None` to show only root spans from matching traces, or omit the root predicate to inspect every span belonging to those traces. The spans table starts at `parent_id is None`, so dropping that predicate is how you widen the view to every span.
+
+            DSL FIELDS:
+              - Root spans: `parent_id is None` matches spans with no parent pointer, and is the table's default. `parent_span is None` is the wider form that also matches orphans -- spans whose parent was never ingested -- and is what to use when the user asks about orphans.
+              - String: `span_kind`, `name` (the span name, NOT span_name), `status_code`, `status_message`, `span_id`, `trace_id`, `parent_id`. Compare with `==`, `!=`, or membership via `in`.
+              - Numeric: `latency_ms`, `cumulative_token_count.{prompt,completion,total}`, `llm.token_count.{prompt,completion,total}`. Compare with `<`, `<=`, `>`, `>=`.
+              - Datetime: `start_time`, `end_time`.
+              - Attribute access: `attributes['key.path']`, `input.value`, `output.value`, `metadata['key']`.
+              - Annotations: `annotations['Name'].label`, `annotations['Name'].score`.
+              - Substring search: `'needle' in input.value` (any string field, ignores case).
+              - Combine clauses with `and`, `or`, `not`.
+
+            VALUE CONVENTIONS:
+              - `span_kind` values are UPPERCASE string literals: 'LLM', 'TOOL', 'CHAIN', 'AGENT', 'RETRIEVER', 'EMBEDDING', 'RERANKER', 'EVALUATOR', 'GUARDRAIL', 'UNKNOWN'. Lowercase ('llm') will not match.
+              - `status_code` values are UPPERCASE: 'OK', 'ERROR', 'UNSET'.
+              - Always wrap string literals in single or double quotes.
+
+            EXAMPLES BY INTENT:
+              - 'Show me LLM spans' → `span_kind == 'LLM'`
+              - 'Tool calls' → `span_kind == 'TOOL'`
+              - 'Errored spans' → `status_code == 'ERROR'`
+              - 'Slow LLM calls' → `span_kind == 'LLM' and latency_ms >= 5000`
+              - 'Top-level traces only' → `parent_id is None`
+              - 'Slow traces' → `parent_id is None and latency_ms >= 5000`
+              - 'Include orphaned spans as roots' → `parent_span is None`
+              - 'Hallucinations' → `annotations['Hallucination'].label == 'hallucinated'`
+              - 'Spans mentioning agent in input' → `'agent' in input.value`
+              - 'Show everything' → `''`
+              - 'Reset to default view' → `parent_id is None`.
+             * kind: write; available on the current page.
+             */
+            ui.spansFilter.set(input: { condition: string }): Promise<UIResult>;
+
+            /**
+             * Ask the user to navigate to another Phoenix page. Stages an approval card that names the destination and your reason; on accept the app navigates and the promise resolves after the route change commits, so the destination page's operations can register. `path` must match a route from get_route_info — a path outside the route catalog is rejected. Use this when an operation you need is not available on the current page. This operation is never auto-approved; if the user declines, do not retry — offer a markdown link to the destination instead.
+             * kind: approval; available on the current page. Stages a change the user must accept; the returned promise resolves with the decision.
+             */
+            ui.navigation.goTo(input: { path: string; reason: string }): Promise<UIResult>;
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: "15m"
     metadata: {}
   - id: preset-1h
@@ -27,11 +96,20 @@ examples:
       messages:
         - role: user
           content: Filter this view to the last hour.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: "1h"
     metadata: {}
   - id: preset-12h
@@ -40,11 +118,20 @@ examples:
       messages:
         - role: user
           content: past 12 hrs only
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: "12h"
     metadata: {}
   - id: preset-1d
@@ -53,11 +140,20 @@ examples:
       messages:
         - role: user
           content: I want the last 24 hours of traces.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: "1d"
     metadata: {}
   - id: preset-7d
@@ -66,11 +162,20 @@ examples:
       messages:
         - role: user
           content: Can you set the range to the past week?
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: "7d"
     metadata: {}
   - id: preset-30d
@@ -79,11 +184,20 @@ examples:
       messages:
         - role: user
           content: zoom out to the last month
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: "30d"
     metadata: {}
   - id: custom-explicit-utc-range
@@ -92,11 +206,20 @@ examples:
       messages:
         - role: user
           content: Set the range from 2025-01-01T00:00:00Z to 2025-01-31T23:59:59Z.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: custom
           startTime: "2025-01-01T00:00:00Z"
           endTime: "2025-01-31T23:59:59Z"
@@ -107,11 +230,20 @@ examples:
       messages:
         - role: user
           content: Show traces between 2025-03-10T08:30:00-07:00 and 2025-03-10T11:00:00-07:00.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: custom
           startTime: "2025-03-10T08:30:00-07:00"
           endTime: "2025-03-10T11:00:00-07:00"
@@ -125,11 +257,20 @@ examples:
       messages:
         - role: user
           content: Everything until 2025-04-01T00:00:00Z.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: custom
           endTime: "2025-04-01T00:00:00Z"
     metadata: {}
@@ -139,11 +280,20 @@ examples:
       messages:
         - role: user
           content: Show traces since 2025-04-01T09:00:00Z.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: custom
           startTime: "2025-04-01T09:00:00Z"
     metadata: {}
@@ -153,20 +303,29 @@ examples:
     # by pinning the date(s) only.
     #
     # Moved to dev: the agent tends to pre-check /phoenix/agent-start.md
-    # before emitting the filter on this prompt, which fails the
-    # ``required: [set_time_range]`` check. The prompt is unambiguous
-    # ("traces from January 15, 2025"), so over-grounding is real
-    # signal worth tracking, but it doesn't belong in the regression gate.
+    # before emitting the filter on this prompt, which fails the required
+    # operation check. The prompt is unambiguous ("traces from January 15,
+    # 2025"), so over-grounding is real signal worth tracking, but it doesn't
+    # belong in the regression gate.
     splits: [dev]
     input:
       messages:
         - role: user
           content: I need traces from January 15, 2025.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: custom
           startTime:
             contains_all: ["2025-01-15"]
@@ -181,11 +340,20 @@ examples:
       messages:
         - role: user
           content: just show today
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           - { timeRangeKey: "1d" }
           - { timeRangeKey: custom }
     metadata: {}
@@ -196,27 +364,45 @@ examples:
       messages:
         - role: user
           content: focus on recent traces
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           - { timeRangeKey: "15m" }
           - { timeRangeKey: "1h" }
           - { timeRangeKey: "12h" }
     metadata: {}
   - id: negative-span-kind-filter
-    # Wrong-tool: span-kind filter belongs to set_spans_filter, not the
-    # global time range.
+    # Wrong-operation: span-kind filter belongs to spansFilter.set, not the
+    # global time range. The primed catalog carries both operations.
     splits: [regression]
     input:
       messages:
         - role: user
           content: Show me only LLM spans.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-        forbidden: [set_time_range]
+      ui_operations:
+        required: [spansFilter.set]
+        forbidden: [timeRange.set]
     metadata:
       negative: true
   - id: negative-latency-filter
@@ -225,23 +411,32 @@ examples:
       messages:
         - role: user
           content: only spans that took more than five seconds
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
-      tools:
-        required: [set_spans_filter]
-        forbidden: [set_time_range]
+      ui_operations:
+        required: [spansFilter.set]
+        forbidden: [timeRange.set]
     metadata:
       negative: true
   - id: negative-prompt-clone
-    # Playground prompt tools are not exposed in the project-only eval
-    # context; should not call set_time_range.
+    # Playground prompt operations are not in the primed context on this
+    # fresh turn; whatever the agent does, it must not touch the time range.
     splits: [regression]
     input:
       messages:
         - role: user
           content: Clone the current prompt so I can compare a shorter version.
     expected:
-      tools:
-        forbidden: [set_time_range]
+      ui_operations:
+        forbidden: [timeRange.set]
     metadata:
       negative: true
   - id: negative-read-current-prompt
@@ -251,8 +446,8 @@ examples:
         - role: user
           content: What's in prompt A right now?
     expected:
-      tools:
-        forbidden: [set_time_range]
+      ui_operations:
+        forbidden: [timeRange.set]
     metadata:
       negative: true
   - id: negative-longest-span
@@ -263,8 +458,8 @@ examples:
         - role: user
           content: Which span took the longest time to complete?
     expected:
-      tools:
-        forbidden: [set_time_range]
+      ui_operations:
+        forbidden: [timeRange.set]
     metadata:
       negative: true
   - id: negative-explain-time-range
@@ -276,8 +471,8 @@ examples:
         - role: user
           content: What does the time range selector do?
     expected:
-      tools:
-        forbidden: [set_time_range]
+      ui_operations:
+        forbidden: [timeRange.set]
     metadata:
       negative: true
   - id: negative-greeting
@@ -287,8 +482,8 @@ examples:
         - role: user
           content: hey, what can you help me with?
     expected:
-      tools:
-        forbidden: [set_time_range]
+      ui_operations:
+        forbidden: [timeRange.set]
     metadata:
       negative: true
   - id: negative-thanks
@@ -298,8 +493,8 @@ examples:
         - role: user
           content: thanks!
     expected:
-      tools:
-        forbidden: [set_time_range]
+      ui_operations:
+        forbidden: [timeRange.set]
     metadata:
       negative: true
   # ----- dev examples (context-aware / ambiguous calendar-time) -----
@@ -324,12 +519,22 @@ examples:
       messages:
         - role: user
           content: Set the time range to this year.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
       tools:
-        required: [set_time_range]
         forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: custom
           startTime:
             contains_all: ["2026-01-01"]
@@ -339,12 +544,12 @@ examples:
         max_tool_calls: 1
     metadata: {}
   - id: contextual-old-traces-date
-    # Primes a prior bash phoenix-gql call that returned the most recent
-    # span startTimes for this project, all from 2026-04-03. The agent
-    # enters mid-loop right after the tool return; no assistant narration
-    # between tool calls (real PXI traces never have it). The user's
-    # follow-up asks the agent to set the time filter to that day, so the
-    # set_time_range call must reference 2026-04-03 grounded in the
+    # Primes discovery plus a prior bash phoenix-gql call that returned the
+    # most recent span startTimes for this project, all from 2026-04-03. The
+    # agent enters mid-loop right after the catalog return; no assistant
+    # narration between tool calls (real PXI traces never have it). The
+    # user's follow-up asks the agent to set the time filter to that day, so
+    # the timeRange.set invocation must reference 2026-04-03 grounded in the
     # primed bash output.
     splits: [dev]
     input:
@@ -382,12 +587,22 @@ examples:
             ]}}}}
         - role: user
           content: Set the time filter to that day so the table shows only those traces.
+        - role: assistant
+          tool_calls:
+            - id: search-ops
+              name: search_browser_actions
+              args: { query: change the time range }
+        - role: tool
+          tool_call_id: search-ops
+          name: search_browser_actions
+          content: *catalog
     expected:
       tools:
-        required: [set_time_range]
         forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
-      tool_call_args:
-        set_time_range:
+      ui_operations:
+        required: [timeRange.set]
+      ui_operation_args:
+        timeRange.set:
           timeRangeKey: custom
           startTime:
             contains_all: ["2026-04-03"]

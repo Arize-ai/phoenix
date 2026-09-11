@@ -39,7 +39,10 @@ jobs:
             verify_latest: false
     env:
       PYTHON_VERSION: "3.12"
-      UV_VERSION: "0.12.1"
+      # Literal pin: this job never checks out the repository, so there is no
+      # pyproject.toml for setup-uv to read `required-version` from. Keep in
+      # sync with [tool.uv] required-version in pyproject.toml.
+      UV_VERSION: "0.12.7"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PHOENIX_HOST: "127.0.0.1"
       PHOENIX_PORT: "6606"
@@ -48,7 +51,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: ${{ env.UV_VERSION }}
 

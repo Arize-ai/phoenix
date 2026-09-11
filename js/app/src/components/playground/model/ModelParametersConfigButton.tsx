@@ -91,6 +91,33 @@ export type ModelParametersConfigButtonProps = {
   disableEphemeralRouting?: boolean;
 };
 
+function getModelParameterVisibility({
+  provider,
+  isUsingCustomProvider,
+  isEphemeralRoutingDisabled,
+}: {
+  provider: string | undefined;
+  isUsingCustomProvider: boolean;
+  isEphemeralRoutingDisabled: boolean;
+}) {
+  const canConfigureBaseUrl = provider === "OPENAI" || provider === "OLLAMA";
+  const canConfigureAzureFields = provider === "AZURE_OPENAI";
+  const canConfigureRegion = provider === "AWS";
+  const canConfigureRouting =
+    !isUsingCustomProvider && !isEphemeralRoutingDisabled;
+  return {
+    canConfigureAzureFields,
+    canConfigureOpenAIApiType:
+      canConfigureRouting &&
+      (provider === "OPENAI" || provider === "AZURE_OPENAI"),
+    canConfigureRegion,
+    showBaseUrl: canConfigureRouting && canConfigureBaseUrl,
+    showAzureFields: canConfigureRouting && canConfigureAzureFields,
+    showRegion: canConfigureRouting && canConfigureRegion,
+    showEnvVarInfo: isEphemeralRoutingDisabled && !isUsingCustomProvider,
+  };
+}
+
 export function ModelParametersConfigButton(
   props: ModelParametersConfigButtonProps
 ) {
@@ -109,25 +136,19 @@ export function ModelParametersConfigButton(
   // When a custom provider is selected, hide routing fields (they come from the provider config)
   const usingCustomProvider = !!customProvider;
 
-  // Provider capability flags - only show routing fields for built-in providers
-  // When disableEphemeralRouting is true, we show env var info instead of editable fields
-  const canConfigureBaseUrl = provider === "OPENAI" || provider === "OLLAMA";
-  const canConfigureAzureFields = provider === "AZURE_OPENAI";
-  const canConfigureRegion = provider === "AWS";
-  const canConfigureOpenAIApiType =
-    !usingCustomProvider &&
-    !disableEphemeralRouting &&
-    (provider === "OPENAI" || provider === "AZURE_OPENAI");
-
-  const showBaseUrl =
-    !usingCustomProvider && !disableEphemeralRouting && canConfigureBaseUrl;
-  const showAzureFields =
-    !usingCustomProvider && !disableEphemeralRouting && canConfigureAzureFields;
-  const showRegion =
-    !usingCustomProvider && !disableEphemeralRouting && canConfigureRegion;
-
-  // Show env var info when ephemeral routing is disabled and no custom provider
-  const showEnvVarInfo = disableEphemeralRouting && !usingCustomProvider;
+  const {
+    canConfigureAzureFields,
+    canConfigureOpenAIApiType,
+    canConfigureRegion,
+    showBaseUrl,
+    showAzureFields,
+    showRegion,
+    showEnvVarInfo,
+  } = getModelParameterVisibility({
+    provider,
+    isUsingCustomProvider: usingCustomProvider,
+    isEphemeralRoutingDisabled: disableEphemeralRouting === true,
+  });
 
   return (
     <DialogTrigger>

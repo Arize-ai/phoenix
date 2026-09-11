@@ -1,6 +1,6 @@
 ---
 name: phoenix-pr-screenshot
-description: Screenshot a running Phoenix feature and attach images to a GitHub PR. Builds the frontend, starts Phoenix with env vars, uses agent-browser to capture screenshots, uploads to GCS, and updates the PR body.
+description: Screenshot a running Phoenix feature and attach images to a GitHub PR. Builds the frontend, starts Phoenix with env vars, captures browser screenshots, uploads to GCS, and updates the PR body.
 user-invocable: true
 metadata:
   internal: true
@@ -12,7 +12,7 @@ Capture screenshots of the Phoenix UI to visually document a feature in a pull r
 
 ## Prerequisites
 
-- `agent-browser` CLI installed and available
+- Browser tooling capable of navigating the local Phoenix UI and saving screenshots
 - `gsutil` authenticated with access to `gs://arize-phoenix-assets/`
 - `gh` CLI authenticated with the Arize-ai/phoenix repo
 - `pnpm` and `uv` available for building and running Phoenix
@@ -45,36 +45,14 @@ Key points:
 - Wait for the server to be ready: `sleep 10 && curl -s -o /dev/null -w "%{http_code}" http://localhost:6007/playground` should return 200
 - Check `/tmp/phoenix-*.log` if it fails — common issues are migration errors (use a fresh working dir) or port conflicts
 
-### Step 3: Screenshot with agent-browser
+### Step 3: Capture screenshots
 
-Navigate to the relevant page, interact with UI elements to show the feature, and capture screenshots:
+Use the available browser tooling to open `http://localhost:6007/playground` (or the relevant feature page), interact with the UI to show the feature, and save screenshots locally.
 
-```bash
-# Open the page
-agent-browser open http://localhost:6007/playground
-
-# Wait for React to fully render
-agent-browser wait --load networkidle
-agent-browser wait 3000
-
-# Get interactive element refs
-agent-browser snapshot -i
-# Output shows refs like: button "OpenAI gpt-4o" [ref=e33]
-
-# Interact to reveal the feature (e.g., open a dropdown)
-agent-browser click @e33
-agent-browser wait 1000
-
-# Capture the screenshot
-agent-browser screenshot
-# Output: Screenshot saved to /Users/.../.agent-browser/tmp/screenshots/screenshot-<timestamp>.png
-```
-
-Tips:
-- Always `wait --load networkidle` then `wait 2000-3000` after navigation — React apps need time to hydrate
-- Re-snapshot after any click that changes the DOM (refs get invalidated)
-- Take multiple screenshots to tell a story (before/after, dropdown open, etc.)
-- View screenshots with the `Read` tool to verify they captured what you intended
+- Wait for the target UI elements to be visible and ready before interacting or capturing screenshots.
+- Inspect the page again after navigation or DOM changes before choosing the next element to interact with.
+- Take multiple screenshots when useful (before/after, dropdown open, etc.).
+- View the saved screenshots to verify they captured what you intended, and use their local paths in the upload step.
 
 ### Step 4: Upload to GCS
 
@@ -113,10 +91,9 @@ Always preserve the existing PR body content — read it first with `gh pr view 
 ```bash
 # Kill the Phoenix server
 kill <PID>
-
-# Close the browser
-agent-browser close
 ```
+
+Close the browser session created for the screenshots.
 
 ## Removing screenshots
 

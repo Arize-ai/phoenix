@@ -70,8 +70,11 @@ export function getInvocationFamilyForProvider(
     case "FIREWORKS":
     case "GROQ":
     case "MOONSHOT":
+    case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
+    case "ZAI":
+    case "META":
       return InvocationFamily.OPENAI;
     case "ANTHROPIC":
       return InvocationFamily.ANTHROPIC;

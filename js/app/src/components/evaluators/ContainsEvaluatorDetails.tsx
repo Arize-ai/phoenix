@@ -1,19 +1,34 @@
 import { Flex, Text } from "@phoenix/components";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 
+function getContainsEvaluatorValues(
+  inputMapping: EvaluatorInputMapping | null
+) {
+  const pathMapping = inputMapping?.pathMapping;
+  const literalMapping = inputMapping?.literalMapping;
+  return {
+    textPath: pathMapping?.text as string | undefined,
+    textLiteral: literalMapping?.text as string | undefined,
+    wordsPath: pathMapping?.words as string | undefined,
+    wordsLiteral: literalMapping?.words as string | undefined,
+    caseSensitive: literalMapping?.case_sensitive,
+    requireAll: literalMapping?.require_all,
+  };
+}
+
 export function ContainsEvaluatorDetails({
   inputMapping,
 }: {
   inputMapping: EvaluatorInputMapping | null;
 }) {
-  const textPath = inputMapping?.pathMapping?.text as string | undefined;
-  const textLiteral = inputMapping?.literalMapping?.text as string | undefined;
-  const wordsPath = inputMapping?.pathMapping?.words as string | undefined;
-  const wordsLiteral = inputMapping?.literalMapping?.words as
-    | string
-    | undefined;
-  const caseSensitive = inputMapping?.literalMapping?.case_sensitive;
-  const requireAll = inputMapping?.literalMapping?.require_all;
+  const {
+    textPath,
+    textLiteral,
+    wordsPath,
+    wordsLiteral,
+    caseSensitive,
+    requireAll,
+  } = getContainsEvaluatorValues(inputMapping);
 
   return (
     <Flex direction="column" gap="size-100">

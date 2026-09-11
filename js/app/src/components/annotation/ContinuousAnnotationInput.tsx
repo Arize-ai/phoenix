@@ -20,10 +20,6 @@ export function ContinuousAnnotationInput({
 }: ContinuousAnnotationInputProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <Flex gap="size-50" alignItems="center" position="relative">
-      <AnnotationInputExplanation
-        annotation={annotation}
-        onSubmit={onSubmitExplanation}
-      />
       <NumberField
         defaultValue={annotation?.score ?? undefined}
         {...props}
@@ -47,6 +43,10 @@ export function ContinuousAnnotationInput({
           from {annotationConfig.lowerBound} to {annotationConfig.upperBound}
         </Text>
       </NumberField>
+      <AnnotationInputExplanation
+        annotation={annotation}
+        onSubmit={onSubmitExplanation}
+      />
     </Flex>
   );
 }

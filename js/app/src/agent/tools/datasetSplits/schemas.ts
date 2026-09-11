@@ -9,7 +9,7 @@ export const listSplitsInputSchema = z.object({
   after: z.string().min(1).nullable().optional(),
 });
 
-// create_dataset_split: name required; optional description, color, seed rows.
+// `dataset.split.create`: name required; optional description, color, seed rows.
 export const createDatasetSplitInputSchema = z.object({
   name: z.string().trim().min(1),
   description: z.string().nullable().optional(),
@@ -17,7 +17,7 @@ export const createDatasetSplitInputSchema = z.object({
   exampleIds: z.array(z.string().min(1)).optional(),
 });
 
-// set_dataset_example_splits: assign example ids to existing splits by name.
+// `dataset.split.setExampleSplits`: assign example ids to existing splits by name.
 // Duplicates are harmless repetition of the same intent, so both lists are
 // deduplicated rather than rejected.
 export const setDatasetExampleSplitsInputSchema = z.object({
@@ -31,7 +31,7 @@ export const setDatasetExampleSplitsInputSchema = z.object({
     .transform((names) => Array.from(new Set(names))),
 });
 
-// patch_dataset_split: edit a split (found by current name); at least one of
+// `dataset.split.patch`: edit a split (found by current name); at least one of
 // name/description/color must change. `description: null` clears the
 // description (the backend distinguishes omitted from null); name and color
 // are not clearable, so null there is normalized to "omitted" — otherwise a
@@ -58,7 +58,7 @@ export const patchDatasetSplitInputSchema = z
     { message: "Provide at least one field to change." }
   );
 
-// delete_dataset_splits: delete splits by name.
+// `dataset.split.delete`: delete splits by name.
 export const deleteDatasetSplitsInputSchema = z.object({
   splitNames: z.array(z.string().trim().min(1)).min(1),
 });

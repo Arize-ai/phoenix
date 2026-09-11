@@ -37,6 +37,7 @@ from phoenix.server.mcp.sql.parse import (
     _quantifier_list_container,
     _relation_identifier_keys,
     _scope_columns,
+    _scope_relation_keys,
     _strip_parens,
     _table_alias_column_names,
     _timestamp_literals,
@@ -140,6 +141,11 @@ def _is_json_extraction(node: exp.Expression) -> bool:
     }
 
 
+#: Comparisons where text ordering answers differently from numeric ordering.
+#: Equality is a separate hazard and is not one of these.
+_ORDER_SENSITIVE_COMPARISONS = (exp.GT, exp.GTE, exp.LT, exp.LTE, exp.Between)
+
+
 def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> None:
     """Say so when a JSON read is ordered as text.
 
@@ -154,14 +160,22 @@ def _note_uncast_json_ordering(root: exp.Expression, ctx: RewriteContext) -> Non
     document -- so refusing would block a legitimate query to prevent a
     plausible mistake.
     """
-    for node in root.find_all(*_ORDER_SENSITIVE):
-        target = node.this
-        if isinstance(target, exp.Cast):
-            continue
-        note = _JSON_TEXT_ORDERING_NOTES[ctx.dialect]
-        if _is_json_extraction(target) and note not in ctx.notes:
-            ctx.notes.append(note)
-            return
+    note = _JSON_TEXT_ORDERING_NOTES[ctx.dialect]
+    for node in root.find_all(*_ORDER_SENSITIVE, *_ORDER_SENSITIVE_COMPARISONS):
+        for target in (
+            _comparison_operands(node)
+            if isinstance(node, _ORDER_SENSITIVE_COMPARISONS)
+            else (node.this,)
+        ):
+            # A cast says the caller knows. Parentheses say nothing: the lambda
+            # repair adds them, so an accessor written inside a call arrives
+            # wrapped.
+            unwrapped = _strip_parens(target)
+            if unwrapped is None or isinstance(unwrapped, exp.Cast):
+                continue
+            if _is_json_extraction(unwrapped) and note not in ctx.notes:
+                ctx.notes.append(note)
+                return
 
 
 def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
@@ -179,6 +193,7 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     root = _rewrite_sqlite_median(root, ctx)
     root = _canonicalize_json_extract(root, ctx)
     root = _canonicalize_postgres_json_extract_function(root, ctx)
+    root = _repair_quoted_json_path(root, ctx)
     root = _qualify_schema(root, ctx)
     root = _parenthesize_setop_operands(root, ctx)
     root = _inject_limit(root, ctx)
@@ -192,29 +207,20 @@ def rewrite(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
 def _assert_rewrites_preserved_policy(root: exp.Expression, ctx: RewriteContext) -> None:
     """Re-check the finished tree against the guarantees admission established.
 
-    Admission validates the statement the caller sent. The rewrite passes then
-    edit that statement, and until this ran, nothing looked at the result -- so an
-    admitted query could become a different query on its way to the engine, and
-    twice it did. One pass redirected a CTE reference to the base table it was
-    named after, turning a filtered count into a count of everything. Another
-    silently dropped a TABLESAMPLE clause on exactly the tables it wrapped.
+    Admission validates the statement the caller sent; the rewrite passes then
+    edit it. Without a check between the last pass and the engine, an admitted
+    query can become a different query on the way there -- a relation reference
+    redirected to a table it was merely named after, or a clause dropped from
+    the tables it constrained -- and nothing downstream distinguishes that from
+    the query the caller asked for.
 
-    Neither was caught by a check, because no check existed between the last
-    pass and the engine. Both would have failed here.
-
-    This used to raise AssertionError, on the reasoning that reaching it meant
-    our own code had produced something admission would not have accepted --
-    a defect on this side, which should surface as one. The reasoning was
-    sound and the premise was not: a table aliased to a CTE's name was dropped
-    from the scope map admission reads, so ordinary caller SQL reached here and
-    the AssertionError left through the caller's response rather than the error
-    envelope, exactly as an unhandled driver error would.
-
-    So it refuses, and logs at error level. The loud signal is kept where it is
-    useful -- to whoever runs the server -- rather than delivered to a caller
-    who can neither act on it nor tell it apart from a crash. Both halves
-    matter: a silent refusal here would hide the defect, and an escaping
-    exception hides it just as well while also breaking the response contract.
+    Reaching this normally means a defect in the rewrite passes, but not always:
+    a scope the passes model differently from admission sends ordinary caller
+    SQL here too. It therefore refuses rather than asserting, so the failure
+    leaves through the error envelope instead of escaping as an unhandled
+    exception, and logs at error level so the signal reaches whoever runs the
+    server. Both halves are load-bearing: a silent refusal hides the defect, and
+    an escaping exception hides it while also breaking the response contract.
     """
     for table in root.find_all(exp.Table):
         name = table.name or ""
@@ -412,8 +418,8 @@ def _normalize_timestamp_literals(root: exp.Expression, ctx: RewriteContext) -> 
         if ctx.dialect == "sqlite":
             rendered = format_timestamp_for_sqlite(instant)
         else:
-            # isoformat keeps whole seconds as `...00+00:00` and retains
-            # subseconds that `%Y-%m-%dT%H:%M:%S+00:00` used to drop.
+            # isoformat keeps whole seconds as `...00+00:00` and retains the
+            # subseconds an explicit `%Y-%m-%dT%H:%M:%S+00:00` format drops.
             rendered = instant.isoformat()
         replacement: exp.Expression = exp.Literal.string(rendered)
         # CAST(1719792000 AS bigint) compared to timestamptz: replacing only
@@ -452,8 +458,7 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     which coerces, and decisive for ``MIN``, ``MAX``, ``ORDER BY`` and every
     comparison, which compare text character by character -- so 1017066 sorts
     below 149740 and the answer is confidently wrong with no error anywhere.
-    Left alone the generator emits ``->`` for a caller's ``json_extract``,
-    silently exchanging one accessor for another.
+    So the accessor a caller wrote cannot be exchanged for another one.
 
     The second is whether an expression index can be used at all. SQLite matches
     such an index on the parsed expression, so a query reaches it only by
@@ -478,8 +483,7 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     correctly has no ``max`` aggregate, and a cast would have to guess whether
     the path holds a number or a string. The caller has to cast for themselves,
     and the schema's populated-path comments are where they find out which
-    paths are numeric. Stated rather than silently scoped, because the rest of
-    this docstring reads as though the hazard were settled everywhere.
+    paths are numeric.
     """
     if ctx.dialect != "sqlite":
         return root
@@ -487,8 +491,7 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
         # `->` returns JSON text; `json_extract` and `->>` return the SQL value.
         # Rewriting the operator would therefore change both the value and the
-        # type of every JSON scalar, so only the function form is canonicalised
-        # -- which is also what stops the generator emitting it back as `->`.
+        # type of every JSON scalar, so only the function form is canonicalised.
         # `only_json_types` marks the operator spelling. It decides rather than
         # the node class, which is not stable across parser versions.
         if isinstance(node, exp.JSONExtract) and node.args.get("only_json_types") is not None:
@@ -539,6 +542,54 @@ def _canonicalize_json_extract(root: exp.Expression, ctx: RewriteContext) -> exp
     return root
 
 
+def _repair_quoted_json_path(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
+    """Emit a JSON key containing a quote as a literal, so it is escaped.
+
+    The generator renders the path of a JSON accessor without escaping, so a
+    key holding an apostrophe closes its own string and the statement does not
+    parse. Attribute keys are arbitrary strings, and `describeSqlSchema`
+    publishes the populated ones, so the surface can print a path it cannot run.
+
+    A plain string literal in the same position is escaped correctly, and keeps
+    the accessor the caller wrote -- which matters on SQLite, where `->` and
+    `json_extract` return different types.
+
+    Workaround for https://github.com/tobymao/sqlglot/issues/8251, open
+    upstream.
+    """
+    changed = False
+    for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
+        path = node.expression
+        if not isinstance(path, exp.JSONPath):
+            continue
+        parts = [part for part in path.expressions if not isinstance(part, exp.JSONPathRoot)]
+        keys = [part.this for part in parts if isinstance(part, exp.JSONPathKey)]
+        if not any(isinstance(key, str) and "'" in key for key in keys):
+            continue
+        if ctx.dialect == "sqlite":
+            # A subscript belongs to the path as much as a key does, and
+            # `_quoted_json_path` spells both, so the shape it accepts is the
+            # shape this repairs.
+            spelled = _quoted_json_path(path)
+            if spelled is None:
+                continue
+        elif len(keys) == len(parts) == 1:
+            # The operator takes one key, and that key is the literal.
+            spelled = keys[0]
+        else:
+            continue
+        node.set("expression", exp.Literal.string(spelled))
+        changed = True
+    if changed:
+        ctx.applied.append("json_path_quote_repair")
+    return root
+
+
+def _json_path_is_root_only(path: exp.JSONPath) -> bool:
+    """True for `$`, which names the document rather than anything inside it."""
+    return not [part for part in path.expressions if not isinstance(part, exp.JSONPathRoot)]
+
+
 def _canonicalize_postgres_json_extract_function(
     root: exp.Expression, ctx: RewriteContext
 ) -> exp.Expression:
@@ -571,11 +622,24 @@ def _canonicalize_postgres_json_extract_function(
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
         inner = _strip_parens(node.expression)
         if not isinstance(inner, exp.JSONPath):
+            # PostgreSQL's `->` takes a key, not a path. A computed operand is
+            # therefore looked up as one key name, so `json_extract(doc, '$.' ||
+            # 'llm')` asks for a key literally called `$.llm` and answers NULL,
+            # while SQLite reads the same text as a path. Nothing in the tree
+            # separates a computed key from a computed path -- `doc -> k.key`
+            # and `json_extract(doc, k.key)` parse identically -- so this is
+            # noted rather than refused or rewritten.
+            if not isinstance(inner, (exp.Literal, exp.Column)) and _COMPUTED_JSON_KEY_NOTE not in (
+                ctx.notes
+            ):
+                ctx.notes.append(_COMPUTED_JSON_KEY_NOTE)
             operand = node.expression
             # Binary and Unary cover the infix and prefix operators; Predicate
             # adds the comparison forms that are neither, such as BETWEEN and
             # IN. exp.Paren is itself a Unary, and an already-parenthesised
             # operand renders unambiguously.
+            # Workaround for https://github.com/tobymao/sqlglot/issues/8211,
+            # fixed upstream but unreleased at the pinned version.
             if isinstance(operand, (exp.Binary, exp.Unary, exp.Predicate)) and not isinstance(
                 operand, exp.Paren
             ):
@@ -583,6 +647,21 @@ def _canonicalize_postgres_json_extract_function(
                 parenthesised = True
             continue
         if node.args.get("only_json_types") is not None:
+            continue
+        # A root-only path selects the whole document. It has no keys to pass,
+        # and `json_extract_path(doc)` is not a signature PostgreSQL defines,
+        # so the path operators express it instead: `#> '{}'` is the document,
+        # `#>> '{}'` is the document as text.
+        # Workaround for https://github.com/tobymao/sqlglot/issues/8232, fixed
+        # upstream but unreleased at the pinned version.
+        if _json_path_is_root_only(inner):
+            whole = (
+                exp.JSONBExtractScalar
+                if isinstance(node, exp.JSONExtractScalar)
+                else exp.JSONBExtract
+            )
+            node.replace(whole(this=node.this, expression=exp.Literal.string("{}")))
+            changed = True
             continue
         path_args = _json_path_extract_args(inner)
         if path_args is None:
@@ -606,6 +685,111 @@ def _canonicalize_postgres_json_extract_function(
     return root
 
 
+#: Said when a JSON accessor's key is computed, because the two engines read
+#: the same statement differently and neither is wrong.
+_COMPUTED_JSON_KEY_NOTE = (
+    "A computed JSON key is looked up as a key name on PostgreSQL and as a path on "
+    "SQLite. Use jsonb_extract_path(doc, k1, k2) on PostgreSQL, or a literal path, "
+    "if you meant to walk into the document."
+)
+
+
+def _source_exposes_column(
+    source: exp.Expression,
+    name: str,
+    *,
+    quoted: bool,
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
+) -> bool:
+    """Whether this relation offers the column, stored or overlay."""
+    if not isinstance(source, exp.Table):
+        return False
+    table_name = _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
+    if table_name is None:
+        return False
+    spec = allowlist.table_specs.get(table_name)
+    if spec is None:
+        return False
+    want = _identifier_key(name, quoted=quoted, dialect=dialect)
+    return any(
+        _identifier_key(offered, quoted=False, dialect=dialect) == want
+        for offered in (*spec.columns, *spec.virtual_columns)
+    )
+
+
+def _local_relation_projects(
+    source: exp.Expression,
+    root: exp.Expression,
+    name: str,
+    *,
+    dialect: SupportedSQLDialectName,
+) -> bool:
+    """Whether a query-local relation projects this column.
+
+    A CTE, subquery or VALUES list names its own columns, so the manifest
+    cannot answer for it. Its copy of a USING key is NULL on the same rows a
+    physical table's is.
+
+    Table-valued functions are excluded: their star expansion emits a physical
+    column under a different output name, which a two-sided merge of one name
+    cannot express.
+    """
+    if not isinstance(source, exp.Expression) or _tvf_output_names(source) is not None:
+        return False
+    names = _expression_output_names(
+        source, root, dialect=dialect, qualifier=_relation_qualifier(source)
+    )
+    if not names:
+        return False
+    want = _identifier_key(name, quoted=False, dialect=dialect)
+    return any(_identifier_key(offered, quoted=False, dialect=dialect) == want for offered in names)
+
+
+def _coalesced_using_column(name: str, *, quoted: bool, merge: list[exp.Identifier]) -> exp.Expr:
+    """A USING key as the merge of the relations that supply it."""
+    ident = exp.to_identifier(name, quoted=quoted)
+    return exp.alias_(
+        exp.Coalesce(
+            this=exp.Column(this=ident.copy(), table=merge[0].copy()),
+            expressions=[exp.Column(this=ident.copy(), table=other.copy()) for other in merge[1:]],
+        ),
+        ident.copy(),
+    )
+
+
+def _using_key_qualifier(
+    left_sources: list[exp.Expression],
+    ident: exp.Identifier,
+    *,
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
+) -> exp.Identifier:
+    """Which relation on the left a USING key names.
+
+    PostgreSQL refuses a key exposed by more than one relation of the left
+    composite, so more than one match here is the caller's ambiguity rather
+    than a choice to make for them. No match leaves the nearest relation, which
+    is what the engine will report against.
+    """
+    name = ident.this or ""
+    quoted = bool(ident.args.get("quoted"))
+    exposing = [
+        source
+        for source in left_sources
+        if _source_exposes_column(source, name, quoted=quoted, allowlist=allowlist, dialect=dialect)
+    ]
+    if len(exposing) > 1:
+        raise AnalyticsSqlError(
+            code=ErrorCode.UNSUPPORTED_SYNTAX,
+            message=(
+                f"`{name}` in USING names a column that more than one relation to its left "
+                "provides. Join with ON and qualify each side."
+            ),
+        )
+    return _relation_qualifier(exposing[0] if exposing else left_sources[-1])
+
+
 def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
     """Turn USING keys that name query-only overlays into ON comparisons.
 
@@ -620,18 +804,26 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
     changed = False
     for select in root.find_all(exp.Select):
         from_expr = select.args.get("from_") or select.args.get("from")
-        left = from_expr.this if isinstance(from_expr, exp.From) else None
+        # Every relation to the left, not just the previous one: SQL resolves a
+        # USING key against the whole composite built so far, so in
+        # `a JOIN b ON ... JOIN c USING (k)` the key may come from `a`.
+        left_sources: list[exp.Expression] = (
+            [from_expr.this] if isinstance(from_expr, exp.From) else []
+        )
         for join in select.args.get("joins") or []:
-            if left is None:
-                left = join.this
+            if not left_sources:
+                left_sources.append(join.this)
                 continue
             virtual_keys: list[exp.Identifier] = []
             physical_keys: list[exp.Identifier] = []
             for ident in _join_using_identifiers(join):
                 name = ident.this or ""
                 quoted = bool(ident.args.get("quoted"))
-                if _virtual_column_on_source(
-                    left, name, quoted=quoted, allowlist=ctx.allowlist, dialect=ctx.dialect
+                if any(
+                    _virtual_column_on_source(
+                        source, name, quoted=quoted, allowlist=ctx.allowlist, dialect=ctx.dialect
+                    )
+                    for source in left_sources
                 ) or _virtual_column_on_source(
                     join.this, name, quoted=quoted, allowlist=ctx.allowlist, dialect=ctx.dialect
                 ):
@@ -639,7 +831,6 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
                 else:
                     physical_keys.append(ident)
             if virtual_keys:
-                left_qual = _relation_qualifier(left)
                 right_qual = _relation_qualifier(join.this)
                 # Physical keys have to become ON too. Leaving them as USING
                 # next to the new ON is not valid PostgreSQL (`USING (id) ON
@@ -648,7 +839,12 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
                 on_keys = [*physical_keys, *virtual_keys]
                 equalities: list[exp.Expression] = [
                     exp.EQ(
-                        this=exp.Column(this=ident.copy(), table=left_qual.copy()),
+                        this=exp.Column(
+                            this=ident.copy(),
+                            table=_using_key_qualifier(
+                                left_sources, ident, allowlist=ctx.allowlist, dialect=ctx.dialect
+                            ).copy(),
+                        ),
                         expression=exp.Column(this=ident.copy(), table=right_qual.copy()),
                     )
                     for ident in on_keys
@@ -674,7 +870,7 @@ def _rewrite_virtual_using_joins(root: exp.Expression, ctx: RewriteContext) -> e
                         )
                     )
                 changed = True
-            left = join.this
+            left_sources.append(join.this)
     if changed:
         ctx.applied.append("virtual_using")
     return root
@@ -887,6 +1083,68 @@ def _select_from_is_values(select: exp.Select) -> bool:
     return isinstance(source, exp.Values)
 
 
+def _using_keys_needing_coalesce(
+    node: exp.Select,
+    root: exp.Expression,
+    *,
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
+) -> dict[str, list[exp.Identifier]]:
+    """USING keys whose left copy can be NULL, with the relations to merge.
+
+    USING exposes one column per key, defined as the merge of both sides. For
+    an inner or left join the left copy is always the merged value, so emitting
+    it is faithful. A right or full join produces rows where the left side is
+    absent, and there the left copy is NULL while the key itself is not.
+    """
+    from_expr = node.args.get("from_") or node.args.get("from")
+    left_sources: list[exp.Expression] = [from_expr.this] if isinstance(from_expr, exp.From) else []
+    needed: dict[str, list[exp.Identifier]] = {}
+    for join in node.args.get("joins") or []:
+        side = str(join.args.get("side") or "").upper()
+        using = join.args.get("using")
+        if using and side in ("RIGHT", "FULL") and left_sources:
+            items = using if isinstance(using, list) else [using]
+            for item in items:
+                ident = item if isinstance(item, exp.Identifier) else getattr(item, "this", None)
+                if not isinstance(ident, exp.Identifier):
+                    continue
+                key = _identifier_key(
+                    ident.name or ident.this or "",
+                    quoted=bool(ident.args.get("quoted")),
+                    dialect=dialect,
+                )
+                # Only the relations that actually offer the key. Merging
+                # across every relation to the left names columns they do not
+                # have, which the engine refuses. A query-local relation offers
+                # it on its own terms, and its copy goes NULL the same way.
+                providers = [
+                    source
+                    for source in left_sources
+                    if _source_exposes_column(
+                        source,
+                        ident.name or ident.this or "",
+                        quoted=bool(ident.args.get("quoted")),
+                        allowlist=allowlist,
+                        dialect=dialect,
+                    )
+                    or _local_relation_projects(
+                        source,
+                        root,
+                        ident.name or ident.this or "",
+                        dialect=dialect,
+                    )
+                ]
+                if not providers:
+                    continue
+                needed[key] = [
+                    *(_relation_qualifier(source) for source in providers),
+                    _relation_qualifier(join.this),
+                ]
+        left_sources.append(join.this)
+    return needed
+
+
 def _using_join_keys(node: exp.Select, dialect: SupportedSQLDialectName) -> frozenset[str]:
     """Join keys named by USING, compared the way this dialect compares identifiers.
 
@@ -997,6 +1255,13 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
             # star names one relation's columns, so it keeps that relation's
             # copy of the key.
             using_keys = _using_join_keys(node, ctx.dialect) if not explicit else frozenset()
+            coalesce_using = (
+                _using_keys_needing_coalesce(
+                    node, root, allowlist=ctx.allowlist, dialect=ctx.dialect
+                )
+                if not explicit
+                else {}
+            )
             using_keys = frozenset(using_keys | ctx.coalesced_using_by_select.get(id(node), set()))
             emitted_using: set[str] = set()
 
@@ -1038,6 +1303,12 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                                 if key in emitted_using:
                                     continue
                                 emitted_using.add(key)
+                                merge = coalesce_using.get(key)
+                                if merge:
+                                    new_exprs.append(
+                                        _coalesced_using_column(name, quoted=False, merge=merge)
+                                    )
+                                    continue
                             column = exp.Column(this=exp.to_identifier(name))
                             if qualifier.name:
                                 column.set("table", qualifier.copy())
@@ -1077,6 +1348,12 @@ def _expand_stars(root: exp.Expression, ctx: RewriteContext) -> exp.Expression:
                         if key in emitted_using:
                             continue
                         emitted_using.add(key)
+                        merge = coalesce_using.get(key)
+                        if merge:
+                            new_exprs.append(
+                                _coalesced_using_column(name, quoted=quoted, merge=merge)
+                            )
+                            continue
                     # Qualify by the caller's alias, quoting included: after
                     # ``FROM spans AS s`` the name ``spans`` no longer resolves.
                     new_exprs.append(
@@ -1169,8 +1446,25 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
                     aliases.add(key)
                     exposed_by_key[key] = exposed
             names = frozenset(aliases)
+            # Every relation this scope introduces, not just the duration tables
+            # above: a qualifier the scope binds to something else still belongs
+            # to the scope, and must not fall through to an enclosing one.
+            scope_relations = _scope_relation_keys(scope, dialect=ctx.dialect)
+            # `Scope.columns` reaches in both directions -- an outer query lists
+            # a nested subquery's unqualified column, and an inner query lists
+            # the correlated columns that reference outward -- and `traverse()`
+            # yields the inner scope first. A scope claims a qualified column
+            # only when it introduces that qualifier, so a correlated reference
+            # is left for the scope that does; keeping the first attribution
+            # then binds an unqualified column to the relation enclosing it,
+            # rather than to the outer query's table.
             for column in (*scope.columns, *_scope_columns(scope.expression)):
-                duration_scope[id(column)] = (duration_sources, names, exposed_by_key)
+                if (
+                    column.table
+                    and _column_qualifier_key(column, dialect=ctx.dialect) not in scope_relations
+                ):
+                    continue
+                duration_scope.setdefault(id(column), (duration_sources, names, exposed_by_key))
             if duration_sources < 2:
                 continue
             for column in _scope_columns(scope.expression):
@@ -1271,6 +1565,38 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     return root
 
 
+def _sqlite_stored_timestamp_operand(
+    node: exp.Expression, timestamp_columns: frozenset[str]
+) -> Optional[exp.Column]:
+    """The stored timestamp column an operand of `-` reads, or None.
+
+    Elapsed time is written over the columns themselves or over aggregates of
+    them, and `MAX(end_time)` is still a stored timestamp: these are zero-padded
+    ISO-8601 text, so their text ordering is their timestamp ordering and the
+    aggregate result converts like the column. Parentheses are transparent.
+    """
+    inner = _strip_parens(node)
+    if isinstance(inner, (exp.Min, exp.Max)):
+        inner = _strip_parens(inner.this)
+    elif isinstance(inner, exp.Coalesce):
+        # Every branch must be a stored timestamp, or the result is not one.
+        branches = [inner.this, *(inner.expressions or [])]
+        resolved = [
+            _sqlite_stored_timestamp_operand(branch, timestamp_columns) for branch in branches
+        ]
+        if not resolved or any(column is None for column in resolved):
+            return None
+        return resolved[0]
+    if not isinstance(inner, exp.Column):
+        return None
+    return inner if (inner.name or "").casefold() in timestamp_columns else None
+
+
+def _unixepoch_subsec(node: exp.Expression) -> exp.Expression:
+    """Seconds since the epoch, keeping fractional seconds."""
+    return exp.Anonymous(this="unixepoch", expressions=[node.copy(), exp.Literal.string("subsec")])
+
+
 def _rewrite_sqlite_timestamp_subtraction(
     root: exp.Expression, ctx: RewriteContext
 ) -> exp.Expression:
@@ -1282,10 +1608,15 @@ def _rewrite_sqlite_timestamp_subtraction(
     passthrough = _timestamp_passthrough_references(root, timestamp_columns)
     changed = False
     for node in list(root.find_all(exp.Sub)):
-        left, right = node.this, node.expression
+        left_operand = _strip_parens(node.this)
+        right_operand = _strip_parens(node.expression)
+        left = _sqlite_stored_timestamp_operand(node.this, timestamp_columns)
+        right = _sqlite_stored_timestamp_operand(node.expression, timestamp_columns)
         if not (
-            isinstance(left, exp.Column)
-            and isinstance(right, exp.Column)
+            left is not None
+            and right is not None
+            and left_operand is not None
+            and right_operand is not None
             and (left.name or "").casefold() in timestamp_columns
             and (right.name or "").casefold() in timestamp_columns
         ):
@@ -1300,12 +1631,8 @@ def _rewrite_sqlite_timestamp_subtraction(
         node.replace(
             exp.paren(
                 exp.Sub(
-                    this=exp.Anonymous(
-                        this="unixepoch", expressions=[left.copy(), exp.Literal.string("subsec")]
-                    ),
-                    expression=exp.Anonymous(
-                        this="unixepoch", expressions=[right.copy(), exp.Literal.string("subsec")]
-                    ),
+                    this=_unixepoch_subsec(left_operand),
+                    expression=_unixepoch_subsec(right_operand),
                 )
             )
         )
@@ -1337,6 +1664,68 @@ def _timestamp_unit_function_call(
     return None
 
 
+#: Unit functions that truncate to whole seconds unless given `subsec`.
+#: `julianday` is already fractional and `date` is day-resolution by definition.
+_SQLITE_SUBSEC_UNITS = frozenset({"unixepoch", "datetime", "time"})
+
+
+def _timestamp_unit_through_arithmetic(node: Optional[exp.Expression]) -> Optional[str]:
+    """The unit a side is expressed in, seen through unit-preserving arithmetic.
+
+    `unixepoch('now') - 3600` is an epoch value exactly as `unixepoch('now')`
+    is; shifting it by a constant does not change its unit. Without this, a
+    bounded window -- the most common form of "recent" -- is left comparing
+    text to an integer.
+
+    Addition and subtraction only. A product or a quotient is a number in some
+    other unit, so it is not one the column can be converted to match.
+    """
+    unwrapped = _strip_parens(node)
+    if isinstance(unwrapped, (exp.Add, exp.Sub)):
+        for operand in (unwrapped.this, unwrapped.expression):
+            found = _timestamp_unit_through_arithmetic(operand)
+            if found is not None:
+                return found
+        return None
+    unit = _timestamp_unit_function_call(unwrapped)
+    return unit[0] if unit is not None else None
+
+
+def _rescaled_timestamp_unit(node: Optional[exp.Expression]) -> Optional[str]:
+    """The unit function a multiplication or division rescales on this side.
+
+    Which unit the result is in follows from the factor, and a factor is an
+    arbitrary expression rather than something to infer. Reading the side as
+    seconds anyway converts the column to seconds and compares two scales,
+    which returns the wrong rows rather than failing.
+    """
+    unwrapped = _strip_parens(node)
+    if isinstance(unwrapped, (exp.Mul, exp.Div)):
+        for operand in (unwrapped.this, unwrapped.expression):
+            found = _timestamp_unit_through_arithmetic(operand) or _rescaled_timestamp_unit(operand)
+            if found is not None:
+                return found
+        return None
+    if isinstance(unwrapped, (exp.Add, exp.Sub)):
+        for operand in (unwrapped.this, unwrapped.expression):
+            found = _rescaled_timestamp_unit(operand)
+            if found is not None:
+                return found
+    return None
+
+
+def _comparison_operands(node: exp.Condition) -> tuple[Optional[exp.Expression], ...]:
+    """Both sides of a comparison, or all three parts of a BETWEEN."""
+    if isinstance(node, exp.Between):
+        return (node.this, node.args.get("low"), node.args.get("high"))
+    return (node.this, node.expression)
+
+
+#: BETWEEN is a comparison here even though it is not one of the binary
+#: comparison classes: `col BETWEEN a AND b` compares `col` against both bounds.
+_EPOCH_COMPARISON_NODES = (*_TIMESTAMP_COMPARISONS, exp.Between)
+
+
 def _rewrite_sqlite_timestamp_vs_epoch_function(
     root: exp.Expression, ctx: RewriteContext
 ) -> exp.Expression:
@@ -1357,10 +1746,11 @@ def _rewrite_sqlite_timestamp_vs_epoch_function(
     query_local = query_local_columns(root, allowlist=ctx.allowlist, dialect=ctx.dialect)
     passthrough = _timestamp_passthrough_references(root, timestamp_columns)
     changed = False
-    for node in list(root.find_all(*_TIMESTAMP_COMPARISONS)):
-        sides = (node.this, node.expression)
+    for node in list(root.find_all(*_EPOCH_COMPARISON_NODES)):
+        sides = _comparison_operands(node)
         column: Optional[exp.Column] = None
         unit_name: Optional[str] = None
+        rescaled: Optional[str] = None
         for side in sides:
             unwrapped = _strip_parens(side)
             if (
@@ -1372,15 +1762,32 @@ def _rewrite_sqlite_timestamp_vs_epoch_function(
                 and not (query_local.is_local(unwrapped) and id(unwrapped) not in passthrough)
             ):
                 column = unwrapped
-            unit = _timestamp_unit_function_call(side)
+            unit = _timestamp_unit_through_arithmetic(side)
             if unit is not None:
-                unit_name = unit[0]
+                unit_name = unit
+            rescaled = rescaled or _rescaled_timestamp_unit(side)
+        if column is not None and rescaled is not None:
+            raise AnalyticsSqlError(
+                code=ErrorCode.UNSUPPORTED_SYNTAX,
+                message=(
+                    f"`{rescaled}(...)` multiplied or divided is no longer in the unit "
+                    f"`{column.name}` converts to, so the comparison would be between "
+                    f"two scales. Compare against `{rescaled}(...)` unscaled, or scale "
+                    f"both sides -- `{rescaled}({column.name})` is available."
+                ),
+            )
         if column is None or unit_name is None:
             continue
         if unit_name == "date":
             wrapped: exp.Expression = exp.Date(this=column.copy())
         else:
-            wrapped = exp.Anonymous(this=unit_name, expressions=[column.copy()])
+            # Storage carries fractional seconds. `unixepoch`, `datetime` and
+            # `time` truncate to whole seconds unless asked otherwise, which
+            # drops rows whose comparison is decided below the second.
+            args: list[exp.Expression] = [column.copy()]
+            if unit_name in _SQLITE_SUBSEC_UNITS:
+                args.append(exp.Literal.string("subsec"))
+            wrapped = exp.Anonymous(this=unit_name, expressions=args)
         column.replace(wrapped)
         changed = True
     if changed:
@@ -1440,6 +1847,9 @@ def _rewrite_sqlite_median(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
     generator emits ``PERCENTILE_CONT``, which this engine does not have.
     sqlean stats registers ``median``; rewriting to a generic call is the
     spelling that actually runs.
+
+    Workaround for https://github.com/tobymao/sqlglot/issues/8079, which
+    upstream closed as not planned.
     """
     if ctx.dialect != "sqlite":
         return root
@@ -1556,9 +1966,11 @@ def _parenthesize_setop_operands(root: exp.Expression, ctx: RewriteContext) -> e
     """Make set-op operands that carry ORDER BY / LIMIT executable on this backend.
 
     ``SELECT ... LIMIT 1 UNION SELECT ...`` is a syntax error in PostgreSQL
-    unless the limited select is parenthesised, and SQLGlot does not emit those
-    parentheses. SQLite rejects the parentheses and the LIMIT-on-a-member
-    spelling; those members are lifted into FROM subqueries instead.
+    unless the limited select is parenthesised. The parser accepts the
+    unparenthesised spelling, so the operand arrives bare and the parenthesised
+    form is what the engine runs. SQLite rejects the parentheses and the
+    LIMIT-on-a-member spelling; those members are lifted into FROM subqueries
+    instead.
     """
     if ctx.dialect == "sqlite":
         return _rewrite_sqlite_setop_operands(root, ctx)
@@ -1792,8 +2204,18 @@ def _substitute_graphql_node_id(root: exp.Expression, ctx: RewriteContext) -> ex
                 scope, allowlist=ctx.allowlist, dialect=ctx.dialect
             )
             fallback = next(iter(set(by_alias.values()))) if n_sources == 1 else None
+            # Attribution follows the duration overlay: a scope claims a
+            # qualified column only when it introduces that qualifier, so a
+            # correlated reference is left for the scope that does, and the
+            # innermost scope wins for an unqualified one.
+            scope_relations = _scope_relation_keys(scope, dialect=ctx.dialect)
             for column in (*scope.columns, *_scope_columns(scope.expression)):
-                resolution[id(column)] = (by_alias, fallback, n_sources, exposed_by_key)
+                if (
+                    column.table
+                    and _column_qualifier_key(column, dialect=ctx.dialect) not in scope_relations
+                ):
+                    continue
+                resolution.setdefault(id(column), (by_alias, fallback, n_sources, exposed_by_key))
     if not any(n_sources for _, _, n_sources, _ in resolution.values()):
         return root
 

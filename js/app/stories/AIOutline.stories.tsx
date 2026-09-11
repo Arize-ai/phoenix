@@ -35,17 +35,12 @@ const meta = {
   },
   args: {
     children: <Button size="S">Hallucination evaluator</Button>,
-    glowMode: "outer",
     isFullWidth: false,
     radius: "small",
     shouldFlash: false,
     state: "idle",
   },
   argTypes: {
-    glowMode: {
-      control: "inline-radio",
-      options: ["outer", "contained"],
-    },
     radius: {
       control: "inline-radio",
       options: ["small", "medium"],
@@ -187,27 +182,21 @@ function ClippedRowExample() {
       <Flex key={flashKey} direction="column" gap="size-300">
         <Flex direction="column" gap="size-100">
           <Text size="XS" color="text-500">
-            Glow modes inside overflow: hidden
+            Inside overflow: hidden
           </Text>
           <div css={clippedRowCSS}>
-            <AIOutline glowMode="outer" state="eligible" shouldFlash>
-              <Button size="S">Outer glow</Button>
-            </AIOutline>
-            <AIOutline glowMode="contained" state="eligible" shouldFlash>
-              <Button size="S">Contained glow</Button>
+            <AIOutline state="eligible" shouldFlash>
+              <Button size="S">Hallucination evaluator</Button>
             </AIOutline>
           </div>
         </Flex>
         <Flex direction="column" gap="size-100">
           <Text size="XS" color="text-500">
-            Glow modes with overflow visible
+            With overflow visible
           </Text>
           <Flex gap="size-200">
-            <AIOutline glowMode="outer" state="eligible" shouldFlash>
-              <Button size="S">Outer glow</Button>
-            </AIOutline>
-            <AIOutline glowMode="contained" state="eligible" shouldFlash>
-              <Button size="S">Contained glow</Button>
+            <AIOutline state="eligible" shouldFlash>
+              <Button size="S">Hallucination evaluator</Button>
             </AIOutline>
           </Flex>
         </Flex>

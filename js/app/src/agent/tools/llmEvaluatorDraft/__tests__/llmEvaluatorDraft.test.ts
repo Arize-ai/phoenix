@@ -4,15 +4,11 @@ import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
 import { fromOutputConfigDraft } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
   applyDraftOperations,
-  createEditLlmEvaluatorDraftClientAction,
   createReadLlmEvaluatorDraftClientAction,
   createTestLlmEvaluatorDraftClientAction,
-  type EditLlmEvaluatorDraftOperation,
   type EvaluatorSubmitResult,
   type LLMEvaluatorDraftSnapshot,
-  type LlmEvaluatorDraftHost,
   parseEditLlmEvaluatorDraftInput,
-  type PendingLlmEvaluatorEdit,
   reconcileJudgeOperations,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { buildJudgeToolFunctions } from "@phoenix/components/evaluators/utils";
@@ -48,50 +44,7 @@ function makeSnapshot(
   };
 }
 
-function makeHost(initial: LLMEvaluatorDraftSnapshot): {
-  host: LlmEvaluatorDraftHost;
-  snapshotRef: { current: LLMEvaluatorDraftSnapshot };
-} {
-  const snapshotRef = { current: initial };
-  const previewOperations = (
-    snapshot: LLMEvaluatorDraftSnapshot,
-    operations: EditLlmEvaluatorDraftOperation[]
-  ) => applyDraftOperations({ snapshot, operations });
-  const host: LlmEvaluatorDraftHost = {
-    getSnapshot: () => snapshotRef.current,
-    previewOperations,
-    applyOperations: (operations) => {
-      const proposed = previewOperations(snapshotRef.current, operations);
-      if (!proposed.ok) return proposed;
-      snapshotRef.current = proposed.output;
-      return { ok: true, output: proposed.output };
-    },
-    submit: async ({ approvalSource }) => ({
-      ok: true,
-      acceptedBy: approvalSource,
-      evaluator: { id: "ev-1", name: snapshotRef.current.name },
-    }),
-  };
-  return { host, snapshotRef };
-}
-
 describe("llm evaluator draft read tool", () => {
-  it("reads the current draft snapshot including the judge block", async () => {
-    const { host } = makeHost(makeSnapshot());
-    const action = createReadLlmEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-    });
-    const result = await action({});
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const snapshot = JSON.parse(
-      result.output ?? ""
-    ) as LLMEvaluatorDraftSnapshot;
-    expect(snapshot.mode).toBe("create");
-    expect(snapshot.judge.model).toBe("gpt-4o");
-    expect(snapshot.judge.messages).toHaveLength(1);
-  });
-
   it("errors when the form is not mounted", async () => {
     const action = createReadLlmEvaluatorDraftClientAction({
       getDraftHost: () => null,
@@ -104,18 +57,6 @@ describe("llm evaluator draft read tool", () => {
 });
 
 describe("llm evaluator draft test tool", () => {
-  it("runs the preview and returns the judge result as a JSON string", async () => {
-    const output = { results: [{ annotation: { score: 1 } }] };
-    const action = createTestLlmEvaluatorDraftClientAction({
-      isDraftMounted: () => true,
-      runEvaluatorPreview: async () => ({ ok: true, output }),
-    });
-    const result = await action({});
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(JSON.parse(result.output ?? "")).toEqual(output);
-  });
-
   it("errors when the form is not mounted", async () => {
     const action = createTestLlmEvaluatorDraftClientAction({
       isDraftMounted: () => false,
@@ -292,116 +233,6 @@ describe("llm evaluator draft edit reducer", () => {
       "yes",
       "no",
     ]);
-  });
-});
-
-describe("llm evaluator draft edit lifecycle", () => {
-  it("registers a pending edit when the propose-time gate passes", async () => {
-    const { host } = makeHost(makeSnapshot());
-    let pending: PendingLlmEvaluatorEdit | null = null;
-    const action = createEditLlmEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingLlmEvaluatorEdit: (_, edit) => {
-        pending = edit;
-      },
-    });
-    const result = await action(
-      { operations: [{ type: "set_description", description: "from model" }] },
-      { toolCallId: "tc", sessionId: "s", addToolOutput: async () => undefined }
-    );
-    expect(result.ok).toBe(true);
-    expect(pending).not.toBeNull();
-    expect(pending!.after.description).toBe("from model");
-  });
-
-  it("applies the pending edit on accept", async () => {
-    const { host, snapshotRef } = makeHost(makeSnapshot());
-    let pending: PendingLlmEvaluatorEdit | null = null;
-    const outputs: Array<Record<string, unknown>> = [];
-    const action = createEditLlmEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingLlmEvaluatorEdit: (_, edit) => {
-        pending = edit;
-      },
-    });
-    await action(
-      { operations: [{ type: "set_description", description: "accepted" }] },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async (payload: Record<string, unknown>) => {
-          outputs.push(payload);
-        },
-      }
-    );
-    await pending!.accept!();
-    expect(snapshotRef.current.description).toBe("accepted");
-    expect(outputs[0]).toMatchObject({ state: "output-available" });
-  });
-
-  it("leaves the form unchanged when the user rejects the proposed edit", async () => {
-    const { host, snapshotRef } = makeHost(
-      makeSnapshot({ description: "original" })
-    );
-    let pending: PendingLlmEvaluatorEdit | null = null;
-    const outputs: Array<Record<string, unknown>> = [];
-    const action = createEditLlmEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingLlmEvaluatorEdit: (_, edit) => {
-        pending = edit;
-      },
-    });
-    await action(
-      { operations: [{ type: "set_description", description: "from model" }] },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async (payload: Record<string, unknown>) => {
-          outputs.push(payload);
-        },
-      }
-    );
-    await pending!.reject!();
-    expect(snapshotRef.current.description).toBe("original");
-    expect(outputs[0]).toMatchObject({
-      state: "output-available",
-      output: expect.objectContaining({ status: "rejected" }),
-    });
-  });
-
-  it("auto-applies the edit without surfacing a confirmation when shouldAutoAccept is true", async () => {
-    const { host, snapshotRef } = makeHost(
-      makeSnapshot({ description: "original" })
-    );
-    let surfacedPending = false;
-    const outputs: Array<Record<string, unknown>> = [];
-    const action = createEditLlmEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingLlmEvaluatorEdit: (_, edit) => {
-        if (edit) surfacedPending = true;
-      },
-      shouldAutoAccept: () => true,
-    });
-    const result = await action(
-      { operations: [{ type: "set_description", description: "auto" }] },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async (payload: Record<string, unknown>) => {
-          outputs.push(payload);
-        },
-      }
-    );
-    expect(result.ok).toBe(true);
-    expect(surfacedPending).toBe(false);
-    expect(snapshotRef.current.description).toBe("auto");
-    expect(outputs[0]).toMatchObject({
-      state: "output-available",
-      output: expect.objectContaining({
-        status: "accepted",
-        acceptedBy: "auto",
-      }),
-    });
   });
 });
 

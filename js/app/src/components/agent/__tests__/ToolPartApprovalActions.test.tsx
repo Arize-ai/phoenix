@@ -6,6 +6,7 @@ import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { AgentContext } from "@phoenix/contexts/AgentContext";
 import { createAgentStore, type AgentStore } from "@phoenix/store/agentStore";
 
+import { ChatScrollContext } from "../ChatScrollContext";
 import { ToolPartApprovalActions } from "../ToolPartPrimitives";
 
 installTestStorage();
@@ -105,6 +106,39 @@ describe("ToolPartApprovalActions", () => {
     const { accept, reject } = getButtons();
     expect(accept.disabled).toBe(false);
     expect(reject.disabled).toBe(false);
+  });
+
+  it("re-engages follow-bottom when the user decides", () => {
+    // Approving (or rejecting) ends the review checkpoint that paused
+    // follow-bottom — the turn resumes streaming below, so the transcript
+    // must follow it again.
+    const scrollToBottom = vi.fn();
+    const onAccept = vi.fn();
+    const onReject = vi.fn();
+    act(() => {
+      root.render(
+        <AgentContext.Provider value={store}>
+          <ChatScrollContext.Provider
+            value={{ stopScroll: vi.fn(), scrollToBottom }}
+          >
+            <ToolPartApprovalActions onAccept={onAccept} onReject={onReject} />
+          </ChatScrollContext.Provider>
+        </AgentContext.Provider>
+      );
+    });
+    const { accept, reject } = getButtons();
+
+    act(() => {
+      accept.click();
+    });
+    expect(onAccept).toHaveBeenCalledTimes(1);
+    expect(scrollToBottom).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      reject.click();
+    });
+    expect(onReject).toHaveBeenCalledTimes(1);
+    expect(scrollToBottom).toHaveBeenCalledTimes(2);
   });
 
   it("still shows the stale explanation when explicitly disabled", () => {

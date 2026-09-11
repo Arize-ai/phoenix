@@ -31,8 +31,8 @@ export function getScrollableParent(element: HTMLElement): HTMLElement | null {
  * just before its content grows or shrinks; `restore(element)` — run after the
  * DOM updates — scrolls the container so the element stays visually put.
  *
- * `capture` always stops the stick-to-bottom controller, even when no scroll
- * container is overflowing yet. Expanding a section can be precisely what first
+ * `capture` always stops the follow-bottom controller (see
+ * `useChatFollowScroll`), even when no scroll container is overflowing yet. Expanding a section can be precisely what first
  * creates the overflow; if we gated the stop on finding a scrollable ancestor
  * (as an earlier version did), the controller would snap the transcript to the
  * bottom in that case and fight the restore. Stopping unconditionally keeps a

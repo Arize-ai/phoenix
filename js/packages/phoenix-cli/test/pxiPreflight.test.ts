@@ -334,12 +334,18 @@ describe("PXI model preflight", () => {
           { providerKey: "GOOGLE", name: "gemini-3.5-flash" },
           { providerKey: "OPENAI", name: "unrecommended-model" },
           { providerKey: "OPENAI", name: "gpt-5.4" },
+          { providerKey: "ANTHROPIC", name: "claude-fable-5-1" },
           { providerKey: "ANTHROPIC", name: "claude-opus-4-8" },
         ],
       }),
     });
 
     expect(models).toEqual([
+      {
+        providerType: "builtin",
+        provider: "ANTHROPIC",
+        modelName: "claude-fable-5-1",
+      },
       {
         providerType: "builtin",
         provider: "ANTHROPIC",

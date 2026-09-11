@@ -12,7 +12,6 @@
 
 ## Quick Start
 
-- [Agent-Assisted Setup](https://arize.com/docs/phoenix/agent-assisted-setup): Add Phoenix tracing with one command — px setup hands instrumentation to your coding agent and verifies a real trace arrives
 - [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing): Instrument an app and send your first traces to Phoenix
 - [Evaluations Quickstart](https://arize.com/docs/phoenix/get-started/get-started-evaluations): Run your first LLM evaluator and view results
 - [Playground Quickstart](https://arize.com/docs/phoenix/get-started/get-started-prompt-playground): Test prompt variations against real examples in the Playground
@@ -125,14 +124,17 @@
 
 ### Pre-Built Metrics — Individual Pages
 
+- [Completeness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/completeness): Evaluate whether every active user request in a conversation was actually completed
 - [Conciseness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/conciseness): Evaluate whether LLM responses are concise and free of unnecessary content
 - [Correctness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/correctness): Evaluate whether LLM responses are generally correct and complete
 - [Exact Match](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match): Evaluate if output exactly matches expected value
 - [Faithfulness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/faithfulness): Evaluate whether LLM responses are faithful to the provided context
 - [Hallucination](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/hallucination): Detect claims unsupported by the conversation, including fabricated tool results
 - [Matches Regex](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/matches-regex): Evaluate if output matches a regular expression pattern
+- [PII Detection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/pii-detection): Screen conversation text for personally identifiable information and list each finding
 - [Precision / Recall / F-Score](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore): Compute precision, recall, and F-beta scores for classification tasks
 - [Refusal](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/refusal): Detect when an LLM refuses or declines to answer a user query
+- [Retrieval Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance): Score whether retrieved context — RAG, tool, MCP, or web search — is relevant to the request
 - [Tool Invocation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-invocation): Evaluate whether LLM tool calls have correct arguments and formatting
 - [Tool Response Handling](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling): Evaluate how agents process tool results — error handling, data extraction, and recovery
 - [Tool Selection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection): Evaluate whether LLMs select the correct tools for given tasks
@@ -268,7 +270,7 @@
 
 ### Python Frameworks
 
-- [AG2 Tracing](https://arize.com/docs/phoenix/integrations/python/ag2/ag2-tracing): Auto-instrument AG2 multi-agent applications
+- [AG2 Tracing](https://arize.com/docs/phoenix/integrations/python/ag2/ag2-tracing): Trace AG2 1.x agents via built-in OpenTelemetry middleware, and AG2 Classic via the OpenInference instrumentor
 - [Agno Tracing](https://arize.com/docs/phoenix/integrations/python/agno/agno-tracing): Auto-instrument Agno agent workflows
 - [AgentSpec Tracing](https://arize.com/docs/phoenix/integrations/python/agentspec/agentspec-tracing): Auto-instrument AgentSpec agents
 - [AutoGen Tracing](https://arize.com/docs/phoenix/integrations/python/autogen/autogen-tracing): Auto-instrument AutoGen conversations
@@ -322,6 +324,7 @@
 
 ### Evaluation Integrations
 
+- [Harbor](https://arize.com/docs/phoenix/integrations/evaluation-integrations/harbor): Record Harbor agent benchmarks as Phoenix experiments with rewards, infrastructure status, and ATIF traces
 - [Cleanlab](https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab): Use Cleanlab TLM confidence scores to flag untrustworthy LLM outputs in Phoenix
 - [MLflow](https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow): Use Phoenix evaluators as MLflow scorers for GenAI evaluation workflows
 - [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas): Evaluate agents and RAG pipelines using Ragas metrics alongside Phoenix tracing
@@ -358,7 +361,7 @@
 
 ### Python Frameworks — Additional
 
-- [AG2 Integration](https://arize.com/docs/phoenix/integrations/python/ag2): Connect AG2 (formerly AutoGen) conversable agents and group chats to Phoenix
+- [AG2 Integration](https://arize.com/docs/phoenix/integrations/python/ag2): Connect AG2 agents, tools, and multi-agent networks to Phoenix
 - [Agent Spec Integration](https://arize.com/docs/phoenix/integrations/python/agentspec): Connect Open Agent Spec agentic systems to Phoenix
 - [Agno Integration](https://arize.com/docs/phoenix/integrations/python/agno): Connect Agno model-agnostic Python agents to Phoenix
 - [AutoGen Integration](https://arize.com/docs/phoenix/integrations/python/autogen): Connect AutoGen multi-agent conversations to Phoenix
@@ -450,7 +453,6 @@
 ### Evaluation
 
 - [LLM as a Judge](https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge): LLM-based evaluation best practices
-- [Evaluator Input Mapping](https://arize.com/docs/phoenix/evaluation/concepts-evals/input-mapping): Reshape nested payloads to an evaluator's expected fields with `input_mapping` and `bind_evaluator`
 
 ## Resources
 
@@ -494,11 +496,13 @@
 - [Phoenix Client Document Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/document-annotations): Log document-level annotations for RAG evaluation via @arizeai/phoenix-client
 - [Phoenix Client Experiments (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments): Run experiments via @arizeai/phoenix-client
 - [Phoenix Client Prompts (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts): Manage prompts via @arizeai/phoenix-client
+- [Phoenix Client Projects (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/projects): List projects and assign trace retention policies via @arizeai/phoenix-client
 - [Phoenix Client Session Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/session-annotations): Log session-level annotations for conversation evaluation via @arizeai/phoenix-client
 - [Phoenix Client Sessions (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions): Work with sessions via @arizeai/phoenix-client
 - [Phoenix Client Span Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/span-annotations): Log and retrieve span-level annotations via @arizeai/phoenix-client
 - [Phoenix Client Spans (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/spans): Search and manage spans via @arizeai/phoenix-client
 - [Phoenix Client Traces (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/traces): Retrieve traces via @arizeai/phoenix-client
+- [Phoenix Client Users (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/users): Identify the user behind the current credentials via @arizeai/phoenix-client
 - [CI Eval Tests (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals): Run dataset-backed Phoenix evaluations as Vitest or Jest tests via @arizeai/phoenix-client
 - [CI Eval Test Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations): Record annotations and evaluator results on experiment runs via @arizeai/phoenix-client
 - [CI Eval Tests: Vitest (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest): Wire @arizeai/phoenix-client/vitest into a Vitest project
@@ -669,6 +673,7 @@
 ### REST API — Traces
 
 - [List Traces For A Project](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/list-traces-for-a-project): GET /v1/projects/{project_identifier}/traces — paginate traces in a project
+- [Delete Traces From A Project](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-traces-from-a-project): DELETE /v1/projects/{project_identifier}/traces — bulk-delete traces in a bounded [start_time, end_time) interval
 - [Delete A Trace By Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier): DELETE /v1/traces/{trace_identifier} — delete a trace by ID or trace_id
 - [Create Trace Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-trace-annotations): POST /v1/trace_annotations — write one or more annotations on traces
 - [Create A Trace Note](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-a-trace-note): POST /v1/trace_notes — attach a free-text note to a trace
@@ -837,6 +842,9 @@
 - [08.04.2026: Chat Completions Proxy, AI Query, and Annotation Charts](https://arize.com/docs/phoenix/release-notes/08-2026/08-04-2026-chat-completions-proxy-ai-query-and-annotation-charts): Proxy OpenAI-compatible chat completions with server-held credentials, write filters in plain English, chart every annotation, and judge hallucination against the conversation
 - [08.11.2026: Persistent Agent Sessions](https://arize.com/docs/phoenix/release-notes/08-2026/08-11-2026-persistent-agent-sessions): Agent conversations persist server-side — browse, restore, rewind, branch, and compact them from the browser or the pxi terminal client
 - [08.12.2026: Session Filter Expressions, REST API Expansion, and Endpoint Configuration](https://arize.com/docs/phoenix/release-notes/08-2026/08-12-2026-session-filters-rest-api-and-endpoint-config): Filter sessions with a full expression language, manage dataset splits and experiment tags over REST, transfer traces between projects, and point every SDK at PHOENIX_ENDPOINT
+- [08.17.2026: Trace Filter Expressions and Analytics SQL](https://arize.com/docs/phoenix/release-notes/08-2026/08-17-2026-trace-filters-and-analytics-sql): Filter the traces table with a full expression language and query Phoenix with read-only SQL over MCP
+- [08.25.2026: Smarter PXI Workflows and Retrieval Evaluation](https://arize.com/docs/phoenix/release-notes/08-2026/08-25-2026-pxi-browser-actions-and-retrieval-relevance): Run approval-gated multi-step PXI workflows across the UI and score retrievals from any source
+- [09.01.2026: GitHub Issues from PXI, PII Detection, and Client Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates): File GitHub issues from PXI, screen conversations for PII, and create prompt versions over REST
 
 ### 2025
 

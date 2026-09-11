@@ -1,11 +1,9 @@
 import { css } from "@emotion/react";
-import { parseDiffFromFile } from "@pierre/diffs";
-import { FileDiff } from "@pierre/diffs/react";
-import { type ReactNode, useMemo } from "react";
+import type { ReactNode } from "react";
 
 import { Flex } from "@phoenix/components";
-import { useTheme } from "@phoenix/contexts";
 
+import { ToolPartDiffView } from "./ToolPartPierreViews";
 import {
   ToolPartApprovalActions,
   ToolPartCodeBlock,
@@ -35,11 +33,6 @@ const diffAcceptRejectToolDetailsCSS = css`
     font-size: var(--global-font-size-xs);
     letter-spacing: 0.05em;
     user-select: none;
-  }
-
-  .diff-accept-reject__diff {
-    font-family: var(--global-font-family-sans);
-    white-space: normal;
   }
 `;
 
@@ -124,50 +117,16 @@ function PendingDiff<T, P extends PendingDiffEdit<T>>({
   renderHeader: (pending: P) => ReactNode;
   staleSessionMessage: string;
 }) {
-  const { theme } = useTheme();
   const canRespond = Boolean(pending.accept && pending.reject);
-  const fileDiff = useMemo(() => {
-    return parseDiffFromFile(
-      { name: fileName, contents: snapshotToText(pending.before) },
-      { name: fileName, contents: snapshotToText(pending.after) }
-    );
-  }, [pending, fileName, snapshotToText]);
 
   return (
     <Flex direction="column" gap="size-100">
       <div className="diff-accept-reject__header">{renderHeader(pending)}</div>
-      <div className="diff-accept-reject__diff">
-        <FileDiff
-          fileDiff={fileDiff}
-          data-background="transparent"
-          options={{
-            diffStyle: "unified",
-            disableFileHeader: true,
-            theme: { light: "pierre-light", dark: "pierre-dark" },
-            themeType: theme,
-            unsafeCSS: `
-            pre, pre code, [data-line-type=context], [data-gutter], svg {
-              background: var(--tool-call-body-background-color);
-              stroke: unset;
-              fill: unset;
-            }
-
-            [data-line-type] {
-              border-right: none;
-            }
-
-            [data-code] {
-              padding: 0;
-              padding-bottom: var(--global-dimension-size-100)
-            }
-
-            [data-column-number] {
-              padding-left: 1.5ch;
-            }
-            `,
-          }}
-        />
-      </div>
+      <ToolPartDiffView
+        fileName={fileName}
+        before={snapshotToText(pending.before)}
+        after={snapshotToText(pending.after)}
+      />
       <ToolPartApprovalActions
         onAccept={() => void pending.accept?.()}
         onReject={() => void pending.reject?.()}

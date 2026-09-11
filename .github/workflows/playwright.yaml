@@ -71,14 +71,16 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           cache-dependency-path: ./js/pnpm-lock.yaml
-          node-version: lts/*
+          node-version: 24
           cache: pnpm
       - name: Install dependencies
         working-directory: ./js
         run: pnpm install --frozen-lockfile
       - name: Get installed Playwright version
         id: playwright-version
-        run: echo "PLAYWRIGHT_VERSION=$(pnpm list --json | jq -r '.[0].devDependencies["@playwright/test"].version')" >> $GITHUB_ENV
+        run: |
+          PLAYWRIGHT_VERSION=$(node -p "require('@playwright/test/package.json').version")
+          echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> "$GITHUB_ENV"
       - name: Cache Playwright binaries
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         id: playwright-cache
@@ -95,9 +97,10 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version: "0.12.1"
+          version-file: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
       - name: Install dependencies
         if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
         run: uv sync --extra container

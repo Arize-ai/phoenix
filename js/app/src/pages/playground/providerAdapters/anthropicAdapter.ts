@@ -602,151 +602,209 @@ export function anthropicWriteField(
   value: unknown
 ): AnthropicConfig {
   switch (name) {
-    case "maxTokens": {
-      if (typeof value !== "number" || Number.isNaN(value)) return config;
-      return normalizeAnthropicConfig({ ...config, maxTokens: value });
-    }
-    case "temperature": {
-      if (value === undefined) {
-        const next = { ...config };
-        delete next.temperature;
-        return normalizeAnthropicConfig(next);
-      }
-      if (typeof value !== "number" || Number.isNaN(value)) return config;
-      return normalizeAnthropicConfig({ ...config, temperature: value });
-    }
-    case "topP": {
-      if (value === undefined) {
-        const next = { ...config };
-        delete next.topP;
-        return normalizeAnthropicConfig(next);
-      }
-      if (typeof value !== "number" || Number.isNaN(value)) return config;
-      return normalizeAnthropicConfig({ ...config, topP: value });
-    }
-    case "stopSequences": {
-      if (value === undefined) {
-        const next = { ...config };
-        delete next.stopSequences;
-        return normalizeAnthropicConfig(next);
-      }
-      if (!Array.isArray(value)) return config;
-      return normalizeAnthropicConfig({
-        ...config,
-        stopSequences: value.map(String),
-      });
-    }
-    case "thinkingType": {
-      if (value === undefined) {
-        const next = { ...config };
-        delete next.thinking;
-        return normalizeAnthropicConfig(next);
-      }
-      if (value === "disabled") {
-        return normalizeAnthropicConfig({
-          ...config,
-          thinking: { type: "disabled" },
-        });
-      }
-      if (value === "enabled") {
-        const prev = config.thinking;
-        const budgetTokens =
-          prev?.type === "enabled"
-            ? prev.budgetTokens
-            : ANTHROPIC_MINIMUM_BUDGET_TOKENS;
-        const display =
-          prev && prev.type !== "disabled" ? prev.display : undefined;
-        const enabled: AnthropicThinkingEnabled = {
-          type: "enabled",
-          budgetTokens,
-        };
-        if (display !== undefined) enabled.display = display;
-        // Anthropic requires `budgetTokens < maxTokens`. If the existing
-        // `maxTokens` would render an unsatisfiable budget range, bump it so
-        // the form opens in a valid state instead of failing only at submit.
-        const maxTokens =
-          config.maxTokens > budgetTokens ? config.maxTokens : budgetTokens + 1;
-        return normalizeAnthropicConfig({
-          ...config,
-          maxTokens,
-          thinking: enabled,
-        });
-      }
-      if (value === "adaptive") {
-        const prev = config.thinking;
-        const display =
-          prev && prev.type !== "disabled" ? prev.display : undefined;
-        const adaptive: AnthropicThinkingAdaptive = { type: "adaptive" };
-        if (display !== undefined) adaptive.display = display;
-        return normalizeAnthropicConfig({ ...config, thinking: adaptive });
-      }
-      return config;
-    }
-    case "thinkingBudgetTokens": {
-      if (config.thinking?.type !== "enabled") return config;
-      if (value === undefined) return config; // can't clear while enabled
-      if (typeof value !== "number" || Number.isNaN(value)) return config;
-      return normalizeAnthropicConfig({
-        ...config,
-        thinking: { ...config.thinking, budgetTokens: value },
-      });
-    }
-    case "thinkingDisplay": {
-      const prev = config.thinking;
-      if (!prev || prev.type === "disabled") return config;
-      if (value === undefined) {
-        if (prev.type === "enabled") {
-          const next: AnthropicThinkingEnabled = {
-            type: "enabled",
-            budgetTokens: prev.budgetTokens,
-          };
-          return normalizeAnthropicConfig({ ...config, thinking: next });
-        }
-        return normalizeAnthropicConfig({
-          ...config,
-          thinking: { type: "adaptive" },
-        });
-      }
-      const parsed = thinkingDisplaySchema.safeParse(value);
-      if (!parsed.success || !parsed.data) return config;
-      if (prev.type === "enabled") {
-        return normalizeAnthropicConfig({
-          ...config,
-          thinking: {
-            type: "enabled",
-            budgetTokens: prev.budgetTokens,
-            display: parsed.data,
-          },
-        });
-      }
-      return normalizeAnthropicConfig({
-        ...config,
-        thinking: { type: "adaptive", display: parsed.data },
-      });
-    }
-    case "effort": {
-      if (value === undefined) {
-        const next = { ...config };
-        delete next.effort;
-        return normalizeAnthropicConfig(next);
-      }
-      const parsed = effortSchema.safeParse(value);
-      if (!parsed.success || !parsed.data) return config;
-      return normalizeAnthropicConfig({ ...config, effort: parsed.data });
-    }
-    case "extraBody": {
-      if (value === undefined) {
-        const next = { ...config };
-        delete next.extraBody;
-        return normalizeAnthropicConfig(next);
-      }
-      const extraBody = pickExtraBody(value);
-      if (extraBody === undefined) return config;
-      return normalizeAnthropicConfig({ ...config, extraBody });
-    }
+    case "maxTokens":
+      return writeRequiredNumber({ config, field: "maxTokens", value });
+    case "temperature":
+      return writeOptionalNumber({ config, field: "temperature", value });
+    case "topP":
+      return writeOptionalNumber({ config, field: "topP", value });
+    case "stopSequences":
+      return writeStopSequences({ config, value });
+    case "thinkingType":
+      return writeThinkingType({ config, value });
+    case "thinkingBudgetTokens":
+      return writeThinkingBudgetTokens({ config, value });
+    case "thinkingDisplay":
+      return writeThinkingDisplay({ config, value });
+    case "effort":
+      return writeEffort({ config, value });
+    case "extraBody":
+      return writeExtraBody({ config, value });
     default:
       return config;
   }
+}
+
+function writeRequiredNumber({
+  config,
+  field,
+  value,
+}: {
+  config: AnthropicConfig;
+  field: "maxTokens";
+  value: unknown;
+}): AnthropicConfig {
+  if (typeof value !== "number" || Number.isNaN(value)) return config;
+  return normalizeAnthropicConfig({ ...config, [field]: value });
+}
+
+function writeOptionalNumber({
+  config,
+  field,
+  value,
+}: {
+  config: AnthropicConfig;
+  field: "temperature" | "topP";
+  value: unknown;
+}): AnthropicConfig {
+  if (value === undefined) {
+    const next = { ...config };
+    delete next[field];
+    return normalizeAnthropicConfig(next);
+  }
+  if (typeof value !== "number" || Number.isNaN(value)) return config;
+  return normalizeAnthropicConfig({ ...config, [field]: value });
+}
+
+function writeStopSequences({
+  config,
+  value,
+}: {
+  config: AnthropicConfig;
+  value: unknown;
+}): AnthropicConfig {
+  if (value === undefined) {
+    const next = { ...config };
+    delete next.stopSequences;
+    return normalizeAnthropicConfig(next);
+  }
+  if (!Array.isArray(value)) return config;
+  return normalizeAnthropicConfig({
+    ...config,
+    stopSequences: value.map(String),
+  });
+}
+
+function writeThinkingType({
+  config,
+  value,
+}: {
+  config: AnthropicConfig;
+  value: unknown;
+}): AnthropicConfig {
+  if (value === undefined) {
+    const next = { ...config };
+    delete next.thinking;
+    return normalizeAnthropicConfig(next);
+  }
+  if (value === "disabled") {
+    return normalizeAnthropicConfig({
+      ...config,
+      thinking: { type: "disabled" },
+    });
+  }
+  if (value === "enabled") return enableThinking(config);
+  if (value === "adaptive") return enableAdaptiveThinking(config);
+  return config;
+}
+
+function enableThinking(config: AnthropicConfig): AnthropicConfig {
+  const previous = config.thinking;
+  const budgetTokens =
+    previous?.type === "enabled"
+      ? previous.budgetTokens
+      : ANTHROPIC_MINIMUM_BUDGET_TOKENS;
+  const display =
+    previous && previous.type !== "disabled" ? previous.display : undefined;
+  const thinking: AnthropicThinkingEnabled = { type: "enabled", budgetTokens };
+  if (display !== undefined) thinking.display = display;
+  const maxTokens =
+    config.maxTokens > budgetTokens ? config.maxTokens : budgetTokens + 1;
+  return normalizeAnthropicConfig({ ...config, maxTokens, thinking });
+}
+
+function enableAdaptiveThinking(config: AnthropicConfig): AnthropicConfig {
+  const previous = config.thinking;
+  const display =
+    previous && previous.type !== "disabled" ? previous.display : undefined;
+  const thinking: AnthropicThinkingAdaptive = { type: "adaptive" };
+  if (display !== undefined) thinking.display = display;
+  return normalizeAnthropicConfig({ ...config, thinking });
+}
+
+function writeThinkingBudgetTokens({
+  config,
+  value,
+}: {
+  config: AnthropicConfig;
+  value: unknown;
+}): AnthropicConfig {
+  if (config.thinking?.type !== "enabled" || value === undefined) return config;
+  if (typeof value !== "number" || Number.isNaN(value)) return config;
+  return normalizeAnthropicConfig({
+    ...config,
+    thinking: { ...config.thinking, budgetTokens: value },
+  });
+}
+
+function writeThinkingDisplay({
+  config,
+  value,
+}: {
+  config: AnthropicConfig;
+  value: unknown;
+}): AnthropicConfig {
+  const previous = config.thinking;
+  if (!previous || previous.type === "disabled") return config;
+  if (value === undefined) return clearThinkingDisplay({ config, previous });
+
+  const parsed = thinkingDisplaySchema.safeParse(value);
+  if (!parsed.success || !parsed.data) return config;
+  const thinking =
+    previous.type === "enabled"
+      ? { ...previous, display: parsed.data }
+      : { type: "adaptive" as const, display: parsed.data };
+  return normalizeAnthropicConfig({ ...config, thinking });
+}
+
+function clearThinkingDisplay({
+  config,
+  previous,
+}: {
+  config: AnthropicConfig;
+  previous: AnthropicThinkingEnabled | AnthropicThinkingAdaptive;
+}): AnthropicConfig {
+  const thinking =
+    previous.type === "enabled"
+      ? { type: "enabled" as const, budgetTokens: previous.budgetTokens }
+      : { type: "adaptive" as const };
+  return normalizeAnthropicConfig({ ...config, thinking });
+}
+
+function writeEffort({
+  config,
+  value,
+}: {
+  config: AnthropicConfig;
+  value: unknown;
+}): AnthropicConfig {
+  if (value === undefined) {
+    const next = { ...config };
+    delete next.effort;
+    return normalizeAnthropicConfig(next);
+  }
+  const parsed = effortSchema.safeParse(value);
+  return parsed.success && parsed.data
+    ? normalizeAnthropicConfig({ ...config, effort: parsed.data })
+    : config;
+}
+
+function writeExtraBody({
+  config,
+  value,
+}: {
+  config: AnthropicConfig;
+  value: unknown;
+}): AnthropicConfig {
+  if (value === undefined) {
+    const next = { ...config };
+    delete next.extraBody;
+    return normalizeAnthropicConfig(next);
+  }
+  const extraBody = pickExtraBody(value);
+  return extraBody === undefined
+    ? config
+    : normalizeAnthropicConfig({ ...config, extraBody });
 }
 
 // ---------- adapter object ---------------------------------------------------

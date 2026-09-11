@@ -32,6 +32,21 @@ class AgentAssistantEnabledSetting(BaseModel):
     enabled: bool = Field(default=True)
 
 
+class AgentGitHubSetting(BaseModel):
+    """Whether the PXI GitHub tools (backed by GitHub's MCP server) are enabled at runtime.
+
+    Defaults to ``True`` so the capability works out of the box once a token is
+    configured — without any token it is inert, so the default grants nothing
+    by itself. The PHOENIX_AGENTS_DISABLE_GITHUB env var is the deploy-time
+    ceiling; this setting is the admin-runtime knob below it. Disabling never
+    deletes stored tokens; it makes them unusable until re-enabled.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, validate_assignment=True)
+
+    enabled: bool = Field(default=True)
+
+
 DEFAULT_AGENT_SESSION_MAX_IDLE_DAYS = 30
 DEFAULT_AGENT_SESSION_MAX_COUNT_PER_USER = 30
 
@@ -50,5 +65,6 @@ SETTINGS_REGISTRY: Mapping[SystemSettingKey, type[BaseModel]] = MappingProxyType
         "agent.assistant.trace_recording": AgentTraceRecordingSetting,
         "agent.assistant.enabled": AgentAssistantEnabledSetting,
         "agent.assistant.session_retention": AgentSessionRetentionSetting,
+        "agent.assistant.github": AgentGitHubSetting,
     }
 )

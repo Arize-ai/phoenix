@@ -263,6 +263,75 @@ function getClientIdSuffix(clientId: string) {
   return clientId.length > 8 ? clientId.slice(-8) : clientId;
 }
 
+function OAuthConsentAlerts({
+  isFirstParty,
+  errorMessage,
+  isMissingRequiredParams,
+}: Pick<
+  OAuth2ConsentCardProps,
+  "isFirstParty" | "errorMessage" | "isMissingRequiredParams"
+>) {
+  if (isFirstParty && !errorMessage && !isMissingRequiredParams) return null;
+  return (
+    <div css={alertsCSS}>
+      {!isFirstParty ? (
+        <Alert variant="warning" title="Unverified application">
+          This application is not verified by Phoenix. Only approve if you
+          recognize it and started this authorization flow.
+        </Alert>
+      ) : null}
+      {errorMessage ? <Alert variant="danger">{errorMessage}</Alert> : null}
+      {isMissingRequiredParams ? (
+        <Alert variant="danger">
+          This authorization request is missing required parameters.
+        </Alert>
+      ) : null}
+    </div>
+  );
+}
+
+function OAuthConsentMetadata({
+  redirectUri,
+  isPrivateUse,
+  isLoopback,
+  redirectDestination,
+  isFirstParty,
+  clientId,
+}: Pick<OAuth2ConsentCardProps, "redirectUri" | "isFirstParty" | "clientId"> & {
+  isPrivateUse: boolean;
+  isLoopback: boolean;
+  redirectDestination: string | null;
+}) {
+  return (
+    <div css={metaCSS}>
+      {redirectUri != null ? (
+        <Text size="XS" color="text-500">
+          Redirects to{" "}
+          {isPrivateUse ? (
+            <>
+              an application on this device (
+              <code css={monoCSS}>{redirectUri}</code>)
+            </>
+          ) : (
+            <>
+              <span css={monoCSS}>{redirectDestination}</span>
+              {isLoopback ? " · this machine" : null}
+            </>
+          )}
+        </Text>
+      ) : null}
+      <Text size="XS" color="text-500">
+        Revoke anytime in Settings
+      </Text>
+      {!isFirstParty && clientId ? (
+        <Text size="XS" color="text-500">
+          Client ID: <code css={monoCSS}>{getClientIdSuffix(clientId)}</code>
+        </Text>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * The consent ("handoff") card shown when an OAuth2 client asks for access.
  * Purely presentational — all data and decision handling comes in via props.
@@ -312,22 +381,11 @@ export function OAuth2ConsentCard({
         to your Phoenix workspace ·{" "}
         <span css={signedInAsCSS}>{signedInAs}</span>
       </Text>
-      {!isFirstParty || errorMessage || isMissingRequiredParams ? (
-        <div css={alertsCSS}>
-          {!isFirstParty ? (
-            <Alert variant="warning" title="Unverified application">
-              This application is not verified by Phoenix. Only approve if you
-              recognize it and started this authorization flow.
-            </Alert>
-          ) : null}
-          {errorMessage ? <Alert variant="danger">{errorMessage}</Alert> : null}
-          {isMissingRequiredParams ? (
-            <Alert variant="danger">
-              This authorization request is missing required parameters.
-            </Alert>
-          ) : null}
-        </div>
-      ) : null}
+      <OAuthConsentAlerts
+        isFirstParty={isFirstParty}
+        errorMessage={errorMessage}
+        isMissingRequiredParams={isMissingRequiredParams}
+      />
       <ul css={permListCSS}>
         <li css={permItemCSS}>
           <div css={permIconCSS} aria-hidden="true">
@@ -377,32 +435,14 @@ export function OAuth2ConsentCard({
           Cancel
         </Button>
       </div>
-      <div css={metaCSS}>
-        {redirectUri != null ? (
-          <Text size="XS" color="text-500">
-            Redirects to{" "}
-            {isPrivateUse ? (
-              <>
-                an application on this device (
-                <code css={monoCSS}>{redirectUri}</code>)
-              </>
-            ) : (
-              <>
-                <span css={monoCSS}>{redirectDestination}</span>
-                {isLoopback ? " · this machine" : null}
-              </>
-            )}
-          </Text>
-        ) : null}
-        <Text size="XS" color="text-500">
-          Revoke anytime in Settings
-        </Text>
-        {!isFirstParty && clientId ? (
-          <Text size="XS" color="text-500">
-            Client ID: <code css={monoCSS}>{getClientIdSuffix(clientId)}</code>
-          </Text>
-        ) : null}
-      </div>
+      <OAuthConsentMetadata
+        redirectUri={redirectUri}
+        isPrivateUse={isPrivateUse}
+        isLoopback={isLoopback}
+        redirectDestination={redirectDestination}
+        isFirstParty={isFirstParty}
+        clientId={clientId}
+      />
     </div>
   );
 }

@@ -276,6 +276,67 @@ function setupTracer({
  * });
  * ```
  */
+function getResumeEvaluators({
+  evaluators,
+  executionError,
+}: {
+  evaluators: readonly ExperimentEvaluatorLike[] | undefined;
+  executionError: Error | null;
+}): readonly ExperimentEvaluatorLike[] | null {
+  return evaluators && evaluators.length > 0 && !executionError
+    ? evaluators
+    : null;
+}
+
+function shouldWarnAboutFailedRuns({
+  totalFailed,
+  executionError,
+}: {
+  totalFailed: number;
+  executionError: Error | null;
+}): boolean {
+  return totalFailed > 0 && !executionError;
+}
+
+function getTaskExecutionError({
+  rejections,
+  isAborted,
+  logger,
+}: {
+  rejections: unknown[];
+  isAborted: boolean;
+  logger: Logger;
+}): Error | null {
+  if (rejections.length === 0) return null;
+  const fetchError = rejections.find(
+    (reason) => reason instanceof TaskFetchError
+  );
+  if (fetchError instanceof Error) {
+    logger.error(`Critical: Failed to fetch incomplete runs from server`);
+    return fetchError;
+  }
+  const taskError = rejections.find(
+    (reason) =>
+      reason instanceof Error &&
+      !(reason instanceof TaskFetchError) &&
+      !(reason instanceof ChannelError)
+  );
+  if (taskError instanceof Error) return taskError;
+  const channelError = rejections.find(
+    (reason) => reason instanceof ChannelError
+  );
+  if (channelError instanceof Error && isAborted) {
+    return new TaskAbortedError(
+      "Task execution stopped due to error in concurrent worker",
+      channelError
+    );
+  }
+  const reason = rejections[0];
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  logger.error(`Unexpected error during task execution: ${error.message}`);
+  return error;
+}
+
 export async function resumeExperiment({
   client: _client,
   experimentId,
@@ -514,49 +575,11 @@ export async function resumeExperiment({
         )
         .map((result) => result.reason);
 
-      if (rejections.length > 0) {
-        // Classify and handle errors based on their nature. When multiple tasks
-        // reject, prefer the most meaningful error over incidental fallout
-        // (e.g. a ChannelError raised in a blocked worker when the channel
-        // closes on abort).
-        const fetchError = rejections.find(
-          (reason) => reason instanceof TaskFetchError
-        );
-        const taskError = rejections.find(
-          (reason) =>
-            reason instanceof Error &&
-            !(reason instanceof TaskFetchError) &&
-            !(reason instanceof ChannelError)
-        );
-        const channelError = rejections.find(
-          (reason) => reason instanceof ChannelError
-        );
-
-        if (fetchError) {
-          // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
-          logger.error(`Critical: Failed to fetch incomplete runs from server`);
-          executionError = fetchError;
-        } else if (taskError) {
-          // Worker error in stopOnFirstError mode - already logged by worker
-          executionError = taskError;
-        } else if (channelError && signal.aborted) {
-          // Channel closed due to intentional abort - wrap in semantic error
-          executionError = new TaskAbortedError(
-            "Task execution stopped due to error in concurrent worker",
-            channelError
-          );
-        } else {
-          // Unexpected error (not from worker, not from producer fetch)
-          // This could be a bug in our code or infrastructure failure
-          const reason = rejections[0];
-          const err =
-            reason instanceof Error ? reason : new Error(String(reason));
-          logger.error(
-            `Unexpected error during task execution: ${err.message}`
-          );
-          executionError = err;
-        }
-      }
+      executionError = getTaskExecutionError({
+        rejections,
+        isAborted: signal.aborted,
+        logger,
+      });
     } finally {
       // Ensure channel is closed even if there are unexpected errors
       // This is a safety net in case producer's finally block didn't execute
@@ -570,11 +593,15 @@ export async function resumeExperiment({
       logger.info(`${PROGRESS_PREFIX.completed}Task runs completed.`);
     }
 
-    if (totalFailed > 0 && !executionError) {
+    if (shouldWarnAboutFailedRuns({ totalFailed, executionError })) {
       logger.warn(`${totalFailed} out of ${totalProcessed} runs failed.`);
     }
 
-    if (evaluators && evaluators.length > 0 && !executionError) {
+    const resumeEvaluators = getResumeEvaluators({
+      evaluators,
+      executionError,
+    });
+    if (resumeEvaluators) {
       await cleanupOwnedTracerProvider({
         provider,
         globalRegistration,
@@ -585,7 +612,7 @@ export async function resumeExperiment({
       logger.info(`${PROGRESS_PREFIX.start}Running evaluators.`);
       await resumeEvaluation({
         experimentId,
-        evaluators: [...evaluators],
+        evaluators: [...resumeEvaluators],
         client,
         logger,
         concurrency,

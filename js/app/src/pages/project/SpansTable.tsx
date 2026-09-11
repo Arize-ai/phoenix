@@ -1,5 +1,10 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, SortingState, Table } from "@tanstack/react-table";
+import type {
+  CellContext,
+  ColumnDef,
+  SortingState,
+  Table,
+} from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -77,6 +82,7 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -211,6 +217,17 @@ export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
+const MetadataCell = <TData extends { metadata: unknown }, TValue>({
+  row,
+}: CellContext<TData, TValue>) => {
+  const { appendFilterCondition } = useSpanFilterActions();
+  return (
+    <MetadataTableCell
+      metadata={row.original.metadata}
+      onFilterConditionPressed={appendFilterCondition}
+    />
+  );
+};
 
 export function SpansTable(props: SpansTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -714,7 +731,7 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "metadata",
       accessorKey: "metadata",
-      cell: ({ row }) => <MetadataTableCell metadata={row.original.metadata} />,
+      cell: MetadataCell,
       enableSorting: false,
     },
     {

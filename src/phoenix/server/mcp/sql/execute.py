@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import itertools
 import json
 import logging
@@ -11,7 +12,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
-from typing import Any, Optional, cast
+from typing import Any, Optional, TypeVar, cast
 from urllib.parse import quote
 from weakref import WeakKeyDictionary
 
@@ -20,7 +21,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
-from phoenix.db.helpers import SupportedSQLDialect, SupportedSQLDialectName
+from phoenix.db.helpers import SupportedSQLDialectName
 from phoenix.server.mcp.sql.allowlist import (
     PLAN_GATE_ALLOWED_FUNCTIONS,
     SQLITE_TABLE_VALUED_FUNCTIONS,
@@ -48,6 +49,8 @@ from phoenix.server.mcp.sql.rewrite import RewriteContext, rewrite
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
 
 _call_counter = itertools.count(1)
 
@@ -78,7 +81,10 @@ MAX_ROW_LIMIT = 5_000
 
 # Ceiling on the whole encoded response, as distinct from any single cell.
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
-MAX_SQL_BYTES = 1024 * 1024
+# Parsing, admission and rewriting precede every guard that bounds execution,
+# and their cost grows superlinearly in the input for statements that nest, so
+# this is the only bound on the CPU a single call can buy.
+MAX_SQL_BYTES = 2 * 1024
 BYTE_LIMIT = 262_144
 PG_STATEMENT_TIMEOUT_MS = 30_000
 SQLITE_TIMEOUT_SECONDS = 30
@@ -139,65 +145,55 @@ _SQLITE_CATALOG_TABLES = frozenset(
 )
 
 
-@dataclass
-class ExecutionSemaphore:
-    _width_by_dialect: dict[SupportedSQLDialectName, int] = field(
-        default_factory=lambda: {"postgresql": 4, "sqlite": 1}
-    )
-    _queue_size: int = 8
-    _locks: dict[SupportedSQLDialectName, asyncio.Semaphore] = field(default_factory=dict)
-    _waiting: dict[SupportedSQLDialectName, int] = field(
-        default_factory=lambda: {"postgresql": 0, "sqlite": 0}
-    )
-    _guard: asyncio.Lock = field(default_factory=asyncio.Lock)
+#: Statements each backend runs at once. The thread pool for the CPU-bound
+#: phases is sized from the same table, so the two cannot drift apart.
+SQL_CONCURRENCY: dict[SupportedSQLDialectName, int] = {"postgresql": 4, "sqlite": 1}
 
-    async def acquire(self, dialect: SupportedSQLDialectName) -> None:
+
+@dataclass
+class StatementAdmissionController:
+    """Bounds concurrent analytics statements for one session factory.
+
+    Callers past the width for the factory's dialect wait; waiters past the
+    queue bound are refused. Built from loop-bound asyncio primitives, so an
+    instance must not outlive the event loop its factory serves.
+    """
+
+    dialect: SupportedSQLDialectName
+    _queue_size: int = 8
+    _waiting: int = field(default=0, init=False)
+    _guard: asyncio.Lock = field(default_factory=asyncio.Lock, init=False)
+    _permits: asyncio.Semaphore = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._permits = asyncio.Semaphore(SQL_CONCURRENCY[self.dialect])
+
+    async def acquire(self) -> None:
         async with self._guard:
-            if self._waiting[dialect] >= self._queue_size:
-                # Logged, not merely returned. Saturation is the one failure the
-                # caller cannot diagnose and the operator most needs to see: the
-                # caller is told to retry, while the reason -- that concurrent
-                # demand exceeded a deliberately narrow queue -- exists only
-                # here. Without this the condition leaves no server-side trace,
-                # so an operator grepping for it finds nothing and reads the
-                # absence as health.
-                logger.warning(
+            if self._waiting >= self._queue_size:
+                logger.debug(
                     "analytics sql: %s queue is full at %d waiting; request refused",
-                    dialect,
-                    self._waiting[dialect],
+                    self.dialect,
+                    self._waiting,
                 )
                 raise AnalyticsSqlError(
                     code=ErrorCode.QUEUE_FULL,
                     message="Too many analytics SQL requests are queued.",
                 )
-            self._waiting[dialect] += 1
-        lock = self._locks.setdefault(dialect, asyncio.Semaphore(self._width_by_dialect[dialect]))
+            self._waiting += 1
         try:
-            await lock.acquire()
+            await self._permits.acquire()
         finally:
-            # Decremented in a finally because a client disconnecting while
-            # queued cancels the await above. Without it the slot is never
-            # returned, and enough cancellations leave the queue permanently
-            # full for the life of the process.
-            #
-            # Deliberately *not* under `_guard`. Taking the lock here means
-            # awaiting inside a `finally` that a cancellation is already
-            # unwinding, and a second cancellation delivered during that await
-            # skips the decrement -- reintroducing the leak this block exists
-            # to prevent. Demonstrated: hold the guard, cancel twice, and the
-            # count stays at 1 forever. The guard is unnecessary anyway. It
-            # exists to make the read-compare-increment above indivisible; a
-            # bare decrement contains no await point, so no other coroutine can
-            # observe a torn value on a single-threaded loop.
-            self._waiting[dialect] -= 1
+            # A cancellation while queued unwinds through here; without the
+            # decrement the slot leaks until the queue refuses everything.
+            # Deliberately not under `_guard`: awaiting a lock inside a
+            # finally that a cancellation is unwinding can be skipped by a
+            # second cancellation, and the bare decrement needs no guard --
+            # it has no await point, so it is indivisible on the loop.
+            self._waiting -= 1
 
-    def release(self, dialect: SupportedSQLDialectName) -> None:
-        lock = self._locks.get(dialect)
-        if lock is not None:
-            lock.release()
-
-
-EXECUTION_SEMAPHORE = ExecutionSemaphore()
+    def release(self) -> None:
+        self._permits.release()
 
 
 @dataclass(frozen=True)
@@ -599,18 +595,19 @@ async def execute_analytics_sql(
     *,
     sqlite_db_path: Optional[str] = None,
 ) -> ExecuteResult:
-    dialect: SupportedSQLDialectName = (
-        "postgresql" if db.dialect is SupportedSQLDialect.POSTGRESQL else "sqlite"
-    )
+    dialect: SupportedSQLDialectName = db.dialect.name_literal
     call_id = _next_call_id()
-    semaphore = EXECUTION_SEMAPHORE
-    await semaphore.acquire(dialect)
-    release_semaphore = True
+    admission_controller = db.analytics_sql_admission
+    await admission_controller.acquire()
+    release_permit = True
     try:
-        if len(params.sql.encode("utf-8")) > MAX_SQL_BYTES:
+        # Characters first. UTF-8 never encodes to fewer bytes than characters,
+        # so an over-long string is refused without encoding it -- measuring by
+        # encoding would do work proportional to the input this cap bounds.
+        if len(params.sql) > MAX_SQL_BYTES or len(params.sql.encode("utf-8")) > MAX_SQL_BYTES:
             raise AnalyticsSqlError(
                 code=ErrorCode.UNSUPPORTED_SYNTAX,
-                message=f"SQL text exceeds the {MAX_SQL_BYTES // (1024 * 1024)} MiB input limit.",
+                message=f"SQL text exceeds the {MAX_SQL_BYTES // 1024} KiB input limit.",
             )
         if dialect == "sqlite" and sqlite_db_path is None:
             sqlite_db_path = await resolve_sqlite_db_path(db)
@@ -626,9 +623,19 @@ async def execute_analytics_sql(
         if dialect == "postgresql":
             schema = await resolve_pg_schema(db)
             allowlist = replace(allowlist, pg_schema=schema)
+
+        # Parsing, admission and rewriting are CPU-bound, and no execution
+        # guard -- row limit, byte caps, deadline -- applies before the backend
+        # is reached. Run on the event loop the whole phase is one uninterrupted
+        # block, so every concurrent request waits it out; run in a thread the
+        # loop is scheduled throughout. SQLite execution is offloaded for the
+        # same reason.
+        def _admitted() -> Any:
+            parsed = parse_sql(params.sql, dialect=dialect)
+            return admit(parsed, allowlist=allowlist, dialect=dialect)
+
         try:
-            root = parse_sql(params.sql, dialect=dialect)
-            root = admit(root, allowlist=allowlist, dialect=dialect)
+            root = await _offloaded(_admitted)
         except AnalyticsSqlError as exc:
             # A refusal is ordinary traffic, not an incident -- callers are
             # expected to probe the boundary. Debug level records which rule
@@ -661,8 +668,12 @@ async def execute_analytics_sql(
         )
         if params.row_limit is not None and requested != row_limit:
             ctx.notes.append(f"row_limit clamped to {row_limit}")
-        root = rewrite(root, ctx)
-        rendered = render(root, dialect=dialect)
+
+        def _rendered() -> tuple[Any, str]:
+            rewritten = rewrite(root, ctx)
+            return rewritten, render(rewritten, dialect=dialect)
+
+        root, rendered = await _offloaded(_rendered)
 
         # The executed statement is not the one the caller wrote: stars are
         # expanded, virtual columns substituted, timestamp literals re-emitted
@@ -707,9 +718,9 @@ async def execute_analytics_sql(
                 # after the caller disconnects. Keep SQLite's width-one permit
                 # until that cleanup has completed, while preserving prompt
                 # cancellation for the caller.
-                release_semaphore = False
+                release_permit = False
                 exc.worker.add_done_callback(
-                    lambda worker: _release_sqlite_after_worker(worker, semaphore)
+                    lambda worker: _release_after_worker(worker, admission_controller, call_id)
                 )
                 raise
         if params.validate_only:
@@ -722,9 +733,18 @@ async def execute_analytics_sql(
             result.envelope.row_count_is_partial,
         )
         return result
+    except _OffloadedWorkerCancellation as exc:
+        # The thread finishes its parse or rewrite whatever the caller does.
+        # Holding the permit until it exits keeps concurrency bounded by the
+        # work actually running rather than by the callers still waiting.
+        release_permit = False
+        exc.worker.add_done_callback(
+            lambda worker: _release_after_worker(worker, admission_controller, call_id)
+        )
+        raise
     finally:
-        if release_semaphore:
-            semaphore.release(dialect)
+        if release_permit:
+            admission_controller.release()
 
 
 # SQLAlchemy's asyncpg dialect uses the `numeric_dollar` paramstyle, and its
@@ -863,7 +883,7 @@ async def _execute_postgres(
         # EXPLAIN resolves names, so a name error surfaces here rather than at
         # the statement below and needs the same mapping. PostgreSQL's own text
         # is passed through: it describes the caller's query against tables they
-        # were shown, so there is nothing to withhold. Most typos no longer
+        # were shown, so there is nothing to withhold. Most typos do not
         # reach this point -- the column allowlist refuses them first -- but an
         # unqualified name beside a table-valued function still does.
         try:
@@ -991,10 +1011,10 @@ def _rewrite_attribution(exc: BaseException, ctx: RewriteContext) -> Optional[An
     column = match.group("column")
     qualifier = match.group("qualifier")
     # Matched against what a substitution actually wrote, qualifier included.
-    # Keying on the bare column name instead blamed a rewrite for the caller's
+    # Keying on the bare column name instead blames a rewrite for the caller's
     # own mistake: `id`, `start_time` and `end_time` are ordinary column names,
-    # so an unrelated typo like `q.id` drew "this is a defect in the rewrite"
-    # whenever the node-id pass had fired anywhere in the statement.
+    # so an unrelated typo like `q.id` draws "this is a defect in the rewrite"
+    # whenever the node-id pass has fired anywhere in the statement.
     written = f"{qualifier}.{column}" if qualifier else column
     rewrite_name = ctx.substituted_columns.get(written)
     if rewrite_name is None:
@@ -1049,19 +1069,91 @@ class _SQLiteWorkerCancellation(asyncio.CancelledError):
         self.worker = worker
 
 
-def _release_sqlite_after_worker(
-    worker: asyncio.Task[tuple[list[str], list[list[Any]], bool, list[str], bool]],
-    semaphore: ExecutionSemaphore,
+def _release_after_worker(
+    worker: asyncio.Future[Any],
+    admission_controller: StatementAdmissionController,
+    call_id: str,
 ) -> None:
-    """Consume an abandoned worker result, then return its SQLite capacity."""
+    """Consume an abandoned worker result, then return its capacity.
+
+    The result cannot reach the caller, but a failure that is not a refusal is
+    a defect in this pipeline, and discarding it hides exactly the concurrency
+    faults that are hardest to reproduce.
+    """
     try:
         worker.result()
-    except BaseException:
-        # The caller has already been cancelled. Its eventual result cannot be
-        # delivered, but must be consumed so asyncio does not report it later.
+    except (asyncio.CancelledError, AnalyticsSqlError):
         pass
+    except BaseException:
+        logger.exception("analytics sql: %s abandoned worker failed", call_id)
     finally:
-        semaphore.release("sqlite")
+        admission_controller.release()
+
+
+class _OffloadedWorkerCancellation(asyncio.CancelledError):
+    """A cancelled caller whose CPU-bound worker had already started.
+
+    Parsing and rewriting are uninterruptible, so a thread that has begun runs
+    to completion however the caller ends. A call cancelled before its thread
+    starts raises plain `CancelledError` instead, because no work escapes.
+    """
+
+    def __init__(self, worker: asyncio.Future[Any]) -> None:
+        self.worker = worker
+
+
+#: Threads for the CPU-bound phases, separate from the default executor so
+#: caller SQL cannot occupy the pool the rest of the server shares. Width is
+#: the sum of SQL_CONCURRENCY, so permits bound submissions while one factory
+#: exists per process; more factories can oversubscribe the pool and make it
+#: queue, and the queued-cancellation branch in `_offloaded` is the backstop.
+_EXECUTOR_WIDTH = sum(SQL_CONCURRENCY.values())
+_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+_executor_guard = threading.Lock()
+
+
+def _sql_executor() -> concurrent.futures.ThreadPoolExecutor:
+    global _executor
+    with _executor_guard:
+        if _executor is None:
+            _executor = concurrent.futures.ThreadPoolExecutor(
+                max_workers=_EXECUTOR_WIDTH, thread_name_prefix="analytics-sql"
+            )
+        return _executor
+
+
+def shutdown_sql_executor(*, wait: bool = True) -> None:
+    """Stop the analytics SQL threads. Idempotent; the pool is rebuilt on demand."""
+    global _executor
+    with _executor_guard:
+        pool, _executor = _executor, None
+    if pool is not None:
+        pool.shutdown(wait=wait)
+
+
+async def _offloaded(func: Callable[[], _T]) -> _T:
+    """Run a CPU-bound step off the event loop, distinguishing queued work from started work.
+
+    The event loop cannot preempt this work, but it can interleave with it: run
+    inline, the loop gets a single scheduling opportunity for the whole phase,
+    so every concurrent request waits it out. Threaded, the loop is scheduled
+    throughout. The work is pure Python, so the GIL still admits latency spikes
+    -- this buys preemptibility, not isolation.
+
+    Cancelling the await alone reports success while the thread runs on, so the
+    permit would go back before the work stops. Owning the submitted future
+    separates the two cases the permit must respect: a future cancelled before
+    a thread claims it does no work at all and its permit is free immediately,
+    while one already running must keep the permit until it exits.
+    """
+    future = _sql_executor().submit(func)
+    wrapped = asyncio.wrap_future(future)
+    try:
+        return await asyncio.shield(wrapped)
+    except asyncio.CancelledError:
+        if future.cancel():
+            raise
+        raise _OffloadedWorkerCancellation(wrapped) from None
 
 
 async def _execute_sqlite_file(
@@ -1094,7 +1186,7 @@ async def _execute_sqlite_file(
         # cancellation flag was not enough: that flag is set in the `finally`
         # below, which runs *after* execution returns, so it could never fire
         # during a long query. A costly statement could therefore run without
-        # limit, and since SQLite's semaphore width is 1, block every other
+        # limit, and since SQLite's admission width is 1, block every other
         # analytics query behind it.
         deadline = time.monotonic() + SQLITE_TIMEOUT_SECONDS
 
@@ -1169,7 +1261,13 @@ async def _execute_sqlite_file(
         raise
     except _SQLITE_RUNTIME_ERRORS as exc:
         message = str(exc).lower()
-        if "timeout" in message or "interrupted" in message:
+        # Anchored rather than searched. SQLite reports the deadline interrupt
+        # as exactly "interrupted", while a caller's own identifier reaches here
+        # inside a longer sentence -- `ambiguous column name: timeout` was
+        # reported as a timeout, sending an agent to retry a statement it needed
+        # to fix. No SQLite message begins with "timeout"; that branch is a
+        # guard for drivers that word a deadline differently.
+        if message.strip() == "interrupted" or message.startswith("timeout"):
             raise AnalyticsSqlError(code=ErrorCode.TIMEOUT, message="Query timed out.") from exc
         # A refusal by the authorizer reaches the driver as an ordinary operational
         # error, so without this the caller is told only that something failed. The
@@ -1196,7 +1294,7 @@ async def _execute_sqlite_file(
         # SQLite's own words, as PostgreSQL's are already passed through. The
         # commonest arrival here is an unqualified column two joined tables both
         # offer, which admission cannot refuse and whose message names only the
-        # caller's own identifier -- withholding it turned an ordinary mistake
+        # caller's own identifier -- withholding it turns an ordinary mistake
         # into an un-actionable answer on one backend and a precise one on the
         # other, which is the divergence class this surface exists to avoid.
         #

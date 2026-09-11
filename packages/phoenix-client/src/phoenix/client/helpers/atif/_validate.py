@@ -6,7 +6,9 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
-from typing import Any, List, Mapping, Optional, Set
+from typing import Any, List, Mapping, Optional, Sequence, Set
+
+from phoenix.client.__generated__ import v1
 
 logger = logging.getLogger(__name__)
 
@@ -250,9 +252,6 @@ def _validate_atif_trajectory(
                         errors.append(
                             f"{prefix}: '{field}' must be absent when llm_call_count is 0"
                         )
-                llm_zero_tool_calls = step_dict.get("tool_calls")
-                if not isinstance(llm_zero_tool_calls, list) or not llm_zero_tool_calls:
-                    errors.append(f"{prefix}: tool_calls are required when llm_call_count is 0")
 
         metrics = step_dict.get("metrics")
         if metrics is not None:
@@ -335,15 +334,11 @@ def _validate_atif_trajectory(
                                 has_trajectory_path = isinstance(ref_trajectory_path, str) and bool(
                                     ref_trajectory_path.strip()
                                 )
-                                if not has_trajectory_id:
-                                    if has_trajectory_path:
-                                        errors.append(
-                                            f"{ref_prefix}: trajectory_path-only subagent "
-                                            "references are not supported; provide "
-                                            "trajectory_id for Phoenix linking"
-                                        )
-                                    else:
-                                        errors.append(f"{ref_prefix}: trajectory_id is required")
+                                if not has_trajectory_id and not has_trajectory_path:
+                                    errors.append(
+                                        f"{ref_prefix}: trajectory_id or "
+                                        "trajectory_path is required"
+                                    )
                                 if (
                                     has_trajectory_id
                                     and not has_trajectory_path
@@ -356,3 +351,39 @@ def _validate_atif_trajectory(
 
     if errors:
         raise ValueError("Invalid ATIF trajectory:\n" + "\n".join(f"  - {e}" for e in errors))
+
+
+def _validate_span_graph(spans: Sequence[v1.Span]) -> None:
+    """Reject duplicate IDs, unresolved parents, and cycles before upload.
+
+    Multiple roots are valid for a batch of independent trajectories. Every
+    parent relationship must stay inside the batch and inside one trace.
+    """
+    by_id: dict[str, v1.Span] = {}
+    for span in spans:
+        span_id = span["context"]["span_id"]
+        if span_id in by_id:
+            raise ValueError(f"ATIF conversion produced duplicate span IDs: {span_id}")
+        by_id[span_id] = span
+    for span in spans:
+        parent_id = span.get("parent_id")
+        if parent_id is None:
+            continue
+        if parent_id not in by_id:
+            raise ValueError(
+                f"ATIF conversion produced an unresolved parent: {parent_id}. "
+                "Supply parent trajectories before their children."
+            )
+        if span["context"]["trace_id"] != by_id[parent_id]["context"]["trace_id"]:
+            raise ValueError(f"ATIF parent {parent_id} belongs to a different trace")
+
+    checked: set[str] = set()
+    for span_id in by_id:
+        path: set[str] = set()
+        current: Optional[str] = span_id
+        while current is not None and current not in checked:
+            if current in path:
+                raise ValueError(f"ATIF conversion produced a parent cycle at span {current}")
+            path.add(current)
+            current = by_id[current].get("parent_id")
+        checked.update(path)

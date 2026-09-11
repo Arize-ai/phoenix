@@ -1,10 +1,57 @@
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+import pandas as pd
 import pytest
 
+from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.spans import AsyncSpans, Spans
+
+
+@pytest.mark.parametrize(
+    ("span_id", "document_position", "expected_message"),
+    [
+        pytest.param(
+            "span-1",
+            "not-an-int",
+            "document_position values must be of type int",
+            id="non-integer-document-position",
+        ),
+        pytest.param(
+            "span-1",
+            None,
+            "document_position values cannot be None",
+            id="missing-document-position",
+        ),
+        pytest.param(
+            "",
+            0,
+            "span_id values must be non-empty strings",
+            id="empty-span-id",
+        ),
+    ],
+)
+def test_log_document_annotations_dataframe_rejects_invalid_identifiers(
+    span_id: object,
+    document_position: object,
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame(
+        {
+            "name": ["relevance"],
+            "annotator_kind": ["HUMAN"],
+            "span_id": [span_id],
+            "document_position": [document_position],
+            "label": ["relevant"],
+        }
+    )
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    http_client = httpx.Client(transport=transport, base_url="http://test")
+    client = Client(http_client=http_client)
+
+    with pytest.raises(ValueError, match=expected_message):
+        client.spans.log_document_annotations_dataframe(dataframe=dataframe)
 
 
 def _make_span(

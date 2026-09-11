@@ -1,9 +1,9 @@
 ---
 title: "Traces"
-description: "Retrieve traces and annotate them with @arizeai/phoenix-client"
+description: "Retrieve, move, and annotate traces with @arizeai/phoenix-client"
 ---
 
-The traces module provides trace retrieval and trace-level annotation functions.
+The traces module provides trace retrieval, project transfer, and trace-level annotation functions.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
@@ -19,6 +19,9 @@ The traces module provides trace retrieval and trace-level annotation functions.
       <code>src/traces/logTraceAnnotations.ts</code> for batched annotation writes
     </li>
     <li>
+      <code>src/traces/transferTraces.ts</code> for moving traces between projects
+    </li>
+    <li>
       <code>src/traces/types.ts</code> for the <code>TraceAnnotation</code> type
     </li>
   </ul>
@@ -26,7 +29,7 @@ The traces module provides trace retrieval and trace-level annotation functions.
 
 ## Retrieve Traces
 
-Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session.
+Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session, error status, or latency.
 
 ```ts
 import { getTraces } from "@arizeai/phoenix-client/traces";
@@ -57,6 +60,18 @@ console.log(result.nextCursor);
 - `cursor`
 - `includeSpans`
 - `sessionId`
+- `error`
+- `minLatencyMs`
+- `maxLatencyMs`
+
+```ts
+// Slow traces that contain at least one errored span
+const slowFailures = await getTraces({
+  project: { projectName: "support-bot" },
+  error: true,
+  minLatencyMs: 1000,
+});
+```
 
 ### Notes
 
@@ -64,6 +79,29 @@ console.log(result.nextCursor);
 - Use the returned `nextCursor` to continue pagination
 - Set `includeSpans` when you need a trace-centric fetch that also contains span details
 - `project` accepts `{ project }`, `{ projectId }`, or `{ projectName }`
+- `error`, `minLatencyMs`, and `maxLatencyMs` require Phoenix server >= 20.8.0; `error: false` selects traces with no errored spans
+
+## Move Traces To Another Project
+
+Use `transferTraces` to move one or more traces from their current project to a destination project. This operation **moves rather than copies** the traces: after a successful transfer, they no longer appear in the source project.
+
+All traces in one call must currently belong to the same source project. Each trace identifier can be either an OpenTelemetry trace ID or a Phoenix trace GlobalID, and the destination can be either a project name or project GlobalID.
+
+```ts
+import { transferTraces } from "@arizeai/phoenix-client/traces";
+
+const result = await transferTraces({
+  traceIdentifiers: ["8f3a...", "VHJhY2U6Mg=="],
+  destinationProjectIdentifier: "production",
+});
+
+console.log(`Moved ${result.transferredTraceCount} traces`);
+console.log(`Destination project: ${result.destinationProjectId}`);
+```
+
+The result contains the number of distinct traces moved and the resolved GlobalID of the destination project. Phoenix rejects an empty list, trace or project identifiers that do not resolve, and requests that combine traces from multiple source projects.
+
+`transferTraces` requires Phoenix server 20.4.0 or newer.
 
 ## Annotate a Single Trace
 
@@ -128,6 +166,7 @@ for (const r of results) {
     <li><code>src/traces/getTraces.ts</code></li>
     <li><code>src/traces/addTraceAnnotation.ts</code></li>
     <li><code>src/traces/logTraceAnnotations.ts</code></li>
+    <li><code>src/traces/transferTraces.ts</code></li>
     <li><code>src/traces/types.ts</code></li>
     <li><code>src/types/projects.ts</code></li>
   </ul>

@@ -6,7 +6,6 @@ import {
   aiConicBandCSS,
   aiConicSpin,
   aiGlowBreatheContained,
-  aiGlowBreathe,
   aiGlowFlashOpacity,
   aiGlowWipe,
   aiGlowWipeContinuousCSS,
@@ -17,15 +16,12 @@ import { classNames } from "@phoenix/utils/classNames";
 
 export type AIOutlineState = "idle" | "eligible" | "active";
 export type AIOutlineRadius = "small" | "medium";
-export type AIOutlineGlowMode = "outer" | "contained";
 
 export interface AIOutlineProps extends StylableProps {
   children: ReactNode;
   className?: string;
   /** Expands to the available width instead of shrink-wrapping its child. */
   isFullWidth?: boolean;
-  /** Keeps the glow within the target bounds for clipped or tightly packed rows. */
-  glowMode?: AIOutlineGlowMode;
   radius?: AIOutlineRadius;
   /** Runs one attention flash when an eligible outline changes to true. */
   shouldFlash?: boolean;
@@ -34,7 +30,6 @@ export interface AIOutlineProps extends StylableProps {
 
 const outlineCSS = css`
   --ai-conic-band-stroke-width: 1.5px;
-  --ai-outline-gap: var(--global-dimension-static-size-25);
   --ai-outline-target-radius: var(--global-rounding-small);
   position: relative;
   display: inline-grid;
@@ -54,47 +49,39 @@ const outlineCSS = css`
     --ai-outline-target-radius: var(--global-rounding-medium);
   }
 
+  /* Both decoration layers draw within the target's own bounds — the ring
+     rides the border and the glow blooms inward — so an ancestor may clip
+     right at the target's edge (dense toolbars, forms, dialogs) without
+     cutting the treatment. */
   .ai-outline__stroke,
   .ai-outline__glow {
     position: absolute;
+    inset: 0;
+    border-radius: var(--ai-outline-target-radius);
     pointer-events: none;
   }
 
   .ai-outline__stroke {
     ${aiConicBandCSS};
-    inset: calc(
-      -1 * (var(--ai-outline-gap) + var(--ai-conic-band-stroke-width))
-    );
     z-index: 2;
-    border-radius: calc(
-      var(--ai-outline-target-radius) + var(--ai-outline-gap) +
-        var(--ai-conic-band-stroke-width)
-    );
     opacity: 0.3;
     animation: ${aiConicSpin} var(--ai-conic-spin-duration) linear infinite
       paused;
   }
 
+  /* Above the child (which may be opaque) so the inward glow stays visible,
+     below the stroke so the band keeps its crisp edge */
   .ai-outline__glow {
     ${aiGlowWipeMaskCSS};
-    inset: calc(
-      -1 *
-        (var(--ai-outline-gap) + var(--ai-conic-band-stroke-width) +
-          var(--ai-glow-bleed))
-    );
-    z-index: 0;
-    border-radius: calc(
-      var(--ai-outline-target-radius) + var(--ai-outline-gap) +
-        var(--ai-conic-band-stroke-width)
-    );
+    z-index: 1;
   }
 
   .ai-outline__glow::before {
     content: "";
     position: absolute;
-    inset: var(--ai-glow-bleed);
+    inset: 0;
     border-radius: inherit;
-    box-shadow: var(--ai-glow-box-shadow-rest);
+    box-shadow: var(--ai-glow-box-shadow-contained-rest);
     opacity: 0;
   }
 
@@ -119,8 +106,8 @@ const outlineCSS = css`
 
   &[data-state="active"] .ai-outline__glow::before {
     opacity: 0.72;
-    animation: ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out
-      infinite;
+    animation: ${aiGlowBreatheContained} var(--ai-glow-wipe-duration)
+      ease-in-out infinite;
   }
 
   &[data-state="eligible"][data-should-flash="true"] .ai-outline__glow {
@@ -130,34 +117,8 @@ const outlineCSS = css`
 
   &[data-state="eligible"][data-should-flash="true"] .ai-outline__glow::before {
     animation:
-      ${aiGlowBreathe} var(--ai-glow-wipe-duration) ease-in-out 1,
+      ${aiGlowBreatheContained} var(--ai-glow-wipe-duration) ease-in-out 1,
       ${aiGlowFlashOpacity} var(--ai-glow-wipe-duration) linear 1;
-  }
-
-  &[data-glow-mode="contained"] {
-    .ai-outline__stroke {
-      inset: 0;
-      border-radius: var(--ai-outline-target-radius);
-    }
-
-    .ai-outline__glow {
-      inset: 0;
-      border-radius: var(--ai-outline-target-radius);
-    }
-
-    .ai-outline__glow::before {
-      inset: 0;
-      box-shadow: var(--ai-glow-box-shadow-contained-rest);
-    }
-
-    &[data-state="active"] .ai-outline__glow::before {
-      animation-name: ${aiGlowBreatheContained};
-    }
-
-    &[data-state="eligible"][data-should-flash="true"]
-      .ai-outline__glow::before {
-      animation-name: ${aiGlowBreatheContained}, ${aiGlowFlashOpacity};
-    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -177,7 +138,6 @@ export function AIOutline({
   className,
   css: propCSS,
   isFullWidth = false,
-  glowMode = "outer",
   radius = "small",
   shouldFlash = false,
   state = "idle",
@@ -191,7 +151,6 @@ export function AIOutline({
       className={classNames("ai-outline", className)}
       css={composedCSS}
       data-full-width={isFullWidth ? "true" : undefined}
-      data-glow-mode={glowMode}
       data-radius={radius}
       data-should-flash={canFlash ? "true" : undefined}
       data-state={state}

@@ -1,5 +1,181 @@
 # Changelog
 
+## [20.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.8.0...arize-phoenix-v20.9.0) (2026-09-08)
+
+
+### Features
+
+* **client:** add ATIF tracing to Harbor plugin ([#15715](https://github.com/Arize-ai/phoenix/issues/15715)) ([30dccec](https://github.com/Arize-ai/phoenix/commit/30dccec0744d55612366aa3d444eb7dc12f7831b))
+
+
+### Bug Fixes
+
+* **agents:** stop retrying GitHub calls after an authorization failure ([#15917](https://github.com/Arize-ai/phoenix/issues/15917)) ([18fdcd2](https://github.com/Arize-ai/phoenix/commit/18fdcd2d6865775bc1f6119133b2c8fb0dd6a866))
+* **cost:** update built-in model token prices ([#15971](https://github.com/Arize-ai/phoenix/issues/15971)) ([83855f7](https://github.com/Arize-ai/phoenix/commit/83855f743d16983cd85bb287c8c84ce27b447736))
+* **server:** remove PEP 765 return in finally from playground_users.get_user ([#15964](https://github.com/Arize-ai/phoenix/issues/15964)) ([9c531a5](https://github.com/Arize-ai/phoenix/commit/9c531a5c9deabf6fafefafc7e9a869298fa18bcb))
+* **traces:** count only leaf LLM spans in project token totals ([#15913](https://github.com/Arize-ai/phoenix/issues/15913)) ([38db726](https://github.com/Arize-ai/phoenix/commit/38db726bfe752021324fba4ef1198a9b8a750d82))
+
+
+### Documentation
+
+* add Phoenix and AX selector ([#15988](https://github.com/Arize-ai/phoenix/issues/15988)) ([c1288c9](https://github.com/Arize-ai/phoenix/commit/c1288c9c35e951a6e22c7d39a4a649ea58fa33ec))
+* add Simplified Chinese translation (README.zh.md) ([3e33ecf](https://github.com/Arize-ai/phoenix/commit/3e33ecfffd67ef506a20996fef3f1656e68fb041))
+* fix integration table links in README ([#15949](https://github.com/Arize-ai/phoenix/issues/15949)) ([41cf183](https://github.com/Arize-ai/phoenix/commit/41cf183554e8ebb9507afdb37625243626148e5c))
+* fix wording, TOC anchor, and header markup in Chinese README ([8486607](https://github.com/Arize-ai/phoenix/commit/84866072793ff3b51f9c4783d8b1ee9095116025))
+
+## [20.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.7.0...arize-phoenix-v20.8.0) (2026-09-04)
+
+
+### Features
+
+* add MiniMax provider integration ([#14310](https://github.com/Arize-ai/phoenix/issues/14310)) ([7e01ce7](https://github.com/Arize-ai/phoenix/commit/7e01ce703b3830447ebdf641ccbb95089778e810))
+* **server:** add error-status and latency filters to trace list endpoint ([#14037](https://github.com/Arize-ai/phoenix/issues/14037)) ([aea59d7](https://github.com/Arize-ai/phoenix/commit/aea59d7a2857e5523b03c57b23c48d5bb84dafa0))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 3.4.0 ([02b1e51](https://github.com/Arize-ai/phoenix/commit/02b1e51f61f1dceb1ccc2c8ece650aaf5fe171b2))
+
+
+### Documentation
+
+* Add Phoenix release notes — 2026-09-02 ([#15841](https://github.com/Arize-ai/phoenix/issues/15841)) ([1bfd8e8](https://github.com/Arize-ai/phoenix/commit/1bfd8e81475d8d75880931a81490d99e88705eae))
+
+## [20.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.6.0...arize-phoenix-v20.7.0) (2026-09-03)
+
+
+### Features
+
+* **server:** move the MCP server to FastMCP 4 and the stateless protocol ([#15903](https://github.com/Arize-ai/phoenix/issues/15903)) ([f11c885](https://github.com/Arize-ai/phoenix/commit/f11c885c063f1c9b6146693cda401c5d645d8294))
+
+
+### Bug Fixes
+
+* **agents:** record the tool name on pxi llm tool schemas ([#15693](https://github.com/Arize-ai/phoenix/issues/15693)) ([3f01ebb](https://github.com/Arize-ai/phoenix/commit/3f01ebbd4ebdf86ba324f60b8482437ca152d340))
+* **mcp/sql:** make AnalyticsSqlError a real exception ([#15906](https://github.com/Arize-ai/phoenix/issues/15906)) ([59c7934](https://github.com/Arize-ai/phoenix/commit/59c79341a79c67f26965d4e1434a0f15337e27b3))
+* **model-pricing:** sync minimax pricing from LiteLLM ([#15901](https://github.com/Arize-ai/phoenix/issues/15901)) ([e346f8a](https://github.com/Arize-ai/phoenix/commit/e346f8af40d8d1631060da925d375faa21970861)), closes [#15592](https://github.com/Arize-ai/phoenix/issues/15592)
+
+
+### Performance Improvements
+
+* **traces:** correlate and scope filtered trace query lowering ([#15788](https://github.com/Arize-ai/phoenix/issues/15788)) ([3b73314](https://github.com/Arize-ai/phoenix/commit/3b73314548ef04648fa6ee032cd3ccb74001d54b))
+
+
+### Documentation
+
+* **skills:** record the unit-test startup shortcuts and daemon rules in phoenix-server ([#15900](https://github.com/Arize-ai/phoenix/issues/15900)) ([be57b06](https://github.com/Arize-ai/phoenix/commit/be57b0687b46e8d38e513ee3a885cf80fe69198b))
+
+## [20.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.5.0...arize-phoenix-v20.6.0) (2026-09-03)
+
+
+### Features
+
+* **app:** add Z.ai as a built-in GLM model provider ([#15857](https://github.com/Arize-ai/phoenix/issues/15857)) ([58b7017](https://github.com/Arize-ai/phoenix/commit/58b7017284e2f7b4391397ce2080cb67a23e066c))
+* **js:** reorganize assistant settings page into topical tabs ([#15801](https://github.com/Arize-ai/phoenix/issues/15801)) ([c41b8b8](https://github.com/Arize-ai/phoenix/commit/c41b8b82d5c253667a44ff89a235c0c7dec5d7a5))
+* **playground:** add support for Gemini 3.8 Flash ([#15885](https://github.com/Arize-ai/phoenix/issues/15885)) ([20c8be3](https://github.com/Arize-ai/phoenix/commit/20c8be3eb4dd18ff555ffda6181b13eafc13f296))
+* **server:** add DELETE /projects/{project_identifier}/traces ([#15409](https://github.com/Arize-ai/phoenix/issues/15409)) ([bf659ca](https://github.com/Arize-ai/phoenix/commit/bf659ca540f37e832a30d21a5a760ed6df6ee23b))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#15839](https://github.com/Arize-ai/phoenix/issues/15839)) ([466863d](https://github.com/Arize-ai/phoenix/commit/466863d1f861b5303c331b39b6e3a14360b9f633))
+* **experiments:** count dispatched work items as in-flight ([#15832](https://github.com/Arize-ai/phoenix/issues/15832)) ([0d1d92e](https://github.com/Arize-ai/phoenix/commit/0d1d92e7dee92a0ee352b71f4dafa6fcb6d2e94c))
+* **server:** replace deprecated json_encoders with an IsoDatetime serializer ([#15853](https://github.com/Arize-ai/phoenix/issues/15853)) ([93e55d8](https://github.com/Arize-ai/phoenix/commit/93e55d881f3784372a1a0f371f671558184e695c))
+
+## [20.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.4.0...arize-phoenix-v20.5.0) (2026-09-01)
+
+
+### Features
+
+* add skill tools to mcp and use them in pxi ([#15642](https://github.com/Arize-ai/phoenix/issues/15642)) ([8adf337](https://github.com/Arize-ai/phoenix/commit/8adf33760166e2576dc6cc99c3c59154730f9b29))
+* **agents:** PXI tool to file GitHub issues with a user-supplied token ([#15780](https://github.com/Arize-ai/phoenix/issues/15780)) ([e3b3dd5](https://github.com/Arize-ai/phoenix/commit/e3b3dd55ae45db7e73329b8ad33331af7fc26389))
+* **datagen:** add a sidecar that replays a recorded trace corpus ([#15614](https://github.com/Arize-ai/phoenix/issues/15614)) ([b86acac](https://github.com/Arize-ai/phoenix/commit/b86acacca3f70b58e1eac2e685ecd0cd82e424af))
+* **evals:** add session-level pii_detection evaluator  ([#15096](https://github.com/Arize-ai/phoenix/issues/15096)) ([0e3b2c2](https://github.com/Arize-ai/phoenix/commit/0e3b2c2ae55b671cdc523363ea18bcc7e6ae6c31))
+* **js:** add getCurrentUser helper ([#15739](https://github.com/Arize-ai/phoenix/issues/15739)) ([773c5e5](https://github.com/Arize-ai/phoenix/commit/773c5e5ee41293cb50da86d9f53ec6f0f3ce6e54))
+* **phoenix-client:** add retention policy assignment helper ([#15746](https://github.com/Arize-ai/phoenix/issues/15746)) ([37916d7](https://github.com/Arize-ai/phoenix/commit/37916d7351002222fc5a3ee8560528834da85134))
+* **playground:** add support for claude-fable-5-1 ([#15814](https://github.com/Arize-ai/phoenix/issues/15814)) ([3a836f7](https://github.com/Arize-ai/phoenix/commit/3a836f75b315eb2068a53e61c75c5251143c3283))
+* **prompts:** add REST prompt version creation ([#13846](https://github.com/Arize-ai/phoenix/issues/13846)) ([dbf15e9](https://github.com/Arize-ai/phoenix/commit/dbf15e93922bb62c99cce56e6bfe94e8e5590701))
+* **pxi:** gate execute_browser_action scripts behind whole-script approval ([#15628](https://github.com/Arize-ai/phoenix/issues/15628)) ([77de515](https://github.com/Arize-ai/phoenix/commit/77de515fa1bf62333356fd2755b9e0cd4f6f7100))
+
+
+### Bug Fixes
+
+* **cost-tracking:** sync LiteLLM reasoning token rates into the cost manifest ([#15164](https://github.com/Arize-ai/phoenix/issues/15164)) ([b0c1e60](https://github.com/Arize-ai/phoenix/commit/b0c1e60c5f4551279ecff9ac84ab780a5981ccab))
+* **cost:** update built-in model token prices ([#15711](https://github.com/Arize-ai/phoenix/issues/15711)) ([dc84891](https://github.com/Arize-ai/phoenix/commit/dc8489197d117045229f6d552b6cc03a7f8278ec))
+* **cost:** update built-in model token prices ([#15757](https://github.com/Arize-ai/phoenix/issues/15757)) ([b914e9a](https://github.com/Arize-ai/phoenix/commit/b914e9a12b95ab64c63c6152fe746dc1bfb824e2))
+* **deps:** update arize-phoenix-evals to 3.6.0 ([#15825](https://github.com/Arize-ai/phoenix/issues/15825)) ([28e1093](https://github.com/Arize-ai/phoenix/commit/28e109313f40d496ea2a6a8b9cfe4927b90c41c4))
+* **dsl:** correlate the parent test to the span an annotation filter is reading ([#15710](https://github.com/Arize-ai/phoenix/issues/15710)) ([269986c](https://github.com/Arize-ai/phoenix/commit/269986ce1c26a48ec838888502eb373ed3110f3f))
+* **mcp/sql:** harden the analytics SQL surface ([#15580](https://github.com/Arize-ai/phoenix/issues/15580)) ([35160b3](https://github.com/Arize-ai/phoenix/commit/35160b34b6ba7351321415aa34799e067652f1ba))
+* **playground:** preserve tool choice and strict setting for Anthropic and Bedrock ([#15683](https://github.com/Arize-ai/phoenix/issues/15683)) ([5464de4](https://github.com/Arize-ai/phoenix/commit/5464de456a5488f461e1f9316c90ec1a0f35a286))
+* **sandbox:** survive concurrent access to the shared WASM binary cache ([#15796](https://github.com/Arize-ai/phoenix/issues/15796)) ([7c1ff0d](https://github.com/Arize-ai/phoenix/commit/7c1ff0da9c0abb50ebb56232c766a702dfab99a7))
+* **traces:** keyset pagination for listProjectTraces ([#15468](https://github.com/Arize-ai/phoenix/issues/15468)) ([bfec5c9](https://github.com/Arize-ai/phoenix/commit/bfec5c91217af4b3275fcb2d4b5d0c2a3ed399c2))
+
+
+### Documentation
+
+* Add Phoenix release notes — 2026-08-26 ([#15630](https://github.com/Arize-ai/phoenix/issues/15630)) ([d94e7db](https://github.com/Arize-ai/phoenix/commit/d94e7db3fcda9b89687494bdb17e4e37aaf3e325))
+* condense Arize AX section in README ([#15800](https://github.com/Arize-ai/phoenix/issues/15800)) ([8bdd210](https://github.com/Arize-ai/phoenix/commit/8bdd2103452f200a116bd4bb32c62eca2b15e4e0))
+* mention Arize AX in Phoenix README ([#15758](https://github.com/Arize-ai/phoenix/issues/15758)) ([74f8dad](https://github.com/Arize-ai/phoenix/commit/74f8dad895e291cd2a1d3a0b04851e497b1016db))
+
+## [20.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.3.0...arize-phoenix-v20.4.0) (2026-08-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** GET /v1/model_providers no longer returns custom providers or a `next_cursor`, and built-in entries expose `provider` rather than `kind` + `provider_key`. Custom providers move to GET /v1/custom_model_providers. The endpoint is unreleased, so no published client is affected.
+
+### Features
+
+* **agents:** add in-process Phoenix MCP toolset ([#15285](https://github.com/Arize-ai/phoenix/issues/15285)) ([e2cf8be](https://github.com/Arize-ai/phoenix/commit/e2cf8be0a92b742f2ce13a47e6dabd02056d6be4))
+* apply the 2026 brand to the Phoenix docs ([#15458](https://github.com/Arize-ai/phoenix/issues/15458)) ([66c528c](https://github.com/Arize-ai/phoenix/commit/66c528c95b19bd6f75d4499887210ceda39d91f2))
+* **client:** record Harbor jobs in Phoenix ([#15547](https://github.com/Arize-ai/phoenix/issues/15547)) ([f7c6cb3](https://github.com/Arize-ai/phoenix/commit/f7c6cb3bee3b3d4447ac649aa54022ce2d157a70))
+* **evals:** add retrieval relevance evaluator ([#14766](https://github.com/Arize-ai/phoenix/issues/14766)) ([7efa7b2](https://github.com/Arize-ai/phoenix/commit/7efa7b21fc3284f0af928ddedda15927974ee94d))
+* **playground:** add gemini-3.7-flash ([#15520](https://github.com/Arize-ai/phoenix/issues/15520)) ([2435eba](https://github.com/Arize-ai/phoenix/commit/2435ebaa24a8f6346c8578eab05d85940138d06d))
+* **pxi:** enable phoenix-gql mutations by default with approval in manual mode ([#15415](https://github.com/Arize-ai/phoenix/issues/15415)) ([391d0dd](https://github.com/Arize-ai/phoenix/commit/391d0ddaa6aa2ec9bdda152ec6dd16ea585abb87))
+* **pxi:** replace client-action tools with browser-action meta-tools ([#15316](https://github.com/Arize-ai/phoenix/issues/15316)) ([ce13c6f](https://github.com/Arize-ai/phoenix/commit/ce13c6f30e50c6fda5235c263a2c816f6468d66e))
+* **server:** add GET /model_providers REST endpoint ([#15561](https://github.com/Arize-ai/phoenix/issues/15561)) ([59c247a](https://github.com/Arize-ai/phoenix/commit/59c247a19f868f157da511b1feca0338adef28e3))
+* **server:** add PATCH /projects/{project_identifier}/retention ([#15410](https://github.com/Arize-ai/phoenix/issues/15410)) ([8ffd938](https://github.com/Arize-ai/phoenix/commit/8ffd9389946a3a7a54f476f17fc3b20efa3260d3))
+* **traces:** AI Query for the trace filter DSL ([#15461](https://github.com/Arize-ai/phoenix/issues/15461)) ([31afcc7](https://github.com/Arize-ai/phoenix/commit/31afcc73734d1d115325c99b52dfec29381204ba))
+
+
+### Bug Fixes
+
+* **agents:** forbid extra fields on UI context models ([#15621](https://github.com/Arize-ai/phoenix/issues/15621)) ([f08a46c](https://github.com/Arize-ai/phoenix/commit/f08a46cf63dea6a1671e98317e96c6c396f43952))
+* **auth:** polish password reset and user management ([#15521](https://github.com/Arize-ai/phoenix/issues/15521)) ([7a65831](https://github.com/Arize-ai/phoenix/commit/7a6583190c29ea06fba8e8e1d030c344f7fe456d))
+* **chat-completions:** preserve prompt cache usage ([7a5bc55](https://github.com/Arize-ai/phoenix/commit/7a5bc5578cc059d8a7b7314d7b3e30ad99cb25c5))
+* **cost:** update built-in model token prices ([5150c4d](https://github.com/Arize-ai/phoenix/commit/5150c4d8e42013b4a23ab7ee72955f12342c1615))
+* **cost:** update built-in model token prices ([#15562](https://github.com/Arize-ai/phoenix/issues/15562)) ([ad9b3a1](https://github.com/Arize-ai/phoenix/commit/ad9b3a1121567da3c532e35d21d29de907c07ec7))
+* **cost:** update built-in model token prices ([#15590](https://github.com/Arize-ai/phoenix/issues/15590)) ([4580f34](https://github.com/Arize-ai/phoenix/commit/4580f348adb676c3aac24671099409fafd4290e3))
+* **deps:** update arize-phoenix-client to 3.2.0 ([1989459](https://github.com/Arize-ai/phoenix/commit/19894595741819494c0a5f874329c78b110c4e09))
+* **deps:** update arize-phoenix-evals to 3.5.0 ([#15574](https://github.com/Arize-ai/phoenix/issues/15574)) ([55184f4](https://github.com/Arize-ai/phoenix/commit/55184f4c270b920d91a30188f5e2f1e70809e664))
+* **deps:** update arize-phoenix-evals to 3.5.1 ([#15605](https://github.com/Arize-ai/phoenix/issues/15605)) ([5e2becf](https://github.com/Arize-ai/phoenix/commit/5e2becf1de5127b6b8673ac757e21a25c4419b21))
+* **evals:** do not echo submitted tool JSON in evaluator prompt validation errors ([#15575](https://github.com/Arize-ai/phoenix/issues/15575)) ([d38df33](https://github.com/Arize-ai/phoenix/commit/d38df33be02d3d99214ca35cab25a3a92ec2ebfd))
+* handle missing annotation labels with pandas 3 ([#15486](https://github.com/Arize-ai/phoenix/issues/15486)) ([aebe53f](https://github.com/Arize-ai/phoenix/commit/aebe53fa24919a9e9ee2d52b9b86d0722e664b02))
+* **mcp/sql:** parenthesise an operator key in a postgres JSON read ([7b77585](https://github.com/Arize-ai/phoenix/commit/7b77585f53ba7cac1f0cdc31a86692508cbd4c98))
+* **mcp/sql:** parenthesise BETWEEN and IN keys in a postgres JSON read ([f12126c](https://github.com/Arize-ai/phoenix/commit/f12126cc2f1c20a94aa5ace42e54f82670d3f903))
+* upgrade to anthropic SDK v1 ([#15588](https://github.com/Arize-ai/phoenix/issues/15588)) ([b28cf94](https://github.com/Arize-ai/phoenix/commit/b28cf94fcd37afeacfd059b4a01e7ad38327e483))
+
+
+### Performance Improvements
+
+* **agents:** make the system prompt static and move UI state onto the turn ([#15541](https://github.com/Arize-ai/phoenix/issues/15541)) ([31fafc5](https://github.com/Arize-ai/phoenix/commit/31fafc5fee359b038fcd75c515584a40fcfa2ea8))
+
+
+### Documentation
+
+* Add Phoenix release notes — 2026-08-19 ([#15502](https://github.com/Arize-ai/phoenix/issues/15502)) ([506ebdc](https://github.com/Arize-ai/phoenix/commit/506ebdca6d511b9a7cc347a9d89a0c0e99241ab5))
+* close PXI / agent-assistant documentation gaps for Phoenix 20  ([#15499](https://github.com/Arize-ai/phoenix/issues/15499)) ([729ff11](https://github.com/Arize-ai/phoenix/commit/729ff110d96428f16eb09004c7a8ea9a18b4e0d9))
+* group Arize AX pages under a dedicated left-nav item ([45ddcbf](https://github.com/Arize-ai/phoenix/commit/45ddcbf2a2c3328df307f0266b5a1eb0e07a385d))
+* polish Phoenix vs Arize AX comparison page and fix stale references ([cfda2fa](https://github.com/Arize-ai/phoenix/commit/cfda2fa580e18187a804516c0a29b5b9cfe9ec50))
+* remove legacy evaluator docs ([#14933](https://github.com/Arize-ai/phoenix/issues/14933)) ([5ece969](https://github.com/Arize-ai/phoenix/commit/5ece96933c83335d1e527ac2a2d41dd7738011ff))
+* restore redirects for the removed legacy evaluator pages ([#15579](https://github.com/Arize-ai/phoenix/issues/15579)) ([840fa1e](https://github.com/Arize-ai/phoenix/commit/840fa1e0b62ee9e56bb822be7b899426092c230b))
+* surface agent-first onboarding in Phoenix quickstarts ([bd13ea9](https://github.com/Arize-ai/phoenix/commit/bd13ea95c9e5f0e949d4697a21932320b5538792))
+
+
+### Miscellaneous Chores
+
+* release arize-phoenix 20.4.0 ([#15606](https://github.com/Arize-ai/phoenix/issues/15606)) ([1915396](https://github.com/Arize-ai/phoenix/commit/1915396ea0e157e5ae3f94c3015d6ec5ce0f30a8))
+
 ## [20.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.2.1...arize-phoenix-v20.3.0) (2026-08-16)
 
 

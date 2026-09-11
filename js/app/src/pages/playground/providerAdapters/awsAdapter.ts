@@ -178,54 +178,65 @@ const spanConfigSchema = z.looseObject({
   outputConfig: outputConfigSchema,
 });
 
+type ParsedAwsSpanConfig = z.infer<typeof spanConfigSchema>;
+
+function buildAwsConfigFromSpan(input: ParsedAwsSpanConfig): AwsConfig {
+  const config: AwsConfig = {};
+  const inference = input.inferenceConfig;
+  const maxTokens = input.maxTokens ?? inference?.maxTokens;
+  const temperature = input.temperature ?? inference?.temperature;
+  const topP = input.topP ?? inference?.topP;
+  const stopSequences = input.stopSequences ?? inference?.stopSequences;
+  if (maxTokens !== undefined) config.maxTokens = maxTokens;
+  if (temperature !== undefined) config.temperature = temperature;
+  if (topP !== undefined) config.topP = topP;
+  if (stopSequences !== undefined) config.stopSequences = [...stopSequences];
+  return config;
+}
+
+function buildAwsPromotedFields(
+  input: ParsedAwsSpanConfig
+): AwsPromotedPlaygroundFields {
+  const jsonSchemaInput = input.outputConfig?.textFormat?.structure?.jsonSchema;
+  if (jsonSchemaInput?.schema == null) return {};
+
+  const schema = parseAwsResponseSchema(jsonSchemaInput.schema);
+  if (!schema) return {};
+  const jsonSchema: CanonicalResponseFormat["jsonSchema"] = {
+    name:
+      typeof jsonSchemaInput.name === "string"
+        ? jsonSchemaInput.name
+        : "response",
+    schema,
+  };
+  if (typeof jsonSchemaInput.description === "string") {
+    jsonSchema.description = jsonSchemaInput.description;
+  }
+  return { responseFormat: { type: "json_schema", jsonSchema } };
+}
+
+function parseAwsResponseSchema(
+  value: string | Record<string, unknown>
+): object | null {
+  if (typeof value === "string") {
+    const { json } = safelyParseJSON(value);
+    return json != null && typeof json === "object" && !Array.isArray(json)
+      ? (json as object)
+      : null;
+  }
+  return !Array.isArray(value) ? value : null;
+}
+
 export function awsConfigFromSpanInvocationParameters(raw: unknown): {
   config: AwsConfig;
   promoted: AwsPromotedPlaygroundFields;
 } {
   const parsed = spanConfigSchema.safeParse(raw);
   const input = parsed.success ? parsed.data : {};
-  const config: AwsConfig = {};
-  // Top-level keys are the flatter, provider-neutral shape Phoenix prefers.
-  // Nested `inferenceConfig` values fill gaps when spans carry only the native
-  // Bedrock request shape.
-  if (input.maxTokens !== undefined) config.maxTokens = input.maxTokens;
-  else if (input.inferenceConfig?.maxTokens !== undefined)
-    config.maxTokens = input.inferenceConfig.maxTokens;
-  if (input.temperature !== undefined) config.temperature = input.temperature;
-  else if (input.inferenceConfig?.temperature !== undefined)
-    config.temperature = input.inferenceConfig.temperature;
-  if (input.topP !== undefined) config.topP = input.topP;
-  else if (input.inferenceConfig?.topP !== undefined)
-    config.topP = input.inferenceConfig.topP;
-  if (input.stopSequences !== undefined)
-    config.stopSequences = [...input.stopSequences];
-  else if (input.inferenceConfig?.stopSequences !== undefined)
-    config.stopSequences = [...input.inferenceConfig.stopSequences];
-
-  const promoted: AwsPromotedPlaygroundFields = {};
-  const js = input.outputConfig?.textFormat?.structure?.jsonSchema;
-  if (js?.schema != null) {
-    let schemaObj: object | null = null;
-    if (typeof js.schema === "string") {
-      const { json } = safelyParseJSON(js.schema);
-      if (json != null && typeof json === "object" && !Array.isArray(json)) {
-        schemaObj = json as object;
-      }
-    } else if (typeof js.schema === "object" && !Array.isArray(js.schema)) {
-      schemaObj = js.schema;
-    }
-    if (schemaObj != null) {
-      const jsonSchema: CanonicalResponseFormat["jsonSchema"] = {
-        name: typeof js.name === "string" ? js.name : "response",
-        schema: schemaObj,
-      };
-      if (typeof js.description === "string")
-        jsonSchema.description = js.description;
-      promoted.responseFormat = { type: "json_schema", jsonSchema };
-    }
-  }
-
-  return { config: normalizeAwsConfig(config), promoted };
+  return {
+    config: normalizeAwsConfig(buildAwsConfigFromSpan(input)),
+    promoted: buildAwsPromotedFields(input),
+  };
 }
 
 // ---------- field-keyed read/write ------------------------------------------

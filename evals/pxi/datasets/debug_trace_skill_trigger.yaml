@@ -245,7 +245,8 @@ examples:
         agreement: medium
         n_opinions: 3
         notes: >-
-          Yes/no error lookup answerable with bash or set_spans_filter.
+          Yes/no error lookup answerable with bash or a spansFilter.set
+          UI operation.
           The time qualifier and closed-form phrasing make this a data
           query rather than a diagnostic investigation.
 
@@ -266,7 +267,8 @@ examples:
         n_opinions: 3
         notes: >-
           Closed-form error query over tool spans. Can be answered directly
-          with bash (phoenix-gql) or a set_spans_filter on tool error spans.
+          with bash (phoenix-gql) or a spansFilter.set UI operation on
+          tool error spans.
           Does not require a multi-trace diagnostic investigation.
 
   - id: negative-compare-traces
@@ -334,8 +336,6 @@ examples:
         - role: user
           content: Show me only traces with errors.
     expected:
-      tools:
-        required: [set_spans_filter]
       forbidden_tool_call_args:
         load_skill:
           skill_name: debug-trace
@@ -345,8 +345,11 @@ examples:
         agreement: high
         n_opinions: 3
         notes: >-
-          Trace filter intent — maps to set_spans_filter (status_code ==
-          'ERROR'). The skill description lists trace filtering as an
+          Trace filter intent — maps to the spansFilter.set UI operation
+          (status_code == 'ERROR'), reached through the search-then-execute
+          loop on a fresh turn, so no single required first action is
+          asserted here; filter routing is covered by the set_spans_filter
+          dataset. The skill description lists trace filtering as an
           explicit non-trigger.
 
   - id: negative-advice-what-should-i-do

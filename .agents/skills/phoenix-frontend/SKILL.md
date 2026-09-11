@@ -23,7 +23,7 @@ Read the relevant file(s) based on the task:
 
 ## Verification
 
-After visual changes, use `agent-browser` to verify the UI looks correct. When modifying a shared component, check its usages across the app.
+After visual changes, use the available browser tooling to verify the UI looks correct. When modifying a shared component, check its usages across the app.
 
 ## Route Metadata
 

@@ -484,7 +484,7 @@ class LDAPAuthenticator:
             # Without cleanup, repeated TLS handshake failures would leak file descriptors
             # and eventually exhaust the process (DoS). unbind() safely closes socket
             # even if connection was never bound.
-            conn.unbind()  # type: ignore[no-untyped-call]
+            conn.unbind()
             raise
 
     async def authenticate(self, username: str, password: str) -> LDAPUserInfo | None:
@@ -944,7 +944,7 @@ class LDAPAuthenticator:
             # would skip cleanup, leaking the file descriptor. Repeated failed logins
             # would exhaust process FD limit (typically 1024) causing service crash.
             # unbind() safely closes socket regardless of bind state.
-            user_conn.unbind()  # type: ignore[no-untyped-call]
+            user_conn.unbind()
 
     def _get_user_groups(self, conn: Connection, user_entry: Entry, username: str) -> list[str]:
         """Get user's group memberships.

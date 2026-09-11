@@ -1,8 +1,8 @@
 import type { AgentUIMessagePart } from "@phoenix/agent/chat/types";
 import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 /**
- * For the workflow to add, edit, or remove a PXI tool, see the `defineTool` /
- * `defineClientActionTool` helpers in
+ * For the workflow to add, edit, or remove a PXI tool, see the `defineTool`
+ * helper in
  * `@phoenix/agent/extensions/registry` and the registry aggregator in
  * `@phoenix/agent/extensions/toolRegistry`.
  */

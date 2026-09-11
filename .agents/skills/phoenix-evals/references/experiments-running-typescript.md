@@ -50,7 +50,7 @@ const ragTask = async (example) => {
 
 ## Tracing AI SDK Calls Inside Tasks
 
-`@arizeai/phoenix-client` 7.x requires AI SDK v7, which **no longer emits
+`@arizeai/phoenix-client` 7.x requires AI SDK v7, which **does not emit
 OpenTelemetry spans through the global tracer provider on its own**. If your task
 calls `generateText`/`streamText`, pass the `@ai-sdk/otel` integration per call and
 **construct it inside the task**:

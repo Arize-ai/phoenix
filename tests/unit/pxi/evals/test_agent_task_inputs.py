@@ -11,9 +11,12 @@ from pydantic_ai.messages import (
 )
 
 from evals.pxi.harness.agent_task import (
+    _attach_ui_state,
     _build_contexts,
+    _build_dependencies,
     _build_run_inputs,
     _materialize_messages,
+    _ui_state_block,
 )
 
 
@@ -251,3 +254,83 @@ class TestMaterializeMessages:
     def test_rejects_unknown_roles(self) -> None:
         with pytest.raises(ValueError, match="role must be user, assistant, or tool"):
             _materialize_messages([{"role": "system", "content": "x"}])
+
+
+class TestUIStateAttachment:
+    """The harness renders the state block the chat route would otherwise have
+    put on the user's turn."""
+
+    def test_block_reflects_the_example_contexts(self) -> None:
+        deps = _build_dependencies(
+            {
+                "contexts": [
+                    {"type": "project", "projectNodeId": "UHJvamVjdDoxMg=="},
+                    {"type": "dataset", "datasetNodeId": "RGF0YXNldDox"},
+                ],
+                "messages": [{"role": "user", "content": "x"}],
+            }
+        )
+
+        block = _ui_state_block(deps)
+
+        assert '"projectNodeId": "UHJvamVjdDoxMg=="' in block
+        assert '"datasetNodeId": "RGF0YXNldDox"' in block
+        assert "<edit_permission>manual</edit_permission>" in block
+
+    def test_prepends_to_the_new_user_prompt_when_there_is_no_history(self) -> None:
+        user_prompt, history = _attach_ui_state(
+            "<phoenix_ui_state/>", user_prompt="hello", message_history=None
+        )
+
+        assert user_prompt == "<phoenix_ui_state/>\n\nhello"
+        assert history is None
+
+    def test_prepends_to_the_earliest_user_turn_of_a_replayed_history(self) -> None:
+        history = _materialize_messages(
+            [
+                {"role": "user", "content": "first"},
+                {"role": "assistant", "content": "ok"},
+            ]
+        )
+
+        user_prompt, updated = _attach_ui_state(
+            "<phoenix_ui_state/>", user_prompt="second", message_history=history
+        )
+
+        assert user_prompt == "second"
+        assert updated is not None
+        first_request = updated[0]
+        assert isinstance(first_request, ModelRequest)
+        [part] = [p for p in first_request.parts if isinstance(p, UserPromptPart)]
+        assert part.content == "<phoenix_ui_state/>\n\nfirst"
+
+    def test_mid_loop_continuation_still_carries_the_block(self) -> None:
+        """A tool-return continuation has no new user prompt, so the block has
+        to land on the replayed user turn."""
+        _, history = _build_run_inputs(
+            {
+                "messages": [
+                    {"role": "user", "content": "find errors"},
+                    {
+                        "role": "assistant",
+                        "tool_calls": [{"id": "c1", "name": "bash", "args": {"command": "x"}}],
+                    },
+                    {"role": "tool", "tool_call_id": "c1", "name": "bash", "content": "{}"},
+                ]
+            }
+        )
+
+        user_prompt, updated = _attach_ui_state(
+            "<phoenix_ui_state/>", user_prompt=None, message_history=history
+        )
+
+        assert user_prompt is None
+        assert updated is not None
+        [part] = [
+            p
+            for message in updated
+            if isinstance(message, ModelRequest)
+            for p in message.parts
+            if isinstance(p, UserPromptPart)
+        ]
+        assert part.content == "<phoenix_ui_state/>\n\nfind errors"

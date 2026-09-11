@@ -40,7 +40,6 @@ from phoenix.server.api.helpers.playground_clients import (
     get_playground_client,
     initialize_playground_clients,
 )
-from phoenix.server.api.helpers.playground_users import get_user
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -378,7 +377,6 @@ class Subscription:
                 )
 
             # === Create experiment (same as chat_completion_over_dataset) ===
-            user_id = get_user(info)
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
@@ -389,7 +387,7 @@ class Subscription:
                 metadata_=input.experiment_metadata or dict(),
                 is_ephemeral=bool(input.create_ephemeral_experiment),
                 project_name=project_name,
-                user_id=user_id,
+                user_id=info.context.user_id,
             )
             if resolved_split_ids:
                 experiment.experiment_dataset_splits = [

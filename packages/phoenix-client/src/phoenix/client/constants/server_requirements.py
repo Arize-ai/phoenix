@@ -70,6 +70,17 @@ LIST_PROJECT_TRACES = RouteRequirement(
     min_server_version=Version(13, 15, 0),
 )
 
+GET_TRACES_FILTERS = ParameterRequirement(
+    parameter_name="error",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/traces",
+    min_server_version=Version(20, 8, 0),
+    description=(
+        "The 'error', 'min_latency_ms', and 'max_latency_ms' query parameters "
+        "on GET /v1/projects/{id}/traces"
+    ),
+)
+
 DATASET_UPLOAD_EXAMPLE_IDS = ParameterRequirement(
     parameter_name="example_ids",
     parameter_location="body",
@@ -91,8 +102,22 @@ DATASET_UPLOAD_SPLIT_KEY = ParameterRequirement(
     min_server_version=Version(15, 0, 0),
 )
 
+CREATE_PROMPT_VERSION_METADATA = ParameterRequirement(
+    parameter_name="metadata",
+    parameter_location="body",
+    route="POST /v1/prompts",
+    min_server_version=Version(20, 10, 0),
+    description="Prompt version metadata on POST /v1/prompts",
+)
+
 PATCH_PROMPT = RouteRequirement(
     method="PATCH",
     path="/v1/prompts/{prompt_identifier}",
     min_server_version=Version(19, 18, 0),
+)
+
+DELETE_PROMPT = RouteRequirement(
+    method="DELETE",
+    path="/v1/prompts/{prompt_identifier}",
+    min_server_version=Version(13, 20, 0),
 )

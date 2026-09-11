@@ -65,6 +65,12 @@ export interface PhoenixConfig {
    * Custom headers
    */
   headers?: Record<string, string>;
+
+  /**
+   * GitHub personal access token from the selected profile, sent ephemerally
+   * with pxi chat requests so the agent's GitHub tools act as this user.
+   */
+  githubPersonalAccessToken?: string;
 }
 
 /**
@@ -235,8 +241,59 @@ function profileEntryToConfig(
   if (entry.oauthTokens) config.oauthTokens = entry.oauthTokens;
   if (entry.project) config.project = entry.project;
   if (entry.headers) config.headers = entry.headers;
+  if (entry.githubPersonalAccessToken) {
+    config.githubPersonalAccessToken = entry.githubPersonalAccessToken;
+  }
   config.profileName = profileName;
   return config;
+}
+
+function getDefinedConfigValues(
+  config: Partial<PhoenixConfig>
+): Partial<PhoenixConfig> {
+  return Object.fromEntries(
+    Object.entries(config).filter(([, value]) => value !== undefined)
+  ) as Partial<PhoenixConfig>;
+}
+
+function bindProfileCredentials({
+  profileConfig,
+  resolvedEndpoint,
+}: {
+  profileConfig: PhoenixConfig;
+  resolvedEndpoint: string | undefined;
+}): PhoenixConfig {
+  return profileConfig.oauthTokens &&
+    profileConfig.endpoint !== resolvedEndpoint
+    ? { ...profileConfig, oauthTokens: undefined }
+    : profileConfig;
+}
+
+function getWarningCredentialSource({
+  cliOptions,
+  processEnvConfig,
+  profileConfig,
+}: {
+  cliOptions: Partial<PhoenixConfig>;
+  processEnvConfig: PhoenixConfig;
+  profileConfig: PhoenixConfig;
+}): string | undefined {
+  if (cliOptions.apiKey !== undefined || cliOptions.headers !== undefined) {
+    return "CLI options";
+  }
+  if (
+    processEnvConfig.apiKey !== undefined ||
+    processEnvConfig.headers !== undefined
+  ) {
+    return "the process environment";
+  }
+  if (
+    profileConfig.apiKey !== undefined ||
+    profileConfig.headers !== undefined
+  ) {
+    return "the active profile";
+  }
+  return undefined;
 }
 
 /**
@@ -282,9 +339,7 @@ export function resolveConfig({
 
   // Commander (and other callers) may include keys with `undefined` values.
   // If we spread those over envConfig we would accidentally clobber env vars.
-  const definedCliOptions = Object.fromEntries(
-    Object.entries(cliOptions).filter(([, value]) => value !== undefined)
-  ) as Partial<PhoenixConfig>;
+  const definedCliOptions = getDefinedConfigValues(cliOptions);
 
   // A process-env endpoint merely *inferred* from a trace-export variable
   // (PHOENIX_COLLECTOR_ENDPOINT exported in the shell for app tracing, which
@@ -306,10 +361,10 @@ export function resolveConfig({
     profileConfig.endpoint ??
     envFileConfig.endpoint ??
     builtInDefaults.endpoint;
-  const boundProfileConfig =
-    profileConfig.oauthTokens && profileConfig.endpoint !== resolvedEndpoint
-      ? { ...profileConfig, oauthTokens: undefined }
-      : profileConfig;
+  const boundProfileConfig = bindProfileCredentials({
+    profileConfig,
+    resolvedEndpoint,
+  });
 
   const credentialSource = getCredentialSource({
     cliOptions: definedCliOptions,
@@ -343,17 +398,11 @@ export function resolveConfig({
     definedCliOptions.endpoint === undefined &&
     processEnvConfig.endpoint === undefined &&
     profileConfig.endpoint === undefined;
-  const warningCredentialSource =
-    definedCliOptions.apiKey !== undefined ||
-    definedCliOptions.headers !== undefined
-      ? "CLI options"
-      : processEnvConfig.apiKey !== undefined ||
-          processEnvConfig.headers !== undefined
-        ? "the process environment"
-        : profileConfig.apiKey !== undefined ||
-            profileConfig.headers !== undefined
-          ? "the active profile"
-          : undefined;
+  const warningCredentialSource = getWarningCredentialSource({
+    cliOptions: definedCliOptions,
+    processEnvConfig,
+    profileConfig,
+  });
   if (usesFileEndpoint) {
     warnIfUsingFileEndpointWithCredentials({
       credentialSource: warningCredentialSource,

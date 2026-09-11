@@ -39,7 +39,7 @@ describe("playground variable values agent tool", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "Invalid set_variable_values input.",
+        error: "Invalid playground.variables.set input.",
       })
     );
     expect(playgroundStore.getState().input.variablesValueCache).toEqual({});

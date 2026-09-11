@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { useTheme } from "@phoenix/contexts";
 
@@ -640,6 +641,22 @@ const spanKindIconCSS = css`
   }
 `;
 
+const SPAN_KIND_ICONS: Record<
+  string,
+  { fill: ReactNode; outline: ReactNode } | undefined
+> = {
+  llm: { fill: <LLMFilledSVG />, outline: <LLMSVG /> },
+  chain: { fill: <ChainFilledSVG />, outline: <ChainSVG /> },
+  retriever: { fill: <RetrieverFilledSVG />, outline: <RetrieverSVG /> },
+  embedding: { fill: <EmbeddingFilledSVG />, outline: <EmbeddingSVG /> },
+  agent: { fill: <AgentFilledSVG />, outline: <AgentSVG /> },
+  tool: { fill: <ToolFilledSVG />, outline: <ToolSVG /> },
+  reranker: { fill: <RerankerFilledSVG />, outline: <RerankerSVG /> },
+  evaluator: { fill: <EvaluatorFilledSVG />, outline: <EvaluatorSVG /> },
+  guardrail: { fill: <GuardrailFilledSVG />, outline: <GuardrailSVG /> },
+  prompt: { fill: <PromptFilledSVG />, outline: <PromptSVG /> },
+};
+
 export function SpanKindIcon({
   spanKind,
   variant = "fill",
@@ -648,41 +665,12 @@ export function SpanKindIcon({
   variant?: "fill" | "outline";
 }) {
   const { theme } = useTheme();
-  const isFilled = variant === "fill";
-  let icon = isFilled ? <UnknownFilledSVG /> : <UnknownSVG />;
+  const icons = SPAN_KIND_ICONS[spanKind];
+  const icon =
+    variant === "fill"
+      ? (icons?.fill ?? <UnknownFilledSVG />)
+      : (icons?.outline ?? <UnknownSVG />);
   const color = getSpanKindColor({ spanKind });
-  switch (spanKind) {
-    case "llm":
-      icon = isFilled ? <LLMFilledSVG /> : <LLMSVG />;
-      break;
-    case "chain":
-      icon = isFilled ? <ChainFilledSVG /> : <ChainSVG />;
-      break;
-    case "retriever":
-      icon = isFilled ? <RetrieverFilledSVG /> : <RetrieverSVG />;
-      break;
-    case "embedding":
-      icon = isFilled ? <EmbeddingFilledSVG /> : <EmbeddingSVG />;
-      break;
-    case "agent":
-      icon = isFilled ? <AgentFilledSVG /> : <AgentSVG />;
-      break;
-    case "tool":
-      icon = isFilled ? <ToolFilledSVG /> : <ToolSVG />;
-      break;
-    case "reranker":
-      icon = isFilled ? <RerankerFilledSVG /> : <RerankerSVG />;
-      break;
-    case "evaluator":
-      icon = isFilled ? <EvaluatorFilledSVG /> : <EvaluatorSVG />;
-      break;
-    case "guardrail":
-      icon = isFilled ? <GuardrailFilledSVG /> : <GuardrailSVG />;
-      break;
-    case "prompt":
-      icon = isFilled ? <PromptFilledSVG /> : <PromptSVG />;
-      break;
-  }
 
   return (
     <div

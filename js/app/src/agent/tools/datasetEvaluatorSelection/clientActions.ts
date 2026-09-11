@@ -24,7 +24,7 @@ export function createSetDatasetEvaluatorSelectionClientAction({
     if (!parsed) {
       return {
         ok: false,
-        error: "Invalid set_dataset_evaluator_selection input.",
+        error: "Invalid evaluators.select input.",
       };
     }
 
@@ -50,15 +50,11 @@ export function createSetDatasetEvaluatorSelectionClientAction({
     });
     return {
       ok: true,
-      output: JSON.stringify(
-        {
-          status: "updated",
-          applied,
-          message: `Applied ${applied.length} evaluator${applied.length === 1 ? "" : "s"} to the dataset playground.`,
-        },
-        null,
-        2
-      ),
+      output: {
+        status: "updated",
+        applied,
+        message: `Applied ${applied.length} evaluator${applied.length === 1 ? "" : "s"} to the dataset playground.`,
+      },
     };
   };
 }

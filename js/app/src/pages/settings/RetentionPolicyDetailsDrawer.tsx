@@ -4,7 +4,15 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Dialog, Drawer, Flex, Loading, Text, View } from "@phoenix/components";
+import {
+  Dialog,
+  Drawer,
+  Flex,
+  Skeleton,
+  Text,
+  View,
+  VisuallyHidden,
+} from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -44,6 +52,31 @@ const policyDetailsGridCSS = css`
 const policyDetailsValueCSS = css`
   margin-top: var(--global-dimension-size-50);
 `;
+
+function RetentionPolicyDetailsFallback() {
+  return (
+    <DialogContent>
+      <VisuallyHidden role="status">
+        Loading retention policy details
+      </VisuallyHidden>
+      <DialogHeader>
+        <Flex direction="row" gap="size-200" alignItems="center">
+          <DialogCloseButton slot="close" />
+          <Skeleton width={200} height={24} animation="wave" />
+        </Flex>
+      </DialogHeader>
+      <View padding="size-200">
+        <Flex direction="column" gap="size-200">
+          <Flex direction="row" gap="size-100">
+            <Skeleton height={60} animation="wave" />
+            <Skeleton height={60} animation="wave" />
+          </Flex>
+          <Skeleton height={200} animation="wave" />
+        </Flex>
+      </View>
+    </DialogContent>
+  );
+}
 
 function RetentionPolicyDetailsContent({ policyId }: { policyId: string }) {
   const navigate = useNavigate();
@@ -96,67 +129,65 @@ function RetentionPolicyDetailsContent({ policyId }: { policyId: string }) {
   const isDefaultPolicy = policy.name === DEFAULT_RETENTION_POLICY_NAME;
 
   return (
-    <Dialog aria-label={`Retention policy details for ${policy.name}`}>
-      <DialogContent>
-        <DialogHeader>
-          <Flex direction="row" gap="size-200" alignItems="center">
-            <DialogCloseButton slot="close" />
-            <DialogTitle>{`Policy: ${policy.name}`}</DialogTitle>
-          </Flex>
-          <DialogTitleExtra>
-            {canManageRetentionPolicy && (
-              <RetentionPolicyActionMenu
-                policyId={policy.id}
-                policyName={policy.name}
-                projectNames={projects.map((project) => project.name)}
-                onPolicyDelete={() => navigate("/settings/data")}
-              />
-            )}
-          </DialogTitleExtra>
-        </DialogHeader>
-        <div css={policyDetailsBodyCSS}>
-          <View padding="size-200">
-            <Flex direction="column" gap="size-200">
-              {isDefaultPolicy && (
-                <Text size="S" color="text-700">
-                  Projects without an explicitly assigned policy automatically
-                  use this default policy.
-                </Text>
-              )}
-              <ul css={policyDetailsGridCSS}>
-                <li>
-                  <Text size="XS" color="text-700">
-                    Schedule
-                  </Text>
-                  <div css={policyDetailsValueCSS}>
-                    <Text>
-                      {createPolicyScheduleSummaryText({
-                        schedule: policy.cronExpression,
-                      })}
-                    </Text>
-                  </div>
-                </li>
-                <li>
-                  <Text size="XS" color="text-700">
-                    Rule
-                  </Text>
-                  <div css={policyDetailsValueCSS}>
-                    <Text>{createPolicyRuleSummaryText(policy.rule)}</Text>
-                  </div>
-                </li>
-              </ul>
-            </Flex>
-          </View>
-          <View paddingX="size-200" paddingBottom="size-200">
-            <RetentionPolicyProjects
+    <DialogContent>
+      <DialogHeader>
+        <Flex direction="row" gap="size-200" alignItems="center">
+          <DialogCloseButton slot="close" />
+          <DialogTitle>{`Policy: ${policy.name}`}</DialogTitle>
+        </Flex>
+        <DialogTitleExtra>
+          {canManageRetentionPolicy && (
+            <RetentionPolicyActionMenu
               policyId={policy.id}
-              projects={projects}
-              canManage={canManageRetentionPolicy && !isDefaultPolicy}
+              policyName={policy.name}
+              projectNames={projects.map((project) => project.name)}
+              onPolicyDelete={() => navigate("/settings/data")}
             />
-          </View>
-        </div>
-      </DialogContent>
-    </Dialog>
+          )}
+        </DialogTitleExtra>
+      </DialogHeader>
+      <div css={policyDetailsBodyCSS}>
+        <View padding="size-200">
+          <Flex direction="column" gap="size-200">
+            {isDefaultPolicy && (
+              <Text size="S" color="text-700">
+                Projects without an explicitly assigned policy automatically use
+                this default policy.
+              </Text>
+            )}
+            <ul css={policyDetailsGridCSS}>
+              <li>
+                <Text size="XS" color="text-700">
+                  Schedule
+                </Text>
+                <div css={policyDetailsValueCSS}>
+                  <Text>
+                    {createPolicyScheduleSummaryText({
+                      schedule: policy.cronExpression,
+                    })}
+                  </Text>
+                </div>
+              </li>
+              <li>
+                <Text size="XS" color="text-700">
+                  Rule
+                </Text>
+                <div css={policyDetailsValueCSS}>
+                  <Text>{createPolicyRuleSummaryText(policy.rule)}</Text>
+                </div>
+              </li>
+            </ul>
+          </Flex>
+        </View>
+        <View paddingX="size-200" paddingBottom="size-200">
+          <RetentionPolicyProjects
+            policyId={policy.id}
+            projects={projects}
+            canManage={canManageRetentionPolicy && !isDefaultPolicy}
+          />
+        </View>
+      </div>
+    </DialogContent>
   );
 }
 
@@ -176,15 +207,11 @@ export function RetentionPolicyDetailsDrawer() {
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}
     >
-      <Suspense
-        fallback={
-          <View padding="size-400">
-            <Loading />
-          </View>
-        }
-      >
-        <RetentionPolicyDetailsContent policyId={policyId} />
-      </Suspense>
+      <Dialog aria-label="Retention policy details">
+        <Suspense fallback={<RetentionPolicyDetailsFallback />}>
+          <RetentionPolicyDetailsContent policyId={policyId} />
+        </Suspense>
+      </Dialog>
     </Drawer>
   );
 }

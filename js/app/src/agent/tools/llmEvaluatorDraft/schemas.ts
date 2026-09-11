@@ -1,11 +1,8 @@
 import { z } from "zod";
 
-import type { AddToolOutput } from "@phoenix/agent/extensions/registry/defineTool";
 import { outputConfigDraftSchema } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
-
-export type LlmEvaluatorEditToolOutputSender = AddToolOutput;
 
 export const readLlmEvaluatorDraftInputSchema = emptyToolInputSchema;
 
@@ -159,13 +156,3 @@ export const editLlmEvaluatorDraftInputSchema = z
     })
   )
   .transform((input) => input);
-
-export const editLlmEvaluatorDraftActionContextSchema = z
-  .object({
-    toolCallId: z.string(),
-    sessionId: z.string(),
-    addToolOutput: z.custom<LlmEvaluatorEditToolOutputSender>(
-      (value) => typeof value === "function"
-    ),
-  })
-  .transform((context) => context);

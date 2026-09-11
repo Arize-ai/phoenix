@@ -99,126 +99,155 @@ function extractMessageContent(message: PromptMessage): string {
 }
 
 function formatPromptPretty(promptVersion: PromptVersion): string {
-  const lines: string[] = [];
-
-  lines.push(`┌─ Prompt Version: ${promptVersion.id}`);
-  lines.push(`│`);
-  lines.push(
-    `│  Model: ${promptVersion.model_provider} / ${promptVersion.model_name}`
-  );
-  lines.push(`│  Template Type: ${promptVersion.template_type}`);
-  lines.push(`│  Template Format: ${promptVersion.template_format}`);
+  const lines = [
+    `┌─ Prompt Version: ${promptVersion.id}`,
+    `│`,
+    `│  Model: ${promptVersion.model_provider} / ${promptVersion.model_name}`,
+    `│  Template Type: ${promptVersion.template_type}`,
+    `│  Template Format: ${promptVersion.template_format}`,
+  ];
 
   if (promptVersion.description) {
     lines.push(`│  Description: ${promptVersion.description}`);
   }
 
-  lines.push(`│`);
-  lines.push(`│  Template:`);
+  lines.push(`│`, `│  Template:`, ...formatPrettyTemplate(promptVersion));
+  appendInvocationParameters({ lines, promptVersion });
+  appendTools({ lines, promptVersion });
+  appendResponseFormat({ lines, promptVersion });
+  lines.push(`└─`);
+  return lines.join("\n");
+}
 
+function formatPrettyTemplate(promptVersion: PromptVersion): string[] {
   const template = promptVersion.template;
   if (template.type === "string") {
-    const templateLines = template.template.split("\n");
-    for (const line of templateLines) {
-      lines.push(`│    ${line}`);
-    }
-  } else {
-    // Chat template
-    for (const message of template.messages) {
-      const role = message.role.toUpperCase();
-      const content = extractMessageContent(message);
-      const contentLines = content.split("\n");
-
-      lines.push(`│    [${role}]`);
-      for (const line of contentLines) {
-        lines.push(`│      ${line}`);
-      }
-    }
+    return template.template.split("\n").map((line) => `│    ${line}`);
   }
 
-  // Invocation parameters
-  if (promptVersion.invocation_parameters) {
-    lines.push(`│`);
-    lines.push(`│  Invocation Parameters:`);
-    const params = promptVersion.invocation_parameters;
-    const providerParams = params[params.type as keyof typeof params];
-    if (providerParams && typeof providerParams === "object") {
-      for (const [key, value] of Object.entries(providerParams)) {
-        lines.push(`│    ${key}: ${JSON.stringify(value)}`);
-      }
-    }
-  }
+  return template.messages.flatMap((message) => {
+    const role = message.role.toUpperCase();
+    const contentLines = extractMessageContent(message).split("\n");
+    return [`│    [${role}]`, ...contentLines.map((line) => `│      ${line}`)];
+  });
+}
 
-  // Tools
+function appendInvocationParameters({
+  lines,
+  promptVersion,
+}: {
+  lines: string[];
+  promptVersion: PromptVersion;
+}): void {
+  const params = promptVersion.invocation_parameters;
+  if (!params) return;
+
+  lines.push(`│`, `│  Invocation Parameters:`);
+  const providerParams = params[params.type as keyof typeof params];
+  if (!providerParams || typeof providerParams !== "object") return;
+
+  for (const [key, value] of Object.entries(providerParams)) {
+    lines.push(`│    ${key}: ${JSON.stringify(value)}`);
+  }
+}
+
+function appendTools({
+  lines,
+  promptVersion,
+}: {
+  lines: string[];
+  promptVersion: PromptVersion;
+}): void {
   const toolsList = promptVersion.tools?.tools;
-  if (toolsList && Array.isArray(toolsList) && toolsList.length > 0) {
-    lines.push(`│`);
-    lines.push(`│  Tools:`);
+  if (!Array.isArray(toolsList) || toolsList.length === 0) return;
 
-    // Tool choice
-    if (promptVersion.tools?.tool_choice) {
-      const choice = promptVersion.tools.tool_choice;
-      if (choice.type === "specific_function") {
-        lines.push(`│    Tool Choice: ${choice.function_name} (required)`);
-      } else {
-        lines.push(`│    Tool Choice: ${choice.type}`);
-      }
-    }
-
-    for (const tool of toolsList) {
-      if (tool.type === "function") {
-        const fn = tool.function;
-        lines.push(`│`);
-        lines.push(`│    ┌─ ${fn.name}`);
-        if (fn.description) {
-          lines.push(`│    │  ${fn.description}`);
-        }
-        if (fn.parameters) {
-          lines.push(`│    │`);
-          lines.push(`│    │  Parameters:`);
-          const params = fn.parameters as {
-            type?: string;
-            properties?: Record<
-              string,
-              { type?: string; description?: string; enum?: string[] }
-            >;
-            required?: string[];
-          };
-          if (params.properties) {
-            const required = params.required || [];
-            for (const [propName, propDef] of Object.entries(
-              params.properties
-            )) {
-              const isRequired = required.includes(propName);
-              const reqMarker = isRequired ? " (required)" : "";
-              const typeStr = propDef.type || "any";
-              const enumStr =
-                propDef.enum && propDef.enum.length > 0
-                  ? ` [${propDef.enum.join(", ")}]`
-                  : "";
-              lines.push(
-                `│    │    ${propName}: ${typeStr}${enumStr}${reqMarker}`
-              );
-              if (propDef.description) {
-                lines.push(`│    │      └─ ${propDef.description}`);
-              }
-            }
-          }
-        }
-        lines.push(`│    └─`);
-      }
+  lines.push(`│`, `│  Tools:`);
+  appendToolChoice({ lines, promptVersion });
+  for (const tool of toolsList) {
+    if (tool.type === "function") {
+      appendFunctionTool({ lines, tool: tool.function });
     }
   }
+}
 
-  // Response format
-  if (promptVersion.response_format) {
-    lines.push(`│`);
+function appendToolChoice({
+  lines,
+  promptVersion,
+}: {
+  lines: string[];
+  promptVersion: PromptVersion;
+}): void {
+  const choice = promptVersion.tools?.tool_choice;
+  if (!choice) return;
+
+  const description =
+    choice.type === "specific_function"
+      ? `${choice.function_name} (required)`
+      : choice.type;
+  lines.push(`│    Tool Choice: ${description}`);
+}
+
+function appendFunctionTool({
+  lines,
+  tool,
+}: {
+  lines: string[];
+  tool: Extract<
+    NonNullable<PromptVersion["tools"]>["tools"][number],
+    { type: "function" }
+  >["function"];
+}): void {
+  lines.push(`│`, `│    ┌─ ${tool.name}`);
+  if (tool.description) lines.push(`│    │  ${tool.description}`);
+  appendFunctionParameters({ lines, parameters: tool.parameters });
+  lines.push(`│    └─`);
+}
+
+function appendFunctionParameters({
+  lines,
+  parameters,
+}: {
+  lines: string[];
+  parameters: unknown;
+}): void {
+  if (!parameters) return;
+
+  lines.push(`│    │`, `│    │  Parameters:`);
+  const params = parameters as {
+    properties?: Record<
+      string,
+      { type?: string; description?: string; enum?: string[] }
+    >;
+    required?: string[];
+  };
+  if (!params.properties) return;
+
+  const required = params.required || [];
+  for (const [propertyName, definition] of Object.entries(params.properties)) {
+    const requiredMarker = required.includes(propertyName) ? " (required)" : "";
+    const type = definition.type || "any";
+    const enumValues = definition.enum?.length
+      ? ` [${definition.enum.join(", ")}]`
+      : "";
     lines.push(
-      `│  Response Format: ${promptVersion.response_format.json_schema.name}`
+      `│    │    ${propertyName}: ${type}${enumValues}${requiredMarker}`
     );
+    if (definition.description) {
+      lines.push(`│    │      └─ ${definition.description}`);
+    }
   }
+}
 
-  lines.push(`└─`);
-
-  return lines.join("\n");
+function appendResponseFormat({
+  lines,
+  promptVersion,
+}: {
+  lines: string[];
+  promptVersion: PromptVersion;
+}): void {
+  if (!promptVersion.response_format) return;
+  lines.push(
+    `│`,
+    `│  Response Format: ${promptVersion.response_format.json_schema.name}`
+  );
 }

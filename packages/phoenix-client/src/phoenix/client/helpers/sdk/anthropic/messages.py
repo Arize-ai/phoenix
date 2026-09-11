@@ -122,6 +122,7 @@ def create_prompt_version_from_anthropic(
     /,
     *,
     description: Optional[str] = None,
+    metadata: Optional[Mapping[str, Any]] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     model_provider: Literal["ANTHROPIC"] = "ANTHROPIC",
 ) -> v1.PromptVersionData:
@@ -159,6 +160,8 @@ def create_prompt_version_from_anthropic(
         ans["tools"] = tools
     if description:
         ans["description"] = description
+    if metadata:
+        ans["metadata"] = dict(metadata)
     return ans
 
 
@@ -244,6 +247,8 @@ class _InvocationParametersConversion:
             v1.PromptMoonshotInvocationParameters,
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
+            v1.PromptZAIInvocationParameters,
+            v1.PromptMetaInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = _InvocationParameters(
@@ -410,6 +415,24 @@ class _InvocationParametersConversion:
                 sampling["temperature"] = together_params["temperature"]
             if "top_p" in together_params:
                 sampling["top_p"] = together_params["top_p"]
+        elif obj["type"] == "zai":
+            zai_params: v1.PromptZAIInvocationParametersContent
+            zai_params = obj["zai"]
+            if "max_tokens" in zai_params:
+                ans["max_tokens"] = zai_params["max_tokens"]
+            if "temperature" in zai_params:
+                sampling["temperature"] = zai_params["temperature"]
+            if "top_p" in zai_params:
+                sampling["top_p"] = zai_params["top_p"]
+        elif obj["type"] == "meta":
+            meta_params: v1.PromptMetaInvocationParametersContent
+            meta_params = obj["meta"]
+            if "max_tokens" in meta_params:
+                ans["max_tokens"] = meta_params["max_tokens"]
+            if "temperature" in meta_params:
+                sampling["temperature"] = meta_params["temperature"]
+            if "top_p" in meta_params:
+                sampling["top_p"] = meta_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         if sampling:
@@ -608,6 +631,8 @@ class _ToolConversion:
                 }
                 if "description" in function:
                     param["description"] = function["description"]
+                if "strict" in function and isinstance(function["strict"], bool):
+                    param["strict"] = function["strict"]
                 yield param
             elif tool["type"] == "raw":
                 # Vendor passthrough: forward the raw dict as a ToolUnionParam
@@ -634,6 +659,8 @@ class _ToolConversion:
                 if "description" in tool_param:
                     function["description"] = tool_param["description"]
                 function["parameters"] = tool_param["input_schema"]
+                if "strict" in tool_param and isinstance(tool_param["strict"], bool):
+                    function["strict"] = tool_param["strict"]
                 yield v1.PromptToolFunction(type="function", function=function)
             else:
                 yield v1.PromptToolRaw(type="raw", raw=dict(cast(Mapping[str, Any], tool)))

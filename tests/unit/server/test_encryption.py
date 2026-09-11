@@ -76,6 +76,7 @@ class TestEncryptionService:
 
         assert decrypted == data
 
+    @pytest.mark.real_key_derivation
     def test_key_derivation_is_deterministic(self) -> None:
         """Test that the same secret always produces the same encryption key."""
         secret = SecretStr("test-secret-12345")

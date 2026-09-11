@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import json
+from typing import Any, Mapping
 
 import httpx
 import pytest
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.constants.server_requirements import PATCH_PROMPT
+from phoenix.client.constants.server_requirements import (
+    CREATE_PROMPT_VERSION_METADATA,
+    DELETE_PROMPT,
+    PATCH_PROMPT,
+)
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
-from phoenix.client.types import NOT_GIVEN
+from phoenix.client.types import NOT_GIVEN, PromptVersion
 
 
 def _make_prompt(
@@ -26,8 +31,156 @@ def _make_prompt(
     return prompt
 
 
+def _make_prompt_version(
+    *,
+    metadata: Mapping[str, Any] | None = None,
+) -> v1.PromptVersion:
+    version = v1.PromptVersion(
+        id="version-1",
+        model_provider="OPENAI",
+        model_name="gpt-4o",
+        template={
+            "type": "chat",
+            "messages": [{"role": "user", "content": "Hello"}],
+        },
+        template_type="CHAT",
+        template_format="MUSTACHE",
+        invocation_parameters={"type": "openai", "openai": {}},
+    )
+    if metadata is not None:
+        version["metadata"] = metadata
+    return version
+
+
 class _GuardSentinel(Exception):
     pass
+
+
+class _SyncGuard:
+    """Rejects the prompt version metadata requirement, as an old server would."""
+
+    def require(self, requirement: object) -> None:
+        if requirement is CREATE_PROMPT_VERSION_METADATA:
+            raise _GuardSentinel
+
+
+class _AsyncGuard:
+    """Rejects the prompt version metadata requirement, as an old server would."""
+
+    async def require(self, requirement: object) -> None:
+        if requirement is CREATE_PROMPT_VERSION_METADATA:
+            raise _GuardSentinel
+
+
+class TestPromptsCreate:
+    def test_create_sends_and_returns_version_metadata(self) -> None:
+        metadata = {"agent": "support", "dependencies": ["retriever", "answerer"]}
+        created_version = _make_prompt_version(metadata=metadata)
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/v1/prompts"
+            assert json.loads(request.content)["version"]["metadata"] == metadata
+            return httpx.Response(200, json={"data": created_version})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        version = PromptVersion(
+            [{"role": "user", "content": "Hello"}],
+            model_name="gpt-4o",
+            metadata=metadata,
+        )
+
+        result = Prompts(client).create(version=version, name="my-prompt")
+
+        assert result.metadata == metadata
+
+    def test_create_omits_empty_version_metadata(self) -> None:
+        created_version = _make_prompt_version()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "metadata" not in json.loads(request.content)["version"]
+            return httpx.Response(200, json={"data": created_version})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        version = PromptVersion([{"role": "user", "content": "Hello"}], model_name="gpt-4o")
+
+        result = Prompts(client).create(version=version, name="my-prompt")
+
+        assert result.metadata == {}
+
+    def test_create_guards_version_metadata_against_old_servers(self) -> None:
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: pytest.fail("transport must not be reached")),
+            base_url="http://test",
+        )
+        version = PromptVersion(
+            [{"role": "user", "content": "Hello"}],
+            model_name="gpt-4o",
+            metadata={"agent": "support"},
+        )
+        with pytest.raises(_GuardSentinel):
+            Prompts(client, _guard=_SyncGuard()).create(  # type: ignore[arg-type]
+                version=version,
+                name="my-prompt",
+            )
+
+    def test_create_skips_metadata_guard_without_version_metadata(self) -> None:
+        created_version = _make_prompt_version()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"data": created_version})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        version = PromptVersion([{"role": "user", "content": "Hello"}], model_name="gpt-4o")
+
+        Prompts(client, _guard=_SyncGuard()).create(  # type: ignore[arg-type]
+            version=version,
+            name="my-prompt",
+        )
+
+
+class TestAsyncPromptsCreate:
+    @pytest.mark.asyncio
+    async def test_create_sends_and_returns_version_metadata(self) -> None:
+        metadata = {"agent": "support", "dependencies": ["retriever", "answerer"]}
+        created_version = _make_prompt_version(metadata=metadata)
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert request.url.path == "/v1/prompts"
+            assert json.loads(request.content)["version"]["metadata"] == metadata
+            return httpx.Response(200, json={"data": created_version})
+
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(handler),
+            base_url="http://test",
+        )
+        version = PromptVersion(
+            [{"role": "user", "content": "Hello"}],
+            model_name="gpt-4o",
+            metadata=metadata,
+        )
+
+        result = await AsyncPrompts(client).create(version=version, name="my-prompt")
+
+        assert result.metadata == metadata
+
+    @pytest.mark.asyncio
+    async def test_create_guards_version_metadata_against_old_servers(self) -> None:
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda r: pytest.fail("transport must not be reached")),
+            base_url="http://test",
+        )
+        version = PromptVersion(
+            [{"role": "user", "content": "Hello"}],
+            model_name="gpt-4o",
+            metadata={"agent": "support"},
+        )
+        with pytest.raises(_GuardSentinel):
+            await AsyncPrompts(client, _guard=_AsyncGuard()).create(  # type: ignore[arg-type]
+                version=version,
+                name="my-prompt",
+            )
 
 
 class TestPromptsUpdate:
@@ -176,4 +329,102 @@ class TestAsyncPromptsUpdate:
             await AsyncPrompts(client, _guard=_Guard()).update(  # type: ignore[arg-type]
                 prompt_identifier="my-prompt",
                 prompt_description="x",
+            )
+
+
+class TestPromptsDelete:
+    def test_delete_by_name_returns_none_on_204(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == "/v1/prompts/my-prompt"
+            return httpx.Response(204)
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        Prompts(client).delete(prompt_identifier="my-prompt")
+
+    def test_delete_safely_encodes_global_id(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.raw_path == b"/v1/prompts/UHJvbXB0OjE%3D"
+            return httpx.Response(204)
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        Prompts(client).delete(prompt_identifier="UHJvbXB0OjE=")
+
+    def test_delete_maps_404_to_value_error(self) -> None:
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda request: httpx.Response(404)),
+            base_url="http://test",
+        )
+        with pytest.raises(ValueError, match="Prompt not found: missing"):
+            Prompts(client).delete(prompt_identifier="missing")
+
+    def test_delete_propagates_permission_error(self) -> None:
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda request: httpx.Response(403)),
+            base_url="http://test",
+        )
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            Prompts(client).delete(prompt_identifier="my-prompt")
+        assert exc_info.value.response.status_code == 403
+
+    def test_delete_calls_guard_before_request(self) -> None:
+        class _Guard:
+            def require(self, requirement: object) -> None:
+                if requirement is DELETE_PROMPT:
+                    raise _GuardSentinel
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: pytest.fail("transport must not be reached")),
+            base_url="http://test",
+        )
+        with pytest.raises(_GuardSentinel):
+            Prompts(client, _guard=_Guard()).delete(  # type: ignore[arg-type]
+                prompt_identifier="my-prompt"
+            )
+
+
+class TestAsyncPromptsDelete:
+    @pytest.mark.asyncio
+    async def test_delete_by_global_id_returns_none_on_204(self) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.raw_path == b"/v1/prompts/UHJvbXB0OjE%3D"
+            return httpx.Response(204)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        await AsyncPrompts(client).delete(prompt_identifier="UHJvbXB0OjE=")
+
+    @pytest.mark.asyncio
+    async def test_delete_maps_404_to_value_error(self) -> None:
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(404)),
+            base_url="http://test",
+        )
+        with pytest.raises(ValueError, match="Prompt not found: missing"):
+            await AsyncPrompts(client).delete(prompt_identifier="missing")
+
+    @pytest.mark.asyncio
+    async def test_delete_propagates_permission_error(self) -> None:
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(403)),
+            base_url="http://test",
+        )
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await AsyncPrompts(client).delete(prompt_identifier="my-prompt")
+        assert exc_info.value.response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_delete_calls_guard_before_request(self) -> None:
+        class _Guard:
+            async def require(self, requirement: object) -> None:
+                if requirement is DELETE_PROMPT:
+                    raise _GuardSentinel
+
+        client = httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda r: pytest.fail("transport must not be reached")),
+            base_url="http://test",
+        )
+        with pytest.raises(_GuardSentinel):
+            await AsyncPrompts(client, _guard=_Guard()).delete(  # type: ignore[arg-type]
+                prompt_identifier="my-prompt"
             )

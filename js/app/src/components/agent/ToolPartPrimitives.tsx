@@ -7,6 +7,7 @@ import { ExpandableContent } from "@phoenix/components/core/content/ExpandableCo
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { selectIsSessionOccupied } from "@phoenix/store/agentStore";
 
+import { useChatScrollContext } from "./ChatScrollContext";
 import { useScrollAnchor } from "./scrollAnchor";
 
 export const TOOL_PART_ENTRY_KEYFRAMES = keyframes`
@@ -47,6 +48,18 @@ export function ToolPartLabel({
       <span className="tool-part__label" data-variant={variant}>
         {children}
       </span>
+    </div>
+  );
+}
+
+/**
+ * A plain sans-serif text line for tool part sections — human-readable
+ * status sentences rather than code or payloads.
+ */
+export function ToolPartText({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="tool-part__line">
+      <span className="tool-part__text">{children}</span>
     </div>
   );
 }
@@ -152,7 +165,17 @@ export function ToolPartApprovalActions({
   const isPaused = useAgentContext((state) =>
     selectIsSessionOccupied(state, state.activeSessionId)
   );
+  const chatScrollContext = useChatScrollContext();
   const isActionDisabled = isDisabled || isPaused;
+  // Deciding — either way — ends the review checkpoint that paused
+  // follow-bottom when the approval auto-opened (or that the user's own
+  // scrolling created). The turn resumes streaming below the card, so
+  // re-engage follow and pin so the user sees it continue. Null context
+  // (read-only surfaces) degrades to just resolving the approval.
+  const decide = (respond: () => void) => {
+    respond();
+    chatScrollContext?.scrollToBottom();
+  };
   return (
     <>
       <div css={approvalActionsRowCSS}>
@@ -161,11 +184,15 @@ export function ToolPartApprovalActions({
             size="S"
             variant="primary"
             isDisabled={isActionDisabled}
-            onPress={onAccept}
+            onPress={() => decide(onAccept)}
           >
             Accept
           </Button>
-          <Button size="S" isDisabled={isActionDisabled} onPress={onReject}>
+          <Button
+            size="S"
+            isDisabled={isActionDisabled}
+            onPress={() => decide(onReject)}
+          >
             Reject
           </Button>
         </Flex>

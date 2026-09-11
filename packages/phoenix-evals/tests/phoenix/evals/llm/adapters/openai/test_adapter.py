@@ -9,7 +9,7 @@ method for subsequent calls.
 import json
 from unittest.mock import AsyncMock, MagicMock
 
-import httpx
+import httpx2
 import pytest
 from openai import APIConnectionError, APITimeoutError, BadRequestError, RateLimitError
 
@@ -27,15 +27,15 @@ SIMPLE_SCHEMA = {
 
 def _bad_request(message: str) -> BadRequestError:
     """Construct a BadRequestError for simulating OpenAI capability-mismatch responses."""
-    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
-    response = httpx.Response(400, request=request)
+    request = httpx2.Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = httpx2.Response(400, request=request)
     return BadRequestError(message, response=response, body=None)
 
 
 def _rate_limit(message: str = "rate limited") -> RateLimitError:
     """Construct a RateLimitError for simulating 429 responses."""
-    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
-    response = httpx.Response(429, request=request)
+    request = httpx2.Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = httpx2.Response(429, request=request)
     return RateLimitError(message, response=response, body=None)
 
 
@@ -157,7 +157,7 @@ class TestGenerateObjectAutoErrorPropagation:
     def test_api_timeout_error_propagates_uncaught(self) -> None:
         """APITimeoutError from structured output must propagate — not trigger fallback."""
         client = _make_sync_client("gpt-4o")
-        request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+        request = httpx2.Request("POST", "https://api.openai.com/v1/chat/completions")
         client.chat.completions.create.side_effect = APITimeoutError(request=request)
         adapter = OpenAIAdapter(client, "gpt-4o")
 
@@ -170,7 +170,7 @@ class TestGenerateObjectAutoErrorPropagation:
     def test_api_connection_error_propagates_uncaught(self) -> None:
         """APIConnectionError from structured output must propagate — not trigger fallback."""
         client = _make_sync_client("gpt-4o")
-        request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+        request = httpx2.Request("POST", "https://api.openai.com/v1/chat/completions")
         client.chat.completions.create.side_effect = APIConnectionError(request=request)
         adapter = OpenAIAdapter(client, "gpt-4o")
 
@@ -370,7 +370,7 @@ class TestAsyncGenerateObjectFallback:
     async def test_async_api_timeout_error_propagates_uncaught(self) -> None:
         """Async: APITimeoutError must propagate — not trigger fallback."""
         client, adapter = _make_async_adapter("gpt-4o")
-        request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+        request = httpx2.Request("POST", "https://api.openai.com/v1/chat/completions")
         client.chat.completions.create = AsyncMock(side_effect=APITimeoutError(request=request))
 
         with pytest.raises(APITimeoutError):

@@ -20,6 +20,7 @@ Read existing code in the directory you're working in before writing new code.
 | Rule file              | When to read                                              |
 | ---------------------- | --------------------------------------------------------- |
 | `rules/experiments.md` | Experiment execution, task runners, evaluator wiring      |
+| `rules/prompts.md`     | Prompt helpers, selector shapes, server version gating    |
 | `rules/tracing.md`     | OpenTelemetry tracer providers, span export, global state |
 | `rules/testing.md`     | Unit tests, integration tests, test fixtures              |
 

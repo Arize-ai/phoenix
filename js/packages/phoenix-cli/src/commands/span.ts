@@ -198,6 +198,74 @@ async function fetchSpansForProject(
   return allSpans.slice(0, options.limit);
 }
 
+function getSpanIds(spans: SpanWithAnnotations[]): string[] {
+  return spans
+    .map((span) => span.context?.span_id)
+    .filter((spanId): spanId is string => Boolean(spanId));
+}
+
+async function attachRequestedSpanMetadata({
+  client,
+  projectId,
+  spans,
+  options,
+}: {
+  client: PhoenixClient;
+  projectId: string;
+  spans: SpanWithAnnotations[];
+  options: SpanListOptions;
+}): Promise<void> {
+  const spanIds = getSpanIds(spans);
+  if (options.includeAnnotations) {
+    writeProgress({
+      message: "Fetching span annotations...",
+      noProgress: !options.progress,
+    });
+    const annotations = await fetchSpanAnnotations({
+      client,
+      projectIdentifier: projectId,
+      spanIds,
+      excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    const bySpanId = new Map<string, SpanAnnotation[]>();
+    for (const annotation of annotations) {
+      const values = bySpanId.get(annotation.span_id) ?? [];
+      values.push(annotation);
+      bySpanId.set(annotation.span_id, values);
+    }
+    for (const span of spans) {
+      const annotationsForSpan = span.context?.span_id
+        ? bySpanId.get(span.context.span_id)
+        : undefined;
+      if (annotationsForSpan) span.annotations = annotationsForSpan;
+    }
+  }
+  if (options.includeNotes) {
+    writeProgress({
+      message: "Fetching span notes...",
+      noProgress: !options.progress,
+    });
+    const notes = await fetchSpanAnnotations({
+      client,
+      projectIdentifier: projectId,
+      spanIds,
+      includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+    });
+    const bySpanId = new Map<string, SpanNote[]>();
+    for (const note of notes) {
+      const values = bySpanId.get(note.span_id) ?? [];
+      values.push(buildSpanNote(note));
+      bySpanId.set(note.span_id, values);
+    }
+    for (const span of spans) {
+      const notesForSpan = span.context?.span_id
+        ? bySpanId.get(span.context.span_id)
+        : undefined;
+      if (notesForSpan) span.notes = notesForSpan;
+    }
+  }
+}
+
 /**
  * Handler for `span list`
  */
@@ -296,77 +364,7 @@ async function spanListHandler(
       noProgress: !options.progress,
     });
 
-    // Fetch annotations if requested
-    if (options.includeAnnotations) {
-      writeProgress({
-        message: "Fetching span annotations...",
-        noProgress: !options.progress,
-      });
-
-      const spanIds = spans
-        .map((span) => span.context?.span_id)
-        .filter((spanId): spanId is string => Boolean(spanId));
-
-      const annotations = await fetchSpanAnnotations({
-        client,
-        projectIdentifier: projectId,
-        spanIds,
-        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-
-      const annotationsBySpanId = new Map<string, SpanAnnotation[]>();
-      for (const annotation of annotations) {
-        const spanId = annotation.span_id;
-        if (!annotationsBySpanId.has(spanId)) {
-          annotationsBySpanId.set(spanId, []);
-        }
-        annotationsBySpanId.get(spanId)!.push(annotation);
-      }
-
-      for (const span of spans) {
-        const spanId = span.context?.span_id;
-        if (!spanId) continue;
-        const spanAnnotations = annotationsBySpanId.get(spanId);
-        if (spanAnnotations) {
-          span.annotations = spanAnnotations;
-        }
-      }
-    }
-    if (options.includeNotes) {
-      writeProgress({
-        message: "Fetching span notes...",
-        noProgress: !options.progress,
-      });
-
-      const spanIds = spans
-        .map((span) => span.context?.span_id)
-        .filter((spanId): spanId is string => Boolean(spanId));
-
-      const notes = await fetchSpanAnnotations({
-        client,
-        projectIdentifier: projectId,
-        spanIds,
-        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
-      });
-
-      const notesBySpanId = new Map<string, SpanNote[]>();
-      for (const note of notes) {
-        const spanId = note.span_id;
-        if (!notesBySpanId.has(spanId)) {
-          notesBySpanId.set(spanId, []);
-        }
-        notesBySpanId.get(spanId)!.push(buildSpanNote(note));
-      }
-
-      for (const span of spans) {
-        const spanId = span.context?.span_id;
-        if (!spanId) continue;
-        const spanNotes = notesBySpanId.get(spanId);
-        if (spanNotes) {
-          span.notes = spanNotes;
-        }
-      }
-    }
+    await attachRequestedSpanMetadata({ client, projectId, spans, options });
 
     // Output spans
     if (file) {

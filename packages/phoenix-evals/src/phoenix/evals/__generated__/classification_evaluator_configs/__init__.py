@@ -1,5 +1,8 @@
 # This file is generated. Do not edit by hand.
 
+from ._completeness_classification_evaluator_config import (
+    COMPLETENESS_CLASSIFICATION_EVALUATOR_CONFIG,
+)
 from ._conciseness_classification_evaluator_config import (
     CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG,
 )
@@ -16,6 +19,9 @@ from ._hallucination_classification_evaluator_config import (
     HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
 from ._models import ClassificationEvaluatorConfig, PromptMessage
+from ._pii_detection_classification_evaluator_config import (
+    PII_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG,
+)
 from ._refusal_classification_evaluator_config import REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG
 from ._retrieval_relevance_classification_evaluator_config import (
     RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG,
@@ -37,11 +43,13 @@ from ._user_friction_classification_evaluator_config import (
 __all__ = [
     "ClassificationEvaluatorConfig",
     "PromptMessage",
+    "COMPLETENESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "CONCISENESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG",
     "FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG",
+    "PII_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG",
     "REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG",
     "RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG",
     "TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG",

@@ -38,7 +38,7 @@ uv sync --all-extras
 
 # 2. Install the pinned Node.js and pnpm versions
 nvm install
-npm i -g pnpm@11.11.0
+npm i -g pnpm@12.0.0
 
 # 3. Install the JavaScript workspace and build the web app
 cd js
@@ -92,7 +92,7 @@ nvm install
 # set it as default (optional)
 nvm alias default <version-that-was-installed>
 # install pnpm globally
-npm i -g pnpm@11.11.0
+npm i -g pnpm@12.0.0
 ```
 
 Then install the JavaScript workspace from its root and build the web app:
@@ -139,11 +139,12 @@ Commands corresponding to an environment can be executed by running `tox run -e 
 tox run -e unit_tests
 ```
 
-By default, database tests only run against `sqlite`, in order to run database tests against
-a `postgresql` database as well, use the `--run-postgres` flag
+By default, database tests run against `sqlite`. To run them against `postgresql` instead,
+pass `--db postgresql`; pytest-postgresql finds `pg_ctl` through `pg_config`, or takes
+`--postgresql-exec /path/to/pg_ctl`.
 
 ```bash
-tox run -e unit_tests -- --run-postgres
+tox run -e unit_tests -- --db postgresql
 ```
 
 To run unit tests faster using parallel execution:

@@ -37,11 +37,10 @@ export interface RetrievalRelevanceEvaluationRecord {
  *
  * This function returns an evaluator that determines whether the external
  * information retrieved during a step is relevant to the request it was
- * serving. Unlike {@link createDocumentRelevanceEvaluator}, which judges a
- * single document against a question, this evaluator is source-agnostic and
- * scores the retrieved information as a whole (holistically, per retrieval
- * step), whether it came from a vector search, a tool or MCP call, a web
- * search, or content embedded in an LLM turn.
+ * serving. It is source-agnostic and scores the retrieved information as a
+ * whole, whether it came from a vector search, a tool or MCP call, a web search,
+ * or content embedded in an LLM turn. Pass one document as `context` to evaluate
+ * documents individually.
  *
  * @param args - The arguments for creating the retrieval relevance evaluator.
  * @param args.model - The model to use for classification.

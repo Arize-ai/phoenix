@@ -5,6 +5,7 @@ rows."""
 
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, get_args
+from uuid import UUID
 
 from pydantic_ai.messages import (
     FunctionToolResultEvent,
@@ -225,10 +226,13 @@ async def _persist_turn() -> PhoenixUIMessage:
 
 async def test_writing_a_turn_produces_the_expected_messages() -> None:
     persisted = await _persist_turn()
-    assert (
-        persisted.model_dump(mode="json", by_alias=True, exclude_none=True)
-        == _EXPECTED_UI_MESSAGES[1]
-    )
+    dumped = persisted.model_dump(mode="json", by_alias=True, exclude_none=True)
+    # The reasoning part carries a stream-local UUID minted per run by
+    # pydantic-ai's event stream, so it can't be pinned here.
+    reasoning_part = dumped["parts"][0]
+    assert reasoning_part["type"] == "reasoning"
+    UUID(reasoning_part.pop("id"))
+    assert dumped == _EXPECTED_UI_MESSAGES[1]
 
 
 def test_expected_messages_reload_with_nothing_lost() -> None:

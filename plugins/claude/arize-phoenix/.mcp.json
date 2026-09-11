@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "phoenix": {
+      "type": "http",
+      "url": "${user_config.endpoint}/mcp"
+    }
+  }
+}

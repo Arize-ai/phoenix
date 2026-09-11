@@ -1,4 +1,8 @@
-export * from "./agentTools";
+export {
+  createCreateDatasetLabelClientAction,
+  createDeleteDatasetLabelsClientAction,
+  createSetDatasetLabelsClientAction,
+} from "./clientActions";
 export {
   CREATE_DATASET_LABEL_TOOL_NAME,
   DATASET_LABELS_NO_DATASET_ERROR,
@@ -10,8 +14,6 @@ export {
 } from "./constants";
 export { commitCreateDatasetLabel } from "./createDatasetLabel";
 export { commitDeleteDatasetLabels } from "./deleteDatasetLabels";
-export { commitListDatasetLabels } from "./listDatasetLabels";
-export { commitListLabels } from "./listLabels";
 export { commitSetDatasetLabels } from "./setDatasetLabels";
 export {
   parseCreateDatasetLabelInput,

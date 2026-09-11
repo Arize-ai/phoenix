@@ -85,9 +85,12 @@ export type PxiChatRequest = Required<
     | "turnTraceContext"
     | "toolOutputs"
     | "toolApprovals"
+    | "credentials"
   >
 > & {
   message: PxiMessage;
+  /** Client-held integration credentials; omitted when the profile has none. */
+  credentials?: SchemasV1["ChatRequestBody"]["credentials"];
 };
 
 /**

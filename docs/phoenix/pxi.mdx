@@ -67,7 +67,7 @@ the ones you no longer need. Older sessions load as you scroll.
 Temporary chats are the exception. A chat you mark temporary is never written to
 your history and carries an ephemerality badge. Toggle it per chat before you
 send the first message, or make it the default under **Settings → Assistant →
-Personal settings → Start new chats as temporary**.
+General → Start new chats as temporary**.
 
 **Rewind and branch.** Every message carries a control to change course from that
 point:
@@ -80,7 +80,7 @@ point:
   from.
 
 Persisted chats are subject to retention limits an administrator sets under
-**Settings → Assistant**, and temporary chats are swept after a day of
+**Settings → Assistant → Chats & data**, and temporary chats are swept after a day of
 inactivity. See [agent session retention](/docs/phoenix/settings/data-retention#agent-session-retention)
 for the defaults and how to change them.
 
@@ -289,19 +289,38 @@ the [Phoenix roadmap milestone](https://github.com/Arize-ai/phoenix/milestone/13
 Because skills are context-aware, PXI surfaces the right one for the page and
 task you are on.
 
+## File GitHub issues
+
+When PXI surfaces a real defect, it can search for duplicates and file a
+GitHub issue that links the relevant traces and spans, backed by
+[GitHub's hosted MCP server](https://github.com/github/github-mcp-server).
+
+To enable it, add a
+[fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+with **Issues read/write** access under **Settings → Assistant → Tools →
+GitHub**. The token stays in your browser — Phoenix never persists
+it — and issues are filed as you. Admins can set a shared workspace token as a
+fallback, or turn the feature off with the **GitHub tools** switch on the same
+tab. In the terminal, set `githubPersonalAccessToken` in
+your `~/.px/settings.json` profile; issue creation there requires
+`--bypass-edits`.
+
+Creating an issue is approval-gated: PXI shows the exact repository, title,
+and body before anything is posted.
+
 ## You stay in control
 
 Agent assistance is opt-in. PXI can be turned off completely, runs under an
 explicit permission model, and only reaches the internet when you let it.
 
-<Frame caption="Settings → Assistant — system, personal, and web-access controls in one place.">
+<Frame caption="Settings → Assistant — workspace and personal assistant controls, organized into topical tabs.">
   ![PXI assistant settings](https://storage.googleapis.com/arize-phoenix-assets/assets/images/pxi/assistant_settings.png)
 </Frame>
 
 - **Turn it fully off.** Disable PXI per deployment
   (`PHOENIX_DISABLE_AGENT_ASSISTANT=true`), per instance
-  (**Settings → Assistant → System settings**), or per browser
-  (**Settings → Assistant → Personal settings → Use assistant**).
+  (**Settings → Assistant → Permissions → Assistant access**), or per browser
+  (**Settings → Assistant → General → Use assistant**).
 - **State-changing actions are gated by approval.** Saving a prompt, creating or
   replacing an annotation config, writing dataset examples, submitting an
   evaluator — each is proposed as a reviewable diff or card and applied only when
@@ -318,7 +337,7 @@ explicit permission model, and only reaches the internet when you let it.
   instance.
 - **Choose where it lives.** Keep the assistant pinned to the top navigation bar
   or switch it to a draggable floating button under **Settings → Assistant →
-  Personal settings → Floating assistant button**.
+  General → Floating assistant button**.
 
 | Edit-approval mode | Behavior |
 | --- | --- |
@@ -338,7 +357,7 @@ call. Models that are weak at tool use produce broken sessions even if they
 handle free-form chat well. Pick one of these validated models unless you have a
 specific reason not to:
 
-- **Anthropic** — `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-6`, `claude-sonnet-4-6`
+- **Anthropic** — `claude-fable-5-1`, `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-6`, `claude-sonnet-4-6`
 - **OpenAI** — `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`
 - **Google** — `gemini-3.7-flash`, `gemini-3.1-pro-preview`
 
@@ -438,7 +457,7 @@ present, so it does not offer an action that cannot succeed on your current page
   **Attach your identity (opt-in).** Session traces are anonymous by default. If
   you want to associate a session with the signed-in user — for example to
   attribute recorded sessions to a specific person — enable **Attach your email
-  to session traces** under **Settings → Assistant → Personal settings**. From
+  to session traces** under **Settings → Assistant → Tracing & privacy**. From
   the terminal client the same opt-in is the `--attach-user-id` flag. It is off
   unless you turn it on.
 
@@ -472,6 +491,9 @@ present, so it does not offer an action that cannot succeed on your current page
   | `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including the Phoenix docs MCP lookups. |
   | `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` | Disable PXI's web search/fetch tools while leaving other external resources available. |
   | `PHOENIX_AGENTS_DISABLE_BASH=true` | Remove PXI's server-side bash tool. This strips bash from the assistant, disables subagents (and hides the subagents toggle in **Settings → Assistant**), and rejects the headless terminal agent, which depends on it. To turn PXI off entirely use `PHOENIX_DISABLE_AGENT_ASSISTANT`. |
+  | `PHOENIX_AGENTS_DISABLE_GITHUB=true` | Disable PXI's GitHub issue tools and hide the GitHub settings UI. |
+  | `PHOENIX_AGENTS_GITHUB_MCP_URL` | Base URL of the GitHub MCP server (default `https://api.githubcopilot.com/mcp/`). Point at a self-hosted `github-mcp-server` for GitHub Enterprise Server or air-gapped deployments. |
+  | `GITHUB_PERSONAL_ACCESS_TOKEN` | Server-side fallback GitHub token, used when a request carries no personal token and no workspace secret is configured. |
   | `PHOENIX_AGENTS_FORCE_TRACING=true` | Force local PXI tracing, remote trace export, and signed-in user email attribution for every user, regardless of workspace or browser settings. Configure the remote collector variables below before enabling it. |
   | `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` | Remote collector endpoint for assistant trace export. |
   | `PHOENIX_AGENTS_COLLECTOR_API_KEY` | API key for the remote collector, if required. |

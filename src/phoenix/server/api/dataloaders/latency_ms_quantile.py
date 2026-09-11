@@ -137,9 +137,9 @@ async def _get_results(
         if filter_condition:
             sf = SpanFilter(filter_condition)
             stmt = stmt.where(
-                models.Trace.id.in_(
-                    sf(select(models.Span.trace_rowid).distinct()).scalar_subquery()
-                )
+                sf(select(1).where(models.Span.trace_rowid == models.Trace.id))
+                .correlate(models.Trace)
+                .exists()
             )
     elif kind == "span":
         latency_column = cast(FloatCol, models.Span.latency_ms)

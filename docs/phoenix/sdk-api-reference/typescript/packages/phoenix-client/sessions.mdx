@@ -29,9 +29,18 @@ const sessions = await listSessions({
 });
 
 for (const session of sessions) {
-  console.log(session.sessionId);
+  console.log({
+    sessionId: session.sessionId,
+    promptTokens: session.tokenCountPrompt,
+    completionTokens: session.tokenCountCompletion,
+    totalTokens: session.tokenCountTotal,
+  });
 }
 ```
+
+Each session includes cumulative prompt, completion, and total token counts across
+all of its spans. The fields may be `undefined` when using a Phoenix server that
+does not return session token usage.
 
 ## Retrieve A Session And Its Turns
 

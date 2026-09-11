@@ -17,6 +17,33 @@ export interface AnnotationDeleteResult {
   filter: AnnotationDeleteFilter;
 }
 
+interface BuildAnnotationDeleteFilterOptions {
+  identifier?: string;
+  name?: string;
+  annotatorKind?: "HUMAN" | "LLM" | "CODE";
+  startTime?: string;
+  endTime?: string;
+  all?: boolean;
+}
+
+export function buildAnnotationDeleteFilter({
+  identifier,
+  name,
+  annotatorKind,
+  startTime,
+  endTime,
+  all,
+}: BuildAnnotationDeleteFilterOptions): AnnotationDeleteFilter {
+  return {
+    ...(identifier !== undefined && { identifier }),
+    ...(name !== undefined && { name }),
+    ...(annotatorKind !== undefined && { annotator_kind: annotatorKind }),
+    ...(startTime !== undefined && { start_time: startTime }),
+    ...(endTime !== undefined && { end_time: endTime }),
+    ...(all === true && { all: true }),
+  };
+}
+
 export interface FormatAnnotationDeleteOutputOptions {
   result: AnnotationDeleteResult;
   format?: OutputFormat;

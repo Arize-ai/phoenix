@@ -5,6 +5,7 @@ import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { SpanInfo } from "@phoenix/pages/trace/span";
 import { SpanAsideProvider } from "@phoenix/pages/trace/SpanAsideContext";
 import { SpanInfoCardsProvider } from "@phoenix/pages/trace/SpanInfoCardsContext";
+import { SpanNoteBarProvider } from "@phoenix/pages/trace/SpanNoteBarContext";
 
 import {
   chainJsonIOSpan,
@@ -16,6 +17,7 @@ import {
   llmMultiModalSpan,
   llmPromptTemplateSpan,
   llmRawPromptsSpan,
+  llmReasoningSpan,
   llmToolCallsSpan,
   llmToolDefinitionsSpan,
   rerankerSpan,
@@ -52,14 +54,17 @@ const meta: Meta<typeof SpanInfo> = {
   component: SpanInfo,
   decorators: [
     // the same providers the span details view mounts above these cards: their
-    // open state, the aside the annotations and notes cards open, and a Relay
-    // environment for the annotation components' hooks
+    // open state, the aside the annotations and notes cards open, the note bar
+    // the notes card opens, and a Relay environment for the annotation
+    // components' hooks
     (Story) => (
       <RelayEnvironmentProvider environment={mockRelayEnvironment}>
         <SpanAsideProvider>
-          <SpanInfoCardsProvider>
-            <Story />
-          </SpanInfoCardsProvider>
+          <SpanNoteBarProvider>
+            <SpanInfoCardsProvider>
+              <Story />
+            </SpanInfoCardsProvider>
+          </SpanNoteBarProvider>
         </SpanAsideProvider>
       </RelayEnvironmentProvider>
     ),
@@ -121,6 +126,117 @@ export const LLMRawPrompts: Story = {
  */
 export const LLMMultiModal: Story = {
   args: { span: llmMultiModalSpan },
+};
+
+/**
+ * A reasoning model traced through the OpenAI Responses API. The output opens
+ * with a reasoning row the provider returned encrypted; the replayed
+ * assistant turn in the input carries a reasoning row with a readable
+ * summary. Both start open above the answer, and the message cards'
+ * collapsed previews quote the answer rather than the thinking.
+ */
+export const LLMReasoning: Story = {
+  args: { span: llmReasoningSpan },
+};
+
+/**
+ * A Pi-style agent step with reasoning and tool calls but no answer. Empty,
+ * whitespace-only, and missing text parts must not leave padded blank rows.
+ */
+export const LLMReasoningAndToolCalls: Story = {
+  args: {
+    span: {
+      ...llmReasoningSpan,
+      input: null,
+      output: null,
+      attributes: JSON.stringify({
+        llm: {
+          input_messages: [
+            {
+              message: {
+                role: "user",
+                content: "Review the frontend and design code.",
+              },
+            },
+          ],
+          output_messages: [
+            {
+              message: {
+                role: "assistant",
+                content: " \n\t",
+                contents: [
+                  { message_content: { type: "text", text: "" } },
+                  {
+                    message_content: {
+                      type: "reasoning",
+                      text: "**Preparing to review frontend and design code**\n\nI will read the components and design conventions before reviewing the changes.",
+                    },
+                  },
+                  { message_content: { type: "text", text: " \n\t" } },
+                  { message_content: { type: "text" } },
+                ],
+                tool_calls: [
+                  {
+                    tool_call: {
+                      id: "call_read_components",
+                      function: {
+                        name: "read_file",
+                        arguments: '{"path":"src/components/Message.tsx"}',
+                      },
+                    },
+                  },
+                  {
+                    tool_call: {
+                      id: "call_read_design",
+                      function: {
+                        name: "read_file",
+                        arguments: '{"path":"docs/design.md"}',
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    },
+  },
+};
+
+/** A tool-only step with an empty text part and no flat answer. */
+export const LLMToolCallsWithoutContent: Story = {
+  args: {
+    span: {
+      ...llmReasoningSpan,
+      input: null,
+      output: null,
+      attributes: JSON.stringify({
+        llm: {
+          output_messages: [
+            {
+              message: {
+                role: "assistant",
+                content: "",
+                contents: [{ message_content: { type: "text", text: "" } }],
+                tool_calls: [
+                  {
+                    tool_call: {
+                      id: "call_read_components",
+                      function: {
+                        name: "read_file",
+                        arguments: '{"path":"src/components/Message.tsx"}',
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    },
+  },
 };
 
 /**

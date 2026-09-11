@@ -24,7 +24,6 @@ import uuid
 from collections.abc import Iterable, Iterator, Sequence
 from typing import Any, TypeVar
 
-from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     FinishStepChunk,
@@ -34,7 +33,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
 )
 
 from phoenix.db.types.data_stream_protocol import ToolOutputAvailablePart, UIMessage
-from phoenix.server.agents.capabilities.skills import Skill
+from phoenix.server.mcp.skills import Skill
 
 logger = logging.getLogger(__name__)
 
@@ -120,23 +119,22 @@ def _synthetic_tool_call_id(skill: Skill) -> str:
 def _build_synthetic_load_skill_message(
     *,
     skill: Skill,
-    rendered_content: str,
     tool_call_id: str,
     message_factory: type[UIMessageT],
 ) -> UIMessageT:
     """Build an assistant message carrying a completed ``load_skill`` call.
 
-    The rendered skill body is identical to what the live ``load_skill`` tool
-    would return, so the model cannot distinguish a forced load from an organic
-    one. ``message_factory`` keeps the synthetic message the same concrete type
-    as the surrounding history, so the homogeneous request list is preserved.
+    The output is what the live ``load_skill`` tool returns, so the model cannot
+    distinguish a forced load from an organic one. ``message_factory`` keeps the
+    synthetic message the same concrete type as the surrounding history, so the
+    homogeneous request list is preserved.
     """
     part = ToolOutputAvailablePart(
         type=_LOAD_SKILL_PART_TYPE,
         tool_call_id=tool_call_id,
         state="output-available",
         input={"skill_name": skill.name},
-        output=rendered_content,
+        output=skill.text,
     )
     return message_factory(id=f"requested-skill-{uuid.uuid4().hex}", role="assistant", parts=[part])
 
@@ -146,7 +144,6 @@ def inject_requested_skills(
     messages: Sequence[UIMessageT],
     requested_skill_names: Sequence[str],
     available_skills: Sequence[Skill],
-    load_skill_template: Template,
     message_factory: type[UIMessageT],
 ) -> list[UIMessageT]:
     """Append synthetic ``load_skill`` results for user-requested skills.
@@ -157,8 +154,6 @@ def inject_requested_skills(
             Order is preserved; duplicates within the request are de-duplicated.
         available_skills: The skills available for this turn's context. Names not
             present here are silently ignored (the skill is not loadable now).
-        load_skill_template: The template used to render a loaded skill, shared
-            with the live skills toolset so forced and organic loads match.
         message_factory: The concrete ``UIMessage`` subclass to construct for
             synthetic messages, matching the request's message type.
 
@@ -178,7 +173,6 @@ def inject_requested_skills(
         result.append(
             _build_synthetic_load_skill_message(
                 skill=skill,
-                rendered_content=load_skill_template.render(skill=skill),
                 tool_call_id=_synthetic_tool_call_id(skill),
                 message_factory=message_factory,
             )
@@ -189,7 +183,6 @@ def inject_requested_skills(
 def iter_requested_skill_response_chunks(
     *,
     skills: Sequence[Skill],
-    load_skill_template: Template,
 ) -> Iterator[BaseChunk]:
     """Yield response-stream chunks that render a forced ``load_skill`` call.
 
@@ -204,11 +197,9 @@ def iter_requested_skill_response_chunks(
     Args:
         skills: The already-resolved skills to force-load (see
             :func:`resolve_requested_skills`).
-        load_skill_template: The template used to render a loaded skill.
     """
     for skill in skills:
         tool_call_id = _synthetic_tool_call_id(skill)
-        rendered = load_skill_template.render(skill=skill)
         yield StartStepChunk()
         yield ToolInputAvailableChunk(
             tool_call_id=tool_call_id,
@@ -217,6 +208,6 @@ def iter_requested_skill_response_chunks(
         )
         yield ToolOutputAvailableChunk(
             tool_call_id=tool_call_id,
-            output=rendered,
+            output=skill.text,
         )
         yield FinishStepChunk()

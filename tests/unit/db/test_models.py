@@ -780,6 +780,7 @@ class TestNumDocuments:
                 )
 
 
+@pytest.mark.pristine_db
 class TestEvaluatorPolymorphism:
     """Test polymorphic evaluator models with dataset relationships.
 

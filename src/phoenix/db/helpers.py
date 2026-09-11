@@ -39,6 +39,16 @@ class SupportedSQLDialect(Enum):
     SQLITE = "sqlite"
     POSTGRESQL = "postgresql"
 
+    @property
+    def name_literal(self) -> SupportedSQLDialectName:
+        """The member as the `Literal` type. `value` is typed `str`, which the
+        `Literal`-keyed consumers cannot accept under strict type checking."""
+        if self is SupportedSQLDialect.POSTGRESQL:
+            return "postgresql"
+        if self is SupportedSQLDialect.SQLITE:
+            return "sqlite"
+        assert_never(self)
+
     @classmethod
     def _missing_(cls, v: Any) -> "SupportedSQLDialect":
         if isinstance(v, str) and v and v.isascii() and not v.islower():

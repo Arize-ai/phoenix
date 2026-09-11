@@ -20,13 +20,18 @@ from opentelemetry.trace import INVALID_SPAN, StatusCode, Tracer
 from pydantic import SecretStr
 
 from phoenix.db import models
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.experiment_config import OpenAIConnectionConfig
 from phoenix.db.types.model_provider import LLMClientFactory, ModelProvider
 from phoenix.db.types.prompts import (
     PromptAnthropicInvocationParameters,
     PromptAnthropicInvocationParametersContent,
+    PromptAwsInvocationParameters,
+    PromptAwsInvocationParametersContent,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
+    PromptToolChoiceNone,
+    PromptToolChoiceOneOrMore,
     PromptToolChoiceSpecificFunctionTool,
     PromptToolChoiceZeroOrMore,
     PromptToolFunction,
@@ -42,7 +47,9 @@ from phoenix.server.api.helpers.playground_clients import (
     AnthropicClient,
     AzureOpenAIChatCompletionsClient,
     AzureOpenAIResponsesClient,
+    BedrockClient,
     GoogleClient,
+    MiniMaxClient,
     OpenAIChatCompletionsClient,
     OpenAICompatibleClient,
     OpenAIResponsesClient,
@@ -62,6 +69,26 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.types import DbSessionFactory
 from tests.unit.vcr import CustomVCR
+
+
+def _null_client_factory(provider: str) -> LLMClientFactory[Any]:
+    @asynccontextmanager
+    async def create_client() -> AsyncIterator[Any]:
+        yield None
+
+    return LLMClientFactory(create_client, (provider, "test"))
+
+
+def _function_tool(strict: bool = UNDEFINED) -> PromptToolFunction:
+    return PromptToolFunction(
+        type="function",
+        function=PromptToolFunctionDefinition(
+            name="correctness",
+            description="Evaluate correctness",
+            parameters={"type": "object", "properties": {"label": {"type": "string"}}},
+            strict=strict,
+        ),
+    )
 
 
 class TestGoogleStreamingClient:
@@ -493,12 +520,8 @@ class TestOpenAIBaseStreamingClient:
 
 class TestAnthropicStreamingClient:
     def test_specific_tool_choice_includes_tool_definitions(self) -> None:
-        @asynccontextmanager
-        async def create_client() -> AsyncIterator[Any]:
-            yield None
-
         client: Any = AnthropicClient(
-            client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+            client_factory=_null_client_factory("anthropic"),
             model_name="claude-3-5-sonnet-latest",
             provider="anthropic",
         )
@@ -561,13 +584,102 @@ class TestAnthropicStreamingClient:
         ]
         assert extra_headers is None
 
-    def test_raw_computer_tools_add_anthropic_beta_header(self) -> None:
-        @asynccontextmanager
-        async def create_client() -> AsyncIterator[Any]:
-            yield None
+    def _anthropic_client(self) -> Any:
+        return AnthropicClient(
+            client_factory=_null_client_factory("anthropic"),
+            model_name="claude-3-5-sonnet-latest",
+            provider="anthropic",
+        )
 
+    def _anthropic_params(self, tools: PromptTools) -> dict[str, Any]:
+        params, _, _ = self._anthropic_client()._anthropic_message_params(
+            messages=[
+                create_playground_message(ChatCompletionMessageRole.USER, "Evaluate this answer.")
+            ],
+            tools=tools,
+            response_format=None,
+            invocation_parameters=PromptAnthropicInvocationParameters(
+                type="anthropic",
+                anthropic=PromptAnthropicInvocationParametersContent(max_tokens=1024),
+            ),
+        )
+        return dict(params)
+
+    def test_specific_tool_choice_survives_disable_parallel_tool_calls(self) -> None:
+        """Disabling parallel tool use must not downgrade a specific tool choice to `auto`."""
+        params = self._anthropic_params(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceSpecificFunctionTool(
+                    type="specific_function", function_name="correctness"
+                ),
+                disable_parallel_tool_calls=True,
+                tools=[_function_tool()],
+            )
+        )
+        assert params["tool_choice"] == {
+            "type": "tool",
+            "name": "correctness",
+            "disable_parallel_tool_use": True,
+        }
+
+    def test_one_or_more_tool_choice_survives_disable_parallel_tool_calls(self) -> None:
+        """Disabling parallel tool use must not downgrade a required tool choice to `auto`."""
+        params = self._anthropic_params(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+                disable_parallel_tool_calls=True,
+                tools=[_function_tool()],
+            )
+        )
+        assert params["tool_choice"] == {"type": "any", "disable_parallel_tool_use": True}
+
+    def test_tool_choice_none_survives_disable_parallel_tool_calls(self) -> None:
+        """`none` means "do not call tools" and must not be turned into `auto`."""
+        params = self._anthropic_params(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceNone(type="none"),
+                disable_parallel_tool_calls=True,
+                tools=[_function_tool()],
+            )
+        )
+        assert params["tool_choice"] == {"type": "none"}
+
+    def test_disable_parallel_tool_calls_without_explicit_choice_falls_back_to_auto(self) -> None:
+        """With no explicit choice, the flag still yields `auto` + `disable_parallel_tool_use`."""
+        params = self._anthropic_params(
+            PromptTools(
+                type="tools",
+                disable_parallel_tool_calls=True,
+                tools=[_function_tool()],
+            )
+        )
+        assert params["tool_choice"] == {"type": "auto", "disable_parallel_tool_use": True}
+
+    def test_function_tool_strict_is_forwarded(self) -> None:
+        """The stored prompt tool's `strict` setting must reach the Anthropic request."""
+        params = self._anthropic_params(
+            PromptTools(type="tools", tools=[_function_tool(strict=True)])
+        )
+        assert params["tools"][0]["strict"] is True
+
+    def test_function_tool_strict_false_is_forwarded(self) -> None:
+        """An explicit `strict=False` must be sent, not treated as unset."""
+        params = self._anthropic_params(
+            PromptTools(type="tools", tools=[_function_tool(strict=False)])
+        )
+        assert params["tools"][0]["strict"] is False
+
+    def test_function_tool_omits_strict_when_unset(self) -> None:
+        """`strict` is optional; an unset value must not be sent."""
+        params = self._anthropic_params(PromptTools(type="tools", tools=[_function_tool()]))
+        assert "strict" not in params["tools"][0]
+
+    def test_raw_computer_tools_add_anthropic_beta_header(self) -> None:
         client: Any = AnthropicClient(
-            client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+            client_factory=_null_client_factory("anthropic"),
             model_name="claude-3-5-sonnet-latest",
             provider="anthropic",
         )
@@ -656,6 +768,72 @@ TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUME
 
 # tool attributes
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+
+
+class TestBedrockClient:
+    def _converse_request(self, tools: PromptTools) -> dict[str, Any]:
+        client: Any = BedrockClient(
+            client_factory=_null_client_factory("aws"),
+            model_name="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            provider="aws",
+        )
+        request = client._converse_build_request(
+            messages=[
+                create_playground_message(ChatCompletionMessageRole.USER, "Evaluate this answer.")
+            ],
+            tools=tools,
+            response_format=None,
+            invocation_parameters=PromptAwsInvocationParameters(
+                type="aws",
+                aws=PromptAwsInvocationParametersContent(max_tokens=1024),
+            ),
+            span=INVALID_SPAN,
+        )
+        return dict(request)
+
+    def test_one_or_more_tool_choice_maps_to_any(self) -> None:
+        """A required tool choice must reach Converse as `toolChoice: {any: {}}`."""
+        request = self._converse_request(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+                tools=[_function_tool()],
+            )
+        )
+        assert request["toolConfig"]["toolChoice"] == {"any": {}}
+
+    def test_tool_choice_none_withholds_tool_config(self) -> None:
+        """Converse has no `none` tool choice; the tools must be withheld entirely."""
+        request = self._converse_request(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceNone(type="none"),
+                tools=[_function_tool()],
+            )
+        )
+        assert "toolConfig" not in request
+
+    def test_function_tool_strict_is_forwarded(self) -> None:
+        """The stored prompt tool's `strict` setting must reach the Bedrock toolSpec."""
+        request = self._converse_request(
+            PromptTools(type="tools", tools=[_function_tool(strict=True)])
+        )
+        tool_spec = request["toolConfig"]["tools"][0]["toolSpec"]
+        assert tool_spec["strict"] is True
+
+    def test_function_tool_strict_false_is_forwarded(self) -> None:
+        """An explicit `strict=False` must be sent, not treated as unset."""
+        request = self._converse_request(
+            PromptTools(type="tools", tools=[_function_tool(strict=False)])
+        )
+        tool_spec = request["toolConfig"]["tools"][0]["toolSpec"]
+        assert tool_spec["strict"] is False
+
+    def test_function_tool_omits_strict_when_unset(self) -> None:
+        """`strict` is optional; an unset value must not be sent."""
+        request = self._converse_request(PromptTools(type="tools", tools=[_function_tool()]))
+        tool_spec = request["toolConfig"]["tools"][0]["toolSpec"]
+        assert "strict" not in tool_spec
 
 
 class TestGetOpenAIClientClass:
@@ -1086,6 +1264,52 @@ class TestCustomProviderClientSelection:
 
 def _identity_decrypt(value: bytes) -> bytes:
     return value
+
+
+class TestMiniMaxProvider:
+    def test_registry_includes_target_models(self) -> None:
+        assert (
+            PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, "MiniMax-M3")
+            is MiniMaxClient
+        )
+        assert (
+            PLAYGROUND_CLIENT_REGISTRY.get_client(GenerativeProviderKey.MINIMAX, "MiniMax-M2.7")
+            is MiniMaxClient
+        )
+
+    @pytest.mark.parametrize(
+        ("configured_base_url", "expected_base_url"),
+        [
+            (None, "https://api.minimax.io/v1/"),
+            ("https://api.minimaxi.com/v1", "https://api.minimaxi.com/v1/"),
+        ],
+    )
+    async def test_builtin_client_uses_configured_endpoint(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        configured_base_url: str | None,
+        expected_base_url: str,
+    ) -> None:
+        monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+        if configured_base_url is None:
+            monkeypatch.delenv("MINIMAX_BASE_URL", raising=False)
+        else:
+            monkeypatch.setenv("MINIMAX_BASE_URL", configured_base_url)
+        async with db() as session:
+            client = await _get_builtin_provider_client(
+                ModelProvider.MINIMAX,
+                "MiniMax-M3",
+                None,
+                None,
+                session,
+                _identity_decrypt,
+            )
+
+        assert isinstance(client, OpenAIChatCompletionsClient)
+        assert client.provider == "minimax"
+        async with client._client_factory() as sdk_client:
+            assert str(sdk_client.base_url) == expected_base_url
 
 
 class TestResolveProviderApiKey:

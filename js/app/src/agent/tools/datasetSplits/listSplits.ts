@@ -3,32 +3,7 @@ import { fetchQuery, graphql } from "react-relay";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { listSplitsToolByNamesQuery } from "./__generated__/listSplitsToolByNamesQuery.graphql";
-import type { listSplitsToolQuery } from "./__generated__/listSplitsToolQuery.graphql";
-import { LIST_SPLITS_DEFAULT_LIMIT, LIST_SPLITS_MAX_LIMIT } from "./constants";
-import type {
-  DatasetSplitSummary,
-  ListSplitsInput,
-  ListSplitsResult,
-} from "./types";
-
-const query = graphql`
-  query listSplitsToolQuery($first: Int!, $after: String) {
-    datasetSplits(first: $first, after: $after) {
-      edges {
-        node {
-          id
-          name
-          description
-          color
-        }
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-    }
-  }
-`;
+import type { DatasetSplitSummary } from "./types";
 
 const byNamesQuery = graphql`
   query listSplitsToolByNamesQuery($names: [String!]!, $first: Int!) {
@@ -57,64 +32,6 @@ export function toSplitSummary(split: {
     description: split.description ?? null,
     color: split.color,
   };
-}
-
-/** One page of the instance-wide split connection, or `null` if it couldn't be read. */
-async function fetchSplitPage(
-  first: number,
-  after: string | null
-): Promise<{
-  splits: DatasetSplitSummary[];
-  hasNextPage: boolean;
-  endCursor: string | null;
-} | null> {
-  const data = await fetchQuery<listSplitsToolQuery>(RelayEnvironment, query, {
-    first,
-    after,
-  }).toPromise();
-  const connection = data?.datasetSplits;
-  if (!connection) {
-    return null;
-  }
-  return {
-    splits: connection.edges.map((edge) => toSplitSummary(edge.node)),
-    hasNextPage: connection.pageInfo.hasNextPage,
-    endCursor: connection.pageInfo.endCursor ?? null,
-  };
-}
-
-/**
- * List a page of the instance-wide split vocabulary (`Query.datasetSplits`),
- * which can be large, hence paginated with `limit`/`after`. Runs outside React,
- * so it uses the singleton Relay environment.
- */
-export async function commitListSplits({
-  limit,
-  after,
-}: ListSplitsInput): Promise<ListSplitsResult> {
-  const first = Math.min(
-    limit ?? LIST_SPLITS_DEFAULT_LIMIT,
-    LIST_SPLITS_MAX_LIMIT
-  );
-  try {
-    const page = await fetchSplitPage(first, after ?? null);
-    if (!page) {
-      return { ok: false, error: "Failed to read splits." };
-    }
-    return {
-      ok: true,
-      output: {
-        splits: page.splits,
-        hasNextPage: page.hasNextPage,
-        endCursor: page.endCursor,
-      },
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : "Failed to read splits.",
-    };
-  }
 }
 
 /**

@@ -1,13 +1,9 @@
 import type {
   ApprovalApplyResult,
-  ApprovalToolOutputSender,
   PendingApproval,
 } from "@phoenix/agent/shared/pendingApproval";
 
 export type { ApprovalSource } from "@phoenix/agent/shared/pendingApproval";
-
-/** Re-export of the generic output sender, kept under the dataset name. */
-export type DatasetWriteToolOutputSender = ApprovalToolOutputSender;
 
 /** One row in a previewed dataset write. */
 export type DatasetWriteExampleRow = {
@@ -83,14 +79,3 @@ export type DatasetWriteApplyResult = ApprovalApplyResult;
  * mode — the generic {@link PendingApproval} specialized to the dataset preview.
  */
 export type PendingDatasetWrite = PendingApproval<DatasetWritePreview>;
-
-export type BindPendingDatasetWriteOptions = {
-  pending: Pick<PendingDatasetWrite, "toolCallId" | "toolName" | "preview">;
-  /** Performs the actual write; called only on accept (or auto-accept). */
-  apply: () => Promise<DatasetWriteApplyResult>;
-  addToolOutput: DatasetWriteToolOutputSender;
-  setPendingDatasetWrite: (
-    toolCallId: string,
-    pending: PendingDatasetWrite | null
-  ) => void;
-};

@@ -72,6 +72,8 @@ const userTableRowCSS = css`
  * Container for the users table with scrolling
  */
 const usersTableContainerCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 `;
 
