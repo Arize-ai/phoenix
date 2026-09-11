@@ -113,3 +113,58 @@ describe("results loading snapshot", () => {
     }
   });
 });
+
+describe("example field columns", () => {
+  function renderResults(node: ReactNode) {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    act(() =>
+      root.render(
+        <ThemeProvider themeMode="dark" disableBodyTheme>
+          {node}
+        </ThemeProvider>
+      )
+    );
+    return {
+      container,
+      unmount: () => {
+        act(() => root.unmount());
+        container.remove();
+      },
+    };
+  }
+  const headers = (container: HTMLElement) =>
+    [...container.querySelectorAll("thead th")].map((th) => th.textContent);
+
+  it("hides the metadata column while the sample's metadata is empty", () => {
+    const { container, unmount } = renderResults(
+      <CalibrationResults {...initialProps} />
+    );
+    try {
+      expect(headers(container)).toEqual(
+        expect.arrayContaining(["Input", "Output"])
+      );
+      expect(headers(container)).not.toContain("Metadata");
+    } finally {
+      unmount();
+    }
+  });
+
+  it("shows the metadata column once an example carries metadata", () => {
+    const { container, unmount } = renderResults(
+      <CalibrationResults
+        {...initialProps}
+        examples={[
+          { ...initialProps.examples[0], metadata: { customer: "acme" } },
+        ]}
+      />
+    );
+    try {
+      expect(headers(container)).toContain("Metadata");
+      expect(container.textContent).toContain('"customer": "acme"');
+    } finally {
+      unmount();
+    }
+  });
+});

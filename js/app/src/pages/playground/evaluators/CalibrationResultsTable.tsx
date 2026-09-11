@@ -3,6 +3,8 @@ import {
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
+  type OnChangeFn,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
@@ -15,10 +17,16 @@ const NO_ROWS: unknown[] = [];
  * children and do not need to render again for each movement of the handle. */
 export function CalibrationResultsTable({
   columns,
+  columnVisibility,
+  onColumnVisibilityChange,
   children,
   isLoading,
 }: {
   columns: ColumnDef<unknown>[];
+  /** Which columns show; the body rows are rendered by the caller, which
+   * consults the same map so header and cells stay in step. */
+  columnVisibility: VisibilityState;
+  onColumnVisibilityChange: OnChangeFn<VisibilityState>;
   children: ReactNode;
   isLoading: boolean;
 }) {
@@ -28,6 +36,8 @@ export function CalibrationResultsTable({
   const table = useReactTable({
     columns,
     data: NO_ROWS,
+    state: { columnVisibility },
+    onColumnVisibilityChange,
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: "onChange",
     enableSorting: false,
