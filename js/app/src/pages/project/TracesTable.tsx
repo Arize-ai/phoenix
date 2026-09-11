@@ -554,14 +554,14 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: () => (
           <Flex direction="row" gap="size-50" alignItems="center">
-            <span>root span annotations</span>
+            <span>span annotations</span>
             <ContextualHelp>
               <Heading level={3} weight="heavy">
-                Root span annotations
+                Span annotations
               </Heading>
               <Text>
-                Evaluations and human annotations attached to the root span of
-                the trace.
+                Evaluations and human annotations attached to each span. Expand
+                a trace to see the annotations on its child spans.
               </Text>
             </ContextualHelp>
           </Flex>
