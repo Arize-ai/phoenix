@@ -15,7 +15,7 @@ const NO_ROWS: unknown[] = [];
 
 /** Keep resize updates local to the table shell; the result cells arrive as
  * children and do not need to render again for each movement of the handle. */
-export function CalibrationResultsTable({
+export function EvaluatorPlaygroundResultsTable({
   columns,
   columnVisibility,
   onColumnVisibilityChange,

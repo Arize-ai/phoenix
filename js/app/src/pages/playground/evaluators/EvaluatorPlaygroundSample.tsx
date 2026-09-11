@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import type { CalibrationDatasetQuery } from "./__generated__/CalibrationDatasetQuery.graphql";
-import type { CalibrationExample } from "./calibration";
+import type { EvaluatorPlaygroundSampleQuery } from "./__generated__/EvaluatorPlaygroundSampleQuery.graphql";
+import type { SampleExample } from "./evaluatorResults";
 
 /** Retain the query while the workspace owns its fixed sample. */
-export function CalibrationDataset({
+export function EvaluatorPlaygroundSample({
   datasetId,
   splitIds,
   versionId,
@@ -19,11 +19,11 @@ export function CalibrationDataset({
   first: number;
   splitIds: string[];
   versionId: string | null;
-  onLoad: (examples: CalibrationExample[]) => void;
+  onLoad: (examples: SampleExample[]) => void;
 }) {
-  const data = useLazyLoadQuery<CalibrationDatasetQuery>(
+  const data = useLazyLoadQuery<EvaluatorPlaygroundSampleQuery>(
     graphql`
-      query CalibrationDatasetQuery(
+      query EvaluatorPlaygroundSampleQuery(
         $datasetId: ID!
         $splitIds: [ID!]!
         $versionId: ID

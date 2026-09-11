@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it } from "vitest";
 
-import { CalibrationResultsTable } from "../calibrationResults/CalibrationResultsTable";
+import { EvaluatorPlaygroundResultsTable } from "../results/EvaluatorPlaygroundResultsTable";
 
 it("keeps resized widths and mounted cells when loading or adding a column", () => {
   const container = document.createElement("div");
@@ -33,14 +33,14 @@ it("keeps resized widths and mounted cells when loading or adding a column", () 
   } = {}) => {
     act(() =>
       root.render(
-        <CalibrationResultsTable
+        <EvaluatorPlaygroundResultsTable
           columns={nextColumns}
           columnVisibility={{}}
           onColumnVisibilityChange={() => {}}
           isLoading={isLoading}
         >
           {body}
-        </CalibrationResultsTable>
+        </EvaluatorPlaygroundResultsTable>
       )
     );
   };

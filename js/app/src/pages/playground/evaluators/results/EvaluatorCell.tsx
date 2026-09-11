@@ -24,14 +24,17 @@ import { CellTop } from "@phoenix/components/table";
 import { PlaygroundErrorWrap } from "@phoenix/pages/playground/PlaygroundErrorWrap";
 
 import type {
-  CalibrationPrediction,
-  CalibrationResult,
+  EvaluatorPrediction,
+  EvaluatorResult,
   ExpectedOutput,
   ExpectedVerdict,
-} from "../calibration";
-import { getExpectedOutputIssue, getExpectedVerdict } from "../calibration";
+} from "../evaluatorResults";
+import {
+  getExpectedOutputIssue,
+  getExpectedVerdict,
+} from "../evaluatorResults";
 import type { SlotId, SlotOutput } from "../evaluatorSlotTypes";
-import { CalibrationValue } from "./CalibrationValue";
+import { EvaluatorOutputValue } from "./EvaluatorOutputValue";
 import { ExpectedOutputForm } from "./ExpectedOutputForm";
 
 /**
@@ -59,7 +62,7 @@ export function EvaluatorCell({
   slot: SlotId;
   name: string;
   position: number;
-  result?: CalibrationResult;
+  result?: EvaluatorResult;
   isLoading: boolean;
   isPending: boolean;
   expected?: ExpectedOutput;
@@ -216,7 +219,7 @@ export function EvaluatorCell({
                 expected
               </Text>
               {expected ? (
-                <CalibrationValue
+                <EvaluatorOutputValue
                   label={expected.label}
                   score={expected.score}
                   size="S"
@@ -376,7 +379,7 @@ function EvaluatorCellStatus({
   isPending,
   isStale,
 }: {
-  result?: CalibrationPrediction;
+  result?: EvaluatorPrediction;
   isPending: boolean;
   isStale: boolean;
 }) {
@@ -403,7 +406,7 @@ function PredictionValue({
   result,
   isPending,
 }: {
-  result?: CalibrationPrediction;
+  result?: EvaluatorPrediction;
   isPending: boolean;
 }) {
   if (!result) {
@@ -417,5 +420,5 @@ function PredictionValue({
   if (result.status === "error")
     return <PlaygroundErrorWrap>{result.error}</PlaygroundErrorWrap>;
 
-  return <CalibrationValue label={result.label} score={result.score} />;
+  return <EvaluatorOutputValue label={result.label} score={result.score} />;
 }

@@ -14,11 +14,11 @@ import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
 import type {
-  CalibrationExample,
-  CalibrationRun,
+  SampleExample,
+  EvaluatorRun,
   ExpectedOutput,
-} from "../calibration";
-import { getExpectedVerdict } from "../calibration";
+} from "../evaluatorResults";
+import { getExpectedVerdict } from "../evaluatorResults";
 import type { SlotId, SlotOutput } from "../evaluatorSlotTypes";
 import { getSlotIndex } from "../evaluatorSlotTypes";
 
@@ -40,10 +40,10 @@ export function EvaluatorColumnHeader({
 }: {
   slot: SlotId;
   name?: string;
-  run?: CalibrationRun;
+  run?: EvaluatorRun;
   expected?: Partial<Record<string, ExpectedOutput>>;
   output?: SlotOutput;
-  examples: CalibrationExample[];
+  examples: SampleExample[];
   canRun: boolean;
   onRun: () => void;
 }) {

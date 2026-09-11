@@ -27,27 +27,26 @@ import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { EvaluatorPlaygroundExpectedOutputsMutation } from "./__generated__/EvaluatorPlaygroundExpectedOutputsMutation.graphql";
 import type { EvaluatorPlaygroundPreviewMutation } from "./__generated__/EvaluatorPlaygroundPreviewMutation.graphql";
-import type {
-  CalibrationExample,
-  CalibrationPrediction,
-  CalibrationRun,
-  ExpectedOutput,
-  SlotExpectations,
-} from "./calibration";
-import {
-  createCalibrationContext,
-  getCalibrationAnnotationName,
-  runCalibrationSample,
-} from "./calibration";
-import { CalibrationDataset } from "./CalibrationDataset";
-import { CalibrationResults } from "./calibrationResults";
-import {
-  CalibrationSettingsButton,
-  DEFAULT_SAMPLE_SIZE,
-  parseSampleSize,
-} from "./CalibrationSettingsButton";
 import { EvaluatorPlaygroundFrame } from "./EvaluatorPlaygroundFrame";
 import { EvaluatorPlaygroundRunButton } from "./EvaluatorPlaygroundRunButton";
+import { EvaluatorPlaygroundSample } from "./EvaluatorPlaygroundSample";
+import {
+  EvaluatorPlaygroundSettingsButton,
+  DEFAULT_SAMPLE_SIZE,
+  parseSampleSize,
+} from "./EvaluatorPlaygroundSettingsButton";
+import type {
+  SampleExample,
+  EvaluatorPrediction,
+  EvaluatorRun,
+  ExpectedOutput,
+  SlotExpectations,
+} from "./evaluatorResults";
+import {
+  createEvaluatorContext,
+  getEvaluatorAnnotationName,
+  runEvaluatorSample,
+} from "./evaluatorResults";
 import { EvaluatorSlot } from "./EvaluatorSlot";
 import {
   EVALUATOR_SLOT_IDS,
@@ -57,6 +56,7 @@ import {
 import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
 import type { PendingExpectedOutputs } from "./expectedOutputQueue";
 import { useExpectedOutputQueue } from "./expectedOutputQueue";
+import { EvaluatorPlaygroundResults } from "./results";
 import { useEvaluatorWorkspaceOperations } from "./useEvaluatorWorkspaceOperations";
 
 const EMPTY_CONTEXT = { input: {}, output: {}, reference: {}, metadata: {} };
@@ -70,7 +70,7 @@ type SlotRequest = {
   slot: SlotSnapshot;
   preview: NonNullable<SlotSnapshot["preview"]>;
   controller: AbortController;
-  example: CalibrationExample;
+  example: SampleExample;
 };
 
 /**
@@ -95,7 +95,7 @@ const slotCSS = css`
   min-width: 632px;
 `;
 
-const EMPTY_EXAMPLES: CalibrationExample[] = [];
+const EMPTY_EXAMPLES: SampleExample[] = [];
 
 export default function EvaluatorPlayground() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -130,7 +130,7 @@ export default function EvaluatorPlayground() {
   const [sample, setSample] = useState<{
     key: string;
     scope: string;
-    examples: CalibrationExample[];
+    examples: SampleExample[];
   } | null>(null);
 
   const isSampleLoading = datasetId != null && sample?.key !== sampleKey;
@@ -144,11 +144,11 @@ export default function EvaluatorPlayground() {
   const examples = isSampleLoading ? EMPTY_EXAMPLES : displayedExamples;
 
   const sampleContext = displayedExamples[0]
-    ? createCalibrationContext(displayedExamples[0])
+    ? createEvaluatorContext(displayedExamples[0])
     : EMPTY_CONTEXT;
 
   const [slots, setSlots] = useState<Partial<Record<SlotId, SlotSnapshot>>>({});
-  const [runs, setRuns] = useState<Partial<Record<SlotId, CalibrationRun>>>({});
+  const [runs, setRuns] = useState<Partial<Record<SlotId, EvaluatorRun>>>({});
   const controllers = useRef<Partial<Record<SlotId, AbortController>>>({});
   // Annotations are written in batches (see expectedOutputQueue). The flush reads
   // the sample through this ref so a timer firing later still resolves each
@@ -160,7 +160,7 @@ export default function EvaluatorPlayground() {
   const expectedOutputQueue = useExpectedOutputQueue(flushExpectedOutputs);
   const isRunning = visibleSlotIds.some((slotId) => runs[slotId]?.isRunning);
 
-  const { expected, currentRuns, staleSlots } = getCalibrationView({
+  const { expected, currentRuns, staleSlots } = getEvaluatorPlaygroundView({
     slots,
     runs,
     examples,
@@ -284,13 +284,13 @@ export default function EvaluatorPlayground() {
         requests.push({ slotId, slot, preview, controller, example });
     }
 
-    await runCalibrationSample({
+    await runEvaluatorSample({
       items: requests,
       execute: async ({ slot, preview, controller, example }) => {
         if (controller.signal.aborted)
           return { status: "error", error: "Stopped" };
 
-        return new Promise<CalibrationPrediction>((resolve) => {
+        return new Promise<EvaluatorPrediction>((resolve) => {
           commitMutation<EvaluatorPlaygroundPreviewMutation>(environment, {
             mutation: graphql`
               mutation EvaluatorPlaygroundPreviewMutation(
@@ -314,7 +314,7 @@ export default function EvaluatorPlayground() {
                 previews: [
                   {
                     evaluator: preview,
-                    context: createCalibrationContext(example),
+                    context: createEvaluatorContext(example),
                     inputMapping: slot.inputMapping,
                   },
                 ],
@@ -338,7 +338,7 @@ export default function EvaluatorPlayground() {
                 preview.inlineCodeEvaluator?.outputConfigs.length ??
                 1;
 
-              const annotationName = getCalibrationAnnotationName({
+              const annotationName = getEvaluatorAnnotationName({
                 evaluatorName: slot.name,
                 outputName: slot.selectedOutputName,
                 outputCount,
@@ -448,7 +448,7 @@ export default function EvaluatorPlayground() {
    * next batch; `immediate` writes now and reports the outcome, for PXI.
    */
   async function saveExpectedOutput(
-    example: CalibrationExample,
+    example: SampleExample,
     slotId: SlotId,
     output: ExpectedOutput | null,
     { immediate = false }: { immediate?: boolean } = {}
@@ -456,7 +456,7 @@ export default function EvaluatorPlayground() {
     const slot = slots[slotId];
 
     const labelName = slot
-      ? getCalibrationAnnotationName({
+      ? getEvaluatorAnnotationName({
           evaluatorName: slot.name,
           outputName: slot.selectedOutputName,
           outputCount: slot.outputNames.length,
@@ -773,7 +773,7 @@ export default function EvaluatorPlayground() {
                   }}
                 />
               </Suspense>
-              <CalibrationSettingsButton
+              <EvaluatorPlaygroundSettingsButton
                 sampleSize={sampleSize}
                 hideExpectedAnnotations={hideExpectedAnnotations}
                 onHideExpectedAnnotationsChange={setHideExpectedAnnotations}
@@ -791,7 +791,7 @@ export default function EvaluatorPlayground() {
         >
           {datasetId ? (
             <Suspense key={sampleKey} fallback={null}>
-              <CalibrationDataset
+              <EvaluatorPlaygroundSample
                 fetchKey={sampleKey}
                 datasetId={datasetId}
                 first={sampleSize}
@@ -808,7 +808,7 @@ export default function EvaluatorPlayground() {
             </Suspense>
           ) : null}
           {datasetId ? (
-            <CalibrationResults
+            <EvaluatorPlaygroundResults
               examples={examples}
               isLoading={isSampleLoading}
               sampleSize={sampleSize}
@@ -863,7 +863,7 @@ export default function EvaluatorPlayground() {
   );
 }
 
-function getCalibrationView({
+function getEvaluatorPlaygroundView({
   slots,
   runs,
   examples,
@@ -872,8 +872,8 @@ function getCalibrationView({
   overlay,
 }: {
   slots: Partial<Record<SlotId, SlotSnapshot>>;
-  runs: Partial<Record<SlotId, CalibrationRun>>;
-  examples: CalibrationExample[];
+  runs: Partial<Record<SlotId, EvaluatorRun>>;
+  examples: SampleExample[];
   sampleKey: string;
   visibleSlotIds: SlotId[];
   /** Annotations not yet confirmed by the server; they win over the dataset. */
@@ -886,7 +886,7 @@ function getCalibrationView({
 
     if (!slot) continue;
 
-    const name = getCalibrationAnnotationName({
+    const name = getEvaluatorAnnotationName({
       evaluatorName: slot.name,
       outputName: slot.selectedOutputName,
       outputCount: slot.outputNames.length,
@@ -908,7 +908,7 @@ function getCalibrationView({
     );
   }
 
-  const currentRuns: Partial<Record<SlotId, CalibrationRun>> = {};
+  const currentRuns: Partial<Record<SlotId, EvaluatorRun>> = {};
 
   for (const slotId of visibleSlotIds) {
     if (runs[slotId]?.sampleKey === sampleKey)

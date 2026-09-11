@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
-import { CalibrationResults } from "../calibrationResults";
+import { EvaluatorPlaygroundResults } from "../results";
 
 // The input/output cells render JSON through CodeMirror, which cannot mount in
 // jsdom (its extension instanceof checks fail). Stand in a <pre> that echoes
@@ -23,7 +23,7 @@ vi.mock("@uiw/react-codemirror", () => ({
 
 installTestMatchMedia();
 
-const initialProps: ComponentProps<typeof CalibrationResults> = {
+const initialProps: ComponentProps<typeof EvaluatorPlaygroundResults> = {
   examples: [
     {
       id: "old-example",
@@ -71,13 +71,25 @@ describe("results loading snapshot", () => {
 
     try {
       act(() =>
-        render(<CalibrationResults {...initialProps} isLoading examples={[]} />)
+        render(
+          <EvaluatorPlaygroundResults
+            {...initialProps}
+            isLoading
+            examples={[]}
+          />
+        )
       );
       expect(container.textContent).not.toContain("Previous results shown");
-      act(() => render(<CalibrationResults {...initialProps} />));
+      act(() => render(<EvaluatorPlaygroundResults {...initialProps} />));
       const originalRow = container.querySelector("tbody tr");
       act(() =>
-        render(<CalibrationResults {...initialProps} isLoading examples={[]} />)
+        render(
+          <EvaluatorPlaygroundResults
+            {...initialProps}
+            isLoading
+            examples={[]}
+          />
+        )
       );
       expect(container.querySelector("tbody tr")).toBe(originalRow);
       expect(container.querySelector("[inert]")).not.toBeNull();
@@ -94,7 +106,7 @@ describe("results loading snapshot", () => {
 
       act(() =>
         render(
-          <CalibrationResults
+          <EvaluatorPlaygroundResults
             {...initialProps}
             isLoading
             examples={nextExamples}
@@ -105,7 +117,12 @@ describe("results loading snapshot", () => {
       expect(container.textContent).not.toContain("New dataset answer");
 
       act(() =>
-        render(<CalibrationResults {...initialProps} examples={nextExamples} />)
+        render(
+          <EvaluatorPlaygroundResults
+            {...initialProps}
+            examples={nextExamples}
+          />
+        )
       );
       expect(container.querySelector("[inert]")).toBeNull();
       expect(container.textContent).toContain("New dataset answer");
@@ -145,7 +162,7 @@ describe("example field columns", () => {
 
   it("hides the metadata column while the sample's metadata is empty", () => {
     const { container, unmount } = renderResults(
-      <CalibrationResults {...initialProps} />
+      <EvaluatorPlaygroundResults {...initialProps} />
     );
 
     try {
@@ -168,7 +185,7 @@ describe("example field columns", () => {
     };
 
     const hidden = renderResults(
-      <CalibrationResults {...initialProps} examples={[example]} />
+      <EvaluatorPlaygroundResults {...initialProps} examples={[example]} />
     );
 
     try {
@@ -188,7 +205,7 @@ describe("example field columns", () => {
     }
 
     const shown = renderResults(
-      <CalibrationResults
+      <EvaluatorPlaygroundResults
         {...initialProps}
         examples={[example]}
         hideExpectedAnnotations={false}
@@ -209,7 +226,7 @@ describe("example field columns", () => {
 
   it("shows the metadata column once an example carries metadata", () => {
     const { container, unmount } = renderResults(
-      <CalibrationResults
+      <EvaluatorPlaygroundResults
         {...initialProps}
         examples={[
           { ...initialProps.examples[0], metadata: { customer: "acme" } },

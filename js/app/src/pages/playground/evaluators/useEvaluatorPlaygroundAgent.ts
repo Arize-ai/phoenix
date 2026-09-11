@@ -17,12 +17,12 @@ import {
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
-import type {
-  CalibrationExample,
-  CalibrationResult,
-  ExpectedOutput,
-} from "./calibration";
 import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
+import type {
+  SampleExample,
+  EvaluatorResult,
+  ExpectedOutput,
+} from "./evaluatorResults";
 import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
 
 export type ConfigureEvaluatorWorkspace = z.infer<typeof configure.inputSchema>;
@@ -64,8 +64,8 @@ export type EvaluatorWorkspaceRead = {
     input: unknown;
     output: unknown;
     expectedOutputs: Partial<Record<SlotId, ExpectedOutput | null>>;
-    savedExpectedOutputs: CalibrationExample["calibrationLabels"];
-    predictions: Partial<Record<SlotId, CalibrationResult | null>>;
+    savedExpectedOutputs: SampleExample["calibrationLabels"];
+    predictions: Partial<Record<SlotId, EvaluatorResult | null>>;
   }[];
   nextOffset: number | null;
 };

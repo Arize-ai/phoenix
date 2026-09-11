@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 
-import type { ExpectedOutput } from "./calibration";
+import type { ExpectedOutput } from "./evaluatorResults";
 
 /** Annotations keyed by example id, then annotation name. `null` clears. */
 export type PendingExpectedOutputs = Record<

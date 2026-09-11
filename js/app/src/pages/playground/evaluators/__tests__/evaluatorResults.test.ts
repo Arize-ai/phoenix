@@ -6,19 +6,19 @@ import {
 } from "@phoenix/agent/uiOperations/operations/evaluatorPlayground";
 
 import {
-  createCalibrationContext,
+  createEvaluatorContext,
   matchesExpectedOutput,
-  getCalibrationAnnotationName,
+  getEvaluatorAnnotationName,
   getExpectedOutputIssue,
   getExpectedVerdict,
-  runCalibrationSample,
-} from "../calibration";
+  runEvaluatorSample,
+} from "../evaluatorResults";
 import {
   getVisibleEvaluatorSlots,
   setVisibleEvaluatorSlots,
 } from "../evaluatorSlotTypes";
 
-describe("calibration", () => {
+describe("evaluator results", () => {
   it("keeps annotations, expected outputs included, out of whole-object evaluator mappings", () => {
     const metadata = {
       customer: "test",
@@ -27,7 +27,7 @@ describe("calibration", () => {
       },
     };
 
-    const context = createCalibrationContext({
+    const context = createEvaluatorContext({
       input: { question: "hello" },
       output: { response: "hello" },
       metadata,
@@ -122,14 +122,14 @@ describe("calibration", () => {
   });
   it("matches server annotation names for single and multiple outputs", () => {
     expect(
-      getCalibrationAnnotationName({
+      getEvaluatorAnnotationName({
         evaluatorName: "judge",
         outputName: "quality",
         outputCount: 1,
       })
     ).toBe("judge");
     expect(
-      getCalibrationAnnotationName({
+      getEvaluatorAnnotationName({
         evaluatorName: "judge",
         outputName: "quality",
         outputCount: 2,
@@ -140,7 +140,7 @@ describe("calibration", () => {
     let active = 0;
     let peak = 0;
     const results = new Map<number, string>();
-    await runCalibrationSample({
+    await runEvaluatorSample({
       items: [1, 2, 3, 4, 5],
       concurrency: 2,
       signal: new AbortController().signal,
@@ -188,7 +188,7 @@ describe("calibration", () => {
       };
     });
 
-    await runCalibrationSample({
+    await runEvaluatorSample({
       items: [1, 2, 3],
       concurrency: 1,
       signal: controller.signal,
@@ -200,7 +200,7 @@ describe("calibration", () => {
   });
   it("preserves successful rows after an individual request fails", async () => {
     const results: string[] = [];
-    await runCalibrationSample({
+    await runEvaluatorSample({
       items: [1, 2],
       signal: new AbortController().signal,
       execute: async (item) => {

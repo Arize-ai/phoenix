@@ -26,17 +26,17 @@ import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 import type {
-  CalibrationExample,
-  CalibrationRun,
+  SampleExample,
+  EvaluatorRun,
   ExpectedOutput,
   SlotExpectations,
-} from "../calibration";
-import { getExpectedVerdict } from "../calibration";
+} from "../evaluatorResults";
+import { getExpectedVerdict } from "../evaluatorResults";
 import type { SlotId, SlotSnapshot } from "../evaluatorSlotTypes";
 import type { ExpectedOutputSaveStatus } from "../expectedOutputQueue";
-import { CalibrationResultsTable } from "./CalibrationResultsTable";
 import { EvaluatorCell } from "./EvaluatorCell";
 import { EvaluatorColumnHeader } from "./EvaluatorColumnHeader";
+import { EvaluatorPlaygroundResultsTable } from "./EvaluatorPlaygroundResultsTable";
 import {
   EvaluatorPlaygroundResultsTableProvider,
   useEvaluatorPlaygroundResultsTablePreferences,
@@ -52,8 +52,8 @@ import { RowCell } from "./RowCell";
 
 /** Retain only presentation data. Action handlers always come from the current
  * workspace, so the loading snapshot cannot execute or save against old data. */
-export function CalibrationResults(
-  props: ComponentProps<typeof CalibrationResultsContent>
+export function EvaluatorPlaygroundResults(
+  props: ComponentProps<typeof EvaluatorPlaygroundResultsContent>
 ) {
   const nextSnapshot = {
     isReady: !props.isLoading,
@@ -85,7 +85,7 @@ export function CalibrationResults(
     <EvaluatorPlaygroundResultsTableProvider>
       <div css={resultsSnapshotCSS}>
         <div inert={props.isLoading} css={resultsContentCSS}>
-          <CalibrationResultsContent {...props} {...displayed} />
+          <EvaluatorPlaygroundResultsContent {...props} {...displayed} />
         </div>
         {isShowingPreviousSample ? (
           <div css={loadingOverlayCSS} role="status">
@@ -128,7 +128,7 @@ const loadingOverlayCSS = css`
   );
 `;
 
-function CalibrationResultsContent({
+function EvaluatorPlaygroundResultsContent({
   examples,
   sampleSize,
   isLoading,
@@ -151,17 +151,17 @@ function CalibrationResultsContent({
   onRetryExpectedOutputs,
   onReloadSample,
 }: {
-  examples: CalibrationExample[];
+  examples: SampleExample[];
   sampleSize: number;
   isLoading: boolean;
-  runs: Partial<Record<SlotId, CalibrationRun>>;
+  runs: Partial<Record<SlotId, EvaluatorRun>>;
   slots: Partial<Record<SlotId, SlotSnapshot>>;
   visibleSlotIds: SlotId[];
   expected: SlotExpectations;
   filter: string;
   onFilterChange: (filter: string) => void;
   onSaveExpectedOutput: (
-    example: CalibrationExample,
+    example: SampleExample,
     slot: SlotId,
     output: ExpectedOutput | null
   ) => Promise<UIOperationResult>;
@@ -192,7 +192,7 @@ function CalibrationResultsContent({
       (output) => output.name === slots[slot]?.selectedOutputName
     );
 
-  const verdictFor = (slot: SlotId, example: CalibrationExample) =>
+  const verdictFor = (slot: SlotId, example: SampleExample) =>
     getExpectedVerdict({
       prediction: runs[slot]?.predictions[example.id],
       expected: expected[slot]?.[example.id],
@@ -401,7 +401,7 @@ function CalibrationResultsContent({
         </Alert>
       ) : null}
       <div css={tableWrapCSS}>
-        <CalibrationResultsTable
+        <EvaluatorPlaygroundResultsTable
           columns={columns}
           columnVisibility={columnVisibility}
           onColumnVisibilityChange={setColumnVisibility}
@@ -489,7 +489,7 @@ function CalibrationResultsContent({
               })}
             </tbody>
           )}
-        </CalibrationResultsTable>
+        </EvaluatorPlaygroundResultsTable>
       </div>
     </Flex>
   );

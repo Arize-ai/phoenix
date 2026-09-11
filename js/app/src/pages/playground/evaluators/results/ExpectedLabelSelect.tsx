@@ -10,7 +10,7 @@ import {
 } from "@phoenix/components";
 
 /** A compact labeled single-choice select for the expected-output form. */
-export function CalibrationSelect({
+export function ExpectedLabelSelect({
   label,
   value,
   onChange,

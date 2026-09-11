@@ -13,9 +13,9 @@ import {
 } from "@phoenix/components";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import type { ExpectedOutput } from "../calibration";
+import type { ExpectedOutput } from "../evaluatorResults";
 import type { SlotId, SlotOutput } from "../evaluatorSlotTypes";
-import { CalibrationSelect } from "./CalibrationSelect";
+import { ExpectedLabelSelect } from "./ExpectedLabelSelect";
 
 /**
  * The expected-output editor shown in the band's popover. Its fields follow
@@ -157,7 +157,7 @@ function CategoricalExpectedFields({
 }) {
   return (
     <Flex direction="column" gap="size-50">
-      <CalibrationSelect
+      <ExpectedLabelSelect
         label="Label"
         value={label}
         options={labels.map((name) => ({ id: name, name }))}
