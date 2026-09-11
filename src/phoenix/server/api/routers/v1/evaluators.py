@@ -1,6 +1,6 @@
 """Read and update shared evaluator definitions and immutable code versions."""
 
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, Response
 from pydantic import Field
@@ -13,6 +13,7 @@ from phoenix.db.helpers import code_evaluator_with_latest_version
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers import evaluator_service as service
 from phoenix.server.api.routers.v1.annotation_config_models import CategoricalAnnotationConfigData
@@ -91,8 +92,19 @@ class LLMEvaluatorDefinition(V1RoutesBaseModel):
     output_configs: list[CategoricalAnnotationConfigData]
 
 
+class BuiltInEvaluatorDefinition(V1RoutesBaseModel):
+    type: Literal["builtin"]
+    evaluator_id: str
+    name: Identifier
+    description: Optional[str]
+    key: str
+    input_schema: dict[str, Any]
+    output_configs: list[EvaluatorOutputConfig]
+
+
 EvaluatorDefinition = Annotated[
-    Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition], Field(discriminator="type")
+    Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition],
+    Field(discriminator="type"),
 ]
 
 
@@ -105,6 +117,25 @@ router = APIRouter(tags=["evaluators"])
 
 async def _evaluator_definition(request: Request, evaluator_id: str) -> EvaluatorDefinition:
     global_id = GlobalID.from_id(evaluator_id)
+    if global_id.type_name == "BuiltInEvaluator":
+        row_id = decode_global_id(evaluator_id, "BuiltInEvaluator")
+        async with request.app.state.db.read() as session:
+            builtin = await session.get(models.BuiltinEvaluator, row_id)
+            if builtin is None:
+                raise NotFound(f"Evaluator not found: {evaluator_id}")
+            evaluator_class = get_builtin_evaluator_by_key(builtin.key)
+            if evaluator_class is None:
+                raise NotFound(f"Built-in evaluator class not found for key: {builtin.key}")
+            instance = evaluator_class()
+            return BuiltInEvaluatorDefinition(
+                type="builtin",
+                evaluator_id=evaluator_id,
+                name=Identifier(evaluator_class.name),
+                description=evaluator_class.description,
+                key=builtin.key,
+                input_schema=instance.input_schema,
+                output_configs=output_configs_from_db(list(instance.output_configs)),
+            )
     if global_id.type_name == "CodeEvaluator":
         row_id = decode_global_id(evaluator_id, "CodeEvaluator")
         async with request.app.state.db.read() as session:
@@ -164,7 +195,7 @@ async def _evaluator_definition(request: Request, evaluator_id: str) -> Evaluato
     responses=add_errors_to_responses([404, 422]),
 )
 async def get_evaluator(request: Request, evaluator_id: str) -> EvaluatorDefinitionResponseBody:
-    """Read the shared definition, including its current code or pinned prompt version."""
+    """Read a shared LLM, code, or read-only built-in evaluator definition."""
     with evaluator_api_errors():
         return EvaluatorDefinitionResponseBody(
             data=await _evaluator_definition(request, evaluator_id)

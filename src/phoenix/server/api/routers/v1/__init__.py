@@ -12,6 +12,7 @@ from .annotations import router as annotations_router
 from .api_keys import router as api_keys_router
 from .chat_completions import router as chat_completions_router
 from .custom_model_providers import router as custom_model_providers_router
+from .dataset_evaluators import router as dataset_evaluators_router
 from .dataset_labels import router as dataset_labels_router
 from .datasets import router as datasets_router
 from .documents import router as documents_router
@@ -68,6 +69,7 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     viewer_restricted_router.include_router(dataset_labels_router)
     viewer_restricted_router.include_router(datasets_router)
     viewer_restricted_router.include_router(evaluators_router)
+    viewer_restricted_router.include_router(dataset_evaluators_router)
     viewer_restricted_router.include_router(experiments_router)
     viewer_restricted_router.include_router(experiment_tags_router)
     viewer_restricted_router.include_router(experiment_runs_router)

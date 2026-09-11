@@ -8,24 +8,12 @@ import httpx
 import pytest
 from strawberry.relay import GlobalID
 
-from .._helpers import _AppInfo, _gql, _httpx_client
+from .._helpers import _AppInfo, _httpx_client
+from ._helpers import _graphql
 
 
 @pytest.fixture
-def definition_client(_app: _AppInfo) -> Iterator[httpx.Client]:
-    with _httpx_client(_app, _app.admin_secret) as client:
-        yield client
-
-
-def _graphql(app: _AppInfo, query: str, variables: dict[str, Any]) -> dict[str, Any]:
-    response, _ = _gql(app, app.admin_secret, query=query, variables=variables)
-    assert not response.get("errors"), response
-    result: dict[str, Any] = response["data"]
-    return result
-
-
-@pytest.fixture
-def code_definition(_app: _AppInfo, definition_dataset: str) -> Iterator[dict[str, Any]]:
+def code_definition(_app: _AppInfo, dataset_id: str) -> Iterator[dict[str, Any]]:
     config = _graphql(
         _app,
         """
@@ -62,7 +50,7 @@ def code_definition(_app: _AppInfo, definition_dataset: str) -> Iterator[dict[st
     """,
         {
             "input": {
-                "datasetId": definition_dataset,
+                "datasetId": dataset_id,
                 "evaluatorId": evaluator["id"],
                 "name": f"binding-{token_hex(8)}",
                 "inputMapping": {"literalMapping": {}, "pathMapping": {}},
@@ -73,7 +61,7 @@ def code_definition(_app: _AppInfo, definition_dataset: str) -> Iterator[dict[st
         yield evaluator
     finally:
         with _httpx_client(_app, _app.admin_secret) as client:
-            client.delete(f"v1/datasets/{definition_dataset}").raise_for_status()
+            client.delete(f"v1/datasets/{dataset_id}").raise_for_status()
         _graphql(
             _app,
             """
@@ -84,31 +72,23 @@ def code_definition(_app: _AppInfo, definition_dataset: str) -> Iterator[dict[st
 
 
 def test_shared_code_definition(
-    definition_client: httpx.Client, code_definition: dict[str, Any], _app: _AppInfo
+    client: httpx.Client, code_definition: dict[str, Any], _app: _AppInfo
 ) -> None:
     route = f"v1/evaluators/{code_definition['id']}"
-    response = definition_client.get(route)
+    response = client.get(route)
     assert response.status_code == 200, response.text
     initial = response.json()["data"]
     assert initial["type"] == "code"
-    response = definition_client.patch(route, json={"type": "code", "description": "shared"})
+    response = client.patch(route, json={"type": "code", "description": "shared"})
     assert response.status_code == 200, response.text
     assert response.json()["data"]["source_code"] == initial["source_code"]
-    assert (
-        definition_client.patch(route, json={"type": "code", "language": "TYPESCRIPT"}).status_code
-        == 422
-    )
-    assert (
-        definition_client.patch(
-            route, json={"type": "llm", "description": "wrong kind"}
-        ).status_code
-        == 422
-    )
+    assert client.patch(route, json={"type": "code", "language": "TYPESCRIPT"}).status_code == 422
+    assert client.patch(route, json={"type": "llm", "description": "wrong kind"}).status_code == 422
     source = "def evaluate(output):\n    return {'score': 0.5}"
-    response = definition_client.post(f"{route}/versions", json={"source_code": source})
+    response = client.post(f"{route}/versions", json={"source_code": source})
     assert response.status_code == 201, response.text
     version_id = response.json()["data"]["evaluator_version_id"]
-    response = definition_client.post(f"{route}/versions", json={"source_code": source})
+    response = client.post(f"{route}/versions", json={"source_code": source})
     assert response.status_code == 200, response.text
     assert response.json()["data"]["was_created"] is False
     assert response.json()["data"]["evaluator_version_id"] == version_id
@@ -122,28 +102,13 @@ def test_shared_code_definition(
     assert result["node"] == {"description": "shared", "currentVersion": {"sourceCode": source}}
 
 
-def test_definition_errors(definition_client: httpx.Client) -> None:
-    assert definition_client.get("v1/evaluators/bad-id").status_code == 422
-    assert definition_client.patch("v1/evaluators/bad-id", json={"type": "code"}).status_code == 422
+def test_definition_errors(client: httpx.Client) -> None:
+    assert client.get("v1/evaluators/bad-id").status_code == 422
+    assert client.patch("v1/evaluators/bad-id", json={"type": "code"}).status_code == 422
 
 
 @pytest.fixture
-def definition_dataset(definition_client: httpx.Client, _app: _AppInfo) -> Iterator[str]:
-    dataset = _graphql(
-        _app,
-        """
-        mutation($input: CreateDatasetInput!) { createDataset(input: $input) { dataset { id } } }
-    """,
-        {"input": {"name": f"eval-definitions-{token_hex(8)}"}},
-    )["createDataset"]["dataset"]
-    try:
-        yield dataset["id"]
-    finally:
-        definition_client.delete(f"v1/datasets/{dataset['id']}")
-
-
-@pytest.fixture
-def llm_definition(definition_dataset: str, _app: _AppInfo) -> dict[str, Any]:
+def llm_definition(dataset_id: str, _app: _AppInfo) -> dict[str, Any]:
     prompt = {
         "templateFormat": "MUSTACHE",
         "template": {
@@ -184,7 +149,7 @@ def llm_definition(definition_dataset: str, _app: _AppInfo) -> dict[str, Any]:
     """,
         {
             "input": {
-                "datasetId": definition_dataset,
+                "datasetId": dataset_id,
                 "name": f"llm-{token_hex(8)}",
                 "description": "correctness",
                 "promptVersion": prompt,
@@ -208,16 +173,16 @@ def llm_definition(definition_dataset: str, _app: _AppInfo) -> dict[str, Any]:
 
 
 def test_llm_definition_from_dataset(
-    definition_client: httpx.Client, llm_definition: dict[str, Any], _app: _AppInfo
+    client: httpx.Client, llm_definition: dict[str, Any], _app: _AppInfo
 ) -> None:
     route = f"v1/evaluators/{llm_definition['evaluator']['id']}"
-    response = definition_client.get(route)
+    response = client.get(route)
     assert response.status_code == 200, response.text
     before = response.json()["data"]
     assert before["type"] == "llm"
     prompt_body = before["prompt_version"]
     prompt_body["model_name"] = "gpt-4.1-mini"
-    response = definition_client.patch(
+    response = client.patch(
         route,
         json={
             "type": "llm",
@@ -228,12 +193,12 @@ def test_llm_definition_from_dataset(
     assert response.status_code == 200, response.text
     after = response.json()["data"]
     assert after["prompt_version_id"] != before["prompt_version_id"]
-    response = definition_client.patch(route, json={"type": "llm", "prompt_version": prompt_body})
+    response = client.patch(route, json={"type": "llm", "prompt_version": prompt_body})
     assert response.status_code == 200, response.text
     assert response.json()["data"]["prompt_version_id"] == after["prompt_version_id"]
-    response = definition_client.patch(route, json={"type": "llm", "description": "inconsistent"})
+    response = client.patch(route, json={"type": "llm", "description": "inconsistent"})
     assert response.status_code == 422
-    assert definition_client.get(route).json()["data"]["description"] == "correctness"
+    assert client.get(route).json()["data"]["description"] == "correctness"
     result = _graphql(
         _app,
         """
@@ -245,14 +210,14 @@ def test_llm_definition_from_dataset(
 
 
 def test_llm_definition_missing_custom_provider(
-    definition_client: httpx.Client, llm_definition: dict[str, Any]
+    client: httpx.Client, llm_definition: dict[str, Any]
 ) -> None:
     route = f"v1/evaluators/{llm_definition['evaluator']['id']}"
-    response = definition_client.get(route)
+    response = client.get(route)
     assert response.status_code == 200, response.text
     before = response.json()["data"]
     provider_id = str(GlobalID("GenerativeModelCustomProvider", str(2**31 - 1)))
-    response = definition_client.patch(
+    response = client.patch(
         route,
         json={
             "type": "llm",
@@ -262,34 +227,32 @@ def test_llm_definition_missing_custom_provider(
     )
     assert response.status_code == 404, response.text
     assert response.text == f"Custom provider not found: {provider_id}"
-    response = definition_client.get(route)
+    response = client.get(route)
     assert response.status_code == 200, response.text
     assert response.json()["data"] == before
 
 
 def test_llm_definition_reuses_regular_prompt_version(
-    definition_client: httpx.Client, llm_definition: dict[str, Any]
+    client: httpx.Client, llm_definition: dict[str, Any]
 ) -> None:
     route = f"v1/evaluators/{llm_definition['evaluator']['id']}"
-    response = definition_client.get(route)
+    response = client.get(route)
     assert response.status_code == 200, response.text
     prompt_body = response.json()["data"]["prompt_version"]
     prompt_body["description"] = "Shared evaluation prompt"
-    response = definition_client.post(
+    response = client.post(
         "v1/prompts",
         json={"prompt": {"name": f"shared-prompt-{token_hex(8)}"}, "version": prompt_body},
     )
     assert response.status_code == 200, response.text
     prompt_data = response.json()["data"]
     prompt_version_id = prompt_data.pop("id")
-    response = definition_client.patch(
-        route, json={"type": "llm", "prompt_version_id": prompt_version_id}
-    )
+    response = client.patch(route, json={"type": "llm", "prompt_version_id": prompt_version_id})
     assert response.status_code == 200, response.text
     assert response.json()["data"]["prompt_version_id"] == prompt_version_id
     assert response.json()["data"]["prompt_version"] == prompt_data
 
-    response = definition_client.patch(route, json={"type": "llm", "prompt_version": prompt_data})
+    response = client.patch(route, json={"type": "llm", "prompt_version": prompt_data})
     assert response.status_code == 200, response.text
     assert response.json()["data"]["prompt_version_id"] == prompt_version_id
 
@@ -301,10 +264,8 @@ def test_llm_definition_reuses_regular_prompt_version(
         },
         {**prompt_data, "unexpected": True},
     ):
-        response = definition_client.patch(
-            route, json={"type": "llm", "prompt_version": invalid_prompt}
-        )
+        response = client.patch(route, json={"type": "llm", "prompt_version": invalid_prompt})
         assert response.status_code == 422, response.text
-    response = definition_client.get(route)
+    response = client.get(route)
     assert response.json()["data"]["prompt_version_id"] == prompt_version_id
     assert response.json()["data"]["prompt_version"] == prompt_data

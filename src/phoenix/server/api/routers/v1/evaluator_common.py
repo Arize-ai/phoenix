@@ -2,7 +2,7 @@
 
 from contextlib import contextmanager
 from enum import Enum
-from typing import Annotated, Any, Iterator, Sequence, Union
+from typing import Annotated, Any, Iterator, Literal, Optional, Sequence, Union
 
 from fastapi import HTTPException
 from pydantic import ConfigDict, Field, field_validator
@@ -19,6 +19,7 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
     as_output_configs,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers import evaluator_service as service
 from phoenix.server.api.routers.v1.annotation_config_models import CategoricalAnnotationConfigData
@@ -70,6 +71,24 @@ class EvaluatorRequest(V1RoutesBaseModel):
         if prompt_version.template.type != "chat":
             raise ValueError("LLM evaluators require a chat prompt")
         return prompt_version
+
+
+class NewLLMEvaluator(EvaluatorRequest):
+    type: Literal["llm"]
+    description: Optional[str] = None
+    prompt_version: PromptVersionData
+    prompt_version_id: Optional[str] = None
+    output_configs: list[CategoricalAnnotationConfigData] = Field(min_length=1)
+
+
+class NewCodeEvaluator(EvaluatorRequest):
+    type: Literal["code"]
+    description: Optional[str] = None
+    source_code: str
+    language: Language
+    sandbox_config_id: str
+    input_mapping: InputMapping
+    output_configs: list[EvaluatorOutputConfig] = Field(default_factory=list)
 
 
 @contextmanager
