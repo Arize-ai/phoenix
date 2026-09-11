@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "phoenix": {
+      "type": "stdio",
+      "command": "scripts/phoenix-mcp.sh"
+    }
+  }
+}
