@@ -553,8 +553,11 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
         numcols = sqlite3_column_count(self->statement->st);
         Py_END_ALLOW_THREADS
         if (self->description == Py_None && numcols > 0) {
-            Py_SETREF(self->description, PyTuple_New(numcols));
-            if (!self->description) {
+            /* Build the tuple in a local first: publishing it before all
+               slots are filled would expose NULL entries to Python if a
+               mid-loop allocation fails. */
+            PyObject *description = PyTuple_New(numcols);
+            if (!description) {
                 goto error;
             }
             for (i = 0; i < numcols; i++) {
@@ -563,16 +566,19 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
                 colname = sqlite3_column_name(self->statement->st, i);
                 if (colname == NULL) {
                     PyErr_NoMemory();
+                    Py_DECREF(description);
                     goto error;
                 }
                 column_name = _pysqlite_build_column_name(self, colname);
                 if (!column_name) {
+                    Py_DECREF(description);
                     goto error;
                 }
                 decltype = sqlite3_column_decltype(self->statement->st, i);
                 column_decltype = _pysqlite_build_column_decltype(self, decltype);
                 if (!column_decltype) {
                     Py_DECREF(column_name);
+                    Py_DECREF(description);
                     goto error;
                 }
 
@@ -582,10 +588,12 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
                 Py_DECREF(column_name);
                 Py_DECREF(column_decltype);
                 if (descriptor == NULL) {
+                    Py_DECREF(description);
                     goto error;
                 }
-                PyTuple_SET_ITEM(self->description, i, descriptor);
+                PyTuple_SET_ITEM(description, i, descriptor);
             }
+            Py_SETREF(self->description, description);
         }
 
         if (self->statement->is_dml) {
@@ -595,11 +603,15 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
         }
 
         if (!multiple) {
-            Py_DECREF(self->lastrowid);
+            PyObject *new_lastrowid;
             Py_BEGIN_ALLOW_THREADS
             lastrowid = sqlite3_last_insert_rowid(self->connection->db);
             Py_END_ALLOW_THREADS
-            self->lastrowid = PyLong_FromLongLong(lastrowid);
+            new_lastrowid = PyLong_FromLongLong(lastrowid);
+            if (!new_lastrowid) {
+                goto error;
+            }
+            Py_SETREF(self->lastrowid, new_lastrowid);
         }
 
         if (rc == SQLITE_ROW) {

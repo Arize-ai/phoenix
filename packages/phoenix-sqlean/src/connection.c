@@ -816,6 +816,11 @@ static void _pysqlite_step_callback(sqlite3_context *context, int argc, sqlite3_
     aggregate_class = (PyObject*)sqlite3_user_data(context);
 
     aggregate_instance = (PyObject**)sqlite3_aggregate_context(context, sizeof(PyObject*));
+    if (aggregate_instance == NULL) {
+        /* OOM while allocating the aggregate context */
+        sqlite3_result_error_nomem(context);
+        goto error;
+    }
 
     if (*aggregate_instance == NULL) {
         *aggregate_instance = PyObject_CallObject(aggregate_class, NULL);
@@ -939,6 +944,11 @@ void _pysqlite_value_callback(sqlite3_context* context)
     threadstate = PyGILState_Ensure();
 
     aggregate_instance = (PyObject**)sqlite3_aggregate_context(context, sizeof(PyObject*));
+    if (aggregate_instance == NULL) {
+        /* OOM while allocating the aggregate context */
+        sqlite3_result_error_nomem(context);
+        goto error;
+    }
     if (!*aggregate_instance) {
         goto error;
     }
@@ -985,6 +995,11 @@ static void _pysqlite_inverse_callback(sqlite3_context *context, int argc, sqlit
     threadstate = PyGILState_Ensure();
 
     aggregate_instance = (PyObject**)sqlite3_aggregate_context(context, sizeof(PyObject*));
+    if (aggregate_instance == NULL) {
+        /* OOM while allocating the aggregate context */
+        sqlite3_result_error_nomem(context);
+        goto error;
+    }
     if (!*aggregate_instance) {
         goto error;
     }
