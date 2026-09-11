@@ -5,6 +5,7 @@ import { ConfusionMatrix } from "@phoenix/components/chart";
 import type { ProjectEvaluatorCompareMatrix_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareMatrix_comparison.graphql";
 import {
   formatMatrixSubtitle,
+  getComparedOutputName,
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
@@ -30,10 +31,12 @@ export function ProjectEvaluatorCompareMatrix({
           evaluatedByBoth
         }
         sideA {
+          annotationName
           labels
           threshold
         }
         sideB {
+          annotationName
           labels
           threshold
         }
@@ -44,6 +47,20 @@ export function ProjectEvaluatorCompareMatrix({
   );
   const labelsA = Array.from(comparison.sideA.labels);
   const labelsB = Array.from(comparison.sideB.labels);
+  const outputAName = getComparedOutputName({
+    evaluatorName: evaluatorAName,
+    annotationName: comparison.sideA.annotationName,
+  });
+  const outputBName = getComparedOutputName({
+    evaluatorName: evaluatorBName,
+    annotationName: comparison.sideB.annotationName,
+  });
+  const axisLabelA = outputAName
+    ? `${evaluatorAName} · ${outputAName}`
+    : evaluatorAName;
+  const axisLabelB = outputBName
+    ? `${evaluatorBName} · ${outputBName}`
+    : evaluatorBName;
 
   return (
     <Card
@@ -67,12 +84,11 @@ export function ProjectEvaluatorCompareMatrix({
           })}
           actualLabels={labelsA}
           predictedLabels={labelsB}
-          actualAxisLabel={evaluatorAName}
-          predictedAxisLabel={evaluatorBName}
-          scaleType="log"
+          actualAxisLabel={axisLabelA}
+          predictedAxisLabel={axisLabelB}
           showTotals
           showPercentage
-          legendLabel={`${comparison.evaluationTarget.toLowerCase()} count · log scale`}
+          legendLabel={`${comparison.evaluationTarget.toLowerCase()} count`}
         />
       </View>
     </Card>
