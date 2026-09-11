@@ -327,7 +327,8 @@ function CalibrationResultsContent({
           banner
           title="Could not save annotations"
           extra={
-            <Flex direction="row" gap="size-100">
+            // The message can be long; it wraps, the buttons don't shrink.
+            <Flex direction="row" gap="size-100" flex="none">
               <Button
                 size="S"
                 isDisabled={saveStatus === "saving"}
@@ -1176,11 +1177,16 @@ function ScoredExpectedFields({
   );
 }
 
+// The table is as wide as its columns add up to, and scrolls inside this
+// wrap. Without min-width: 0 a flex item refuses to be narrower than its
+// content, so a table wider than the panel would push the whole column — the
+// toolbar and any banner above it — out past the panel's edge.
 const tableWrapCSS = css`
   overflow: auto;
   scroll-padding-top: var(--global-dimension-size-800);
   flex: 1;
   min-height: 0;
+  min-width: 0;
 `;
 
 // Content height for the input and output cells. Sized so a typical single
