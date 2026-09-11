@@ -16,6 +16,7 @@ from harbor.models.trial.config import AgentConfig
 
 from environment import ACTIVE_TARGETS, PROVIDER_SECRETS
 from fixture import validate_seed
+from images import source_hash
 from isolation import InvalidEvidence, read_regular
 from matrix import MATRIX, render_job
 from measurements import final_answer, sql_measurements, trajectory_measurements
@@ -229,6 +230,8 @@ async def main() -> None:
         json.loads((seed / "truth.json").read_text()),
     )
     images = json.loads((HERE / ".runtime/images/images.json").read_text())
+    if images["verifier"].get("benchmark_source_sha256") != source_hash():
+        raise RuntimeError("Benchmark image inputs changed; run make mcp ARGS=images")
     tasks = stage(
         manifest,
         root / "tasks",

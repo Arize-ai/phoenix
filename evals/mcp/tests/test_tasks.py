@@ -37,6 +37,8 @@ def test_count_accepts_unambiguous_exact_final_answer(answer):
         "The example says 117 traces.",
         "I cannot tell whether there are 117 traces.",
         "The log mentions 117 traces.",
+        "There aren't 117 traces.",
+        "There are at least 117 traces.",
         "The count is 118. I saw 117 in logs.",
     ],
 )
@@ -187,3 +189,16 @@ async def test_native_plugin_preserves_small_metadata_and_versions_seed_changes(
     second = await plan("second")
     assert first.tasks[0].task_id == second.tasks[0].task_id
     assert first.tasks[0].digest != second.tasks[0].digest
+
+
+def test_signed_cost_and_repetition_answers_do_not_match_positive_truth():
+    assert grade("total-cost", "$-16.00", {"value": 16})["reward"] == 0
+    assert grade("spend-concentration", "-45.3%", {"value": 45.3})["reward"] == 0
+    assert (
+        grade(
+            "repeated-tool-calls",
+            "FinderTool: -24 calls",
+            {"value": 24, "winners": [["FinderTool"]]},
+        )["reward"]
+        == 0
+    )

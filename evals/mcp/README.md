@@ -70,7 +70,8 @@ make mcp ARGS=images
 Image builds install the agent/CLI versions in [matrix.json](configs/matrix.json)
 and build the Phoenix server wheel from this checkout. The saved image manifest
 records content IDs and the target wheel hash. Content-derived tags retain
-earlier images when rebuilding. Keep those IDs fixed within a
+earlier images when rebuilding. The runner rejects stale baked benchmark code
+until images are rebuilt. Keep those IDs fixed within a
 comparison. The host plugin wheel has its own reviewed source/hash pins in
 [runtime.json](configs/runtime.json) and [wheels.json](configs/wheels.json).
 

@@ -506,7 +506,7 @@ The redesign replaces the prototype runtime and its policy tests. The source
 queries now have task-local verifiers, small metadata, and source-derived
 references. The README documents the active commands and runtime.
 
-- `make mcp ARGS=check`: 42 benchmark tests, six server integration tests,
+- `make mcp ARGS=check`: 45 benchmark tests, six server integration tests,
   Ruff checks, and mypy over 13 runner/shared modules passed.
 - All nine source-query CLI oracles passed through the real Harbor runner.
   Each attempt independently seeded 117 traces, 3,579 spans, 581 stored span
@@ -517,7 +517,8 @@ references. The README documents the active commands and runtime.
   write-probe project before starting the oracle.
 - Readback from the existing results service confirmed nine rewards of 1,
   nine `infra_ok=1` scores, and nine experiment runs linked to saved ATIF traces.
-- Content-derived image tags retain earlier builds. Results credentials stay on
+- The final graders also pass all nine saved oracle answers on offline replay.
+- Content-derived image tags retain earlier builds; stale baked code fails preflight. Results credentials stay on
   the host; provider credentials are removed with each gateway after use.
 
 These are unpaid oracle and implementation checks. No new coding-agent sweep or

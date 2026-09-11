@@ -10,6 +10,38 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 
 
+def source_hash() -> str:
+    """Identity of the benchmark code baked into images, excluding private data."""
+    paths = [
+        HERE / (name + ".py")
+        for name in (
+            "gateway",
+            "cli",
+            "verify",
+            "grading",
+            "target",
+            "seed_target",
+            "references",
+            "fixture",
+        )
+    ]
+    paths += [
+        HERE / "images/Dockerfile",
+        HERE / "configs/pricing.json",
+        HERE / "configs/matrix.json",
+    ]
+    paths += [
+        p
+        for p in (HERE / "tasks").rglob("*")
+        if p.is_file() and p.suffix in {".py", ".md", ".toml", ".json"}
+    ]
+    digest = hashlib.sha256()
+    for path in sorted(paths):
+        digest.update(str(path.relative_to(HERE)).encode())
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
 def main():
     context = HERE / ".runtime/images"
     context.mkdir(parents=True, exist_ok=True)
@@ -79,6 +111,7 @@ def main():
         )
         image = json.loads(subprocess.check_output(["docker", "image", "inspect", tag]))[0]
         images[name] = {"tag": tag, "id": image["Id"]}
+    images["verifier"]["benchmark_source_sha256"] = source_hash()
     images["target"]["wheel_sha256"] = hashlib.sha256(candidates[0].read_bytes()).hexdigest()
     images["target"]["source_revision"] = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], text=True

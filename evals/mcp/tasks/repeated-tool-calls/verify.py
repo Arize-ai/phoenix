@@ -8,7 +8,7 @@ def grade(answer, reference):
     if type(count) is not int or count <= 0:
         raise ValueError("Missing trusted repetition count")
     text = plain(answer)
-    counts = re.findall(r"\b(\d+)\s*(?:calls?|times)\b", text, re.I)
+    counts = re.findall(r"(?<![-\w])(\d+)\s*(?:calls?|times)\b", text, re.I)
     correct = (
         identity(answer, reference["winners"], all_winners=False)
         and bool(counts)

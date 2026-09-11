@@ -17,7 +17,7 @@ def exact_integer(answer: Any, expected: Any, unit: str) -> bool:
         raise ValueError("Missing trusted integer reference")
     text = plain(answer)
     if not text or re.search(
-        r"\b(not|no|maybe|perhaps|guess|example|quoted|might|approximately|about|whether|mentions?|unknown|unsure|cannot|can't)\b|\?",
+        r"\b(not|no|maybe|perhaps|guess|example|quoted|might|approximately|about|whether|mentions?|unknown|unsure|cannot|can't|aren't|isn't|wasn't|weren't|around|roughly|nearly|almost|at least|at most|fewer than|more than|up to)\b|\?",
         text,
         re.I,
     ):
@@ -44,6 +44,8 @@ def numeric(answer: Any, expected: Any, *, kind: str, places: int) -> bool:
         raise ValueError("Missing trusted numeric reference")
     text = plain(answer)
     if re.search(r"\b(not|maybe|guess|example|might)\b|\?", text, re.I):
+        return False
+    if re.search(r"-\d|-\$|\$\s*-", text):
         return False
     pattern = (
         r"\$\s*([\d,]+(?:\.\d+)?)|([\d,]+(?:\.\d+)?)\s*(?:USD|(?:US )?dollars)"
