@@ -19,6 +19,7 @@ import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { CredentialsDropdown } from "@phoenix/pages/playground/PlaygroundCredentialsDropdown";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -91,6 +92,12 @@ export default function EvaluatorPlayground() {
   const [searchParams, setSearchParams] = useSearchParams();
   const environment = useRelayEnvironment();
   const credentials = useCredentialsContext((state) => state);
+  const hideExpectedAnnotations = usePreferencesContext(
+    (state) => state.hideExpectedAnnotationsInMetadata
+  );
+  const setHideExpectedAnnotations = usePreferencesContext(
+    (state) => state.setHideExpectedAnnotationsInMetadata
+  );
   const datasetId = searchParams.get("datasetId");
   const splitIds = searchParams.getAll("splitId");
   const versionId = searchParams.get("datasetVersionId");
@@ -689,6 +696,8 @@ export default function EvaluatorPlayground() {
               </Suspense>
               <CalibrationSettingsButton
                 sampleSize={sampleSize}
+                hideExpectedAnnotations={hideExpectedAnnotations}
+                onHideExpectedAnnotationsChange={setHideExpectedAnnotations}
                 isDisabled={isRunning}
                 onSampleSizeChange={(size) => {
                   void annotations.flushNow();
@@ -737,6 +746,7 @@ export default function EvaluatorPlayground() {
               onRunExample={(exampleId) =>
                 void runSlots(visibleSlotIds, [exampleId])
               }
+              hideExpectedAnnotations={hideExpectedAnnotations}
               saveStatus={annotations.status}
               pendingCount={annotations.pendingCount}
               reviewError={annotations.error}

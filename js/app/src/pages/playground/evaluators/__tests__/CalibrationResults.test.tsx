@@ -49,6 +49,7 @@ const initialProps: ComponentProps<typeof CalibrationResults> = {
   onRunExample: vi.fn(),
   saveStatus: "idle",
   pendingCount: 0,
+  hideExpectedAnnotations: true,
   reviewError: null,
   staleSlots: [],
   onRetryReview: vi.fn(),
@@ -148,6 +149,50 @@ describe("example field columns", () => {
       expect(headers(container)).not.toContain("Metadata");
     } finally {
       unmount();
+    }
+  });
+
+  it("leaves the annotations key out of the metadata cell unless asked", () => {
+    const example = {
+      ...initialProps.examples[0],
+      metadata: {
+        customer: "acme",
+        annotations: { judge: [{ label: "pass", annotator_kind: "HUMAN" }] },
+      },
+    };
+    const hidden = renderResults(
+      <CalibrationResults {...initialProps} examples={[example]} />
+    );
+    try {
+      const cell = hidden.container.querySelector(
+        "td.results-table__example-cell:nth-of-type(4)"
+      );
+      expect(cell?.textContent).toContain('"customer"');
+      expect(cell?.textContent).not.toContain('"annotations"');
+      expect(
+        hidden.container.querySelector(
+          "[aria-label='The \"annotations\" key is hidden in this cell']"
+        )
+      ).not.toBeNull();
+    } finally {
+      hidden.unmount();
+    }
+    const shown = renderResults(
+      <CalibrationResults
+        {...initialProps}
+        examples={[example]}
+        hideExpectedAnnotations={false}
+      />
+    );
+    try {
+      expect(shown.container.textContent).toContain('"annotations"');
+      expect(
+        shown.container.querySelector(
+          "[aria-label='The \"annotations\" key is hidden in this cell']"
+        )
+      ).toBeNull();
+    } finally {
+      shown.unmount();
     }
   });
 

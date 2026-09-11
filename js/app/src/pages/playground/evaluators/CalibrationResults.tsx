@@ -89,6 +89,7 @@ export function CalibrationResults(
     runnableSlots: props.runnableSlots,
     saveStatus: props.saveStatus,
     pendingCount: props.pendingCount,
+    hideExpectedAnnotations: props.hideExpectedAnnotations,
   };
   const [snapshot, setSnapshot] = useState(nextSnapshot);
   if (!props.isLoading && !shallow(snapshot, nextSnapshot)) {
@@ -158,6 +159,7 @@ function CalibrationResultsContent({
   onRunExample,
   saveStatus,
   pendingCount,
+  hideExpectedAnnotations,
   reviewError,
   staleSlots,
   onRetryReview,
@@ -188,6 +190,8 @@ function CalibrationResultsContent({
   /** Where the annotation queue stands, for the header's save indicator. */
   saveStatus: ExpectedOutputSaveStatus;
   pendingCount: number;
+  /** Leave the `annotations` key out of the metadata cells. */
+  hideExpectedAnnotations: boolean;
   reviewError: string | null;
   staleSlots: string[];
   onRetryReview: () => void;
@@ -447,6 +451,7 @@ function CalibrationResultsContent({
                           label={field}
                           value={example[field]}
                           position={position}
+                          hideExpectedAnnotations={hideExpectedAnnotations}
                         />
                       </td>
                     ))}
@@ -1322,26 +1327,60 @@ function ExampleFieldCell({
   label,
   value,
   position,
+  hideExpectedAnnotations,
 }: {
   label: ExampleField;
   value: unknown;
   position: number;
+  hideExpectedAnnotations: boolean;
 }) {
-  const json = JSON.stringify(value ?? null, null, 2);
+  // Expected outputs live under metadata.annotations and already show in the
+  // evaluator cells' bands, so both the cell and its expanded view leave that
+  // key out; the info icon says so, and the setting brings it back.
+  const isHidingAnnotations =
+    label === "metadata" &&
+    hideExpectedAnnotations &&
+    isStringKeyedObject(value) &&
+    ANNOTATIONS_KEY in value;
+  const json = JSON.stringify(
+    isHidingAnnotations ? omitKey(value, ANNOTATIONS_KEY) : (value ?? null),
+    null,
+    2
+  );
   return (
     <Flex direction="column" height="100%">
       <CellTop
         extra={
-          <DetailsPopover
-            label={`View ${label} for example ${position}`}
-            icon={<Icons.Expand />}
-            width={560}
-          >
-            <JSONBlock
-              value={json}
-              basicSetup={{ lineNumbers: false, foldGutter: false }}
-            />
-          </DetailsPopover>
+          <Flex direction="row" gap="size-50" alignItems="center">
+            {isHidingAnnotations ? (
+              <TooltipTrigger>
+                <IconButton
+                  size="S"
+                  color="text-500"
+                  aria-label={`The "${ANNOTATIONS_KEY}" key is hidden in this cell`}
+                >
+                  <Icon svg={<Icons.Info />} />
+                </IconButton>
+                <Tooltip>
+                  <TooltipArrow />
+                  The &quot;{ANNOTATIONS_KEY}&quot; key is hidden. It holds the
+                  expected outputs shown in the evaluator cells. Turn off
+                  &quot;Hide expected annotations&quot; in run settings to see
+                  it.
+                </Tooltip>
+              </TooltipTrigger>
+            ) : null}
+            <DetailsPopover
+              label={`View ${label} for example ${position}`}
+              icon={<Icons.Expand />}
+              width={560}
+            >
+              <JSONBlock
+                value={json}
+                basicSetup={{ lineNumbers: false, foldGutter: false }}
+              />
+            </DetailsPopover>
+          </Flex>
         }
       >
         <Text color="text-500">{label}</Text>
@@ -1356,6 +1395,14 @@ function ExampleFieldCell({
       </ExpandableContent>
     </Flex>
   );
+}
+
+/** Where an example keeps its annotations, expected outputs included. */
+const ANNOTATIONS_KEY = "annotations";
+
+function omitKey(value: Record<string, unknown>, key: string) {
+  const { [key]: _omitted, ...rest } = value;
+  return rest;
 }
 
 /**

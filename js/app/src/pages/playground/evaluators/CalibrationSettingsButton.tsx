@@ -1,5 +1,6 @@
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogTrigger,
   Flex,
@@ -33,10 +34,15 @@ export function parseSampleSize(value: string | null): number {
 export function CalibrationSettingsButton({
   sampleSize,
   onSampleSizeChange,
+  hideExpectedAnnotations,
+  onHideExpectedAnnotationsChange,
   isDisabled,
 }: {
   sampleSize: number;
   onSampleSizeChange: (sampleSize: number) => void;
+  /** Leave the `annotations` key out of the metadata cells. */
+  hideExpectedAnnotations: boolean;
+  onHideExpectedAnnotationsChange: (hide: boolean) => void;
   isDisabled?: boolean;
 }) {
   return (
@@ -70,6 +76,19 @@ export function CalibrationSettingsButton({
                   and splits. Every run re-evaluates the whole sample.
                 </Text>
               </NumberField>
+              <Flex direction="column" gap="size-50">
+                <Checkbox
+                  isSelected={hideExpectedAnnotations}
+                  onChange={onHideExpectedAnnotationsChange}
+                >
+                  Hide expected annotations in metadata cells
+                </Checkbox>
+                <Text size="XS" color="text-500">
+                  Expected outputs are stored under the example&apos;s
+                  &quot;annotations&quot; key and already show in each
+                  evaluator&apos;s expected band.
+                </Text>
+              </Flex>
             </Flex>
           </View>
         </Dialog>
