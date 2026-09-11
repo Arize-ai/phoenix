@@ -8074,7 +8074,7 @@ class TestEvaluatorComparison:
     @pytest.mark.parametrize("target", ["SPAN", "TRACE", "SESSION"])
     async def test_distribution_membership_is_independent_of_value_eligibility(
         self,
-        target: str,
+        target: Literal["SPAN", "TRACE", "SESSION"],
         _comparison_data: dict[str, Any],
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -8088,20 +8088,20 @@ class TestEvaluatorComparison:
                 evaluator = await session.get(models.ProjectEvaluator, ids[name])
                 assert evaluator is not None
                 evaluator.evaluation_target = target
-            for index in range(6):
+            results_by_target: list[list[tuple[str, Optional[float]]]] = [
+                [("toxicity", 0.1), ("harm", None)],
+                [("toxicity", 0.2)],
+                [("harm", 0.3)],
+                [("toxicity", 0.9), ("harm", 0.8)],
+                [],
+                [("toxicity", None), ("harm", 0.7)],
+            ]
+            for values in results_by_target:
                 project_session = await _add_project_session(session, project, start_time=start)
                 trace = await _add_trace(session, project, project_session, start_time=start)
                 span = await _add_span(session, trace, start_time=start)
-                values = [
-                    [("toxicity", 0.1), ("harm", None)],
-                    [("toxicity", 0.2)],
-                    [("harm", 0.3)],
-                    [("toxicity", 0.9), ("harm", 0.8)],
-                    [],
-                    [("toxicity", None), ("harm", 0.7)],
-                ][index]
                 for name, score in values:
-                    fields = dict(
+                    fields: dict[str, Any] = dict(
                         name=name,
                         score=score,
                         label=None,
@@ -8111,6 +8111,11 @@ class TestEvaluatorComparison:
                         source="API",
                         identifier="",
                         user_id=None,
+                    )
+                    annotation: (
+                        models.SpanAnnotation
+                        | models.TraceAnnotation
+                        | models.ProjectSessionAnnotation
                     )
                     if target == "SPAN":
                         annotation = models.SpanAnnotation(span_rowid=span.id, **fields)

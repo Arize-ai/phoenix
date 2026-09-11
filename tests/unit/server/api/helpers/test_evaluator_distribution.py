@@ -78,7 +78,9 @@ def test_freeform_label_only_folding_keeps_literal_other_label_separate() -> Non
     for label in labels + ["exclusive category"]:
         accumulator.add(label, None)
     result = accumulator.result()
-    assert result.score_value_counts is result.score_bin_counts is result.score_bin_edges is None
+    assert result.score_value_counts is None
+    assert result.score_bin_counts is None
+    assert result.score_bin_edges is None
     assert result.all_evaluated_mean_score is None
     assert result.label_counts is not None
     assert len(result.label_counts) == 7
