@@ -57,6 +57,8 @@ import {
 
 import type { EvaluatorSlotQuery } from "./__generated__/EvaluatorSlotQuery.graphql";
 import type { EvaluatorSlotSourceQuery } from "./__generated__/EvaluatorSlotSourceQuery.graphql";
+import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
+import { getEvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import { EvaluatorSlotEditor } from "./EvaluatorSlotEditor";
 import type { EvaluatorSlotProps } from "./evaluatorSlotTypes";
 import { getSlotIndex } from "./evaluatorSlotTypes";
@@ -306,17 +308,7 @@ function EvaluatorSlotSource(
             ...EvaluatorSlot_source @relay(mask: false)
           }
           ... on DatasetEvaluator {
-            name
-            inputMapping {
-              literalMapping
-              pathMapping
-            }
-            outputConfigs {
-              ...EvaluatorSlot_output @relay(mask: false)
-            }
-            evaluator {
-              ...EvaluatorSlot_source @relay(mask: false)
-            }
+            ...EvaluatorSlot_datasetEvaluator @relay(mask: false)
           }
         }
       }
@@ -344,11 +336,18 @@ function EvaluatorSlotSource(
     kind,
   });
 
+  const saveTarget = resolveSaveTarget({
+    node: data.node,
+    source,
+    datasetId: props.datasetId,
+  });
+
   const editor = (
     <EvaluatorStoreProvider initialState={initialState}>
       <EvaluatorSlotEditor
         {...props}
         kind={kind}
+        saveTarget={saveTarget}
         initialSourceCode={source?.sourceCode}
         initialLanguage={source?.language}
         initialSandboxConfigId={source?.sandboxConfig?.id}
@@ -363,6 +362,35 @@ function EvaluatorSlotSource(
       {editor}
     </EvaluatorSlotLLMProvider>
   );
+}
+
+/** Reads the loaded node into the shape the save-target rule wants. */
+function resolveSaveTarget({
+  node,
+  source,
+  datasetId,
+}: {
+  node: EvaluatorSlotSourceQuery["response"]["node"];
+  source: EvaluatorSlotSourceQuery["response"]["node"];
+  datasetId: string | null;
+}): EvaluatorSaveTarget {
+  const isBinding = node?.evaluator != null;
+
+  return getEvaluatorSaveTarget({
+    datasetId,
+    source:
+      source?.id && source.kind
+        ? {
+            id: source.id,
+            kind: source.kind,
+            datasetEvaluators: source.datasetEvaluators ?? [],
+          }
+        : null,
+    selectedDatasetEvaluator:
+      isBinding && node.id && node.dataset
+        ? { id: node.id, datasetId: node.dataset.id }
+        : null,
+  });
 }
 
 function createSlotInitialState({
@@ -452,12 +480,19 @@ export const evaluatorSlotSourceFragment = graphql`
     outputConfigs {
       ...EvaluatorSlot_output @relay(mask: false)
     }
+    datasetEvaluators {
+      id
+      dataset {
+        id
+      }
+    }
     ... on LLMEvaluator {
       prompt {
         id
         name
       }
       promptVersion {
+        id
         templateFormat
         ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
       }
@@ -475,6 +510,28 @@ export const evaluatorSlotSourceFragment = graphql`
         literalMapping
         pathMapping
       }
+    }
+  }
+`;
+
+// Also returned by the slot's update mutations, so the Relay store holds what
+// the slot would read back.
+export const evaluatorSlotDatasetEvaluatorFragment = graphql`
+  fragment EvaluatorSlot_datasetEvaluator on DatasetEvaluator {
+    id
+    name
+    dataset {
+      id
+    }
+    inputMapping {
+      literalMapping
+      pathMapping
+    }
+    outputConfigs {
+      ...EvaluatorSlot_output @relay(mask: false)
+    }
+    evaluator {
+      ...EvaluatorSlot_source @relay(mask: false)
     }
   }
 `;

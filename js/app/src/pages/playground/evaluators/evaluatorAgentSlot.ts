@@ -16,6 +16,7 @@ import type { ModelConfigByProvider } from "@phoenix/store/preferencesStore";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
+import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import type { SlotId } from "./evaluatorSlotTypes";
 
 export type EvaluatorAgentSlot = {
@@ -37,6 +38,7 @@ export function createEvaluatorAgentSlot({
   slotId,
   modelCatalog,
   sourceKey,
+  saveTarget,
   kind,
   store,
   playgroundStore,
@@ -49,6 +51,7 @@ export function createEvaluatorAgentSlot({
   slotId: SlotId;
   modelCatalog: ModelCatalog;
   sourceKey: string;
+  saveTarget: EvaluatorSaveTarget;
   kind: "LLM" | "CODE";
   store: EvaluatorStoreInstance;
   playgroundStore: PlaygroundStore | null;
@@ -98,6 +101,9 @@ export function createEvaluatorAgentSlot({
     return {
       ...draft,
       revision: JSON.stringify(draft),
+      // What saveSlot does: update the loaded evaluator, attach a shared code
+      // evaluator to the dataset, or create a new dataset evaluator.
+      saveTarget,
       // Stated on every read so an agent learns the rule before its first edit
       // rather than from a rejected run.
       outputConfigRules:
@@ -174,7 +180,7 @@ export function createEvaluatorAgentSlot({
       const state = store.getState();
 
       const validationError =
-        validateSlotFields({ kind, input }) ??
+        validateSlotFields({ kind, input, local, saveTarget }) ??
         validateModel({ input, modelCatalog });
 
       if (validationError) return { ok: false, error: validationError };
@@ -270,9 +276,13 @@ function getNextLocal({
 function validateSlotFields({
   kind,
   input,
+  local,
+  saveTarget,
 }: {
   kind: "LLM" | "CODE";
   input: EvaluatorSlotEdit;
+  local: EvaluatorSlotLocalState;
+  saveTarget: EvaluatorSaveTarget;
 }): string | null {
   const hasLlmFields =
     input.messages != null ||
@@ -290,6 +300,13 @@ function validateSlotFields({
 
   if (kind === "LLM" && hasCodeFields)
     return "Code fields cannot be applied to an LLM slot.";
+
+  if (
+    input.language &&
+    input.language !== local.language &&
+    saveTarget.action !== "create"
+  )
+    return "A saved code evaluator keeps its language. Select a new code evaluator to change it.";
 
   return null;
 }

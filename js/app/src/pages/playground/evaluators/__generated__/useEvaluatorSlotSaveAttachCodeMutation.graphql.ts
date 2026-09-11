@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eba95077f9e7bb4ce7f614ac4b790a39>>
+ * @generated SignedSource<<4b0a9aa84cd9aada61f213cbcfe025ef>>
  * @lightSyntaxTransform
  */
 
@@ -8,16 +8,18 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type CreateCodeEvaluatorInput = {
+export type CreateDatasetCodeEvaluatorInput = {
+  datasetId: string;
   description?: string | null;
+  evaluatorId: string;
   inputMapping?: EvaluatorInputMappingInput | null;
-  language: Language;
   name: string;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
-  sandboxConfigId: string;
-  sourceCode: string;
+};
+export type EvaluatorInputMappingInput = {
+  literalMapping: any;
+  pathMapping: any;
 };
 export type AnnotationConfigInput = {
   categorical: CategoricalAnnotationConfigInput;
@@ -57,23 +59,19 @@ export type FreeformAnnotationConfigInput = {
   threshold?: number | null;
   upperBound?: number | null;
 };
-export type EvaluatorInputMappingInput = {
-  literalMapping: any;
-  pathMapping: any;
+export type useEvaluatorSlotSaveAttachCodeMutation$variables = {
+  input: CreateDatasetCodeEvaluatorInput;
 };
-export type EvaluatorSlotEditorSaveCodeMutation$variables = {
-  input: CreateCodeEvaluatorInput;
-};
-export type EvaluatorSlotEditorSaveCodeMutation$data = {
-  readonly createCodeEvaluator: {
+export type useEvaluatorSlotSaveAttachCodeMutation$data = {
+  readonly createDatasetCodeEvaluator: {
     readonly evaluator: {
       readonly id: string;
     };
   };
 };
-export type EvaluatorSlotEditorSaveCodeMutation = {
-  response: EvaluatorSlotEditorSaveCodeMutation$data;
-  variables: EvaluatorSlotEditorSaveCodeMutation$variables;
+export type useEvaluatorSlotSaveAttachCodeMutation = {
+  response: useEvaluatorSlotSaveAttachCodeMutation$data;
+  variables: useEvaluatorSlotSaveAttachCodeMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -94,15 +92,15 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "CodeEvaluatorMutationPayload",
+    "concreteType": "DatasetEvaluatorMutationPayload",
     "kind": "LinkedField",
-    "name": "createCodeEvaluator",
+    "name": "createDatasetCodeEvaluator",
     "plural": false,
     "selections": [
       {
         "alias": null,
         "args": null,
-        "concreteType": "CodeEvaluator",
+        "concreteType": "DatasetEvaluator",
         "kind": "LinkedField",
         "name": "evaluator",
         "plural": false,
@@ -126,7 +124,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EvaluatorSlotEditorSaveCodeMutation",
+    "name": "useEvaluatorSlotSaveAttachCodeMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -135,20 +133,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "EvaluatorSlotEditorSaveCodeMutation",
+    "name": "useEvaluatorSlotSaveAttachCodeMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "5d3e42514946768d64322f0cb24e7cbf",
+    "cacheID": "0dc0682fd1290c588970d04c8e010667",
     "id": null,
     "metadata": {},
-    "name": "EvaluatorSlotEditorSaveCodeMutation",
+    "name": "useEvaluatorSlotSaveAttachCodeMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorSlotEditorSaveCodeMutation(\n  $input: CreateCodeEvaluatorInput!\n) {\n  createCodeEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
+    "text": "mutation useEvaluatorSlotSaveAttachCodeMutation(\n  $input: CreateDatasetCodeEvaluatorInput!\n) {\n  createDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8cf6c6d3dca3ec821c2c0e9381712a6f";
+(node as any).hash = "0e6f5fa663c37a23a0778a79d95eff3a";
 
 export default node;

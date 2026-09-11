@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useContext, useEffect, useEffectEvent, useRef, useState } from "react";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
@@ -60,15 +60,15 @@ import {
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import type { PlaygroundInstancePrompt } from "@phoenix/store";
+import type { PlaygroundStore } from "@phoenix/store/playground";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import type { EvaluatorSlotEditorAttachCodeMutation } from "./__generated__/EvaluatorSlotEditorAttachCodeMutation.graphql";
 import type { EvaluatorSlotEditorQuery } from "./__generated__/EvaluatorSlotEditorQuery.graphql";
-import type { EvaluatorSlotEditorSaveCodeMutation } from "./__generated__/EvaluatorSlotEditorSaveCodeMutation.graphql";
-import type { EvaluatorSlotEditorSaveLLMMutation } from "./__generated__/EvaluatorSlotEditorSaveLLMMutation.graphql";
 import { createEvaluatorAgentSlot } from "./evaluatorAgentSlot";
+import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import { EvaluatorSlotOutput } from "./EvaluatorSlotOutput";
 import type {
   EvaluatorSlotProps,
@@ -79,9 +79,15 @@ import {
   getCodeSlotValidationError,
   getDefaultSandboxConfigId,
 } from "./evaluatorSlotValidation";
+import {
+  SAVE_EFFECTS,
+  SaveEvaluatorSlotDialog,
+} from "./SaveEvaluatorSlotDialog";
+import { useEvaluatorSlotSave } from "./useEvaluatorSlotSave";
 
 type EditorProps = EvaluatorSlotProps & {
   kind: "LLM" | "CODE";
+  saveTarget: EvaluatorSaveTarget;
   sourceControl: ReactNode;
   initialLanguage?: CodeEvaluatorLanguage;
   initialSourceCode?: string;
@@ -173,6 +179,7 @@ function LLMSlotEditor(props: EditorProps) {
 
 function EvaluatorSlotEditorContent({
   kind,
+  saveTarget,
   initialLanguage,
   initialSourceCode,
   initialSandboxConfigId,
@@ -230,47 +237,8 @@ function EvaluatorSlotEditorContent({
   const [savedRevision, setSavedRevision] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const [saveLLM, isSavingLLM] =
-    useMutation<EvaluatorSlotEditorSaveLLMMutation>(graphql`
-      mutation EvaluatorSlotEditorSaveLLMMutation(
-        $input: CreateDatasetLLMEvaluatorInput!
-      ) {
-        createDatasetLlmEvaluator(input: $input) {
-          evaluator {
-            id
-            name
-          }
-        }
-      }
-    `);
-
-  const [saveCode, isSavingCode] =
-    useMutation<EvaluatorSlotEditorSaveCodeMutation>(graphql`
-      mutation EvaluatorSlotEditorSaveCodeMutation(
-        $input: CreateCodeEvaluatorInput!
-      ) {
-        createCodeEvaluator(input: $input) {
-          evaluator {
-            id
-          }
-        }
-      }
-    `);
-
-  const [attachCode, isAttachingCode] =
-    useMutation<EvaluatorSlotEditorAttachCodeMutation>(graphql`
-      mutation EvaluatorSlotEditorAttachCodeMutation(
-        $input: CreateDatasetCodeEvaluatorInput!
-      ) {
-        createDatasetCodeEvaluator(input: $input) {
-          evaluator {
-            id
-          }
-        }
-      }
-    `);
-
-  const isSaving = isSavingLLM || isSavingCode || isAttachingCode;
+  const { save: saveSlot, copyName, isSaving } = useEvaluatorSlotSave();
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   // A parent render must not rebuild the evaluator or restart subscriptions.
   const onSnapshotChange = useEffectEvent(onChange);
   useEffect(() => {
@@ -458,7 +426,14 @@ function EvaluatorSlotEditorContent({
     savedRevision,
   ]);
 
-  async function save(): Promise<UIOperationResult> {
+  /**
+   * Saves the draft to `saveTarget`, or as a new evaluator named as a copy of
+   * the draft when the dialog's "Save as new" asks for one. PXI saves take the
+   * target as is.
+   */
+  async function save({
+    asNew = false,
+  }: { asNew?: boolean } = {}): Promise<UIOperationResult> {
     setSaveError(null);
 
     if (
@@ -470,9 +445,9 @@ function EvaluatorSlotEditorContent({
         ok: false,
         error: "Select a dataset and complete evaluator setup before saving.",
       };
-    const name = store.getState().evaluator.globalName.trim();
+    const draftName = store.getState().evaluator.globalName.trim();
 
-    if (!name) {
+    if (!draftName) {
       setSaveError(NAME_REQUIRED_ERROR);
       setSearchParams(
         (previous) => {
@@ -487,83 +462,49 @@ function EvaluatorSlotEditorContent({
       return { ok: false, error: NAME_REQUIRED_ERROR };
     }
 
-    return new Promise((resolve) => {
-      const fail = (error: Error) => {
-        const message =
-          getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
-          error.message;
+    try {
+      // The copy's name lands in the draft too, so the slot shows what was
+      // saved and the user can rename it afterwards.
+      const name = asNew ? await copyName(draftName, datasetId) : draftName;
 
-        setSaveError(message);
-        resolve({ ok: false, error: message });
-      };
+      if (asNew) store.getState().setEvaluatorGlobalName(name);
 
-      const saved = (id: string) => {
-        setSavedRevision(snapshot.revision);
+      const saved = await saveSlot({
+        target: asNew ? { action: "create" } : saveTarget,
+        datasetId,
+        name,
+        description: store.getState().evaluator.description.trim() || undefined,
+        preview: snapshot.preview,
+        inputMapping: snapshot.inputMapping,
+        promptVersionId:
+          playgroundStore?.getState().instances[0]?.prompt?.version ?? null,
+        sandboxConfigId,
+        initialSandboxConfigId: initialSandboxConfigId ?? null,
+      });
+
+      setSavedRevision(snapshot.revision);
+      adoptSavedPrompt(playgroundStore, saved.prompt);
+
+      if (saved.action === "created")
         props.onSelectionChange?.({
           evaluatorId: null,
-          datasetEvaluatorId: id,
+          datasetEvaluatorId: saved.datasetEvaluatorId,
         });
-        resolve({ ok: true, output: { datasetEvaluatorId: id, name } });
+
+      return {
+        ok: true,
+        output: {
+          datasetEvaluatorId: saved.datasetEvaluatorId,
+          action: saved.action,
+          name,
+        },
       };
+    } catch (error) {
+      const message = getSaveErrorMessage(error);
+      setSaveError(message);
 
-      if (snapshot.preview?.inlineLlmEvaluator)
-        saveLLM({
-          variables: {
-            input: {
-              ...snapshot.preview.inlineLlmEvaluator,
-              name,
-              datasetId,
-              inputMapping: snapshot.inputMapping,
-            },
-          },
-          onError: fail,
-          onCompleted: (response, errors) =>
-            errors?.length
-              ? fail(new Error(errors.map((error) => error.message).join("\n")))
-              : saved(response.createDatasetLlmEvaluator.evaluator.id),
-        });
-      else if (snapshot.preview?.inlineCodeEvaluator && sandboxConfigId)
-        saveCode({
-          variables: {
-            input: {
-              ...snapshot.preview.inlineCodeEvaluator,
-              name,
-              sandboxConfigId,
-              inputMapping: snapshot.inputMapping,
-            },
-          },
-          onError: fail,
-          onCompleted: (response, errors) => {
-            if (errors?.length) {
-              fail(new Error(errors.map((error) => error.message).join("\n")));
-
-              return;
-            }
-
-            attachCode({
-              variables: {
-                input: {
-                  datasetId,
-                  evaluatorId: response.createCodeEvaluator.evaluator.id,
-                  name,
-                  inputMapping: snapshot.inputMapping,
-                  outputConfigs: buildOutputConfigsInput(
-                    store.getState().outputConfigs
-                  ),
-                },
-              },
-              onError: fail,
-              onCompleted: (response, errors) =>
-                errors?.length
-                  ? fail(
-                      new Error(errors.map((error) => error.message).join("\n"))
-                    )
-                  : saved(response.createDatasetCodeEvaluator.evaluator.id),
-            });
-          },
-        });
-      else fail(new Error("Select a sandbox before saving a code evaluator."));
-    });
+      return { ok: false, error: message };
+    }
   }
 
   const saveRef = useRef(save);
@@ -582,6 +523,7 @@ function EvaluatorSlotEditorContent({
       slotId,
       modelCatalog,
       sourceKey: initialDatasetEvaluatorId ?? initialEvaluatorId ?? "new-llm",
+      saveTarget,
       kind,
       store,
       playgroundStore: playgroundStore ?? null,
@@ -613,6 +555,7 @@ function EvaluatorSlotEditorContent({
     registerAgentSlot,
     initialDatasetEvaluatorId,
     initialEvaluatorId,
+    saveTarget,
     slotId,
   ]);
 
@@ -642,10 +585,26 @@ function EvaluatorSlotEditorContent({
         isSaving={isSaving}
         isRunning={isRunning}
         isSaveDisabled={isSaving || isActionDisabled}
-        onSave={() => void save()}
+        onSave={() => setIsSaveDialogOpen(true)}
         onRemove={onRemove}
       />
-      {saveError ? (
+      <SaveEvaluatorSlotDialog
+        slotId={slotId}
+        target={saveTarget}
+        isOpen={isSaveDialogOpen}
+        onOpenChange={setIsSaveDialogOpen}
+        isSaving={isSaving}
+        error={saveError}
+        onSave={async (options) => {
+          const result = await save(options);
+
+          if (result.ok) setIsSaveDialogOpen(false);
+
+          return result;
+        }}
+      />
+      {/* PXI saves report here; the dialog shows its own errors. */}
+      {saveError && !isSaveDialogOpen ? (
         <Alert variant="danger" title="Could not save evaluator">
           {saveError}
         </Alert>
@@ -678,6 +637,7 @@ function EvaluatorSlotEditorContent({
               <Flex direction="row" gap="size-100" alignItems="center">
                 <CodeEvaluatorLanguageField
                   hideLabel
+                  isDisabled={saveTarget.action !== "create"}
                   language={language}
                   onChange={(next) => {
                     setLanguage(next);
@@ -736,10 +696,7 @@ function EvaluatorSlotEditorContent({
             >
               <Label>Name</Label>
               <Input placeholder="e.g. correctness" />
-              <Text slot="description">
-                Saving creates a new evaluator with this name and attaches it to
-                the dataset.
-              </Text>
+              <Text slot="description">{SAVE_EFFECTS[saveTarget.action]}.</Text>
             </TextField>
             {currentSnapshot.outputNames.length > 1 ? (
               <Select
@@ -852,7 +809,7 @@ function EvaluatorSlotToolbar({
           isDisabled={isSaveDisabled}
           isPending={isSaving}
         >
-          Save as new
+          Save
         </Button>
         {onRemove ? (
           <TooltipTrigger>
@@ -875,6 +832,30 @@ function EvaluatorSlotToolbar({
 }
 
 const NAME_REQUIRED_ERROR = "Enter a name before saving.";
+
+/**
+ * Points the judge prompt at the version the save produced, so the next save
+ * diffs against it instead of appending a duplicate version.
+ */
+function adoptSavedPrompt(
+  playgroundStore: PlaygroundStore | null | undefined,
+  prompt: PlaygroundInstancePrompt | null
+) {
+  const instanceId = playgroundStore?.getState().instances[0]?.id;
+
+  if (!playgroundStore || !prompt || instanceId == null) return;
+  playgroundStore
+    .getState()
+    .updateInstance({ instanceId, patch: { prompt }, dirty: null });
+}
+
+function getSaveErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+
+  return (
+    getErrorMessagesFromRelayMutationError(error)?.join("\n") ?? error.message
+  );
+}
 
 // Warning-toned inline notice; the icon and text share the color.
 const validationCSS = css`

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d938fcc1fda16909a12d8b3098a7ec23>>
+ * @generated SignedSource<<7d8e0f54b9f0a63ac373f7e716a0c3b8>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,12 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type EvaluatorSlot_source$data = {
+  readonly datasetEvaluators: ReadonlyArray<{
+    readonly dataset: {
+      readonly id: string;
+    };
+    readonly id: string;
+  }>;
   readonly description: string | null;
   readonly id: string;
   readonly inputMapping?: {
@@ -55,6 +61,7 @@ export type EvaluatorSlot_source$data = {
     readonly name: string;
   };
   readonly promptVersion?: {
+    readonly id: string;
     readonly templateFormat: PromptTemplateFormat;
     readonly " $fragmentSpreads": FragmentRefs<"fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
   };
@@ -123,59 +130,62 @@ v6 = {
   "storageKey": null
 },
 v7 = [
+  (v0/*:: as any*/)
+],
+v8 = [
   (v0/*:: as any*/),
   (v1/*:: as any*/)
 ],
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "temperature",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "frequencyPenalty",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "presencePenalty",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "topP",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "extraBody",
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "stopSequences",
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "strict",
   "storageKey": null
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -281,6 +291,28 @@ return {
       "storageKey": null
     },
     {
+      "alias": null,
+      "args": null,
+      "concreteType": "DatasetEvaluator",
+      "kind": "LinkedField",
+      "name": "datasetEvaluators",
+      "plural": true,
+      "selections": [
+        (v0/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "Dataset",
+          "kind": "LinkedField",
+          "name": "dataset",
+          "plural": false,
+          "selections": (v7/*:: as any*/),
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
       "kind": "InlineFragment",
       "selections": [
         {
@@ -290,7 +322,7 @@ return {
           "kind": "LinkedField",
           "name": "prompt",
           "plural": false,
-          "selections": (v7/*:: as any*/),
+          "selections": (v8/*:: as any*/),
           "storageKey": null
         },
         {
@@ -301,6 +333,7 @@ return {
           "name": "promptVersion",
           "plural": false,
           "selections": [
+            (v0/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -343,7 +376,7 @@ return {
                         {
                           "kind": "InlineFragment",
                           "selections": [
-                            (v8/*:: as any*/),
+                            (v9/*:: as any*/),
                             {
                               "alias": "openaiMaxTokens",
                               "args": null,
@@ -358,9 +391,9 @@ return {
                               "name": "maxCompletionTokens",
                               "storageKey": null
                             },
-                            (v9/*:: as any*/),
                             (v10/*:: as any*/),
                             (v11/*:: as any*/),
+                            (v12/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -382,7 +415,7 @@ return {
                               "name": "reasoningEffort",
                               "storageKey": null
                             },
-                            (v12/*:: as any*/)
+                            (v13/*:: as any*/)
                           ],
                           "type": "PromptOpenAIInvocationParameters",
                           "abstractKey": null
@@ -397,9 +430,9 @@ return {
                               "name": "maxTokens",
                               "storageKey": null
                             },
-                            (v8/*:: as any*/),
-                            (v11/*:: as any*/),
-                            (v13/*:: as any*/),
+                            (v9/*:: as any*/),
+                            (v12/*:: as any*/),
+                            (v14/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -479,7 +512,7 @@ return {
                               ],
                               "storageKey": null
                             },
-                            (v12/*:: as any*/)
+                            (v13/*:: as any*/)
                           ],
                           "type": "PromptAnthropicInvocationParameters",
                           "abstractKey": null
@@ -487,7 +520,7 @@ return {
                         {
                           "kind": "InlineFragment",
                           "selections": [
-                            (v8/*:: as any*/),
+                            (v9/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -495,10 +528,10 @@ return {
                               "name": "maxOutputTokens",
                               "storageKey": null
                             },
-                            (v13/*:: as any*/),
-                            (v10/*:: as any*/),
-                            (v9/*:: as any*/),
+                            (v14/*:: as any*/),
                             (v11/*:: as any*/),
+                            (v10/*:: as any*/),
+                            (v12/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
@@ -552,9 +585,9 @@ return {
                               "name": "maxTokens",
                               "storageKey": null
                             },
-                            (v8/*:: as any*/),
-                            (v11/*:: as any*/),
-                            (v13/*:: as any*/)
+                            (v9/*:: as any*/),
+                            (v12/*:: as any*/),
+                            (v14/*:: as any*/)
                           ],
                           "type": "PromptAwsInvocationParameters",
                           "abstractKey": null
@@ -573,7 +606,7 @@ return {
                   "kind": "LinkedField",
                   "name": "customProvider",
                   "plural": false,
-                  "selections": (v7/*:: as any*/),
+                  "selections": (v8/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -601,7 +634,7 @@ return {
                           "name": "schema",
                           "storageKey": null
                         },
-                        (v14/*:: as any*/)
+                        (v15/*:: as any*/)
                       ],
                       "storageKey": null
                     }
@@ -680,7 +713,7 @@ return {
                                       "name": "toolCall",
                                       "plural": false,
                                       "selections": [
-                                        (v15/*:: as any*/),
+                                        (v16/*:: as any*/),
                                         {
                                           "alias": null,
                                           "args": null,
@@ -718,7 +751,7 @@ return {
                                       "name": "toolResult",
                                       "plural": false,
                                       "selections": [
-                                        (v15/*:: as any*/),
+                                        (v16/*:: as any*/),
                                         {
                                           "alias": null,
                                           "args": null,
@@ -797,7 +830,7 @@ return {
                                   "name": "parameters",
                                   "storageKey": null
                                 },
-                                (v14/*:: as any*/)
+                                (v15/*:: as any*/)
                               ],
                               "storageKey": null
                             }
@@ -904,9 +937,7 @@ return {
           "kind": "LinkedField",
           "name": "sandboxConfig",
           "plural": false,
-          "selections": [
-            (v0/*:: as any*/)
-          ],
+          "selections": (v7/*:: as any*/),
           "storageKey": null
         },
         {
@@ -944,6 +975,6 @@ return {
 };
 })();
 
-(node as any).hash = "7d32ed693997a856d778843b7bd5aef9";
+(node as any).hash = "5abb19fdd87d6ee1d284a3a775759dd2";
 
 export default node;
