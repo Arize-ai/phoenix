@@ -65,6 +65,7 @@ import { getSlotSourceLabel } from "./evaluatorSlotValidation";
 export function EvaluatorSlot(props: EvaluatorSlotProps) {
   const initialSelection =
     props.initialDatasetEvaluatorId ?? props.initialEvaluatorId ?? "new-llm";
+
   return <EvaluatorSlotContent key={initialSelection} {...props} />;
 }
 
@@ -72,6 +73,7 @@ function EvaluatorSlotContent(props: EvaluatorSlotProps) {
   const [selection, setSelection] = useState(
     props.initialDatasetEvaluatorId ?? props.initialEvaluatorId ?? "new-llm"
   );
+
   // Bumped on every (re)selection so choosing the source already loaded — the
   // reset button does exactly that — still remounts a fresh editor.
   const [generation, setGeneration] = useState(0);
@@ -79,6 +81,7 @@ function EvaluatorSlotContent(props: EvaluatorSlotProps) {
   const [kind, setKind] = useState<"LLM" | "CODE">("LLM");
   const [isDirty, setIsDirty] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
+
   function selectSource(id: string) {
     setIsDirty(false);
     setPendingSelection(null);
@@ -86,11 +89,14 @@ function EvaluatorSlotContent(props: EvaluatorSlotProps) {
     setGeneration((current) => current + 1);
     props.onSelectionChange?.({ evaluatorId: id, datasetEvaluatorId: null });
   }
+
   function requestSource(id: string) {
     if (isDirty) setPendingSelection(id);
     else selectSource(id);
   }
+
   const freshSource = kind === "CODE" ? "new-code" : "new-llm";
+
   const sourceControl = (
     <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
       <View flex="none">
@@ -126,6 +132,7 @@ function EvaluatorSlotContent(props: EvaluatorSlotProps) {
       </TooltipTrigger>
     </Flex>
   );
+
   return (
     <Flex direction="column" height="100%" minHeight={0}>
       <Suspense fallback={<Loading size="S" />}>
@@ -197,6 +204,7 @@ function EvaluatorSlotPicker({
   const [isLoadingOptions, startLoadingOptions] = useTransition();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
+
   const data = useLazyLoadQuery<EvaluatorSlotQuery>(
     graphql`
       query EvaluatorSlotQuery($filter: EvaluatorFilter, $hasOpened: Boolean!) {
@@ -217,11 +225,13 @@ function EvaluatorSlotPicker({
       filter: deferredSearch ? { col: "name", value: deferredSearch } : null,
     }
   );
+
   const options = (data.evaluators?.edges ?? [])
     .map(({ node }) => node)
     .filter(
       (node) => !node.isBuiltin && (node.kind === "LLM" || node.kind === "CODE")
     );
+
   return (
     <Select
       aria-label="Evaluator"
@@ -232,7 +242,7 @@ function EvaluatorSlotPicker({
       size="S"
       value={selection}
       onChange={(key) => {
-        if (typeof key === "string") onSelectionChange(key);
+        if (key != null) onSelectionChange(String(key));
       }}
     >
       <Button>
@@ -287,6 +297,7 @@ function EvaluatorSlotSource(
   props: EvaluatorSlotProps & { selection: string; sourceControl: ReactNode }
 ) {
   const isNew = props.selection === "new-llm" || props.selection === "new-code";
+
   const data = useLazyLoadQuery<EvaluatorSlotSourceQuery>(
     graphql`
       query EvaluatorSlotSourceQuery($id: ID!, $hasSource: Boolean!) {
@@ -312,7 +323,9 @@ function EvaluatorSlotSource(
     `,
     { id: props.selection, hasSource: !isNew }
   );
+
   const source = data.node?.evaluator ?? data.node;
+
   if (!isNew && !isEditableSource(source))
     return (
       <EvaluatorSlotUnavailable
@@ -321,13 +334,16 @@ function EvaluatorSlotSource(
         sourceControl={props.sourceControl}
       />
     );
+
   const kind =
     source?.kind === "CODE" || props.selection === "new-code" ? "CODE" : "LLM";
+
   const initialState = createSlotInitialState({
     node: data.node,
     source,
     kind,
   });
+
   const editor = (
     <EvaluatorStoreProvider initialState={initialState}>
       <EvaluatorSlotEditor
@@ -339,6 +355,7 @@ function EvaluatorSlotSource(
       />
     </EvaluatorStoreProvider>
   );
+
   return kind === "CODE" ? (
     editor
   ) : (
@@ -373,6 +390,7 @@ function createSlotInitialState({
           })),
         },
       ];
+
     if (config.__typename === "ContinuousAnnotationConfig")
       return [
         {
@@ -382,6 +400,7 @@ function createSlotInitialState({
           upperBound: config.upperBound,
         },
       ];
+
     if (config.__typename === "FreeformAnnotationConfig")
       return [
         {
@@ -392,8 +411,10 @@ function createSlotInitialState({
           threshold: config.threshold,
         },
       ];
+
     return [];
   });
+
   return {
     ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
     evaluator: {
@@ -457,6 +478,7 @@ export const evaluatorSlotSourceFragment = graphql`
     }
   }
 `;
+
 export const evaluatorSlotOutputFragment = graphql`
   fragment EvaluatorSlot_output on BuiltInEvaluatorOutputConfig {
     __typename
@@ -518,6 +540,7 @@ function EvaluatorSlotUnavailable({
       }),
     [onChange, selection]
   );
+
   return (
     <Flex direction="column" gap="size-200">
       {sourceControl}
@@ -540,15 +563,19 @@ function EvaluatorSlotLLMProvider({
     useQueryLoader<EvaluatorPlaygroundProviderQuery>(
       EvaluatorProviderQueryNode
     );
+
   const [modelQuery, loadModelQuery] =
     useQueryLoader<useModelMenuDataQuery>(ModelMenuQueryNode);
+
   useEffect(() => {
     // Neither catalog depends on the other. Start both before mounting the
     // provider/editor tree; useQueryLoader retains them until this slot unmounts.
     loadProviderQuery({});
     loadModelQuery({});
   }, [loadProviderQuery, loadModelQuery]);
+
   if (!providerQuery || !modelQuery) return <Loading size="S" />;
+
   return (
     <ModelMenuFetchPolicyContext value="store-or-network">
       <EvaluatorPlaygroundProvider

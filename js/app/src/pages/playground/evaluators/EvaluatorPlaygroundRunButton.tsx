@@ -26,6 +26,7 @@ export function EvaluatorPlaygroundRunButton({
   onStop: () => void;
 }) {
   const modifierKey = useModifierKey();
+
   const toggle = () => {
     if (isRunning) {
       onStop();
@@ -33,6 +34,7 @@ export function EvaluatorPlaygroundRunButton({
       onRun();
     }
   };
+
   useHotkeys(
     "mod+enter",
     (e) => {
@@ -46,6 +48,7 @@ export function EvaluatorPlaygroundRunButton({
       preventDefault: true,
     }
   );
+
   return (
     <Button
       variant="primary"

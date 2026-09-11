@@ -32,6 +32,7 @@ export function CalibrationResultsTable({
 }) {
   // TanStack mutates its table objects, so the compiler cannot memoize readers.
   "use no memo";
+
   // eslint-disable-next-line react/incompatible-library
   const table = useReactTable({
     columns,
@@ -42,6 +43,7 @@ export function CalibrationResultsTable({
     columnResizeMode: "onChange",
     enableSorting: false,
   });
+
   return (
     <table
       css={[tableCSS, borderedTableCSS, resultsTableCSS]}

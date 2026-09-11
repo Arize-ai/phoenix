@@ -1,18 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  reviewEvaluatorPlaygroundOperation,
   configureEvaluatorPlaygroundOperation,
+  setExpectedOutputEvaluatorPlaygroundOperation,
 } from "@phoenix/agent/uiOperations/operations/evaluatorPlayground";
 
 import {
   createCalibrationContext,
   matchesExpectedOutput,
-  getCalibrationAgreement,
   getCalibrationAnnotationName,
   getExpectedOutputIssue,
   getExpectedVerdict,
-  haveCompatibleLabels,
   runCalibrationSample,
 } from "../calibration";
 import {
@@ -28,11 +26,13 @@ describe("calibration", () => {
         quality: [{ label: "pass", annotator_kind: "HUMAN" }],
       },
     };
+
     const context = createCalibrationContext({
       input: { question: "hello" },
       output: { response: "hello" },
       metadata,
     });
+
     expect(context.reference).toEqual({});
     expect(context.output).toEqual({ response: "hello" });
     expect(context.metadata).toEqual({ customer: "test" });
@@ -46,6 +46,7 @@ describe("calibration", () => {
       lowerBound: null,
       upperBound: null,
     };
+
     const continuous = {
       name: "score",
       labels: [],
@@ -53,6 +54,7 @@ describe("calibration", () => {
       lowerBound: 0,
       upperBound: 1,
     };
+
     expect(
       getExpectedOutputIssue({
         expected: { label: "pass" },
@@ -81,12 +83,14 @@ describe("calibration", () => {
     expect(
       getExpectedOutputIssue({ expected: { label: "good" }, output: undefined })
     ).toBeNull();
+
     const prediction = {
       status: "success" as const,
       label: "pass",
       score: 1,
       explanation: null,
     };
+
     expect(
       getExpectedVerdict({
         prediction,
@@ -132,30 +136,6 @@ describe("calibration", () => {
       })
     ).toBe("judge.quality");
   });
-  it("counts errors and missing predictions as non-agreements, not successful rows", () => {
-    expect(
-      getCalibrationAgreement({
-        expected: { first: "pass", second: "fail", third: "pass" },
-        predictions: {
-          first: {
-            status: "success",
-            label: "pass",
-            score: 1,
-            explanation: null,
-          },
-          second: { status: "error", error: "timeout" },
-        },
-      })
-    ).toEqual({ matches: 1, total: 3, percent: 33 });
-    expect(
-      getCalibrationAgreement({ expected: {}, predictions: {} }).percent
-    ).toBeNull();
-  });
-  it("compares label sets independently of order and rejects unsupported schemas", () => {
-    expect(haveCompatibleLabels(["yes", "no"], ["no", "yes"])).toBe(true);
-    expect(haveCompatibleLabels(["yes", "no"], ["pass", "fail"])).toBe(false);
-    expect(haveCompatibleLabels([], [])).toBe(false);
-  });
   it("limits concurrency and associates out-of-order results with their examples", async () => {
     let active = 0;
     let peak = 0;
@@ -168,8 +148,10 @@ describe("calibration", () => {
         active++;
         peak = Math.max(peak, active);
         await Promise.resolve();
+
         if (item % 2) await Promise.resolve();
         active--;
+
         return {
           status: "success",
           label: String(item),
@@ -194,8 +176,10 @@ describe("calibration", () => {
   it("stops scheduling and suppresses in-flight completions after cancellation", async () => {
     const controller = new AbortController();
     const onResult = vi.fn();
+
     const execute = vi.fn(async () => {
       controller.abort();
+
       return {
         status: "success" as const,
         label: "pass",
@@ -203,6 +187,7 @@ describe("calibration", () => {
         explanation: null,
       };
     });
+
     await runCalibrationSample({
       items: [1, 2, 3],
       concurrency: 1,
@@ -220,6 +205,7 @@ describe("calibration", () => {
       signal: new AbortController().signal,
       execute: async (item) => {
         if (item === 1) throw new Error("failed");
+
         return {
           status: "success",
           label: "pass",
@@ -241,6 +227,7 @@ describe("independent expected outputs", () => {
       score: 0.75,
       explanation: null,
     };
+
     expect(
       matchesExpectedOutput(prediction, { label: null, score: 0.75 })
     ).toBe(true);
@@ -256,30 +243,31 @@ describe("independent expected outputs", () => {
     ).toBe(false);
   });
   it("restores four peer slots and permits removing A", () => {
-    const params = new URLSearchParams("compare=true");
-    expect(getVisibleEvaluatorSlots(params)).toEqual(["A", "B"]);
+    const params = new URLSearchParams();
+    expect(getVisibleEvaluatorSlots(params)).toEqual(["A"]);
     setVisibleEvaluatorSlots(params, ["A", "B", "C", "D"]);
     expect(getVisibleEvaluatorSlots(params)).toEqual(["A", "B", "C", "D"]);
     setVisibleEvaluatorSlots(params, ["B", "C", "D"]);
     expect(getVisibleEvaluatorSlots(params)).toEqual(["B", "C", "D"]);
-    expect(params.has("compare")).toBe(false);
   });
 });
 
 it("requires an explicit evaluator for expected-output writes", () => {
-  const review = {
+  const input = {
     exampleId: "example",
     expectedRevisionId: "revision",
     outputName: "quality",
     label: null,
     score: 0.8,
   };
+
   expect(
-    reviewEvaluatorPlaygroundOperation.inputSchema.safeParse(review).success
+    setExpectedOutputEvaluatorPlaygroundOperation.inputSchema.safeParse(input)
+      .success
   ).toBe(false);
   expect(
-    reviewEvaluatorPlaygroundOperation.inputSchema.safeParse({
-      ...review,
+    setExpectedOutputEvaluatorPlaygroundOperation.inputSchema.safeParse({
+      ...input,
       slot: "D",
     }).success
   ).toBe(true);

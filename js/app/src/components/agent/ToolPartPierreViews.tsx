@@ -45,9 +45,6 @@ const toolPartPierreViewCSS = css`
 
 const PIERRE_THEME = { light: "pierre-light", dark: "pierre-dark" } as const;
 
-// Wrap code in the narrow chat panel: horizontal overflow captures diagonal
-// trackpad gestures and prevents scrolling down to the approval buttons.
-
 /**
  * A syntax-highlighted read-only file body (language inferred from
  * `fileName`) for tool part content such as the `execute_browser_action` script argument.
@@ -66,7 +63,6 @@ export function ToolPartFileView({
         file={{ name: fileName, contents }}
         options={{
           disableFileHeader: true,
-          overflow: "wrap",
           theme: PIERRE_THEME,
           themeType: theme,
           unsafeCSS: PIERRE_TOOL_PART_UNSAFE_CSS,
@@ -103,7 +99,6 @@ export function ToolPartDiffView({
         options={{
           diffStyle: "unified",
           disableFileHeader: true,
-          overflow: "wrap",
           theme: PIERRE_THEME,
           themeType: theme,
           unsafeCSS: PIERRE_TOOL_PART_UNSAFE_CSS,

@@ -122,6 +122,7 @@ export function useModelMenuData({
   credentialSource?: ModelCredentialSource;
 } = {}) {
   const defaultFetchPolicy = useContext(ModelMenuFetchPolicyContext);
+
   const data = useLazyLoadQuery<useModelMenuDataQuery>(
     graphql`
       query useModelMenuDataQuery {

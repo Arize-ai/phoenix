@@ -11,14 +11,15 @@ import {
 function createTimers() {
   const timers = new Map<number, { callback: () => void; ms: number }>();
   let nextHandle = 1;
+
   return {
     schedule: (callback: () => void, ms: number) => {
       const handle = nextHandle++;
       timers.set(handle, { callback, ms });
-      return handle;
-    },
-    cancel: (handle: unknown) => {
-      timers.delete(handle as number);
+
+      return () => {
+        timers.delete(handle);
+      };
     },
     fire(ms: number) {
       for (const [handle, timer] of [...timers]) {
@@ -40,6 +41,7 @@ describe("expected output queue", () => {
     const timers = createTimers();
     const flush = vi.fn(async () => ({ ok: true as const }));
     const states: ExpectedOutputQueueState[] = [];
+
     const queue = createExpectedOutputQueue({
       flush,
       onChange: (state) => states.push(state),
@@ -47,6 +49,7 @@ describe("expected output queue", () => {
       maxWaitMs: 10000,
       ...timers,
     });
+
     queue.enqueue("ex1", "judge", { label: "pass" });
     queue.enqueue("ex2", "judge", { label: "fail" });
     queue.enqueue("ex1", "judge", { label: "fail" });
@@ -83,12 +86,14 @@ describe("expected output queue", () => {
   it("keeps annotations made during a write for the next batch and shows both as recorded", async () => {
     const timers = createTimers();
     let resolveFlush: (() => void) | null = null;
+
     const flush = vi.fn(
       () =>
         new Promise<{ ok: true }>((resolve) => {
           resolveFlush = () => resolve({ ok: true });
         })
     );
+
     const queue = createExpectedOutputQueue({ flush, ...timers });
     queue.enqueue("ex1", "judge", { label: "pass" });
     const first = queue.flushNow();
@@ -119,6 +124,7 @@ describe("expected output queue", () => {
 
   it("returns a failed batch to the queue beneath newer annotations and reports the error", async () => {
     const timers = createTimers();
+
     const flush = vi
       .fn<
         (
@@ -127,6 +133,7 @@ describe("expected output queue", () => {
       >()
       .mockResolvedValueOnce({ ok: false, error: "offline" })
       .mockResolvedValueOnce({ ok: true });
+
     const queue = createExpectedOutputQueue({ flush, ...timers });
     queue.enqueue("ex1", "judge", { label: "pass" });
     queue.enqueue("ex2", "judge", { label: "pass" });
@@ -150,12 +157,14 @@ describe("expected output queue", () => {
   it("flushes no later than the maximum wait while annotating continues", async () => {
     const timers = createTimers();
     const flush = vi.fn(async () => ({ ok: true as const }));
+
     const queue = createExpectedOutputQueue({
       flush,
       idleMs: 2000,
       maxWaitMs: 10000,
       ...timers,
     });
+
     queue.enqueue("ex1", "judge", { label: "pass" });
     queue.enqueue("ex2", "judge", { label: "pass" });
     timers.fire(10000);

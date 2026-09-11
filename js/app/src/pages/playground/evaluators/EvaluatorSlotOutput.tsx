@@ -20,7 +20,9 @@ export function EvaluatorSlotOutput({ name }: { name: string }) {
   const state = useEvaluatorStore((state) => state);
   const index = state.outputConfigs.findIndex((config) => config.name === name);
   const config = state.outputConfigs[index];
+
   if (!config) return <Alert variant="info">Choose an output.</Alert>;
+
   if (!("values" in config))
     return (
       <Flex direction="column" gap="size-100">
@@ -55,9 +57,11 @@ export function EvaluatorSlotOutput({ name }: { name: string }) {
         ))}
       </Flex>
     );
+
   // The first output is the one the shared form component edits. It also owns
   // the "include explanation" switch and the optimization direction.
   if (index === 0) return <EvaluatorCategoricalChoiceConfig />;
+
   // Secondary outputs get the same choice grid, minus the first output's
   // evaluator-wide controls.
   return (

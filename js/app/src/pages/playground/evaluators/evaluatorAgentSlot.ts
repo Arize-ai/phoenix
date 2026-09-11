@@ -23,7 +23,9 @@ export type EvaluatorAgentSlot = {
   edit: (input: EvaluatorSlotEdit) => Promise<UIOperationResult>;
   save: (revision: string) => Promise<UIOperationResult>;
 };
-type LocalState = {
+
+/** The slot editor state that lives outside the evaluator store. */
+export type EvaluatorSlotLocalState = {
   language: CodeEvaluatorLanguage;
   sourceCode: string;
   sandboxConfigId: string | null;
@@ -50,8 +52,8 @@ export function createEvaluatorAgentSlot({
   kind: "LLM" | "CODE";
   store: EvaluatorStoreInstance;
   playgroundStore: PlaygroundStore | null;
-  getLocal: () => LocalState;
-  setLocal: (local: LocalState) => void;
+  getLocal: () => EvaluatorSlotLocalState;
+  setLocal: (local: EvaluatorSlotLocalState) => void;
   getPreferences: () => ModelConfigByProvider;
   sandboxConfigs: {
     id: string;
@@ -64,11 +66,13 @@ export function createEvaluatorAgentSlot({
     const state = store.getState();
     const local = getLocal();
     const instanceId = playgroundStore?.getState().instances[0]?.id;
+
     const prompt =
       kind === "LLM" && playgroundStore && instanceId != null
         ? getInstancePromptParamsFromStore(instanceId, playgroundStore)
             .promptInput
         : null;
+
     const draft = {
       slot: slotId,
       sourceKey,
@@ -90,6 +94,7 @@ export function createEvaluatorAgentSlot({
           }
         : { prompt, includeExplanation: state.evaluator.includeExplanation }),
     };
+
     return {
       ...draft,
       revision: JSON.stringify(draft),
@@ -112,12 +117,16 @@ export function createEvaluatorAgentSlot({
       },
     };
   }
+
   function applyLlm(input: EvaluatorSlotEdit) {
     if (kind !== "LLM" || !playgroundStore) return;
+
     const customProvider = modelCatalog.customProviders.find(
       (provider) => provider.id === input.model?.customProviderId
     );
+
     const operations: EditLlmEvaluatorDraftOperation[] = [];
+
     if (input.messages)
       operations.push({
         type: "set_judge_prompt",
@@ -126,6 +135,7 @@ export function createEvaluatorAgentSlot({
       });
     else if (input.templateFormat)
       playgroundStore.getState().setTemplateFormat(input.templateFormat);
+
     if (input.model)
       operations.push({
         type: "set_judge_model",
@@ -139,6 +149,7 @@ export function createEvaluatorAgentSlot({
       modelConfigByProvider: getPreferences(),
       operations,
     });
+
     if (input.model)
       playgroundStore.getState().updateModel({
         instanceId: playgroundStore.getState().instances[0].id,
@@ -161,21 +172,27 @@ export function createEvaluatorAgentSlot({
         };
       const local = getLocal();
       const state = store.getState();
+
       const validationError =
         validateSlotFields({ kind, input }) ??
         validateModel({ input, modelCatalog });
+
       if (validationError) return { ok: false, error: validationError };
+
       const outputConfigs =
         input.outputConfigs?.map((config) =>
           fromOutputConfigDraft(
             "kind" in config ? config : { ...config, kind: "classification" }
           )
         ) ?? state.outputConfigs;
+
       const errors = getEvaluatorOutputConfigValidationErrors({
         kind,
         configs: outputConfigs,
       });
+
       if (errors.length) return { ok: false, error: errors.join("\n") };
+
       if (
         input.selectedOutputName &&
         !outputConfigs.some(
@@ -187,6 +204,7 @@ export function createEvaluatorAgentSlot({
           error: "Select an output from outputConfigs.",
         };
       const nextLocal = getNextLocal({ local, input });
+
       if (
         kind === "CODE" &&
         (input.language || input.sandboxConfigId) &&
@@ -200,19 +218,25 @@ export function createEvaluatorAgentSlot({
           ok: false,
           error: "Choose a compatible sandbox from availableSandboxConfigs.",
         };
+
       // Validate the full patch before touching either store.
       if (input.name != null) state.setEvaluatorGlobalName(input.name);
+
       if (input.description != null)
         state.setEvaluatorDescription(input.description);
+
       if (input.outputConfigs) state.setOutputConfigs(outputConfigs);
+
       if (input.inputMapping) {
         state.setPathMapping(input.inputMapping.pathMapping);
         state.setLiteralMapping(input.inputMapping.literalMapping);
       }
+
       if (input.includeExplanation != null)
         state.setIncludeExplanation(input.includeExplanation);
       applyLlm(input);
       setLocal(nextLocal);
+
       return { ok: true, output: read() };
     },
     async save(revision: string): Promise<UIOperationResult> {
@@ -222,6 +246,7 @@ export function createEvaluatorAgentSlot({
           error: "Evaluator draft changed. Call readSlot before saving.",
           code: "STALE_REVISION",
         };
+
       return save();
     },
   };
@@ -231,9 +256,9 @@ function getNextLocal({
   local,
   input,
 }: {
-  local: LocalState;
+  local: EvaluatorSlotLocalState;
   input: EvaluatorSlotEdit;
-}): LocalState {
+}): EvaluatorSlotLocalState {
   return {
     language: input.language ?? local.language,
     sourceCode: input.sourceCode ?? local.sourceCode,
@@ -241,6 +266,7 @@ function getNextLocal({
     selectedOutput: input.selectedOutputName ?? local.selectedOutput,
   };
 }
+
 function validateSlotFields({
   kind,
   input,
@@ -253,16 +279,21 @@ function validateSlotFields({
     input.model != null ||
     input.templateFormat != null ||
     input.includeExplanation != null;
+
   const hasCodeFields =
     input.sourceCode != null ||
     input.language != null ||
     input.sandboxConfigId != null;
+
   if (kind === "CODE" && hasLlmFields)
     return "LLM fields cannot be applied to a CODE slot.";
+
   if (kind === "LLM" && hasCodeFields)
     return "Code fields cannot be applied to an LLM slot.";
+
   return null;
 }
+
 function validateModel({
   input,
   modelCatalog,
@@ -272,17 +303,22 @@ function validateModel({
 }): string | null {
   if (!input.model) return null;
   const { provider, customProviderId } = input.model;
+
   if (!isModelProvider(provider)) return "Unknown model provider.";
+
   const customProvider = modelCatalog.customProviders.find(
     (config) => config.id === customProviderId
   );
+
   if (
     customProviderId &&
     (!customProvider ||
       getProviderKeyForGenerativeModelSDK(customProvider.sdk) !== provider)
   )
     return "Custom provider is unavailable or does not match the provider SDK.";
+
   if (!customProvider && !modelCatalog.installedBuiltInProviders.has(provider))
     return "Model provider dependencies are not installed.";
+
   return null;
 }

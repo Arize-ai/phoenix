@@ -57,7 +57,7 @@ class DatasetMutationPayload:
 class DatasetExampleCalibrationLabelsPayload:
     dataset: Dataset
     version: DatasetVersion
-    """The touched examples, each resolving its revision as of the new version."""
+    # The touched examples, each resolving its revision as of the new version.
     examples: list[DatasetExample]
 
 
@@ -541,17 +541,19 @@ class DatasetMutationMixin:
                 )
             labels_by_example.setdefault(example_id, []).append(item)
         async with info.context.db() as session:
-            # A write lock serializes calibration updates on both SQLite and PostgreSQL.
+            # Lock the examples for the rest of the transaction so concurrent
+            # calibration writes serialize and the stale-revision check below is
+            # reliable. SQLAlchemy drops FOR UPDATE on SQLite, whose single writer
+            # lock serializes the transactions instead.
             examples = {
                 example.id: example
                 for example in await session.scalars(
-                    update(models.DatasetExample)
+                    select(models.DatasetExample)
                     .where(
                         models.DatasetExample.id.in_(labels_by_example),
                         models.DatasetExample.dataset_id == dataset_id,
                     )
-                    .values(dataset_id=models.DatasetExample.dataset_id)
-                    .returning(models.DatasetExample)
+                    .with_for_update()
                 )
             }
             if len(examples) != len(labels_by_example):

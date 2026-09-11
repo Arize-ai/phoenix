@@ -89,6 +89,7 @@ type EditorProps = EvaluatorSlotProps & {
 };
 
 const EMPTY_SANDBOX_CONFIGS: ReturnType<typeof mapSandboxConfigOptions> = [];
+
 const EMPTY_MODEL_CATALOG: ModelCatalog = {
   installedBuiltInProviders: new Set(),
   customProviders: [],
@@ -141,10 +142,12 @@ function CodeSlotEditor(props: EditorProps) {
     `,
     {}
   );
+
   const sandboxConfigs = mapSandboxConfigOptions(
     data.sandboxProviders,
     data.sandboxBackends
   );
+
   return (
     <EvaluatorSlotEditorContent
       {...props}
@@ -158,6 +161,7 @@ function LLMSlotEditor(props: EditorProps) {
   const { modelCatalog } = useModelMenuData({
     fetchPolicy: "store-or-network",
   });
+
   return (
     <EvaluatorSlotEditorContent
       {...props}
@@ -191,21 +195,27 @@ function EvaluatorSlotEditorContent({
     initialDatasetEvaluatorId,
     initialEvaluatorId,
   } = props;
+
   const [searchParams, setSearchParams] = useSearchParams();
   const tabKey = `slotTab${slotId}`;
   const selectedTab = searchParams.get(tabKey) ?? "editor";
   const store = useEvaluatorStoreInstance();
   const globalName = useEvaluatorStore((state) => state.evaluator.globalName);
+
   const setEvaluatorGlobalName = useEvaluatorStore(
     (state) => state.setEvaluatorGlobalName
   );
+
   const playgroundStore = useContext(PlaygroundContext);
+
   const [language, setLanguage] = useState<CodeEvaluatorLanguage>(
     initialLanguage ?? "PYTHON"
   );
+
   const [sourceCode, setSourceCode] = useState(
     initialSourceCode ?? getDefaultCodeEvaluatorSource(language, "dataset")
   );
+
   const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(() =>
     getDefaultSandboxConfigId({
       sandboxConfigs,
@@ -213,11 +223,13 @@ function EvaluatorSlotEditorContent({
       preferredId: initialSandboxConfigId,
     })
   );
+
   const [selectedOutput, setSelectedOutput] = useState("");
   const [snapshot, setSnapshot] = useState<SlotSnapshot | null>(null);
   const initialRevision = useRef<string | null>(null);
   const [savedRevision, setSavedRevision] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
   const [saveLLM, isSavingLLM] =
     useMutation<EvaluatorSlotEditorSaveLLMMutation>(graphql`
       mutation EvaluatorSlotEditorSaveLLMMutation(
@@ -231,6 +243,7 @@ function EvaluatorSlotEditorContent({
         }
       }
     `);
+
   const [saveCode, isSavingCode] =
     useMutation<EvaluatorSlotEditorSaveCodeMutation>(graphql`
       mutation EvaluatorSlotEditorSaveCodeMutation(
@@ -243,6 +256,7 @@ function EvaluatorSlotEditorContent({
         }
       }
     `);
+
   const [attachCode, isAttachingCode] =
     useMutation<EvaluatorSlotEditorAttachCodeMutation>(graphql`
       mutation EvaluatorSlotEditorAttachCodeMutation(
@@ -255,6 +269,7 @@ function EvaluatorSlotEditorContent({
         }
       }
     `);
+
   const isSaving = isSavingLLM || isSavingCode || isAttachingCode;
   // A parent render must not rebuild the evaluator or restart subscriptions.
   const onSnapshotChange = useEffectEvent(onChange);
@@ -280,9 +295,11 @@ function EvaluatorSlotEditorContent({
   useEffect(() => {
     function publish() {
       const current = store.getState();
+
       const name =
         current.evaluator.globalName.trim() ||
         `evaluator_${slotId.toLowerCase()}`;
+
       const outputNames: SlotOutput[] = current.outputConfigs.map((config) =>
         "values" in config
           ? {
@@ -290,9 +307,7 @@ function EvaluatorSlotEditorContent({
               labels: config.values.map((value) => value.label),
               labelScores: Object.fromEntries(
                 config.values.flatMap((value) =>
-                  typeof value.score === "number"
-                    ? [[value.label, value.score]]
-                    : []
+                  value.score != null ? [[value.label, value.score]] : []
                 )
               ),
               lowerBound: null,
@@ -306,17 +321,21 @@ function EvaluatorSlotEditorContent({
               upperBound: config.upperBound ?? null,
             }
       );
+
       const selectedOutputName = outputNames.some(
         (output) => output.name === selectedOutput
       )
         ? selectedOutput
         : (outputNames[0]?.name ?? "");
+
       let validationError: string | null =
         getEvaluatorOutputConfigValidationErrors({
           kind,
           configs: current.outputConfigs,
         }).join("\n") || null;
+
       let preview: SlotSnapshot["preview"] = null;
+
       try {
         if (kind === "CODE")
           preview = {
@@ -339,6 +358,7 @@ function EvaluatorSlotEditorContent({
             inputMapping: current.evaluator.inputMapping,
             includeExplanation: current.evaluator.includeExplanation,
           });
+
           preview = {
             inlineLlmEvaluator: {
               name: payload.name,
@@ -354,6 +374,7 @@ function EvaluatorSlotEditorContent({
             ? error.message
             : "Complete the evaluator configuration.";
       }
+
       if (kind === "CODE")
         validationError ??= getCodeSlotValidationError({
           sourceCode,
@@ -361,13 +382,17 @@ function EvaluatorSlotEditorContent({
           sandboxConfigId,
           sandboxConfigs,
         });
+
       if (!outputNames.length) validationError = "Choose an output to review.";
+
       const revision = JSON.stringify({
         preview,
         inputMapping: current.evaluator.inputMapping,
         selectedOutputName,
       });
+
       initialRevision.current ??= revision;
+
       const next: SlotSnapshot = {
         revision,
         isDirty: revision !== (savedRevision ?? initialRevision.current),
@@ -379,6 +404,7 @@ function EvaluatorSlotEditorContent({
         inputMapping: current.evaluator.inputMapping,
         validationError,
       };
+
       setSnapshot((previous) =>
         previous?.revision === next.revision &&
         previous.validationError === next.validationError &&
@@ -388,7 +414,9 @@ function EvaluatorSlotEditorContent({
       );
       onSnapshotChange(next);
     }
+
     publish();
+
     const unsubscribeEvaluator = store.subscribe((current, previous) => {
       if (
         current.evaluator !== previous.evaluator ||
@@ -397,6 +425,7 @@ function EvaluatorSlotEditorContent({
         publish();
       }
     });
+
     const unsubscribePlayground =
       kind === "LLM"
         ? playgroundStore?.subscribe((current, previous) => {
@@ -410,6 +439,7 @@ function EvaluatorSlotEditorContent({
             }
           })
         : undefined;
+
     return () => {
       unsubscribeEvaluator();
       unsubscribePlayground?.();
@@ -427,8 +457,10 @@ function EvaluatorSlotEditorContent({
     slotId,
     savedRevision,
   ]);
+
   async function save(): Promise<UIOperationResult> {
     setSaveError(null);
+
     if (
       !datasetId ||
       !snapshot?.preview ||
@@ -439,26 +471,32 @@ function EvaluatorSlotEditorContent({
         error: "Select a dataset and complete evaluator setup before saving.",
       };
     const name = store.getState().evaluator.globalName.trim();
+
     if (!name) {
       setSaveError(NAME_REQUIRED_ERROR);
       setSearchParams(
         (previous) => {
           const next = new URLSearchParams(previous);
           next.set(tabKey, "output");
+
           return next;
         },
         { replace: true }
       );
+
       return { ok: false, error: NAME_REQUIRED_ERROR };
     }
+
     return new Promise((resolve) => {
       const fail = (error: Error) => {
         const message =
           getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
           error.message;
+
         setSaveError(message);
         resolve({ ok: false, error: message });
       };
+
       const saved = (id: string) => {
         setSavedRevision(snapshot.revision);
         props.onSelectionChange?.({
@@ -467,6 +505,7 @@ function EvaluatorSlotEditorContent({
         });
         resolve({ ok: true, output: { datasetEvaluatorId: id, name } });
       };
+
       if (snapshot.preview?.inlineLlmEvaluator)
         saveLLM({
           variables: {
@@ -497,8 +536,10 @@ function EvaluatorSlotEditorContent({
           onCompleted: (response, errors) => {
             if (errors?.length) {
               fail(new Error(errors.map((error) => error.message).join("\n")));
+
               return;
             }
+
             attachCode({
               variables: {
                 input: {
@@ -524,15 +565,19 @@ function EvaluatorSlotEditorContent({
       else fail(new Error("Select a sandbox before saving a code evaluator."));
     });
   }
+
   const saveRef = useRef(save);
   useEffect(() => {
     saveRef.current = save;
   });
+
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
+
   useEffect(() => {
     let local = { language, sourceCode, sandboxConfigId, selectedOutput };
+
     const host = createEvaluatorAgentSlot({
       slotId,
       modelCatalog,
@@ -552,6 +597,7 @@ function EvaluatorSlotEditorContent({
       sandboxConfigs,
       save: () => saveRef.current(),
     });
+
     return registerAgentSlot?.(slotId, host);
   }, [
     modelCatalog,
@@ -569,6 +615,7 @@ function EvaluatorSlotEditorContent({
     initialEvaluatorId,
     slotId,
   ]);
+
   const currentSnapshot = snapshot ?? {
     isDirty: false,
     revision: "",
@@ -576,12 +623,15 @@ function EvaluatorSlotEditorContent({
     selectedOutputName: "",
     outputNames: [],
   };
+
   const isActionDisabled = !datasetId || !!currentSnapshot.validationError;
+
   const status = getSlotStatus({
     savedRevision,
     revision: currentSnapshot.revision,
     isDirty: currentSnapshot.isDirty,
   });
+
   const content = (
     <Flex direction="column" gap="size-100">
       <EvaluatorSlotToolbar
@@ -608,6 +658,7 @@ function EvaluatorSlotEditorContent({
             (previous) => {
               const next = new URLSearchParams(previous);
               next.set(tabKey, String(key));
+
               return next;
             },
             { replace: true }
@@ -695,7 +746,7 @@ function EvaluatorSlotEditorContent({
                 aria-label="Output to compare"
                 value={currentSnapshot.selectedOutputName || null}
                 onChange={(key) => {
-                  if (typeof key === "string") setSelectedOutput(key);
+                  if (key != null) setSelectedOutput(String(key));
                 }}
               >
                 <Label>Output to compare</Label>
@@ -720,6 +771,7 @@ function EvaluatorSlotEditorContent({
       </Tabs>
     </Flex>
   );
+
   return kind === "LLM" ? (
     <LLMEvaluatorInputVariablesProvider>
       {content}
@@ -861,5 +913,6 @@ function getSlotStatus({
   isDirty: boolean;
 }): string | null {
   if (savedRevision != null && savedRevision === revision) return "Saved";
+
   return isDirty ? "Unsaved changes" : null;
 }

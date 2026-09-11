@@ -13,9 +13,11 @@ const EvaluatorPlayground = lazy(
 export function PlaygroundPage() {
   const loaderData = useLoaderData<PlaygroundPageLoaderData>();
   const [searchParams] = useSearchParams();
+
   const playgroundProps = buildPlaygroundPropsFromLoaderData(
     loaderData ?? null
   );
+
   if (searchParams.get("mode") === "evaluators") {
     return (
       <Suspense fallback={<EvaluatorPlaygroundLoading />}>

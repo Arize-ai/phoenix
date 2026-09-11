@@ -3,16 +3,18 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it } from "vitest";
 
-import { CalibrationResultsTable } from "../CalibrationResultsTable";
+import { CalibrationResultsTable } from "../calibrationResults/CalibrationResultsTable";
 
 it("keeps resized widths and mounted cells when loading or adding a column", () => {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
+
   const columns: ColumnDef<unknown>[] = [
     { id: "index", header: "#", size: 48, enableResizing: false },
     { id: "example", header: "Example", size: 520, minSize: 280 },
   ];
+
   const body = (
     <tbody>
       <tr>
@@ -21,6 +23,7 @@ it("keeps resized widths and mounted cells when loading or adding a column", () 
       </tr>
     </tbody>
   );
+
   const render = ({
     nextColumns = columns,
     isLoading = false,
@@ -41,6 +44,7 @@ it("keeps resized widths and mounted cells when loading or adding a column", () 
       )
     );
   };
+
   try {
     render();
     const row = container.querySelector("tbody tr");

@@ -14,15 +14,15 @@ HUMAN_ANNOTATOR_KIND = "HUMAN"
 
 
 def _is_expected_output(record: Any) -> bool:
-    return (
-        isinstance(record, Mapping)
-        and record.get("annotator_kind") == HUMAN_ANNOTATOR_KIND
-        and (
-            isinstance(record.get("label"), str)
-            or isinstance(record.get("score"), (int, float))
-            and not isinstance(record.get("score"), bool)
-        )
-    )
+    """A human annotation record that carries a label or a numeric score."""
+    if not isinstance(record, Mapping):
+        return False
+    if record.get("annotator_kind") != HUMAN_ANNOTATOR_KIND:
+        return False
+    label, score = record.get("label"), record.get("score")
+    has_label = isinstance(label, str)
+    has_score = isinstance(score, (int, float)) and not isinstance(score, bool)
+    return has_label or has_score
 
 
 def get_expected_outputs(metadata: Mapping[str, Any]) -> dict[str, dict[str, Any]]:

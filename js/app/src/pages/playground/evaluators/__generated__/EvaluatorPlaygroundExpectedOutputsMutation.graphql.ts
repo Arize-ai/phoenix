@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<50aecbf495225f130cec13040a1b998e>>
+ * @generated SignedSource<<129919edc4684d4b3dc3e1b7ca3c8420>>
  * @lightSyntaxTransform
  */
 
@@ -20,10 +20,10 @@ export type DatasetExampleCalibrationLabelInput = {
   label?: string | null;
   score?: number | null;
 };
-export type EvaluatorPlaygroundReviewMutation$variables = {
+export type EvaluatorPlaygroundExpectedOutputsMutation$variables = {
   input: SetDatasetExampleCalibrationLabelsInput;
 };
-export type EvaluatorPlaygroundReviewMutation$data = {
+export type EvaluatorPlaygroundExpectedOutputsMutation$data = {
   readonly setDatasetExampleCalibrationLabels: {
     readonly examples: ReadonlyArray<{
       readonly id: string;
@@ -39,9 +39,9 @@ export type EvaluatorPlaygroundReviewMutation$data = {
     }>;
   };
 };
-export type EvaluatorPlaygroundReviewMutation = {
-  response: EvaluatorPlaygroundReviewMutation$data;
-  variables: EvaluatorPlaygroundReviewMutation$variables;
+export type EvaluatorPlaygroundExpectedOutputsMutation = {
+  response: EvaluatorPlaygroundExpectedOutputsMutation$data;
+  variables: EvaluatorPlaygroundExpectedOutputsMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -151,7 +151,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EvaluatorPlaygroundReviewMutation",
+    "name": "EvaluatorPlaygroundExpectedOutputsMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -160,20 +160,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "EvaluatorPlaygroundReviewMutation",
+    "name": "EvaluatorPlaygroundExpectedOutputsMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "6e2c91fc484a1f787ad640d2394b9380",
+    "cacheID": "216e7623d759bbb38facfce8c9bc63dd",
     "id": null,
     "metadata": {},
-    "name": "EvaluatorPlaygroundReviewMutation",
+    "name": "EvaluatorPlaygroundExpectedOutputsMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorPlaygroundReviewMutation(\n  $input: SetDatasetExampleCalibrationLabelsInput!\n) {\n  setDatasetExampleCalibrationLabels(input: $input) {\n    examples {\n      id\n      revision {\n        revisionId\n        calibrationLabels {\n          annotationName\n          score\n          explanation\n          label\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation EvaluatorPlaygroundExpectedOutputsMutation(\n  $input: SetDatasetExampleCalibrationLabelsInput!\n) {\n  setDatasetExampleCalibrationLabels(input: $input) {\n    examples {\n      id\n      revision {\n        revisionId\n        calibrationLabels {\n          annotationName\n          score\n          explanation\n          label\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1c6752810ffa5dbf363d6cfde76a30ec";
+(node as any).hash = "8504bd23da5ab00a8738207f6df019e9";
 
 export default node;
