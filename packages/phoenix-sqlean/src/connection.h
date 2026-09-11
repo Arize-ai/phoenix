@@ -106,6 +106,12 @@ typedef struct
        and can safely add a new one. */
     int in_sqlite;
 
+    /* Non-zero while sqlite3_reset/finalize is on the C stack. commit()
+       is refused here because SQLite will accept COMMIT while statements
+       are mid-reset, turning rollback into a commit. Backup progress
+       still commits: that path increments in_sqlite only. */
+    int in_stmt_teardown;
+
     /* Exception objects */
     PyObject* Warning;
     PyObject* Error;
@@ -135,6 +141,7 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
 int pysqlite_connection_register_cursor(pysqlite_Connection* connection, PyObject* cursor);
 int pysqlite_check_thread(pysqlite_Connection* self);
 int pysqlite_check_connection(pysqlite_Connection* con);
+int pysqlite_refuse_txn_sql(pysqlite_Connection *self, PyObject *sql);
 
 static inline void
 pysqlite_enter_sqlite(pysqlite_Connection *self)
@@ -146,6 +153,18 @@ static inline void
 pysqlite_leave_sqlite(pysqlite_Connection *self)
 {
     self->in_sqlite--;
+}
+
+static inline void
+pysqlite_enter_stmt_teardown(pysqlite_Connection *self)
+{
+    self->in_stmt_teardown++;
+}
+
+static inline void
+pysqlite_leave_stmt_teardown(pysqlite_Connection *self)
+{
+    self->in_stmt_teardown--;
 }
 
 int pysqlite_connection_setup_types(void);

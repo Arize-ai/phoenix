@@ -475,6 +475,10 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
         }
     }
 
+    if (pysqlite_refuse_txn_sql(self->connection, operation)) {
+        goto error;
+    }
+
     if (self->statement != NULL) {
         /* There is an active statement */
         pysqlite_statement_reset(self->statement);

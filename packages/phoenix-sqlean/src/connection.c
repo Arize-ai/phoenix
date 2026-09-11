@@ -81,6 +81,9 @@ static const char cannot_close_in_callback[] =
 static const char cannot_rollback_in_callback[] =
     "Cannot roll back a transaction from within a callback function.";
 
+static const char cannot_commit_in_teardown[] =
+    "Cannot commit a transaction from within a statement reset or finalize.";
+
 static int
 pysqlite_refuse_close_in_callback(pysqlite_Connection *self)
 {
@@ -97,6 +100,88 @@ pysqlite_refuse_txn_in_callback(pysqlite_Connection *self)
     if (self->in_sqlite > 0) {
         PyErr_SetString(pysqlite_ProgrammingError, cannot_rollback_in_callback);
         return 1;
+    }
+    return 0;
+}
+
+static int
+pysqlite_refuse_commit_in_teardown(pysqlite_Connection *self)
+{
+    if (self->in_stmt_teardown > 0) {
+        PyErr_SetString(pysqlite_ProgrammingError, cannot_commit_in_teardown);
+        return 1;
+    }
+    return 0;
+}
+
+static int
+pysqlite_is_ident_cont(unsigned char c)
+{
+    return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z')
+        || (c >= 'a' && c <= 'z') || c == '_';
+}
+
+/* Skip the trivia SQLite's tokenizer skips before the first keyword:
+   space/tab/CR/LF/FF, UTF-8 BOM, -- line comments, and C-style comments. */
+static const char *
+pysqlite_skip_sql_trivia(const char *p)
+{
+    for (;;) {
+        unsigned char c = (unsigned char)*p;
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f') {
+            p++;
+            continue;
+        }
+        if ((unsigned char)p[0] == 0xef && (unsigned char)p[1] == 0xbb
+            && (unsigned char)p[2] == 0xbf) {
+            p += 3;
+            continue;
+        }
+        if (p[0] == '-' && p[1] == '-') {
+            p += 2;
+            while (*p && *p != '\n') {
+                p++;
+            }
+            continue;
+        }
+        if (p[0] == '/' && p[1] == '*') {
+            p += 2;
+            while (*p) {
+                if (p[0] == '*' && p[1] == '/') {
+                    p += 2;
+                    break;
+                }
+                p++;
+            }
+            continue;
+        }
+        return p;
+    }
+}
+
+static int
+pysqlite_sql_keyword(const char *p, const char *kw, Py_ssize_t n)
+{
+    if (PyOS_strnicmp(p, kw, n) != 0) {
+        return 0;
+    }
+    return !pysqlite_is_ident_cont((unsigned char)p[n]);
+}
+
+int
+pysqlite_refuse_txn_sql(pysqlite_Connection *self, PyObject *sql)
+{
+    const char *p;
+
+    p = PyUnicode_AsUTF8(sql);
+    if (!p) {
+        return 1;
+    }
+    p = pysqlite_skip_sql_trivia(p);
+    if (pysqlite_sql_keyword(p, "commit", 6)
+        || pysqlite_sql_keyword(p, "end", 3)
+        || pysqlite_sql_keyword(p, "release", 7)) {
+        return pysqlite_refuse_commit_in_teardown(self);
     }
     return 0;
 }
@@ -663,6 +748,9 @@ PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args)
     sqlite3_stmt* statement;
 
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
+        return NULL;
+    }
+    if (pysqlite_refuse_commit_in_teardown(self)) {
         return NULL;
     }
 

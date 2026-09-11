@@ -348,11 +348,13 @@ int pysqlite_statement_finalize(pysqlite_Statement* self)
     if (st) {
         if (self->connection) {
             pysqlite_enter_sqlite(self->connection);
+            pysqlite_enter_stmt_teardown(self->connection);
         }
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_finalize(st);
         Py_END_ALLOW_THREADS
         if (self->connection) {
+            pysqlite_leave_stmt_teardown(self->connection);
             pysqlite_leave_sqlite(self->connection);
         }
     }
@@ -362,18 +364,18 @@ int pysqlite_statement_finalize(pysqlite_Statement* self)
 
 int pysqlite_statement_reset(pysqlite_Statement* self)
 {
-    int rc;
-
-    rc = SQLITE_OK;
+    int rc = SQLITE_OK;
 
     if (self->in_use && self->st) {
         if (self->connection) {
             pysqlite_enter_sqlite(self->connection);
+            pysqlite_enter_stmt_teardown(self->connection);
         }
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_reset(self->st);
         Py_END_ALLOW_THREADS
         if (self->connection) {
+            pysqlite_leave_stmt_teardown(self->connection);
             pysqlite_leave_sqlite(self->connection);
         }
 

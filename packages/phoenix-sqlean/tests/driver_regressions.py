@@ -835,6 +835,73 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_execute_commit_in_window_finalize_during_rollback(self):
+        # commit() is guarded; execute("COMMIT") used to bypass it.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            con.commit()
+            con.execute("insert into t values (4)")
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        con.execute("COMMIT")
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            cur = con.execute("select w(x) over (order by x) from t")
+            cur.fetchone()
+            con.rollback()
+            assert con.execute("select count(*) from t").fetchone()[0] == 3, (
+                "execute(COMMIT) from window finalize must not preserve a rolled-back insert"
+            )
+            con.close()
+            """
+        )
+
+    def test_comment_prefixed_commit_in_window_finalize_during_rollback(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            con.commit()
+            con.execute("insert into t values (4)")
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        con.execute("/*x*/COMMIT")
+                    except sqlite.ProgrammingError:
+                        pass
+                    try:
+                        con.execute("COMMIT--x")
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            cur = con.execute("select w(x) over (order by x) from t")
+            cur.fetchone()
+            con.rollback()
+            assert con.execute("select count(*) from t").fetchone()[0] == 3
+            con.close()
+            """
+        )
+
     def test_same_cursor_execute_in_window_finalize_during_rollback(self):
         self._run(
             """
@@ -929,6 +996,41 @@ class CallbackCloseRegressionTests(unittest.TestCase):
                 return "replaced"
             con.create_function("replace", 0, replace)
             assert con.execute("select replace()").fetchone() == ("busy",)
+            con.close()
+            """
+        )
+
+    def test_commit_in_window_finalize_during_rollback(self):
+        # rollback() resets live statements; window xFinal runs there.
+        # SQLite accepts COMMIT during that reset, so an unguarded
+        # commit() turned rollback into a commit.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            con.commit()
+            con.execute("insert into t values (4)")
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        con.commit()
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            cur = con.execute("select w(x) over (order by x) from t")
+            cur.fetchone()
+            con.rollback()
+            assert con.execute("select count(*) from t").fetchone()[0] == 3, (
+                "commit from window finalize must not preserve a rolled-back insert"
+            )
             con.close()
             """
         )
