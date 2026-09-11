@@ -1,33 +1,14 @@
 import { createHttp } from "@arizeai/phoenix-testing";
 import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { components } from "../../src/__generated__/api/v1";
-import type { PhoenixClient } from "../../src/client";
 import { HttpError } from "../../src/errors";
 import { listSessions } from "../../src/sessions/listSessions";
 import { createTestClient } from "../testUtils";
 
-vi.unmock("../../src/utils/serverVersionUtils");
-
 const http = createHttp();
 const filterExpression = 'any(span.name == "café & search" for span in spans)';
-
-function createClientAtVersion(
-  version: [number, number, number] = [20, 10, 0]
-): PhoenixClient {
-  const client = createTestClient();
-  vi.spyOn(client, "getServerVersion").mockResolvedValue(version);
-  return client;
-}
 
 const firstSession: components["schemas"]["SessionData"] = {
   id: "session-1",
@@ -69,7 +50,6 @@ beforeAll(async () => {
 
 afterEach(() => {
   server.resetHandlers();
-  vi.restoreAllMocks();
 });
 
 afterAll(() => {
@@ -101,7 +81,7 @@ describe("listSessions", () => {
     );
 
     const sessions = await listSessions({
-      client: createClientAtVersion(),
+      client: createTestClient(),
       project: "my-project",
     });
 
@@ -156,7 +136,7 @@ describe("listSessions", () => {
     );
 
     const sessions = await listSessions({
-      client: createClientAtVersion(),
+      client: createTestClient(),
       project: "my-project",
     });
 
@@ -178,7 +158,7 @@ describe("listSessions", () => {
     );
 
     await expect(
-      listSessions({ client: createClientAtVersion(), project: "my-project" })
+      listSessions({ client: createTestClient(), project: "my-project" })
     ).rejects.toThrow("Failed to list sessions");
   });
 
@@ -196,7 +176,7 @@ describe("listSessions", () => {
       );
 
       await listSessions({
-        client: createClientAtVersion(),
+        client: createTestClient(),
         project: "my-project",
         filter: filterExpression,
       });
@@ -204,22 +184,8 @@ describe("listSessions", () => {
       expect(receivedFilter).toBe(filterExpression);
     });
 
-    it("rejects unsupported servers before sending a list request", async () => {
-      const client = createClientAtVersion([20, 9, 0]);
-      const get = vi.spyOn(client, "GET");
-
-      await expect(
-        listSessions({
-          client,
-          project: "my-project",
-          filter: filterExpression,
-        })
-      ).rejects.toThrow(/'filter'.*requires Phoenix server >= 20\.10\.0/);
-      expect(get).not.toHaveBeenCalled();
-    });
-
     it.each([undefined, null, ""])(
-      "supports old servers without an expression (%s)",
+      "does not send an empty expression (%s)",
       async (filter) => {
         let hasFilter: boolean | undefined;
         server.use(
@@ -233,7 +199,7 @@ describe("listSessions", () => {
         );
 
         await listSessions({
-          client: createClientAtVersion([14, 0, 0]),
+          client: createTestClient(),
           project: "my-project",
           filter,
         });
@@ -250,7 +216,7 @@ describe("listSessions", () => {
       );
 
       const error = await listSessions({
-        client: createClientAtVersion(),
+        client: createTestClient(),
         project: "my-project",
         filter: "unknown_field > 0",
       }).catch((error: unknown) => error);
@@ -280,7 +246,7 @@ describe("listSessions", () => {
       );
 
       await listSessions({
-        client: createClientAtVersion(),
+        client: createTestClient(),
         project: "my-project",
         filter: filterExpression,
       });
