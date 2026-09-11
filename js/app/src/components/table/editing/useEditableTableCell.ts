@@ -1,7 +1,7 @@
 import type { CellContext } from "@tanstack/react-table";
 import { useStore } from "zustand";
 
-import { getEditableTableCellValue } from "./editableTableStore";
+import { getEditableTableCellValue } from "@phoenix/store/editableTableStore";
 
 /**
  * One cell's view of the edit store: its current value, whether it may be

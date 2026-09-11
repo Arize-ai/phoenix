@@ -20,9 +20,9 @@ import { useNavigate, useParams } from "react-router";
 import { useStore } from "zustand";
 
 import {
-  Button,
   CopyToClipboardButton,
   Icon,
+  IconButton,
   Icons,
   Input,
   TextField,
@@ -39,9 +39,7 @@ import {
   CompactJSONCell,
   createRowSelectionColumn,
   EditableJSONCell,
-  getEditableTableCellValue,
 } from "@phoenix/components/table";
-import type { EditableTableStore } from "@phoenix/components/table";
 import {
   ACTIONS_COLUMN_ID,
   ACTIONS_COLUMN_PINNING,
@@ -60,6 +58,11 @@ import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftCli
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
+import {
+  getEditableTableCellValue,
+  getEditableTableHiddenChangeCount,
+} from "@phoenix/store/editableTableStore";
+import type { EditableTableStore } from "@phoenix/types/editableTable";
 import type { Mutable } from "@phoenix/typeUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
@@ -94,16 +97,13 @@ const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
 
-const rowActionButtonCSS = css`
-  white-space: nowrap;
-`;
-
-const removeRowButtonCSS = css(
-  rowActionButtonCSS,
-  css`
-    color: var(--global-color-danger);
-  `
-);
+/**
+ * The row actions column holds one small icon button. Its width is the button
+ * (`--global-button-height-s`, 30px) plus the cell's horizontal padding
+ * (`--global-table-cell-padding-x`, 16px per side), so nothing is clipped and
+ * no space is left over.
+ */
+const ROW_ACTIONS_COLUMN_SIZE = 30 + 16 * 2;
 
 // The ID column narrows to 60px; the field shrinks with the cell.
 const newExampleIdFieldCSS = css`
@@ -256,29 +256,26 @@ function RowActionsCell({
   );
   const label = useExampleLabel({ row, editStore });
   return isDeleted ? (
-    <Button
-      size="S"
-      variant="quiet"
-      css={rowActionButtonCSS}
-      leadingVisual={<Icon svg={<Icons.RotateCcw />} />}
-      aria-label={`Restore ${label}`}
-      onPress={() => editStore.getState().restoreRow(row.id)}
-    >
-      Restore
-    </Button>
+    <TooltipTrigger>
+      <IconButton
+        size="S"
+        aria-label={`Restore ${label}`}
+        onPress={() => editStore.getState().restoreRow(row.id)}
+      >
+        <Icon svg={<Icons.RotateCcw />} />
+      </IconButton>
+      <Tooltip>Restore</Tooltip>
+    </TooltipTrigger>
   ) : (
     <TooltipTrigger>
-      <Button
+      <IconButton
         size="S"
-        variant="quiet"
-        css={removeRowButtonCSS}
-        leadingVisual={<Icon svg={<Icons.Close />} />}
         aria-label={`Remove ${label}`}
         onPress={() => editStore.getState().deleteRow(row.id)}
       >
-        Remove
-      </Button>
-      <Tooltip>Removed when changes are saved</Tooltip>
+        <Icon svg={<Icons.Trash />} />
+      </IconButton>
+      <Tooltip>Remove when changes are saved</Tooltip>
     </TooltipTrigger>
   );
 }
@@ -465,9 +462,24 @@ export function ExamplesTable({
     // Deleted rows stay visible (struck through) until the changes are saved.
     return [...addedRows, ...baselineRows];
   }, [addedRows, data]);
-  const newExampleTemplate = useMemo(
-    () => getNewExampleTemplate(tableData),
-    [tableData]
+  // The template follows the dataset's saved examples. A search that matches
+  // nothing keeps the last template rather than falling back to empty objects.
+  const lastNewExampleTemplate = useRef(getNewExampleTemplate(tableData));
+  const newExampleTemplate = useMemo(() => {
+    if (tableData.some((row) => !row.isNew)) {
+      lastNewExampleTemplate.current = getNewExampleTemplate(tableData);
+    }
+    return lastNewExampleTemplate.current;
+  }, [tableData]);
+  // Searching while editing refetches the rows, and a changed row that no
+  // longer matches leaves the table with its change intact. The toolbar reports
+  // how many changes are out of view so none are saved unseen.
+  const loadedRowIds = useMemo(
+    () => new Set(data.examples.edges.map((edge) => edge.example.id)),
+    [data]
+  );
+  const hiddenChangeCount = useStore(editStore, (state) =>
+    getEditableTableHiddenChangeCount({ state, loadedRowIds })
   );
   const { selectRow } = useShiftClickRowSelection<DatasetExampleTableRow>({
     resetKey: tableData,
@@ -565,9 +577,10 @@ export function ExamplesTable({
       cols.push({
         id: ACTIONS_COLUMN_ID,
         header: "",
-        size: 120,
-        minSize: 120,
-        maxSize: 120,
+        size: ROW_ACTIONS_COLUMN_SIZE,
+        minSize: ROW_ACTIONS_COLUMN_SIZE,
+        maxSize: ROW_ACTIONS_COLUMN_SIZE,
+        enableResizing: false,
         cell: ({ row }) => (
           <RowActionsCell row={row.original} editStore={editStore} />
         ),
@@ -721,15 +734,17 @@ export function ExamplesTable({
                           header.getContext()
                         )}
                       </div>
-                      <div
-                        {...{
-                          onMouseDown: header.getResizeHandler(),
-                          onTouchStart: header.getResizeHandler(),
-                          className: `resizer ${
-                            header.column.getIsResizing() ? "isResizing" : ""
-                          }`,
-                        }}
-                      />
+                      {header.column.getCanResize() ? (
+                        <div
+                          {...{
+                            onMouseDown: header.getResizeHandler(),
+                            onTouchStart: header.getResizeHandler(),
+                            className: `resizer ${
+                              header.column.getIsResizing() ? "isResizing" : ""
+                            }`,
+                          }}
+                        />
+                      ) : null}
                     </>
                   )}
                 </th>
@@ -824,6 +839,7 @@ export function ExamplesTable({
         <ExamplesEditToolbar
           editStore={editStore}
           newExampleTemplate={newExampleTemplate}
+          hiddenChangeCount={hiddenChangeCount}
         />
       ) : null}
       {!isEditing && selectedRows.length ? (

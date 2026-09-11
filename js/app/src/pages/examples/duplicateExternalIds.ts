@@ -1,5 +1,5 @@
-import type { EditableTableStoreState } from "@phoenix/components/table";
-import { getEditableTableCellValue } from "@phoenix/components/table";
+import { getEditableTableCellValue } from "@phoenix/store/editableTableStore";
+import type { EditableTableState } from "@phoenix/types/editableTable";
 
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";
 
@@ -16,7 +16,7 @@ export const DUPLICATE_ID_ERROR =
  * with what the user has typed.
  */
 export function getDuplicateExternalIdRowIds(
-  state: EditableTableStoreState<DatasetExampleTableRow>
+  state: EditableTableState<DatasetExampleTableRow>
 ): string[] {
   const rowIdsByCustomId = new Map<string, string[]>();
   for (const row of state.addedRows) {

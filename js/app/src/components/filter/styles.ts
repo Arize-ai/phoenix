@@ -1,5 +1,6 @@
-import { css, keyframes } from "@emotion/react";
+import { css } from "@emotion/react";
 
+import { validationBadgeGrowIn } from "@phoenix/components/core/field/ValidationBadge";
 import { APP_PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 /**
@@ -199,20 +200,11 @@ export const dslFilterErrorTooltipCSS = css`
 `;
 
 /**
- * Grows a control-cluster badge (error or warning) out from the editor's
- * right edge. Animating max-width alongside opacity keeps the appearance
- * smooth — the editor cedes the space gradually instead of the badge popping
- * in at full size. Exported so composed badges (e.g. the AI-query ones)
- * grow in the same way.
+ * The grow-in the filter's badges and clear button share, re-exported from the
+ * badge that defines it so composed badges (e.g. the AI-query ones) keep
+ * importing it from here.
  */
-export const dslFilterBadgeGrowIn = keyframes`
-  from {
-    opacity: 0;
-    max-width: 0;
-    padding-left: 0;
-    padding-right: 0;
-  }
-`;
+export const dslFilterBadgeGrowIn = validationBadgeGrowIn;
 
 export const dslFilterFieldCSS = css`
   flex: 1 1 auto;
@@ -260,46 +252,6 @@ export const dslFilterFieldCSS = css`
     flex: none;
     gap: var(--global-dimension-size-50);
     margin-inline-end: var(--global-dimension-size-100);
-  }
-  .error-badge {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-50);
-    max-width: 200px;
-    overflow: hidden;
-    padding: 2px var(--global-dimension-size-65);
-    border-radius: var(--global-rounding-small);
-    font-size: var(--global-font-size-xs);
-    line-height: var(--global-line-height-xs);
-    white-space: nowrap;
-    cursor: default;
-    animation: ${dslFilterBadgeGrowIn} 0.25s ease-out;
-    @media (prefers-reduced-motion: reduce) {
-      animation: none;
-    }
-    &[data-severity="danger"] {
-      background-color: var(--global-color-danger-100);
-      color: var(--global-color-danger);
-    }
-    &[data-severity="warning"] {
-      background-color: color-mix(
-        in srgb,
-        var(--global-color-warning) 10%,
-        transparent
-      );
-      color: var(--global-color-warning);
-    }
-    .icon-wrap {
-      flex-shrink: 0;
-    }
-    &:focus-visible {
-      outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-      outline-offset: var(--focus-ring-offset);
-    }
-  }
-  .error-badge__message {
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
   /* The clear affordance only exists once there is something to clear —
      it leaves the layout entirely (no reserved empty slot) and grows in

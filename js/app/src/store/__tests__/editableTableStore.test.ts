@@ -3,6 +3,7 @@ import {
   getEditableTableCellValue,
   getEditableTableChangeCount,
   getEditableTableChangeCounts,
+  getEditableTableHiddenChangeCount,
   hasEditableTableUnsavedChanges,
 } from "../editableTableStore";
 
@@ -256,5 +257,34 @@ describe("editableTableStore", () => {
 
     store.getState().finishSaving();
     expect(hasEditableTableUnsavedChanges(store.getState())).toBe(false);
+  });
+
+  it("counts changed existing rows that are not among the loaded rows", () => {
+    const store = createStore();
+    store.getState().beginEditing();
+    editRow1(store);
+    store.getState().deleteRow("row-2");
+    store.getState().addRow({ id: "new-1", input: {}, output: {} });
+    store.getState().updateCell({
+      rowId: "new-1",
+      columnId: "input",
+      originalValue: {},
+      value: { edited: true },
+    });
+
+    const count = (loadedRowIds: string[]) =>
+      getEditableTableHiddenChangeCount({
+        state: store.getState(),
+        loadedRowIds: new Set(loadedRowIds),
+      });
+
+    expect(count(["row-1", "row-2"])).toBe(0);
+    expect(count(["row-1"])).toBe(1);
+    // New rows always render, so they never count as hidden.
+    expect(count([])).toBe(2);
+
+    // A hidden row's update is masked by its deletion, as in the diff.
+    store.getState().deleteRow("row-1");
+    expect(count([])).toBe(2);
   });
 });
