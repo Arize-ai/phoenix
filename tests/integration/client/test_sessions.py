@@ -5,6 +5,8 @@ from typing import Sequence
 
 import httpx
 import pytest
+from phoenix.client import AsyncClient
+from phoenix.client import Client as SyncClient
 
 from .._helpers import _AppInfo, _await_or_return, _ExistingSpan
 
@@ -22,10 +24,7 @@ class TestClientForSessionsRetrieval:
         trace = _existing_spans[0].trace
         assert trace.session is not None
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
-        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        Client = AsyncClient if is_async else SyncClient
 
         sessions = await _await_or_return(
             Client(base_url=_app.base_url, api_key=_app.admin_secret).sessions.list(
@@ -44,10 +43,7 @@ class TestClientForSessionsRetrieval:
     ) -> None:
         project_name = _existing_spans[0].trace.project.name
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
-        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        Client = AsyncClient if is_async else SyncClient
 
         with pytest.raises(httpx.HTTPStatusError) as error:
             await _await_or_return(

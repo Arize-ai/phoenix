@@ -448,7 +448,7 @@ class Traces:
                 milliseconds. Requires Phoenix server >= 20.8.0.
                 Deprecated: use ``filter="latency_ms <= N"``.
             filter: Trace DSL expression, combined with other filters using AND.
-                Applied before pagination. Empty strings do not filter.
+                Empty strings do not filter.
                 Requires Phoenix server >= 20.10.0.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
@@ -872,7 +872,7 @@ class AsyncTraces:
                 milliseconds. Requires Phoenix server >= 20.8.0.
                 Deprecated: use ``filter="latency_ms <= N"``.
             filter: Trace DSL expression, combined with other filters using AND.
-                Applied before pagination. Empty strings do not filter.
+                Empty strings do not filter.
                 Requires Phoenix server >= 20.10.0.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
