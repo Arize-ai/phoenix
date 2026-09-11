@@ -210,6 +210,12 @@ class Spans:
         normalized_start_time = _normalize_datetime(start_time)
         normalized_end_time = _normalize_datetime(end_time)
 
+        # The simple span endpoint is cursor-paginated, while the legacy query
+        # endpoint evaluates the complete request in one database call. Use the
+        # paginated endpoint for the common unfiltered export path, but retain
+        # the legacy endpoint for queries that rely on the SpanQuery DSL.
+        use_paginated_endpoint = not query.to_dict() and root_spans_only is None
+
         request_body = {
             "queries": [query.to_dict()],
             "start_time": _to_iso_format(normalized_start_time),
@@ -225,6 +231,15 @@ class Spans:
 
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
+            elif use_paginated_endpoint:
+                spans = self.get_spans(
+                    project_identifier=project_identifier or project_name or "default",
+                    start_time=normalized_start_time,
+                    end_time=normalized_end_time,
+                    limit=limit,
+                    timeout=timeout,
+                )
+                return _spans_to_dataframe(spans)
             elif project_identifier and not project_name:
                 if is_node_id(project_identifier, node_type="Project"):
                     project_response = self._client.get(
@@ -1498,6 +1513,11 @@ class AsyncSpans:
         normalized_start_time = _normalize_datetime(start_time)
         normalized_end_time = _normalize_datetime(end_time)
 
+        # Keep the DSL-backed endpoint for advanced queries. The simple endpoint
+        # supports cursor pagination, which prevents large unfiltered exports from
+        # monopolizing a server request.
+        use_paginated_endpoint = not query.to_dict() and root_spans_only is None
+
         request_body = {
             "queries": [query.to_dict()],
             "start_time": _to_iso_format(normalized_start_time),
@@ -1513,6 +1533,15 @@ class AsyncSpans:
 
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
+            elif use_paginated_endpoint:
+                spans = await self.get_spans(
+                    project_identifier=project_identifier or project_name or "default",
+                    start_time=normalized_start_time,
+                    end_time=normalized_end_time,
+                    limit=limit,
+                    timeout=timeout,
+                )
+                return _spans_to_dataframe(spans)
             elif project_identifier and not project_name:
                 if is_node_id(project_identifier, node_type="Project"):
                     project_response = await self._client.get(
@@ -2784,6 +2813,40 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
         return dfs[0]  # only passing in one query
     else:
         return pd.DataFrame()
+
+
+def _spans_to_dataframe(spans: Sequence[v1.Span]) -> "pd.DataFrame":
+    """Convert cursor-paginated span responses to the dataframe export shape."""
+    import pandas as pd
+
+    columns = [
+        "name",
+        "span_kind",
+        "parent_id",
+        "start_time",
+        "end_time",
+        "status_code",
+        "status_message",
+        "events",
+        "context.span_id",
+        "context.trace_id",
+    ]
+    if not spans:
+        return pd.DataFrame(columns=columns)
+
+    records = [dict(span) for span in spans]
+    dataframe = pd.json_normalize(records, sep=".")
+    for column in columns:
+        if column not in dataframe.columns:
+            dataframe[column] = None
+
+    attribute_columns = sorted(
+        column for column in dataframe.columns if column.startswith("attributes.")
+    )
+    dataframe = dataframe.loc[:, [*columns, *attribute_columns]]
+    for column in ("start_time", "end_time"):
+        dataframe[column] = pd.to_datetime(dataframe[column], utc=True)
+    return dataframe.set_index("context.span_id", drop=False)
 
 
 def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFrame":
