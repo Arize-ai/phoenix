@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "phoenix": {
+      "type": "http",
+      "url": "http://localhost:${PHOENIX_PORT:-6006}/mcp"
+    }
+  }
+}
