@@ -14,6 +14,7 @@ TypeScript. For `minimize` evaluators a high score is the bad outcome.
 
 | Evaluator | Inputs (Python names) | Labels (1.0 / 0.0) | Direction |
 | --------- | --------------------- | ------------------ | --------- |
+| Completeness | `conversation` | `complete` / `incomplete` | maximize |
 | Conciseness | `input`, `output` | `concise` / `verbose` | maximize |
 | Correctness | `input`, `output` | `correct` / `incorrect` | maximize |
 | Faithfulness | `input`, `output`, `context` | `faithful` / `unfaithful` | maximize |
@@ -60,6 +61,15 @@ const faithfulnessEval = createFaithfulnessEvaluator({ model: openai("gpt-4o") }
   itself: `input` holds the full history the assistant saw, including tool
   calls and results, and there is no `context` field — use it for multi-turn
   agents and chat.
+- **Completeness scores finished work, not acknowledgement.** A delivered
+  answer, a delivered artifact including its required parts, or an action whose
+  success is visible in the record counts as complete; a refusal, a clarifying
+  question, or a blocker report does not, and a request the user withdrew is
+  excluded from the judgement. For agent traces put tool calls and tool results
+  into the single `conversation` field so the judge can verify that an action
+  actually succeeded — with tools omitted it falls back to the visible dialogue
+  and will credit a claimed action. The `explanation` lists each request it
+  found and what happened to it.
 - **PII detection screens the whole record.** The single `conversation` field
   should include everything — system instructions, tool calls and results,
   retrieved documents — not just what the user saw. The judge's `explanation`
