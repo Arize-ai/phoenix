@@ -301,9 +301,9 @@ class TestReadOnlySurface:
         async with PhoenixMCPToolset[None](mcp) as toolset:
             tools = {tool.name: tool for tool in await toolset.list_tools()}
 
-        create = next(name for name in tools if "span_note" in name)
-        assert tools[create].annotations is not None
-        assert tools[create].annotations.read_only_hint is False
+        create = next(tool for name, tool in tools.items() if "span_note" in name)
+        assert create.annotations is not None
+        assert create.annotations.read_only_hint is False
 
     async def test_mutating_routes_are_tools_when_not_read_only(self) -> None:
         mcp, _ = build_phoenix_mcp_server(
