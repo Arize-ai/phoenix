@@ -1,5 +1,47 @@
 # Changelog
 
+## [20.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.9.0...arize-phoenix-v20.10.0) (2026-09-11)
+
+
+### Features
+
+* add Claude Code plugin and marketplace ([ff2abd8](https://github.com/Arize-ai/phoenix/commit/ff2abd85626fab1d5ce1be58154de23bbfb15592))
+* add installable Phoenix Codex plugin ([bdb3178](https://github.com/Arize-ai/phoenix/commit/bdb31780381e2cb43b3fb50b3e881f84098041d3))
+* **dsl:** span-level cost filtering ([#15172](https://github.com/Arize-ai/phoenix/issues/15172)) ([9cad275](https://github.com/Arize-ai/phoenix/commit/9cad27526cdd2d36963247819da1eb204266df3d))
+* **evals:** completeness evaluator ([#15767](https://github.com/Arize-ai/phoenix/issues/15767)) ([63805d0](https://github.com/Arize-ai/phoenix/commit/63805d0f13eb3c2cf5b55378abd542ca505e0d9a))
+* **filters:** support filtering annotations by identifier ([#15817](https://github.com/Arize-ai/phoenix/issues/15817)) ([6e4c368](https://github.com/Arize-ai/phoenix/commit/6e4c368a0ff721f7ee03114ab0e803ef4ee5d7a6))
+* **mcp:** add a Cursor plugin for the remote MCP server and public skills ([570d280](https://github.com/Arize-ai/phoenix/commit/570d280f8d4a9bac8f2a41a1310f42be29d38e62))
+* **mcp:** include the Phoenix docs MCP in the Cursor plugin ([75fd29c](https://github.com/Arize-ai/phoenix/commit/75fd29c377950375af887b868871d5e4eb080e7d))
+* **prompts:** expose version metadata in GraphQL ([#15979](https://github.com/Arize-ai/phoenix/issues/15979)) ([4595ea2](https://github.com/Arize-ai/phoenix/commit/4595ea25722fa2555e2cb02fc627c986c6f7893d))
+* **prompts:** expose version metadata in REST API ([#15980](https://github.com/Arize-ai/phoenix/issues/15980)) ([2b73847](https://github.com/Arize-ai/phoenix/commit/2b7384774ad6193c16538730f41ee5858df98818))
+* **ui:** show cache read/write in cumulative token count tooltips ([#15838](https://github.com/Arize-ai/phoenix/issues/15838)) ([9a2074a](https://github.com/Arize-ai/phoenix/commit/9a2074a03826d093648b9c680f81bf0d320871a6))
+
+
+### Bug Fixes
+
+* **cost:** keep image generation models in the cost manifest and add gpt-image-2.5 ([d58a42e](https://github.com/Arize-ai/phoenix/commit/d58a42e994c904e9df471628292afed9c5b1d4e7))
+* **cost:** update built-in model token prices ([47ae071](https://github.com/Arize-ai/phoenix/commit/47ae071db2d0a777d3655fc8c45018520003b024))
+* **cost:** update built-in model token prices ([#16052](https://github.com/Arize-ai/phoenix/issues/16052)) ([65beed4](https://github.com/Arize-ai/phoenix/commit/65beed4b9ee99b53bfc001af9ed5092ee5ed69a0))
+* **deps:** update arize-phoenix-client to 3.5.0 ([1f7cec2](https://github.com/Arize-ai/phoenix/commit/1f7cec27e09304b0f70fd9c4358bdb98da8312c2))
+* **deps:** update arize-phoenix-evals to 3.7.0 ([95f1cc0](https://github.com/Arize-ai/phoenix/commit/95f1cc0457e77f68a40015251e4c7e3faf9a25c3))
+* **filter:** use default_factory for MappingProxyType fields in _FilterBindings ([#16106](https://github.com/Arize-ai/phoenix/issues/16106)) ([95918f6](https://github.com/Arize-ai/phoenix/commit/95918f690be5cbbcea0065d6d3db5bcb7dfc25e2))
+* make Phoenix Codex plugin endpoint configurable ([0452996](https://github.com/Arize-ai/phoenix/commit/045299684fc8a8f810094a4a3f4c70a36c2410c4))
+* **mcp:** say in the execute description which direct tools call_tool cannot reach ([#15908](https://github.com/Arize-ai/phoenix/issues/15908)) ([ff94fc5](https://github.com/Arize-ai/phoenix/commit/ff94fc5343a39ed0f2e4f767cff3656f4111ea2c))
+* **plugin:** keep the Phoenix API key out of mcp-remote's argv ([19a4afc](https://github.com/Arize-ai/phoenix/commit/19a4afcca56c62373ddaf3cb38fa41dea893f4dc))
+* use Phoenix brand blue for plugin brandColor ([a8a56be](https://github.com/Arize-ai/phoenix/commit/a8a56be053649a78cbe6a3d488ac9a3890f281b5))
+
+
+### Documentation
+
+* add agents plugin keyword ([b11a9d9](https://github.com/Arize-ai/phoenix/commit/b11a9d9e3076ffe249a07ddd7d4b4623ffc9bce7))
+* add Harbor integration guide and agent skill ([#15874](https://github.com/Arize-ai/phoenix/issues/15874)) ([e2e5143](https://github.com/Arize-ai/phoenix/commit/e2e514329b5b93c912d6d2e8cea478e96211b115))
+* add Phoenix release notes ([96fe15d](https://github.com/Arize-ai/phoenix/commit/96fe15d314ca766f1881a1e4cb33218ad423eaee))
+* focus plugin copy on agent traces ([92ce6a7](https://github.com/Arize-ai/phoenix/commit/92ce6a7c3af2404815304bb9db7a0b5273ee5791))
+* reorder 09.08 release notes and add ranking rules to the skill ([361a689](https://github.com/Arize-ai/phoenix/commit/361a6895e96d30cea330fc419be6abae927b8687))
+* sharpen Phoenix plugin marketplace copy ([c181eb2](https://github.com/Arize-ai/phoenix/commit/c181eb208ce488bbfc2f46b10fd7808b3f9f8990))
+* tighten plugin starter prompts ([774ea8a](https://github.com/Arize-ai/phoenix/commit/774ea8a3128674053b6a7f2a2d18074d282688f9))
+* update Phoenix plugin URL ([b093465](https://github.com/Arize-ai/phoenix/commit/b093465c2d9114d6ebb1463ed5bd77b869fed3f5))
+
 ## [20.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.8.0...arize-phoenix-v20.9.0) (2026-09-08)
 
 
