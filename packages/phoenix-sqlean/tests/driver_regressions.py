@@ -1263,6 +1263,49 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_backup_from_callback_is_refused(self):
+        # backup() retries forever on SQLITE_BUSY, on the assumption that
+        # the contention is external and will clear. Started from a
+        # callback of its own source, the contention is the source's own
+        # in-progress statement, so it never does: a window finalize
+        # running during rollback() spun for good. A backup whose source
+        # or destination has a callback on the stack is now refused.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            con.commit()
+            con.execute("insert into t values (4)")
+            dst = sqlite.connect(":memory:")
+            seen = []
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        con.backup(dst)
+                        seen.append("allowed")
+                    except sqlite.ProgrammingError:
+                        seen.append("refused")
+                    return 1
+            con.create_window_function("w", 1, Win)
+            cur = con.execute("select w(x) over (order by x) from t")
+            cur.fetchone()
+            con.rollback()
+            assert seen == ["refused"], seen
+            assert con.execute("select count(*) from t").fetchone() == (3,)
+            con.backup(dst)
+            assert dst.execute("select count(*) from t").fetchone() == (3,)
+            con.close()
+            dst.close()
+            """
+        )
+
     def test_open_blob_from_function_destructor(self):
         self._run(
             """

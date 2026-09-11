@@ -101,9 +101,11 @@ typedef struct
        callback is on the C stack. close(), rollback(), re-init, and
        cursor close or re-init refuse to tear down handles in that
        window: re-entering finalize/reset/close crashes when the native
-       call resumes. Registering functions or collations is left to
-       SQLite, which refuses to replace one while a statement is active
-       and can safely add a new one. */
+       call resumes. backup() refuses to start there as well, on either
+       end: its retry loop can only spin against the connection's own
+       in-progress statement. Registering functions or collations is
+       left to SQLite, which refuses to replace one while a statement is
+       active and can safely add a new one. */
     int in_sqlite;
 
     /* Non-zero while sqlite3_reset/finalize is on the C stack. commit()

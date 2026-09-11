@@ -2329,6 +2329,16 @@ pysqlite_connection_backup(pysqlite_Connection *self, PyObject *args, PyObject *
         PyErr_SetString(PyExc_ValueError, "target cannot be the same connection instance");
         return NULL;
     }
+    /* The step loop below retries forever on SQLITE_BUSY, assuming the
+       contention is external and will clear. From a callback of either
+       connection it is that connection's own in-progress statement, so
+       it never clears: a window finalize running during rollback() spun
+       for good. */
+    if (self->in_sqlite > 0 || ((pysqlite_Connection *)target)->in_sqlite > 0) {
+        PyErr_SetString(pysqlite_ProgrammingError,
+                        "Cannot start a backup from within a callback function.");
+        return NULL;
+    }
     if (sleep_s < 0) {
         PyErr_SetString(PyExc_ValueError, "sleep must be greater-than or equal to zero");
         return NULL;
