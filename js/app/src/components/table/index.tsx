@@ -30,4 +30,4 @@ export * from "./RowSelectionColumn";
 export * from "./useShiftClickRowSelection";
 
 // Editing
-export * from "./editing";
+export * from "./edit";
