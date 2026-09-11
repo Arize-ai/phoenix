@@ -2314,6 +2314,7 @@ class PromptVersionData(TypedDict):
     description: NotRequired[str]
     tools: NotRequired[PromptTools]
     response_format: NotRequired[PromptResponseFormatJSONSchema]
+    custom_provider_id: NotRequired[str]
 
 
 class PromptVersion(PromptVersionData):
