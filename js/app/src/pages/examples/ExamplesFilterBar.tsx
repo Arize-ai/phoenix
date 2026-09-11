@@ -16,7 +16,7 @@ import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { AddDatasetExampleButton } from "@phoenix/pages/dataset/AddDatasetExampleButton";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { ExamplesSplitsMenu } from "@phoenix/pages/examples/ExamplesSplitsMenu";
-import type { EditableTableStore } from "@phoenix/types/editableTable";
+import type { EditableTableStore } from "@phoenix/types/table";
 
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";
 

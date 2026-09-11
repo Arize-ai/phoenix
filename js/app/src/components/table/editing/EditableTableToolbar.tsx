@@ -30,7 +30,7 @@ import {
 } from "@phoenix/components/core/dialog";
 import { FloatingToolbarContainer } from "@phoenix/components/core/toolbar/FloatingToolbarContainer";
 import { getEditableTableChangeCounts } from "@phoenix/store/editableTableStore";
-import type { EditableTableStore } from "@phoenix/types/editableTable";
+import type { EditableTableStore } from "@phoenix/types/table";
 
 import { EditableTableChangeSummary } from "./EditableTableChangeSummary";
 

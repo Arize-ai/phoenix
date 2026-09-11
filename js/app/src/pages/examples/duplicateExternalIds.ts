@@ -1,5 +1,5 @@
 import { getEditableTableCellValue } from "@phoenix/store/editableTableStore";
-import type { EditableTableState } from "@phoenix/types/editableTable";
+import type { EditableTableState } from "@phoenix/types/table";
 
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";
 

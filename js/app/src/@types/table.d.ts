@@ -1,4 +1,4 @@
-import type { EditableTableMeta } from "@phoenix/types/editableTable";
+import type { EditableTableMeta } from "@phoenix/types/table";
 
 import "@tanstack/react-table";
 

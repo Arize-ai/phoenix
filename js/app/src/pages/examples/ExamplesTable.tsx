@@ -62,7 +62,7 @@ import {
   getEditableTableCellValue,
   getEditableTableHiddenChangeCount,
 } from "@phoenix/store/editableTableStore";
-import type { EditableTableStore } from "@phoenix/types/editableTable";
+import type { EditableTableStore } from "@phoenix/types/table";
 import type { Mutable } from "@phoenix/typeUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 

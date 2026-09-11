@@ -1,7 +1,7 @@
 /**
- * The contracts of an editable table's edit session.
+ * Contracts for table features that span components, stores, and pages.
  *
- * A table opts its cells into editing by placing an {@link EditableTableMeta}
+ * Editing: a table opts its cells into editing by placing an {@link EditableTableMeta}
  * on `table.options.meta.editing`. Cells, toolbars, and pages program against
  * these interfaces; how the session is held and notified is left to whatever
  * implements {@link EditableTableStore}.
