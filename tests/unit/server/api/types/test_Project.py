@@ -7665,8 +7665,12 @@ class TestEvaluatorComparison:
                             threshold
                             flaggedCount
                             flagRate
-                            meanScore
+                            sharedMeanScore
+                            allEvaluatedMeanScore
+                            scoreBinEdges
                             scoreBinCounts
+                            scoreValueCounts { score count }
+                            labelCounts { label score isOther count }
                         }
                         sideB {
                             annotationName
@@ -7675,8 +7679,12 @@ class TestEvaluatorComparison:
                             threshold
                             flaggedCount
                             flagRate
-                            meanScore
+                            sharedMeanScore
+                            allEvaluatedMeanScore
+                            scoreBinEdges
                             scoreBinCounts
+                            scoreValueCounts { score count }
+                            labelCounts { label score isOther count }
                         }
                         confusionMatrix
                         statistics {
@@ -7937,13 +7945,13 @@ class TestEvaluatorComparison:
         assert side_a["threshold"] is None
         assert side_a["flaggedCount"] == 2
         assert side_a["flagRate"] == pytest.approx(0.5)
-        assert side_a["meanScore"] == pytest.approx(0.5)
+        assert side_a["sharedMeanScore"] == pytest.approx(0.5)
         side_b = comparison["sideB"]
         assert side_b["annotationName"] == "toxicity"
         assert side_b["labels"] == ["flagged", "not flagged"]
         assert side_b["threshold"] == pytest.approx(0.5)
         assert side_b["flaggedCount"] == 2
-        assert side_b["meanScore"] == pytest.approx(0.5)
+        assert side_b["sharedMeanScore"] == pytest.approx(0.5)
         assert comparison["confusionMatrix"] == [[1, 1], [1, 1]]
         statistics = comparison["statistics"]
         assert statistics["agreement"] == pytest.approx(0.5)
@@ -8031,12 +8039,12 @@ class TestEvaluatorComparison:
             "meanScoreB": None,
             "agreement": None,
         }
-        # toxicity: 0.1, 0.9, 0.2, 0.8 -> bins 1, 9, 2, 8
-        assert comparison["sideA"]["scoreBinCounts"] == [0, 1, 1, 0, 0, 0, 0, 0, 1, 1]
+        # toxicity also includes the evaluator-only score 0.5.
+        assert comparison["sideA"]["scoreBinCounts"] == [0, 1, 1, 0, 0, 1, 0, 0, 1, 1]
         # harm: 0.2, 0.8, 0.3, 0.7 -> bins 2, 8, 3, 7
         assert comparison["sideB"]["scoreBinCounts"] == [0, 0, 1, 1, 0, 0, 0, 1, 1, 0]
 
-    async def test_categorical_side_has_no_score_bins(
+    async def test_distributions_include_exclusive_results_and_deduplicate(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         response = await gql_client.execute(
@@ -8047,7 +8055,93 @@ class TestEvaluatorComparison:
         assert (data := response.data) is not None
         comparison = data["node"]["evaluatorComparison"]
         assert comparison["sideA"]["scoreBinCounts"] is None
-        assert comparison["sideB"]["scoreBinCounts"] is not None
+        assert comparison["sideA"]["scoreValueCounts"] == [
+            {"score": 0, "count": 2},
+            {"score": 1, "count": 3},
+        ]
+        assert comparison["sideA"]["labelCounts"] == [
+            {"label": "pass", "score": 1, "isOther": False, "count": 3},
+            {"label": "fail", "score": 0, "isOther": False, "count": 2},
+        ]
+        for side, only in [("sideA", "onlyA"), ("sideB", "onlyB")]:
+            count = sum(comparison[side]["scoreBinCounts"] or []) + sum(
+                point["count"] for point in comparison[side]["scoreValueCounts"] or []
+            )
+            assert count == comparison["coverage"]["evaluatedByBoth"] + comparison["coverage"][only]
+        assert comparison["sideA"]["sharedMeanScore"] == pytest.approx(0.5)
+        assert comparison["sideA"]["allEvaluatedMeanScore"] == pytest.approx(0.6)
+
+    @pytest.mark.parametrize("target", ["SPAN", "TRACE", "SESSION"])
+    async def test_distribution_membership_is_independent_of_value_eligibility(
+        self,
+        target: str,
+        _comparison_data: dict[str, Any],
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        start = datetime.fromisoformat("2024-01-02T01:00:00+00:00")
+        ids = _comparison_data
+        async with db() as session:
+            project = await session.get(models.Project, ids["project"])
+            assert project is not None
+            for name in ["toxicity", "harm"]:
+                evaluator = await session.get(models.ProjectEvaluator, ids[name])
+                assert evaluator is not None
+                evaluator.evaluation_target = target
+            for index in range(6):
+                project_session = await _add_project_session(session, project, start_time=start)
+                trace = await _add_trace(session, project, project_session, start_time=start)
+                span = await _add_span(session, trace, start_time=start)
+                values = [
+                    [("toxicity", 0.1), ("harm", None)],
+                    [("toxicity", 0.2)],
+                    [("harm", 0.3)],
+                    [("toxicity", 0.9), ("harm", 0.8)],
+                    [],
+                    [("toxicity", None), ("harm", 0.7)],
+                ][index]
+                for name, score in values:
+                    fields = dict(
+                        name=name,
+                        score=score,
+                        label=None,
+                        explanation=None,
+                        metadata_={},
+                        annotator_kind="CODE",
+                        source="API",
+                        identifier="",
+                        user_id=None,
+                    )
+                    if target == "SPAN":
+                        annotation = models.SpanAnnotation(span_rowid=span.id, **fields)
+                    elif target == "TRACE":
+                        annotation = models.TraceAnnotation(trace_rowid=trace.id, **fields)
+                    else:
+                        annotation = models.ProjectSessionAnnotation(
+                            project_session_id=project_session.id, **fields
+                        )
+                    session.add(annotation)
+        variables = self._variables(ids, "toxicity", "harm")
+        variables["timeRange"] = {
+            "start": start.isoformat(),
+            "end": (start + timedelta(hours=1)).isoformat(),
+        }
+        response = await gql_client.execute(query=self.QUERY, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        comparison = response.data["node"]["evaluatorComparison"]
+        assert comparison["coverage"] == {
+            "evaluatedByBoth": 3,
+            "onlyA": 1,
+            "onlyB": 1,
+            "totalInRange": 6,
+        }
+        for side in ["sideA", "sideB"]:
+            assert sum(comparison[side]["scoreBinCounts"]) == 3
+        assert sum(map(sum, comparison["confusionMatrix"])) == 1
+        assert comparison["sideA"]["sharedMeanScore"] == pytest.approx(0.9)
+        assert comparison["sideB"]["sharedMeanScore"] == pytest.approx(0.8)
+        assert comparison["sideA"]["allEvaluatedMeanScore"] == pytest.approx(0.4)
 
     async def test_same_evaluator_twice_is_rejected(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient

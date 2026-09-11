@@ -366,13 +366,13 @@ export function ProjectEvaluatorCompareStats({
           annotationName
           flaggedCount
           flagRate
-          meanScore
+          sharedMeanScore
         }
         sideB {
           annotationName
           flaggedCount
           flagRate
-          meanScore
+          sharedMeanScore
         }
         statistics {
           agreement
@@ -512,7 +512,7 @@ export function ProjectEvaluatorCompareStats({
               evaluationTargetsPlural={evaluationTargetsPlural}
               flaggedCount={comparison.sideA.flaggedCount}
               flagRate={comparison.sideA.flagRate}
-              meanScore={comparison.sideA.meanScore}
+              meanScore={comparison.sideA.sharedMeanScore}
               optimizationConfig={evaluatorAOptimizationConfig}
             />
             <EvaluatorSummary
@@ -523,7 +523,7 @@ export function ProjectEvaluatorCompareStats({
               evaluationTargetsPlural={evaluationTargetsPlural}
               flaggedCount={comparison.sideB.flaggedCount}
               flagRate={comparison.sideB.flagRate}
-              meanScore={comparison.sideB.meanScore}
+              meanScore={comparison.sideB.sharedMeanScore}
               optimizationConfig={evaluatorBOptimizationConfig}
             />
           </div>
