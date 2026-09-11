@@ -1,8 +1,11 @@
+from typing import Literal
+
 import httpx
 import pandas as pd
 import pytest
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.exceptions import PhoenixException
 from phoenix.client.resources.sessions import AsyncSessions, Sessions
 from phoenix.client.resources.spans import AsyncSpans, Spans
 
@@ -437,3 +440,94 @@ class TestAsyncGetSessionTurns:
         assert turns[0].get("input") == {"value": "hi", "mime_type": "text/plain"}
         assert turns[0].get("output") == {"value": "bye", "mime_type": "text/plain"}
         assert turns[0].get("root_span") == span
+
+
+FILTER_EXPRESSION = 'any(span.name == "café & search" for span in spans)'
+ListMethod = Literal["list", "get_sessions_dataframe"]
+
+
+async def _list_sessions(
+    transport: httpx.MockTransport, method: ListMethod, is_async: bool, filter: str | None
+) -> int:
+    if is_async:
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            sessions = AsyncSessions(client, AsyncSpans(client))
+            if method == "get_sessions_dataframe":
+                return len(
+                    await sessions.get_sessions_dataframe(
+                        project_name="project", filter=filter, limit=2
+                    )
+                )
+            return len(await sessions.list(project_name="project", filter=filter, limit=2))
+    with httpx.Client(transport=transport, base_url="http://test") as sync_client:
+        sync_sessions = Sessions(sync_client, Spans(sync_client))
+        if method == "get_sessions_dataframe":
+            return len(
+                sync_sessions.get_sessions_dataframe(project_name="project", filter=filter, limit=2)
+            )
+        return len(sync_sessions.list(project_name="project", filter=filter, limit=2))
+
+
+@pytest.mark.real_server_version_check
+@pytest.mark.parametrize("method", ["list", "get_sessions_dataframe"])
+@pytest.mark.parametrize("is_async", [False, True])
+class TestSessionsListFilterExpression:
+    async def test_filter_preserved_on_every_page(self, method: ListMethod, is_async: bool) -> None:
+        cursors: list[str | None] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/arize_phoenix_version":
+                return httpx.Response(200, text="20.10.0")
+            assert request.url.params["filter"] == FILTER_EXPRESSION
+            cursors.append(request.url.params.get("cursor"))
+            return httpx.Response(
+                200,
+                json={
+                    "data": [_make_session_data(id=str(len(cursors)))],
+                    "next_cursor": "second-page" if len(cursors) == 1 else None,
+                },
+            )
+
+        count = await _list_sessions(
+            httpx.MockTransport(handler), method, is_async, FILTER_EXPRESSION
+        )
+        assert count == 2
+        assert cursors == [None, "second-page"]
+
+    async def test_filter_rejects_old_server_before_listing(
+        self, method: ListMethod, is_async: bool
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/arize_phoenix_version"
+            return httpx.Response(200, text="20.9.0")
+
+        with pytest.raises(PhoenixException, match=r"'filter'.*requires Phoenix >= 20\.10\.0"):
+            await _list_sessions(httpx.MockTransport(handler), method, is_async, FILTER_EXPRESSION)
+
+    @pytest.mark.parametrize("filter", [None, ""])
+    async def test_no_filter_preserves_old_server_support(
+        self, method: ListMethod, is_async: bool, filter: str | None
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/arize_phoenix_version":
+                return httpx.Response(200, text="14.0.0")
+            assert "filter" not in request.url.params
+            return httpx.Response(200, json={"data": [], "next_cursor": None})
+
+        assert await _list_sessions(httpx.MockTransport(handler), method, is_async, filter) == 0
+
+    async def test_filter_error_preserves_server_message(
+        self, method: ListMethod, is_async: bool
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/arize_phoenix_version":
+                return httpx.Response(200, text="20.10.0")
+            assert request.url.params["filter"] == "unknown_field > 0"
+            return httpx.Response(400, text="invalid name `unknown_field`")
+
+        with pytest.raises(httpx.HTTPStatusError) as error:
+            await _list_sessions(
+                httpx.MockTransport(handler), method, is_async, "unknown_field > 0"
+            )
+        assert error.value.response.status_code == 400
+        assert error.value.response.text == "invalid name `unknown_field`"

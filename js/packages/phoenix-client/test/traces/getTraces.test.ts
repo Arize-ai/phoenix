@@ -1,11 +1,32 @@
 import { createHttp } from "@arizeai/phoenix-testing";
 import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
+import type { PhoenixClient } from "../../src/client";
+import { HttpError } from "../../src/errors";
 import { getTraces } from "../../src/traces/getTraces";
 import { createTestClient } from "../testUtils";
 
+vi.unmock("../../src/utils/serverVersionUtils");
+
 const http = createHttp();
+const filterExpression = 'any(span.name == "café & search" for span in spans)';
+
+function createClientAtVersion(
+  version: [number, number, number] = [20, 10, 0]
+): PhoenixClient {
+  const client = createTestClient();
+  vi.spyOn(client, "getServerVersion").mockResolvedValue(version);
+  return client;
+}
 
 let server: Server;
 
@@ -16,6 +37,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   server.resetHandlers();
+  vi.restoreAllMocks();
 });
 
 afterAll(() => {
@@ -42,7 +64,7 @@ describe("getTraces", () => {
     );
 
     const result = await getTraces({
-      client: createTestClient(),
+      client: createClientAtVersion(),
       project: { projectName: "test-project" },
     });
 
@@ -66,7 +88,7 @@ describe("getTraces", () => {
       );
 
       await getTraces({
-        client: createTestClient(),
+        client: createClientAtVersion(),
         project: { projectName: "test-project" },
         sessionId: "sess-1",
       });
@@ -88,7 +110,7 @@ describe("getTraces", () => {
       );
 
       await getTraces({
-        client: createTestClient(),
+        client: createClientAtVersion(),
         project: { projectName: "test-project" },
         sessionId: ["sess-1", "sess-2"],
       });
@@ -110,7 +132,7 @@ describe("getTraces", () => {
       );
 
       await getTraces({
-        client: createTestClient(),
+        client: createClientAtVersion(),
         project: { projectName: "test-project" },
       });
 
@@ -135,7 +157,7 @@ describe("getTraces", () => {
       server.use(captureQuery(received));
 
       await getTraces({
-        client: createTestClient(),
+        client: createClientAtVersion(),
         project: { projectName: "test-project" },
         error: true,
       });
@@ -148,7 +170,7 @@ describe("getTraces", () => {
       server.use(captureQuery(received));
 
       await getTraces({
-        client: createTestClient(),
+        client: createClientAtVersion(),
         project: { projectName: "test-project" },
         error: false,
       });
@@ -161,7 +183,7 @@ describe("getTraces", () => {
       server.use(captureQuery(received));
 
       await getTraces({
-        client: createTestClient(),
+        client: createClientAtVersion(),
         project: { projectName: "test-project" },
         minLatencyMs: 0,
         maxLatencyMs: 5000,
@@ -176,7 +198,7 @@ describe("getTraces", () => {
       server.use(captureQuery(received));
 
       await getTraces({
-        client: createTestClient(),
+        client: createClientAtVersion(),
         project: { projectName: "test-project" },
       });
 
@@ -188,7 +210,7 @@ describe("getTraces", () => {
     it("should reject negative latency bounds", async () => {
       await expect(
         getTraces({
-          client: createTestClient(),
+          client: createClientAtVersion(),
           project: { projectName: "test-project" },
           minLatencyMs: -1,
         })
@@ -198,12 +220,147 @@ describe("getTraces", () => {
     it("should reject an inverted latency range", async () => {
       await expect(
         getTraces({
-          client: createTestClient(),
+          client: createClientAtVersion(),
           project: { projectName: "test-project" },
           minLatencyMs: 500,
           maxLatencyMs: 100,
         })
       ).rejects.toThrow(/must not exceed/);
+    });
+  });
+
+  describe("filter expressions", () => {
+    it("passes the expression unchanged", async () => {
+      let receivedFilter: string | null = null;
+      server.use(
+        http.get(
+          "/v1/projects/{project_identifier}/traces",
+          ({ query, response }) => {
+            receivedFilter = query.get("filter");
+            return response(200).json({ data: [], next_cursor: null });
+          }
+        )
+      );
+
+      await getTraces({
+        client: createClientAtVersion(),
+        project: { projectName: "test-project" },
+        filter: filterExpression,
+      });
+
+      expect(receivedFilter).toBe(filterExpression);
+    });
+
+    it("rejects unsupported servers before sending a list request", async () => {
+      const client = createClientAtVersion([20, 9, 0]);
+      const get = vi.spyOn(client, "GET");
+
+      await expect(
+        getTraces({
+          client,
+          project: { projectName: "test-project" },
+          filter: filterExpression,
+        })
+      ).rejects.toThrow(/'filter'.*requires Phoenix server >= 20\.10\.0/);
+      expect(get).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, null, ""])(
+      "supports old servers without an expression (%s)",
+      async (filter) => {
+        let hasFilter: boolean | undefined;
+        server.use(
+          http.get(
+            "/v1/projects/{project_identifier}/traces",
+            ({ query, response }) => {
+              hasFilter = query.has("filter");
+              return response(200).json({ data: [], next_cursor: null });
+            }
+          )
+        );
+
+        await getTraces({
+          client: createClientAtVersion([14, 0, 0]),
+          project: { projectName: "test-project" },
+          filter,
+        });
+
+        expect(hasFilter).toBe(false);
+      }
+    );
+
+    it("preserves filter error messages from the server", async () => {
+      server.use(
+        http.get("/v1/projects/{project_identifier}/traces", ({ response }) =>
+          response(400).text("invalid name `unknown_field`")
+        )
+      );
+
+      const error = await getTraces({
+        client: createClientAtVersion(),
+        project: { projectName: "test-project" },
+        filter: "unknown_field > 0",
+      }).catch((error: unknown) => error);
+
+      expect(error).toBeInstanceOf(HttpError);
+      if (!(error instanceof HttpError))
+        throw new Error("Expected an HTTP error");
+      expect(error.status).toBe(400);
+      expect(await error.response.text()).toBe("invalid name `unknown_field`");
+    });
+
+    it("combines expressions with existing trace parameters", async () => {
+      let received: URLSearchParams | undefined;
+      server.use(
+        http.get(
+          "/v1/projects/{project_identifier}/traces",
+          ({ request, response }) => {
+            received = new URL(request.url).searchParams;
+            return response(200).json({ data: [], next_cursor: null });
+          }
+        )
+      );
+
+      await getTraces({
+        client: createClientAtVersion(),
+        project: { projectName: "test-project" },
+        filter: filterExpression,
+        error: false,
+        minLatencyMs: 0,
+        maxLatencyMs: 500,
+        cursor: "next-page",
+        sessionId: "session",
+      });
+
+      expect(received?.get("filter")).toBe(filterExpression);
+      expect(received?.get("error")).toBe("false");
+      expect(received?.get("min_latency_ms")).toBe("0");
+      expect(received?.get("max_latency_ms")).toBe("500");
+      expect(received?.get("cursor")).toBe("next-page");
+      expect(received?.get("session_identifier")).toBe("session");
+    });
+
+    it("keeps the legacy trace filters working on 20.8.0", async () => {
+      let hasFilter: boolean | undefined;
+      server.use(
+        http.get(
+          "/v1/projects/{project_identifier}/traces",
+          ({ query, response }) => {
+            hasFilter = query.has("filter");
+            return response(200).json({ data: [], next_cursor: null });
+          }
+        )
+      );
+
+      await getTraces({
+        client: createClientAtVersion([20, 8, 0]),
+        project: { projectName: "test-project" },
+        error: false,
+        minLatencyMs: 0,
+        maxLatencyMs: 500,
+      });
+
+      expect(hasFilter).toBe(false);
     });
   });
 });
