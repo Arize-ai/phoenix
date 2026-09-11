@@ -6,7 +6,10 @@ from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
+from phoenix.server.api.types.DatasetExampleRevision import (
+    DatasetExampleRevision,
+    get_calibration_labels,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -339,5 +342,5 @@ async def test_calibration_labels_are_computed_only_when_requested(
         ) as read_expected:
             revision = DatasetExampleRevision.from_orm_revision(stored)
             read_expected.assert_not_called()
-            assert revision.calibration_labels()[0].label == "good"
+            assert get_calibration_labels(revision.metadata)[0].label == "good"
             read_expected.assert_called_once_with(stored.metadata_)

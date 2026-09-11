@@ -26,6 +26,19 @@ class DatasetExampleCalibrationLabel:
     explanation: str | None
 
 
+def get_calibration_labels(metadata: Any) -> list[DatasetExampleCalibrationLabel]:
+    """The expected outputs stored on an example's metadata, one per annotation name."""
+    return [
+        DatasetExampleCalibrationLabel(
+            annotation_name=name,
+            label=value.get("label"),
+            score=value.get("score"),
+            explanation=value.get("explanation"),
+        )
+        for name, value in get_expected_outputs(cast(dict[str, Any], metadata)).items()
+    ]
+
+
 @strawberry.type
 class DatasetExampleRevision(ExampleRevision):
     """
@@ -38,15 +51,7 @@ class DatasetExampleRevision(ExampleRevision):
 
     @strawberry.field
     def calibration_labels(self) -> list[DatasetExampleCalibrationLabel]:
-        return [
-            DatasetExampleCalibrationLabel(
-                annotation_name=name,
-                label=value.get("label"),
-                score=value.get("score"),
-                explanation=value.get("explanation"),
-            )
-            for name, value in get_expected_outputs(cast(dict[str, Any], self.metadata)).items()
-        ]
+        return get_calibration_labels(self.metadata)
 
     @classmethod
     def from_orm_revision(cls, revision: models.DatasetExampleRevision) -> "DatasetExampleRevision":
