@@ -137,17 +137,12 @@ async def test_the_mount_serves_the_shared_skills_and_not_the_agents_own(
         instructions = client.instructions
         tool_names = {tool.name for tool in await client.list_tools()}
 
-    shared = load_skills((SHARED_SKILLS_ROOT,))
-    if shared:
-        assert instructions is not None
-        for skill in shared:
-            assert f"<name>{skill.name}</name>" in instructions
-        assert {"load_skill", "load_skill_reference"} <= tool_names
-    else:
-        assert instructions is None
-        assert tool_names.isdisjoint({"load_skill", "load_skill_reference"})
+    assert instructions is not None
+    for skill in load_skills((SHARED_SKILLS_ROOT,)):
+        assert f"<name>{skill.name}</name>" in instructions
     for skill in load_skills((PXI_SKILLS_ROOT,)):
-        assert f"<name>{skill.name}</name>" not in (instructions or "")
+        assert f"<name>{skill.name}</name>" not in instructions
+    assert {"load_skill", "load_skill_reference"} <= tool_names
 
 
 @pytest.mark.real_agent_mcp_server
@@ -362,7 +357,7 @@ class TestAgentMCPServerIsIndependentOfTheMount:
 
         assert app.state.pxi_mcp_server is None
 
-    async def test_surface_is_read_only(
+    async def test_surface_is_read_only_except_note_creation(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Through the server ``create_app`` wires, so the read-only derivation is
@@ -382,12 +377,15 @@ class TestAgentMCPServerIsIndependentOfTheMount:
             result = await client.call_tool("list_tools", {"detail": "full"})
         catalog = {tool["name"] for tool in json.loads(result.structured_content["result"])}
 
-        operation_ids: dict[bool, set[str]] = {True: set(), False: set()}
+        note_creates = {"createSpanNote", "createTraceNote", "createSessionNote"}
+        reads: set[str] = set()
+        writes: set[str] = set()
         for operations in app.openapi()["paths"].values():
             for method, operation in operations.items():
-                operation_ids[method == "get"].add(operation["operationId"])
-        assert operation_ids[True] <= catalog
-        assert catalog.isdisjoint(operation_ids[False]), catalog & operation_ids[False]
+                (reads if method == "get" else writes).add(operation["operationId"])
+        assert note_creates <= writes
+        assert reads | note_creates <= catalog
+        assert catalog.isdisjoint(writes - note_creates), catalog & writes
 
 
 async def test_mcp_code_mode_replaces_tool_surface(
@@ -434,7 +432,15 @@ async def test_mcp_code_mode_replaces_tool_surface(
         )
         async with Client(transport) as client:
             tools = {t.name: t for t in await client.list_tools()}
-            assert set(tools) == {"search", "get_schema", "tags", "list_tools", "execute"}
+            assert set(tools) == {
+                "search",
+                "get_schema",
+                "tags",
+                "list_tools",
+                "execute",
+                "load_skill",
+                "load_skill_reference",
+            }
 
             # Discovery tools are reads and say so; execute can invoke mutating
             # tools, so it stays unannotated (treated as possibly destructive).

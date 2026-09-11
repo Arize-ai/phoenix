@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "phoenix-error-analysis": {
+      "source": "../../../../.agents/skills/phoenix-error-analysis",
+      "sourceType": "local",
+      "computedHash": "9bb345f47e978ef35e2fe825b1be4e4253d897cc054e21c27c26d396c7f3aa14"
+    }
+  }
+}

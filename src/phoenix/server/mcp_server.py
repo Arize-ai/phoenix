@@ -121,6 +121,12 @@ _META_ANNOTATIONS = ToolAnnotations(
     read_only_hint=True, destructive_hint=False, open_world_hint=False
 )
 
+_NOTE_CREATE_ROUTE_MAP = RouteMap(
+    pattern=r"^/v1/(span|trace|session)_notes$",
+    methods=["POST"],
+    mcp_type=MCPType.TOOL,
+)
+
 
 _DOCSTRING_SECTION = re.compile(
     r"\n\s*(?:Args|Arguments|Parameters|Returns|Raises|Yields|Example[s]?|Note[s]?)\s*:",
@@ -472,7 +478,8 @@ def build_phoenix_mcp_server(
             tools instead of one tool per endpoint.
         monty_consumer: Admission class the sandbox spends against under code
             mode. Ignored when code mode is off.
-        read_only: Derive tools from GET routes only.
+        read_only: Derive tools from GET routes, plus the routes that create
+            span, trace, and session notes.
         db: Session factory for the analytics SQL tools.
         skills_roots: Directories whose skill folders this consumer receives.
             Empty by default: no skill tools, and no skill instructions
@@ -504,7 +511,8 @@ def build_phoenix_mcp_server(
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not
-            # useful to MCP clients).
+            # useful to MCP clients). The first matching map wins.
+            *([_NOTE_CREATE_ROUTE_MAP] if read_only else []),
             RouteMap(
                 pattern=r"^/v1/",
                 methods=["GET"] if read_only else "*",

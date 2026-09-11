@@ -799,7 +799,7 @@ def evaluate_forbidden_tool_call_args(output: Any, expected: Any) -> dict[str, A
     asserting a call DID happen with certain args, it asserts a call did NOT.
     The primary use cases are checking that a specific skill was not
     triggered -- e.g. ``forbidden_tool_call_args: {load_skill: {skill_name:
-    debug-trace}}`` -- without forbidding *all* ``load_skill`` calls, and
+    evaluators}}`` -- without forbidding *all* ``load_skill`` calls, and
     forbidding only the harmful direction of an idempotent UI write -- e.g.
     ``forbidden_ui_operation_args: {playground.experiment.setRecording:
     {recordExperiments: false}}`` while a redundant re-assert of the current
