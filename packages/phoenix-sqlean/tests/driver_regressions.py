@@ -835,6 +835,35 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_reinit_from_destructor_refused(self):
+        # Re-init used to set initialized=0 before closing the old
+        # handle, so an xDestroy __del__ could __init__ again, leak the
+        # inner db, and drop work already committed on the outer handle.
+        self._run(
+            """
+            events = []
+            class Fn:
+                def __call__(self):
+                    return 1
+                def __del__(self):
+                    try:
+                        con.__init__(":memory:")
+                        events.append("allowed")
+                    except sqlite.ProgrammingError:
+                        events.append("refused")
+            con = sqlite.connect(":memory:")
+            con.execute("create table keep(x)")
+            con.execute("insert into keep values (1)")
+            con.commit()
+            con.create_function("f", 0, Fn())
+            con.__init__(":memory:")
+            assert events == ["refused"], events
+            con.execute("create table t(x)")
+            assert con.execute("select count(*) from t").fetchone()[0] == 0
+            con.close()
+            """
+        )
+
     def test_reinit_orphan_statement_does_not_corrupt_next_connection(self):
         # Re-init used to Py_CLEAR the statements list without NULLing
         # borrowed statement->connection pointers. del con then missed
@@ -964,6 +993,33 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_open_blob_from_function_destructor(self):
+        self._run(
+            """
+            import os
+            import tempfile
+            fd, path = tempfile.mkstemp(suffix=".db")
+            os.close(fd)
+            try:
+                con = sqlite.connect(path)
+                con.execute("create table t(b blob)")
+                con.execute("insert into t values (zeroblob(8))")
+                con.commit()
+                class Fn:
+                    def __call__(self):
+                        return 1
+                    def __del__(self):
+                        try:
+                            con.open_blob("t", "b", 1)
+                        except sqlite.ProgrammingError:
+                            pass
+                con.create_function("f", 0, Fn())
+                con.close()
+            finally:
+                os.unlink(path)
+            """
+        )
+
     def test_cursor_created_in_finalize_stays_usable(self):
         # rollback() locks every live cursor around the reset so a window
         # finalize cannot re-enter execute() on the statement being
@@ -1032,6 +1088,61 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_connection_methods_from_function_destructor_during_close(self):
+        # close() publishes the connection as closed before
+        # sqlite3_close_v2 destroys the registered functions, so a
+        # callable's __del__ fired there sees "closed database" from
+        # every entry point. Before, the methods reached the zombie
+        # handle; sqlite3_blob_open walked freed structures.
+        self._run(
+            """
+            results = {}
+            def attempt(name, fn):
+                try:
+                    fn()
+                    results[name] = "allowed"
+                except sqlite.ProgrammingError:
+                    results[name] = "refused"
+            class Fn:
+                def __call__(self):
+                    return 1
+                def __del__(self):
+                    attempt("in_transaction", lambda: con.in_transaction)
+                    attempt("total_changes", lambda: con.total_changes)
+                    attempt("isolation_level", lambda: setattr(con, "isolation_level", None))
+                    attempt("interrupt", con.interrupt)
+                    attempt("set_busy_timeout", lambda: con.set_busy_timeout(1.0))
+                    attempt("set_busy_handler", lambda: con.set_busy_handler(lambda n: 0))
+                    attempt("enable_load_extension", lambda: con.enable_load_extension(True))
+                    attempt("__call__", lambda: con("select 1"))
+                    attempt("cursor", con.cursor)
+                    attempt("execute", lambda: con.execute("select 1"))
+                    attempt("executescript", lambda: con.executescript("select 1;"))
+                    attempt("commit", con.commit)
+                    attempt("rollback", con.rollback)
+                    attempt("create_function", lambda: con.create_function("z", 0, lambda: 0))
+                    attempt("create_aggregate", lambda: con.create_aggregate("za", 1, Fn))
+                    attempt("create_window_function", lambda: con.create_window_function("zw", 1, Fn))
+                    attempt("create_collation", lambda: con.create_collation("zc", lambda a, b: 0))
+                    attempt("set_authorizer", lambda: con.set_authorizer(lambda *a: 0))
+                    attempt("set_progress_handler", lambda: con.set_progress_handler(lambda: 0, 1))
+                    attempt("set_trace_callback", lambda: con.set_trace_callback(lambda s: None))
+                    attempt("open_blob", lambda: con.open_blob("t", "b", 1))
+                    attempt("backup", lambda: con.backup(sqlite.connect(":memory:")))
+                    attempt("__exit__", lambda: con.__exit__(None, None, None))
+                    attempt("close", con.close)
+                    attempt("__init__", lambda: con.__init__(":memory:"))
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(b blob)")
+            con.execute("insert into t values (zeroblob(4))")
+            con.commit()
+            con.create_function("f", 0, Fn())
+            con.close()
+            allowed = sorted(k for k, v in results.items() if v != "refused")
+            assert len(results) == 25 and not allowed, (len(results), allowed)
+            """
+        )
+
     def test_orphan_statement_does_not_corrupt_next_connection(self):
         # Statement.connection is borrowed. dealloc used to free the
         # Connection while an orphan con("sql") still wrote in_sqlite
@@ -1067,6 +1178,37 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             del fn
             del stmt
             assert not bad, bad
+            """
+        )
+
+    def test_close_from_function_destructor(self):
+        # sqlite3_close_v2 destroys registered functions; a callable
+        # whose only reference is SQLite's runs __del__ from inside
+        # close(). Re-entering close() there used to reach SQLite as
+        # API misuse; it is now refused like any other callback.
+        self._run(
+            """
+            events = []
+            class Fn:
+                def __call__(self):
+                    return 1
+                def __del__(self):
+                    try:
+                        con.close()
+                    except sqlite.ProgrammingError as e:
+                        events.append(str(e))
+            con = sqlite.connect(":memory:")
+            con.create_function("f", 0, Fn())
+            con.close()
+            assert events == [
+                "Cannot close the database connection from within a callback function."
+            ], events
+            try:
+                con.execute("select 1")
+            except sqlite.ProgrammingError:
+                pass
+            else:
+                raise AssertionError("connection should be closed")
             """
         )
 

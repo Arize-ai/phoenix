@@ -315,10 +315,23 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
        otherwise leak.  Outstanding statements and blob handles keep it
        alive until they are finalized (sqlite3_close_v2 semantics). */
     if (self->db) {
-        sqlite3_close_v2(self->db);
+        /* Publish the connection as closed before sqlite3_close_v2 runs:
+           it fires xDestroy for every registered function, and Python
+           code there must see "closed database" from the usual entry
+           checks rather than reach the zombie handle. sqlite3_blob_open
+           in particular does not validate the handle without
+           SQLITE_ENABLE_API_ARMOR and walks freed structures. */
+        sqlite3 *old_db = self->db;
+        self->db = NULL;
+        pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
+        sqlite3_close_v2(old_db);
+        Py_END_ALLOW_THREADS
+        pysqlite_leave_sqlite(self);
     }
     self->db = db;
     self->in_sqlite = 0;
+    self->in_stmt_teardown = 0;
 
     /* The database handle is live from here on; the isolation-level
        setter below may go through commit(), which requires an
@@ -403,8 +416,13 @@ error:
        else could release it). */
     self->initialized = 0;
     if (self->db) {
-        sqlite3_close_v2(self->db);
+        sqlite3 *old_db = self->db;
         self->db = NULL;
+        pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
+        sqlite3_close_v2(old_db);
+        Py_END_ALLOW_THREADS
+        pysqlite_leave_sqlite(self);
     }
     return -1;
 }
@@ -491,7 +509,13 @@ void pysqlite_connection_dealloc(pysqlite_Connection* self)
 
     /* Clean up if user has not called .close() explicitly. */
     if (self->db) {
-        sqlite3_close_v2(self->db);
+        sqlite3 *old_db = self->db;
+        self->db = NULL;
+        pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
+        sqlite3_close_v2(old_db);
+        Py_END_ALLOW_THREADS
+        pysqlite_leave_sqlite(self);
     }
 
     Py_XDECREF(self->isolation_level);
@@ -699,13 +723,20 @@ PyObject* pysqlite_connection_close(pysqlite_Connection* self, PyObject* args)
     pysqlite_close_all_blobs(self);
 
     if (self->db) {
-        rc = sqlite3_close_v2(self->db);
+        /* Publish the connection as closed first (see the same step in
+           __init__): xDestroy callbacks fired by the close must not
+           reach the zombie handle through open_blob() or backup(). */
+        sqlite3 *old_db = self->db;
+        self->db = NULL;
+        pysqlite_enter_sqlite(self);
+        Py_BEGIN_ALLOW_THREADS
+        rc = sqlite3_close_v2(old_db);
+        Py_END_ALLOW_THREADS
+        pysqlite_leave_sqlite(self);
 
         if (rc != SQLITE_OK) {
-            _pysqlite_seterror(self->db);
+            _pysqlite_seterror(old_db);
             return NULL;
-        } else {
-            self->db = NULL;
         }
     }
 
