@@ -1,8 +1,8 @@
 import { css, keyframes } from "@emotion/react";
 import { Pressable } from "react-aria";
 
+import { getSeverityIcon } from "../icon";
 import type { SeverityLevel } from "../types";
-import { getSeverityIcon } from "./getSeverityIcon";
 
 /**
  * Grows a badge out from its leading edge. Animating max-width alongside

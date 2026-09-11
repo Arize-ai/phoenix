@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
 import { Text } from "../content";
+import { getSeverityIcon } from "../icon";
 import { Flex } from "../layout";
 import { Tooltip } from "../tooltip";
 import type { TooltipProps } from "../tooltip";
 import type { SeverityLevel } from "../types";
-import { getSeverityIcon } from "./getSeverityIcon";
 
 export type ValidationTooltipProps = Omit<TooltipProps, "children"> & {
   /** Heading of the tooltip. */
