@@ -36,12 +36,6 @@ DEFAULT_FLAG_THRESHOLD = 0.5
 # memory stays bounded (the statistic is effectively exact well before that).
 SPEARMAN_SAMPLE_SIZE = 100_000
 
-# Score distributions use this many fixed bins over the side's score domain;
-# out-of-range scores clamp into the edge bins.
-SCORE_BIN_COUNT = 10
-
-DEFAULT_SCORE_DOMAIN = (0.0, 1.0)
-
 
 @dataclass(frozen=True)
 class SideBinning:
@@ -60,7 +54,6 @@ class SideBinning:
     threshold: float = DEFAULT_FLAG_THRESHOLD
     flagged_when_gte: bool = True
     flagged_label_set: Optional[frozenset[str]] = None
-    score_domain: tuple[float, float] = DEFAULT_SCORE_DOMAIN
 
     @property
     def is_thresholded(self) -> bool:
@@ -74,17 +67,6 @@ class SideBinning:
             return None
         flagged = score >= self.threshold if self.flagged_when_gte else score <= self.threshold
         return FLAGGED_LABEL if flagged else UNFLAGGED_LABEL
-
-    def score_bin_index(self, score: float) -> int:
-        low, high = self.score_domain
-        span = high - low
-        position = (score - low) / span if span else 0.0
-        return min(max(int(position * SCORE_BIN_COUNT), 0), SCORE_BIN_COUNT - 1)
-
-    def score_bin_edges(self) -> tuple[float, ...]:
-        low, high = self.score_domain
-        step = (high - low) / SCORE_BIN_COUNT
-        return tuple(low + step * index for index in range(SCORE_BIN_COUNT + 1))
 
 
 def make_side_binning(
@@ -132,20 +114,12 @@ def make_side_binning(
         if isinstance(output_config, (ContinuousOutputConfig, FreeformOutputConfig))
         else None
     )
-    score_domain = DEFAULT_SCORE_DOMAIN
-    if (
-        isinstance(output_config, (ContinuousOutputConfig, FreeformOutputConfig))
-        and output_config.lower_bound is not None
-        and output_config.upper_bound is not None
-    ):
-        score_domain = (output_config.lower_bound, output_config.upper_bound)
     return SideBinning(
         annotation_name=annotation_name,
         categorical_label_order=None,
         threshold=threshold,
         flagged_when_gte=continuous_direction is not OptimizationDirection.MAXIMIZE,
         flagged_label_set=frozenset({FLAGGED_LABEL}),
-        score_domain=score_domain,
     )
 
 
@@ -183,8 +157,6 @@ class SideSummary:
     flagged_count: Optional[int]
     flag_rate: Optional[float]
     mean_score: Optional[float]
-    score_bin_counts: Optional[tuple[int, ...]]
-    score_bin_edges: Optional[tuple[float, ...]]
 
 
 @dataclass(frozen=True)
@@ -281,8 +253,6 @@ class ComparisonAccumulator:
         self._score_count_b = 0
         self._collect_score_pairs = binning_a.is_thresholded and binning_b.is_thresholded
         self._score_pairs: list[tuple[float, float]] = []
-        self._score_bins_a = [0] * SCORE_BIN_COUNT if binning_a.is_thresholded else None
-        self._score_bins_b = [0] * SCORE_BIN_COUNT if binning_b.is_thresholded else None
         self._time_bins: dict[datetime, _TimeBin] = {}
 
     def add(
@@ -301,13 +271,9 @@ class ComparisonAccumulator:
         if score_a is not None:
             self._score_sum_a += score_a
             self._score_count_a += 1
-            if self._score_bins_a is not None:
-                self._score_bins_a[self._binning_a.score_bin_index(score_a)] += 1
         if score_b is not None:
             self._score_sum_b += score_b
             self._score_count_b += 1
-            if self._score_bins_b is not None:
-                self._score_bins_b[self._binning_b.score_bin_index(score_b)] += 1
         if (
             self._collect_score_pairs
             and score_a is not None
@@ -379,7 +345,6 @@ class ComparisonAccumulator:
                 n,
                 self._score_sum_a,
                 self._score_count_a,
-                self._score_bins_a,
             ),
             side_b=self._side_summary(
                 self._binning_b,
@@ -388,7 +353,6 @@ class ComparisonAccumulator:
                 n,
                 self._score_sum_b,
                 self._score_count_b,
-                self._score_bins_b,
             ),
             time_series=self._time_series_points(reduction),
         )
@@ -447,7 +411,6 @@ class ComparisonAccumulator:
         n: int,
         score_sum: float,
         score_count: int,
-        score_bins: Optional[list[int]],
     ) -> SideSummary:
         flagged_count: Optional[int] = None
         flag_rate: Optional[float] = None
@@ -468,8 +431,6 @@ class ComparisonAccumulator:
             flagged_count=flagged_count,
             flag_rate=flag_rate,
             mean_score=score_sum / score_count if score_count else None,
-            score_bin_counts=tuple(score_bins) if score_bins is not None else None,
-            score_bin_edges=binning.score_bin_edges() if score_bins is not None else None,
         )
 
 

@@ -2,6 +2,7 @@ import { graphql, useFragment } from "react-relay";
 
 import { Card, View } from "@phoenix/components";
 import { ConfusionMatrix } from "@phoenix/components/chart";
+import { Empty } from "@phoenix/components/core/empty";
 import type { ProjectEvaluatorCompareMatrix_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareMatrix_comparison.graphql";
 import {
   formatMatrixSubtitle,
@@ -76,20 +77,32 @@ export function ProjectEvaluatorCompareMatrix({
       })}
     >
       <View padding="size-200">
-        <ConfusionMatrix
-          data={toConfusionMatrixData({
-            matrix: comparison.confusionMatrix,
-            rowLabels: labelsA,
-            columnLabels: labelsB,
-          })}
-          actualLabels={labelsA}
-          predictedLabels={labelsB}
-          actualAxisLabel={axisLabelA}
-          predictedAxisLabel={axisLabelB}
-          showTotals
-          showPercentage
-          legendLabel={`${comparison.evaluationTarget.toLowerCase()} count`}
-        />
+        {comparison.confusionMatrix.every((row) =>
+          row.every((count) => count === 0)
+        ) ? (
+          <Empty
+            message={
+              comparison.coverage.evaluatedByBoth === 0
+                ? `No shared results for ${evaluatorAName} and ${evaluatorBName} in this time range`
+                : "No shared results with comparable values"
+            }
+          />
+        ) : (
+          <ConfusionMatrix
+            data={toConfusionMatrixData({
+              matrix: comparison.confusionMatrix,
+              rowLabels: labelsA,
+              columnLabels: labelsB,
+            })}
+            actualLabels={labelsA}
+            predictedLabels={labelsB}
+            actualAxisLabel={axisLabelA}
+            predictedAxisLabel={axisLabelB}
+            showTotals
+            showPercentage
+            legendLabel={`${comparison.evaluationTarget.toLowerCase()} count`}
+          />
+        )}
       </View>
     </Card>
   );

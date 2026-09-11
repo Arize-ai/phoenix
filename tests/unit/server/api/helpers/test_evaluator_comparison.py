@@ -317,24 +317,3 @@ class TestComparisonTimeSeries:
         (point,) = accumulator.result().time_series
         assert point.agreement is None
         assert point.flag_rate_a is None
-
-
-class TestScoreBinCounts:
-    def test_thresholded_sides_get_histograms(self) -> None:
-        binning_a = make_side_binning("a", _continuous_config(name="a"), None)
-        binning_b = make_side_binning("b", _continuous_config(name="b"), None)
-        accumulator = ComparisonAccumulator(binning_a, binning_b)
-        for score_a, score_b in [(0.05, 0.95), (0.05, 0.95), (0.55, 0.15), (1.0, -0.2)]:
-            accumulator.add(None, score_a, None, score_b)
-        result = accumulator.result()
-        assert result.side_a.score_bin_counts == (2, 0, 0, 0, 0, 1, 0, 0, 0, 1)
-        assert result.side_b.score_bin_counts == (1, 1, 0, 0, 0, 0, 0, 0, 0, 2)
-
-    def test_categorical_side_has_no_histogram(self) -> None:
-        binning_a = make_side_binning("a", _categorical_config(), None)
-        binning_b = make_side_binning("b", _continuous_config(name="b"), None)
-        accumulator = ComparisonAccumulator(binning_a, binning_b)
-        accumulator.add("pass", 1.0, None, 0.4)
-        result = accumulator.result()
-        assert result.side_a.score_bin_counts is None
-        assert result.side_b.score_bin_counts is not None
