@@ -176,6 +176,14 @@ not-applicable, sampling, and checkpoint behavior relevant to the evaluator.
 
 ## Run Locally
 
+The harness builds the production read-only MCP catalog, including PXI skills,
+and the server-side bash tool. Skills, references, and catalog discovery execute
+normally. Calls to `bash` and MCP `execute` are deferred, just like browser
+actions: these examples score the next requested action without executing it
+against application data. The harness does not start a Phoenix database or
+sandbox worker. Missing backend tools or a missing skill catalog fail before the
+model request and are reported as task errors rather than behavioral misses.
+
 There are two ways to run the evals:
 
 - The **pytest suite** (`pytest evals/pxi -c evals/pxi/pytest.ini`) is what CI
