@@ -756,6 +756,26 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_authorizer_del_reenter_set_authorizer(self):
+        self._run(
+            """
+            class Auth:
+                def __init__(self, con):
+                    self.con = con
+                def __call__(self, *args):
+                    return sqlite.SQLITE_OK
+                def __del__(self):
+                    self.con.set_authorizer(None)
+            con = sqlite.connect(":memory:")
+            auth = Auth(con)
+            con.set_authorizer(auth)
+            del auth
+            con.set_authorizer(lambda *args: sqlite.SQLITE_OK)
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
     def test_cursor_init_in_udf(self):
         # Re-init used to Py_CLEAR the live statement while execute still
         # held it. CPython refuses recursive cursor use here.
@@ -831,6 +851,38 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             else:
                 raise AssertionError("expected execute to fail after a refused cursor __init__")
             assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_collation_evilstr_name_does_not_crash_on_close(self):
+        # Pinboard keys are the UTF-8 name, not the Python str object, so
+        # a name whose __hash__ raises still registers. close() must not
+        # double-destroy if __del__ tries to re-register the same name.
+        self._run(
+            """
+            class EvilStr(str):
+                def __hash__(self):
+                    raise RuntimeError("hash")
+            class Coll:
+                def __init__(self, con):
+                    self.con = con
+                def __call__(self, a, b):
+                    return (a > b) - (a < b)
+                def __del__(self):
+                    try:
+                        self.con.create_collation("C", lambda a, b: 0)
+                    except Exception:
+                        pass
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x text)")
+            con.execute("insert into t values ('b'), ('a')")
+            coll = Coll(con)
+            con.create_collation(EvilStr("C"), coll)
+            assert [row[0] for row in con.execute(
+                "select x from t order by x collate C"
+            )] == ["a", "b"]
+            del coll
             con.close()
             """
         )
@@ -1248,6 +1300,74 @@ class CallbackCloseRegressionTests(unittest.TestCase):
         )
 
 
+class CollationOwnershipRegressionTests(unittest.TestCase):
+    def setUp(self):
+        self.con = sqlite.connect(":memory:")
+        self.con.execute("create table t(x text)")
+        self.con.executemany("insert into t values (?)", [("a",), ("b",), ("c",)])
+
+    def tearDown(self):
+        self.con.close()
+
+    def _active_ordered_cursor(self, name="c"):
+        return self.con.execute(
+            f"select x from t order by x collate {name}"
+        )
+
+    def test_unregister_never_registered_collation(self):
+        # Missing names used to raise KeyError out of create_collation.
+        self.con.create_collation("never_registered", None)
+
+    def test_failed_replacement_keeps_original_callback(self):
+        callback = lambda a, b: (a > b) - (a < b)
+        ref = weakref.ref(callback)
+        self.con.create_collation("c", callback)
+        del callback
+        cursor = self._active_ordered_cursor()
+        with self.assertRaises(sqlite.OperationalError):
+            self.con.create_collation("c", lambda a, b: 0)
+        self.assertIsNotNone(ref(), "SQLite still holds the original callback")
+        self.assertEqual([row[0] for row in cursor], ["a", "b", "c"])
+
+    def test_failed_deletion_keeps_original_callback(self):
+        callback = lambda a, b: (a > b) - (a < b)
+        ref = weakref.ref(callback)
+        self.con.create_collation("c", callback)
+        del callback
+        cursor = self._active_ordered_cursor()
+        with self.assertRaises(sqlite.OperationalError):
+            self.con.create_collation("c", None)
+        self.assertIsNotNone(ref())
+        self.assertEqual([row[0] for row in cursor], ["a", "b", "c"])
+
+    def test_failed_case_insensitive_replacement(self):
+        # SQLite collation names are case-insensitive; the pinboard key is
+        # not. Ownership is the still-active sort order, not the weakref
+        # on a Python dict that the replacement never touched.
+        callback = lambda a, b: (a > b) - (a < b)
+        self.con.create_collation("C", callback)
+        cursor = self._active_ordered_cursor("c")
+        with self.assertRaises(sqlite.OperationalError):
+            self.con.create_collation("c", lambda a, b: (b > a) - (b < a))
+        self.assertEqual([row[0] for row in cursor], ["a", "b", "c"])
+
+    def test_successful_replacement_after_statement_released(self):
+        self.con.create_collation("c", lambda a, b: (a > b) - (a < b))
+        self.assertEqual(
+            [row[0] for row in self.con.execute(
+                "select x from t order by x collate c"
+            )],
+            ["a", "b", "c"],
+        )
+        self.con.create_collation("c", lambda a, b: (b > a) - (b < a))
+        self.assertEqual(
+            [row[0] for row in self.con.execute(
+                "select x from t order by x collate c"
+            )],
+            ["c", "b", "a"],
+        )
+
+
 class StatementLifetimeRegressionTests(unittest.TestCase):
     def test_function_destructor_after_connection_close(self):
         # Isolate native crashes so a missing GIL reports a test failure rather
@@ -1451,6 +1571,7 @@ def suite():
             loader.loadTestsFromTestCase(BusyHandlerRegressionTests),
             loader.loadTestsFromTestCase(ConnectionLifecycleRegressionTests),
             loader.loadTestsFromTestCase(CallbackCloseRegressionTests),
+            loader.loadTestsFromTestCase(CollationOwnershipRegressionTests),
             loader.loadTestsFromTestCase(StatementLifetimeRegressionTests),
             loader.loadTestsFromTestCase(CursorRegressionTests),
             loader.loadTestsFromTestCase(RowRegressionTests),

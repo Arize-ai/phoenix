@@ -1703,21 +1703,25 @@ static PyObject* pysqlite_connection_set_authorizer(pysqlite_Connection* self, P
         pysqlite_enter_sqlite(self);
         rc = sqlite3_set_authorizer(self->db, NULL, NULL);
         pysqlite_leave_sqlite(self);
+        if (rc != SQLITE_OK) {
+            PyErr_SetString(pysqlite_OperationalError, "Error setting authorizer callback");
+            return NULL;
+        }
         Py_XSETREF(self->function_pinboard_authorizer_cb, NULL);
     }
     else {
         Py_INCREF(authorizer_cb);
-        Py_XSETREF(self->function_pinboard_authorizer_cb, authorizer_cb);
         pysqlite_enter_sqlite(self);
         rc = sqlite3_set_authorizer(self->db, _authorizer_callback, (void*)authorizer_cb);
         pysqlite_leave_sqlite(self);
+        if (rc != SQLITE_OK) {
+            Py_DECREF(authorizer_cb);
+            PyErr_SetString(pysqlite_OperationalError, "Error setting authorizer callback");
+            return NULL;
+        }
+        Py_XSETREF(self->function_pinboard_authorizer_cb, authorizer_cb);
     }
 
-    if (rc != SQLITE_OK) {
-        PyErr_SetString(pysqlite_OperationalError, "Error setting authorizer callback");
-        Py_XSETREF(self->function_pinboard_authorizer_cb, NULL);
-        return NULL;
-    }
     Py_RETURN_NONE;
 }
 
@@ -1738,16 +1742,15 @@ static PyObject* pysqlite_connection_set_progress_handler(pysqlite_Connection* s
     }
 
     if (progress_handler == Py_None) {
-        /* None clears the progress handler previously set */
         pysqlite_enter_sqlite(self);
         sqlite3_progress_handler(self->db, 0, 0, (void*)0);
         pysqlite_leave_sqlite(self);
         Py_XSETREF(self->function_pinboard_progress_handler, NULL);
     } else {
+        Py_INCREF(progress_handler);
         pysqlite_enter_sqlite(self);
         sqlite3_progress_handler(self->db, n, _progress_handler, progress_handler);
         pysqlite_leave_sqlite(self);
-        Py_INCREF(progress_handler);
         Py_XSETREF(self->function_pinboard_progress_handler, progress_handler);
     }
 
@@ -1774,21 +1777,25 @@ static PyObject* pysqlite_connection_set_busy_handler(pysqlite_Connection* self,
         pysqlite_enter_sqlite(self);
         rc = sqlite3_busy_handler(self->db, NULL, NULL);
         pysqlite_leave_sqlite(self);
+        if (rc != SQLITE_OK) {
+            PyErr_SetString(pysqlite_OperationalError, "Error setting busy handler");
+            return NULL;
+        }
         Py_XSETREF(self->function_pinboard_busy_handler_cb, NULL);
     }
     else {
         Py_INCREF(busy_handler);
-        Py_XSETREF(self->function_pinboard_busy_handler_cb, busy_handler);
         pysqlite_enter_sqlite(self);
         rc = sqlite3_busy_handler(self->db, _busy_handler, (void*)busy_handler);
         pysqlite_leave_sqlite(self);
+        if (rc != SQLITE_OK) {
+            Py_DECREF(busy_handler);
+            PyErr_SetString(pysqlite_OperationalError, "Error setting busy handler");
+            return NULL;
+        }
+        Py_XSETREF(self->function_pinboard_busy_handler_cb, busy_handler);
     }
 
-    if (rc != SQLITE_OK) {
-        PyErr_SetString(pysqlite_OperationalError, "Error setting busy handler");
-        Py_XSETREF(self->function_pinboard_busy_handler_cb, NULL);
-        return NULL;
-    }
     Py_RETURN_NONE;
 }
 
@@ -2355,56 +2362,77 @@ pysqlite_connection_create_collation(pysqlite_Connection* self, PyObject* args)
 {
     PyObject* callable;
     PyObject* name = NULL;
-    PyObject* retval;
     const char *name_str;
     int rc;
 
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
-        goto finally;
+        return NULL;
     }
 
     if (!PyArg_ParseTuple(args, "UO:create_collation(name, callback)",
                           &name, &callable)) {
-        goto finally;
+        return NULL;
     }
 
     name_str = PyUnicode_AsUTF8(name);
-    if (!name_str)
-        goto finally;
+    if (!name_str) {
+        return NULL;
+    }
 
     if (callable != Py_None && !PyCallable_Check(callable)) {
         PyErr_SetString(PyExc_TypeError, "parameter must be callable");
-        goto finally;
+        return NULL;
     }
 
+    /* Ask SQLite first. The pinboard is updated only after success:
+       sqlite3_create_collation_v2 keeps the previous xUserData when it
+       returns SQLITE_BUSY, and unlike create_function_v2 it does not
+       invoke xDestroy on failure. */
     if (callable != Py_None) {
-        if (PyDict_SetItem(self->collations, name, callable) == -1)
-            goto finally;
+        Py_INCREF(callable);
+        pysqlite_enter_sqlite(self);
+        rc = sqlite3_create_collation_v2(self->db,
+                                         name_str,
+                                         SQLITE_UTF8,
+                                         callable,
+                                         pysqlite_collation_callback,
+                                         &_destructor);
+        pysqlite_leave_sqlite(self);
+        if (rc != SQLITE_OK) {
+            Py_DECREF(callable);
+            _pysqlite_seterror(self->db);
+            return NULL;
+        }
+        if (PyDict_SetItemString(self->collations, name_str, callable) < 0) {
+            pysqlite_enter_sqlite(self);
+            (void)sqlite3_create_collation_v2(self->db,
+                                              name_str,
+                                              SQLITE_UTF8,
+                                              NULL,
+                                              NULL,
+                                              NULL);
+            pysqlite_leave_sqlite(self);
+            return NULL;
+        }
     } else {
-        if (PyDict_DelItem(self->collations, name) == -1)
-            goto finally;
+        pysqlite_enter_sqlite(self);
+        rc = sqlite3_create_collation_v2(self->db,
+                                         name_str,
+                                         SQLITE_UTF8,
+                                         NULL,
+                                         NULL,
+                                         NULL);
+        pysqlite_leave_sqlite(self);
+        if (rc != SQLITE_OK) {
+            _pysqlite_seterror(self->db);
+            return NULL;
+        }
+        if (PyDict_DelItemString(self->collations, name_str) < 0) {
+            PyErr_Clear();
+        }
     }
 
-    rc = sqlite3_create_collation(self->db,
-                                  name_str,
-                                  SQLITE_UTF8,
-                                  (callable != Py_None) ? callable : NULL,
-                                  (callable != Py_None) ? pysqlite_collation_callback : NULL);
-    if (rc != SQLITE_OK) {
-        PyDict_DelItem(self->collations, name);
-        _pysqlite_seterror(self->db);
-        goto finally;
-    }
-
-finally:
-    if (PyErr_Occurred()) {
-        retval = NULL;
-    } else {
-        Py_INCREF(Py_None);
-        retval = Py_None;
-    }
-
-    return retval;
+    Py_RETURN_NONE;
 }
 
 /* Called when the connection is used as a context manager. Returns itself as a
