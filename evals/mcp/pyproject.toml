@@ -8,7 +8,7 @@ dependencies = [
   "datasets==4.8.5",
   "pytest==8.4.2",
   "pytest-asyncio==1.2.0",
-  "ruff==0.12.12",
+  "ruff==0.16.6",
   "mypy==1.15.0",
   "types-toml",
 ]

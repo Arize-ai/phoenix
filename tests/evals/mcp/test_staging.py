@@ -71,7 +71,6 @@ async def test_native_plugin_preserves_small_metadata_and_versions_seed_changes(
     from harbor.job import Job
     from harbor.models.job.config import DatasetConfig, JobConfig
     from harbor.models.trial.config import AgentConfig
-
     from phoenix.client.harbor._adapter import build_job_plan
 
     manifest = {
