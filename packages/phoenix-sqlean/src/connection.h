@@ -2,6 +2,8 @@
  *
  * Copyright (C) 2004-2010 Gerhard Häring <gh@ghaering.de>
  *
+ * Modified by the Arize Phoenix team, 2026.
+ *
  * This file is part of pysqlite.
  *
  * This software is provided 'as-is', without any express or implied
@@ -114,6 +116,7 @@ PyObject* pysqlite_connection_alloc(PyTypeObject* type, int aware);
 void pysqlite_connection_dealloc(pysqlite_Connection* self);
 PyObject* pysqlite_connection_cursor(pysqlite_Connection* self, PyObject* args, PyObject* kwargs);
 PyObject* pysqlite_connection_close(pysqlite_Connection* self, PyObject* args);
+PyObject* pysqlite_connection_call(pysqlite_Connection* self, PyObject* args, PyObject* kwargs);
 PyObject* _pysqlite_connection_begin(pysqlite_Connection* self);
 PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args);
 PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args);

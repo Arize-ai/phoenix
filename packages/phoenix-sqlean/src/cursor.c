@@ -488,14 +488,16 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
     }
 
     if (self->statement->in_use) {
-        Py_SETREF(self->statement,
-                  PyObject_New(pysqlite_Statement, &pysqlite_StatementType));
-        if (!self->statement) {
+        /* Use the cache factory for duplicates too: it initializes the
+           statement and registers it for connection close/rollback. */
+        func_args = PyTuple_Pack(1, operation);
+        if (!func_args) {
             goto error;
         }
-        rc = pysqlite_statement_create(self->statement, self->connection, operation);
-        if (rc != SQLITE_OK) {
-            Py_CLEAR(self->statement);
+        Py_SETREF(self->statement, (pysqlite_Statement*)
+                  pysqlite_connection_call(self->connection, func_args, NULL));
+        Py_DECREF(func_args);
+        if (!self->statement) {
             goto error;
         }
     }

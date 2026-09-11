@@ -1103,7 +1103,11 @@ static void _pysqlite_drop_unused_cursor_references(pysqlite_Connection* self)
 
 static void _destructor(void* args)
 {
+    /* bpo-44304: a statement can outlive its connection, so SQLite may
+       destroy functions from sqlite3_finalize() with the GIL released. */
+    PyGILState_STATE gilstate = PyGILState_Ensure();
     Py_DECREF((PyObject *)args);
+    PyGILState_Release(gilstate);
 }
 
 

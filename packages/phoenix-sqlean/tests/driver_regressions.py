@@ -319,6 +319,85 @@ class CallbackCloseRegressionTests(unittest.TestCase):
         )
 
 
+class StatementLifetimeRegressionTests(unittest.TestCase):
+    def test_function_destructor_after_connection_close(self):
+        # Isolate native crashes so a missing GIL reports a test failure rather
+        # than taking down the suite. All three registration APIs share xDestroy.
+        for registration in (
+            "create_function",
+            "create_aggregate",
+            "create_window_function",
+        ):
+            for lifetime in ("failed", "active", "orphan"):
+                with self.subTest(registration=registration, lifetime=lifetime):
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            "-X",
+                            "faulthandler",
+                            "-c",
+                            textwrap.dedent("""
+                            import gc
+                            import sys
+                            import weakref
+                            from sqlean import dbapi2 as sqlite
+
+                            registration, lifetime = sys.argv[1:]
+                            con = sqlite.connect(":memory:")
+                            callback = lambda *args: 1
+                            ref = weakref.ref(callback)
+                            getattr(con, registration)("f", 1, callback)
+                            del callback
+
+                            if lifetime == "orphan":
+                                # A directly prepared Statement does not own the
+                                # Connection. Its finalization closes the zombie
+                                # with the GIL released, even when every cursor
+                                # statement is correctly tracked by close().
+                                statement = con("select 1")
+                                del con
+                                assert ref() is not None
+                                del statement
+                            else:
+                                cursors = [con.cursor(), con.cursor()]
+                                if lifetime == "failed":
+                                    con.execute("create table t(x unique)")
+                                    con.execute("insert into t values (1)")
+                                    for cursor in cursors:
+                                        try:
+                                            cursor.execute("insert into t values (1)")
+                                        except sqlite.IntegrityError:
+                                            pass
+                                        else:
+                                            raise AssertionError("constraint did not fail")
+                                    del cursor
+                                else:
+                                    # The second cursor needs an uncached copy
+                                    # while the first is still using this SQL.
+                                    for cursor in cursors:
+                                        cursor.execute("select 1 union all select 2")
+                                    del cursor
+                                con.close()
+                                released_at_close = ref() is None
+                                del con, cursors
+                                gc.collect()
+                                assert released_at_close, "close left a live statement"
+                            gc.collect()
+                            assert ref() is None, "registered callback leaked"
+                        """),
+                            registration,
+                            lifetime,
+                        ],
+                        cwd=Path(__file__).resolve().parents[1],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
+                    self.assertEqual(
+                        result.returncode, 0, result.stdout + result.stderr
+                    )
+
+
 class CursorRegressionTests(unittest.TestCase):
     def setUp(self):
         self.cx = sqlite.connect(":memory:")
@@ -443,6 +522,7 @@ def suite():
             loader.loadTestsFromTestCase(BusyHandlerRegressionTests),
             loader.loadTestsFromTestCase(ConnectionLifecycleRegressionTests),
             loader.loadTestsFromTestCase(CallbackCloseRegressionTests),
+            loader.loadTestsFromTestCase(StatementLifetimeRegressionTests),
             loader.loadTestsFromTestCase(CursorRegressionTests),
             loader.loadTestsFromTestCase(RowRegressionTests),
         )
