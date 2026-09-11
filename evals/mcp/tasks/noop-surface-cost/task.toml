@@ -1,6 +1,3 @@
-[task]
-name = "arize/noop-surface-cost"
-version = "2"
-
 [metadata]
+version = "0"
 task_class = "noop"

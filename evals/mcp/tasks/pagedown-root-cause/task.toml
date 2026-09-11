@@ -1,6 +1,3 @@
-[task]
-name = "arize/pagedown-root-cause"
-version = "2"
-
 [metadata]
+version = "0"
 task_class = "large-result"

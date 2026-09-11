@@ -8,7 +8,6 @@ dependencies = [
   "datasets==4.8.5",
   "pytest==8.4.2",
   "pytest-asyncio==1.2.0",
-  "respx==0.22.0",
   "ruff==0.12.12",
   "mypy==1.15.0",
   "types-toml",
@@ -17,8 +16,14 @@ dependencies = [
 [tool.uv]
 package = false
 
+# The ATIF plugin is pinned independently of the Phoenix server being evaluated.
+[tool.uv.sources]
+arize-phoenix-client = { git = "https://github.com/Arize-ai/phoenix", rev = "e2e514329b5b93c912d6d2e8cea478e96211b115", subdirectory = "packages/phoenix-client" }
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+pythonpath = ["../.."]
+addopts = ["--import-mode=importlib"]
 norecursedirs = ["integration"]
 
 [tool.ruff]
@@ -27,21 +32,22 @@ target-version = "py313"
 
 [tool.mypy]
 python_version = "3.13"
-files = ["evals/mcp/run.py", "evals/mcp/environment.py", "evals/mcp/matrix.py", "evals/mcp/images.py", "evals/mcp/preflight.py", "evals/mcp/runtime.py", "evals/mcp/fixture.py", "evals/mcp/grading.py", "evals/mcp/references.py", "evals/mcp/measurements.py", "evals/mcp/isolation.py", "evals/mcp/stage_task.py", "evals/mcp/verify.py"]
+files = ["evals/mcp/scripts", "evals/mcp/scoring", "evals/mcp/environment"]
 strict = true
 explicit_package_bases = true
-mypy_path = "evals/mcp"
+mypy_path = "."
 
-# Harbor 0.22 does not ship a py.typed marker. Adapter behavior is tested against
-# the installed runtime; this exception does not skip our own imports.
 [[tool.mypy.overrides]]
-module = ["harbor.*"]
+module = ["harbor.*", "fastmcp.*", "phoenix.*", "datasets"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["run", "environment", "matrix", "images", "runtime", "preflight", "fixture", "cli", "gateway", "main", "oracle", "prepare", "seed_target", "target"]
+module = ["evals.mcp.scripts.*", "evals.mcp.environment.*"]
 disallow_untyped_defs = false
 disallow_any_generics = false
 disallow_untyped_calls = false
 warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "evals.mcp.environment.server"
 disallow_subclassing_any = false

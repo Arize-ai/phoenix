@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "evals/mcp/**"
+      - "tests/evals/mcp/**"
       - "pyproject.toml"
       - ".github/workflows/mcp-benchmark.yml"
   workflow_dispatch:
@@ -29,9 +30,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
-      - name: Fetch pinned wheel sources
-        run: git fetch --depth=1 origin e2e514329b5b93c912d6d2e8cea478e96211b115
       - name: Install server and benchmark dependencies
-        run: make install-python mcp-setup
+        run: make install-python
       - name: Check benchmark
-        run: make mcp ARGS=check
+        run: make mcp-check

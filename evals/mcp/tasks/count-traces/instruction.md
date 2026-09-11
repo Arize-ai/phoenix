@@ -1,1 +1,1 @@
-How many traces are in the {project} project?
+How many traces are in the research-assistant project?

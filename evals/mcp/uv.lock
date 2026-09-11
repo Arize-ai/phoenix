@@ -102,7 +102,7 @@ wheels = [
 [[package]]
 name = "arize-phoenix-client"
 version = "3.4.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/Arize-ai/phoenix?subdirectory=packages%2Fphoenix-client&rev=e2e514329b5b93c912d6d2e8cea478e96211b115#e2e514329b5b93c912d6d2e8cea478e96211b115" }
 dependencies = [
     { name = "httpx" },
     { name = "openinference-instrumentation" },
@@ -111,10 +111,6 @@ dependencies = [
     { name = "opentelemetry-sdk" },
     { name = "tqdm" },
     { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5f/05/93402e0ac59cdd64e48f7a5cef8dfb60cc90ba01be0aea1d76cfd9141080/arize_phoenix_client-3.4.0.tar.gz", hash = "sha256:212e4ee4f0e93b2183f35b1b37f2966d72c52bb93754fd94d08e4c9d88ebb070", size = 289520, upload-time = "2026-09-04T02:42:19.863Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/26/2f64fd3ace199cd04bf269f988ce002e4dfb0345c978d951979a750e6917/arize_phoenix_client-3.4.0-py3-none-any.whl", hash = "sha256:20d3b5ea083f5add97db93b23b24ea26317e5fdb820dfa1c883213a6928623dd", size = 250371, upload-time = "2026-09-04T02:42:18.291Z" },
 ]
 
 [package.optional-dependencies]
@@ -1116,20 +1112,18 @@ dependencies = [
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
-    { name = "respx" },
     { name = "ruff" },
     { name = "types-toml" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "arize-phoenix-client", extras = ["harbor"], specifier = "==3.4.0" },
+    { name = "arize-phoenix-client", extras = ["harbor"], git = "https://github.com/Arize-ai/phoenix?subdirectory=packages%2Fphoenix-client&rev=e2e514329b5b93c912d6d2e8cea478e96211b115" },
     { name = "datasets", specifier = "==4.8.5" },
     { name = "harbor", specifier = "==0.22.0" },
     { name = "mypy", specifier = "==1.15.0" },
     { name = "pytest", specifier = "==8.4.2" },
     { name = "pytest-asyncio", specifier = "==1.2.0" },
-    { name = "respx", specifier = "==0.22.0" },
     { name = "ruff", specifier = "==0.12.12" },
     { name = "types-toml" },
 ]
@@ -1458,18 +1452,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed", size = 142856, upload-time = "2026-05-14T19:25:27.735Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl", hash = "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0", size = 73075, upload-time = "2026-05-14T19:25:26.443Z" },
-]
-
-[[package]]
-name = "respx"
-version = "0.22.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "httpx" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f4/7c/96bd0bc759cf009675ad1ee1f96535edcb11e9666b985717eb8c87192a95/respx-0.22.0.tar.gz", hash = "sha256:3c8924caa2a50bd71aefc07aa812f2466ff489f1848c96e954a5362d17095d91", size = 28439, upload-time = "2024-12-19T22:33:59.374Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/67/afbb0978d5399bc9ea200f1d4489a23c9a1dad4eee6376242b8182389c79/respx-0.22.0-py2.py3-none-any.whl", hash = "sha256:631128d4c9aba15e56903fb5f66fb1eff412ce28dd387ca3a81339e52dbd3ad0", size = 25127, upload-time = "2024-12-19T22:33:57.837Z" },
 ]
 
 [[package]]

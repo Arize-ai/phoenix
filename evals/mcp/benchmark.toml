@@ -1,0 +1,12 @@
+# Compare MCP and CLI within each agent/model pair. Model IDs are sent literally.
+# These model requests have not yet been validated with authenticated inference.
+reasoning_effort = "high"
+px_version = "1.18.1"
+
+[agents.claude-code]
+version = "2.1.267"
+model = "claude-opus-5"
+
+[agents.codex]
+version = "0.154.0"
+model = "gpt-5.6"
