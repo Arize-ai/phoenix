@@ -18,12 +18,12 @@ from phoenix.db.types.prompts import normalize_invocation_parameters_for_write
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.prompts.management import upsert_prompt_version_tag
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
 )
 from phoenix.server.api.mutations.prompt_version_tag_mutations import (
     CreatePromptVersionTagInput,
-    upsert_prompt_version_tag,
 )
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
