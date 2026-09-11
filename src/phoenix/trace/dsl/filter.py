@@ -1296,6 +1296,12 @@ class SpanFilter:
             raise SpanFilterError("filter condition is nested too deeply") from None
         except SyntaxError as error:
             raise SpanFilterError(_format_syntax_error(error)) from error
+        except IndexError as error:
+            # Belt-and-suspenders alongside the line-offset table's own
+            # universal-newline handling: a lineno/col_offset the table
+            # doesn't have an entry for is a malformed-filter condition to
+            # the caller, not a 500.
+            raise SpanFilterError("invalid filter condition") from error
 
     def _initialize(self) -> None:
         object.__setattr__(self, "root_scope", None)
@@ -1644,7 +1650,7 @@ class Projector:
         # confusable-identifier hazard the filter side already rejects.
         _validate_python_surface(root.body, source)
         _validate_projection_expression(root)
-        translated = _ProjectionTranslator(source).visit(root)
+        translated = _ProjectionTranslator().visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
         object.__setattr__(self, "translated", translated)
@@ -2423,7 +2429,28 @@ class _ProjectionTranslator(ast.NodeTransformer):
             )
         )
 
-    def visit_generic(self, node: ast.AST) -> typing.Any:
+    # Node types this translator (and `_FilterTranslator` below) has no
+    # explicit `visit_*` for and relies on the inherited `generic_visit`
+    # traversal to pass through unchanged: leaf values (`_VALID_PROJECTION_NODE_TYPES`
+    # and `_validate_expression`'s allowlist both admit them with no
+    # corresponding `visit_Constant`/`visit_List`/`visit_Tuple`/`visit_Load`
+    # here) and the operator-symbol nodes (`ast.BoolOp.op`, `ast.Compare.ops`,
+    # `ast.BinOp.op`, `ast.UnaryOp.op`) that `visit_BoolOp` etc. read directly
+    # off the node rather than visiting.
+    _PASSTHROUGH_NODE_TYPES: typing.ClassVar[tuple[type, ...]] = (
+        ast.Constant,
+        ast.List,
+        ast.Tuple,
+        ast.Load,
+        ast.boolop,
+        ast.cmpop,
+        ast.operator,
+        ast.unaryop,
+    )
+
+    def generic_visit(self, node: ast.AST) -> typing.Any:
+        if isinstance(node, self._PASSTHROUGH_NODE_TYPES):
+            return super().generic_visit(node)
         raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
 
     def visit_Expression(self, node: ast.Expression) -> typing.Any:
@@ -3817,18 +3844,23 @@ def _apply_eval_aliasing(
 class _AnnotationExpressionAliaser(ast.NodeVisitor):
     def __init__(self, source: str, bindings: _FilterBindings = SPAN_BINDINGS) -> None:
         self._bindings = bindings
-        # Split on "\n" only. `str.splitlines` also breaks on \v, \f, \x1c-\x1e,
-        # \x85, \u2028 and \u2029, while the tokenizer that produced the AST
-        # positions these offsets are matched against counts none of them. One
-        # of those characters inside an earlier string literal would start a
-        # line here that the tokenizer never saw, shifting every later offset
-        # and splicing the alias at the wrong byte.
-        lines = source.split("\n")
+        # Split on the same universal newlines the tokenizer that produced the
+        # AST positions these offsets are matched against uses: "\r\n", "\r"
+        # and "\n", each counted as exactly one line break. `str.splitlines`
+        # breaks on \v, \f, \x1c-\x1e, \x85, \u2028 and \u2029 too, none of
+        # which the tokenizer treats as a line break -- one of those inside an
+        # earlier string literal would start a line here the tokenizer never
+        # saw, shifting every later offset and splicing the alias at the wrong
+        # byte. A lone "\r" is the same hazard from the other direction: the
+        # tokenizer breaks the line there, so the offset table must too.
         self._line_offsets = [0]
-        for line in lines:
-            # +1 for the "\n" that `split` consumed. A trailing "\r" of a CRLF
-            # pair stays in `line`, so its byte is already counted.
-            self._line_offsets.append(self._line_offsets[-1] + len(line.encode()) + 1)
+        pos = 0
+        for match in re.finditer(r"\r\n|\r|\n", source):
+            line = source[pos : match.start()]
+            self._line_offsets.append(
+                self._line_offsets[-1] + len(line.encode()) + len(match.group().encode())
+            )
+            pos = match.end()
         self._relations_by_key: dict[
             tuple[AnnotationRelationKind, AnnotationName], AliasedAnnotationRelation
         ] = {}
