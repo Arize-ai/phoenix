@@ -183,11 +183,23 @@ Six callables accept a comprehension: `any`, `all` (quantifiers) and `len`, `max
 
 | Iterable | Element fields |
 | --- | --- |
-| `spans` | `name`, `span_kind`, `status_code`, `latency_ms`, `llm_token_count_prompt`, `llm_token_count_completion`, `llm_token_count_total` |
+| `spans` | `name`, `span_kind`, `status_code`, `latency_ms`, `llm_token_count_prompt`, `llm_token_count_completion`, `llm_token_count_total`, `total_cost`, `prompt_cost`, `completion_cost` |
 | `traces` | `start_time`, `end_time`, `latency_ms`, and a nested `spans` iterable |
 | `session_annotations` | `name`, `label`, `score` |
 | `span_annotations` | `name`, `label`, `score` (every span's annotations, flattened to session scope) |
 | `span_cost_details` | `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token` |
+
+`span.total_cost`, `span.prompt_cost`, and `span.completion_cost` are that span's own cost
+scalars, read from its `span_costs` row:
+
+```
+any(span.total_cost > 0.1 for span in spans)
+```
+
+A span with no cost row, or with the column recorded as null, reads `0` rather than dropping
+out of the comprehension. Each name is correlated to its own element, so a predicate naming
+two of them requires one span to satisfy both. The session-level `total_cost`, `prompt_cost`,
+and `completion_cost` are unchanged and still describe totals across the whole session.
 
 Design notes, each a deliberate choice:
 
