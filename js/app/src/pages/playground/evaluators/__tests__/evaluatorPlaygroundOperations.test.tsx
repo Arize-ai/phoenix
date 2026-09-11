@@ -8,28 +8,49 @@ import { createAgentStore } from "@phoenix/store/agentStore";
 
 import type { EvaluatorAgentSlot } from "../evaluatorAgentSlot";
 import { useEvaluatorPlaygroundAgent } from "../useEvaluatorPlaygroundAgent";
+import type { EvaluatorWorkspaceRead } from "../useEvaluatorPlaygroundAgent";
+
+const emptyWorkspace: EvaluatorWorkspaceRead = {
+  mode: "evaluators",
+  datasetId: null,
+  splitIds: [],
+  datasetVersionId: null,
+  sampleSize: 20,
+  sampleLoaded: false,
+  totalExamples: 0,
+  isRunning: false,
+  staleSlots: [],
+  slots: [],
+  examples: [],
+  nextOffset: null,
+};
 
 function setup(slot?: EvaluatorAgentSlot) {
   const agentStore = createAgentStore();
   agentStore.getState().setPermissions({ edits: "bypass" });
+
   const run = vi.fn(async () => ({
     ok: true as const,
     output: { mode: "evaluators", results: ["pass"] },
   }));
+
   const configure = vi.fn(async () => ({ ok: true as const }));
+
   function Host() {
     useEvaluatorPlaygroundAgent({
       getSlot: () => slot,
-      readWorkspace: () => ({ mode: "evaluators" }),
+      readWorkspace: () => emptyWorkspace,
       configureWorkspace: configure,
       selectSlot: async () => ({ ok: true }),
       runSlots: run,
       stopRuns: vi.fn(),
-      reviewExample: async () => ({ ok: true }),
+      writeExpectedOutput: async () => ({ ok: true }),
       isBusy: false,
     });
+
     return null;
   }
+
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -40,12 +61,14 @@ function setup(slot?: EvaluatorAgentSlot) {
       </AgentContext.Provider>
     )
   );
+
   const mounted = {
     unmount: () => {
       act(() => root.unmount());
       container.remove();
     },
   };
+
   function dispatch(operationName: string, input: unknown = {}) {
     return dispatchUIOperationCall({
       agentStore,
@@ -56,26 +79,32 @@ function setup(slot?: EvaluatorAgentSlot) {
       capabilities: { "subagents.enabled": false, "web.access": false },
     });
   }
+
   return { agentStore, mounted, dispatch, run, configure };
 }
+
 describe("PXI evaluator mode dispatch", () => {
   it("saves through the slot adapter and rejects writes during an active save", async () => {
     let finish!: (result: { ok: true }) => void;
+
     const save = vi.fn(
       () =>
         new Promise<{ ok: true }>((resolve) => {
           finish = resolve;
         })
     );
+
     const { mounted, dispatch, run } = setup({
       read: vi.fn(),
       edit: vi.fn(),
       save,
     });
+
     const pending = dispatch("evaluatorPlayground.saveSlot", {
       slot: "B",
       expectedRevision: "current",
     });
+
     await vi.waitFor(() => expect(save).toHaveBeenCalledWith("current"));
     expect(await dispatch("evaluatorPlayground.run")).toMatchObject({
       ok: false,

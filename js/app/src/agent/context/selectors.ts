@@ -40,8 +40,10 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
     if (existing.type === "playground" && context.type === "playground") {
       if (context.mode != null && context.mode !== existing.mode) {
         byKey.set(key, context);
+
         return;
       }
+
       if (existing.mode === "evaluators") {
         // Prompt-page fragments must never leak prompt instances into evaluator mode.
         byKey.set(key, {
@@ -51,8 +53,10 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
           instances: [],
           evaluators: [],
         });
+
         return;
       }
+
       // Two surfaces contribute one playground context: Playground.tsx owns the instances, PlaygroundDatasetSection the evaluator roster.
       byKey.set(key, {
         ...existing,

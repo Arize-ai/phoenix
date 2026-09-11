@@ -61,6 +61,7 @@ export function CalibrationDataset({
     { datasetId, splitIds, versionId, first },
     { fetchPolicy: "network-only", fetchKey }
   );
+
   // Synchronize a retained query with the parent-owned execution snapshot. Later
   // Relay writes must not silently change the sample underneath a running draft.
   useEffect(() => {
@@ -73,5 +74,6 @@ export function CalibrationDataset({
     // This component is keyed by dataset, split and version selection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
   return null;
 }

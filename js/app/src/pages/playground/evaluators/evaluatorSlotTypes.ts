@@ -1,18 +1,18 @@
 import type { EvaluatorPreviewInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
+import type { EvaluatorInputMapping } from "@phoenix/types";
 
 import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
 
 export const EVALUATOR_SLOT_IDS = ["A", "B", "C", "D"] as const;
+
 export type SlotId = (typeof EVALUATOR_SLOT_IDS)[number];
 
+/** The slots the URL shows, in A–D order; slot A alone when it names none. */
 export function getVisibleEvaluatorSlots(params: URLSearchParams): SlotId[] {
   const selected = params.getAll("evaluatorSlot");
   const slots = EVALUATOR_SLOT_IDS.filter((slot) => selected.includes(slot));
-  return slots.length
-    ? slots
-    : params.get("compare") === "true"
-      ? ["A", "B"]
-      : ["A"];
+
+  return slots.length ? slots : ["A"];
 }
 
 export function setVisibleEvaluatorSlots(
@@ -20,7 +20,6 @@ export function setVisibleEvaluatorSlots(
   slots: readonly SlotId[]
 ) {
   params.delete("evaluatorSlot");
-  params.delete("compare");
   slots.forEach((slot) => params.append("evaluatorSlot", slot));
 }
 
@@ -46,10 +45,7 @@ export type SlotSnapshot = {
   outputNames: SlotOutput[];
   selectedOutputName: string;
   preview: EvaluatorPreviewInput | null;
-  inputMapping: {
-    literalMapping: Record<string, unknown>;
-    pathMapping: Record<string, string>;
-  };
+  inputMapping: EvaluatorInputMapping;
   validationError: string | null;
 };
 

@@ -417,6 +417,7 @@ export const getOutputConfigKindError = ({
   config: AnnotationConfig;
 }): string | null => {
   if (kind !== "LLM" || "values" in config) return null;
+
   return (
     `LLM evaluators only support categorical outputs, but "${config.name}" is ` +
     "continuous or freeform. Define labels with scores instead (for a 0–1 " +
@@ -440,6 +441,7 @@ export const getEvaluatorOutputConfigValidationErrors = ({
   ...getOutputConfigValidationErrors(configs),
   ...configs.flatMap((config) => {
     const error = getOutputConfigKindError({ kind, config });
+
     return error ? [error] : [];
   }),
 ];

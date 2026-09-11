@@ -177,17 +177,14 @@ If however you run a prompt over dataset examples, the outputs and spans from yo
 
 ## Comparing evaluators
 
-Select **Evaluators** at the top of the playground to test LLM and code evaluators against a shared dataset sample. You can also open an evaluator in the playground from the evaluators table or a dataset evaluator's actions.
+Select **Evaluators** at the top of the playground to try LLM and code evaluators against a sample of a dataset, record the outputs you expected, and compare up to four evaluators side by side. You can also open an evaluator here from the evaluators table, from a dataset evaluator's actions, or from the evaluator picker in prompt mode.
 
-1. Select a dataset and optional split. Use **Run settings** to choose a sample size from 1 to 500 examples (default: 20).
-2. In slot A, load an existing evaluator or start a new LLM or code evaluator. Configure its **Prompt** or **Code**, **Input mapping**, and **Output** tabs. Code evaluators require a configured sandbox.
-3. Click **Compare** to add slot B. Each slot can use a different evaluator type. Select one categorical output per slot and use the same label set for comparison.
-4. Click **Run**, or run a slot independently. Inspect labels, explanations, and row errors in the results table.
-5. Set an **Expected label** for examples you review, or click **Accept A** to accept A's prediction. Edit the evaluator and rerun the sample to check agreement.
-6. Give the evaluator a new name in **Output**, then click **Save as new** to save a copy attached to the selected dataset.
+1. In the **Results** panel, select a dataset and optional splits. Use the run settings to choose a sample size from 1 to 500 examples (default: 20). Evaluators run over the first examples of the dataset.
+2. In slot A, pick an existing evaluator or start a new LLM or code evaluator. Configure its **Prompt** or **Code**, **Input mapping**, and **Output** tabs. Code evaluators need a configured sandbox.
+3. Click **Add evaluator** to add slots B through D. Each slot is independent and can hold a different evaluator type.
+4. Click **Run all** to run every slot. The play button in an evaluator's column header runs only that evaluator, and the play button on a row runs every evaluator on that one example. Inspect labels, scores, explanations, and errors in the results table.
+5. Record what you expected. Thumbs up accepts an evaluator's result as the expected output; thumbs down opens a form for the label or score that was expected. The band under each result shows the expected output and flags results that differ from it. Each evaluator's column header counts the examples with an expected output and how many results agree with it.
+6. Edit an evaluator and run again. Results produced by an older draft are marked as changed since the run. Filter the table to **Missing expected**, **Errors**, or **Mismatches** to focus on what needs attention.
+7. To keep an evaluator, give it a name in **Output** and click **Save as new**. This creates a new evaluator attached to the selected dataset. Drafts and run results are otherwise temporary.
 
-In evaluator mode, dataset `output` is the response being judged. The `reference` context starts empty. Use **Input mapping** to point evaluator variables at a separate reference field when needed. Saved calibration labels are excluded from the evaluator's metadata context.
-
-**B vs A** measures exact label agreement with A as the baseline. Each slot also reports agreement with your expected labels. Errors and missing predictions count as non-agreements. These percentages describe the selected sample.
-
-Expected labels are saved on dataset examples, keyed by the selected output name, and shared across evaluators that use that name. Editing an example's input, output, or other metadata invalidates its previous review. Drafts and run results are temporary; save evaluator copies before leaving. **Stop** stops scheduling new requests, but requests already running may finish.
+In evaluator mode, the dataset example's `output` is the response being judged and the `reference` context starts empty. Use **Input mapping** to point evaluator variables at other fields. Expected outputs are stored on the dataset example as human annotations under the `annotations` key of its metadata, named after the evaluator (or `evaluator.output` for an evaluator with several outputs), so evaluators with the same name share them. They are written in batches as new dataset versions and are never passed to the evaluators. The results table hides the `annotations` key in metadata cells by default; turn this off in the run settings. **Stop** stops scheduling new requests, but requests already running may finish.

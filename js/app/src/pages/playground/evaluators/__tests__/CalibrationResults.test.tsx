@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
-import { CalibrationResults } from "../CalibrationResults";
+import { CalibrationResults } from "../calibrationResults";
 
 // The input/output cells render JSON through CodeMirror, which cannot mount in
 // jsdom (its extension instanceof checks fail). Stand in a <pre> that echoes
@@ -42,7 +42,7 @@ const initialProps: ComponentProps<typeof CalibrationResults> = {
   expected: {},
   filter: "all",
   onFilterChange: vi.fn(),
-  onReview: vi.fn(async () => ({ ok: true as const })),
+  onSaveExpectedOutput: vi.fn(async () => ({ ok: true as const })),
   isRunning: false,
   runnableSlots: ["A"],
   onRunSlot: vi.fn(),
@@ -50,9 +50,9 @@ const initialProps: ComponentProps<typeof CalibrationResults> = {
   saveStatus: "idle",
   pendingCount: 0,
   hideExpectedAnnotations: true,
-  reviewError: null,
+  expectedOutputError: null,
   staleSlots: [],
-  onRetryReview: vi.fn(),
+  onRetryExpectedOutputs: vi.fn(),
   onReloadSample: vi.fn(),
 };
 
@@ -61,12 +61,14 @@ describe("results loading snapshot", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
+
     const render = (node: ReactNode) =>
       root.render(
         <ThemeProvider themeMode="dark" disableBodyTheme>
           {node}
         </ThemeProvider>
       );
+
     try {
       act(() =>
         render(<CalibrationResults {...initialProps} isLoading examples={[]} />)
@@ -89,6 +91,7 @@ describe("results loading snapshot", () => {
           output: "New dataset answer",
         },
       ];
+
       act(() =>
         render(
           <CalibrationResults
@@ -127,6 +130,7 @@ describe("example field columns", () => {
         </ThemeProvider>
       )
     );
+
     return {
       container,
       unmount: () => {
@@ -135,6 +139,7 @@ describe("example field columns", () => {
       },
     };
   }
+
   const headers = (container: HTMLElement) =>
     [...container.querySelectorAll("thead th")].map((th) => th.textContent);
 
@@ -142,6 +147,7 @@ describe("example field columns", () => {
     const { container, unmount } = renderResults(
       <CalibrationResults {...initialProps} />
     );
+
     try {
       expect(headers(container)).toEqual(
         expect.arrayContaining(["Input", "Output"])
@@ -160,13 +166,16 @@ describe("example field columns", () => {
         annotations: { judge: [{ label: "pass", annotator_kind: "HUMAN" }] },
       },
     };
+
     const hidden = renderResults(
       <CalibrationResults {...initialProps} examples={[example]} />
     );
+
     try {
       const cell = hidden.container.querySelector(
         "td.results-table__example-cell:nth-of-type(4)"
       );
+
       expect(cell?.textContent).toContain('"customer"');
       expect(cell?.textContent).not.toContain('"annotations"');
       expect(
@@ -177,6 +186,7 @@ describe("example field columns", () => {
     } finally {
       hidden.unmount();
     }
+
     const shown = renderResults(
       <CalibrationResults
         {...initialProps}
@@ -184,6 +194,7 @@ describe("example field columns", () => {
         hideExpectedAnnotations={false}
       />
     );
+
     try {
       expect(shown.container.textContent).toContain('"annotations"');
       expect(
@@ -205,6 +216,7 @@ describe("example field columns", () => {
         ]}
       />
     );
+
     try {
       expect(headers(container)).toContain("Metadata");
       expect(container.textContent).toContain('"customer": "acme"');

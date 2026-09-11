@@ -495,12 +495,15 @@ export const EvaluatorsTable = ({
             row.original.rowType === "evaluator"
               ? row.original.data.kind
               : row.original.data.evaluator.kind;
+
           if (kind === "BUILTIN") return null;
           const params = new URLSearchParams({ mode: "evaluators" });
+
           if (row.original.rowType === "datasetEvaluator") {
             params.set("datasetId", row.original.data.dataset.id);
             params.set("datasetEvaluatorA", row.original.data.id);
           } else params.set("evaluatorA", row.original.data.id);
+
           return (
             <StopPropagation>
               <TooltipTrigger>

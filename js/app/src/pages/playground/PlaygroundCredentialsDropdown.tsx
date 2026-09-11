@@ -46,6 +46,7 @@ export function PlaygroundCredentialsDropdown() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+
   return (
     <CredentialsDropdown providers={currentProviders} isDisabled={isRunning} />
   );

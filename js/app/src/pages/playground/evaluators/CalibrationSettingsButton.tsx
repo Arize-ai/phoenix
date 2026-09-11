@@ -16,11 +16,13 @@ import {
 } from "@phoenix/components";
 
 export const DEFAULT_SAMPLE_SIZE = 20;
+
 export const MAX_SAMPLE_SIZE = 500;
 
 /** Reads the sample size from the URL, falling back to the default. */
 export function parseSampleSize(value: string | null): number {
   const parsed = Number(value);
+
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= MAX_SAMPLE_SIZE
     ? parsed
     : DEFAULT_SAMPLE_SIZE;

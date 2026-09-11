@@ -8,54 +8,74 @@ import {
   editEvaluatorPlaygroundSlotOperation as edit,
   readEvaluatorPlaygroundOperation as read,
   readEvaluatorPlaygroundSlotOperation as readSlot,
-  reviewEvaluatorPlaygroundOperation as review,
   runEvaluatorPlaygroundOperation as run,
   saveEvaluatorPlaygroundSlotOperation as save,
   selectEvaluatorPlaygroundSlotOperation as select,
+  setExpectedOutputEvaluatorPlaygroundOperation as setExpectedOutput,
   stopEvaluatorPlaygroundOperation as stop,
 } from "@phoenix/agent/uiOperations/operations/evaluatorPlayground";
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
+import type {
+  CalibrationExample,
+  CalibrationResult,
+  ExpectedOutput,
+} from "./calibration";
 import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
-import type { SlotId } from "./evaluatorSlotTypes";
+import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
 
 export type ConfigureEvaluatorWorkspace = z.infer<typeof configure.inputSchema>;
+
 export type SelectEvaluatorSlot = z.infer<typeof select.inputSchema>;
-export type ReviewEvaluatorExample = z.infer<typeof review.inputSchema>;
 
-/** Wait for a navigated source to finish loading; never claim readiness early. */
-export async function waitForEvaluatorSlot(
-  getSlot: () => EvaluatorAgentSlot | undefined,
-  sourceKey: string
-) {
-  const deadline = Date.now() + 15000;
-  while (Date.now() < deadline) {
-    const host = getSlot();
-    if (host?.read().sourceKey === sourceKey)
-      return { ok: true as const, output: host.read() };
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  return {
-    ok: false as const,
-    error:
-      "Evaluator is still loading or unavailable. Read the workspace before continuing.",
-  };
-}
+export type SetExpectedOutputInput = z.infer<
+  typeof setExpectedOutput.inputSchema
+>;
 
-/** Mounts only evaluator-mode operations. A–D share a dispatcher, never handler names. */
-export function useEvaluatorPlaygroundAgent({
-  getSlot,
-  readWorkspace,
-  configureWorkspace,
-  selectSlot,
-  runSlots,
-  stopRuns,
-  reviewExample,
-  isBusy,
-}: {
+/**
+ * What `evaluatorPlayground.read` returns: the workspace as PXI sees it, one
+ * page of examples at a time. Predictions and expected outputs are keyed by
+ * slot so an agent can compare evaluators without knowing the table layout.
+ */
+export type EvaluatorWorkspaceRead = {
+  mode: "evaluators";
+  datasetId: string | null;
+  splitIds: string[];
+  datasetVersionId: string | null;
+  sampleSize: number;
+  sampleLoaded: boolean;
+  totalExamples: number;
+  isRunning: boolean;
+  staleSlots: string[];
+  slots: {
+    slot: SlotId;
+    name: string | undefined;
+    outputName: string | undefined;
+    kind: SlotSnapshot["kind"] | undefined;
+    validationError: string | null | undefined;
+    isDirty: boolean | undefined;
+    isRunning: boolean;
+    completed: number;
+  }[];
+  examples: {
+    id: string;
+    revisionId: string;
+    input: unknown;
+    output: unknown;
+    expectedOutputs: Partial<Record<SlotId, ExpectedOutput | null>>;
+    savedExpectedOutputs: CalibrationExample["calibrationLabels"];
+    predictions: Partial<Record<SlotId, CalibrationResult | null>>;
+  }[];
+  nextOffset: number | null;
+};
+
+/** What the page gives the operations to act on. Read fresh on every call. */
+export type EvaluatorPlaygroundHandlers = {
   getSlot: (slot: SlotId) => EvaluatorAgentSlot | undefined;
-  readWorkspace: (input: z.infer<typeof read.inputSchema>) => unknown;
+  readWorkspace: (
+    input: z.infer<typeof read.inputSchema>
+  ) => EvaluatorWorkspaceRead;
   configureWorkspace: (
     input: ConfigureEvaluatorWorkspace
   ) => Promise<UIOperationResult>;
@@ -65,28 +85,58 @@ export function useEvaluatorPlaygroundAgent({
     exampleIds?: string[]
   ) => Promise<UIOperationResult>;
   stopRuns: () => void;
-  reviewExample: (input: ReviewEvaluatorExample) => Promise<UIOperationResult>;
+  writeExpectedOutput: (
+    input: SetExpectedOutputInput
+  ) => Promise<UIOperationResult>;
   isBusy: boolean;
-}) {
+};
+
+const NOT_MOUNTED: UIOperationResult = {
+  ok: false,
+  error: "Requested evaluator slot is not mounted.",
+  code: "NOT_AVAILABLE",
+};
+
+/**
+ * Mounts only evaluator-mode operations. A–D share a dispatcher, never handler
+ * names. The operations are registered once per agent store and read the
+ * newest handlers through a ref, so a render never unregisters and
+ * re-registers them.
+ */
+export function useEvaluatorPlaygroundAgent(
+  handlers: EvaluatorPlaygroundHandlers
+) {
   const agentStore = useAgentStore();
+  const latest = useRef(handlers);
   const writeLock = useRef(false);
+
+  useEffect(() => {
+    latest.current = handlers;
+  });
+
   useEffect(() => {
     async function withWriteLock(
-      action: () => Promise<UIOperationResult>
+      action: (
+        current: EvaluatorPlaygroundHandlers
+      ) => Promise<UIOperationResult>
     ): Promise<UIOperationResult> {
-      if (writeLock.current || isBusy)
+      const current = latest.current;
+
+      if (writeLock.current || current.isBusy)
         return {
           ok: false,
           error:
             "Another evaluator run/save or workspace change is active. Wait for it or stop the run.",
         };
       writeLock.current = true;
+
       try {
-        return await action();
+        return await action(current);
       } finally {
         writeLock.current = false;
       }
     }
+
     return registerUIOperations({
       agentStore,
       operations: [
@@ -94,13 +144,14 @@ export function useEvaluatorPlaygroundAgent({
           descriptor: read,
           handler: async (input) => ({
             ok: true,
-            output: readWorkspace(input),
+            output: latest.current.readWorkspace(input),
           }),
         },
         {
           descriptor: readSlot,
           handler: async ({ slot }) => {
-            const host = getSlot(slot);
+            const host = latest.current.getSlot(slot);
+
             return host
               ? { ok: true, output: host.read() }
               : {
@@ -112,56 +163,51 @@ export function useEvaluatorPlaygroundAgent({
         },
         {
           descriptor: configure,
-          handler: (input) => withWriteLock(() => configureWorkspace(input)),
+          handler: (input) =>
+            withWriteLock((current) => current.configureWorkspace(input)),
         },
         {
           descriptor: select,
-          handler: (input) => withWriteLock(() => selectSlot(input)),
+          handler: (input) =>
+            withWriteLock((current) => current.selectSlot(input)),
         },
         {
           descriptor: edit,
           handler: async (input) => {
-            if (isBusy || writeLock.current)
+            const current = latest.current;
+
+            if (current.isBusy || writeLock.current)
               return {
                 ok: false,
                 error: "Wait for the active run/save to finish before editing.",
               };
-            const host = getSlot(input.slot);
-            if (!host)
-              return {
-                ok: false,
-                error: "Requested evaluator slot is not mounted.",
-                code: "NOT_AVAILABLE",
-              };
-            let result: Promise<UIOperationResult> | undefined;
-            flushSync(() => {
-              result = host.edit(input);
-            });
-            return result!;
+            const host = current.getSlot(input.slot);
+
+            if (!host) return NOT_MOUNTED;
+
+            // Commit the edit's React updates before returning, so an operation
+            // that follows (run, save, read) sees the edited draft.
+            return flushSync(() => host.edit(input));
           },
         },
         {
           descriptor: save,
           handler: ({ slot, expectedRevision }) =>
-            withWriteLock(async () => {
-              return (
-                getSlot(slot)?.save(expectedRevision) ?? {
-                  ok: false,
-                  error: "Requested evaluator slot is not mounted.",
-                  code: "NOT_AVAILABLE",
-                }
-              );
-            }),
+            withWriteLock(
+              async (current) =>
+                current.getSlot(slot)?.save(expectedRevision) ?? NOT_MOUNTED
+            ),
         },
         {
           descriptor: run,
           handler: ({ slots, exampleIds }) =>
-            withWriteLock(() => runSlots(slots, exampleIds)),
+            withWriteLock((current) => current.runSlots(slots, exampleIds)),
         },
         {
           descriptor: stop,
           handler: async () => {
-            stopRuns();
+            latest.current.stopRuns();
+
             return {
               ok: true,
               output:
@@ -169,18 +215,11 @@ export function useEvaluatorPlaygroundAgent({
             };
           },
         },
-        { descriptor: review, handler: reviewExample },
+        {
+          descriptor: setExpectedOutput,
+          handler: (input) => latest.current.writeExpectedOutput(input),
+        },
       ],
     });
-  }, [
-    agentStore,
-    getSlot,
-    readWorkspace,
-    configureWorkspace,
-    selectSlot,
-    runSlots,
-    stopRuns,
-    reviewExample,
-    isBusy,
-  ]);
+  }, [agentStore]);
 }

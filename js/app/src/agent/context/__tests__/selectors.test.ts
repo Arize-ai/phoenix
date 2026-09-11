@@ -55,19 +55,23 @@ it("keeps evaluator mode distinct from prompt fragments during navigation", () =
     sampleSize: 20,
     evaluatorSlots: [{ slot: "A", name: "judge", kind: "LLM" }],
   };
+
   const prompt: AgentContext = {
     type: "playground",
     mode: "prompts",
     instances: [{ instanceId: 4 }],
   };
+
   expect(selectActiveContexts(stateWith([prompt], { evaluator }))).toEqual([
     evaluator,
   ]);
+
   const merged = selectActiveContexts(
     stateWith([evaluator], {
       fragment: { type: "playground", instances: [{ instanceId: 9 }] },
     })
   );
+
   expect(merged[0]).toMatchObject({
     mode: "evaluators",
     recordExperiments: false,

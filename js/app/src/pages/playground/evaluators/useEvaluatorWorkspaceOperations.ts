@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useSearchParams } from "react-router";
 
@@ -17,13 +17,15 @@ import {
   setVisibleEvaluatorSlots,
 } from "./evaluatorSlotTypes";
 import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
-import {
-  useEvaluatorPlaygroundAgent,
-  waitForEvaluatorSlot,
-} from "./useEvaluatorPlaygroundAgent";
+import { createLatestValue } from "./latestValue";
+import { useEvaluatorPlaygroundAgent } from "./useEvaluatorPlaygroundAgent";
+import type { EvaluatorWorkspaceRead } from "./useEvaluatorPlaygroundAgent";
 
-/** Bridges the page's actual run/review paths and mounted editors to PXI. */
-export function useEvaluatorWorkspaceOperations(state: {
+/** How long an operation waits for the page to reflect a change it made. */
+const SETTLE_TIMEOUT_MS = 15_000;
+
+/** The page state the PXI operations act on, as of the latest render. */
+type EvaluatorWorkspaceState = {
   datasetId: string | null;
   versionId: string | null;
   splitIds: string[];
@@ -37,23 +39,32 @@ export function useEvaluatorWorkspaceOperations(state: {
   expected: SlotExpectations;
   staleSlots: string[];
   isRunning: boolean;
-  isSavingReview: boolean;
+  isSavingExpectedOutputs: boolean;
   runSlots: (slots: SlotId[], exampleIds?: readonly string[]) => Promise<void>;
   stop: () => void;
-  saveReview: (
+  saveExpectedOutput: (
     example: CalibrationExample,
     slot: SlotId,
     output: ExpectedOutput | null,
     options?: { immediate?: boolean }
   ) => Promise<UIOperationResult>;
-}) {
-  const latest = useRef(state);
-  const hosts = useRef(new Map<SlotId, EvaluatorAgentSlot>());
+};
+
+/** Bridges the page's run and expected-output paths and its mounted editors to PXI. */
+export function useEvaluatorWorkspaceOperations(
+  state: EvaluatorWorkspaceState
+) {
+  // Operations run between renders. They read the page through this value and
+  // await the render that reflects a change they made.
+  const [latest] = useState(() => createLatestValue(state));
+  const [slotHosts] = useState(createSlotHostRegistry);
   const allowNavigation = useRef(false);
   const [, setSearchParams] = useSearchParams();
+
   useEffect(() => {
-    latest.current = state;
-  }, [state]);
+    latest.set(state);
+  });
+
   useAdvertiseAgentContext({
     type: "playground",
     mode: "evaluators",
@@ -77,13 +88,19 @@ export function useEvaluatorWorkspaceOperations(state: {
         }
       : null
   );
-  const isBusy = state.isRunning || state.isSavingReview;
-  function getSlot(slot: SlotId) {
-    return hosts.current.get(slot);
-  }
-  function readWorkspace({ offset, limit }: { offset: number; limit: number }) {
-    const current = latest.current;
+
+  const isBusy = state.isRunning || state.isSavingExpectedOutputs;
+
+  function readWorkspace({
+    offset,
+    limit,
+  }: {
+    offset: number;
+    limit: number;
+  }): EvaluatorWorkspaceRead {
+    const current = latest.get();
     const visible = current.visibleSlotIds;
+
     return {
       mode: "evaluators",
       datasetId: current.datasetId,
@@ -129,25 +146,23 @@ export function useEvaluatorWorkspaceOperations(state: {
         offset + limit < current.examples.length ? offset + limit : null,
     };
   }
+
   useEvaluatorPlaygroundAgent({
-    getSlot,
+    getSlot: slotHosts.get,
     readWorkspace,
     isBusy,
     configureWorkspace: async (input) => {
       if (isBusy)
         return {
           ok: false,
-          error: "Stop the run or wait for review saving before configuring.",
+          error:
+            "Stop the run or wait for expected outputs to save before configuring.",
         };
-      const nextSlots: SlotId[] =
-        input.slots ??
-        (input.compare == null
-          ? state.visibleSlotIds
-          : input.compare
-            ? ["A", "B"]
-            : ["A"]);
+      const nextSlots = input.slots ?? state.visibleSlotIds;
+
       if (new Set(nextSlots).size !== nextSlots.length)
         return { ok: false, error: "Each visible slot must be unique." };
+
       if (
         state.visibleSlotIds.some(
           (slot) => !nextSlots.includes(slot) && state.slots[slot]?.isDirty
@@ -163,42 +178,50 @@ export function useEvaluatorWorkspaceOperations(state: {
       flushSync(() =>
         setSearchParams((previous) => {
           const next = new URLSearchParams(previous);
+
           if (input.datasetId !== undefined) {
             next.delete("datasetId");
             next.delete("datasetVersionId");
             next.delete("splitId");
+
             if (input.datasetId) next.set("datasetId", input.datasetId);
+
             if (input.datasetId !== state.datasetId) {
               EVALUATOR_SLOT_IDS.forEach((slot) =>
                 next.delete(`datasetEvaluator${slot}`)
               );
             }
           }
+
           if (input.splitIds) {
             next.delete("splitId");
             input.splitIds.forEach((id) => next.append("splitId", id));
           }
+
           if (input.sampleSize != null)
             next.set("sampleSize", String(input.sampleSize));
           setVisibleEvaluatorSlots(next, nextSlots);
+
           if (input.filter) next.set("resultFilter", input.filter);
+
           return next;
         })
       );
       allowNavigation.current = false;
-      const deadline = Date.now() + 15000;
-      while (
-        latest.current.datasetId &&
-        !latest.current.sampleLoaded &&
-        Date.now() < deadline
-      ) {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-      if (latest.current.datasetId && !latest.current.sampleLoaded)
+
+      // A changed sample loads through Suspense; report the workspace once the
+      // render that carries it has committed.
+      const settled = await latest.waitFor(
+        (current) => !current.datasetId || current.sampleLoaded,
+        SETTLE_TIMEOUT_MS
+      );
+
+      if (!settled)
         return {
           ok: false,
           error: "Sample is still loading. Read the workspace before running.",
         };
+
       return { ok: true, output: readWorkspace({ offset: 0, limit: 20 }) };
     },
     selectSlot: async (input) => {
@@ -207,48 +230,75 @@ export function useEvaluatorWorkspaceOperations(state: {
           ok: false,
           error: "Stop the run before loading another evaluator.",
         };
+
       if (!state.visibleSlotIds.includes(input.slot))
         return {
           ok: false,
           error: "Configure visible slots before selecting this evaluator.",
         };
+
       if (state.slots[input.slot]?.isDirty && !input.discardChanges)
         return {
           ok: false,
           error:
             "Slot has unsaved changes. Save it or explicitly set discardChanges.",
         };
+
       const source =
         input.source.type === "new"
           ? `new-${input.source.kind.toLowerCase()}`
           : input.source.id;
+
       const key =
         input.source.type === "datasetEvaluator"
           ? `datasetEvaluator${input.slot}`
           : `evaluator${input.slot}`;
+
       flushSync(() =>
         setSearchParams((previous) => {
           const next = new URLSearchParams(previous);
           next.delete(`evaluator${input.slot}`);
           next.delete(`datasetEvaluator${input.slot}`);
           next.set(key, source);
+
           return next;
         })
       );
-      return waitForEvaluatorSlot(() => getSlot(input.slot), source);
+
+      // The slot remounts on the new source and registers a fresh adapter.
+      const host = await slotHosts.waitFor(
+        input.slot,
+        (candidate) => candidate.read().sourceKey === source,
+        SETTLE_TIMEOUT_MS
+      );
+
+      return host
+        ? { ok: true, output: host.read() }
+        : {
+            ok: false,
+            error:
+              "Evaluator is still loading or unavailable. Read the workspace before continuing.",
+          };
     },
     runSlots: async (requested, exampleIds) => {
-      const current = latest.current;
-      if (current.isRunning || current.isSavingReview)
-        return { ok: false, error: "A run or review save is already active." };
+      const current = latest.get();
+
+      if (current.isRunning || current.isSavingExpectedOutputs)
+        return {
+          ok: false,
+          error: "A run or expected-output save is already active.",
+        };
       const targets = requested ?? current.visibleSlotIds;
+
       if (new Set(targets).size !== targets.length)
         return { ok: false, error: "Each slot may be run only once per call." };
+
       if (!current.examples.length)
         return {
           ok: false,
           error: "Select a dataset and wait for a nonempty sample to load.",
         };
+
       if (
         exampleIds?.some(
           (id) => !current.examples.some((example) => example.id === id)
@@ -259,14 +309,16 @@ export function useEvaluatorWorkspaceOperations(state: {
           error:
             "Every exampleId must be in the loaded sample. Read the workspace for the current example ids.",
         };
+
       for (const slot of targets) {
         if (!current.visibleSlotIds.includes(slot))
           return {
             ok: false,
             error: "Slot is not visible. Configure visible slots first.",
           };
+
         if (
-          !getSlot(slot) ||
+          !slotHosts.get(slot) ||
           !current.slots[slot]?.preview ||
           current.slots[slot]?.validationError
         )
@@ -277,16 +329,24 @@ export function useEvaluatorWorkspaceOperations(state: {
               `Slot ${slot} is not ready.`,
           };
       }
+
       await current.runSlots(targets, exampleIds);
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      // The run's final state lands on the next render; read it after it commits.
+      await latest.waitFor(
+        (next) => !targets.some((slot) => next.runs[slot]?.isRunning),
+        SETTLE_TIMEOUT_MS
+      );
+
       return { ok: true, output: readWorkspace({ offset: 0, limit: 20 }) };
     },
     stopRuns: state.stop,
-    reviewExample: async (input) => {
-      const current = latest.current;
+    writeExpectedOutput: async (input) => {
+      const current = latest.get();
+
       const example = current.examples.find(
         (example) => example.id === input.exampleId
       );
+
       if (
         !example ||
         example.revisionId !== input.expectedRevisionId ||
@@ -299,10 +359,12 @@ export function useEvaluatorWorkspaceOperations(state: {
             "Sample, revision, or output changed. Read the workspace again.",
           code: "STALE_REVISION",
         };
+
       const labels =
         current.slots[input.slot]?.outputNames.find(
           (output) => output.name === input.outputName
         )?.labels ?? [];
+
       if (
         input.label != null &&
         labels.length > 0 &&
@@ -313,8 +375,9 @@ export function useEvaluatorWorkspaceOperations(state: {
           error:
             "Expected label must be one of this evaluator's selected output labels.",
         };
-      // PXI needs the outcome now, so its annotation skips the batching window.
-      return current.saveReview(
+
+      // PXI needs the outcome now, so its write skips the batching window.
+      return current.saveExpectedOutput(
         example,
         input.slot,
         input.label == null && input.score == null && input.explanation == null
@@ -328,12 +391,42 @@ export function useEvaluatorWorkspaceOperations(state: {
       );
     },
   });
+
+  return { allowNavigation, registerAgentSlot: slotHosts.register };
+}
+
+/**
+ * The PXI adapters of the mounted slot editors. `selectSlot` navigates and then
+ * awaits the adapter of the source it navigated to, instead of polling for it.
+ */
+function createSlotHostRegistry() {
+  const hosts = createLatestValue<ReadonlyMap<SlotId, EvaluatorAgentSlot>>(
+    new Map()
+  );
+
   return {
-    allowNavigation,
-    registerAgentSlot(slot: SlotId, host: EvaluatorAgentSlot) {
-      hosts.current.set(slot, host);
+    get: (slot: SlotId) => hosts.get().get(slot),
+    async waitFor(
+      slot: SlotId,
+      predicate: (host: EvaluatorAgentSlot) => boolean,
+      timeoutMs: number
+    ) {
+      const all = await hosts.waitFor((current) => {
+        const host = current.get(slot);
+
+        return host != null && predicate(host);
+      }, timeoutMs);
+
+      return all?.get(slot) ?? null;
+    },
+    register(slot: SlotId, host: EvaluatorAgentSlot) {
+      hosts.set(new Map(hosts.get()).set(slot, host));
+
       return () => {
-        if (hosts.current.get(slot) === host) hosts.current.delete(slot);
+        if (hosts.get().get(slot) !== host) return;
+        const next = new Map(hosts.get());
+        next.delete(slot);
+        hosts.set(next);
       };
     },
   };

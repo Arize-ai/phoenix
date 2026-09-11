@@ -160,10 +160,12 @@ export function buildAgentQuickActions(
     if (!present.has(contextType)) {
       continue;
     }
+
     const contextActions =
       contextType === "playground" && playgroundMode === "evaluators"
         ? EVALUATOR_QUICK_ACTIONS
         : (QUICK_ACTIONS_BY_CONTEXT[contextType] ?? []);
+
     for (const action of contextActions) {
       if (seenLabels.has(action.label)) {
         continue;
@@ -200,12 +202,14 @@ function selectActiveContextKey(state: AgentState): string {
  */
 export function useAgentQuickActions(): EmptyStateQuickAction[] {
   const contextKey = useAgentContext(selectActiveContextKey);
+
   const playgroundMode = useAgentContext(
     (state) =>
       selectActiveContexts(state).find(
         (context) => context.type === "playground"
       )?.mode ?? "prompts"
   );
+
   return buildAgentQuickActions(
     contextKey ? (contextKey.split(",") as AgentContextType[]) : [],
     playgroundMode

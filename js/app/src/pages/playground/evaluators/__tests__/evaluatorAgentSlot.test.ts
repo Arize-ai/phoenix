@@ -6,6 +6,7 @@ import { createEvaluatorStore } from "@phoenix/store/evaluatorStore";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 
 import { createEvaluatorAgentSlot } from "../evaluatorAgentSlot";
+import type { EvaluatorSlotLocalState } from "../evaluatorAgentSlot";
 
 installTestStorage();
 
@@ -35,20 +36,24 @@ function createSlot(
       },
     ],
   });
-  let local = {
-    language: "PYTHON" as "PYTHON" | "TYPESCRIPT",
+
+  let local: EvaluatorSlotLocalState = {
+    language: "PYTHON",
     sourceCode: 'def evaluate(output): return "pass"',
-    sandboxConfigId: "python" as string | null,
+    sandboxConfigId: "python",
     selectedOutput: "",
   };
+
   const save = vi.fn(async () => ({
     ok: true as const,
     output: { datasetEvaluatorId: "saved" },
   }));
+
   const playgroundStore =
     kind === "LLM"
       ? createPlaygroundStore({ datasetId: null, modelConfigByProvider: {} })
       : null;
+
   const host = createEvaluatorAgentSlot({
     slotId,
     kind,
@@ -70,8 +75,10 @@ function createSlot(
     ],
     save,
   });
+
   return { host, store, save, playgroundStore };
 }
+
 describe("evaluator playground slot adapter", () => {
   it("edits an isolated LLM prompt, model and rubric without affecting the other slot", async () => {
     const first = createSlot("new-llm", "A", "LLM");
@@ -119,6 +126,7 @@ describe("evaluator playground slot adapter", () => {
     const first = createSlot();
     const second = createSlot("new-code", "B");
     const before = first.host.read();
+
     const result = await second.host.edit({
       slot: "B",
       expectedRevision: second.host.read().revision,
@@ -129,6 +137,7 @@ describe("evaluator playground slot adapter", () => {
         literalMapping: { reference: "expected" },
       },
     });
+
     expect(result.ok).toBe(true);
     expect(first.host.read()).toEqual(before);
     expect(second.host.read()).toMatchObject({
@@ -161,12 +170,14 @@ describe("evaluator playground slot adapter", () => {
   it("validates the entire patch before applying name or code changes", async () => {
     const { host } = createSlot();
     const before = host.read();
+
     const result = await host.edit({
       slot: "A",
       expectedRevision: before.revision,
       name: "must not change",
       language: "TYPESCRIPT",
     });
+
     expect(result.ok).toBe(false);
     expect(host.read()).toEqual(before);
     expect(

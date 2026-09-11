@@ -16,15 +16,20 @@ export function getCodeSlotValidationError({
   }>;
 }): string | null {
   if (!sourceCode.trim()) return "Enter evaluator code before running.";
+
   if (!sandboxConfigId)
     return "Select a sandbox before running this code evaluator.";
+
   const sandbox = sandboxConfigs.find(
     (config) => config.id === sandboxConfigId
   );
+
   if (!sandbox)
     return "The selected sandbox is unavailable. Select another sandbox.";
+
   if (sandbox.language !== language)
     return "Select a sandbox that supports the evaluator language.";
+
   return null;
 }
 
@@ -48,8 +53,10 @@ export function getDefaultSandboxConfigId({
   const compatible = sandboxConfigs.filter(
     (config) => config.language === language
   );
+
   if (preferredId && compatible.some((config) => config.id === preferredId))
     return preferredId;
+
   return compatible[0]?.id ?? null;
 }
 
@@ -64,6 +71,8 @@ export function getSlotSourceLabel({
   options: ReadonlyArray<{ id: string; name: string }>;
 }): string {
   if (selection === "new-llm") return "New LLM evaluator";
+
   if (selection === "new-code") return "New code evaluator";
+
   return options.find((option) => option.id === selection)?.name ?? sourceName;
 }

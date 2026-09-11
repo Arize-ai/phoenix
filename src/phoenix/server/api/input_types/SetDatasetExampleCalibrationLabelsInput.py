@@ -7,6 +7,9 @@ from strawberry.relay import GlobalID
 from phoenix.server.api.exceptions import BadRequest
 
 MAX_CALIBRATION_LABELS_PER_BATCH = 200
+MAX_ANNOTATION_NAME_LENGTH = 256
+MAX_LABEL_LENGTH = 1024
+MAX_EXPLANATION_LENGTH = 10_000
 
 
 @strawberry.input
@@ -25,12 +28,20 @@ class DatasetExampleCalibrationLabelInput:
             raise BadRequest("An expected output requires a label or score.")
         if self.score is not None and not math.isfinite(self.score):
             raise BadRequest("Score must be finite.")
-        if self.explanation is not None and len(self.explanation) > 10000:
-            raise BadRequest("Explanation must be at most 10000 characters.")
-        if not self.annotation_name.strip() or len(self.annotation_name) > 256:
-            raise BadRequest("Annotation name must contain between 1 and 256 characters.")
-        if self.label is not None and (not self.label.strip() or len(self.label) > 1024):
-            raise BadRequest("Label must contain between 1 and 1024 characters.")
+        if self.explanation is not None and len(self.explanation) > MAX_EXPLANATION_LENGTH:
+            raise BadRequest(f"Explanation must be at most {MAX_EXPLANATION_LENGTH} characters.")
+        if (
+            not self.annotation_name.strip()
+            or len(self.annotation_name) > MAX_ANNOTATION_NAME_LENGTH
+        ):
+            raise BadRequest(
+                "Annotation name must contain between 1 and "
+                f"{MAX_ANNOTATION_NAME_LENGTH} characters."
+            )
+        if self.label is not None and (
+            not self.label.strip() or len(self.label) > MAX_LABEL_LENGTH
+        ):
+            raise BadRequest(f"Label must contain between 1 and {MAX_LABEL_LENGTH} characters.")
 
     @property
     def is_clear(self) -> bool:

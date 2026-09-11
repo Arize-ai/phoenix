@@ -66,6 +66,7 @@ export function PlaygroundEvaluatorSelect(
     editingEvaluator,
     onEditingEvaluatorChange,
   } = props;
+
   const navigate = useNavigate();
 
   const data = useFragment<PlaygroundEvaluatorSelect_query$key>(
