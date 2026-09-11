@@ -30,15 +30,15 @@ from phoenix.server.api.evaluators import (
     EvaluationResult as EvaluationResultDict,
 )
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.evaluator_management import (
-    convert_output_config_inputs_to_pydantic,
-)
 from phoenix.server.api.helpers.evaluators import (
     validate_evaluator_prompt_and_configs,
 )
 from phoenix.server.api.helpers.playground_clients import (
     get_playground_client,
     initialize_playground_clients,
+)
+from phoenix.server.api.input_types.evaluator_adapters import (
+    convert_output_config_inputs_to_pydantic,
 )
 from phoenix.server.api.input_types.EvaluatorPreviewInput import (
     EvaluatorPreviewsInput,

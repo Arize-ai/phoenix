@@ -5,19 +5,10 @@ from typing import Optional
 
 from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry import UNSET
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.models import EvaluatorKind
-from phoenix.db.types.annotation_configs import (
-    AnnotationType,
-    CategoricalAnnotationValue,
-    CategoricalOutputConfig,
-    ContinuousOutputConfig,
-    FreeformOutputConfig,
-    OutputConfigType,
-)
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -25,20 +16,7 @@ from phoenix.server.api.helpers.code_evaluator_schema import (
     infer_python_evaluate_input_schema,
     infer_typescript_evaluate_input_schema,
 )
-from phoenix.server.api.input_types.AnnotationConfigInput import (
-    AnnotationConfigInput,
-)
-from phoenix.server.api.types.Evaluator import (
-    BuiltInEvaluator,
-    CodeEvaluator,
-    EvaluationTarget,
-    LLMEvaluator,
-)
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
-from phoenix.server.api.types.SandboxConfig import (
-    Language,
-    SandboxConfig,
-)
 from phoenix.server.online_eval.session_policy import (
     DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
@@ -50,9 +28,9 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.filter import validate_span_filter_condition
 
 _EVALUATOR_KIND_BY_TYPENAME: dict[str, EvaluatorKind] = {
-    LLMEvaluator.__name__: "LLM",
-    CodeEvaluator.__name__: "CODE",
-    BuiltInEvaluator.__name__: "BUILTIN",
+    "LLMEvaluator": "LLM",
+    "CodeEvaluator": "CODE",
+    "BuiltInEvaluator": "BUILTIN",
 }
 
 PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
@@ -66,55 +44,15 @@ PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
 )
 
 
-def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
-    """Convert an annotation input to a named evaluator output configuration."""
-    if input.categorical is not None and input.categorical is not UNSET:
-        cat = input.categorical
-        return CategoricalOutputConfig(
-            type=AnnotationType.CATEGORICAL.value,
-            name=cat.name,
-            description=cat.description,
-            optimization_direction=cat.optimization_direction,
-            values=[CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values],
-        )
-    elif input.continuous is not None and input.continuous is not UNSET:
-        cont = input.continuous
-        return ContinuousOutputConfig(
-            type=AnnotationType.CONTINUOUS.value,
-            name=cont.name,
-            description=cont.description,
-            optimization_direction=cont.optimization_direction,
-            lower_bound=cont.lower_bound,
-            upper_bound=cont.upper_bound,
-        )
-    elif input.freeform is not None and input.freeform is not UNSET:
-        free = input.freeform
-        return FreeformOutputConfig(
-            type=AnnotationType.FREEFORM.value,
-            name=free.name,
-            description=free.description,
-            optimization_direction=free.optimization_direction,
-            thresholds=[free.threshold] if free.threshold is not None else None,
-            lower_bound=free.lower_bound,
-            upper_bound=free.upper_bound,
-        )
-    raise BadRequest("Invalid output config input")
-
-
-def convert_output_config_inputs_to_pydantic(
-    configs: list[AnnotationConfigInput],
-) -> list[OutputConfigType]:
-    """Convert annotation inputs to evaluator output configurations."""
-    return [_output_config_input_to_pydantic(c) for c in configs]
-
-
-def raise_on_uninferable_evaluate_signature(source_code: str, language: Language) -> None:
-    if language is Language.PYTHON:
+def raise_on_uninferable_evaluate_signature(
+    source_code: str, language: models.LanguageName
+) -> None:
+    if language == "PYTHON":
         _, error_message = infer_python_evaluate_input_schema(source_code)
-    elif language is Language.TYPESCRIPT:
+    elif language == "TYPESCRIPT":
         _, error_message = infer_typescript_evaluate_input_schema(source_code)
     else:
-        error_message = f"Unsupported code evaluator language: {language.value}"
+        error_message = f"Unsupported code evaluator language: {language}"
     if error_message is not None:
         raise BadRequest(error_message)
 
@@ -128,9 +66,7 @@ async def validate_code_evaluator_sandbox_config(
     source_code: str,
     sandbox_runtime: SandboxRuntimeContext,
 ) -> int:
-    sandbox_config_id = from_global_id_with_expected_type(
-        sandbox_config_global_id, SandboxConfig.__name__
-    )
+    sandbox_config_id = from_global_id_with_expected_type(sandbox_config_global_id, "SandboxConfig")
     async with db() as session:
         config_and_provider = (
             await session.execute(
@@ -322,11 +258,11 @@ async def validate_project_evaluator_project(
 
 def validate_project_evaluator_filter(
     filter_condition: str,
-    evaluation_target: EvaluationTarget,
+    evaluation_target: models.EvaluationTarget,
 ) -> None:
     """Compile SESSION filters with the session DSL; SPAN and TRACE filters with the span DSL."""
     try:
-        if evaluation_target is EvaluationTarget.SESSION:
+        if evaluation_target == "SESSION":
             validate_session_filter_condition(filter_condition)
         else:
             validate_span_filter_condition(filter_condition)
@@ -341,12 +277,12 @@ def validate_project_evaluator_sampling_rate(sampling_rate: float) -> None:
 
 def materialize_project_evaluator_evaluation_delay(
     evaluation_delay_seconds: Optional[int],
-    evaluation_target: EvaluationTarget,
+    evaluation_target: models.EvaluationTarget,
 ) -> int:
     """Default omitted delays and validate explicit delays; SPAN rejects explicit delays."""
     if evaluation_delay_seconds is None:
         return DEFAULT_SESSION_EVALUATION_DELAY_SECONDS
-    if evaluation_target is EvaluationTarget.SPAN:
+    if evaluation_target == "SPAN":
         raise BadRequest(
             "evaluationDelaySeconds is not accepted for SPAN evaluators: span scheduling "
             "does not honor an evaluation delay"
@@ -360,9 +296,9 @@ def materialize_project_evaluator_evaluation_delay(
 
 def validate_project_evaluator_target_update(
     project_evaluator: models.ProjectEvaluator,
-    evaluation_target: EvaluationTarget,
+    evaluation_target: models.EvaluationTarget,
 ) -> None:
-    if project_evaluator.evaluation_target == evaluation_target.value:
+    if project_evaluator.evaluation_target == evaluation_target:
         return
     raise BadRequest("evaluationTarget is fixed at project evaluator creation")
 

@@ -34,7 +34,6 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers import evaluator_service
 from phoenix.server.api.helpers.evaluator_management import (
     PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION,
-    convert_output_config_inputs_to_pydantic,
     ensure_evaluator_prompt_label,
     garbage_collect_evaluators,
     generate_unique_evaluator_name,
@@ -44,12 +43,15 @@ from phoenix.server.api.helpers.evaluator_management import (
     validate_code_evaluator_sandbox_config,
 )
 from phoenix.server.api.helpers.evaluators import (
-    LLMEvaluatorOutputConfigs,
     validate_consistent_llm_evaluator_and_prompt_version,
-    validate_unique_config_names,
 )
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
+)
+from phoenix.server.api.input_types.evaluator_adapters import (
+    convert_output_config_inputs_to_pydantic,
+    llm_evaluator_output_configs_from_inputs,
+    validate_unique_config_names,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
@@ -416,7 +418,7 @@ class EvaluatorMutationMixin:
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
             sampling_rate=input.sampling_rate,
-            evaluation_target=input.evaluation_target,
+            evaluation_target=input.evaluation_target.value,
             description=input.description,
             prompt_version_id=input.prompt_version_id,
             filter_condition=input.filter_condition,
@@ -447,7 +449,7 @@ class EvaluatorMutationMixin:
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
             sampling_rate=input.sampling_rate,
-            evaluation_target=input.evaluation_target,
+            evaluation_target=input.evaluation_target.value,
             filter_condition=input.filter_condition,
             enabled=input.enabled,
             description=input.description,
@@ -476,7 +478,7 @@ class EvaluatorMutationMixin:
             evaluator_id=input.evaluator_id,
             name=input.name,
             sampling_rate=input.sampling_rate,
-            evaluation_target=input.evaluation_target,
+            evaluation_target=input.evaluation_target.value,
             input_mapping=input.input_mapping.to_orm()
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,
@@ -501,14 +503,14 @@ class EvaluatorMutationMixin:
             project_id=input.project_id,
             name=input.name,
             source_code=input.source_code,
-            language=input.language,
+            language=input.language.to_orm(),
             sandbox_config_id=input.sandbox_config_id,
             evaluator_input_mapping=input.evaluator_input_mapping.to_orm()
             if input.evaluator_input_mapping is not None
             and input.evaluator_input_mapping is not UNSET
             else input.evaluator_input_mapping,
             sampling_rate=input.sampling_rate,
-            evaluation_target=input.evaluation_target,
+            evaluation_target=input.evaluation_target.value,
             description=input.description,
             output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
@@ -541,7 +543,7 @@ class EvaluatorMutationMixin:
             project_evaluator_id=input.project_evaluator_id,
             name=input.name,
             sampling_rate=input.sampling_rate,
-            evaluation_target=input.evaluation_target,
+            evaluation_target=input.evaluation_target.value,
             filter_condition=input.filter_condition,
             evaluator_input_mapping=input.evaluator_input_mapping.to_orm()
             if input.evaluator_input_mapping is not None
@@ -618,7 +620,7 @@ class EvaluatorMutationMixin:
             raise BadRequest(str(error))
         # Validate output configs before conversion
         try:
-            validated_configs = LLMEvaluatorOutputConfigs.from_inputs(input.output_configs)
+            validated_configs = llm_evaluator_output_configs_from_inputs(input.output_configs)
         except (ValueError, ValidationError) as e:
             raise BadRequest(str(e))
         output_configs: list[CategoricalOutputConfig] = list(validated_configs.configs)
@@ -768,7 +770,7 @@ class EvaluatorMutationMixin:
 
         # Validate output configs before conversion
         try:
-            validated_configs = LLMEvaluatorOutputConfigs.from_inputs(input.output_configs)
+            validated_configs = llm_evaluator_output_configs_from_inputs(input.output_configs)
         except (ValueError, ValidationError) as e:
             raise BadRequest(str(e))
         output_configs: list[CategoricalOutputConfig] = list(validated_configs.configs)
@@ -1531,7 +1533,7 @@ class EvaluatorMutationMixin:
         if input.input_mapping is None:
             raise BadRequest("input_mapping is required")
         input_mapping_orm = input.input_mapping.to_orm()
-        raise_on_uninferable_evaluate_signature(input.source_code, input.language)
+        raise_on_uninferable_evaluate_signature(input.source_code, input.language.to_orm())
         sandbox_config_id = await validate_code_evaluator_sandbox_config(
             info.context.db,
             sandbox_config_global_id=input.sandbox_config_id,

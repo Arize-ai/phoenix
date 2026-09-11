@@ -45,18 +45,7 @@ from phoenix.server.api.helpers.evaluators import (
     LLMEvaluatorOutputConfigs,
     validate_consistent_llm_evaluator_and_prompt_version,
 )
-from phoenix.server.api.types.Evaluator import (
-    CodeEvaluator,
-    EvaluationTarget,
-    ProjectEvaluator,
-)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.PromptVersion import PromptVersion
-from phoenix.server.api.types.SandboxConfig import (
-    Language,
-    SandboxConfig,
-)
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
 
@@ -83,7 +72,7 @@ class CreateProjectLLMEvaluatorInput:
     output_configs: list[OutputConfigType]
     input_mapping: InputMapping
     sampling_rate: float
-    evaluation_target: EvaluationTarget
+    evaluation_target: models.EvaluationTarget
     description: Optional[str] = None
     prompt_version_id: Optional[GlobalID] = UNSET
     filter_condition: str = ""
@@ -99,7 +88,7 @@ class UpdateProjectLLMEvaluatorInput:
     output_configs: list[OutputConfigType]
     input_mapping: InputMapping
     sampling_rate: float
-    evaluation_target: EvaluationTarget
+    evaluation_target: models.EvaluationTarget
     filter_condition: str
     enabled: Optional[bool] = UNSET
     description: Optional[str] = UNSET
@@ -113,7 +102,7 @@ class AddProjectCodeEvaluatorInput:
     evaluator_id: GlobalID
     name: Identifier
     sampling_rate: float
-    evaluation_target: EvaluationTarget
+    evaluation_target: models.EvaluationTarget
     input_mapping: Optional[InputMapping] = None
     filter_condition: str = ""
     enabled: bool = True
@@ -125,11 +114,11 @@ class CreateProjectCodeEvaluatorInput:
     project_id: GlobalID
     name: Identifier
     source_code: str
-    language: Language
+    language: models.LanguageName
     sandbox_config_id: GlobalID
     evaluator_input_mapping: InputMapping
     sampling_rate: float
-    evaluation_target: EvaluationTarget
+    evaluation_target: models.EvaluationTarget
     description: Optional[str] = None
     output_configs: Optional[list[OutputConfigType]] = None
     input_mapping: Optional[InputMapping] = None
@@ -143,7 +132,7 @@ class UpdateProjectCodeEvaluatorInput:
     project_evaluator_id: GlobalID
     name: Identifier
     sampling_rate: float
-    evaluation_target: EvaluationTarget
+    evaluation_target: models.EvaluationTarget
     filter_condition: str
     evaluator_input_mapping: Optional[InputMapping] = UNSET
     enabled: Optional[bool] = UNSET
@@ -188,7 +177,7 @@ async def create_project_llm_evaluator(
 ) -> models.ProjectEvaluator:
     """Create an LLM definition, pinned prompt version, and project binding atomically."""
     try:
-        project_id = from_global_id_with_expected_type(input.project_id, Project.__name__)
+        project_id = from_global_id_with_expected_type(input.project_id, "Project")
     except ValueError:
         raise BadRequest(f"Invalid project id: {input.project_id}")
     validate_project_evaluator_filter(input.filter_condition, input.evaluation_target)
@@ -218,7 +207,7 @@ async def create_project_llm_evaluator(
             target_prompt_version_id: Optional[int] = None
             if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
                 prompt_version_id = from_global_id_with_expected_type(
-                    input.prompt_version_id, PromptVersion.__name__
+                    input.prompt_version_id, "PromptVersion"
                 )
                 existing_prompt_version = await session.get(models.PromptVersion, prompt_version_id)
                 if existing_prompt_version is None:
@@ -270,7 +259,7 @@ async def create_project_llm_evaluator(
                 name=name,
                 filter_condition=input.filter_condition,
                 sampling_rate=input.sampling_rate,
-                evaluation_target=input.evaluation_target.value,
+                evaluation_target=input.evaluation_target,
                 input_mapping=input.input_mapping,
                 evaluation_delay_seconds=evaluation_delay_seconds,
                 enabled=input.enabled,
@@ -289,7 +278,7 @@ async def update_project_llm_evaluator(
     """Update an LLM binding and shared definition in one transaction."""
     try:
         project_evaluator_id = from_global_id_with_expected_type(
-            input.project_evaluator_id, ProjectEvaluator.__name__
+            input.project_evaluator_id, "ProjectEvaluator"
         )
     except ValueError:
         raise BadRequest(f"Invalid project evaluator id: {input.project_evaluator_id}")
@@ -352,7 +341,7 @@ async def update_project_llm_evaluator(
             project_evaluator.name = name
             project_evaluator.filter_condition = input.filter_condition
             project_evaluator.sampling_rate = input.sampling_rate
-            project_evaluator.evaluation_target = input.evaluation_target.value
+            project_evaluator.evaluation_target = input.evaluation_target
             project_evaluator.input_mapping = input.input_mapping
             if input.evaluation_delay_seconds is not UNSET:
                 project_evaluator.evaluation_delay_seconds = (
@@ -375,7 +364,7 @@ async def add_project_code_evaluator(
 ) -> models.ProjectEvaluator:
     """Bind an existing code evaluator to a project without copying its definition."""
     try:
-        project_id = from_global_id_with_expected_type(input.project_id, Project.__name__)
+        project_id = from_global_id_with_expected_type(input.project_id, "Project")
     except ValueError:
         raise BadRequest(f"Invalid project id: {input.project_id}")
     try:
@@ -411,7 +400,7 @@ async def add_project_code_evaluator(
                 name=name,
                 filter_condition=input.filter_condition,
                 sampling_rate=input.sampling_rate,
-                evaluation_target=input.evaluation_target.value,
+                evaluation_target=input.evaluation_target,
                 input_mapping=(input.input_mapping if input.input_mapping is not None else None),
                 evaluation_delay_seconds=evaluation_delay_seconds,
                 enabled=input.enabled,
@@ -429,7 +418,7 @@ async def create_project_code_evaluator(
 ) -> models.ProjectEvaluator:
     """Validate code and create its definition, initial version, and project binding."""
     try:
-        project_id = from_global_id_with_expected_type(input.project_id, Project.__name__)
+        project_id = from_global_id_with_expected_type(input.project_id, "Project")
         name = IdentifierModel.model_validate(input.name)
     except (ValueError, ValidationError) as error:
         raise BadRequest(str(error))
@@ -455,7 +444,7 @@ async def create_project_code_evaluator(
     sandbox_config_id = await validate_code_evaluator_sandbox_config(
         context.db,
         sandbox_config_global_id=input.sandbox_config_id,
-        language=input.language.value,
+        language=input.language,
         action="creating this evaluator",
         source_code=input.source_code,
         sandbox_runtime=context.sandbox_runtime,
@@ -470,7 +459,7 @@ async def create_project_code_evaluator(
             evaluator = models.CodeEvaluator(
                 name=evaluator_name,
                 description=input.description,
-                language=input.language.value,
+                language=input.language,
                 user_id=user_id,
                 sandbox_config_id=sandbox_config_id,
                 input_mapping=input.evaluator_input_mapping,
@@ -495,7 +484,7 @@ async def create_project_code_evaluator(
                 name=name,
                 filter_condition=input.filter_condition,
                 sampling_rate=input.sampling_rate,
-                evaluation_target=input.evaluation_target.value,
+                evaluation_target=input.evaluation_target,
                 input_mapping=(input.input_mapping if input.input_mapping is not None else None),
                 evaluation_delay_seconds=evaluation_delay_seconds,
                 enabled=input.enabled,
@@ -514,7 +503,7 @@ async def update_project_code_evaluator(
     """Update a code binding and its shared definition using the GraphQL edit contract."""
     try:
         project_evaluator_id = from_global_id_with_expected_type(
-            input.project_evaluator_id, ProjectEvaluator.__name__
+            input.project_evaluator_id, "ProjectEvaluator"
         )
         name = IdentifierModel.model_validate(input.name)
     except (ValueError, ValidationError) as error:
@@ -631,9 +620,7 @@ async def update_project_code_evaluator(
                     evaluator.output_configs = output_configs
                     shared_evaluator_changed = True
             if input.source_code is not UNSET and input.source_code is not None:
-                raise_on_uninferable_evaluate_signature(
-                    input.source_code, Language(evaluator.language)
-                )
+                raise_on_uninferable_evaluate_signature(input.source_code, evaluator.language)
                 locked = await code_evaluator_with_latest_version(session, evaluator.id)
                 if locked is None:
                     raise NotFound(
@@ -655,7 +642,7 @@ async def update_project_code_evaluator(
             project_evaluator.name = name
             project_evaluator.filter_condition = input.filter_condition
             project_evaluator.sampling_rate = input.sampling_rate
-            project_evaluator.evaluation_target = input.evaluation_target.value
+            project_evaluator.evaluation_target = input.evaluation_target
             if input.input_mapping is not UNSET:
                 project_evaluator.input_mapping = (
                     input.input_mapping if input.input_mapping is not None else None
@@ -682,7 +669,7 @@ async def set_project_evaluator_enabled(
     """Enable or disable a binding without changing its other settings."""
     try:
         project_evaluator_id = from_global_id_with_expected_type(
-            input.project_evaluator_id, ProjectEvaluator.__name__
+            input.project_evaluator_id, "ProjectEvaluator"
         )
     except ValueError as error:
         raise BadRequest(str(error))
@@ -703,7 +690,7 @@ async def delete_project_evaluators(
     for global_id in input.project_evaluator_ids:
         try:
             project_evaluator_ids.append(
-                from_global_id_with_expected_type(global_id, ProjectEvaluator.__name__)
+                from_global_id_with_expected_type(global_id, "ProjectEvaluator")
             )
         except ValueError:
             raise BadRequest(f"Invalid project evaluator id: {global_id}")
@@ -740,7 +727,7 @@ async def delete_project_evaluators(
         for project_evaluator_id, evaluator_id, trace_project_id, kind, prompt_id in rows:
             actual_project_evaluator_ids.append(project_evaluator_id)
             trace_project_ids.append(trace_project_id)
-            deleted_ids.append(GlobalID(ProjectEvaluator.__name__, str(project_evaluator_id)))
+            deleted_ids.append(GlobalID("ProjectEvaluator", str(project_evaluator_id)))
             if kind != "BUILTIN":
                 evaluator_ids.add(evaluator_id)
                 if prompt_id is not None:
@@ -769,7 +756,7 @@ async def patch_code_evaluator(
 ) -> models.CodeEvaluator:
     """Patch a shared code definition while preserving its immutable source versions."""
     evaluator_id = from_global_id_with_expected_type(
-        global_id=input.id, expected_type_name=CodeEvaluator.__name__
+        global_id=input.id, expected_type_name="CodeEvaluator"
     )
 
     if input.input_mapping is not UNSET and input.input_mapping is None:
@@ -855,7 +842,7 @@ async def create_code_evaluator_version(
 ) -> tuple[models.CodeEvaluator, models.CodeEvaluatorVersion, bool]:
     """Return the evaluator, exact persisted version, and whether a version was appended."""
     evaluator_id = from_global_id_with_expected_type(
-        global_id=input.code_evaluator_id, expected_type_name=CodeEvaluator.__name__
+        global_id=input.code_evaluator_id, expected_type_name="CodeEvaluator"
     )
 
     user_id = context.user_id
@@ -878,13 +865,11 @@ async def create_code_evaluator_version(
             return current, current_version, False
         validated_current_version_id = current_version.id if current_version is not None else None
 
-    raise_on_uninferable_evaluate_signature(input.source_code, Language(validated_language))
+    raise_on_uninferable_evaluate_signature(input.source_code, validated_language)
     if validated_sandbox_config_id is not None:
         await validate_code_evaluator_sandbox_config(
             context.db,
-            sandbox_config_global_id=GlobalID(
-                SandboxConfig.__name__, str(validated_sandbox_config_id)
-            ),
+            sandbox_config_global_id=GlobalID("SandboxConfig", str(validated_sandbox_config_id)),
             language=validated_language,
             action="creating this evaluator version",
             source_code=input.source_code,
@@ -937,9 +922,7 @@ async def _update_llm_definition(
 ) -> None:
     selected_version: Optional[models.PromptVersion] = None
     if prompt_version_id is not UNSET and prompt_version_id is not None:
-        selected_version_id = from_global_id_with_expected_type(
-            prompt_version_id, PromptVersion.__name__
-        )
+        selected_version_id = from_global_id_with_expected_type(prompt_version_id, "PromptVersion")
         selected_version = await session.get(models.PromptVersion, selected_version_id)
         if selected_version is None:
             raise NotFound(f"Prompt version not found: {prompt_version_id}")

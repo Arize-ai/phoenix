@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING, Literal, Optional
+"""Validate evaluator output configurations and their prompt contracts."""
+
+from typing import Literal, Optional
 
 from pydantic import (
     BaseModel,
@@ -12,7 +14,6 @@ from typing_extensions import Self
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
-    OutputConfigType,
 )
 from phoenix.db.types.prompts import (
     PromptResponseFormat,
@@ -21,13 +22,6 @@ from phoenix.db.types.prompts import (
     PromptToolFunction,
     PromptTools,
 )
-
-if TYPE_CHECKING:
-    from phoenix.server.api.evaluators import BaseEvaluator
-    from phoenix.server.api.input_types.AnnotationConfigInput import (
-        AnnotationConfigInput,
-    )
-    from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 
 
 def validate_evaluator_prompt_and_configs(
@@ -258,56 +252,6 @@ class _LLMEvaluatorPromptErrorMessage:
     )
 
 
-# ============================================================================
-# Multi-output evaluator validation helpers
-# ============================================================================
-
-
-def get_config_name(
-    config: "AnnotationConfigInput",
-) -> str:
-    """
-    Extract the name from an AnnotationConfigInput.
-
-    Args:
-        config: The annotation config input to extract the name from.
-
-    Returns:
-        The name of the config.
-
-    Raises:
-        ValueError: If no annotation config variant is provided.
-    """
-    import strawberry
-
-    if config.categorical is not None and config.categorical is not strawberry.UNSET:
-        return str(config.categorical.name)
-    elif config.continuous is not None and config.continuous is not strawberry.UNSET:
-        return str(config.continuous.name)
-    elif config.freeform is not None and config.freeform is not strawberry.UNSET:
-        return str(config.freeform.name)
-    else:
-        raise ValueError("No annotation config provided")
-
-
-def validate_unique_config_names(
-    configs: "list[AnnotationConfigInput]",
-) -> None:
-    """
-    Validate that all config names in the list are unique.
-
-    Args:
-        configs: List of annotation config inputs to validate.
-
-    Raises:
-        ValueError: If duplicate config names are found.
-    """
-    config_names = [get_config_name(c) for c in configs]
-    if len(config_names) != len(set(config_names)):
-        duplicates = [name for name in config_names if config_names.count(name) > 1]
-        raise ValueError(f"Config names must be unique. Duplicates found: {set(duplicates)}")
-
-
 class LLMEvaluatorOutputConfigs(BaseModel):
     """Validated output configs for LLM evaluators (categorical only)."""
 
@@ -323,60 +267,3 @@ class LLMEvaluatorOutputConfigs(BaseModel):
             duplicates = [n for n in names if names.count(n) > 1]
             raise ValueError(f"Config names must be unique. Duplicates found: {set(duplicates)}")
         return configs
-
-    @classmethod
-    def from_inputs(cls, inputs: "list[AnnotationConfigInput]") -> "LLMEvaluatorOutputConfigs":
-        """Convert Strawberry AnnotationConfigInput list to validated LLM evaluator configs."""
-        import strawberry
-
-        from phoenix.db.types.annotation_configs import (
-            AnnotationType,
-            CategoricalAnnotationValue,
-        )
-
-        configs: list[CategoricalOutputConfig] = []
-        for input_ in inputs:
-            if input_.categorical is not None and input_.categorical is not strawberry.UNSET:
-                cat = input_.categorical
-                configs.append(
-                    CategoricalOutputConfig(
-                        type=AnnotationType.CATEGORICAL.value,
-                        name=cat.name,
-                        description=cat.description,
-                        optimization_direction=cat.optimization_direction,
-                        values=[
-                            CategoricalAnnotationValue(label=v.label, score=v.score)
-                            for v in cat.values
-                        ],
-                    )
-                )
-            else:
-                raise ValueError(
-                    "LLM evaluators only support categorical output configs. "
-                    "Non-categorical config found."
-                )
-        return cls(configs=configs)
-
-
-def get_evaluator_output_configs(
-    evaluator_input: "PlaygroundEvaluatorInput",
-    evaluator: "BaseEvaluator",
-) -> list[OutputConfigType]:
-    """
-    Get the output configs for an evaluator run. Uses configs from the evaluator input
-    if provided, otherwise falls back to the base evaluator's stored output configs.
-
-    Returns only categorical or continuous configs (the types supported by evaluators).
-    """
-
-    configs: list[OutputConfigType]
-    if evaluator_input.output_configs:
-        from phoenix.server.api.helpers.evaluator_management import (
-            convert_output_config_inputs_to_pydantic,
-        )
-
-        configs = convert_output_config_inputs_to_pydantic(evaluator_input.output_configs)
-    else:
-        configs = list(evaluator.output_configs)
-
-    return configs
