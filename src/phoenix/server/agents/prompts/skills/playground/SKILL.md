@@ -144,9 +144,10 @@ instances and `ui.evaluators.*` operates the separate form dialogs, and neither 
    `ui.evaluatorPlayground.setExpectedOutput`, naming the slot, the example's `revisionId`, and its
    selected output; an expected label must be one of that output's labels. Each slot keeps its own
    expected outputs and there is no baseline slot; each column reports agreement with its own.
-8. Save a slot as a new dataset evaluator only when the user asks, with
-   `ui.evaluatorPlayground.saveSlot` after setting a name via `editSlot`. Loading and running never
-   save, and saving never overwrites an existing evaluator.
+8. Save a slot only when the user asks, with `ui.evaluatorPlayground.saveSlot`. `readSlot` reports
+   the slot's `saveTarget`: `update` overwrites the evaluator loaded into the slot, `attach` updates
+   a shared code evaluator and adds it to the dataset, and `create` saves a new dataset evaluator
+   (set a name via `editSlot` first). Loading and running never save.
 
 ## Workflow: Author, Refine, Or Remove A Function Tool
 

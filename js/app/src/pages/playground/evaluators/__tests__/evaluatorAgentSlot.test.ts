@@ -7,13 +7,15 @@ import { createPlaygroundStore } from "@phoenix/store/playground";
 
 import { createEvaluatorAgentSlot } from "../evaluatorAgentSlot";
 import type { EvaluatorSlotLocalState } from "../evaluatorAgentSlot";
+import type { EvaluatorSaveTarget } from "../evaluatorSaveTarget";
 
 installTestStorage();
 
 function createSlot(
   sourceKey = "new-code",
   slotId: "A" | "B" = "A",
-  kind: "LLM" | "CODE" = "CODE"
+  kind: "LLM" | "CODE" = "CODE",
+  saveTarget: EvaluatorSaveTarget = { action: "create" }
 ) {
   const store = createEvaluatorStore({
     evaluator: {
@@ -58,6 +60,7 @@ function createSlot(
     slotId,
     kind,
     sourceKey,
+    saveTarget,
     store,
     playgroundStore,
     getLocal: () => local,
@@ -213,6 +216,27 @@ describe("evaluator playground slot adapter", () => {
       output: { datasetEvaluatorId: "saved" },
     });
     expect(save).toHaveBeenCalledOnce();
+  });
+  it("reports the save target and keeps a saved code evaluator's language", async () => {
+    const { host } = createSlot("code-1", "A", "CODE", {
+      action: "update",
+      evaluatorId: "code-1",
+      datasetEvaluatorId: "binding-1",
+    });
+    expect(host.read().saveTarget).toEqual({
+      action: "update",
+      evaluatorId: "code-1",
+      datasetEvaluatorId: "binding-1",
+    });
+    expect(
+      await host.edit({
+        slot: "A",
+        expectedRevision: host.read().revision,
+        language: "TYPESCRIPT",
+        sandboxConfigId: "typescript",
+      })
+    ).toMatchObject({ ok: false, error: expect.stringContaining("language") });
+    expect(host.read()).toMatchObject({ language: "PYTHON" });
   });
   it("rejects numeric prompt targets, missing revisions, and arbitrary patch fields", () => {
     expect(

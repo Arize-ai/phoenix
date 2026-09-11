@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cdf6dba459b0c56b41520ac1e1f24e2e>>
+ * @generated SignedSource<<92844f73127b7089165b3f3d251a4176>>
  * @lightSyntaxTransform
  */
 
@@ -252,20 +252,19 @@ export type EvaluatorInputMappingInput = {
   literalMapping: any;
   pathMapping: any;
 };
-export type EvaluatorSlotEditorSaveLLMMutation$variables = {
+export type useEvaluatorSlotSaveCreateLLMMutation$variables = {
   input: CreateDatasetLLMEvaluatorInput;
 };
-export type EvaluatorSlotEditorSaveLLMMutation$data = {
+export type useEvaluatorSlotSaveCreateLLMMutation$data = {
   readonly createDatasetLlmEvaluator: {
     readonly evaluator: {
       readonly id: string;
-      readonly name: string;
     };
   };
 };
-export type EvaluatorSlotEditorSaveLLMMutation = {
-  response: EvaluatorSlotEditorSaveLLMMutation$data;
-  variables: EvaluatorSlotEditorSaveLLMMutation$variables;
+export type useEvaluatorSlotSaveCreateLLMMutation = {
+  response: useEvaluatorSlotSaveCreateLLMMutation$data;
+  variables: useEvaluatorSlotSaveCreateLLMMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -305,13 +304,6 @@ v1 = [
             "kind": "ScalarField",
             "name": "id",
             "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
           }
         ],
         "storageKey": null
@@ -325,7 +317,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EvaluatorSlotEditorSaveLLMMutation",
+    "name": "useEvaluatorSlotSaveCreateLLMMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -334,20 +326,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "EvaluatorSlotEditorSaveLLMMutation",
+    "name": "useEvaluatorSlotSaveCreateLLMMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "0b7c11cbc3d21616c8afe67f68fb54d1",
+    "cacheID": "6f6dd5703a6746df2aff20efdccbd6c8",
     "id": null,
     "metadata": {},
-    "name": "EvaluatorSlotEditorSaveLLMMutation",
+    "name": "useEvaluatorSlotSaveCreateLLMMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorSlotEditorSaveLLMMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation useEvaluatorSlotSaveCreateLLMMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "22c1b978ebbe0e2de59f36bc925e2df3";
+(node as any).hash = "0ae90dff740de851274188a16fbbb7a8";
 
 export default node;

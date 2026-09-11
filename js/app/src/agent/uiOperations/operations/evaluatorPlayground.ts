@@ -178,7 +178,7 @@ export const saveEvaluatorPlaygroundSlotOperation = defineUIOperation({
   longRunning: true,
   availability,
   description:
-    "Explicitly save one evaluator slot as a NEW evaluator attached to the selected dataset using the UI validation/save path. Set a new name with editSlot first. Does not overwrite a saved evaluator. Requires the latest readSlot revision; returns the saved dataset-evaluator ID or an error.",
+    "Explicitly save one evaluator slot through the UI validation/save path. readSlot's saveTarget says what happens: update overwrites the evaluator loaded into the slot, attach updates a shared code evaluator and adds it to the selected dataset, create saves a NEW dataset evaluator (set a name with editSlot first). Requires the latest readSlot revision; returns the dataset-evaluator ID and whether it was created or updated.",
   inputSchema: z.strictObject({ slot, expectedRevision: z.string() }),
 });
 
