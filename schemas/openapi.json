@@ -6107,6 +6107,16 @@
             },
             "description": "Forbidden"
           },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
           "422": {
             "content": {
               "text/plain": {
@@ -18437,6 +18447,18 @@
             ],
             "title": "Response Format"
           },
+          "custom_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Provider Id",
+            "description": "GlobalID of a custom model provider to send this version to. Null uses the built-in provider. The provider's SDK must be able to serve model_provider, for example an OpenAI-compatible provider for an OPENAI version. Requires Phoenix server 21.0.0 or later; older servers ignore unknown fields, so check the server version before relying on it."
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -18598,6 +18620,18 @@
               }
             ],
             "title": "Response Format"
+          },
+          "custom_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Provider Id",
+            "description": "GlobalID of a custom model provider to send this version to. Null uses the built-in provider. The provider's SDK must be able to serve model_provider, for example an OpenAI-compatible provider for an OPENAI version. Requires Phoenix server 21.0.0 or later; older servers ignore unknown fields, so check the server version before relying on it."
           }
         },
         "type": "object",
@@ -18609,7 +18643,8 @@
           "template_format",
           "invocation_parameters"
         ],
-        "title": "PromptVersionData"
+        "title": "PromptVersionData",
+        "description": "Prompt content shared by prompt and evaluator APIs."
       },
       "PromptVersionTag": {
         "properties": {

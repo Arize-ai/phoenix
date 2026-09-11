@@ -5271,10 +5271,18 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /**
+             * Custom Provider Id
+             * @description GlobalID of a custom model provider to send this version to. Null uses the built-in provider. The provider's SDK must be able to serve model_provider, for example an OpenAI-compatible provider for an OPENAI version. Requires Phoenix server 21.0.0 or later; older servers ignore unknown fields, so check the server version before relying on it.
+             */
+            custom_provider_id?: string | null;
             /** Id */
             id: string;
         };
-        /** PromptVersionData */
+        /**
+         * PromptVersionData
+         * @description Prompt content shared by prompt and evaluator APIs.
+         */
         PromptVersionData: {
             /** Description */
             description?: string | null;
@@ -5290,6 +5298,11 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /**
+             * Custom Provider Id
+             * @description GlobalID of a custom model provider to send this version to. Null uses the built-in provider. The provider's SDK must be able to serve model_provider, for example an OpenAI-compatible provider for an OPENAI version. Requires Phoenix server 21.0.0 or later; older servers ignore unknown fields, so check the server version before relying on it.
+             */
+            custom_provider_id?: string | null;
         };
         /** PromptVersionTag */
         PromptVersionTag: {
@@ -10799,6 +10812,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
