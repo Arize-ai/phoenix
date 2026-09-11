@@ -981,12 +981,20 @@ input CreateProjectInput {
 input CreateProjectSessionAnnotationInput {
   projectSessionId: ID!
   name: String!
-  annotatorKind: AnnotatorKind! = HUMAN
+  annotatorKind: AnnotatorKind!
   label: String = null
   score: Float = null
   explanation: String = null
   metadata: JSON!
-  source: AnnotationSource! = APP
+  source: AnnotationSource!
+  identifier: String
+}
+
+input CreateProjectSessionNoteInput {
+  session: ProjectSessionReferenceInput!
+  note: String!
+  annotatorKind: AnnotatorKind!
+  source: AnnotationSource!
   identifier: String
 }
 
@@ -1034,8 +1042,11 @@ input CreateSpanAnnotationInput {
 }
 
 input CreateSpanNoteInput {
-  spanId: ID!
+  span: SpanReferenceInput!
   note: String!
+  annotatorKind: AnnotatorKind!
+  source: AnnotationSource!
+  identifier: String
 }
 
 type CreateSystemApiKeyMutationPayload {
@@ -1052,6 +1063,14 @@ input CreateTraceAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON!
+  source: AnnotationSource!
+  identifier: String
+}
+
+input CreateTraceNoteInput {
+  trace: TraceReferenceInput!
+  note: String!
+  annotatorKind: AnnotatorKind!
   source: AnnotationSource!
   identifier: String
 }
@@ -2697,18 +2716,23 @@ type Mutation {
   updateSandboxProvider(input: UpdateSandboxProviderInput!): UpdateSandboxProviderPayload!
   upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
-  createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
+  createSpanNotes(input: [CreateSpanNoteInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
+  deleteSpanNotes(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   setAgentAssistantEnabled(input: SetAgentAssistantEnabledInput!): AgentAssistantEnabled!
   setAgentGithubEnabled(input: SetAgentGithubEnabledInput!): AgentGithubEnabled!
   setAgentTraceRecording(input: SetAgentTraceRecordingInput!): AgentTraceRecording!
   setAgentSessionRetention(input: SetAgentSessionRetentionInput!): AgentSessionRetention!
   createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  createProjectSessionNotes(input: [CreateProjectSessionNoteInput!]!): ProjectSessionAnnotationsMutationPayload!
   updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
+  deleteProjectSessionNotes(input: DeleteAnnotationsInput!): ProjectSessionAnnotationsMutationPayload!
   deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
+  createTraceNotes(input: [CreateTraceNoteInput!]!): TraceAnnotationMutationPayload!
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
+  deleteTraceNotes(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
   deleteTraces(traceIds: [ID!]!): Query!
   transferTracesToProject(traceIds: [ID!]!, projectId: ID!): Query!
@@ -3281,6 +3305,11 @@ type ProjectSessionAnnotationMutationPayload {
   query: Query!
 }
 
+type ProjectSessionAnnotationsMutationPayload {
+  projectSessionAnnotations: [ProjectSessionAnnotation!]!
+  query: Query!
+}
+
 enum ProjectSessionColumn {
   startTime
   endTime
@@ -3305,6 +3334,14 @@ type ProjectSessionEdge {
 
   """The item at the end of the edge"""
   node: ProjectSession!
+}
+
+input ProjectSessionReferenceInput @oneOf {
+  """The session's Phoenix node ID."""
+  id: ID
+
+  """The raw session.id value supplied by the application, matched exactly."""
+  sessionId: String
 }
 
 """The sort key and direction for ProjectSession connections."""
@@ -4523,6 +4560,14 @@ type SpanKindCount {
   count: Int!
 }
 
+input SpanReferenceInput @oneOf {
+  """The span's Phoenix node ID."""
+  id: ID
+
+  """The span's OpenTelemetry span ID, matched exactly."""
+  otelId: String
+}
+
 """
 The sort key and direction for span connections. Must specify one and only one of either `col` or `evalResultKey`.
 """
@@ -4860,6 +4905,14 @@ type TraceLatencyPercentileTimeSeries {
   data: [TraceLatencyMsPercentileTimeSeriesDataPoint!]!
 }
 
+input TraceReferenceInput @oneOf {
+  """The trace's Phoenix node ID."""
+  id: ID
+
+  """The trace's OpenTelemetry trace ID, matched exactly."""
+  otelId: String
+}
+
 union TraceRetentionRule = TraceRetentionRuleMaxDays | TraceRetentionRuleMaxCount | TraceRetentionRuleMaxDaysOrCount
 
 type TraceRetentionRuleMaxCount {
@@ -4944,12 +4997,12 @@ type UpdateAnnotationConfigPayload {
 input UpdateAnnotationInput {
   id: ID!
   name: String!
-  annotatorKind: AnnotatorKind! = HUMAN
+  annotatorKind: AnnotatorKind!
   label: String = null
   score: Float = null
   explanation: String = null
   metadata: JSON!
-  source: AnnotationSource! = APP
+  source: AnnotationSource!
 }
 
 input UpdateDatasetBuiltinEvaluatorInput {
