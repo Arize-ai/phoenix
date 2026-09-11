@@ -722,7 +722,11 @@ pysqlite_cursor_executescript(pysqlite_Cursor* self, PyObject* args)
     self->reset = 0;
 
     while (1) {
+        if (pysqlite_refuse_nested_prepare(self->connection)) {
+            goto error;
+        }
         pysqlite_enter_sqlite(self->connection);
+        pysqlite_enter_prepare(self->connection);
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_prepare_v2(self->connection->db,
                                 script_cstr,
@@ -730,6 +734,7 @@ pysqlite_cursor_executescript(pysqlite_Cursor* self, PyObject* args)
                                 &statement,
                                 &script_cstr);
         Py_END_ALLOW_THREADS
+        pysqlite_leave_prepare(self->connection);
         pysqlite_leave_sqlite(self->connection);
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->connection->db);

@@ -76,7 +76,12 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
     Py_INCREF(sql);
     self->sql = sql;
 
+    if (pysqlite_refuse_nested_prepare(connection)) {
+        return PYSQLITE_NESTED_PREPARE;
+    }
+
     pysqlite_enter_sqlite(connection);
+    pysqlite_enter_prepare(connection);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_prepare_v2(connection->db,
                             sql_cstr,
@@ -85,6 +90,7 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
                             &tail);
     self->is_dml = !sqlite3_stmt_readonly(self->st);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_prepare(connection);
     pysqlite_leave_sqlite(connection);
 
     /* To retain backward-compatibility, we need to treat DDL and certain types

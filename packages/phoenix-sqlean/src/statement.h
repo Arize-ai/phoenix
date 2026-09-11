@@ -31,6 +31,7 @@
 
 #define PYSQLITE_TOO_MUCH_SQL (-100)
 #define PYSQLITE_SQL_WRONG_TYPE (-101)
+#define PYSQLITE_NESTED_PREPARE (-102)
 
 typedef struct
 {

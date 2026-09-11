@@ -1158,6 +1158,43 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_execute_from_authorizer_is_refused(self):
+        # An authorizer runs inside sqlite3_prepare. Calling execute() on
+        # the same connection from it compiled another statement, which
+        # invoked the authorizer again, without bound: Python's recursion
+        # limit never fires before the C stack is gone on a thread with a
+        # small stack (512 KB is the macOS default for non-main threads).
+        # SQLite documents that an authorizer must not use the invoking
+        # connection; a nested compile is now refused.
+        self._run(
+            """
+            import threading
+            threading.stack_size(512 * 1024)
+            seen = []
+            def run():
+                con = sqlite.connect(":memory:", check_same_thread=False)
+                con.execute("create table t(x)")
+                con.execute("insert into t values (1)")
+                def auth(action, *args):
+                    try:
+                        con.execute("select 1")
+                        seen.append("allowed")
+                    except sqlite.ProgrammingError:
+                        seen.append("refused")
+                    return sqlite.SQLITE_OK
+                con.set_authorizer(auth)
+                seen.append(con.execute("select x from t").fetchone())
+                con.set_authorizer(None)
+                seen.append(con.execute("select x from t").fetchone())
+                con.close()
+            t = threading.Thread(target=run)
+            t.start()
+            t.join()
+            assert "refused" in seen and "allowed" not in seen, seen
+            assert seen[-2:] == [(1,), (1,)], seen
+            """
+        )
+
     def test_open_blob_from_function_destructor(self):
         self._run(
             """

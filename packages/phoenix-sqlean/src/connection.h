@@ -112,6 +112,15 @@ typedef struct
        still commits: that path increments in_sqlite only. */
     int in_stmt_teardown;
 
+    /* Non-zero while sqlite3_prepare_v2 is on the C stack. A callback
+       fired during compilation (the authorizer, or a busy handler while
+       the schema loads) that compiles another statement on the same
+       connection recurses without bound, and the C stack goes before
+       Python's recursion limit trips on a thread with a small stack.
+       SQLite documents that such callbacks must not use the invoking
+       connection, so a nested compile is refused. */
+    int in_prepare;
+
     /* Exception objects */
     PyObject* Warning;
     PyObject* Error;
@@ -142,6 +151,7 @@ int pysqlite_connection_register_cursor(pysqlite_Connection* connection, PyObjec
 int pysqlite_check_thread(pysqlite_Connection* self);
 int pysqlite_check_connection(pysqlite_Connection* con);
 int pysqlite_refuse_txn_sql(pysqlite_Connection *self, PyObject *sql);
+int pysqlite_refuse_nested_prepare(pysqlite_Connection *self);
 
 static inline void
 pysqlite_enter_sqlite(pysqlite_Connection *self)
@@ -153,6 +163,18 @@ static inline void
 pysqlite_leave_sqlite(pysqlite_Connection *self)
 {
     self->in_sqlite--;
+}
+
+static inline void
+pysqlite_enter_prepare(pysqlite_Connection *self)
+{
+    self->in_prepare++;
+}
+
+static inline void
+pysqlite_leave_prepare(pysqlite_Connection *self)
+{
+    self->in_prepare--;
 }
 
 static inline void

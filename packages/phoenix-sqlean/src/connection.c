@@ -104,6 +104,20 @@ pysqlite_refuse_txn_in_callback(pysqlite_Connection *self)
     return 0;
 }
 
+static const char cannot_compile_in_compile_callback[] =
+    "Cannot execute SQL from within a callback invoked during statement "
+    "compilation (such as an authorizer).";
+
+int
+pysqlite_refuse_nested_prepare(pysqlite_Connection *self)
+{
+    if (self->in_prepare > 0) {
+        PyErr_SetString(pysqlite_ProgrammingError, cannot_compile_in_compile_callback);
+        return 1;
+    }
+    return 0;
+}
+
 static int
 pysqlite_refuse_commit_in_teardown(pysqlite_Connection *self)
 {
@@ -335,6 +349,7 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     self->db = db;
     self->in_sqlite = 0;
     self->in_stmt_teardown = 0;
+    self->in_prepare = 0;
 
     /* The database handle is live from here on; the isolation-level
        setter below may go through commit(), which requires an
@@ -771,10 +786,16 @@ PyObject* _pysqlite_connection_begin(pysqlite_Connection* self)
     int rc;
     sqlite3_stmt* statement;
 
+    if (pysqlite_refuse_nested_prepare(self)) {
+        return NULL;
+    }
+
     pysqlite_enter_sqlite(self);
+    pysqlite_enter_prepare(self);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_prepare_v2(self->db, self->begin_statement, -1, &statement, NULL);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_prepare(self);
     pysqlite_leave_sqlite(self);
 
     if (rc != SQLITE_OK) {
@@ -813,16 +834,18 @@ PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args)
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
         return NULL;
     }
-    if (pysqlite_refuse_commit_in_teardown(self)) {
+    if (pysqlite_refuse_commit_in_teardown(self) || pysqlite_refuse_nested_prepare(self)) {
         return NULL;
     }
 
     if (!sqlite3_get_autocommit(self->db)) {
 
         pysqlite_enter_sqlite(self);
+        pysqlite_enter_prepare(self);
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_prepare_v2(self->db, "COMMIT", -1, &statement, NULL);
         Py_END_ALLOW_THREADS
+        pysqlite_leave_prepare(self);
         pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->db);
@@ -861,7 +884,7 @@ PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
         return NULL;
     }
-    if (pysqlite_refuse_txn_in_callback(self)) {
+    if (pysqlite_refuse_txn_in_callback(self) || pysqlite_refuse_nested_prepare(self)) {
         return NULL;
     }
 
@@ -869,9 +892,11 @@ PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args
         pysqlite_do_all_statements(self, ACTION_RESET, 1);
 
         pysqlite_enter_sqlite(self);
+        pysqlite_enter_prepare(self);
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_prepare_v2(self->db, "ROLLBACK", -1, &statement, NULL);
         Py_END_ALLOW_THREADS
+        pysqlite_leave_prepare(self);
         pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->db);
@@ -2050,6 +2075,8 @@ PyObject* pysqlite_connection_call(pysqlite_Connection* self, PyObject* args, Py
         } else if (rc == PYSQLITE_SQL_WRONG_TYPE) {
             if (PyErr_ExceptionMatches(PyExc_TypeError))
                 PyErr_SetString(pysqlite_Warning, "SQL is of wrong type. Must be string.");
+        } else if (rc == PYSQLITE_NESTED_PREPARE) {
+            /* ProgrammingError already set by pysqlite_statement_create. */
         } else {
             (void)pysqlite_statement_reset(statement);
             _pysqlite_seterror(self->db);
