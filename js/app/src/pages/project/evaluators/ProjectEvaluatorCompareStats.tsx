@@ -92,14 +92,14 @@ function SideBySideRow({
   color,
   flaggedCount,
   flagRate,
-  meanScore,
+  sharedMeanScore,
 }: {
   name: string;
   annotationName: string;
   color: string;
   flaggedCount: number | null;
   flagRate: number | null;
-  meanScore: number | null;
+  sharedMeanScore: number | null;
 }) {
   const outputName = getComparedOutputName({
     evaluatorName: name,
@@ -127,7 +127,7 @@ function SideBySideRow({
         {formatNullableRate(flagRate)}
       </Text>
       <Text size="S" css={sideMetricCSS}>
-        {formatNullableFloat(meanScore)}
+        {formatNullableFloat(sharedMeanScore)}
       </Text>
     </>
   );
@@ -156,13 +156,13 @@ export function ProjectEvaluatorCompareStats({
           annotationName
           flaggedCount
           flagRate
-          meanScore
+          sharedMeanScore
         }
         sideB {
           annotationName
           flaggedCount
           flagRate
-          meanScore
+          sharedMeanScore
         }
         statistics {
           agreement
@@ -303,7 +303,7 @@ export function ProjectEvaluatorCompareStats({
               color={EVALUATOR_COMPARE_COLORS.a}
               flaggedCount={comparison.sideA.flaggedCount}
               flagRate={comparison.sideA.flagRate}
-              meanScore={comparison.sideA.meanScore}
+              sharedMeanScore={comparison.sideA.sharedMeanScore}
             />
             <SideBySideRow
               name={evaluatorBName}
@@ -311,7 +311,7 @@ export function ProjectEvaluatorCompareStats({
               color={EVALUATOR_COMPARE_COLORS.b}
               flaggedCount={comparison.sideB.flaggedCount}
               flagRate={comparison.sideB.flagRate}
-              meanScore={comparison.sideB.meanScore}
+              sharedMeanScore={comparison.sideB.sharedMeanScore}
             />
           </div>
         </ChartPanel>

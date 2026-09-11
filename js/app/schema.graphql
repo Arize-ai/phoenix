@@ -1901,9 +1901,7 @@ type EvaluatorComparisonCoverage {
   totalInRange: Int!
 }
 
-"""
-Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable on both sides.
-"""
+"""Shared comparison summaries and full-population distributions."""
 type EvaluatorComparisonSide {
   """The annotation name this evaluator writes its results under."""
   annotationName: String!
@@ -1927,18 +1925,35 @@ type EvaluatorComparisonSide {
   """flaggedCount over the shared population size."""
   flagRate: Float
 
-  """Mean of this evaluator's non-null scores over the shared population."""
-  meanScore: Float
+  """
+  Mean of this evaluator's non-null scores over the shared comparison population.
+  """
+  sharedMeanScore: Float
 
   """
-  Score histogram over the shared population: counts in 10 fixed bins over the side's score domain (the config's bounds when both are set, else [0, 1]), out-of-range scores clamped into the edge bins. Null for categorical sides — their distribution is the confusion matrix marginal.
+  Mean of all finite scores from this evaluator in the selected target time range.
+  """
+  allEvaluatedMeanScore: Float
+
+  """
+  Histogram of all finite scores from this evaluator in range. Null when exact scoreValueCounts are used or scores are unavailable.
   """
   scoreBinCounts: [Int!]
 
   """
-  The 11 bin edges scoreBinCounts is computed over; null for categorical sides.
+  Edges for scoreBinCounts, with one more edge than counts. Lower edges are inclusive; upper edges are exclusive except the final edge is inclusive. The domain covers configured bounds and observed finite scores. Null when no histogram is used.
   """
   scoreBinEdges: [Float!]
+
+  """
+  Exact finite score counts across all results, ascending by score; null for histograms.
+  """
+  scoreValueCounts: [EvaluatorScoreValueCount!]
+
+  """
+  Label counts across all results, independent of score availability. Configured order, then alphabetical, with a synthetic Other group last when categories are folded. Null when labels are unavailable.
+  """
+  labelCounts: [EvaluatorLabelCount!]
 }
 
 """
@@ -2040,6 +2055,13 @@ enum EvaluatorKind {
   BUILTIN
 }
 
+type EvaluatorLabelCount {
+  label: String!
+  score: Float
+  isOther: Boolean!
+  count: Int!
+}
+
 input EvaluatorPreviewInput @oneOf {
   builtInEvaluatorId: ID
   inlineLlmEvaluator: InlineLLMEvaluatorInput
@@ -2080,6 +2102,11 @@ type EvaluatorScoreSeriesBin {
   """
   How many scored spans, traces, or sessions the bin's mean averages over; the weight to use when merging adjacent bins. Zero for an empty bin.
   """
+  count: Int!
+}
+
+type EvaluatorScoreValueCount {
+  score: Float!
   count: Int!
 }
 
@@ -3450,7 +3477,7 @@ type Project implements Node {
   sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
 
   """
-  Compare two of this project's evaluators over one shared population: entities in the time range evaluated by both. Returns coverage, a confusion matrix over binned labels, and agreement statistics. Time filtering follows the annotation metrics fields: spans and traces filter on trace start time, sessions on session start time.
+  Compare two of this project's evaluators in a time range. Returns coverage and distributions over each evaluator's results, plus a confusion matrix and agreement statistics over results evaluated by both. Time filtering follows the annotation metrics fields: spans and traces filter on trace start time, sessions on session start time.
   """
   evaluatorComparison(evaluatorAId: ID!, evaluatorBId: ID!, timeRange: TimeRange!, timeBinConfig: TimeBinConfig = null, thresholdA: Float = null, thresholdB: Float = null): ProjectEvaluatorComparison!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
@@ -3526,7 +3553,7 @@ type ProjectEvaluator implements Node {
 }
 
 """
-Pairwise comparison of two project evaluators' results over one shared population. Confusion matrix rows follow sideA.labels and columns follow sideB.labels.
+Pairwise statistics over shared results and per-evaluator distributions over all results. Confusion matrix rows follow sideA.labels and columns follow sideB.labels.
 """
 type ProjectEvaluatorComparison {
   """The evaluation level both evaluators share."""

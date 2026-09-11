@@ -118,7 +118,7 @@ function ProjectEvaluatorComparePageLoaded({
       </TopNavActions>
       <PageHeader
         title={<Heading level={1}>Compare evaluators</Heading>}
-        subTitle="Where two evaluators agree, disagree, and drift over the same telemetry"
+        subTitle="Compare evaluator judgments, result distributions, and coverage"
         extra={
           <Flex direction="row" alignItems="center" gap="size-100">
             <ProjectEvaluatorCompareSelect
