@@ -281,6 +281,14 @@ class CursorRegressionTests(unittest.TestCase):
     def tearDown(self):
         self.cx.close()
 
+    def test_fetchmany_nonpositive_size(self):
+        # fetchmany(0) and negative sizes used to return every
+        # remaining row.
+        cur = self.cx.execute("select i from test")
+        self.assertEqual(cur.fetchmany(0), [])
+        self.assertEqual(cur.fetchmany(-1), [])
+        self.assertEqual(len(cur.fetchmany(3)), 3)
+
     def test_udf_text_with_embedded_nul(self):
         # Function arguments and results were marshalled with
         # NUL-terminated string APIs, truncating TEXT values at the

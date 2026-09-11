@@ -828,6 +828,12 @@ PyObject* pysqlite_cursor_fetchmany(pysqlite_Cursor* self, PyObject* args, PyObj
         return NULL;
     }
 
+    /* `++counter == maxrows` never matches for maxrows <= 0, which would
+       fetch every remaining row. */
+    if (maxrows <= 0) {
+        return list;
+    }
+
     while ((row = pysqlite_cursor_iternext(self))) {
         PyList_Append(list, row);
         Py_XDECREF(row);
