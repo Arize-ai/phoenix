@@ -1,6 +1,11 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
+import type {
+  ColumnDef,
+  OnChangeFn,
+  RowSelectionState,
+} from "@tanstack/react-table";
 import {
+  functionalUpdate,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -40,8 +45,11 @@ import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLab
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
   ACTIONS_COLUMN_ID,
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
   ColumnHeaderCell,
   ColumnOrderingProvider,
+  createRowSelectionColumn,
   useColumnOrder,
 } from "@phoenix/components/table";
 import {
@@ -67,6 +75,12 @@ import {
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
+import {
+  reconcileProjectEvaluatorSelection,
+  type ProjectEvaluatorSelection,
+  toRowSelectionState,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
+import { ProjectEvaluatorSelectionToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSelectionToolbar";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
 import {
@@ -249,6 +263,8 @@ export function ProjectEvaluatorsTable({
   initialTimeRange,
   initialScoreWindow,
   initialIncludeMeanScore,
+  selection,
+  onSelectionChange,
 }: {
   project: ProjectEvaluatorsTable_project$key;
   projectId: string;
@@ -264,6 +280,8 @@ export function ProjectEvaluatorsTable({
   initialScoreWindow: EvaluatorScoreWindow;
   /** Whether the owner query fetched the mean score column's data. */
   initialIncludeMeanScore: boolean;
+  selection: ProjectEvaluatorSelection;
+  onSelectionChange: (selection: ProjectEvaluatorSelection) => void;
 }) {
   "use no memo";
   const {
@@ -393,6 +411,33 @@ export function ProjectEvaluatorsTable({
     () => data.evaluators.edges.map(({ node }) => readRow(node)),
     [data.evaluators.edges]
   );
+  const rowsById = useMemo(
+    () =>
+      Object.fromEntries(
+        tableData.map(({ id, name, evaluationTarget }) => [
+          id,
+          { id, name, evaluationTarget },
+        ])
+      ),
+    [tableData]
+  );
+  const rowSelection = useMemo(
+    () => toRowSelectionState(selection),
+    [selection]
+  );
+  const handleRowSelectionChange = useCallback<OnChangeFn<RowSelectionState>>(
+    (updater) => {
+      const nextRowSelection = functionalUpdate(updater, rowSelection);
+      onSelectionChange(
+        reconcileProjectEvaluatorSelection({
+          nextRowSelection,
+          previousSelection: selection,
+          rowsById,
+        })
+      );
+    },
+    [onSelectionChange, rowSelection, rowsById, selection]
+  );
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
   const openEditSlideover = useCallback(
@@ -401,6 +446,10 @@ export function ProjectEvaluatorsTable({
   );
   const columns = useMemo<ColumnDef<TableRow>[]>(
     () => [
+      createRowSelectionColumn<TableRow>({
+        showSelectAllHeader: false,
+        size: 40,
+      }),
       {
         header: "name",
         size: 200,
@@ -652,23 +701,27 @@ export function ProjectEvaluatorsTable({
     columnOrder: storedColumnOrder,
     onColumnOrderChange: setColumnOrder,
     columnVisibility,
-    // The pinned columns keep their place on the table's right edge
-    nonOrderableColumnIds: ["enabled", ACTIONS_COLUMN_ID],
+    // The pinned columns keep their places on the table's outer edges.
+    nonOrderableColumnIds: [CHECKBOX_COLUMN_ID, "enabled", ACTIONS_COLUMN_ID],
   });
   const table = useReactTable({
     columns,
     data: tableData,
     state: {
       columnPinning: {
+        ...CHECKBOX_COLUMN_PINNING,
         right: ["enabled", ACTIONS_COLUMN_ID],
       },
       columnSizing,
       columnVisibility,
       columnOrder: leafColumnOrder,
+      rowSelection,
     },
     columnResizeMode: "onChange",
     onColumnSizingChange: setColumnSizing,
     onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: handleRowSelectionChange,
+    enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => row.id,
   });
@@ -801,6 +854,10 @@ export function ProjectEvaluatorsTable({
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
                             textAlign: cell.column.columnDef.meta?.textAlign,
+                            userSelect:
+                              cell.column.id === CHECKBOX_COLUMN_ID
+                                ? "none"
+                                : undefined,
                             ...(cell.column.getIsPinned()
                               ? getCommonPinningStyles(cell.column)
                               : {}),
@@ -820,6 +877,12 @@ export function ProjectEvaluatorsTable({
           </table>
         </ColumnOrderingProvider>
       </EvaluatorScoreWindowProvider>
+      {Object.keys(selection).length > 0 ? (
+        <ProjectEvaluatorSelectionToolbar
+          selection={selection}
+          onClearSelection={() => onSelectionChange({})}
+        />
+      ) : null}
       {hasNext ? (
         <View padding="size-100">
           <Flex justifyContent="center">
