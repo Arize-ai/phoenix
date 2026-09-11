@@ -30,7 +30,12 @@ it("keeps resized widths and mounted cells when loading or adding a column", () 
   } = {}) => {
     act(() =>
       root.render(
-        <CalibrationResultsTable columns={nextColumns} isLoading={isLoading}>
+        <CalibrationResultsTable
+          columns={nextColumns}
+          columnVisibility={{}}
+          onColumnVisibilityChange={() => {}}
+          isLoading={isLoading}
+        >
           {body}
         </CalibrationResultsTable>
       )

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
 import { useState, type ComponentProps, type ReactNode } from "react";
 import { Pressable } from "react-aria-components";
 import { shallow } from "zustand/shallow";
@@ -42,7 +42,9 @@ import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle
 import { inlineDividerCSS } from "@phoenix/components/core/styles";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { CellTop } from "@phoenix/components/table";
+import { ColumnSelectorMenu } from "@phoenix/components/table/columnSelector";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { PlaygroundErrorWrap } from "../PlaygroundErrorWrap";
@@ -58,6 +60,10 @@ import type {
 import { getExpectedOutputIssue, getExpectedVerdict } from "./calibration";
 import { CalibrationResultsTable } from "./CalibrationResultsTable";
 import { CalibrationSelect } from "./CalibrationSelect";
+import {
+  EvaluatorPlaygroundResultsTableProvider,
+  useEvaluatorPlaygroundResultsTablePreferences,
+} from "./EvaluatorPlaygroundResultsTableContext";
 import type { SlotId, SlotOutput, SlotSnapshot } from "./evaluatorSlotTypes";
 import { getSlotIndex } from "./evaluatorSlotTypes";
 import type { ExpectedOutputSaveStatus } from "./expectedOutputQueue";
@@ -91,20 +97,22 @@ export function CalibrationResults(
   const { isReady, ...displayed } = props.isLoading ? snapshot : nextSnapshot;
   const isShowingPreviousSample = props.isLoading && isReady;
   return (
-    <div css={resultsSnapshotCSS}>
-      <div inert={props.isLoading} css={resultsContentCSS}>
-        <CalibrationResultsContent {...props} {...displayed} />
-      </div>
-      {isShowingPreviousSample ? (
-        <div css={loadingOverlayCSS} role="status">
-          <Flex direction="column" alignItems="center" gap="size-100">
-            <ProgressCircle isIndeterminate aria-label="Loading sample" />
-            <Text weight="heavy">Loading sample…</Text>
-            <Text size="S">Previous results shown · review paused</Text>
-          </Flex>
+    <EvaluatorPlaygroundResultsTableProvider>
+      <div css={resultsSnapshotCSS}>
+        <div inert={props.isLoading} css={resultsContentCSS}>
+          <CalibrationResultsContent {...props} {...displayed} />
         </div>
-      ) : null}
-    </div>
+        {isShowingPreviousSample ? (
+          <div css={loadingOverlayCSS} role="status">
+            <Flex direction="column" alignItems="center" gap="size-100">
+              <ProgressCircle isIndeterminate aria-label="Loading sample" />
+              <Text weight="heavy">Loading sample…</Text>
+              <Text size="S">Previous results shown · review paused</Text>
+            </Flex>
+          </div>
+        ) : null}
+      </div>
+    </EvaluatorPlaygroundResultsTableProvider>
   );
 }
 
@@ -235,6 +243,26 @@ function CalibrationResultsContent({
     !isRunning &&
     visibleSlotIds.length > 0 &&
     visibleSlotIds.every((slot) => runnableSlots.includes(slot));
+  // Which example fields show. Metadata starts hidden unless the sample has
+  // some: an evaluator may read it, but a column of empty objects says nothing.
+  // Once someone toggles a column, their choice persists and wins.
+  const storedVisibility = useEvaluatorPlaygroundResultsTablePreferences(
+    (state) => state.columnVisibility
+  );
+  const setColumnVisibility = useEvaluatorPlaygroundResultsTablePreferences(
+    (state) => state.setColumnVisibility
+  );
+  const hasMetadata = examples.some(
+    (example) =>
+      isStringKeyedObject(example.metadata) &&
+      Object.keys(example.metadata).length > 0
+  );
+  const columnVisibility: VisibilityState = {
+    metadata: hasMetadata,
+    ...storedVisibility,
+  };
+  const showsField = (field: ExampleField) => columnVisibility[field] !== false;
+  const visibleFields = EXAMPLE_FIELDS.filter(showsField);
   const columns: ColumnDef<unknown>[] = [
     // The row's own column: its number, and the play button that runs every
     // evaluator on just this example.
@@ -247,6 +275,7 @@ function CalibrationResultsContent({
     },
     { id: "input", header: "Input", size: 300, minSize: 200 },
     { id: "output", header: "Output", size: 300, minSize: 200 },
+    { id: "metadata", header: "Metadata", size: 300, minSize: 200 },
     ...visibleSlotIds.map((slot) => ({
       id: slot,
       size: 240,
@@ -294,25 +323,44 @@ function CalibrationResultsContent({
               pendingCount={pendingCount}
             />
           </Flex>
-          <SegmentedControl
-            aria-label="Show results"
-            size="S"
-            selectedKey={activeView.id}
-            onSelectionChange={(key) => onFilterChange(String(key))}
-          >
-            {views.map((view) => (
-              <SegmentedControlItem key={view.id} id={view.id}>
-                <Flex direction="row" gap="size-75" alignItems="center">
-                  {view.label}
-                  <Counter
-                    variant={view.id === activeView.id ? "quiet" : "default"}
-                  >
-                    {view.examples.length}
-                  </Counter>
-                </Flex>
-              </SegmentedControlItem>
-            ))}
-          </SegmentedControl>
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <SegmentedControl
+              aria-label="Show results"
+              size="S"
+              selectedKey={activeView.id}
+              onSelectionChange={(key) => onFilterChange(String(key))}
+            >
+              {views.map((view) => (
+                <SegmentedControlItem key={view.id} id={view.id}>
+                  <Flex direction="row" gap="size-75" alignItems="center">
+                    {view.label}
+                    <Counter
+                      variant={view.id === activeView.id ? "quiet" : "default"}
+                    >
+                      {view.examples.length}
+                    </Counter>
+                  </Flex>
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+            {/* Only the example fields are optional; the row column and the
+                evaluators are what the table is for. */}
+            <DialogTrigger>
+              <Button size="S" leadingVisual={<Icon svg={<Icons.Column />} />}>
+                Columns
+              </Button>
+              <Popover placement="bottom end">
+                <ColumnSelectorMenu
+                  columns={EXAMPLE_FIELDS.map((field) => ({
+                    id: field,
+                    label: EXAMPLE_FIELD_LABELS[field],
+                  }))}
+                  columnVisibility={columnVisibility}
+                  onColumnVisibilityChange={setColumnVisibility}
+                />
+              </Popover>
+            </DialogTrigger>
+          </Flex>
         </Flex>
       </View>
       {staleSlots.length ? (
@@ -350,11 +398,16 @@ function CalibrationResultsContent({
         </Alert>
       ) : null}
       <div css={tableWrapCSS}>
-        <CalibrationResultsTable columns={columns} isLoading={isLoading}>
+        <CalibrationResultsTable
+          columns={columns}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={setColumnVisibility}
+          isLoading={isLoading}
+        >
           {isLoading && !examples.length ? (
             <tbody>
               <tr>
-                <td colSpan={visibleSlotIds.length + 3}>
+                <td colSpan={visibleSlotIds.length + visibleFields.length + 1}>
                   <View paddingY="size-200">
                     <Loading size="S" />
                   </View>
@@ -385,20 +438,18 @@ function CalibrationResultsContent({
                         onRun={() => onRunExample(example.id)}
                       />
                     </td>
-                    <td className="table__cell results-table__example-cell">
-                      <ExampleFieldCell
-                        label="input"
-                        value={example.input}
-                        position={position}
-                      />
-                    </td>
-                    <td className="table__cell results-table__example-cell">
-                      <ExampleFieldCell
-                        label="output"
-                        value={example.output}
-                        position={position}
-                      />
-                    </td>
+                    {visibleFields.map((field) => (
+                      <td
+                        className="table__cell results-table__example-cell"
+                        key={field}
+                      >
+                        <ExampleFieldCell
+                          label={field}
+                          value={example[field]}
+                          position={position}
+                        />
+                      </td>
+                    ))}
                     {visibleSlotIds.map((slot) => (
                       <td
                         className="table__cell results-table__evaluator-cell"
@@ -439,6 +490,15 @@ function CalibrationResultsContent({
 
 // Wide enough for a two-digit row number over a small play button.
 const ROW_COLUMN_WIDTH = 48;
+
+/** The example's own fields, each an optional column in table order. */
+const EXAMPLE_FIELDS = ["input", "output", "metadata"] as const;
+type ExampleField = (typeof EXAMPLE_FIELDS)[number];
+const EXAMPLE_FIELD_LABELS: Record<ExampleField, string> = {
+  input: "Input",
+  output: "Output",
+  metadata: "Metadata",
+};
 
 /** A column header for a column whose meaning is carried by its cells. */
 function VisuallyHiddenHeader({ children }: { children: ReactNode }) {
@@ -733,55 +793,58 @@ function EvaluatorCell({
             value
           )}
           {/* Annotate the result. Both stay in place and read their state from
-              the expected output, so agreeing twice clears it — an easy undo. */}
-          <Flex direction="row" gap="size-25" alignItems="center" flex="none">
-            <TooltipTrigger>
-              <IconButton
-                size="S"
-                color={verdict === "match" ? "success" : "text-500"}
-                aria-pressed={verdict === "match"}
-                isDisabled={!canAnnotate}
-                aria-label={
-                  verdict === "match"
-                    ? `Clear expected output for evaluator ${slot}, example ${position}`
-                    : `Agree with evaluator ${slot}'s result for example ${position}`
-                }
-                onPress={() => {
-                  if (verdict === "match") void onSave(null);
-                  else if (prediction)
-                    void onSave({
-                      label: prediction.label,
-                      score: prediction.score,
-                      explanation: prediction.explanation,
-                    });
-                }}
-              >
-                <Icon svg={<Icons.ThumbsUp />} />
-              </IconButton>
-              <Tooltip>
-                <TooltipArrow />
-                {verdict === "match"
-                  ? "Clear expected output"
-                  : "Agree: record this result as expected"}
-              </Tooltip>
-            </TooltipTrigger>
-            <TooltipTrigger>
-              <IconButton
-                size="S"
-                color={verdict === "mismatch" ? "danger" : "text-500"}
-                aria-pressed={verdict === "mismatch"}
-                isDisabled={!canAnnotate}
-                aria-label={`Disagree with evaluator ${slot}'s result for example ${position}`}
-                onPress={() => setIsEditing(true)}
-              >
-                <Icon svg={<Icons.ThumbsDown />} />
-              </IconButton>
-              <Tooltip>
-                <TooltipArrow />
-                Disagree: record what was expected
-              </Tooltip>
-            </TooltipTrigger>
-          </Flex>
+              the expected output, so agreeing twice clears it — an easy undo.
+              Nothing to agree with yet means nothing to show. */}
+          {prediction ? (
+            <Flex direction="row" gap="size-25" alignItems="center" flex="none">
+              <TooltipTrigger>
+                <IconButton
+                  size="S"
+                  color={verdict === "match" ? "success" : "text-500"}
+                  aria-pressed={verdict === "match"}
+                  isDisabled={!canAnnotate}
+                  aria-label={
+                    verdict === "match"
+                      ? `Clear expected output for evaluator ${slot}, example ${position}`
+                      : `Agree with evaluator ${slot}'s result for example ${position}`
+                  }
+                  onPress={() => {
+                    if (verdict === "match") void onSave(null);
+                    else if (prediction)
+                      void onSave({
+                        label: prediction.label,
+                        score: prediction.score,
+                        explanation: prediction.explanation,
+                      });
+                  }}
+                >
+                  <Icon svg={<Icons.ThumbsUp />} />
+                </IconButton>
+                <Tooltip>
+                  <TooltipArrow />
+                  {verdict === "match"
+                    ? "Clear expected output"
+                    : "Agree: record this result as expected"}
+                </Tooltip>
+              </TooltipTrigger>
+              <TooltipTrigger>
+                <IconButton
+                  size="S"
+                  color={verdict === "mismatch" ? "danger" : "text-500"}
+                  aria-pressed={verdict === "mismatch"}
+                  isDisabled={!canAnnotate}
+                  aria-label={`Disagree with evaluator ${slot}'s result for example ${position}`}
+                  onPress={() => setIsEditing(true)}
+                >
+                  <Icon svg={<Icons.ThumbsDown />} />
+                </IconButton>
+                <Tooltip>
+                  <TooltipArrow />
+                  Disagree: record what was expected
+                </Tooltip>
+              </TooltipTrigger>
+            </Flex>
+          ) : null}
         </Flex>
         {prediction?.explanation ? (
           // Same treatment as the trace annotations list — muted, clamped,
@@ -815,8 +878,9 @@ function EvaluatorCell({
               gap="size-100"
               alignItems="center"
               minWidth={0}
+              flex="1 1 auto"
             >
-              <Text size="XS" color="text-500">
+              <Text size="XS" color="text-500" flex="none">
                 expected
               </Text>
               {expected ? (
@@ -872,20 +936,27 @@ function ExpectedBandStatus({
 }) {
   if (verdict === "invalid")
     return (
-      <span css={bandStatusCSS} title={issue ?? undefined}>
+      <span
+        css={bandStatusCSS}
+        title={issue ?? "Not one of this output's labels or scores"}
+      >
         <Icon svg={<Icons.AlertTriangle />} />
-        <Text size="XS" color="inherit">
-          not in output config
-        </Text>
+        <span className="expected-band__status-text">
+          <Text size="XS" color="inherit">
+            not in config
+          </Text>
+        </span>
       </span>
     );
   if (verdict === "mismatch")
     return (
-      <span css={bandStatusCSS}>
+      <span css={bandStatusCSS} title="Differs from the evaluator's result">
         <Icon svg={<Icons.AlertCircle />} />
-        <Text size="XS" color="inherit">
-          differs from result
-        </Text>
+        <span className="expected-band__status-text">
+          <Text size="XS" color="inherit">
+            differs
+          </Text>
+        </span>
       </span>
     );
   return null;
@@ -900,6 +971,7 @@ const resultRegionCSS = css`
 // annotation list: a faint fill with a hairline above, running edge to edge.
 // It is a button here, so it also takes the table's quiet hover wash.
 const expectedBandCSS = css`
+  container: expected-band / inline-size;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -926,21 +998,32 @@ const expectedBandCSS = css`
   }
 `;
 
-// The result value sits flush with the thumbs beside it.
+// The result value sits flush with the thumbs beside it and yields to them
+// when the column is narrow.
 const valueCSS = css`
   display: flex;
   align-items: center;
   min-height: var(--global-button-height-s);
   min-width: 0;
+  flex: 1 1 auto;
 `;
 
-// Warning-toned band note; the icon and text share the color.
+// Below this the band cannot fit "expected", a label, a score, and a note.
+const NARROW_BAND_WIDTH = 200;
+
+// Warning-toned band note; the icon and text share the color. In a narrow
+// column the words go and the icon stays, with the words in its title.
 const bandStatusCSS = css`
   display: inline-flex;
   flex: none;
   align-items: center;
   gap: var(--global-dimension-size-50);
   color: var(--global-color-warning);
+  @container expected-band (width < ${NARROW_BAND_WIDTH}px) {
+    .expected-band__status-text {
+      display: none;
+    }
+  }
 `;
 
 /**
@@ -966,7 +1049,15 @@ function CalibrationValue({
     );
   return (
     <span css={valuePartsCSS}>
-      {hasLabel ? <Text size={size}>{label}</Text> : null}
+      {hasLabel ? (
+        // The label gives way first when the column is narrow; the score is
+        // short and reads wrong when clipped, so it keeps its width.
+        <span className="value-parts__label">
+          <Truncate maxWidth="100%" title={label}>
+            <Text size={size}>{label}</Text>
+          </Truncate>
+        </span>
+      ) : null}
       {hasLabel && hasScore ? (
         <span aria-hidden css={inlineDividerCSS} />
       ) : null}
@@ -984,6 +1075,15 @@ const valuePartsCSS = css`
   align-items: center;
   gap: var(--global-dimension-size-100);
   min-width: 0;
+  max-width: 100%;
+  .value-parts__label {
+    display: flex;
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+  > :not(.value-parts__label) {
+    flex: none;
+  }
 `;
 
 /**
@@ -1212,7 +1312,7 @@ const exampleFieldContentCSS = css`
 `;
 
 /**
- * A dataset field (input or output) rendered the way the experiment compare
+ * A dataset field (input, output, or metadata) rendered the way the experiment compare
  * table renders an example: a header strip, a fixed-height content area that
  * fades, and the value as JSON. Always JSON — these fields are objects by
  * construction, and one representation is what lets the cell become an editor
@@ -1223,7 +1323,7 @@ function ExampleFieldCell({
   value,
   position,
 }: {
-  label: "input" | "output";
+  label: ExampleField;
   value: unknown;
   position: number;
 }) {
