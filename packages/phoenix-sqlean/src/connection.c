@@ -186,6 +186,24 @@ pysqlite_refuse_txn_sql(pysqlite_Connection *self, PyObject *sql)
     return 0;
 }
 
+static void
+pysqlite_detach_statements(pysqlite_Connection *self)
+{
+    Py_ssize_t i;
+
+    if (!self->statements) {
+        return;
+    }
+    for (i = 0; i < PyList_Size(self->statements); i++) {
+        PyObject *weakref = PyList_GetItem(self->statements, i);
+        PyObject *statement;
+        if (PyWeakref_GetRef(weakref, &statement) == 1) {
+            ((pysqlite_Statement*)statement)->connection = NULL;
+            Py_DECREF(statement);
+        }
+    }
+}
+
 
 static void _sqlite3_result_error(sqlite3_context* ctx, const char* errmsg, int len)
 {
@@ -276,6 +294,11 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     self->initialized = 0;
 
     self->begin_statement = NULL;
+
+    /* Orphans from con("sql") keep a borrowed connection pointer.
+       Drop those before discarding the weakref list, or re-init plus
+       del con leaves finalize writing in_sqlite into freed heap. */
+    pysqlite_detach_statements(self);
 
     Py_CLEAR(self->statement_cache);
     Py_CLEAR(self->statements);
@@ -459,6 +482,12 @@ void pysqlite_do_all_statements(pysqlite_Connection* self, int action, int reset
 void pysqlite_connection_dealloc(pysqlite_Connection* self)
 {
     Py_XDECREF(self->statement_cache);
+
+    /* Drop borrowed statement->connection pointers before freeing this
+       object. An orphan Statement (con("sql") surviving del con) used
+       to increment in_sqlite on the freed heap, corrupting a later
+       Connection that reused the slot. */
+    pysqlite_detach_statements(self);
 
     /* Clean up if user has not called .close() explicitly. */
     if (self->db) {

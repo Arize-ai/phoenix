@@ -835,6 +835,38 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_reinit_orphan_statement_does_not_corrupt_next_connection(self):
+        # Re-init used to Py_CLEAR the statements list without NULLing
+        # borrowed statement->connection pointers. del con then missed
+        # those orphans in the dealloc walk.
+        self._run(
+            """
+            bad = []
+            class Fn:
+                victim = None
+                def __call__(self):
+                    return 1
+                def __del__(self):
+                    if self.victim is not None:
+                        try:
+                            self.victim.close()
+                        except sqlite.ProgrammingError as e:
+                            bad.append(str(e))
+            con = sqlite.connect(":memory:")
+            fn = Fn()
+            con.create_function("f", 0, fn)
+            stmt = con("select f()")
+            con.__init__(":memory:")
+            del con
+            victim = sqlite.connect(":memory:")
+            fn.victim = victim
+            del fn
+            del stmt
+            assert not bad, bad
+            victim.close()
+            """
+        )
+
     def test_execute_commit_in_window_finalize_during_rollback(self):
         # commit() is guarded; execute("COMMIT") used to bypass it.
         self._run(
@@ -997,6 +1029,44 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             con.create_function("replace", 0, replace)
             assert con.execute("select replace()").fetchone() == ("busy",)
             con.close()
+            """
+        )
+
+    def test_orphan_statement_does_not_corrupt_next_connection(self):
+        # Statement.connection is borrowed. dealloc used to free the
+        # Connection while an orphan con("sql") still wrote in_sqlite
+        # into that heap, so a later Connection that reused the slot
+        # saw a callback in progress.
+        #
+        # The enter/leave pair around finalize nets to zero, so the
+        # corruption is only visible *during* the finalize. Finalizing
+        # the orphan closes the zombie db, which destroys the registered
+        # function; its __del__ runs at exactly that moment and probes
+        # the victim. pymalloc hands the freed Connection block to the
+        # next same-sized allocation, so the victim reuses the slot.
+        self._run(
+            """
+            bad = []
+            class Fn:
+                victim = None
+                def __call__(self):
+                    return 1
+                def __del__(self):
+                    if self.victim is not None:
+                        try:
+                            self.victim.close()
+                        except sqlite.ProgrammingError as e:
+                            bad.append(str(e))
+            con = sqlite.connect(":memory:")
+            fn = Fn()
+            con.create_function("f", 0, fn)
+            stmt = con("select f()")
+            del con
+            victim = sqlite.connect(":memory:")
+            fn.victim = victim
+            del fn
+            del stmt
+            assert not bad, bad
             """
         )
 
