@@ -368,7 +368,8 @@ class TestAgentMCPServerIsIndependentOfTheMount:
         """Through the server ``create_app`` wires, so the read-only derivation is
         the one sessions get. Code mode hides the derived tools behind
         ``execute``; the ``list_tools`` discovery tool is the view of that catalog,
-        checked against every operation in the OpenAPI document.
+        checked against every operation in the OpenAPI document. The note
+        create and annotation sweep routes are the one admitted exception.
         """
         import json
 
@@ -382,10 +383,20 @@ class TestAgentMCPServerIsIndependentOfTheMount:
             result = await client.call_tool("list_tools", {"detail": "full"})
         catalog = {tool["name"] for tool in json.loads(result.structured_content["result"])}
 
+        note_writes = {
+            "createSpanNote",
+            "createTraceNote",
+            "createSessionNote",
+            "deleteSpanAnnotations",
+            "deleteTraceAnnotations",
+            "deleteSessionAnnotations",
+        }
         operation_ids: dict[bool, set[str]] = {True: set(), False: set()}
         for operations in app.openapi()["paths"].values():
             for method, operation in operations.items():
-                operation_ids[method == "get"].add(operation["operationId"])
+                operation_id = operation["operationId"]
+                operation_ids[method == "get" or operation_id in note_writes].add(operation_id)
+        assert note_writes <= operation_ids[True]
         assert operation_ids[True] <= catalog
         assert catalog.isdisjoint(operation_ids[False]), catalog & operation_ids[False]
 
