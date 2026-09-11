@@ -1,0 +1,6 @@
+[task]
+name = "arize/count-traces"
+version = "2"
+
+[metadata]
+task_class = "trivial"

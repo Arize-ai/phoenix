@@ -1,0 +1,47 @@
+[project]
+name = "phoenix-mcp-benchmark"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "harbor==0.22.0",
+  "arize-phoenix-client[harbor]==3.4.0",
+  "datasets==4.8.5",
+  "pytest==8.4.2",
+  "pytest-asyncio==1.2.0",
+  "respx==0.22.0",
+  "ruff==0.12.12",
+  "mypy==1.15.0",
+  "types-toml",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+norecursedirs = ["integration"]
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+target-version = "py313"
+
+[tool.mypy]
+python_version = "3.13"
+files = ["evals/mcp/run.py", "evals/mcp/environment.py", "evals/mcp/matrix.py", "evals/mcp/images.py", "evals/mcp/preflight.py", "evals/mcp/runtime.py", "evals/mcp/fixture.py", "evals/mcp/grading.py", "evals/mcp/references.py", "evals/mcp/measurements.py", "evals/mcp/isolation.py", "evals/mcp/stage_task.py", "evals/mcp/verify.py"]
+strict = true
+explicit_package_bases = true
+mypy_path = "evals/mcp"
+
+# Harbor 0.22 does not ship a py.typed marker. Adapter behavior is tested against
+# the installed runtime; this exception does not skip our own imports.
+[[tool.mypy.overrides]]
+module = ["harbor.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["run", "environment", "matrix", "images", "runtime", "preflight", "fixture", "cli", "gateway", "main", "oracle", "prepare", "seed_target", "target"]
+disallow_untyped_defs = false
+disallow_any_generics = false
+disallow_untyped_calls = false
+warn_return_any = false
+disallow_subclassing_any = false

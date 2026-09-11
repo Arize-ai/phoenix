@@ -1,0 +1,6 @@
+[task]
+name = "arize/error-rate-by-length"
+version = "2"
+
+[metadata]
+task_class = "multi-call"

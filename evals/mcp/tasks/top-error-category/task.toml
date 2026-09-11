@@ -1,0 +1,6 @@
+[task]
+name = "arize/top-error-category"
+version = "2"
+
+[metadata]
+task_class = "multi-call"

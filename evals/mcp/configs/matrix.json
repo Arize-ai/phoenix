@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "verified_on": "2026-09-09",
+  "agent_versions": {"claude-code": "2.1.267", "codex": "0.154.0"},
+  "px_version": "1.18.1",
+  "requested_models": {"claude-code": "opus-5", "codex": "gpt-5.6"},
+  "documented_model_ids": {"opus-5": "claude-opus-5", "gpt-5.6": "gpt-5.6"},
+  "documented_alias_targets": {"gpt-5.6": "gpt-5.6-sol"},
+  "authenticated_models": false,
+  "reasoning_effort": "high",
+  "conditions": ["claude-mcp", "claude-cli", "codex-mcp", "codex-cli"]
+}

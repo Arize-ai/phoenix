@@ -1,0 +1,6 @@
+[task]
+name = "arize/spend-concentration"
+version = "2"
+
+[metadata]
+task_class = "multi-call"

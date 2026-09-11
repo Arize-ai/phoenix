@@ -1,0 +1,6 @@
+[task]
+name = "arize/repeated-tool-calls"
+version = "2"
+
+[metadata]
+task_class = "large-result"

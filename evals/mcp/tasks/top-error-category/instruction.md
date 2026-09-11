@@ -1,0 +1,1 @@
+Our annotators labelled agent mistakes in {project} with trail_error annotations. What kind of mistake did they flag most often? Count the stored span annotations, once per annotation. If categories tie, name all winners.

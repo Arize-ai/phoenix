@@ -1,0 +1,6 @@
+[task]
+name = "arize/total-cost"
+version = "2"
+
+[metadata]
+task_class = "trivial"

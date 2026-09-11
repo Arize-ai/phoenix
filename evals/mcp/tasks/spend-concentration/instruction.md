@@ -1,0 +1,1 @@
+What share of the total {project} bill comes from the most expensive 10% of traces? Select ceil(0.10 × trace count) traces, ordered by descending cost and then trace ID for ties. Give the share as a percentage to one decimal place.

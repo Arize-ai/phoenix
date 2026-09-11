@@ -1,0 +1,1 @@
+Is the agent getting stuck repeating itself in {project}? Find the tool called the most times within a single trace, and say how many times. Count TOOL spans. If tool/trace pairs tie, give any one winning tool and its count.

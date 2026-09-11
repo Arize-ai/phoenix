@@ -1,0 +1,6 @@
+[task]
+name = "arize/max-llm-calls"
+version = "2"
+
+[metadata]
+task_class = "large-result"
