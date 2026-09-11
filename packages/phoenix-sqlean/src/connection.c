@@ -1508,13 +1508,16 @@ static PyObject* pysqlite_connection_set_busy_timeout(pysqlite_Connection* self,
     }
 
     int rc;
-    rc = sqlite3_busy_timeout(self->db, (int)busy_timeout * 1000);
+    rc = sqlite3_busy_timeout(self->db, (int)(busy_timeout * 1000.0));
     if (rc != SQLITE_OK) {
         PyErr_SetString(pysqlite_OperationalError, "Error setting busy timeout");
         return NULL;
     }
     else {
-        Py_XDECREF(self->function_pinboard_busy_handler_cb);
+        /* sqlite3_busy_timeout() replaced any registered busy handler;
+           drop the pinboard reference and NULL it so it cannot be
+           decref'ed a second time. */
+        Py_CLEAR(self->function_pinboard_busy_handler_cb);
     }
 
     Py_RETURN_NONE;

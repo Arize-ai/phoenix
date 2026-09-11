@@ -9,6 +9,7 @@
 # exercised with fault injection.
 
 import gc
+import sys
 import threading
 import unittest
 import weakref
@@ -150,6 +151,41 @@ class FactoryMemberRegressionTests(unittest.TestCase):
             cur.execute("select t from test").fetchone()
 
 
+class BusyHandlerRegressionTests(unittest.TestCase):
+    def test_fractional_busy_timeout(self):
+        # (int)timeout * 1000 truncated before multiplying, so 0.5
+        # seconds became 0 ms and silently disabled waiting.
+        cx = sqlite.connect(":memory:")
+        try:
+            cx.set_busy_timeout(0.5)
+            row = cx.execute("pragma busy_timeout").fetchone()
+            self.assertEqual(row[0], 500)
+        finally:
+            cx.close()
+
+    def test_busy_handler_reference_management(self):
+        # set_busy_timeout dropped the busy-handler reference without
+        # NULLing the stored pointer, so a second call (or dealloc)
+        # dropped it again and underflowed the refcount.
+        cx = sqlite.connect(":memory:")
+        try:
+            def handler(n):
+                return 0
+
+            cx.set_busy_handler(handler)
+            before = sys.getrefcount(handler)
+            cx.set_busy_timeout(1.0)  # replaces the handler: drops one reference
+            after = sys.getrefcount(handler)
+            self.assertEqual(after, before - 1)
+            cx.set_busy_timeout(2.0)  # must not drop another reference
+            self.assertEqual(sys.getrefcount(handler), after)
+            cx.set_busy_handler(handler)
+        finally:
+            cx.close()
+        # The handler survives connection teardown.
+        self.assertEqual(handler(0), 0)
+
+
 class ConnectionLifecycleRegressionTests(unittest.TestCase):
     def test_uninitialized_connection_close(self):
         # Connection.__new__ without __init__ used to crash close() on
@@ -267,6 +303,7 @@ def suite():
         (
             loader.loadTestsFromTestCase(BlobRegressionTests),
             loader.loadTestsFromTestCase(FactoryMemberRegressionTests),
+            loader.loadTestsFromTestCase(BusyHandlerRegressionTests),
             loader.loadTestsFromTestCase(ConnectionLifecycleRegressionTests),
             loader.loadTestsFromTestCase(CursorRegressionTests),
         )
