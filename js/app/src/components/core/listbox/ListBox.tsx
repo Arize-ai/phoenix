@@ -31,7 +31,7 @@ const listBoxCSS = css`
     padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
     border-radius: var(--global-rounding-small);
     outline: none;
-    cursor: default;
+    cursor: pointer;
     color: var(--global-text-color-900);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
@@ -43,6 +43,10 @@ const listBoxCSS = css`
     &[data-focus-visible] {
       outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
       outline-offset: -2px;
+    }
+
+    &[data-disabled] {
+      cursor: default;
     }
 
     &[data-selected] {
