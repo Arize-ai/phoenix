@@ -334,6 +334,27 @@ class CursorRegressionTests(unittest.TestCase):
             self.cx.enable_load_extension(False)
 
 
+class RowRegressionTests(unittest.TestCase):
+    def test_row_over_uninitialized_cursor(self):
+        # Row() over a cursor created without __init__ crashed in
+        # Py_INCREF(NULL) on the cursor's description.
+        cursor = sqlite.Cursor.__new__(sqlite.Cursor)
+        with self.assertRaises(sqlite.ProgrammingError):
+            sqlite.Row(cursor, ())
+
+    def test_row_hash(self):
+        # Row.__hash__ XORed two PyObject_Hash results without checking
+        # for -1 (error).
+        cx = sqlite.connect(":memory:")
+        try:
+            cx.row_factory = sqlite.Row
+            row = cx.execute("select 1 as a, 2 as b").fetchone()
+            self.assertNotEqual(hash(row), -1)
+            self.assertEqual(hash(row), hash(row))
+        finally:
+            cx.close()
+
+
 def suite():
     loader = unittest.TestLoader()
     return unittest.TestSuite(
@@ -343,6 +364,7 @@ def suite():
             loader.loadTestsFromTestCase(BusyHandlerRegressionTests),
             loader.loadTestsFromTestCase(ConnectionLifecycleRegressionTests),
             loader.loadTestsFromTestCase(CursorRegressionTests),
+            loader.loadTestsFromTestCase(RowRegressionTests),
         )
     )
 
