@@ -25,13 +25,17 @@ Phoenix connects to a coding agent through three pieces. Most setups use all thr
   </Card>
 </CardGroup>
 
-How you install them depends on your agent. The Phoenix repository is also a plugin marketplace for agents that have one, and the plugin replaces the manual MCP setup:
+How you install them depends on your agent. For agents that have a plugin system, the Phoenix repository is also a plugin marketplace, and the plugin is the fastest way to set up the MCP server (and, for Claude Code, the skills):
 
 - **Claude Code** — install the [Phoenix plugin](#claude-code). It registers the Phoenix MCP server and the `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` skills, so the only piece left to add is the [CLI](#cli).
 - **Codex** — install the [Phoenix plugin](#codex). It registers the Phoenix MCP server; add the [CLI](#cli) and [skills](#skills) yourself.
 - **Every other agent** (Cursor, VS Code, Windsurf, and more) — follow the [CLI](#cli), [MCP](#mcp), and [Skills](#skills) sections below.
 
 Both plugins connect to the MCP endpoint built into the Phoenix server, which requires **Phoenix 19.0.0 or later**. Neither includes the [Phoenix Docs MCP](#phoenix-docs-mcp-documentation-access) for documentation lookup — add that separately if you want it.
+
+<Note>
+**The plugins are optional.** You don't have to add a marketplace to use Phoenix from Claude Code or Codex. If you'd rather not, or want only some of the pieces, install them individually: the [CLI](#cli), [MCP](#mcp), and [Skills](#skills) sections below work for Claude Code and Codex exactly as they do for every other agent. The plugin just bundles the MCP and skills steps into one install that stays up to date.
+</Note>
 
 ### Find Your Phoenix Endpoint
 
@@ -47,6 +51,8 @@ Enter the endpoint column, never the `/mcp` column — the plugins and the `px` 
 ## Claude Code
 
 The Phoenix repository is a [Claude Code plugin marketplace](https://code.claude.com/docs/en/discover-plugins). The `arize-phoenix` plugin registers the Phoenix MCP server and the Phoenix skills in one install, and because the marketplace is versioned in the repository, Claude Code updates both as new versions land.
+
+Using the plugin is optional. To set things up piece by piece instead — or to skip the marketplace entirely — register the MCP server by hand with `claude mcp add` as shown on the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) page, and add skills with [`skills add`](#skills). The result is the same; the plugin only saves the steps and keeps them updated.
 
 **Prerequisites:** Phoenix 19.0.0 or later, and a current Claude Code — if `/plugin` is not recognized, update Claude Code first. Steps 1, 2, and 4 are slash commands typed inside a Claude Code session; the shell equivalents follow the steps.
 
@@ -147,6 +153,8 @@ To work on the plugin itself, add the marketplace from a checkout with `/plugin 
 ## Codex
 
 The same repository is a [Codex plugin marketplace](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli). The `arize-phoenix` plugin registers the Phoenix MCP server in Codex. It does not ship skills — add those with [`skills add`](#skills), passing `-a codex`.
+
+Using the plugin is optional. To skip the marketplace, add the MCP server to `~/.codex/config.toml` by hand as shown on the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) page, and install the [CLI](#cli) and [skills](#skills) individually.
 
 **Prerequisites:** Phoenix 19.0.0 or later, and Node.js — the plugin starts its MCP bridge with `npx`. The `codex plugin` commands below run in your shell.
 
