@@ -94,7 +94,7 @@ def _rest_app(seen: list[Any]) -> FastAPI:
         summary="Delete span annotations.",
     )
     async def delete_span_annotations(project_identifier: str) -> None:
-        return None
+        pass
 
     return app
 
@@ -302,8 +302,6 @@ class TestReadOnlySurface:
         assert not any("mutate" in name for name in names)
 
     async def test_note_writes_are_the_exception(self) -> None:
-        """Notes are what error analysis records, so creating and sweeping
-        them stays reachable on the otherwise read-only surface."""
         mcp, _ = build_phoenix_mcp_server(
             _rest_app([]), code_mode=False, read_only=True, db=_unused_db()
         )

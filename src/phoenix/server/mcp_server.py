@@ -121,11 +121,9 @@ _META_ANNOTATIONS = ToolAnnotations(
     read_only_hint=True, destructive_hint=False, open_world_hint=False
 )
 
-# The read-only surface still admits note writes: a note is the recorded output of
-# error analysis, and the REST layer already guards these routes (read-only mode,
-# viewer restriction, ownership on delete). REST deletes notes only through the
-# per-project annotation sweep, so that is the delete admitted; narrowing it to
-# notes is the caller's filter, not this map's.
+# Notes are the recorded output of error analysis, so the read-only surface still
+# admits them. REST has no per-note delete, only the per-project annotation sweep;
+# narrowing that sweep to notes is the caller's filter, not this map's.
 _NOTE_WRITE_ROUTE_MAPS: tuple[RouteMap, ...] = (
     RouteMap(
         pattern=r"^/v1/(span|trace|session)_notes$",
@@ -503,8 +501,7 @@ def build_phoenix_mcp_server(
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not
-            # useful to MCP clients). The first matching map wins, so the note
-            # write exception precedes the GET-only rule.
+            # useful to MCP clients). The first matching map wins.
             *(_NOTE_WRITE_ROUTE_MAPS if read_only else ()),
             RouteMap(
                 pattern=r"^/v1/",
