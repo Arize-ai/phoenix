@@ -5271,10 +5271,15 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /** Custom Provider Id */
+            custom_provider_id?: string | null;
             /** Id */
             id: string;
         };
-        /** PromptVersionData */
+        /**
+         * PromptVersionData
+         * @description Prompt content shared by prompt and evaluator APIs.
+         */
         PromptVersionData: {
             /** Description */
             description?: string | null;
@@ -5290,6 +5295,8 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /** Custom Provider Id */
+            custom_provider_id?: string | null;
         };
         /** PromptVersionTag */
         PromptVersionTag: {
@@ -10799,6 +10806,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

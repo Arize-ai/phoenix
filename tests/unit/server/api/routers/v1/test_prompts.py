@@ -14,7 +14,7 @@ from faker import Faker
 from openai import pydantic_function_tool
 from openai.lib._pydantic import to_strict_json_schema
 from pydantic import BaseModel, ValidationError, create_model
-from sqlalchemy import select
+from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
@@ -44,6 +44,7 @@ from phoenix.server.api.routers.v1.prompt_models import PromptVersionData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptVersion import PromptVersion
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
@@ -106,6 +107,146 @@ class TestPromptVersionData:
 
 
 class TestPrompts:
+    async def test_custom_provider_round_trip(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, source_versions = await self._insert_prompt_versions(db, n=1)
+        async with db() as session:
+            provider = models.GenerativeModelCustomProvider(
+                name=token_hex(16),
+                provider="openai",
+                sdk="openai",
+                config=EncryptionService().encrypt(b"{}"),
+            )
+            session.add(provider)
+            await session.flush()
+        provider_id = str(GlobalID("GenerativeModelCustomProvider", str(provider.id)))
+        prompt_name = token_hex(16)
+        version_body = self._prompt_version_request_body(
+            source_versions[0], custom_provider_id=provider_id
+        )
+        response = await httpx_client.post(
+            "v1/prompts", json={"prompt": {"name": prompt_name}, "version": version_body}
+        )
+        assert response.status_code == 200, response.text
+        first_version = response.json()["data"]
+        assert first_version["custom_provider_id"] == provider_id
+
+        response = await httpx_client.post(
+            f"v1/prompts/{prompt_name}/versions",
+            json={"version": version_body, "tags": [{"name": "production"}]},
+        )
+        assert response.status_code == 201, response.text
+        second_version = response.json()["data"]
+        assert second_version["custom_provider_id"] == provider_id
+        assert second_version["id"] != first_version["id"]
+        async with db() as session:
+            for version in (first_version, second_version):
+                stored = await session.get(
+                    models.PromptVersion, int(GlobalID.from_id(version["id"]).node_id)
+                )
+                assert stored is not None
+                assert stored.custom_provider_id == provider.id
+
+        for route in (
+            f"v1/prompt_versions/{second_version['id']}",
+            f"v1/prompts/{prompt_name}/latest",
+            f"v1/prompts/{prompt_name}/tags/production",
+        ):
+            response = await httpx_client.get(route)
+            assert response.status_code == 200, response.text
+            assert response.json()["data"] == second_version
+        response = await httpx_client.get(f"v1/prompts/{prompt_name}/versions")
+        assert response.status_code == 200, response.text
+        assert [version["custom_provider_id"] for version in response.json()["data"]] == [
+            provider_id,
+            provider_id,
+        ]
+
+        for provider_fields in ({"custom_provider_id": None}, {}):
+            builtin_body = self._prompt_version_request_body(source_versions[0])
+            builtin_body.update(provider_fields)
+            response = await httpx_client.post(
+                f"v1/prompts/{prompt_name}/versions", json={"version": builtin_body}
+            )
+            assert response.status_code == 201, response.text
+            data = response.json()["data"]
+            assert "custom_provider_id" not in data
+            async with db() as session:
+                stored = await session.get(
+                    models.PromptVersion, int(GlobalID.from_id(data["id"]).node_id)
+                )
+                assert stored is not None
+                assert stored.custom_provider_id is None
+
+    @pytest.mark.parametrize("new_prompt", [True, False])
+    @pytest.mark.parametrize(
+        "provider_id, expected_status",
+        [
+            ("invalid", 422),
+            (str(GlobalID("Prompt", "1")), 422),
+            (str(GlobalID("GenerativeModelCustomProvider", "not-an-integer")), 422),
+            (str(GlobalID("GenerativeModelCustomProvider", "2147483647")), 404),
+        ],
+    )
+    async def test_invalid_custom_provider_is_atomic(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+        new_prompt: bool,
+        provider_id: str,
+        expected_status: int,
+    ) -> None:
+        prompt, versions = await self._insert_prompt_versions(db, n=1)
+        version_body = self._prompt_version_request_body(versions[0])
+        version_body["custom_provider_id"] = provider_id
+        tables = (models.Prompt, models.PromptVersion, models.PromptVersionTag)
+        async with db() as session:
+            before = [
+                await session.scalar(select(func.count()).select_from(table)) for table in tables
+            ]
+        if new_prompt:
+            route = "v1/prompts"
+            body: dict[str, Any] = {"prompt": {"name": token_hex(16)}, "version": version_body}
+        else:
+            route = f"v1/prompts/{prompt.name.root}/versions"
+            body = {"version": version_body, "tags": [{"name": "production"}]}
+        response = await httpx_client.post(route, json=body)
+        assert response.status_code == expected_status, response.text
+        async with db() as session:
+            after = [
+                await session.scalar(select(func.count()).select_from(table)) for table in tables
+            ]
+        assert after == before
+
+    async def test_create_prompt_rejects_mismatched_provider(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, versions = await self._insert_prompt_versions(db, n=1)
+        prompt_name = token_hex(16)
+        response = await httpx_client.post(
+            "v1/prompts",
+            json={
+                "prompt": {"name": prompt_name},
+                "version": self._prompt_version_request_body(
+                    versions[0], model_provider=ModelProvider.ANTHROPIC
+                ),
+            },
+        )
+        assert response.status_code == 422, response.text
+        assert "does not match" in response.text
+        async with db() as session:
+            assert (
+                await session.scalar(
+                    select(models.Prompt.id).filter_by(name=Identifier.model_validate(prompt_name))
+                )
+                is None
+            )
+
     async def test_get_latest_prompt_version(
         self,
         httpx_client: httpx.AsyncClient,

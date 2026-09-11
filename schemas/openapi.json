@@ -6107,6 +6107,16 @@
             },
             "description": "Forbidden"
           },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
           "422": {
             "content": {
               "text/plain": {
@@ -18407,6 +18417,17 @@
             ],
             "title": "Response Format"
           },
+          "custom_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Provider Id"
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -18568,6 +18589,17 @@
               }
             ],
             "title": "Response Format"
+          },
+          "custom_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Provider Id"
           }
         },
         "type": "object",
@@ -18579,7 +18611,8 @@
           "template_format",
           "invocation_parameters"
         ],
-        "title": "PromptVersionData"
+        "title": "PromptVersionData",
+        "description": "Prompt content shared by prompt and evaluator APIs."
       },
       "PromptVersionTag": {
         "properties": {
