@@ -1,20 +1,17 @@
-# The staging command replaces __PLACEHOLDERS__ with this build's images and seed.
-# Harbor owns service creation, artifact collection, and teardown.
+# Harbor routes both services through its native egress-control sidecar.
+# Shared localhost networking; separate containers, processes, and filesystems.
 services:
   main:
     image: __AGENT_IMAGE__
-    networks: [agent]
     cap_drop: [NET_ADMIN, NET_RAW, SYS_ADMIN]
     security_opt: [no-new-privileges:true]
-    dns: [127.0.0.1]
     environment:
       BENCHMARK_INTERFACE: __INTERFACE__
-      BENCHMARK_PROVIDER: __PROVIDER__
-      PHOENIX_COLLECTOR_ENDPOINT: http://gateway:8080
+      PHOENIX_COLLECTOR_ENDPOINT: http://127.0.0.1:6006
       PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES: "true"
       NO_COLOR: "1"
     depends_on:
-      gateway:
+      phoenix:
         condition: service_healthy
     healthcheck:
       test: [CMD, test, -f, /tmp/benchmark-ready]
@@ -25,7 +22,6 @@ services:
 
   phoenix:
     image: __TARGET_IMAGE__
-    networks: [target]
     cap_drop: [NET_ADMIN, NET_RAW, SYS_ADMIN]
     security_opt: [no-new-privileges:true]
     volumes:
@@ -33,8 +29,7 @@ services:
         source: __SEED_DIR__
         target: /seed
         read_only: true
-      # Harbor supplies this trial's host log path. The sibling directory is
-      # never mounted into main and survives container/network teardown.
+      # The sibling directory is never mounted into main and survives teardown.
       - type: bind
         source: ${HOST_AGENT_LOGS_PATH}/../target-data
         target: /data
@@ -43,33 +38,3 @@ services:
       interval: 2s
       timeout: 2s
       retries: 150
-
-  gateway:
-    image: __GATEWAY_IMAGE__
-    networks: [agent, target, inference]
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    environment:
-      PROVIDER: __PROVIDER__
-      INTERFACE: __INTERFACE__
-      TARGET_URL: http://phoenix:6006
-      __PROVIDER_KEY__: ${__PROVIDER_KEY__:-}
-    depends_on:
-      phoenix:
-        condition: service_healthy
-    healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
-      interval: 1s
-      timeout: 2s
-      retries: 20
-
-networks:
-  agent:
-    internal: true
-    driver_opts:
-      com.docker.network.bridge.gateway_mode_ipv4: isolated
-  target:
-    internal: true
-    driver_opts:
-      com.docker.network.bridge.gateway_mode_ipv4: isolated
-  inference: {}

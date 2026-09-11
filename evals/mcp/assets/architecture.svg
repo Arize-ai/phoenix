@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1050" viewBox="0 0 1400 1050" role="img" aria-labelledby="title desc">
   <title id="title">Phoenix MCP and CLI benchmark architecture</title>
-  <desc id="desc">Harbor runs each coding agent against a fresh Phoenix target through a gateway. After the agent stops, an offline verifier grades collected artifacts and the host plugin records results in a separate Phoenix service.</desc>
+  <desc id="desc">Harbor runs the coding agent and a fresh Phoenix target in separate containers with shared localhost networking and native egress controls. After the agent stops, an offline verifier grades collected artifacts and the host plugin records results in a separate Phoenix service.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6544bc"/></marker>
     <marker id="audit" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a7b9d"/></marker>
@@ -33,37 +33,38 @@
 
   <rect x="40" y="279" width="1010" height="380" rx="16" fill="white" stroke="#ded9e4"/>
   <text x="64" y="311" class="label">FRESH TRIAL · HARBOR MANAGES THE COMPOSE SERVICES</text>
+  <text x="64" y="336" class="small">Harbor's native egress sidecar applies the network allowlist.</text>
 
-  <rect x="64" y="370" width="280" height="202" rx="12" fill="#fcfbfe" stroke="#c6bdd4" stroke-dasharray="5 4"/>
-  <text x="82" y="400" class="label">ISOLATED AGENT NETWORK</text>
-  <text x="82" y="436" class="heading">Claude Code or Codex</text>
-  <text x="82" y="468" class="body">Harbor's built-in adapter</text>
-  <text x="82" y="506" class="body">MCP tools or installed px</text>
-  <text x="82" y="538" class="small">Task prompt + local shell</text>
+  <rect x="64" y="369" width="962" height="203" rx="12" fill="#fcfbfe" stroke="#c6bdd4" stroke-dasharray="5 4"/>
+  <text x="414" y="397" class="small">Shared localhost network</text>
 
-  <rect x="414" y="406" width="223" height="129" rx="12" fill="#f0eafa" stroke="#a99aca"/>
-  <text x="435" y="442" class="heading">Gateway</text>
-  <text x="435" y="477" class="body">Assigned interface</text>
-  <text x="435" y="507" class="small">Holds the provider key</text>
-  <path d="M 350 470 H 408" class="edge both"/>
-  <path d="M 643 470 H 701" class="edge both"/>
+  <rect x="80" y="385" width="300" height="171" rx="12" fill="white" stroke="#ded9e4"/>
+  <text x="98" y="412" class="label">AGENT CONTAINER</text>
+  <text x="98" y="446" class="heading">Claude Code or Codex</text>
+  <text x="98" y="478" class="body">Harbor's built-in adapter</text>
+  <text x="98" y="509" class="body">MCP tools or installed px</text>
+  <text x="98" y="538" class="small">Task prompt + local shell</text>
 
-  <rect x="707" y="370" width="319" height="202" rx="12" fill="#fff1e8" stroke="#efc8b3"/>
-  <text x="729" y="400" class="label" style="fill:#ad4e24">INTERNAL TARGET NETWORK</text>
-  <text x="729" y="436" class="heading">Fresh Phoenix target</text>
-  <text x="729" y="468" class="mono">research-assistant</text>
-  <text x="729" y="506" class="body">TRAIL traces + annotations</text>
-  <text x="729" y="538" class="body">New writable database</text>
+  <path d="M 388 480 H 686" class="edge both"/>
+  <text x="450" y="462" class="mono">localhost:6006</text>
+  <text x="452" y="507" class="small">Separate filesystems</text>
 
-  <path d="M 525 400 V 345 H 1075 V 464 H 1096" class="edge both"/>
-  <text x="763" y="335" class="small">Model inference</text>
+  <rect x="694" y="385" width="316" height="171" rx="12" fill="#fff1e8" stroke="#efc8b3"/>
+  <text x="712" y="412" class="label" style="fill:#ad4e24">PHOENIX CONTAINER</text>
+  <text x="712" y="446" class="heading">Fresh Phoenix target</text>
+  <text x="712" y="478" class="mono">research-assistant</text>
+  <text x="712" y="509" class="body">TRAIL traces + annotations</text>
+  <text x="712" y="538" class="body">New writable database</text>
+
+  <path d="M 220 379 V 349 H 1075 V 464 H 1096" class="edge both"/>
+  <text x="789" y="338" class="small">Selected provider only</text>
   <rect x="1102" y="399" width="258" height="138" rx="12" fill="white" stroke="#ded9e4"/>
   <text x="1123" y="430" class="label">EXTERNAL SERVICE</text>
   <text x="1123" y="466" class="heading">Model provider</text>
   <text x="1123" y="503" class="body">OpenAI or Anthropic</text>
 
-  <text x="64" y="609" class="small">Agent has no access to public docs, host services, seed files, database files, or verifiers.</text>
-  <text x="64" y="635" class="small">The gateway blocks hosted browsing and remote file fetches.</text>
+  <text x="64" y="609" class="small">Only the selected provider host is allowed outside the trial. Agent web tools are disabled.</text>
+  <text x="64" y="635" class="small">Seed, database and verifier files stay outside the agent container.</text>
 
   <path d="M 525 660 V 690 H 300 V 784" fill="none" stroke="#8a7b9d" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#audit)"/>
   <text x="554" y="697" class="small">After the agent stops, Harbor collects artifacts.</text>

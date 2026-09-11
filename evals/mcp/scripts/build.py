@@ -70,7 +70,7 @@ def build_images(*, target_source: Path = ROOT, target_ref: str | None = None) -
     fingerprint = source_hash()
     build_id = hashlib.sha256((fingerprint + wheel_hash).encode()).hexdigest()[:20]
     images = {}
-    for name in ("agent-mcp", "agent-cli", "gateway", "target", "verifier"):
+    for name in ("agent-mcp", "agent-cli", "target", "verifier"):
         tag = f"phoenix-mcp-bench-{name}:{build_id}"
         subprocess.run(
             [

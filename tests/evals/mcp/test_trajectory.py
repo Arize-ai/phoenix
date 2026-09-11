@@ -39,15 +39,23 @@ def test_final_answer_and_call_count_exclude_intermediate_and_copied_context():
     )
 
 
-def test_target_http_without_a_px_command_does_not_prove_cli_use():
+def test_answer_text_does_not_count_as_a_submitted_px_command():
     trajectory = {
         "schema_version": "ATIF-v1.7",
         "steps": [{"source": "agent", "message": "I used px to get the answer."}],
     }
-    scores = interface_measurements("cli", trajectory, [], [{"kind": "target"}])
-    assert scores["interface_used"] is None
-    assert scores["interface_measurement_complete"] == 0
+    scores = interface_measurements("cli", trajectory, [])
+    assert scores["interface_used"] == 0
+    assert scores["interface_measurement_complete"] == 1
     assert scores["px_command_observed"] == 0
+
+
+def test_missing_cli_trajectory_leaves_command_use_unknown():
+    assert interface_measurements("cli", None, []) == {
+        "interface_used": None,
+        "interface_measurement_complete": 0,
+        "px_command_observed": None,
+    }
 
 
 @pytest.mark.parametrize(
@@ -75,3 +83,6 @@ def test_px_detection_recognizes_shell_invocations_without_counting_quoted_text(
         ],
     }
     assert px_command_observed(trajectory) is expected
+    scores = interface_measurements("cli", trajectory, [])
+    assert scores["interface_used"] == int(expected)
+    assert scores["px_command_observed"] == int(expected)

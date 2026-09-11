@@ -80,10 +80,7 @@ def verify_artifacts(root: Path, task: str, interface: str) -> dict[str, float]:
             answer = ""
     scores = grade_task_answer(task, answer, references[task])
     operations = read_events(root / "evidence/operations.jsonl")
-    gateway = read_events(root / "audit/gateway.jsonl")
-    measurements: dict[str, int | None] = interface_measurements(
-        interface, trajectory, operations, gateway
-    )
+    measurements: dict[str, int | None] = interface_measurements(interface, trajectory, operations)
     agent = trajectory.get("agent") if trajectory else None
     is_oracle = isinstance(agent, dict) and agent.get("name") == "phoenix-cli-oracle"
     if not is_oracle:

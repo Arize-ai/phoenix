@@ -15,10 +15,6 @@ FROM agent-mcp AS agent-cli
 ARG PX_VERSION
 RUN npm install -g @arizeai/phoenix-cli@${PX_VERSION}
 
-FROM base AS gateway
-COPY environment/gateway.py /opt/benchmark/gateway.py
-ENTRYPOINT ["python", "/opt/benchmark/gateway.py"]
-
 FROM base AS verifier
 COPY scoring/ /opt/benchmark/evals/mcp/scoring/
 COPY tasks/ /opt/benchmark/evals/mcp/tasks/

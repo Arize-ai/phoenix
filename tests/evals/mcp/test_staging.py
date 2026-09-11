@@ -7,7 +7,7 @@ from evals.mcp.scripts.stage import stage_tasks
 def images():
     return {
         name: {"id": "sha256:" + str(index) * 64, "tag": f"mcp-test:{name}"}
-        for index, name in enumerate(("agent-mcp", "agent-cli", "gateway", "target", "verifier"))
+        for index, name in enumerate(("agent-mcp", "agent-cli", "target", "verifier"))
     } | {
         "source": {
             "revision": "c" * 40,
@@ -41,16 +41,23 @@ def test_all_task_metadata_and_prompts_share_seed_identity(tmp_path):
         assert "task" not in config
         assert config["metadata"]["version"] == "0"
         assert config["verifier"]["environment_mode"] == "separate"
-        assert config["verifier"]["environment"]["network_mode"] == "public"
-        verifier_compose = yaml.safe_load((task / "tests/docker-compose.yaml").read_text())
-        assert verifier_compose["services"]["main"]["network_mode"] == "none"
+        assert config["environment"]["network_mode"] == "allowlist"
+        assert config["environment"]["allowed_hosts"] == ["api.openai.com"]
+        assert config["verifier"]["environment"]["network_mode"] == "no-network"
+        assert not (task / "tests/docker-compose.yaml").exists()
         artifacts = {entry["source"]: entry for entry in config["artifacts"]}
         assert artifacts["/evidence/reference.json"]["service"] == "phoenix"
-        assert artifacts["/audit/gateway.jsonl"]["service"] == "gateway"
         compose = yaml.safe_load((task / "environment/docker-compose.yaml").read_text())
-        assert compose["services"]["main"]["networks"] == ["agent"]
-        assert compose["networks"]["agent"]["internal"] is True
-        assert compose["services"]["phoenix"]["networks"] == ["target"]
+        assert set(compose["services"]) == {"main", "phoenix"}
+        # Explicit networking would bypass Harbor's native egress controller.
+        assert "networks" not in compose
+        for service in compose["services"].values():
+            assert "networks" not in service and "network_mode" not in service
+            assert "NET_ADMIN" in service["cap_drop"]
+        assert (
+            compose["services"]["main"]["environment"]["PHOENIX_COLLECTOR_ENDPOINT"]
+            == "http://127.0.0.1:6006"
+        )
         assert "volumes" not in compose["services"]["main"]
         assert not any("ports" in service for service in compose["services"].values())
         text = (task / "instruction.md").read_text()

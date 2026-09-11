@@ -60,13 +60,12 @@ def interface_measurements(
     interface: str,
     trajectory: dict[str, Any] | None,
     operations: list[dict[str, Any]] | None,
-    gateway: list[dict[str, Any]] | None,
 ) -> dict[str, int | None]:
     """Record interface use separately from reward.
 
-    Native dispatch proves MCP use. CLI use needs both a recorded px command
-    and a target request; direct HTTP alone leaves CLI use unknown. These
-    diagnostics do not establish that every request used the assigned tool.
+    MCP use comes from native dispatch logs. CLI interface_used reports whether
+    ATIF contains a submitted px command. It does not prove command execution
+    or that every Phoenix request used px. Missing evidence remains unknown.
     """
     if interface == "mcp":
         used = (
@@ -88,12 +87,10 @@ def interface_measurements(
         }
     if interface != "cli":
         raise ValueError("Unknown benchmark interface")
-    requested = None if gateway is None else sum(event.get("kind") == "target" for event in gateway)
     observed = px_command_observed(trajectory)
-    used = 0 if requested == 0 else 1 if requested and observed else None
+    used = None if observed is None else int(observed)
     return {
         "interface_used": used,
         "interface_measurement_complete": int(used is not None),
-        "px_command_observed": None if observed is None else int(observed),
-        "target_request_count": requested,
+        "px_command_observed": used,
     }

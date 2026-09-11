@@ -26,9 +26,14 @@ Harbor verifiers. Local tasks use directory names and metadata version `0`.
 
 ## Three commands
 
-Docker must be running. `make install-python` is the repository's existing Python
-setup command, needed for the FastMCP integration test. Harbor dependencies have a
-separate Python 3.13 environment managed by `uv`; each command ensures it is installed.
+Docker must use a Linux kernel with `CONFIG_NFT_FIB_INET` for Harbor's native
+network allowlist. Some Docker Desktop VMs lack this feature; use a compatible
+runtime such as OrbStack or a Linux Docker host. Harbor rejects unsupported
+runtimes. See its [Docker compatibility guide](https://www.harborframework.com/docs/tasks/network-policy#local-docker-runtime-compatibility).
+
+`make install-python` is the repository's existing Python setup command, needed
+for the FastMCP integration test. Harbor uses a separate Python 3.13 environment
+managed by `uv`; each command ensures it is installed.
 
 ```sh
 make mcp-prepare
@@ -82,24 +87,27 @@ Inspect experiments, scores, and linked ATIF traces in Phoenix.
 
 ## Inside each attempt
 
-[![Harbor runs a coding agent against a fresh Phoenix target through a gateway, then collects artifacts for offline verification and records results in a separate Phoenix service.](assets/architecture.png)](assets/architecture.svg)
+[![Harbor runs a coding agent and fresh Phoenix target in separate containers with native network controls, then verifies collected artifacts and records results in Phoenix.](assets/architecture.png)](assets/architecture.svg)
 
-[Compose](environment/docker-compose.yaml) defines the services and networks.
+[Compose](environment/docker-compose.yaml) defines the agent and Phoenix services.
 Every attempt gets a new writable Phoenix database, seeded and checked before the
-agent starts. The agent cannot read its database, seed files, or reference answers.
+agent starts. The containers have separate filesystems, so the agent cannot read
+the target's database, seed files, or reference answers.
 
-The gateway exposes MCP or the APIs used by `px`, plus model inference. It holds
-the provider key and blocks hosted browsing and remote file fetches. Startup
-checks verify that the agent cannot reach public docs, repositories, host services,
-or verifier files. The CLI image contains the real `px` binary. Direct HTTP is
-possible through the same API, so CLI use is measured rather than enforced.
+Harbor's native egress sidecar gives these containers a shared localhost network.
+The agent reaches MCP or the installed `px` CLI's target at `http://127.0.0.1:6006`.
+Only the selected provider host is on the external network allowlist. Claude
+Code's `WebSearch` and `WebFetch` tools and Codex web search are disabled.
+
+Harbor's built-in agent receives the selected provider key. Results credentials
+stay on the host. The CLI image contains the real `px` binary; direct Phoenix
+HTTP calls are also possible, so recorded `px` commands are a usage diagnostic.
 
 Harbor stops the agent, collects artifacts, and runs the verifier in a separate
-container. This follows its [Compose artifact pattern](https://harborframework.com/docs/tasks).
-Compose owns networking; the verifier uses `network_mode: none`. Harbor removes
+container with no network. This follows its
+[Compose artifact pattern](https://harborframework.com/docs/tasks). Harbor removes
 trial containers and networks after collection. Each trial's Phoenix database
-remains in its private `target-data` directory alongside the saved logs and
-artifacts. The agent cannot access that directory.
+remains in its private `target-data` directory alongside logs and artifacts.
 
 ## Test an unreleased MCP
 
@@ -138,9 +146,9 @@ The shared ATIF helper extracts the final answer and counts tool calls and turns
 excluding copied context and historical TRAIL activity.
 
 Measurements describe how the agent worked and do not change correctness.
-Native logs record MCP, code-mode and SQL use. CLI use requires a recorded `px`
-command and a target request. Missing evidence produces an unknown measurement.
-Harbor and Phoenix retain timing, tokens, cost, infrastructure errors and linked
+Native logs record MCP, code-mode and SQL use. The ATIF helper identifies
+recorded `px` commands for CLI trials. Missing evidence produces an unknown
+measurement. Harbor and Phoenix retain timing, tokens, cost, infrastructure errors and linked
 ATIF traces. Inspect results in Phoenix; there is no separate report pipeline.
 
 [environment/pricing.json](environment/pricing.json) pins per-token rates for

@@ -16,6 +16,9 @@ def test_four_conditions_use_paired_models_and_native_harbor_adapters(tmp_path):
         jobs.append(job)
         agent = job.agents[0]
         assert bool(agent.mcp_servers) == condition.endswith("mcp")
+        assert not agent.env  # Native adapter supplies only its provider credentials.
+        if agent.mcp_servers:
+            assert agent.mcp_servers[0].url == "http://127.0.0.1:6006/mcp"
         assert job.n_concurrent_trials == 1
         assert job.retry.max_retries == 0
         implementation = ClaudeCode if agent.name == "claude-code" else Codex
@@ -28,7 +31,9 @@ def test_four_conditions_use_paired_models_and_native_harbor_adapters(tmp_path):
     assert all(job.datasets == jobs[0].datasets for job in jobs)
     assert jobs[0].agents[0].model_name == jobs[1].agents[0].model_name
     assert jobs[2].agents[0].model_name == jobs[3].agents[0].model_name
+    assert jobs[0].agents[0].kwargs["disallowed_tools"] == "WebSearch,WebFetch"
     assert jobs[2].agents[0].kwargs["web_search"] == "disabled"
+    assert "model_providers" not in jobs[2].agents[0].kwargs["config"]
 
 
 def test_runner_keeps_selected_provider_and_results_credentials_only():

@@ -28,11 +28,8 @@ def stage_tasks(
     substitutions = {
         "AGENT_IMAGE": images["agent-" + interface]["id"],
         "TARGET_IMAGE": images["target"]["id"],
-        "GATEWAY_IMAGE": images["gateway"]["id"],
         "SEED_DIR": json.dumps(str(seed.resolve())),
         "INTERFACE": interface,
-        "PROVIDER": provider,
-        "PROVIDER_KEY": "OPENAI_API_KEY" if provider == "openai" else "ANTHROPIC_API_KEY",
     }
     for key, value in substitutions.items():
         template = template.replace("__" + key + "__", value)
@@ -46,11 +43,12 @@ def stage_tasks(
         config.update(
             {
                 "schema_version": "1.3",
-                # Compose explicitly defines isolated networks. Harbor must not attach
-                # its own provider allowlist or a second network to the agent.
                 "environment": {
                     "docker_image": images["agent-" + interface]["id"],
-                    "network_mode": "public",
+                    "network_mode": "allowlist",
+                    "allowed_hosts": [
+                        "api.openai.com" if provider == "openai" else "api.anthropic.com"
+                    ],
                     "cpus": 2,
                     "memory_mb": 4096,
                 },
@@ -61,7 +59,7 @@ def stage_tasks(
                     "env": {"BENCHMARK_INTERFACE": interface, "BENCHMARK_TASK": name},
                     "environment": {
                         "docker_image": images["verifier"]["id"],
-                        "network_mode": "public",
+                        "network_mode": "no-network",
                     },
                 },
                 "artifacts": [
@@ -71,11 +69,6 @@ def stage_tasks(
                         {"source": "/evidence/" + f, "destination": f, "service": "phoenix"}
                         for f in ("reference.json", "ready.json", "operations.jsonl")
                     ],
-                    {
-                        "source": "/audit/gateway.jsonl",
-                        "destination": "gateway.jsonl",
-                        "service": "gateway",
-                    },
                 ],
             }
         )
@@ -88,9 +81,6 @@ def stage_tasks(
             + " --interface "
             + interface
             + "\n"
-        )
-        (task / "tests/docker-compose.yaml").write_text(
-            "services:\n  main:\n    network_mode: none\n"
         )
         (task / "solution").mkdir()
         shutil.copy(HERE / "scripts/oracle.py", task / "solution/oracle.py")
@@ -123,37 +113,23 @@ def job_config(
         "benchmark_target_image": images["target"]["id"],
         "benchmark_interface": interface,
     }
-    env = {"OPENAI_API_KEY": "gateway-placeholder", "ANTHROPIC_API_KEY": "gateway-placeholder"}
     if agent == "claude-code":
         kwargs |= {"disallowed_tools": "WebSearch,WebFetch", "append_system_prompt": instructions}
-        env["ANTHROPIC_BASE_URL"] = "http://gateway:8080/provider"
     else:
-        env["OPENAI_BASE_URL"] = "http://gateway:8080/provider/v1"
         kwargs |= {
             "web_search": "disabled",
             "config": {
                 "forced_login_method": "api",
                 "developer_instructions": instructions,
                 "web_search": "disabled",
-                "model_provider": "benchmark",
-                "model_providers": {
-                    "benchmark": {
-                        "name": "Benchmark inference gateway",
-                        "base_url": "http://gateway:8080/provider/v1",
-                        "wire_api": "responses",
-                        "env_key": "OPENAI_API_KEY",
-                        "supports_websockets": False,
-                    }
-                },
             },
         }
     config = AgentConfig(
         name=agent,
         model_name=settings["model"],
         kwargs=kwargs,
-        env=env,
         mcp_servers=[
-            {"name": "phoenix", "transport": "streamable-http", "url": "http://gateway:8080/mcp"}
+            {"name": "phoenix", "transport": "streamable-http", "url": "http://127.0.0.1:6006/mcp"}
         ]
         if interface == "mcp"
         else [],
