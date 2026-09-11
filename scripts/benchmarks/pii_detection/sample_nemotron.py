@@ -1,7 +1,7 @@
 """Regenerate the checked-in Nemotron-PII JSONL fixture.
 
 This is not a run-time dependency of the benchmark. `pii_detection.eval.ts`
-reads `js/benchmarks/evals-benchmarks/src/fixtures/pii_detection.nemotron.jsonl`.
+reads `scripts/benchmarks/evals-benchmarks/src/fixtures/pii_detection.nemotron.jsonl`.
 Re-run this script only to resample or resize that file.
 
 It draws a deterministic, stratified sample from the public Nemotron-PII
@@ -19,7 +19,7 @@ the evaluator score `pii_detected`? Fine-grained category scoring and negative
 Usage:
     python scripts/benchmarks/pii_detection/sample_nemotron.py \
         --n 150 --seed 20250824 \
-        --out js/benchmarks/evals-benchmarks/src/fixtures/pii_detection.nemotron.jsonl
+        --out scripts/benchmarks/evals-benchmarks/src/fixtures/pii_detection.nemotron.jsonl
 """
 
 from __future__ import annotations

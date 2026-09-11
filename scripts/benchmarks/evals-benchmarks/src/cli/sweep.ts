@@ -38,7 +38,7 @@ function runVitest({
           ...env,
           PATH: [
             join(packageRoot, "node_modules", ".bin"),
-            join(packageRoot, "..", "..", "node_modules", ".bin"),
+            join(packageRoot, "..", "..", "js", "node_modules", ".bin"),
             env.PATH ?? process.env.PATH ?? "",
           ].join(delimiter),
         },

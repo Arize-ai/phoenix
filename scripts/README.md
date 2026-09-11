@@ -20,6 +20,7 @@ GitHub + PyPI usage analytics. See `analytics/README.md`. Requires `GITHUB_TOKEN
 
 ### `benchmarks/`
 - `hallucination_eval_benchmark.ipynb` — notebook benchmarking the hallucination evaluator.
+- `evals-benchmarks/` — TypeScript eval-library benchmark harness (Vitest + Phoenix experiments) and sweep CLI. Run from `js/` with `pnpm --filter evals-benchmarks`.
 
 ### `ci/`
 Scripts run from CI workflows.

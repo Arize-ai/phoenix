@@ -92,7 +92,7 @@ Fix any TypeScript errors before proceeding.
 
 ## Step 6: Write the Benchmark
 
-Create `js/benchmarks/evals-benchmarks/src/{name}.eval.ts`.
+Create `scripts/benchmarks/evals-benchmarks/src/{name}.eval.ts`.
 
 Read existing benchmarks in that directory to match the current patterns:
 
