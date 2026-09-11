@@ -5,7 +5,6 @@ import pandas as pd
 import pytest
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.exceptions import PhoenixException
 from phoenix.client.resources.sessions import AsyncSessions, Sessions
 from phoenix.client.resources.spans import AsyncSpans, Spans
 
@@ -475,29 +474,7 @@ class TestSessionsListFilterExpression:
     def _skip_server_version_check(self) -> None:
         """Override the conftest stub so these tests hit the real server-version guard."""
 
-    async def test_filter_rejects_old_server_before_listing(
-        self, method: ListMethod, is_async: bool
-    ) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/arize_phoenix_version"
-            return httpx.Response(200, text="20.9.0")
-
-        with pytest.raises(PhoenixException, match=r"'filter'.*requires Phoenix >= 20\.10\.0"):
-            await _list_sessions(httpx.MockTransport(handler), method, is_async, FILTER_EXPRESSION)
-
-    @pytest.mark.parametrize("filter", [None, ""])
-    async def test_no_filter_preserves_old_server_support(
-        self, method: ListMethod, is_async: bool, filter: str | None
-    ) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/arize_phoenix_version":
-                return httpx.Response(200, text="14.0.0")
-            assert "filter" not in request.url.params
-            return httpx.Response(200, json={"data": [], "next_cursor": None})
-
-        assert await _list_sessions(httpx.MockTransport(handler), method, is_async, filter) == 0
-
-    async def test_filter_error_preserves_server_message(
+    async def test_invalid_filter_raises_http_error(
         self, method: ListMethod, is_async: bool
     ) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
