@@ -2,6 +2,8 @@
  *
  * Copyright (C) 2004-2010 Gerhard Häring <gh@ghaering.de>
  *
+ * Modified by the Arize Phoenix team, 2026.
+ *
  * This file is part of pysqlite.
  *
  * This software is provided 'as-is', without any express or implied
@@ -322,6 +324,12 @@ _pysqlite_fetch_one_row(pysqlite_Cursor* self)
                     converted = PyBytes_FromStringAndSize(val_str, nbytes);
                 } else if (self->connection->text_factory == (PyObject*)&PyByteArray_Type) {
                     converted = PyByteArray_FromStringAndSize(val_str, nbytes);
+                } else if (self->connection->text_factory == NULL) {
+                    /* text_factory is a plain T_OBJECT member and can be
+                       deleted with `del con.text_factory` */
+                    PyErr_SetString(pysqlite_ProgrammingError,
+                                    "text_factory attribute is not set");
+                    converted = NULL;
                 } else {
                     converted = PyObject_CallFunction(self->connection->text_factory, "y#", val_str, nbytes);
                 }
@@ -751,7 +759,9 @@ PyObject* pysqlite_cursor_iternext(pysqlite_Cursor *self)
     assert(next_row_tuple != NULL);
     self->next_row = NULL;
 
-    if (self->row_factory != Py_None) {
+    /* self->row_factory can be NULL after `del cur.row_factory` (it is a
+       plain T_OBJECT member). */
+    if (self->row_factory != NULL && self->row_factory != Py_None) {
         next_row = PyObject_CallFunction(self->row_factory, "OO", self, next_row_tuple);
         if (next_row == NULL) {
             self->next_row = next_row_tuple;

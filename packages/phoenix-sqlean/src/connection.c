@@ -379,7 +379,9 @@ PyObject* pysqlite_connection_cursor(pysqlite_Connection* self, PyObject* args, 
 
     _pysqlite_drop_unused_cursor_references(self);
 
-    if (cursor && self->row_factory != Py_None) {
+    /* self->row_factory can be NULL after `del con.row_factory` (it is a
+       plain T_OBJECT member). */
+    if (cursor && self->row_factory != NULL && self->row_factory != Py_None) {
         Py_INCREF(self->row_factory);
         Py_XSETREF(((pysqlite_Cursor *)cursor)->row_factory, self->row_factory);
     }

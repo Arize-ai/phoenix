@@ -121,6 +121,35 @@ class BlobRegressionTests(unittest.TestCase):
         self.assertIsNone(ref())
 
 
+class FactoryMemberRegressionTests(unittest.TestCase):
+    def setUp(self):
+        self.cx = sqlite.connect(":memory:")
+        self.cx.execute("create table test(t text)")
+        self.cx.execute("insert into test(t) values ('hello')")
+
+    def tearDown(self):
+        self.cx.close()
+
+    def test_del_connection_row_factory(self):
+        # row_factory is a plain member; deleting it stored NULL, and
+        # the next cursor() call crashed in Py_INCREF(NULL).
+        del self.cx.row_factory
+        cur = self.cx.cursor()
+        self.assertEqual(cur.execute("select t from test").fetchone(), ("hello",))
+
+    def test_del_cursor_row_factory(self):
+        cur = self.cx.cursor()
+        cur.execute("select t from test")
+        del cur.row_factory
+        self.assertEqual(cur.fetchone(), ("hello",))
+
+    def test_del_text_factory(self):
+        del self.cx.text_factory
+        cur = self.cx.cursor()
+        with self.assertRaises(sqlite.ProgrammingError):
+            cur.execute("select t from test").fetchone()
+
+
 class ConnectionLifecycleRegressionTests(unittest.TestCase):
     def test_uninitialized_connection_close(self):
         # Connection.__new__ without __init__ used to crash close() on
@@ -210,6 +239,7 @@ def suite():
     return unittest.TestSuite(
         (
             loader.loadTestsFromTestCase(BlobRegressionTests),
+            loader.loadTestsFromTestCase(FactoryMemberRegressionTests),
             loader.loadTestsFromTestCase(ConnectionLifecycleRegressionTests),
         )
     )
