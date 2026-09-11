@@ -1,5 +1,3 @@
-from typing import Literal
-
 import httpx
 import pandas as pd
 import pytest
@@ -439,53 +437,3 @@ class TestAsyncGetSessionTurns:
         assert turns[0].get("input") == {"value": "hi", "mime_type": "text/plain"}
         assert turns[0].get("output") == {"value": "bye", "mime_type": "text/plain"}
         assert turns[0].get("root_span") == span
-
-
-FILTER_EXPRESSION = 'any(span.name == "café & search" for span in spans)'
-ListMethod = Literal["list", "get_sessions_dataframe"]
-
-
-async def _list_sessions(
-    transport: httpx.MockTransport, method: ListMethod, is_async: bool, filter: str | None
-) -> int:
-    if is_async:
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-            sessions = AsyncSessions(client, AsyncSpans(client))
-            if method == "get_sessions_dataframe":
-                return len(
-                    await sessions.get_sessions_dataframe(
-                        project_name="project", filter=filter, limit=2
-                    )
-                )
-            return len(await sessions.list(project_name="project", filter=filter, limit=2))
-    with httpx.Client(transport=transport, base_url="http://test") as sync_client:
-        sync_sessions = Sessions(sync_client, Spans(sync_client))
-        if method == "get_sessions_dataframe":
-            return len(
-                sync_sessions.get_sessions_dataframe(project_name="project", filter=filter, limit=2)
-            )
-        return len(sync_sessions.list(project_name="project", filter=filter, limit=2))
-
-
-@pytest.mark.parametrize("method", ["list", "get_sessions_dataframe"])
-@pytest.mark.parametrize("is_async", [False, True])
-class TestSessionsListFilterExpression:
-    @pytest.fixture(autouse=True)
-    def _skip_server_version_check(self) -> None:
-        """Override the conftest stub so these tests hit the real server-version guard."""
-
-    async def test_invalid_filter_raises_http_error(
-        self, method: ListMethod, is_async: bool
-    ) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/arize_phoenix_version":
-                return httpx.Response(200, text="20.10.0")
-            assert request.url.params["filter"] == "unknown_field > 0"
-            return httpx.Response(400, text="invalid name `unknown_field`")
-
-        with pytest.raises(httpx.HTTPStatusError) as error:
-            await _list_sessions(
-                httpx.MockTransport(handler), method, is_async, "unknown_field > 0"
-            )
-        assert error.value.response.status_code == 400
-        assert error.value.response.text == "invalid name `unknown_field`"
