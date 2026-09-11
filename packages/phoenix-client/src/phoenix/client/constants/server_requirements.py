@@ -34,7 +34,7 @@ LIST_SESSIONS_FILTER_EXPRESSION = ParameterRequirement(
     parameter_name="filter",
     parameter_location="query",
     route="GET /v1/projects/{id}/sessions",
-    min_server_version=Version(20, 10, 0),
+    min_server_version=Version(20, 11, 0),
 )
 
 ANNOTATE_SESSIONS = RouteRequirement(
@@ -92,7 +92,7 @@ GET_TRACES_FILTER_EXPRESSION = ParameterRequirement(
     parameter_name="filter",
     parameter_location="query",
     route="GET /v1/projects/{id}/traces",
-    min_server_version=Version(20, 10, 0),
+    min_server_version=Version(20, 11, 0),
 )
 
 DATASET_UPLOAD_EXAMPLE_IDS = ParameterRequirement(

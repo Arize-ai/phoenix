@@ -153,7 +153,7 @@ class Sessions:
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
             filter: Session DSL expression. Empty strings do not filter.
-                Requires Phoenix server >= 20.10.0.
+                Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
@@ -258,7 +258,7 @@ class Sessions:
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
             filter: Session DSL expression. Empty strings do not filter.
-                Requires Phoenix server >= 20.10.0.
+                Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
@@ -736,7 +736,7 @@ class AsyncSessions:
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
             filter: Session DSL expression. Empty strings do not filter.
-                Requires Phoenix server >= 20.10.0.
+                Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
@@ -841,7 +841,7 @@ class AsyncSessions:
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
             filter: Session DSL expression. Empty strings do not filter.
-                Requires Phoenix server >= 20.10.0.
+                Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:

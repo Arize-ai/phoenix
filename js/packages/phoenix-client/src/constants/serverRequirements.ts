@@ -113,7 +113,7 @@ export const GET_TRACES_FILTER_EXPRESSION: ParameterRequirement = {
   parameterName: "filter",
   parameterLocation: "query",
   route: "GET /v1/projects/{id}/traces",
-  minServerVersion: [20, 10, 0],
+  minServerVersion: [20, 11, 0],
 };
 
 export const LIST_SESSIONS_FILTER_EXPRESSION: ParameterRequirement = {
@@ -121,7 +121,7 @@ export const LIST_SESSIONS_FILTER_EXPRESSION: ParameterRequirement = {
   parameterName: "filter",
   parameterLocation: "query",
   route: "GET /v1/projects/{id}/sessions",
-  minServerVersion: [20, 10, 0],
+  minServerVersion: [20, 11, 0],
 };
 
 export const TRANSFER_TRACES: RouteRequirement = {

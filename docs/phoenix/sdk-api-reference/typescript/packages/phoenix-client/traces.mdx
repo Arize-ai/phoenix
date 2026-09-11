@@ -79,7 +79,7 @@ const slowFailures = await getTraces({
 - Use the returned `nextCursor` to continue pagination
 - Set `includeSpans` when you need a trace-centric fetch that also contains span details
 - `project` accepts `{ project }`, `{ projectId }`, or `{ projectName }`
-- `filter` requires Phoenix server >= 20.10.0. Reuse the same expression on every page. Empty strings do not filter; invalid expressions return HTTP 400.
+- `filter` requires Phoenix server >= 20.11.0. Reuse the same expression on every page. Empty strings do not filter; invalid expressions return HTTP 400.
 - `error`, `minLatencyMs`, and `maxLatencyMs` remain supported on Phoenix server >= 20.8.0. Replace them with `error_count > 0` / `error_count == 0`, `latency_ms >= N`, and `latency_ms <= N` respectively. Latency bounds are inclusive and errors include child spans.
 
 ## Move Traces To Another Project
