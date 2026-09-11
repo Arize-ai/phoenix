@@ -135,9 +135,6 @@ exclude = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-markers = [
-  "real_server_version_check: exercise the real server-version guard instead of the unit-test stub",
-]
 testpaths = [
   "tests",
 ]

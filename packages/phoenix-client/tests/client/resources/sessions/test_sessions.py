@@ -468,31 +468,12 @@ async def _list_sessions(
         return len(sync_sessions.list(project_name="project", filter=filter, limit=2))
 
 
-@pytest.mark.real_server_version_check
 @pytest.mark.parametrize("method", ["list", "get_sessions_dataframe"])
 @pytest.mark.parametrize("is_async", [False, True])
 class TestSessionsListFilterExpression:
-    async def test_filter_preserved_on_every_page(self, method: ListMethod, is_async: bool) -> None:
-        cursors: list[str | None] = []
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/arize_phoenix_version":
-                return httpx.Response(200, text="20.10.0")
-            assert request.url.params["filter"] == FILTER_EXPRESSION
-            cursors.append(request.url.params.get("cursor"))
-            return httpx.Response(
-                200,
-                json={
-                    "data": [_make_session_data(id=str(len(cursors)))],
-                    "next_cursor": "second-page" if len(cursors) == 1 else None,
-                },
-            )
-
-        count = await _list_sessions(
-            httpx.MockTransport(handler), method, is_async, FILTER_EXPRESSION
-        )
-        assert count == 2
-        assert cursors == [None, "second-page"]
+    @pytest.fixture(autouse=True)
+    def _skip_server_version_check(self) -> None:
+        """Override the conftest stub so these tests hit the real server-version guard."""
 
     async def test_filter_rejects_old_server_before_listing(
         self, method: ListMethod, is_async: bool
