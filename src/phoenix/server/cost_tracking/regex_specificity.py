@@ -121,7 +121,7 @@ def score(regex: Union[str, re.Pattern[str]]) -> int:
 
     # Score anchors - most significant factor
     has_start_anchor = _has_start_anchor(pattern)
-    has_end_anchor = pattern.endswith("$")
+    has_end_anchor = _has_end_anchor(pattern)
 
     if has_start_anchor and has_end_anchor:
         score_value += FULL_ANCHOR
@@ -138,6 +138,22 @@ def score(regex: Union[str, re.Pattern[str]]) -> int:
     return max(score_value, 1)
 
 
+def _is_inline_flag(s: str) -> bool:
+    return bool(s) and all(c in "aiLmsux" for c in s)
+
+
+def _get_inline_flag_end(pattern: str, start: int) -> int:
+    if not pattern.startswith("(?", start):
+        return -1
+    close = pattern.find(")", start)
+    if close == -1:
+        return -1
+    inner = pattern[start + 2 : close]
+    if _is_inline_flag(inner):
+        return close + 1
+    return -1
+
+
 def _has_start_anchor(pattern: str) -> bool:
     """
     Check if pattern has a start anchor (after all leading inline flags).
@@ -145,13 +161,28 @@ def _has_start_anchor(pattern: str) -> bool:
     """
     i = 0
     # Skip all leading inline flags
-    while pattern.startswith("(?", i):
-        close = pattern.find(")", i)
-        if close == -1:
+    while True:
+        end = _get_inline_flag_end(pattern, i)
+        if end == -1:
             break
-        i = close + 1
+        i = end
     # After all flags, check for ^
     return i < len(pattern) and pattern[i] == "^"
+
+
+def _has_end_anchor(pattern: str) -> bool:
+    """
+    Check if pattern ends with an unescaped end anchor ($).
+    """
+    if not pattern.endswith("$"):
+        return False
+    # Count preceding backslashes
+    backslashes = 0
+    j = len(pattern) - 2
+    while j >= 0 and pattern[j] == "\\":
+        backslashes += 1
+        j -= 1
+    return backslashes % 2 == 0
 
 
 def _strip_anchors(pattern: str) -> str:
@@ -161,17 +192,17 @@ def _strip_anchors(pattern: str) -> str:
     """
     i = 0
     # Remove all leading inline flags
-    while pattern.startswith("(?", i):
-        close = pattern.find(")", i)
-        if close == -1:
+    while True:
+        end = _get_inline_flag_end(pattern, i)
+        if end == -1:
             break
-        i = close + 1
+        i = end
     # Remove start anchor
     if i < len(pattern) and pattern[i] == "^":
         i += 1
     content = pattern[i:]
     # Remove end anchor
-    if content.endswith("$"):
+    if _has_end_anchor(content):
         content = content[:-1]
     return content
 
@@ -213,6 +244,16 @@ def _score_content(content: str) -> int:
             quantifier_score, new_pos = _score_quantifier(content, i)
             score_value += quantifier_score
             i = new_pos
+        elif content.startswith("(?<=", i) or content.startswith("(?<!", i):
+            # Lookbehind assertions: metacharacters, score 0
+            i += 4
+        elif (
+            content.startswith("(?:", i)
+            or content.startswith("(?=", i)
+            or content.startswith("(?!", i)
+        ):
+            # Non-capturing groups and lookahead assertions: metacharacters, score 0
+            i += 3
         else:
             # Handle single characters
             score_value += _score_char(char)
