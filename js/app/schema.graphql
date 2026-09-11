@@ -63,6 +63,13 @@ type AddAnnotationConfigToProjectPayload {
   project: Project!
 }
 
+"""
+Adds an example with the given value. Added examples are not linked to a span; use `addExamplesToDataset` for span-sourced examples.
+"""
+input AddDatasetExampleOperation {
+  value: DatasetExampleValueInput!
+}
+
 input AddExamplesToDatasetInput {
   datasetId: ID!
   examples: [DatasetExampleInput!]!
@@ -1226,6 +1233,7 @@ type DatasetExample implements Node {
   id: ID!
   externalId: String
   createdAt: DateTime!
+  dataset: Dataset!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
   experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
@@ -1251,6 +1259,13 @@ type DatasetExampleEdge {
   node: DatasetExample!
 }
 
+"""A field of a dataset example that a `replace` operation can target."""
+enum DatasetExampleField {
+  INPUT
+  OUTPUT
+  METADATA
+}
+
 input DatasetExampleInput {
   input: JSON!
   output: JSON!
@@ -1259,11 +1274,13 @@ input DatasetExampleInput {
   externalId: String
 }
 
-input DatasetExamplePatch {
-  exampleId: ID!
-  input: JSON
-  output: JSON
-  metadata: JSON
+"""
+One change to a dataset's examples, after JSON Patch (RFC 6902). Exactly one of `add`, `replace`, or `remove` is set.
+"""
+input DatasetExampleOperation @oneOf {
+  add: AddDatasetExampleOperation
+  replace: ReplaceDatasetExampleFieldOperation
+  remove: RemoveDatasetExampleOperation
 }
 
 type DatasetExampleRevision implements ExampleRevision {
@@ -1272,6 +1289,16 @@ type DatasetExampleRevision implements ExampleRevision {
   metadata: JSON!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+}
+
+"""
+The full value of a dataset example. `input`, `output`, and `metadata` must be JSON objects. `externalId` is an optional custom ID; leave it out to have one generated.
+"""
+input DatasetExampleValueInput {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  externalId: String
 }
 
 type DatasetExperimentAnnotationSummary {
@@ -2856,15 +2883,14 @@ input PatchCodeEvaluatorInput {
   outputConfigs: [AnnotationConfigInput!]
 }
 
+"""
+Input to the `patchDatasetExamples` mutation. The operations are applied in order and committed together as one new dataset version, or not at all. Later operations see the effect of earlier ones: replacing a field twice keeps the last value, removing an example discards its replacements, and targeting an example after it was removed is an error.
+"""
 input PatchDatasetExamplesInput {
-  patches: [DatasetExamplePatch!]!
+  datasetId: ID!
+  operations: [DatasetExampleOperation!]!
   versionDescription: String
   versionMetadata: JSON
-
-  """
-  When provided, every patched example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
-  """
-  datasetId: ID
 }
 
 input PatchDatasetInput {
@@ -3932,6 +3958,20 @@ input RemoveAnnotationConfigFromProjectInput {
 type RemoveAnnotationConfigFromProjectPayload {
   query: Query!
   project: Project!
+}
+
+"""Removes an existing example from the dataset."""
+input RemoveDatasetExampleOperation {
+  exampleId: ID!
+}
+
+"""
+Replaces one field of an existing example with `value`, a JSON object. Fields the operation list never names carry over from the example's latest revision.
+"""
+input ReplaceDatasetExampleFieldOperation {
+  exampleId: ID!
+  field: DatasetExampleField!
+  value: JSON!
 }
 
 union ResolvedSecret = DecryptedSecret | UnparsableSecret
