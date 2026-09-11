@@ -34,7 +34,7 @@ Per-entity field references and examples are split into reference files. Load **
 - `references/datasets.md` — Dataset and DatasetExample: examples, versions, splits, labels.
 - `references/experiments.md` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
 - `references/prompts.md` — Prompt and PromptVersion: versions, templates, tags.
-- `references/annotations.md` — Span/Trace/ExperimentRun annotation fields and how to read them.
+- `references/annotations.md` — Span/Trace/Session/ExperimentRun annotation fields, how to read them, and the mutations that write notes, labels, and annotation configs.
 
 ### Conventions
 
