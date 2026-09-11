@@ -58,6 +58,7 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
 
     self->st = NULL;
     self->in_use = 0;
+    self->connection = connection;
 
     assert(PyUnicode_Check(sql));
 
@@ -75,6 +76,7 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
     Py_INCREF(sql);
     self->sql = sql;
 
+    pysqlite_enter_sqlite(connection);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_prepare_v2(connection->db,
                             sql_cstr,
@@ -83,6 +85,7 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
                             &tail);
     self->is_dml = !sqlite3_stmt_readonly(self->st);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_sqlite(connection);
 
     /* To retain backward-compatibility, we need to treat DDL and certain types
      * of transactions as being "not-dml".
@@ -343,9 +346,15 @@ int pysqlite_statement_finalize(pysqlite_Statement* self)
     self->st = NULL;
     self->in_use = 0;
     if (st) {
+        if (self->connection) {
+            pysqlite_enter_sqlite(self->connection);
+        }
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_finalize(st);
         Py_END_ALLOW_THREADS
+        if (self->connection) {
+            pysqlite_leave_sqlite(self->connection);
+        }
     }
 
     return rc;
@@ -358,9 +367,15 @@ int pysqlite_statement_reset(pysqlite_Statement* self)
     rc = SQLITE_OK;
 
     if (self->in_use && self->st) {
+        if (self->connection) {
+            pysqlite_enter_sqlite(self->connection);
+        }
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_reset(self->st);
         Py_END_ALLOW_THREADS
+        if (self->connection) {
+            pysqlite_leave_sqlite(self->connection);
+        }
 
         if (rc == SQLITE_OK) {
             self->in_use = 0;

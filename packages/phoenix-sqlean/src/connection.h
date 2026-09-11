@@ -97,6 +97,15 @@ typedef struct
     /* a dictionary of registered collation name => collation callable mappings */
     PyObject* collations;
 
+    /* Non-zero while a sqlite3_* call that may invoke a Python
+       callback is on the C stack. close(), rollback(), re-init, and
+       cursor close or re-init refuse to tear down handles in that
+       window: re-entering finalize/reset/close crashes when the native
+       call resumes. Registering functions or collations is left to
+       SQLite, which refuses to replace one while a statement is active
+       and can safely add a new one. */
+    int in_sqlite;
+
     /* Exception objects */
     PyObject* Warning;
     PyObject* Error;
@@ -126,6 +135,18 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
 int pysqlite_connection_register_cursor(pysqlite_Connection* connection, PyObject* cursor);
 int pysqlite_check_thread(pysqlite_Connection* self);
 int pysqlite_check_connection(pysqlite_Connection* con);
+
+static inline void
+pysqlite_enter_sqlite(pysqlite_Connection *self)
+{
+    self->in_sqlite++;
+}
+
+static inline void
+pysqlite_leave_sqlite(pysqlite_Connection *self)
+{
+    self->in_sqlite--;
+}
 
 int pysqlite_connection_setup_types(void);
 

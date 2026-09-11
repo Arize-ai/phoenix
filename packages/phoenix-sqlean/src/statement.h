@@ -37,6 +37,10 @@ typedef struct
     PyObject_HEAD
     sqlite3* db;
     sqlite3_stmt* st;
+    /* Borrowed. Statements die with the cursor/cache before the connection
+       object is freed, except the close_v2 zombie path where db is already
+       NULL and close() is a no-op. */
+    pysqlite_Connection* connection;
     PyObject* sql;
     int in_use;
     int is_dml;

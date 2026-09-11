@@ -84,9 +84,15 @@ static void _close_blob_inner(pysqlite_Blob* self)
     blob = self->blob;
     self->blob = NULL;
     if (blob) {
+        if (self->connection) {
+            pysqlite_enter_sqlite(self->connection);
+        }
         Py_BEGIN_ALLOW_THREADS
         sqlite3_blob_close(blob);
         Py_END_ALLOW_THREADS
+        if (self->connection) {
+            pysqlite_leave_sqlite(self->connection);
+        }
     }
 
     /* remove from connection weaklist */
@@ -135,6 +141,12 @@ PyObject* pysqlite_blob_close(pysqlite_Blob *self)
         return NULL;
     }
 
+    if (self->connection->in_sqlite > 0) {
+        PyErr_SetString(pysqlite_ProgrammingError,
+                        "Cannot close a blob from within a callback function.");
+        return NULL;
+    }
+
     _close_blob_inner(self);
     Py_RETURN_NONE;
 };
@@ -161,9 +173,11 @@ static PyObject* inner_read(pysqlite_Blob *self, int read_length, int offset)
     }
     raw_buffer = PyBytes_AS_STRING(buffer);
 
+    pysqlite_enter_sqlite(self->connection);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_blob_read(self->blob, raw_buffer, read_length, offset);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_sqlite(self->connection);
 
     if (rc != SQLITE_OK){
         Py_DECREF(buffer);
@@ -218,9 +232,11 @@ static int write_inner(pysqlite_Blob *self, const void *buf, Py_ssize_t len, int
 {
     int rc;
 
+    pysqlite_enter_sqlite(self->connection);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_blob_write(self->blob, buf, len, offset);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_sqlite(self->connection);
     if (rc != SQLITE_OK) {
         /* For some reason after modifying blob the
         error is not set on the connection db. */
@@ -483,9 +499,11 @@ static PyObject * pysqlite_blob_subscript(pysqlite_Blob *self, PyObject *item)
                 return PyErr_NoMemory();
             }
 
+            pysqlite_enter_sqlite(self->connection);
             Py_BEGIN_ALLOW_THREADS
             rc = sqlite3_blob_read(self->blob, data_buff, span_len, span_start);
             Py_END_ALLOW_THREADS
+            pysqlite_leave_sqlite(self->connection);
 
             if (rc != SQLITE_OK){
                 /* For some reason after modifying blob the
@@ -600,9 +618,11 @@ static int pysqlite_blob_ass_subscript(pysqlite_Blob *self, PyObject *item, PyOb
                 return -1;
             }
 
+            pysqlite_enter_sqlite(self->connection);
             Py_BEGIN_ALLOW_THREADS
             rc = sqlite3_blob_read(self->blob, data_buff, span_len, span_start);
             Py_END_ALLOW_THREADS
+            pysqlite_leave_sqlite(self->connection);
 
             if (rc != SQLITE_OK){
                 /* For some reason after modifying blob the
@@ -625,9 +645,11 @@ static int pysqlite_blob_ass_subscript(pysqlite_Blob *self, PyObject *item, PyOb
                 data_buff[cur] = ((char *)vbuf.buf)[i];
             }
 
+            pysqlite_enter_sqlite(self->connection);
             Py_BEGIN_ALLOW_THREADS
             rc = sqlite3_blob_write(self->blob, data_buff, span_len, span_start);
             Py_END_ALLOW_THREADS
+            pysqlite_leave_sqlite(self->connection);
 
             PyMem_Free(data_buff);
 

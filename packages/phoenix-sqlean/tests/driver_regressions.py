@@ -291,6 +291,355 @@ class CallbackCloseRegressionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return result.stdout
 
+    def test_close_in_scalar_function(self):
+        # gh-145040: close() during sqlite3_step used to NULL db and
+        # finalize the executing statement.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            def callback():
+                try:
+                    con.close()
+                except sqlite.ProgrammingError:
+                    raise
+                else:
+                    raise AssertionError("close() should have been refused")
+                return 1
+            con.create_function("f", 0, callback)
+            try:
+                con.execute("select f()")
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected execute to fail after a refused close")
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_close_in_authorizer(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x)")
+            def auth(*args):
+                try:
+                    con.close()
+                except sqlite.ProgrammingError:
+                    raise
+                else:
+                    raise AssertionError("close() should have been refused")
+                return sqlite.SQLITE_OK
+            con.set_authorizer(auth)
+            try:
+                con.execute("select x from t")
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected execute to fail after a refused close")
+            con.set_authorizer(None)
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_close_in_progress_handler(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(20)])
+            def progress():
+                try:
+                    con.close()
+                except sqlite.ProgrammingError:
+                    raise
+                else:
+                    raise AssertionError("close() should have been refused")
+                return 1
+            con.set_progress_handler(progress, 1)
+            try:
+                list(con.execute("select x from t"))
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected execute to fail after a refused close")
+            con.set_progress_handler(None, 1)
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_close_in_collation(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x text)")
+            con.executemany("insert into t values (?)", [("a",), ("b",), ("c",)])
+            def collation(a, b):
+                try:
+                    con.close()
+                except sqlite.ProgrammingError:
+                    raise
+                else:
+                    raise AssertionError("close() should have been refused")
+                return (a > b) - (a < b)
+            con.create_collation("c", collation)
+            try:
+                con.execute("select x from t order by x collate c")
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected execute to fail after a refused close")
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_close_in_aggregate(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(5)])
+            class Agg:
+                def __init__(self):
+                    self.total = 0
+                def step(self, value):
+                    try:
+                        con.close()
+                    except sqlite.ProgrammingError:
+                        raise
+                    else:
+                        raise AssertionError("close() should have been refused")
+                    self.total += value
+                def finalize(self):
+                    return self.total
+            con.create_aggregate("agg_close", 1, Agg)
+            try:
+                con.execute("select agg_close(x) from t")
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected execute to fail after a refused close")
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_close_in_backup_progress(self):
+        self._run(
+            """
+            src = sqlite.connect(":memory:")
+            dst = sqlite.connect(":memory:")
+            src.execute("create table t(x)")
+            src.executemany("insert into t values (?)", [(i,) for i in range(20)])
+            src.commit()
+            calls = []
+            def progress(status, remaining, total):
+                calls.append((status, remaining, total))
+                try:
+                    src.close()
+                except sqlite.ProgrammingError:
+                    raise
+                else:
+                    raise AssertionError("close() should have been refused")
+            try:
+                src.backup(dst, pages=1, progress=progress)
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected backup to fail after a refused close")
+            assert calls, "progress callback never ran; commit the source first"
+            assert src.execute("select count(*) from t").fetchone()[0] == 20
+            src.close()
+            dst.close()
+            """
+        )
+
+    def test_close_caught_inside_callback(self):
+        # If the callback swallows ProgrammingError, the native operation
+        # continues and the connection remains usable.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            def swallow(_):
+                try:
+                    con.close()
+                except sqlite.ProgrammingError:
+                    pass
+                return 1
+            con.create_function("swallow", 1, swallow)
+            assert con.execute("select swallow(1)").fetchone() == (1,)
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_close_target_in_backup_progress(self):
+        self._run(
+            """
+            src = sqlite.connect(":memory:")
+            dst = sqlite.connect(":memory:")
+            src.execute("create table t(x)")
+            src.executemany("insert into t values (?)", [(i,) for i in range(20)])
+            src.commit()
+            def progress(status, remaining, total):
+                try:
+                    dst.close()
+                except sqlite.ProgrammingError:
+                    raise
+                else:
+                    raise AssertionError("target close() should have been refused")
+            try:
+                src.backup(dst, pages=1, progress=progress)
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected backup to fail after a refused close")
+            assert src.execute("select count(*) from t").fetchone()[0] == 20
+            src.close()
+            dst.close()
+            """
+        )
+
+    def test_close_in_window_finalize(self):
+        # xFinal runs from sqlite3_reset after the last row, not from
+        # step; the driver clears callback exceptions there, so the
+        # query may still complete. close() must not crash.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        con.close()
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            list(con.execute("select w(x) over (order by x) from t"))
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_rollback_in_window_finalize(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        con.rollback()
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            list(con.execute("select w(x) over (order by x) from t"))
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_cursor_close_in_window_finalize(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            cur = con.cursor()
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        cur.close()
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            list(cur.execute("select w(x) over (order by x) from t"))
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_gc_in_window_finalize(self):
+        self._run(
+            """
+            import gc
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        con.close()
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            cur = con.execute("select w(x) over (order by x) from t")
+            cur.fetchone()
+            del cur
+            gc.collect()
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_cursor_close_in_udf(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            cur = con.cursor()
+            def callback():
+                try:
+                    cur.close()
+                except sqlite.ProgrammingError:
+                    raise
+                else:
+                    raise AssertionError("cursor close() should have been refused")
+                return 1
+            con.create_function("f", 0, callback)
+            try:
+                cur.execute("select f()")
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected execute to fail after a refused cursor close")
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
     def test_cursor_close_in_converter(self):
         self._run(
             """
@@ -314,6 +663,183 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             else:
                 raise AssertionError("expected fetch to fail after a refused cursor close")
             assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_close_in_open_blob_busy_handler(self):
+        self._run(
+            """
+            import os
+            import tempfile
+            fd, path = tempfile.mkstemp(suffix=".db")
+            os.close(fd)
+            try:
+                locker = sqlite.connect(path)
+                locker.execute("create table t(b blob)")
+                locker.execute("insert into t values (zeroblob(8))")
+                locker.commit()
+                locker.execute("begin exclusive")
+                con = sqlite.connect(path, timeout=0)
+                def busy(n):
+                    try:
+                        con.close()
+                    except sqlite.ProgrammingError:
+                        raise
+                    else:
+                        raise AssertionError("close() should have been refused")
+                    return 0
+                con.set_busy_handler(busy)
+                try:
+                    con.open_blob("t", "b", 1)
+                except sqlite.Error:
+                    pass
+                else:
+                    raise AssertionError("expected open_blob to fail after a refused close")
+                con.set_busy_handler(None)
+                locker.rollback()
+                assert con.execute("select 1").fetchone() == (1,)
+                con.close()
+                locker.close()
+            finally:
+                os.unlink(path)
+            """
+        )
+
+    def test_create_function_replace_destructor_close(self):
+        self._run(
+            """
+            class Closer:
+                def __init__(self, con):
+                    self.con = con
+                def __call__(self):
+                    return 1
+                def __del__(self):
+                    try:
+                        self.con.close()
+                    except sqlite.ProgrammingError:
+                        pass
+            con = sqlite.connect(":memory:")
+            old = Closer(con)
+            con.create_function("f", 0, old)
+            del old
+            con.create_function("f", 0, lambda: 2)
+            assert con.execute("select f()").fetchone() == (2,)
+            con.close()
+            """
+        )
+
+    def test_cursor_init_in_udf(self):
+        # Re-init used to Py_CLEAR the live statement while execute still
+        # held it. CPython refuses recursive cursor use here.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            cur = con.cursor()
+            def callback():
+                try:
+                    cur.__init__(con)
+                except sqlite.ProgrammingError:
+                    raise
+                else:
+                    raise AssertionError("cursor __init__ should have been refused")
+                return 1
+            con.create_function("f", 0, callback)
+            try:
+                cur.execute("select f()")
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected execute to fail after a refused cursor __init__")
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_cursor_init_in_converter(self):
+        self._run(
+            """
+            def conv(value):
+                try:
+                    cur.__init__(con)
+                except sqlite.ProgrammingError:
+                    raise
+                else:
+                    raise AssertionError("cursor __init__ should have been refused")
+            sqlite.register_converter("X", conv)
+            con = sqlite.connect(":memory:", detect_types=sqlite.PARSE_COLNAMES)
+            cur = con.cursor()
+            cur.execute("create table t(a)")
+            cur.execute("insert into t values (1)")
+            try:
+                cur.execute('select a as "a [X]" from t')
+                cur.fetchall()
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected fetch to fail after a refused cursor __init__")
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_cursor_init_in_conform(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            cur = con.cursor()
+            cur.execute("create table t(x)")
+            class Payload:
+                def __conform__(self, protocol):
+                    try:
+                        cur.__init__(con)
+                    except sqlite.ProgrammingError:
+                        raise
+                    else:
+                        raise AssertionError("cursor __init__ should have been refused")
+            try:
+                cur.execute("insert into t values (?)", (Payload(),))
+            except sqlite.Error:
+                pass
+            else:
+                raise AssertionError("expected execute to fail after a refused cursor __init__")
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_callbacks_may_query_and_register(self):
+        # Nothing here tears a handle down, so it stays allowed: a
+        # callback may run its own query on the connection and register
+        # a new function. SQLite itself refuses to replace a function or
+        # collation while a statement is active.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.execute("insert into t values (1), (2), (3)")
+            def total():
+                return con.execute("select sum(x) from t").fetchone()[0]
+            con.create_function("total", 0, total)
+            assert con.execute("select total()").fetchone() == (6,)
+            def register():
+                con.create_function("late", 0, lambda: 7)
+                con.create_collation("late_c", lambda a, b: (a > b) - (a < b))
+                return 1
+            con.create_function("register", 0, register)
+            con.execute("select register()").fetchone()
+            assert con.execute("select late()").fetchone() == (7,)
+            assert [r[0] for r in con.execute(
+                "select x from t order by x collate late_c desc"
+            )] == [3, 2, 1]
+            def replace():
+                try:
+                    con.create_function("replace", 0, lambda: 0)
+                except sqlite.OperationalError:
+                    return "busy"
+                return "replaced"
+            con.create_function("replace", 0, replace)
+            assert con.execute("select replace()").fetchone() == ("busy",)
             con.close()
             """
         )

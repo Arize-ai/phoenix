@@ -28,9 +28,11 @@ int pysqlite_step(sqlite3_stmt* statement, pysqlite_Connection* connection)
 {
     int rc;
 
+    pysqlite_enter_sqlite(connection);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_step(statement);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_sqlite(connection);
 
     return rc;
 }

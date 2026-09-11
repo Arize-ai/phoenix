@@ -40,6 +40,22 @@ static int pysqlite_cursor_init(pysqlite_Cursor* self, PyObject* args, PyObject*
         return -1;
     }
 
+    /* CPython checks locked before dropping the live statement. Re-init
+       is the same teardown as close() and used to NULL statement while
+       execute/iternext still dereferenced it. */
+    if (self->initialized) {
+        if (self->locked) {
+            PyErr_SetString(pysqlite_ProgrammingError,
+                            "Recursive use of cursors not allowed.");
+            return -1;
+        }
+        if (self->connection != NULL && self->connection->in_sqlite > 0) {
+            PyErr_SetString(pysqlite_ProgrammingError,
+                            "Cannot re-initialize a cursor from within a callback function.");
+            return -1;
+        }
+    }
+
     Py_INCREF(connection);
     Py_XSETREF(self->connection, connection);
     Py_CLEAR(self->statement);
@@ -699,6 +715,7 @@ pysqlite_cursor_executescript(pysqlite_Cursor* self, PyObject* args)
     Py_DECREF(result);
 
     while (1) {
+        pysqlite_enter_sqlite(self->connection);
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_prepare_v2(self->connection->db,
                                 script_cstr,
@@ -706,6 +723,7 @@ pysqlite_cursor_executescript(pysqlite_Cursor* self, PyObject* args)
                                 &statement,
                                 &script_cstr);
         Py_END_ALLOW_THREADS
+        pysqlite_leave_sqlite(self->connection);
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->connection->db);
             goto error;
@@ -715,18 +733,30 @@ pysqlite_cursor_executescript(pysqlite_Cursor* self, PyObject* args)
         do {
             rc = pysqlite_step(statement, self->connection);
             if (PyErr_Occurred()) {
+                pysqlite_enter_sqlite(self->connection);
+                Py_BEGIN_ALLOW_THREADS
                 (void)sqlite3_finalize(statement);
+                Py_END_ALLOW_THREADS
+                pysqlite_leave_sqlite(self->connection);
                 goto error;
             }
         } while (rc == SQLITE_ROW);
 
         if (rc != SQLITE_DONE) {
+            pysqlite_enter_sqlite(self->connection);
+            Py_BEGIN_ALLOW_THREADS
             (void)sqlite3_finalize(statement);
+            Py_END_ALLOW_THREADS
+            pysqlite_leave_sqlite(self->connection);
             _pysqlite_seterror(self->connection->db);
             goto error;
         }
 
+        pysqlite_enter_sqlite(self->connection);
+        Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_finalize(statement);
+        Py_END_ALLOW_THREADS
+        pysqlite_leave_sqlite(self->connection);
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->connection->db);
             goto error;
@@ -918,6 +948,11 @@ PyObject* pysqlite_cursor_close(pysqlite_Cursor* self, PyObject* args)
     if (self->locked) {
         PyErr_SetString(pysqlite_ProgrammingError,
                         "Recursive use of cursors not allowed.");
+        return NULL;
+    }
+    if (self->connection->in_sqlite > 0) {
+        PyErr_SetString(pysqlite_ProgrammingError,
+                        "Cannot close a cursor from within a callback function.");
         return NULL;
     }
 

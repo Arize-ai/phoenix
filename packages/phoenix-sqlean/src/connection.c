@@ -75,6 +75,32 @@ static const char * const begin_statements[] = {
 static int pysqlite_connection_set_isolation_level(pysqlite_Connection* self, PyObject* isolation_level, void *Py_UNUSED(ignored));
 static void _pysqlite_drop_unused_cursor_references(pysqlite_Connection* self);
 
+static const char cannot_close_in_callback[] =
+    "Cannot close the database connection from within a callback function.";
+
+static const char cannot_rollback_in_callback[] =
+    "Cannot roll back a transaction from within a callback function.";
+
+static int
+pysqlite_refuse_close_in_callback(pysqlite_Connection *self)
+{
+    if (self->in_sqlite > 0) {
+        PyErr_SetString(pysqlite_ProgrammingError, cannot_close_in_callback);
+        return 1;
+    }
+    return 0;
+}
+
+static int
+pysqlite_refuse_txn_in_callback(pysqlite_Connection *self)
+{
+    if (self->in_sqlite > 0) {
+        PyErr_SetString(pysqlite_ProgrammingError, cannot_rollback_in_callback);
+        return 1;
+    }
+    return 0;
+}
+
 
 static void _sqlite3_result_error(sqlite3_context* ctx, const char* errmsg, int len)
 {
@@ -120,6 +146,14 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     }
 
     database = PyBytes_AsString(database_obj);
+
+    /* in_sqlite, not initialized: re-init sets initialized=0 before
+       closing the old handle, and an xDestroy __del__ used to re-enter
+       __init__ during that close, leak the inner db, and drop work. */
+    if (pysqlite_refuse_close_in_callback(self)) {
+        Py_DECREF(database_obj);
+        return -1;
+    }
 
 #ifndef SQLITE_OPEN_URI
     if (uri) {
@@ -176,6 +210,7 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
         sqlite3_close_v2(self->db);
     }
     self->db = db;
+    self->in_sqlite = 0;
 
     /* The database handle is live from here on; the isolation-level
        setter below may go through commit(), which requires an
@@ -413,10 +448,12 @@ PyObject* pysqlite_connection_blob(pysqlite_Connection *self, PyObject *args,
         return NULL;
     }
 
+    pysqlite_enter_sqlite(self);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_blob_open(self->db, dbname, table, column, row,
                            !readonly, &blob);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_sqlite(self);
 
     if (rc != SQLITE_OK) {
         _pysqlite_seterror(self->db);
@@ -500,6 +537,10 @@ PyObject* pysqlite_connection_close(pysqlite_Connection* self, PyObject* args)
         return NULL;
     }
 
+    if (pysqlite_refuse_close_in_callback(self)) {
+        return NULL;
+    }
+
     pysqlite_do_all_statements(self, ACTION_FINALIZE, 1);
 
     pysqlite_close_all_blobs(self);
@@ -543,9 +584,11 @@ PyObject* _pysqlite_connection_begin(pysqlite_Connection* self)
     int rc;
     sqlite3_stmt* statement;
 
+    pysqlite_enter_sqlite(self);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_prepare_v2(self->db, self->begin_statement, -1, &statement, NULL);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_sqlite(self);
 
     if (rc != SQLITE_OK) {
         _pysqlite_seterror(self->db);
@@ -557,9 +600,11 @@ PyObject* _pysqlite_connection_begin(pysqlite_Connection* self)
         _pysqlite_seterror(self->db);
     }
 
+    pysqlite_enter_sqlite(self);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_finalize(statement);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_sqlite(self);
 
     if (rc != SQLITE_OK && !PyErr_Occurred()) {
         _pysqlite_seterror(self->db);
@@ -584,9 +629,11 @@ PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args)
 
     if (!sqlite3_get_autocommit(self->db)) {
 
+        pysqlite_enter_sqlite(self);
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_prepare_v2(self->db, "COMMIT", -1, &statement, NULL);
         Py_END_ALLOW_THREADS
+        pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->db);
             goto error;
@@ -597,9 +644,11 @@ PyObject* pysqlite_connection_commit(pysqlite_Connection* self, PyObject* args)
             _pysqlite_seterror(self->db);
         }
 
+        pysqlite_enter_sqlite(self);
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_finalize(statement);
         Py_END_ALLOW_THREADS
+        pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK && !PyErr_Occurred()) {
             _pysqlite_seterror(self->db);
         }
@@ -622,13 +671,18 @@ PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
         return NULL;
     }
+    if (pysqlite_refuse_txn_in_callback(self)) {
+        return NULL;
+    }
 
     if (!sqlite3_get_autocommit(self->db)) {
         pysqlite_do_all_statements(self, ACTION_RESET, 1);
 
+        pysqlite_enter_sqlite(self);
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_prepare_v2(self->db, "ROLLBACK", -1, &statement, NULL);
         Py_END_ALLOW_THREADS
+        pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK) {
             _pysqlite_seterror(self->db);
             goto error;
@@ -639,9 +693,11 @@ PyObject* pysqlite_connection_rollback(pysqlite_Connection* self, PyObject* args
             _pysqlite_seterror(self->db);
         }
 
+        pysqlite_enter_sqlite(self);
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_finalize(statement);
         Py_END_ALLOW_THREADS
+        pysqlite_leave_sqlite(self);
         if (rc != SQLITE_OK && !PyErr_Occurred()) {
             _pysqlite_seterror(self->db);
         }
@@ -1147,6 +1203,7 @@ PyObject* pysqlite_connection_create_function(pysqlite_Connection* self, PyObjec
 #endif
     }
     Py_INCREF(func);
+    pysqlite_enter_sqlite(self);
     rc = sqlite3_create_function_v2(self->db,
                                     name,
                                     narg,
@@ -1156,6 +1213,7 @@ PyObject* pysqlite_connection_create_function(pysqlite_Connection* self, PyObjec
                                     NULL,
                                     NULL,
                                     &_destructor);
+    pysqlite_leave_sqlite(self);
 
     if (rc != SQLITE_OK) {
         /* Workaround for SQLite bug: no error code or string is available here */
@@ -1184,6 +1242,7 @@ PyObject* pysqlite_connection_create_aggregate(pysqlite_Connection* self, PyObje
     }
 
     Py_INCREF(aggregate_class);
+    pysqlite_enter_sqlite(self);
     rc = sqlite3_create_function_v2(self->db,
                                     name,
                                     n_arg,
@@ -1193,6 +1252,7 @@ PyObject* pysqlite_connection_create_aggregate(pysqlite_Connection* self, PyObje
                                     &_pysqlite_step_callback,
                                     &_pysqlite_final_callback,
                                     &_destructor);
+    pysqlite_leave_sqlite(self);
 
     if (rc != SQLITE_OK) {
         /* Workaround for SQLite bug: no error code or string is available here */
@@ -1223,6 +1283,7 @@ PyObject* pysqlite_connection_create_window_function(pysqlite_Connection* self, 
     }
 
     Py_INCREF(window_function_class);
+    pysqlite_enter_sqlite(self);
     rc = sqlite3_create_window_function(
         self->db,
         name,
@@ -1234,6 +1295,7 @@ PyObject* pysqlite_connection_create_window_function(pysqlite_Connection* self, 
         &_pysqlite_value_callback,
         &_pysqlite_inverse_callback,
         &_destructor);
+    pysqlite_leave_sqlite(self);
 
     if (rc != SQLITE_OK) {
         /* Workaround for SQLite bug: no error code or string is available here */
@@ -1451,13 +1513,17 @@ static PyObject* pysqlite_connection_set_authorizer(pysqlite_Connection* self, P
 
     int rc;
     if (authorizer_cb == Py_None) {
+        pysqlite_enter_sqlite(self);
         rc = sqlite3_set_authorizer(self->db, NULL, NULL);
+        pysqlite_leave_sqlite(self);
         Py_XSETREF(self->function_pinboard_authorizer_cb, NULL);
     }
     else {
         Py_INCREF(authorizer_cb);
         Py_XSETREF(self->function_pinboard_authorizer_cb, authorizer_cb);
+        pysqlite_enter_sqlite(self);
         rc = sqlite3_set_authorizer(self->db, _authorizer_callback, (void*)authorizer_cb);
+        pysqlite_leave_sqlite(self);
     }
 
     if (rc != SQLITE_OK) {
@@ -1486,10 +1552,14 @@ static PyObject* pysqlite_connection_set_progress_handler(pysqlite_Connection* s
 
     if (progress_handler == Py_None) {
         /* None clears the progress handler previously set */
+        pysqlite_enter_sqlite(self);
         sqlite3_progress_handler(self->db, 0, 0, (void*)0);
+        pysqlite_leave_sqlite(self);
         Py_XSETREF(self->function_pinboard_progress_handler, NULL);
     } else {
+        pysqlite_enter_sqlite(self);
         sqlite3_progress_handler(self->db, n, _progress_handler, progress_handler);
+        pysqlite_leave_sqlite(self);
         Py_INCREF(progress_handler);
         Py_XSETREF(self->function_pinboard_progress_handler, progress_handler);
     }
@@ -1514,13 +1584,17 @@ static PyObject* pysqlite_connection_set_busy_handler(pysqlite_Connection* self,
 
     int rc;
     if (busy_handler == Py_None) {
+        pysqlite_enter_sqlite(self);
         rc = sqlite3_busy_handler(self->db, NULL, NULL);
+        pysqlite_leave_sqlite(self);
         Py_XSETREF(self->function_pinboard_busy_handler_cb, NULL);
     }
     else {
         Py_INCREF(busy_handler);
         Py_XSETREF(self->function_pinboard_busy_handler_cb, busy_handler);
+        pysqlite_enter_sqlite(self);
         rc = sqlite3_busy_handler(self->db, _busy_handler, (void*)busy_handler);
+        pysqlite_leave_sqlite(self);
     }
 
     if (rc != SQLITE_OK) {
@@ -1767,6 +1841,7 @@ PyObject* pysqlite_connection_call(pysqlite_Connection* self, PyObject* args, Py
 
     statement->db = NULL;
     statement->st = NULL;
+    statement->connection = NULL;
     statement->sql = NULL;
     statement->in_use = 0;
     statement->in_weakreflist = NULL;
@@ -2021,6 +2096,9 @@ pysqlite_connection_backup(pysqlite_Connection *self, PyObject *args, PyObject *
 
     bck_conn = ((pysqlite_Connection *)target)->db;
 
+    pysqlite_enter_sqlite(self);
+    pysqlite_enter_sqlite((pysqlite_Connection *)target);
+
     Py_BEGIN_ALLOW_THREADS
     bck_handle = sqlite3_backup_init(bck_conn, "main", self->db, name);
     Py_END_ALLOW_THREADS
@@ -2073,6 +2151,9 @@ pysqlite_connection_backup(pysqlite_Connection *self, PyObject *args, PyObject *
             PyErr_SetString(pysqlite_OperationalError, sqlite3_errstr(rc));
         }
     }
+
+    pysqlite_leave_sqlite((pysqlite_Connection *)target);
+    pysqlite_leave_sqlite(self);
 
     if (!callback_error && rc == SQLITE_OK) {
         Py_RETURN_NONE;
