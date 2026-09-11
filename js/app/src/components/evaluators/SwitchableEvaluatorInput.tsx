@@ -108,7 +108,7 @@ export interface SwitchableEvaluatorInputProps<
   /**
    * Renders the path control in place of the flat list of options.
    *
-   * A record's fields nest, so the project grains choose a path from a tree of
+   * A record's fields nest, so the project record kinds choose a path from a tree of
    * the record rather than from a list of every leaf it has.
    */
   renderPathInput?: (props: {

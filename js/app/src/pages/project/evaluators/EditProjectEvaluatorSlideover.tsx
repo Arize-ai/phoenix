@@ -37,7 +37,7 @@ import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/Pro
 import {
   isSameInputMapping,
   toEvaluationDelayInput,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
@@ -370,7 +370,7 @@ function EditLlmProjectEvaluatorContent({
     // The persisted target decides the mapping vocabulary before any recorded
     // record loads; a session evaluator must never open speaking span.
     evaluatorMappingSource: defaultEvaluatorMappingSourceState(
-      toEvaluatorMappingSourceGrain(scope.targetType)
+      toEvaluatorRecordKind(scope.targetType)
     ),
   } satisfies EvaluatorStoreProps;
 
@@ -540,7 +540,7 @@ function EditCodeProjectEvaluator({
     outputConfigs: loadedOutputConfigs,
     showPromptPreview: false,
     evaluatorMappingSource: defaultEvaluatorMappingSourceState(
-      toEvaluatorMappingSourceGrain(scope.targetType)
+      toEvaluatorRecordKind(scope.targetType)
     ),
   };
   return (

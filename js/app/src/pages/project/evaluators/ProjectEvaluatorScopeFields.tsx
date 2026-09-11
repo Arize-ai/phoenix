@@ -14,13 +14,13 @@ import {
 } from "@phoenix/components";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import {
-  dropOtherGrainEntityPathMappings,
+  dropOtherRecordKindPathMappings,
   formatEvaluationTarget,
   isProjectEvaluatorTarget,
   MIN_EVALUATION_DELAY_SECONDS,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   toProjectEvaluatorSamplingFraction,
-  type ProjectEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorRecordKind,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
   withProjectEvaluatorTarget,
@@ -63,7 +63,7 @@ export const ProjectEvaluatorScopeFieldGroup = ({
   const evaluatorStore = useEvaluatorStoreInstance();
   // A target change is the one act that moves a form between kinds of record,
   // so everything written against the old kind changes here with it: the
-  // filter (a different language), the store's grain (span and session
+  // filter (a different language), the store's record kind (span and session
   // contexts are structurally identical, so the store cannot infer it), and
   // mapping paths rooted at a name the new record does not carry (a path that
   // matches nothing fails the evaluation).
@@ -71,13 +71,15 @@ export const ProjectEvaluatorScopeFieldGroup = ({
     if (targetType === scope.targetType) {
       return;
     }
-    const grain = toEvaluatorMappingSourceGrain(targetType);
-    if (grain !== toEvaluatorMappingSourceGrain(scope.targetType)) {
+    const recordKind = toEvaluatorRecordKind(targetType);
+    if (recordKind !== toEvaluatorRecordKind(scope.targetType)) {
       const state = evaluatorStore.getState();
-      state.setEvaluatorMappingSourceGrain(grain);
+      state.setEvaluatorRecordKind(recordKind);
       state.setPathMapping(
-        dropOtherGrainEntityPathMappings(state.evaluator.inputMapping, grain)
-          .pathMapping
+        dropOtherRecordKindPathMappings(
+          state.evaluator.inputMapping,
+          recordKind
+        ).pathMapping
       );
     }
     onScopeChange(withProjectEvaluatorTarget({ scope, targetType }));
@@ -350,7 +352,7 @@ const ProjectEvaluatorFilterField = ({
 
 type ProjectEvaluatorFilterField = {
   /** The filter language the field parses, which also picks its editor. */
-  language: ProjectEvaluatorMappingSourceGrain;
+  language: ProjectEvaluatorRecordKind;
   label: string;
   placeholder: string;
   /** What an empty condition evaluates, said in the records' own noun. */
@@ -366,7 +368,7 @@ const SPAN_FILTER_FIELD: ProjectEvaluatorFilterField = {
 
 /**
  * The filter each target authors, one row per target. TRACE collapses onto the
- * span grain — see `toEvaluatorMappingSourceGrain` — so it filters spans by
+ * span record kind — see `toEvaluatorRecordKind` — so it filters spans by
  * saying so here, rather than by falling through to the span row.
  */
 const FILTER_FIELDS_BY_TARGET: Record<

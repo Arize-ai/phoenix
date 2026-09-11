@@ -40,7 +40,7 @@ import { useProjectEvaluatorSubmitHint } from "@phoenix/pages/project/evaluators
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
   toEvaluationDelayInput,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
   withProjectEvaluatorTarget,
@@ -234,7 +234,7 @@ const CreateProjectEvaluatorDialog = ({
           createDefaultFreeformOutputConfig(""),
         ],
         evaluatorMappingSource: defaultEvaluatorMappingSourceState(
-          toEvaluatorMappingSourceGrain(scope.targetType)
+          toEvaluatorRecordKind(scope.targetType)
         ),
       } satisfies EvaluatorStoreProps;
     }
@@ -279,7 +279,7 @@ const CreateProjectEvaluatorDialog = ({
             ? [{ ...outputConfigs[0], name: defaultEvaluatorName }]
             : [],
       evaluatorMappingSource: defaultEvaluatorMappingSourceState(
-        toEvaluatorMappingSourceGrain(scope.targetType)
+        toEvaluatorRecordKind(scope.targetType)
       ),
     } satisfies EvaluatorStoreProps;
   })();

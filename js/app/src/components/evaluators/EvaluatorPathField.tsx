@@ -10,7 +10,7 @@ import { useCallback, useMemo } from "react";
 
 import type { DSLFilterConditionValidationResult } from "@phoenix/components/filter/DSLFilterConditionField";
 import { DSLFilterConditionField } from "@phoenix/components/filter/DSLFilterConditionField";
-import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorMappingSourceState } from "@phoenix/store/evaluatorStore";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 
@@ -71,7 +71,7 @@ export function EvaluatorPathField({
   errorMessage,
   ariaLabel,
   evaluatorMappingSource,
-  grain,
+  recordKind,
   slotName,
 }: {
   value: string;
@@ -81,10 +81,10 @@ export function EvaluatorPathField({
   errorMessage?: string;
   ariaLabel: string;
   evaluatorMappingSource: EvaluatorMappingSourceState;
-  grain: ProjectEvaluatorMappingSourceGrain;
+  recordKind: ProjectEvaluatorRecordKind;
   slotName: EvaluatorSlotName;
 }) {
-  const suggestedPaths = getEvaluatorSlotSuggestedPaths(grain, slotName);
+  const suggestedPaths = getEvaluatorSlotSuggestedPaths(recordKind, slotName);
 
   // CodeMirror is reconfigured whenever these change identity, which discards
   // the open dropdown, so they are memoized rather than left to the compiler.
@@ -93,11 +93,11 @@ export function EvaluatorPathField({
   const evaluationContext = useMemo(
     () =>
       materializeEvaluatorContext({
-        grain,
+        recordKind,
         evaluatorMappingSource,
         inputMapping: UNMAPPED,
       }),
-    [grain, evaluatorMappingSource]
+    [recordKind, evaluatorMappingSource]
   );
   const mappingSource =
     evaluationContext === null

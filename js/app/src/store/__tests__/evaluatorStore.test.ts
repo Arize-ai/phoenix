@@ -33,11 +33,11 @@ const createFreeformStore = (
     ...evaluatorMappingSourceState,
   });
 
-describe("evaluatorStore mapping source grain", () => {
+describe("evaluatorStore mapping source recordKind", () => {
   it("keeps dataset mapping sources including reference data", () => {
     const store = createFreeformStore({
       evaluatorMappingSource: {
-        grain: "dataset",
+        recordKind: "dataset",
         source: {
           input: { question: "What is Phoenix?" },
           output: { answer: "An AI observability platform" },
@@ -48,7 +48,7 @@ describe("evaluatorStore mapping source grain", () => {
     });
 
     expect(store.getState().evaluatorMappingSource).toEqual({
-      grain: "dataset",
+      recordKind: "dataset",
       source: {
         input: { question: "What is Phoenix?" },
         output: { answer: "An AI observability platform" },
@@ -61,7 +61,7 @@ describe("evaluatorStore mapping source grain", () => {
   it("keeps span mapping sources limited to runtime context fields", () => {
     const store = createFreeformStore({
       evaluatorMappingSource: {
-        grain: "span",
+        recordKind: "span",
         source: {
           input: { question: "What is Phoenix?" },
           output: { answer: "An AI observability platform" },
@@ -81,18 +81,18 @@ describe("evaluatorStore mapping source grain", () => {
     });
   });
 
-  it("keeps a recorded session context under the grain it was bound as", () => {
+  it("keeps a recorded session context under the recordKind it was bound as", () => {
     // The store is left on span: a session context is structurally identical to
-    // a span one, so only the grain the caller binds it under says what it is.
+    // a span one, so only the record kind the caller binds it under says what it is.
     const store = createFreeformStore({
       evaluatorMappingSource: {
-        grain: "span",
+        recordKind: "span",
         source: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
       },
     });
 
     store.getState().setEvaluatorMappingSource({
-      grain: "session",
+      recordKind: "session",
       source: {
         input: "hi",
         output: "hello",
@@ -103,7 +103,7 @@ describe("evaluatorStore mapping source grain", () => {
     // Read as a span, `turns` is metadata no span vocabulary names, and the
     // context would be dropped for an empty one.
     expect(store.getState().evaluatorMappingSource).toEqual({
-      grain: "session",
+      recordKind: "session",
       source: {
         input: "hi",
         output: "hello",
@@ -112,10 +112,10 @@ describe("evaluatorStore mapping source grain", () => {
     });
   });
 
-  it("resets the source to the new grain's default when the grain changes", () => {
+  it("resets the source to the new recordKind's default when the recordKind changes", () => {
     const store = createFreeformStore({
       evaluatorMappingSource: {
-        grain: "span",
+        recordKind: "span",
         source: {
           input: "What is Phoenix?",
           output: "An AI observability platform",
@@ -124,10 +124,10 @@ describe("evaluatorStore mapping source grain", () => {
       },
     });
 
-    store.getState().setEvaluatorMappingSourceGrain("session");
+    store.getState().setEvaluatorRecordKind("session");
 
     expect(store.getState().evaluatorMappingSource).toEqual({
-      grain: "session",
+      recordKind: "session",
       source: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
     });
   });
@@ -135,7 +135,7 @@ describe("evaluatorStore mapping source grain", () => {
   it("preserves raw string and null span input/output verbatim", () => {
     const store = createFreeformStore({
       evaluatorMappingSource: {
-        grain: "span",
+        recordKind: "span",
         source: {
           input: "What is Phoenix?",
           output: null,

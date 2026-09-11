@@ -78,8 +78,8 @@ import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/e
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
   getProjectEvaluatorMappingDiagnostics,
-  toEvaluatorMappingSourceGrain,
-  type ProjectEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
+  type ProjectEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
@@ -191,12 +191,12 @@ type RecordRunListProps = {
 };
 
 /**
- * What the matching-records half of the panel varies by grain: how it counts
+ * What the matching-records half of the panel varies by record kind: how it counts
  * the records in scope, how it lists them, and any note it opens with. The
- * prose around them names the grain directly.
+ * prose around them names the record kind directly.
  */
-const MATCHING_RECORDS_BY_GRAIN: Record<
-  ProjectEvaluatorMappingSourceGrain,
+const MATCHING_RECORDS_BY_RECORD_KIND: Record<
+  ProjectEvaluatorRecordKind,
   {
     CountLine: ComponentType<MatchedCountLineProps>;
     RunList: ComponentType<RecordRunListProps>;
@@ -239,9 +239,7 @@ export const ProjectEvaluatorScopePanel = (
   // target and condition together keeps the current count and rows visible
   // without sending one target's filter language to the other's queries.
   const filterCondition = deferredPreviewScope.filterCondition;
-  const mappingSourceGrain = toEvaluatorMappingSourceGrain(
-    deferredPreviewScope.targetType
-  );
+  const recordKind = toEvaluatorRecordKind(deferredPreviewScope.targetType);
   const scopeFields = props.showScopeFields !== false ? props : null;
   // The run list below the Suspense boundary owns the records and the run
   // machinery; it hands the header's Test All button the latest run-all
@@ -259,12 +257,12 @@ export const ProjectEvaluatorScopePanel = (
       Test All
     </Button>
   );
-  // Every target maps onto a mapping-source grain, and the preview reads the
-  // grain's records: TRACE collapses onto span, so a trace evaluator previews
+  // Every target maps onto a mapping-source record kind, and the preview reads the
+  // record kind's records: TRACE collapses onto span, so a trace evaluator previews
   // spans by way of that mapping, not by default.
   const { CountLine, RunList, note } =
-    MATCHING_RECORDS_BY_GRAIN[mappingSourceGrain];
-  const records = `${mappingSourceGrain}s`;
+    MATCHING_RECORDS_BY_RECORD_KIND[recordKind];
+  const records = `${recordKind}s`;
   const runListProps: RecordRunListProps = {
     projectId,
     filterCondition,
@@ -313,7 +311,7 @@ export const ProjectEvaluatorScopePanel = (
                 gap="size-200"
               >
                 <Heading level={2} weight="heavy">
-                  Test with a {capitalize(mappingSourceGrain)}
+                  Test with a {capitalize(recordKind)}
                 </Heading>
                 <Flex direction="row" alignItems="center" gap="size-100">
                   <TimeWindowSegmentedControl
@@ -857,7 +855,7 @@ function RecordedRunList({
   onCanRunAllChange,
 }: {
   rows: RecordedRunListRow[];
-  recordNoun: ProjectEvaluatorMappingSourceGrain;
+  recordNoun: ProjectEvaluatorRecordKind;
   listLabel: string;
   hasMore: boolean;
   isLoadingMore: boolean;
@@ -886,7 +884,7 @@ function RecordedRunList({
     (state) => state.evaluator.inputMapping
   );
   useEvaluatorMappingSourceBoundToRow({
-    grain: recordNoun,
+    recordKind: recordNoun,
     rowKey: activeRow?.key ?? null,
     context: activeRow?.context,
   });
@@ -978,7 +976,7 @@ function RecordedRunRow({
   requiredVariables,
 }: {
   row: RecordedRunListRow;
-  recordNoun: ProjectEvaluatorMappingSourceGrain;
+  recordNoun: ProjectEvaluatorRecordKind;
   isExpanded: boolean;
   onToggleExpanded: () => void;
   run: RecordedRun | undefined;
@@ -1062,7 +1060,7 @@ function RecordedRunRow({
                     <Flex direction="column" gap="size-200">
                       <BindingPreview
                         context={row.context}
-                        grain={recordNoun}
+                        recordKind={recordNoun}
                         inputMapping={inputMapping}
                         requiredVariables={requiredVariables}
                         isSampleContext={row.isSample}
@@ -1196,14 +1194,14 @@ type BindingRow = {
  */
 export function BindingPreview({
   context,
-  grain,
+  recordKind,
   inputMapping,
   requiredVariables,
   isSampleContext,
 }: {
   context: unknown;
   /** The kind of record the row holds; the same word its prose uses. */
-  grain: ProjectEvaluatorMappingSourceGrain;
+  recordKind: ProjectEvaluatorRecordKind;
   inputMapping: EvaluatorInputMapping;
   requiredVariables?: string[];
   isSampleContext: boolean;
@@ -1224,8 +1222,8 @@ export function BindingPreview({
   // `metadata` key, and the path resolver all live there, not here.
   const evaluationContext = hasEvaluatorMappingSourceShape(context)
     ? materializeEvaluatorContext({
-        grain,
-        evaluatorMappingSource: { grain, source: context },
+        recordKind,
+        evaluatorMappingSource: { recordKind, source: context },
         inputMapping,
       })
     : null;
@@ -1261,8 +1259,8 @@ export function BindingPreview({
   return (
     <Flex direction="column" gap="size-50" marginTop="size-100">
       {isSampleContext ? (
-        <Alert variant="info" title={`Standard ${grain} fields`}>
-          No matching {grain} yet; values are empty.
+        <Alert variant="info" title={`Standard ${recordKind} fields`}>
+          No matching {recordKind} yet; values are empty.
         </Alert>
       ) : null}
       {[...slotRows, ...mappedRows].map((row) =>
@@ -1290,11 +1288,11 @@ export function BindingPreview({
           <Alert
             key={variable}
             variant="danger"
-            title={`${variable} would fail on this ${grain}`}
+            title={`${variable} would fail on this ${recordKind}`}
           >
             {source === "path"
               ? `Nothing matches ${path}. No annotation is written.`
-              : `This ${grain} has no ${variable}. No annotation is written.`}
+              : `This ${recordKind} has no ${variable}. No annotation is written.`}
           </Alert>
         ) : status === "unverified" ? (
           <Alert
@@ -1321,9 +1319,9 @@ function MetadataBindingTree({
 }: {
   evaluationContext: MaterializedEvaluatorContext;
 }) {
-  const { grain, hasSampledRecord } = evaluationContext;
+  const { recordKind, hasSampledRecord } = evaluationContext;
   const definitionByName = new Map(
-    getEvaluatorMetadataEntries(grain).map((variable) => [
+    getEvaluatorMetadataEntries(recordKind).map((variable) => [
       variable.name,
       variable,
     ])
@@ -1592,17 +1590,17 @@ function getLatestMessageText(value: unknown): string | null {
  * can all return a new transcript for the same row. Keying on what the context
  * says rather than on the row's identity follows the value, not the row.
  *
- * The grain comes from the list the row renders in and is bound with the
+ * The record kind comes from the list the row renders in and is bound with the
  * context, so a target switch that remounts a cached list binds a record the
- * store reads as what it is, whichever of this and the target's grain effect
+ * store reads as what it is, whichever of this and the target's record kind effect
  * runs first.
  */
 export function useEvaluatorMappingSourceBoundToRow({
-  grain,
+  recordKind,
   rowKey,
   context,
 }: {
-  grain: ProjectEvaluatorMappingSourceGrain;
+  recordKind: ProjectEvaluatorRecordKind;
   rowKey: string | null;
   context: unknown;
 }) {
@@ -1615,23 +1613,23 @@ export function useEvaluatorMappingSourceBoundToRow({
     if (hasEvaluatorMappingSourceShape(context)) {
       evaluatorStore
         .getState()
-        .setEvaluatorMappingSource({ grain, source: context });
+        .setEvaluatorMappingSource({ recordKind, source: context });
     }
   });
   useEffect(() => {
     syncMappingSource();
-  }, [grain, rowKey, contextIdentity]);
+  }, [recordKind, rowKey, contextIdentity]);
 }
 
 /**
  * Span and session contexts share this shape, so this cannot tell them apart —
- * the grain the row is bound under does, and the store decides from that what
+ * the record kind the row is bound under does, and the store decides from that what
  * of `metadata` to keep. Only `metadata` is guaranteed to be an object by the
  * server context shape; `input`/`output` are raw attribute values.
  */
 function hasEvaluatorMappingSourceShape(
   value: unknown
-): value is EvaluatorMappingSource<ProjectEvaluatorMappingSourceGrain> {
+): value is EvaluatorMappingSource<ProjectEvaluatorRecordKind> {
   return isStringKeyedObject(value) && isStringKeyedObject(value.metadata);
 }
 
