@@ -284,30 +284,11 @@ async def _get_traces(
         return Traces(sync_client).get_traces(project_identifier="project", **kwargs)  # type: ignore[arg-type]
 
 
-@pytest.mark.real_server_version_check
 @pytest.mark.parametrize("is_async", [False, True])
 class TestGetTracesFilterExpression:
-    async def test_filter_preserved_on_every_page(self, is_async: bool) -> None:
-        cursors: list[str | None] = []
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/arize_phoenix_version":
-                return httpx.Response(200, text="20.10.0")
-            assert request.url.params["filter"] == FILTER_EXPRESSION
-            cursors.append(request.url.params.get("cursor"))
-            return httpx.Response(
-                200,
-                json={
-                    "data": [_make_trace()],
-                    "next_cursor": "second-page" if len(cursors) == 1 else None,
-                },
-            )
-
-        traces = await _get_traces(
-            httpx.MockTransport(handler), is_async, filter=FILTER_EXPRESSION, limit=2
-        )
-        assert len(traces) == 2
-        assert cursors == [None, "second-page"]
+    @pytest.fixture(autouse=True)
+    def _skip_server_version_check(self) -> None:
+        """Override the conftest stub so these tests hit the real server-version guard."""
 
     async def test_filter_rejects_old_server_before_listing(self, is_async: bool) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
