@@ -250,13 +250,17 @@ class _FilterBindings:
     annotation_table_prefix: str
     reject_unbound_names: bool
     caller_bound_string_names: frozenset[str] = frozenset()
-    boolean_names: NameMap = MappingProxyType({})
+    boolean_names: NameMap = field(default_factory=lambda: MappingProxyType({}))
     quantifiers: frozenset[str] = frozenset()
     exists_names: frozenset[str] = frozenset()
     supports_parent_keyword: bool = False
-    iterables: typing.Mapping[str, "_IterableGrammar"] = MappingProxyType({})
+    iterables: typing.Mapping[str, "_IterableGrammar"] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     annotation_accessors: frozenset[str] = frozenset(_ANNOTATION_ACCESSORS)
-    annotation_accessor_errors: typing.Mapping[str, str] = MappingProxyType({})
+    annotation_accessor_errors: typing.Mapping[str, str] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     # The iterable that reads this grain's annotations element-wise, named when an
     # annotation accessor is rejected for being out of scope.
     annotation_iterable: typing.Optional[str] = None

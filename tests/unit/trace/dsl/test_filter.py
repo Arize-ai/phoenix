@@ -1054,6 +1054,21 @@ def test_trace_annotation_name_with_escaped_quote() -> None:
     ]
 
 
+def test_filter_bindings_mappingproxy_defaults_are_factories() -> None:
+    from dataclasses import fields
+    from types import MappingProxyType
+
+    from phoenix.trace.dsl.filter import _FilterBindings
+
+    field_dict = {f.name: f for f in fields(_FilterBindings)}
+    for name in ("boolean_names", "iterables", "annotation_accessor_errors"):
+        f = field_dict[name]
+        assert callable(f.default_factory)
+        default_val = f.default_factory()
+        assert isinstance(default_val, MappingProxyType)
+        assert len(default_val) == 0
+
+
 async def test_span_and_trace_annotations_join_distinct_relations(
     db: DbSessionFactory,
     default_project: Any,
