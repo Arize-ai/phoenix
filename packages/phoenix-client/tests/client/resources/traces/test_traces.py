@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.exceptions import PhoenixException
 from phoenix.client.resources.traces import AsyncTraces, Traces
 
 
@@ -268,3 +269,93 @@ class TestAsyncGetTraces:
                 min_latency_ms=500.0,
                 max_latency_ms=100.0,
             )
+
+
+FILTER_EXPRESSION = 'any(span.name == "café & search" for span in spans)'
+
+
+async def _get_traces(
+    transport: httpx.MockTransport, is_async: bool, **kwargs: object
+) -> list[v1.TraceData]:
+    if is_async:
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            return await AsyncTraces(client).get_traces(project_identifier="project", **kwargs)  # type: ignore[arg-type]
+    with httpx.Client(transport=transport, base_url="http://test") as sync_client:
+        return Traces(sync_client).get_traces(project_identifier="project", **kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.real_server_version_check
+@pytest.mark.parametrize("is_async", [False, True])
+class TestGetTracesFilterExpression:
+    async def test_filter_preserved_on_every_page(self, is_async: bool) -> None:
+        cursors: list[str | None] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/arize_phoenix_version":
+                return httpx.Response(200, text="20.10.0")
+            assert request.url.params["filter"] == FILTER_EXPRESSION
+            cursors.append(request.url.params.get("cursor"))
+            return httpx.Response(
+                200,
+                json={
+                    "data": [_make_trace()],
+                    "next_cursor": "second-page" if len(cursors) == 1 else None,
+                },
+            )
+
+        traces = await _get_traces(
+            httpx.MockTransport(handler), is_async, filter=FILTER_EXPRESSION, limit=2
+        )
+        assert len(traces) == 2
+        assert cursors == [None, "second-page"]
+
+    async def test_filter_rejects_old_server_before_listing(self, is_async: bool) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/arize_phoenix_version"
+            return httpx.Response(200, text="20.9.0")
+
+        with pytest.raises(PhoenixException, match=r"'filter'.*requires Phoenix >= 20\.10\.0"):
+            await _get_traces(httpx.MockTransport(handler), is_async, filter=FILTER_EXPRESSION)
+
+    @pytest.mark.parametrize("filter", [None, ""])
+    async def test_no_filter_preserves_old_server_support(
+        self, is_async: bool, filter: str | None
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/arize_phoenix_version":
+                return httpx.Response(200, text="14.0.0")
+            assert "filter" not in request.url.params
+            return httpx.Response(200, json={"data": [], "next_cursor": None})
+
+        assert await _get_traces(httpx.MockTransport(handler), is_async, filter=filter) == []
+
+    async def test_filter_error_preserves_server_message(self, is_async: bool) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/arize_phoenix_version":
+                return httpx.Response(200, text="20.10.0")
+            assert request.url.params["filter"] == "unknown_field > 0"
+            return httpx.Response(400, text="invalid name `unknown_field`")
+
+        with pytest.raises(httpx.HTTPStatusError) as error:
+            await _get_traces(httpx.MockTransport(handler), is_async, filter="unknown_field > 0")
+        assert error.value.response.status_code == 400
+        assert error.value.response.text == "invalid name `unknown_field`"
+
+    async def test_legacy_filters_keep_their_server_requirement(self, is_async: bool) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/arize_phoenix_version":
+                return httpx.Response(200, text="20.8.0")
+            assert request.url.params["error"] == "false"
+            assert request.url.params["min_latency_ms"] == "0"
+            assert request.url.params["max_latency_ms"] == "500"
+            assert "filter" not in request.url.params
+            return httpx.Response(200, json={"data": [], "next_cursor": None})
+
+        traces = await _get_traces(
+            httpx.MockTransport(handler),
+            is_async,
+            error=False,
+            min_latency_ms=0,
+            max_latency_ms=500,
+        )
+        assert traces == []

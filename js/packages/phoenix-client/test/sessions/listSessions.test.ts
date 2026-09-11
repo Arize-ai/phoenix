@@ -1,12 +1,33 @@
 import { createHttp } from "@arizeai/phoenix-testing";
 import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import type { components } from "../../src/__generated__/api/v1";
+import type { PhoenixClient } from "../../src/client";
+import { HttpError } from "../../src/errors";
 import { listSessions } from "../../src/sessions/listSessions";
 import { createTestClient } from "../testUtils";
 
+vi.unmock("../../src/utils/serverVersionUtils");
+
 const http = createHttp();
+const filterExpression = 'any(span.name == "café & search" for span in spans)';
+
+function createClientAtVersion(
+  version: [number, number, number] = [20, 10, 0]
+): PhoenixClient {
+  const client = createTestClient();
+  vi.spyOn(client, "getServerVersion").mockResolvedValue(version);
+  return client;
+}
 
 const firstSession: components["schemas"]["SessionData"] = {
   id: "session-1",
@@ -48,6 +69,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   server.resetHandlers();
+  vi.restoreAllMocks();
 });
 
 afterAll(() => {
@@ -79,7 +101,7 @@ describe("listSessions", () => {
     );
 
     const sessions = await listSessions({
-      client: createTestClient(),
+      client: createClientAtVersion(),
       project: "my-project",
     });
 
@@ -134,7 +156,7 @@ describe("listSessions", () => {
     );
 
     const sessions = await listSessions({
-      client: createTestClient(),
+      client: createClientAtVersion(),
       project: "my-project",
     });
 
@@ -156,7 +178,115 @@ describe("listSessions", () => {
     );
 
     await expect(
-      listSessions({ client: createTestClient(), project: "my-project" })
+      listSessions({ client: createClientAtVersion(), project: "my-project" })
     ).rejects.toThrow("Failed to list sessions");
+  });
+
+  describe("filter expressions", () => {
+    it("passes the expression unchanged", async () => {
+      let receivedFilter: string | null = null;
+      server.use(
+        http.get(
+          "/v1/projects/{project_identifier}/sessions",
+          ({ query, response }) => {
+            receivedFilter = query.get("filter");
+            return response(200).json({ data: [], next_cursor: null });
+          }
+        )
+      );
+
+      await listSessions({
+        client: createClientAtVersion(),
+        project: "my-project",
+        filter: filterExpression,
+      });
+
+      expect(receivedFilter).toBe(filterExpression);
+    });
+
+    it("rejects unsupported servers before sending a list request", async () => {
+      const client = createClientAtVersion([20, 9, 0]);
+      const get = vi.spyOn(client, "GET");
+
+      await expect(
+        listSessions({
+          client,
+          project: "my-project",
+          filter: filterExpression,
+        })
+      ).rejects.toThrow(/'filter'.*requires Phoenix server >= 20\.10\.0/);
+      expect(get).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, null, ""])(
+      "supports old servers without an expression (%s)",
+      async (filter) => {
+        let hasFilter: boolean | undefined;
+        server.use(
+          http.get(
+            "/v1/projects/{project_identifier}/sessions",
+            ({ query, response }) => {
+              hasFilter = query.has("filter");
+              return response(200).json({ data: [], next_cursor: null });
+            }
+          )
+        );
+
+        await listSessions({
+          client: createClientAtVersion([14, 0, 0]),
+          project: "my-project",
+          filter,
+        });
+
+        expect(hasFilter).toBe(false);
+      }
+    );
+
+    it("preserves filter error messages from the server", async () => {
+      server.use(
+        http.get("/v1/projects/{project_identifier}/sessions", ({ response }) =>
+          response(400).text("invalid name `unknown_field`")
+        )
+      );
+
+      const error = await listSessions({
+        client: createClientAtVersion(),
+        project: "my-project",
+        filter: "unknown_field > 0",
+      }).catch((error: unknown) => error);
+
+      expect(error).toBeInstanceOf(HttpError);
+      if (!(error instanceof HttpError))
+        throw new Error("Expected an HTTP error");
+      expect(error.status).toBe(400);
+      expect(await error.response.text()).toBe("invalid name `unknown_field`");
+    });
+
+    it("preserves the filter through automatic pagination", async () => {
+      const cursors: (string | null)[] = [];
+      const filters: (string | null)[] = [];
+      server.use(
+        http.get(
+          "/v1/projects/{project_identifier}/sessions",
+          ({ query, response }) => {
+            cursors.push(query.get("cursor"));
+            filters.push(query.get("filter"));
+            return response(200).json({
+              data: [],
+              next_cursor: cursors.length === 1 ? "second-page" : null,
+            });
+          }
+        )
+      );
+
+      await listSessions({
+        client: createClientAtVersion(),
+        project: "my-project",
+        filter: filterExpression,
+      });
+
+      expect(cursors).toEqual([null, "second-page"]);
+      expect(filters).toEqual([filterExpression, filterExpression]);
+    });
   });
 });
