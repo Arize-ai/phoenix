@@ -1,15 +1,17 @@
 ---
 name: playground
-description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset. Load before any playground `ui.*` operation call, including single-shot prompt rewrites.
-summary: Author, edit, run, compare, and improve prompts in the Phoenix playground.
+description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset, and drive its evaluator mode to compare evaluators on a dataset sample. Load before any `ui.playground.*` or `ui.evaluatorPlayground.*` operation call, including single-shot prompt rewrites.
+summary: Author, edit, run, compare, and improve prompts in the Phoenix playground, or compare evaluators on a dataset sample in its evaluator mode.
 ---
 
 # Prompt Playground
 
 The prompt playground is a tool for authoring and optimizing prompts. It supports two different
 ways of working: fast manual prompt iteration without a dataset, and dataset-backed prompt
-experimentation with evaluators and experiments. Choose the workflow that matches the user's
-current goal and the UI context they have mounted.
+experimentation with evaluators and experiments. A third mode, the evaluator playground
+(`/playground?mode=evaluators`), turns the same page into a workspace for comparing evaluators
+over a dataset sample. Choose the workflow that matches the user's current goal and the UI context
+they have mounted; the advertised `playground` context carries `mode` (`prompts` or `evaluators`).
 
 The playground actions named below are `ui.*` operations, called from `execute_browser_action` scripts as
 `await ui.<operation>(input)` (for example `await ui.playground.run({})`). Confirm exact input
@@ -108,6 +110,44 @@ compare reruns, re-query earlier experiment IDs from the conversation and diff t
 Experiments from unrecorded runs are ephemeral and the server sweeps them ~24h after their last
 update; a freshly surfaced `experimentId` is well within that window, but an id re-queried from
 much earlier in a long session may no longer resolve.
+
+## Workflow: Compare Evaluators In Evaluator Mode
+
+Use this workflow when the user wants to calibrate an evaluator against a dataset sample or compare
+LLM and code evaluators side by side. The `evaluators` skill owns the judgment being designed
+(labels, rubric, signal location); this workflow covers the workspace mechanics. Evaluator mode is
+controlled only through `ui.evaluatorPlayground.*` operations: `ui.playground.*` operates prompt
+instances and `ui.evaluators.*` operates the separate form dialogs, and neither touches these slots.
+
+1. Navigate to `/playground?mode=evaluators` if it is not mounted; stay there once it is. Discover
+   the exact input shapes with `search_browser_actions`.
+2. Call `ui.evaluatorPlayground.read` for the dataset, splits, sample size, visible slots, run
+   status, expected outputs, and paginated results. Use `ui.evaluatorPlayground.configure` to set
+   the dataset (by Relay node ID), splits, sample size, the visible slots (up to four, `A`–`D`),
+   and the result filter. Changing the dataset or sample clears displayed results.
+3. Load each slot's source with `ui.evaluatorPlayground.selectSlot`: a saved global or dataset
+   evaluator, or a new LLM or code draft. Slots are peers addressed by letter, never by numeric
+   prompt instance ID. A slot with unsaved edits requires `discardChanges`.
+4. Call `ui.evaluatorPlayground.readSlot` before editing and pass its `expectedRevision` to
+   `ui.evaluatorPlayground.editSlot`. Edit the prompt and model or the code and sandbox, the output
+   configs, the selected output, and the input mapping. LLM slots take categorical outputs only.
+5. In this mode the dataset example's `output` is the judged response and `reference` starts
+   empty; inspect actual example content and configure the input mapping rather than assuming the
+   experiment output shape. The example's `metadata.annotations`, where expected outputs are stored
+   as HUMAN annotations, never reaches the evaluator.
+6. Run with `ui.evaluatorPlayground.run`: no `slots` runs every visible slot, `slots: ["B"]` reruns
+   only B and keeps the others' results, and `exampleIds` runs single rows. It awaits completion and
+   returns results; page through them with `read`. Runs are temporary previews, not experiments, so
+   do not enable experiment recording or query experiment results for them. `stop` halts scheduling
+   but lets in-flight requests finish.
+7. Record expected outputs only from judgments the user made or confirmed, with
+   `ui.evaluatorPlayground.setExpectedOutput`, naming the slot, the example's `revisionId`, and its
+   selected output; an expected label must be one of that output's labels. Each slot keeps its own
+   expected outputs and there is no baseline slot; each column reports agreement with its own.
+8. Save a slot only when the user asks, with `ui.evaluatorPlayground.saveSlot`. `readSlot` reports
+   the slot's `saveTarget`: `update` overwrites the evaluator loaded into the slot, `attach` updates
+   a shared code evaluator and adds it to the dataset, and `create` saves a new dataset evaluator
+   (set a name via `editSlot` first). Loading and running never save.
 
 ## Workflow: Author, Refine, Or Remove A Function Tool
 

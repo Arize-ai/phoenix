@@ -137,6 +137,7 @@ import {
 } from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
 import { PlaygroundInput } from "./PlaygroundInput";
+import { PlaygroundModeSelect } from "./PlaygroundModeSelect";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
@@ -209,10 +210,13 @@ export function Playground(
           <PageHeader
             title="Playground"
             extra={
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <PlaygroundCredentialsDropdown />
-                <PlaygroundConfigButton />
-                <PlaygroundRunButton />
+              <Flex direction="row" gap="size-300" alignItems="center">
+                <PlaygroundModeSelect />
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <PlaygroundCredentialsDropdown />
+                  <PlaygroundConfigButton />
+                  <PlaygroundRunButton />
+                </Flex>
               </Flex>
             }
           />

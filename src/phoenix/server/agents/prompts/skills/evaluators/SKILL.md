@@ -14,6 +14,10 @@ sent to a model) — share the loop and discipline below; judgment structure fol
 environment capability, not artifact kind. The `experiments` skill reads the scores you design
 here; the explanations you enable are its evidence channel when comparing runs.
 
+This skill is about the judgment itself, not the surface it is edited on. Evaluator form dialogs
+and the playground's evaluator mode (`/playground?mode=evaluators`) have their own mechanics; the
+`playground` skill covers the latter.
+
 ## The Authoring Loop
 
 1. Derive the grading task from the stated purpose — a hypothesis and its evaluator are one design:
@@ -25,7 +29,11 @@ here; the explanations you enable are its evidence channel when comparing runs.
    the stated purpose lacks the failure mode, target output field, or acceptable tradeoff.
 3. Decide the labels. Choose a small, mutually exclusive, collectively exhaustive set — often
    binary (`correct`/`incorrect`, `pass`/`fail`). Add labels only to distinguish failure modes that
-   matter; every extra label adds boundary ambiguity.
+   matter; every extra label adds boundary ambiguity. An LLM evaluator is always categorical: the
+   judge picks a label, and the score is the score attached to that label. When the user asks an
+   LLM judge for a numeric scale, define scored labels (e.g. `poor`=0, `fair`=0.5, `good`=1);
+   never give an LLM evaluator a continuous or freeform output — the server rejects it on run and
+   save. Only code evaluators may return a free numeric score.
 4. Locate the signal in the run's fields — a top-level key, a chat-style `messages` array,
    assistant content parts, `tool_calls`, or a `function_call` — by inspecting the actual shape.
 5. Write the judgment: a function that reads the field and returns the label or score, or a judge

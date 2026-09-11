@@ -129,6 +129,8 @@ export const playgroundPageLoader = async ({
 }: LoaderFunctionArgs): Promise<PlaygroundPageLoaderData> => {
   const url = new URL(request.url);
 
+  if (url.searchParams.get("mode") === "evaluators") return null;
+
   // Check for experiment rehydration first
   const experimentId = url.searchParams.get("experimentId");
   if (experimentId) {

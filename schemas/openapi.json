@@ -13399,6 +13399,50 @@
         "title": "DynamicToolOutputDeniedPart",
         "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
       },
+      "EvaluatorPlaygroundSlotUIContext": {
+        "properties": {
+          "slot": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "title": "Slot"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE"
+            ],
+            "title": "Kind"
+          },
+          "isDirty": {
+            "type": "boolean",
+            "title": "Isdirty",
+            "default": false
+          },
+          "isRunning": {
+            "type": "boolean",
+            "title": "Isrunning",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "slot",
+          "name",
+          "kind"
+        ],
+        "title": "EvaluatorPlaygroundSlotUIContext"
+      },
       "Experiment": {
         "properties": {
           "id": {
@@ -16579,6 +16623,33 @@
             "type": "string",
             "const": "playground",
             "title": "Type"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "prompts",
+              "evaluators"
+            ],
+            "title": "Mode",
+            "default": "prompts"
+          },
+          "evaluatorSlots": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluatorPlaygroundSlotUIContext"
+            },
+            "type": "array",
+            "title": "Evaluatorslots"
+          },
+          "sampleSize": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Samplesize"
           },
           "recordExperiments": {
             "type": "boolean",

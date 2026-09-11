@@ -173,3 +173,18 @@ If however you run a prompt over dataset examples, the outputs and spans from yo
 <Frame caption="If you run over a dataset, the output and traces is tracked as a dataset experiment">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/93a48c27-image.jpeg" />
 </Frame>
+
+
+## Comparing evaluators
+
+Select **Evaluators** at the top of the playground to try LLM and code evaluators against a sample of a dataset, record the outputs you expected, and compare up to four evaluators side by side. You can also open an evaluator here from the evaluators table, from a dataset evaluator's actions, or from the evaluator picker in prompt mode.
+
+1. In the **Results** panel, select a dataset and optional splits. Use the run settings to choose a sample size from 1 to 500 examples (default: 20). Evaluators run over the first examples of the dataset.
+2. In slot A, pick an existing evaluator or start a new LLM or code evaluator. Configure its **Prompt** or **Code**, **Input mapping**, and **Output** tabs. Code evaluators need a configured sandbox.
+3. Click **Add evaluator** to add slots B through D. Each slot is independent and can hold a different evaluator type.
+4. Click **Run all** to run every slot. The play button in an evaluator's column header runs only that evaluator, and the play button on a row runs every evaluator on that one example. Inspect labels, scores, explanations, and errors in the results table.
+5. Record what you expected. Thumbs up accepts an evaluator's result as the expected output; thumbs down opens a form for the label or score that was expected. The band under each result shows the expected output and flags results that differ from it. Each evaluator's column header counts the examples with an expected output and how many results agree with it.
+6. Edit an evaluator and run again. Results produced by an older draft are marked as changed since the run. Filter the table to **Missing expected**, **Errors**, or **Mismatches** to focus on what needs attention.
+7. To keep an evaluator, click **Save**. The dialog asks for a name and description (the same name as in **Output**) and states what will happen: a new draft becomes an evaluator attached to the selected dataset, an evaluator already on the dataset is updated in place, and a code evaluator from elsewhere is updated and added to the dataset. Click **Save as new** to leave a loaded evaluator unchanged and save a copy named after it with a `_copy` suffix, which you can rename later. Drafts and run results are otherwise temporary.
+
+In evaluator mode, the dataset example's `output` is the response being judged and the `reference` context starts empty. Use **Input mapping** to point evaluator variables at other fields. Expected outputs are stored on the dataset example as human annotations under the `annotations` key of its metadata, named after the evaluator (or `evaluator.output` for an evaluator with several outputs), so evaluators with the same name share them. They are written in batches as new dataset versions and are never passed to the evaluators. The results table hides the `annotations` key in metadata cells by default; turn this off in the run settings. **Stop** stops scheduling new requests, but requests already running may finish.
