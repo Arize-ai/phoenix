@@ -28,3 +28,6 @@ export * from "./addRowRangeToSelection";
 export * from "./constants";
 export * from "./RowSelectionColumn";
 export * from "./useShiftClickRowSelection";
+
+// Editing
+export * from "./editing";
