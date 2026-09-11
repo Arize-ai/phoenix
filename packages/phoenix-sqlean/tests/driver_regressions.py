@@ -313,6 +313,18 @@ class CursorRegressionTests(unittest.TestCase):
         # The handler's exception must not leak into unrelated calls.
         self.assertEqual(self.cx.execute("select 2").fetchone()[0], 2)
 
+    def test_load_extension_failure(self):
+        # A failed load raises cleanly (and no longer leaks the SQLite
+        # error message buffer, which is not observable from here).
+        if not hasattr(self.cx, "enable_load_extension"):
+            self.skipTest("load-extension support not compiled in")
+        self.cx.enable_load_extension(True)
+        try:
+            with self.assertRaises(sqlite.OperationalError):
+                self.cx.load_extension("no-such-extension")
+        finally:
+            self.cx.enable_load_extension(False)
+
 
 def suite():
     loader = unittest.TestLoader()

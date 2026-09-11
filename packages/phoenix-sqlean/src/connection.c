@@ -1607,7 +1607,7 @@ static PyObject* pysqlite_load_extension(pysqlite_Connection* self, PyObject* ar
 {
     int rc;
     char* extension_name;
-    char* errmsg;
+    char* errmsg = NULL;
 
     if (!pysqlite_check_thread(self) || !pysqlite_check_connection(self)) {
         return NULL;
@@ -1619,7 +1619,13 @@ static PyObject* pysqlite_load_extension(pysqlite_Connection* self, PyObject* ar
 
     rc = sqlite3_load_extension(self->db, extension_name, 0, &errmsg);
     if (rc != 0) {
-        PyErr_SetString(pysqlite_OperationalError, errmsg);
+        if (errmsg != NULL) {
+            PyErr_SetString(pysqlite_OperationalError, errmsg);
+            sqlite3_free(errmsg);
+        } else {
+            PyErr_SetString(pysqlite_OperationalError,
+                            "unable to load extension");
+        }
         return NULL;
     } else {
         Py_RETURN_NONE;
