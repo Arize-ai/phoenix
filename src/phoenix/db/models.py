@@ -51,7 +51,7 @@ from sqlalchemy.sql import Values, column, compiler, expression, literal, roles,
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.elements import Case
 from sqlalchemy.sql.functions import coalesce
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self, TypeAlias, TypeAliasType
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
@@ -189,7 +189,7 @@ EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
 SandboxBackendType: TypeAlias = Literal[
     "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY"
 ]
-LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
+LanguageName = TypeAliasType("LanguageName", Literal["PYTHON", "TYPESCRIPT"])
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
