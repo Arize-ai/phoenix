@@ -6,7 +6,7 @@ import type {
   EditableTableSession,
   EditableTableState,
   EditableTableStore,
-} from "@phoenix/types/editableTable";
+} from "@phoenix/types/table";
 
 export type CreateEditableTableStoreOptions<Row extends object> = {
   /**

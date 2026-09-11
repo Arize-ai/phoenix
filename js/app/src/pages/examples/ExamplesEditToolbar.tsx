@@ -14,7 +14,7 @@ import {
   TriggerWrap,
 } from "@phoenix/components";
 import { EditableTableToolbar } from "@phoenix/components/table";
-import type { EditableTableStore } from "@phoenix/types/editableTable";
+import type { EditableTableStore } from "@phoenix/types/table";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";

@@ -32,7 +32,7 @@ import { EDITABLE_TABLE_CHANGE_KINDS } from "@phoenix/components/table";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getEditableTableChangeCounts } from "@phoenix/store/editableTableStore";
-import type { EditableTableStore } from "@phoenix/types/editableTable";
+import type { EditableTableStore } from "@phoenix/types/table";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SaveDatasetExamplesDialogMutation } from "./__generated__/SaveDatasetExamplesDialogMutation.graphql";
