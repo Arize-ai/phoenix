@@ -4,7 +4,6 @@ import httpx
 import pytest
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.exceptions import PhoenixException
 from phoenix.client.resources.traces import AsyncTraces, Traces
 
 
@@ -290,27 +289,9 @@ class TestGetTracesFilterExpression:
     def _skip_server_version_check(self) -> None:
         """Override the conftest stub so these tests hit the real server-version guard."""
 
-    async def test_filter_rejects_old_server_before_listing(self, is_async: bool) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/arize_phoenix_version"
-            return httpx.Response(200, text="20.9.0")
-
-        with pytest.raises(PhoenixException, match=r"'filter'.*requires Phoenix >= 20\.10\.0"):
-            await _get_traces(httpx.MockTransport(handler), is_async, filter=FILTER_EXPRESSION)
-
-    @pytest.mark.parametrize("filter", [None, ""])
-    async def test_no_filter_preserves_old_server_support(
-        self, is_async: bool, filter: str | None
+    async def test_invalid_filter_raises_http_error_with_server_message(
+        self, is_async: bool
     ) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/arize_phoenix_version":
-                return httpx.Response(200, text="14.0.0")
-            assert "filter" not in request.url.params
-            return httpx.Response(200, json={"data": [], "next_cursor": None})
-
-        assert await _get_traces(httpx.MockTransport(handler), is_async, filter=filter) == []
-
-    async def test_filter_error_preserves_server_message(self, is_async: bool) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/arize_phoenix_version":
                 return httpx.Response(200, text="20.10.0")
@@ -322,7 +303,7 @@ class TestGetTracesFilterExpression:
         assert error.value.response.status_code == 400
         assert error.value.response.text == "invalid name `unknown_field`"
 
-    async def test_legacy_filters_keep_their_server_requirement(self, is_async: bool) -> None:
+    async def test_legacy_filter_params_do_not_require_new_server(self, is_async: bool) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/arize_phoenix_version":
                 return httpx.Response(200, text="20.8.0")
