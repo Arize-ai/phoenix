@@ -63,7 +63,10 @@ export const centeredModalCSS = css`
   }
 
   &[data-exiting] {
-    animation: ${modalFade} 200ms reverse ease-in;
+    // The overlay's exit runs longer than this one and keeps the modal mounted
+    // after it ends, so hold the final frame or the modal snaps back to full
+    // opacity for the remainder.
+    animation: ${modalFade} 200ms reverse ease-in forwards;
   }
 
   .react-aria-Dialog {
@@ -144,7 +147,7 @@ export const modalBackdropCSS = css`
 
   &[data-exiting] {
     // ensure overlay animation is longer than child animations
-    animation: ${modalFade} 300ms reverse ease-in;
+    animation: ${modalFade} 300ms reverse ease-in forwards;
   }
 `;
 
