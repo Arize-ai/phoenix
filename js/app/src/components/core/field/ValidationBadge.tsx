@@ -1,15 +1,13 @@
-import type { SerializedStyles } from "@emotion/react";
 import { css, keyframes } from "@emotion/react";
 import type { ReactNode } from "react";
 import { Pressable } from "react-aria";
 
+import { getSeverityIcon } from "@phoenix/components/core/alert/getSeverityIcon";
 import { Text } from "@phoenix/components/core/content";
-import { Icon, Icons } from "@phoenix/components/core/icon";
 import { Flex } from "@phoenix/components/core/layout";
-import { Tooltip, TooltipTrigger } from "@phoenix/components/core/tooltip";
+import { Tooltip } from "@phoenix/components/core/tooltip";
 import type { TooltipProps } from "@phoenix/components/core/tooltip";
-
-export type ValidationBadgeSeverity = "danger" | "warning";
+import type { SeverityLevel } from "@phoenix/components/core/types";
 
 /**
  * Grows a badge out from its leading edge. Animating max-width alongside
@@ -37,21 +35,27 @@ const validationBadgeCSS = css`
   line-height: var(--global-line-height-xs);
   white-space: nowrap;
   cursor: default;
+  color: var(--validation-badge-color);
+  background-color: color-mix(
+    in srgb,
+    var(--validation-badge-color) 10%,
+    transparent
+  );
   animation: ${validationBadgeGrowIn} 0.25s ease-out;
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
-  &[data-severity="danger"] {
-    background-color: var(--global-color-danger-100);
-    color: var(--global-color-danger);
+  &[data-variant="danger"] {
+    --validation-badge-color: var(--global-color-danger);
   }
-  &[data-severity="warning"] {
-    background-color: color-mix(
-      in srgb,
-      var(--global-color-warning) 10%,
-      transparent
-    );
-    color: var(--global-color-warning);
+  &[data-variant="warning"] {
+    --validation-badge-color: var(--global-color-warning);
+  }
+  &[data-variant="info"] {
+    --validation-badge-color: var(--global-color-info);
+  }
+  &[data-variant="success"] {
+    --validation-badge-color: var(--global-color-success);
   }
   .icon-wrap {
     flex-shrink: 0;
@@ -68,62 +72,75 @@ const validationBadgeCSS = css`
 
 export type ValidationBadgeProps = {
   /** Accessible name for the badge, e.g. "Filter condition error". */
-  ariaLabel: string;
-  /** The short message shown in the badge itself. Truncates past 200px. */
-  message: string;
-  /** Heading of the tooltip that carries the full story. */
-  title: string;
-  /** Detail rendered below the tooltip title. */
-  children?: ReactNode;
+  "aria-label": string;
+  /** The short message shown in the badge. Truncates past 200px. */
+  children: string;
   /** @default "danger" */
-  severity?: ValidationBadgeSeverity;
-  /** @default "top" */
-  tooltipPlacement?: TooltipProps["placement"];
-  /** Extra styles for the tooltip surface. */
-  tooltipCSS?: SerializedStyles;
+  variant?: SeverityLevel;
 };
 
 /**
- * A passive validation status: a small tinted badge previewing the problem
- * whose tooltip carries the full message on hover or focus. It lives inline
- * beside other controls so it never pushes content around or competes with
- * the input for attention the way a banner does.
+ * A passive validation status: a small tinted badge previewing a problem. It
+ * lives inline beside other controls so it never pushes content around or
+ * competes with the input for attention the way a banner does.
+ *
+ * The badge is a focusable trigger. Compose it inside a `TooltipTrigger` with
+ * a `ValidationTooltip` to carry the full message on hover or focus.
  */
 export function ValidationBadge({
-  ariaLabel,
-  message,
-  title,
+  "aria-label": ariaLabel,
   children,
-  severity = "danger",
-  tooltipPlacement = "top",
-  tooltipCSS,
+  variant = "danger",
 }: ValidationBadgeProps) {
   return (
-    <TooltipTrigger delay={0}>
-      <Pressable>
-        <div
-          role="button"
-          tabIndex={0}
-          className="validation-badge"
-          css={validationBadgeCSS}
-          data-severity={severity}
-          aria-label={ariaLabel}
-        >
-          <Icon svg={<Icons.AlertCircle />} color={severity} />
-          <span className="validation-badge__message">{message}</span>
-        </div>
-      </Pressable>
-      <Tooltip placement={tooltipPlacement} css={tooltipCSS}>
-        <Flex direction="row" gap="size-100" alignItems="start">
-          <Icon svg={<Icons.AlertCircle />} color={severity} />
-          <Flex direction="column" gap="size-25">
-            <Text size="S" weight="heavy">
-              {title}
-            </Text>
-            {children}
-          </Flex>
+    <Pressable>
+      <div
+        role="button"
+        tabIndex={0}
+        className="validation-badge"
+        css={validationBadgeCSS}
+        data-variant={variant}
+        aria-label={ariaLabel}
+      >
+        {getSeverityIcon(variant, { filled: false })}
+        <span className="validation-badge__message">{children}</span>
+      </div>
+    </Pressable>
+  );
+}
+
+export type ValidationTooltipProps = Omit<TooltipProps, "children"> & {
+  /** Heading of the tooltip. */
+  title: string;
+  /** Detail rendered below the title. */
+  children?: ReactNode;
+  /** @default "danger" */
+  variant?: SeverityLevel;
+};
+
+/**
+ * The tooltip half of a validation status: the severity icon beside a heavy
+ * title with the detail below. Every other `Tooltip` prop passes through, so
+ * a composition can place and style it like any tooltip.
+ */
+export function ValidationTooltip({
+  title,
+  children,
+  variant = "danger",
+  placement = "top",
+  ...tooltipProps
+}: ValidationTooltipProps) {
+  return (
+    <Tooltip placement={placement} {...tooltipProps}>
+      <Flex direction="row" gap="size-100" alignItems="start">
+        {getSeverityIcon(variant, { filled: false })}
+        <Flex direction="column" gap="size-25">
+          <Text size="S" weight="heavy">
+            {title}
+          </Text>
+          {children}
         </Flex>
-      </Tooltip>
-    </TooltipTrigger>
+      </Flex>
+    </Tooltip>
   );
 }

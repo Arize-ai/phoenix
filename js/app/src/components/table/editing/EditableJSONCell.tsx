@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { CellContext } from "@tanstack/react-table";
 import { useState } from "react";
-import { Button as UnstyledButton } from "react-aria-components";
+import { Button as AriaButton } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import {
@@ -13,7 +13,9 @@ import {
   Modal,
   ModalOverlay,
   Text,
+  TooltipTrigger,
   ValidationBadge,
+  ValidationTooltip,
   VisuallyHidden,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code/JSONEditor";
@@ -274,7 +276,7 @@ export function EditableJSONCell<
 
   return (
     <>
-      <UnstyledButton
+      <AriaButton
         data-cell-edit-trigger
         data-dirty={cell.isDirty}
         css={cellTriggerCSS}
@@ -295,7 +297,7 @@ export function EditableJSONCell<
             collapseSingleKey={false}
           />
         </span>
-      </UnstyledButton>
+      </AriaButton>
       <ModalOverlay
         isOpen={isOpen}
         onOpenChange={(nextIsOpen) => {
@@ -331,15 +333,16 @@ export function EditableJSONCell<
               <DialogFooter>
                 <span css={footerStatusCSS}>
                   {settledError ? (
-                    <ValidationBadge
-                      ariaLabel="Validation error"
-                      message={settledError.message}
-                      title={settledError.message}
-                    >
-                      <Text size="S" color="text-700">
-                        {settledError.detail}
-                      </Text>
-                    </ValidationBadge>
+                    <TooltipTrigger delay={0}>
+                      <ValidationBadge aria-label="Validation error">
+                        {settledError.message}
+                      </ValidationBadge>
+                      <ValidationTooltip title={settledError.message}>
+                        <Text size="S" color="text-700">
+                          {settledError.detail}
+                        </Text>
+                      </ValidationTooltip>
+                    </TooltipTrigger>
                   ) : (
                     <>
                       <KeyboardToken variant="quiet">

@@ -43,11 +43,15 @@ import {
   IconButton,
   Icons,
   Text,
+  TooltipTrigger,
   VisuallyHidden,
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
-import type { ValidationBadgeSeverity } from "@phoenix/components/core/field";
-import { ValidationBadge } from "@phoenix/components/core/field";
+import {
+  ValidationBadge,
+  ValidationTooltip,
+} from "@phoenix/components/core/field";
+import type { SeverityLevel } from "@phoenix/components/core/types";
 import { useTheme } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -414,12 +418,11 @@ export type DSLFilterConditionFieldProps<
 };
 
 /**
- * The field's validation badge: a `ValidationBadge` placed in the control
- * cluster, with its tooltip styled to match the typeahead menu so the field's
- * floating surfaces all read as one family. One shell shared by the
- * validation error, validator-supplied warnings, and composed error states
- * (e.g. an AI conversion failure). `children` is the tooltip's detail below
- * the title.
+ * The field's validation badge and its tooltip, composed so the tooltip is
+ * styled to match the typeahead menu and the field's floating surfaces all
+ * read as one family. One shell shared by the validation error,
+ * validator-supplied warnings, and composed error states (e.g. an AI
+ * conversion failure). `children` is the tooltip's detail below the title.
  */
 export function DSLFilterErrorBadge({
   ariaLabel,
@@ -431,20 +434,23 @@ export function DSLFilterErrorBadge({
   ariaLabel: string;
   badgeMessage: string;
   title: string;
-  severity?: ValidationBadgeSeverity;
+  severity?: SeverityLevel;
   children?: ReactNode;
 }) {
   return (
-    <ValidationBadge
-      ariaLabel={ariaLabel}
-      message={badgeMessage}
-      title={title}
-      severity={severity}
-      tooltipPlacement="bottom end"
-      tooltipCSS={dslFilterErrorTooltipCSS}
-    >
-      {children}
-    </ValidationBadge>
+    <TooltipTrigger delay={0}>
+      <ValidationBadge aria-label={ariaLabel} variant={severity}>
+        {badgeMessage}
+      </ValidationBadge>
+      <ValidationTooltip
+        title={title}
+        variant={severity}
+        placement="bottom end"
+        css={dslFilterErrorTooltipCSS}
+      >
+        {children}
+      </ValidationTooltip>
+    </TooltipTrigger>
   );
 }
 
