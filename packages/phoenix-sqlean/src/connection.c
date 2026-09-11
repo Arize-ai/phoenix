@@ -669,10 +669,16 @@ _pysqlite_set_result(sqlite3_context* context, PyObject* py_val)
     } else if (PyFloat_Check(py_val)) {
         sqlite3_result_double(context, PyFloat_AsDouble(py_val));
     } else if (PyUnicode_Check(py_val)) {
-        const char *str = PyUnicode_AsUTF8(py_val);
+        Py_ssize_t sz;
+        const char *str = PyUnicode_AsUTF8AndSize(py_val, &sz);
         if (str == NULL)
             return -1;
-        sqlite3_result_text(context, str, -1, SQLITE_TRANSIENT);
+        if (sz > INT_MAX) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "string longer than INT_MAX bytes");
+            return -1;
+        }
+        sqlite3_result_text(context, str, (int)sz, SQLITE_TRANSIENT);
     } else if (PyObject_CheckBuffer(py_val)) {
         Py_buffer view;
         if (PyObject_GetBuffer(py_val, &view, PyBUF_SIMPLE) != 0) {
@@ -719,7 +725,16 @@ PyObject* _pysqlite_build_py_params(sqlite3_context *context, int argc, sqlite3_
                 break;
             case SQLITE_TEXT:
                 val_str = (const char*)sqlite3_value_text(cur_value);
-                cur_py_value = PyUnicode_FromString(val_str);
+                if (val_str == NULL) {
+                    /* sqlite3_value_text() only fails on OOM */
+                    PyErr_NoMemory();
+                    cur_py_value = NULL;
+                    break;
+                }
+                /* value_bytes() must be called after value_text(): the
+                   text conversion can change the byte count. */
+                buflen = sqlite3_value_bytes(cur_value);
+                cur_py_value = PyUnicode_FromStringAndSize(val_str, buflen);
                 /* TODO: have a way to show errors here */
                 if (!cur_py_value) {
                     PyErr_Clear();

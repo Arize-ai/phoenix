@@ -234,6 +234,33 @@ class ConnectionLifecycleRegressionTests(unittest.TestCase):
             target.close()
 
 
+class CursorRegressionTests(unittest.TestCase):
+    def setUp(self):
+        self.cx = sqlite.connect(":memory:")
+        self.cx.execute("create table test(i int)")
+        self.cx.executemany(
+            "insert into test(i) values (?)", [(i,) for i in range(10)]
+        )
+
+    def tearDown(self):
+        self.cx.close()
+
+    def test_udf_text_with_embedded_nul(self):
+        # Function arguments and results were marshalled with
+        # NUL-terminated string APIs, truncating TEXT values at the
+        # first embedded NUL byte in both directions.
+        self.cx.create_function("gen", 0, lambda: "a\x00b")
+        self.cx.create_function("echo", 1, lambda v: v)
+        # Result direction: the full value reaches SQLite.  (length()
+        # deliberately counts only up to the first NUL; octet_length()
+        # reports the stored bytes.)
+        self.assertEqual(
+            self.cx.execute("select octet_length(gen())").fetchone()[0], 3
+        )
+        # Argument direction: the full value reaches Python.
+        self.assertEqual(self.cx.execute("select echo(gen())").fetchone()[0], "a\x00b")
+
+
 def suite():
     loader = unittest.TestLoader()
     return unittest.TestSuite(
@@ -241,6 +268,7 @@ def suite():
             loader.loadTestsFromTestCase(BlobRegressionTests),
             loader.loadTestsFromTestCase(FactoryMemberRegressionTests),
             loader.loadTestsFromTestCase(ConnectionLifecycleRegressionTests),
+            loader.loadTestsFromTestCase(CursorRegressionTests),
         )
     )
 
